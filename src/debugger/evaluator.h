@@ -125,13 +125,13 @@ public:
         FrameLevel frameLevel,
         WalkStackVarsCallback cb);
 
-    HRESULT Evaluator::GetMethodClass(
+    HRESULT GetMethodClass(
         ICorDebugThread *pThread,
         FrameLevel frameLevel,
         std::string &methodClass,
         bool &thisParam);
 
-    HRESULT Evaluator::LookupExtensionMethods(
+    HRESULT LookupExtensionMethods(
         ICorDebugType *pType,
         const std::string &methodName,
         std::vector<Evaluator::ArgElementType> &methodArgs,
