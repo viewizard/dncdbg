@@ -9,7 +9,9 @@ endif()
 
 # Build corguids static library from coreclr source files
 if (NOT WIN32)
-    add_compile_options(-Wno-extra-tokens)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-Wno-extra-tokens)
+    endif()
 endif()
 add_compile_options(-D_MIDL_USE_GUIDDEF_)
 file(GLOB CORGUIDS_SOURCES "${CORECLR_SRC_DIR}/pal/prebuilt/idl/*_i.cpp")
