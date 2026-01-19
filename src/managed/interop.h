@@ -4,10 +4,15 @@
 
 // Copyright (c) 2017 Samsung Electronics Co., LTD
 #pragma once
-#include "utils/platform.h"
 
-#include "cor.h"
-#include "cordebug.h"
+#pragma warning (disable:4068)  // Visual Studio should ignore GCC pragmas
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#include <cor.h>
+#include <cordebug.h>
+#pragma GCC diagnostic pop
+
+#include "utils/platform.h"
 
 #include <string>
 #include <vector>
