@@ -48,5 +48,5 @@ namespace BuildInfo
 } // netcoredbg
 
 // String containing version, build type and VCS revision combined (for external components, like logger).
-extern const char __version[] = STRINGIFY(VERSION) "-" STRINGIFY(BUILD_TYPE) "-" STRINGIFY(NETCOREDBG_VCS_INFO);
+extern const char _version[] = STRINGIFY(VERSION) "-" STRINGIFY(BUILD_TYPE) "-" STRINGIFY(NETCOREDBG_VCS_INFO);
 

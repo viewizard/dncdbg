@@ -2,5 +2,4 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-// WARNING: do not modify this file! Generated automatically.
-static const char __VERSION[] = "3.1.3-1";
+static const char _VERSION[] = "0.0.1";
