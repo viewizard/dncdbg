@@ -429,22 +429,6 @@ if (BUILD_MANAGED AND NCDB_DOTNET_STARTUP_HOOK)
     install(FILES ${NCDBHOOK_DOTNET_BUILD_RESULT} DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
 
-# documentation
-option(BUILD_DOC "Build documentation" OFF)
-if (BUILD_DOC)
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.doxyfile ${CMAKE_CURRENT_BINARY_DIR}/doxyfile)
-    add_custom_target(doxygen ALL
-        COMMAND ${DOXYGEN_EXECUTABLE} -s ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating doxygen documentation..."
-        VERBATIM)
-else()
-    message("Doxygen need to be installed to generate documentation")
-endif()
-endif()
-
 # unit tests
 if (BUILD_TESTING)
     add_subdirectory(unittests)
