@@ -1,8 +1,0 @@
-<manifest>
- <request>
-    <domain name="_"/>
- </request>
- <assign>
-    <filesystem path="/home/owner/share/tmp/sdk_tools/netcoredbg/netcoredbg" exec_label="User"/>
- </assign>
-</manifest>

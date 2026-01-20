@@ -83,13 +83,6 @@ if (NOT "${DOTNET_DIR}" STREQUAL "")
 endif()
 
 
-# Determine version, VERSION macro might be passed via command line.
-include(rpmbuild.cmake)
-if("${VERSION}x" STREQUAL "x")
-    # If not -- find *.spec file name (perhaps netcoredbg.spec) and extract version
-    RPMVersion(VERSION)
-endif()
- 
 # Get references to VCS revision for Netcoredbg itself and CoreCLR
 # (this used in src/debug/netcoredbg/CMakeLists.txt)
 include(vcsinfo.cmake)

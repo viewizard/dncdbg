@@ -20,7 +20,6 @@
 // should be provided by buildsystem (CMake, etc...)
 
 #include "buildinfo.h"
-#include "version.h"
 
 #define STRINGIFY_(v) #v
 #define STRINGIFY(v) STRINGIFY_(v)
@@ -30,7 +29,7 @@ namespace netcoredbg
 
 namespace BuildInfo
 {
-    const char version[] = STRINGIFY(VERSION);
+    const char version[] = "0.0.1";
     const char build_type[] = STRINGIFY(BUILD_TYPE);
 
     const char netcoredbg_vcs_info[] = STRINGIFY(NETCOREDBG_VCS_INFO);
@@ -41,12 +40,6 @@ namespace BuildInfo
 
     const char date[]     = __DATE__;
     const char time[]     = __TIME__;
-
-    const char hostname[] = STRINGIFY(HOSTNAME);
 }
 
 } // netcoredbg
-
-// String containing version, build type and VCS revision combined (for external components, like logger).
-extern const char _version[] = STRINGIFY(VERSION) "-" STRINGIFY(BUILD_TYPE) "-" STRINGIFY(NETCOREDBG_VCS_INFO);
-

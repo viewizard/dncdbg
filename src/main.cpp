@@ -18,7 +18,6 @@
 #include "utils/utf.h"
 #include "utils/logger.h"
 #include "buildinfo.h"
-#include "version.h"
 
 #ifdef INTEROP_DEBUGGING
 #include "debugger/sigaction.h"
@@ -81,20 +80,18 @@ static void print_help()
 
 static void print_buildinfo()
 {
-    printf(".NET Core debugger %s (%s)\n", _VERSION, BuildInfo::version);
+    printf(".NET Core debugger %s\n", BuildInfo::version);
 
     printf(
         "\nBuild info:\n"
         "      Build type:  %s\n"
         "      Build date:  %s %s\n"
         "      Target OS:   %s\n"
-        "      Target arch: %s\n"
-        "      Hostname:    %s\n\n",
+        "      Target arch: %s\n\n",
             BuildInfo::build_type,
             BuildInfo::date, BuildInfo::time,
             BuildInfo::os_name,
-            BuildInfo::cpu_arch,
-            BuildInfo::hostname
+            BuildInfo::cpu_arch
     );
 
     printf("NetcoreDBG VCS info:  %s\n", BuildInfo::netcoredbg_vcs_info);
@@ -344,9 +341,10 @@ int
         } },
         { "--version", [&](int& i){
 
-            fprintf(stdout, "NET Core debugger %s (%s, %s)\n",
-                _VERSION, BuildInfo::netcoredbg_vcs_info, BuildInfo::build_type);
-            fprintf(stdout, "\nCopyright (c) 2020 Samsung Electronics Co., LTD\n");
+            fprintf(stdout, "NET Core debugger %s (%s, %s)\n\n",
+                BuildInfo::version, BuildInfo::netcoredbg_vcs_info, BuildInfo::build_type);
+            fprintf(stdout, "Copyright (c) 2017-2025 Samsung Electronics Co., LTD\n");
+            fprintf(stdout, "Copyright (c) 2026 Mikhail Kurinnoi\n");
             fprintf(stdout, "Distributed under the MIT License.\n");
             fprintf(stdout, "See the LICENSE file in the project root for more information.\n");
             exit(EXIT_SUCCESS);
