@@ -1,1 +1,0 @@
-/netcoredbg/third_party/
