@@ -241,12 +241,14 @@ int
     // prevent std::cout flush triggered by read operation on std::cin
     std::cin.tie(nullptr);
 
-    ProtocolConstructor protocol_constructor =
+    ProtocolConstructor protocol_constructor = &instantiate_protocol<VSCodeProtocol>;
+    /*
 #ifdef DEBUGGER_FOR_TIZEN
         &instantiate_protocol<MIProtocol>;
 #else
         _isatty(_fileno(stdin)) ?  &instantiate_protocol<CLIProtocol> : &instantiate_protocol<MIProtocol>;
 #endif
+*/
 
     bool engineLogging = false;
     std::string logFilePath;

@@ -21,6 +21,5 @@ namespace NetcoreDbgTestCore
         public string SourceFilesPath = null;
         public string TargetAssemblyPath = null;
         public string CorerunPath = "dotnet";
-        public string SDB = "sdb";
     }
 }

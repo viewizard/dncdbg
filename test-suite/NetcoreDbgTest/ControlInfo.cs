@@ -10,7 +10,6 @@ namespace NetcoreDbgTest
         public string SourceFilesPath { get; private set; }
         public string TargetAssemblyPath { get; private set; }
         public string CorerunPath { get; private set; }
-        public string SDB { get; private set; }
 
         public ControlInfo(ControlScript script,
                            NetcoreDbgTestCore.Environment env)
@@ -20,7 +19,6 @@ namespace NetcoreDbgTest
             SourceFilesPath = env.SourceFilesPath;
             TargetAssemblyPath = env.TargetAssemblyPath;
             CorerunPath = env.CorerunPath;
-            SDB = env.SDB;
         }
     }
 }

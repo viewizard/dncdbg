@@ -2,7 +2,6 @@ namespace NetcoreDbgTestCore
 {
     public enum ProtocolType {
         None,
-        MI,
         VSCode,
     }
 
