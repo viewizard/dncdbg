@@ -2,7 +2,7 @@ namespace NetcoreDbgTestCore
 {
     public enum ProtocolType {
         None,
-        VSCode,
+        DAP,
     }
 
     public class DebuggerClient

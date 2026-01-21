@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 using LocalDebugger;
 using NetcoreDbgTestCore;
-using NetcoreDbgTestCore.VSCode;
+using NetcoreDbgTestCore.DAP;
 
 namespace TestRunner
 {
@@ -34,7 +34,7 @@ namespace TestRunner
                 localDebugger = new LocalDebuggerProcess(localClientInfo.DebuggerPath, @"");
                 localDebugger.Start();
 
-                debugger = new VSCodeLocalDebuggerClient(localDebugger.Input, localDebugger.Output);
+                debugger = new DAPLocalDebuggerClient(localDebugger.Input, localDebugger.Output);
             }
             catch {
                 Console.Error.WriteLine("Can't create debugger client");
@@ -224,7 +224,7 @@ options:
         }
 
         public bool NeedHelp = false;
-        public ProtocolType Protocol = ProtocolType.VSCode;
+        public ProtocolType Protocol = ProtocolType.DAP;
         public NetcoreDbgTestCore.Environment Environment;
         public LocalClientInfo ClientInfo;
     }
