@@ -32,12 +32,12 @@ if (WIN32)
 endif()
 
 # Follow order as in root CoreCLR CMakeLists.txt
-include(detectplatform.cmake) # from root
-include(platformdefinitions.cmake) # from root
-include(compileoptions.cmake) # disabled setting arm compiler flags in Tizen build
-include(clrdefinitions.cmake)
+include(cmake/detectplatform.cmake) # from root
+include(cmake/platformdefinitions.cmake) # from root
+include(cmake/compileoptions.cmake) # disabled setting arm compiler flags in Tizen build
+include(cmake/clrdefinitions.cmake)
 
-include(fetchdeps.cmake)
+include(cmake/fetchdeps.cmake)
 
 set(CORECLR_SRC_DIR "${CORECLR_DIR}/src")
 set(VERSION_PROPS_PATH "${CORECLR_DIR}/eng/Versions.props")
@@ -85,7 +85,7 @@ endif()
 
 # Get references to VCS revision for Netcoredbg itself and CoreCLR
 # (this used in src/debug/netcoredbg/CMakeLists.txt)
-include(vcsinfo.cmake)
+include(cmake/vcsinfo.cmake)
 VCSInfo(NETCOREDBG_VCS_INFO)
 VCSInfo(CORECLR_VCS_INFO ${CORECLR_DIR})
 

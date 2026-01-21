@@ -1,4 +1,4 @@
-include(clrfeatures.cmake)
+include(cmake/clrfeatures.cmake)
 
 # If set, indicates that this is not an officially supported release
 # Keep in sync with IsPrerelease in dir.props
