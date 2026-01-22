@@ -18,7 +18,6 @@
 #include "utils/platform.h"
 #include "utils/torelease.h"
 #include "protocols/cliprotocol.h"
-#include "linenoise.h"
 #include "utils/utf.h"
 #include "utils/filesystem.h"
 
@@ -71,9 +70,6 @@ using CompletionTag = CLIProtocol::CompletionTag;
 
 // Prompts which displayed when netcoredbg expects next command:
 const auto CommandPrompt = tty::bold + tty::green + literal("ncdb>") + tty::reset + literal(" ");
-
-const char HistoryFileName[] = ".netcoredbg_hist";
-const size_t DefaultHistoryDepth = 1024;
 
 CLIProtocol* CLIProtocol::g_console_owner = nullptr;
 std::mutex CLIProtocol::g_console_mutex;
@@ -340,30 +336,16 @@ class ConsoleLineReader : public CLIProtocol::LineReader
 {
     std::string m_last_command;
 public:
-    ConsoleLineReader() : cmdline(nullptr, deleter) {}
 
     virtual std::tuple<string_view, Result> get_line(const char *prompt) override
     {
-        errno = 0;
-        cmdline.reset(linenoise(prompt));
-        if (!cmdline)
-            return {string_view{}, errno == EAGAIN ? Interrupt : Eof};
-
-        size_t len = strlen(cmdline.get());
-        if ((!len || strspn(cmdline.get(), " \r\n\t") == len) && !m_last_command.empty())
-            return {string_view{m_last_command.c_str()}, Success};
-        linenoiseHistoryAdd(cmdline.get());
-        return {string_view{cmdline.get()}, Success};
+        return {string_view{prompt}, Success};
     }
 
     virtual void setLastCommand(std::string lc) override
     {
         m_last_command = lc;
     }
-
-private:
-    static void deleter(void *s) { ::free(s); };
-    std::unique_ptr<char, decltype(&deleter)> cmdline;
 };
 
 // This class reads lines from arbitrary input stream (file, pipe, etc...)
@@ -2664,20 +2646,6 @@ void CLIProtocol::applyCommandMode()
 }
 
 
-// callback for linenoise library
-static unsigned completion_callback(const char *input, unsigned cursor, linenoiseCompletions *lc, void *context)
-{
-    LOGD("completion: '%s', cursor=%u", input, cursor);
-    unsigned result = static_cast<CLIProtocol*>(context)->completeInput({input}, cursor,
-                        [&](const char *str) {
-                            LOGD("completion variant '%s'\n", str);
-                            linenoiseAddCompletion(lc, str); 
-                        });
-    LOGD("completion substring: [%u, %u)", result, cursor);
-    return result;
-};
-
-
 void CLIProtocol::CommandLoop()
 {
     {
@@ -2685,16 +2653,6 @@ void CLIProtocol::CommandLoop()
         if (m_commandMode == CommandMode::Unset)
             m_commandMode = CommandMode::Synchronous;
         applyCommandMode();
-
-        // Use linenoise features only if input comes from (pseudo)terminal.
-        if (_isatty(_fileno(stdin)))
-        {
-            linenoiseInstallWindowChangeHandler();
-            linenoiseHistorySetMaxLen(DefaultHistoryDepth);
-            linenoiseHistoryLoad(HistoryFileName);
-
-            linenoiseSetCompletionCallbackEx(completion_callback, this);
-        }
     }
 
     // loop till eof, error, or exit request.
@@ -2704,8 +2662,6 @@ void CLIProtocol::CommandLoop()
 
     m_sharedDebugger->Disconnect(); // Terminate debuggee process if debugger ran this process and detach in case debugger was attached to it.
 
-    linenoiseHistorySave(HistoryFileName);
-    linenoiseHistoryFree();
     cleanupConsoleInputBuffer();
 
     // At this point we assume, that no EmitStoppedEvent and

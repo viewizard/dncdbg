@@ -76,7 +76,6 @@ endif()
 # Build native part of the debugger
 
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/linenoise-ng/include)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_BINARY_DIR}/generated)
@@ -210,9 +209,9 @@ add_custom_target(buildinfo ALL COMMAND
 add_executable(netcoredbg ${netcoredbg_SRC})
 
 if (WIN32)
-    target_link_libraries(netcoredbg corguids wsock32 ws2_32 linenoise)
+    target_link_libraries(netcoredbg corguids wsock32 ws2_32)
 else()
-    target_link_libraries(netcoredbg corguids dl pthread linenoise)
+    target_link_libraries(netcoredbg corguids dl pthread)
     if (EXISTS "${CORECLR_MINIPAL_SRC_DIR}/guid.c")
         target_link_libraries(netcoredbg minipalguid)
     endif()

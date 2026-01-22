@@ -90,5 +90,4 @@ VCSInfo(NETCOREDBG_VCS_INFO)
 VCSInfo(CORECLR_VCS_INFO ${CORECLR_DIR})
 
 
-add_subdirectory(third_party/linenoise-ng)
 add_subdirectory(src)
