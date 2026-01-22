@@ -1,35 +1,35 @@
 #!/bin/bash
 
 ALL_TEST_NAMES=(
-    "DAPTestBreakpoint"
-    "DAPTestFuncBreak"
-    "DAPTestAttach"
-    "DAPTestPause"
-    "DAPTestDisconnect"
-    "DAPTestThreads"
-    "DAPTestVariables"
-    "DAPTestEvaluate"
-    "DAPTestStepping"
-    "DAPTestEnv"
-    "DAPTestExitCode"
-    "DAPTestEvalNotEnglish"
-    "DAPTest中文目录"
-    "DAPTestSrcBreakpointResolve"
-    "DAPTestEnum"
-    "DAPTestAsyncStepping"
-    "DAPTestBreak"
-    "DAPTestNoJMCNoFilterStepping"
-    "DAPTestNoJMCBreakpoint"
-    "DAPTestNoJMCAsyncStepping"
-    "DAPTestExceptionBreakpoint"
-    "DAPTestNoJMCExceptionBreakpoint"
-    "DAPTestSizeof"
-    "DAPTestAsyncLambdaEvaluate"
-    "DAPTestGeneric"
-    "DAPTestEvalArraysIndexers"
-    "DAPTestExtensionMethods"
-    "DAPTestBreakpointWithoutStop"
-    "DAPTestUnhandledException"
+    "TestBreakpoint"
+    "TestFuncBreak"
+    "TestAttach"
+    "TestPause"
+    "TestDisconnect"
+    "TestThreads"
+    "TestVariables"
+    "TestEvaluate"
+    "TestStepping"
+    "TestEnv"
+    "TestExitCode"
+    "TestEvalNotEnglish"
+    "Test中文目录"
+    "TestSrcBreakpointResolve"
+    "TestEnum"
+    "TestAsyncStepping"
+    "TestBreak"
+    "TestNoJMCNoFilterStepping"
+    "TestNoJMCBreakpoint"
+    "TestNoJMCAsyncStepping"
+    "TestExceptionBreakpoint"
+    "TestNoJMCExceptionBreakpoint"
+    "TestSizeof"
+    "TestAsyncLambdaEvaluate"
+    "TestGeneric"
+    "TestEvalArraysIndexers"
+    "TestExtensionMethods"
+    "TestBreakpointWithoutStop"
+    "TestUnhandledException"
 )
 
 TEST_NAMES="$@"
@@ -42,7 +42,7 @@ if [[ -z $TEST_NAMES ]]; then
     TEST_NAMES="${ALL_TEST_NAMES[@]}"
 fi
 
-dotnet build TestRunner || exit $?
+dotnet build Runner || exit $?
 
 test_pass=0
 test_fail=0
@@ -62,7 +62,7 @@ for TEST_NAME in $TEST_NAMES; do
         SOURCE_FILES="${SOURCE_FILES}${file};"
     done
 
-    dotnet run --project TestRunner -- \
+    dotnet run --project Runner -- \
         --local $NETCOREDBG \
         --test $TEST_NAME \
         --sources "$SOURCE_FILES" \

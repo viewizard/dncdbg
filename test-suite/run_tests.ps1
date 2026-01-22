@@ -7,35 +7,35 @@
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 
 $ALL_TEST_NAMES = @(
-    "DAPTestBreakpoint"
-    "DAPTestFuncBreak"
-    "DAPTestAttach"
-    "DAPTestPause"
-    "DAPTestDisconnect"
-    "DAPTestThreads"
-    "DAPTestVariables"
-    "DAPTestEvaluate"
-    "DAPTestStepping"
-    "DAPTestEnv"
-    "DAPTestExitCode"
-    "DAPTestEvalNotEnglish"
-    "DAPTest中文目录"
-    "DAPTestSrcBreakpointResolve"
-    "DAPTestEnum"
-    "DAPTestAsyncStepping"
-    "DAPTestBreak"
-    "DAPTestNoJMCNoFilterStepping"
-    "DAPTestNoJMCBreakpoint"
-    "DAPTestNoJMCAsyncStepping"
-    "DAPTestExceptionBreakpoint"
-    "DAPTestNoJMCExceptionBreakpoint"
-    "DAPTestSizeof"
-    "DAPTestAsyncLambdaEvaluate"
-    "DAPTestGeneric"
-    "DAPTestEvalArraysIndexers"
-    "DAPTestExtensionMethods"
-    "DAPTestBreakpointWithoutStop"
-    "DAPTestUnhandledException"
+    "TestBreakpoint"
+    "TestFuncBreak"
+    "TestAttach"
+    "TestPause"
+    "TestDisconnect"
+    "TestThreads"
+    "TestVariables"
+    "TestEvaluate"
+    "TestStepping"
+    "TestEnv"
+    "TestExitCode"
+    "TestEvalNotEnglish"
+    "Test中文目录"
+    "TestSrcBreakpointResolve"
+    "TestEnum"
+    "TestAsyncStepping"
+    "TestBreak"
+    "TestNoJMCNoFilterStepping"
+    "TestNoJMCBreakpoint"
+    "TestNoJMCAsyncStepping"
+    "TestExceptionBreakpoint"
+    "TestNoJMCExceptionBreakpoint"
+    "TestSizeof"
+    "TestAsyncLambdaEvaluate"
+    "TestGeneric"
+    "TestEvalArraysIndexers"
+    "TestExtensionMethods"
+    "TestBreakpointWithoutStop"
+    "TestUnhandledException"
 )
 
 $TEST_NAMES = $tests
@@ -49,7 +49,7 @@ if ($TEST_NAMES.count -eq 0) {
 }
 
 # Prepare
-dotnet build TestRunner
+dotnet build Runner
 if ($lastexitcode -ne 0) {
     throw ("Exec build test: " + $errorMessage)
 }
@@ -74,7 +74,7 @@ foreach ($TEST_NAME in $TEST_NAMES) {
         $SOURCE_FILES += $SOURCE_FILE + ";"
     }
 
-    dotnet run --project TestRunner -- `
+    dotnet run --project Runner -- `
         --local $NETCOREDBG `
         --test $TEST_NAME `
         --sources $SOURCE_FILES `
