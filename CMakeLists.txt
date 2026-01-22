@@ -12,7 +12,6 @@ set(CORECLR_BRANCH "release/10.0" CACHE STRING "CoreCLR source branch")
 # After move of dbgshim from runtime to diagnostics, this sdk is used only for build of managed part.
 set(DOTNET_CHANNEL "10.0" CACHE STRING ".NET SDK channel")
 set(BUILD_MANAGED ON CACHE BOOL "Build managed part")
-set(DBGSHIM_DIR "" CACHE FILEPATH "Path to dbgshim library directory")
 
 function(clr_unknown_arch)
     message(FATAL_ERROR "Only AMD64, ARM64, ARM, ARMEL, I386 and WASM are supported")

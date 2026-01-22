@@ -1,11 +1,5 @@
-# Locate dbgshim library
-
 # application name for tizens logger
 add_definitions(-DLOG_TAG="NETCOREDBG")
-
-if (NOT DBGSHIM_DIR STREQUAL "")
-    add_definitions(-DDBGSHIM_DIR="${DBGSHIM_DIR}")
-endif()
 
 # Build corguids static library from coreclr source files
 if (NOT WIN32)
@@ -209,11 +203,6 @@ if (BUILD_MANAGED)
         set(MANAGEDPART_BUILD_TYPE "Release")
     endif()
 
-    set(USE_DBGSHIM_DEPENDENCY "")
-    if (DBGSHIM_DIR STREQUAL "")
-        set(USE_DBGSHIM_DEPENDENCY "/p:UseDbgShimDependency=true")
-    endif()
-
     if (NOT RID_NAME)
         if (CLR_CMAKE_PLATFORM_UNIX)
             if (CLR_CMAKE_PLATFORM_DARWIN)
@@ -231,7 +220,7 @@ if (BUILD_MANAGED)
     endif() # NOT RID_NAME
 
     add_custom_command(OUTPUT ${DOTNET_BUILD_RESULT}
-      COMMAND ${DOTNETCLI} publish ${MANAGEDPART_PROJECT} -r ${RID_NAME}-${CLR_CMAKE_TARGET_ARCH} --self-contained -c ${MANAGEDPART_BUILD_TYPE} -o ${CMAKE_CURRENT_BINARY_DIR} /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/ /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/ ${USE_DBGSHIM_DEPENDENCY}
+      COMMAND ${DOTNETCLI} publish ${MANAGEDPART_PROJECT} -r ${RID_NAME}-${CLR_CMAKE_TARGET_ARCH} --self-contained -c ${MANAGEDPART_BUILD_TYPE} -o ${CMAKE_CURRENT_BINARY_DIR} /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/ /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/managed/*.cs" "${MANAGEDPART_PROJECT}"
       COMMENT "Compiling ${MANAGEDPART_DLL_NAME}"
@@ -254,21 +243,19 @@ if (BUILD_MANAGED)
 
     install(FILES ${DLLS_TO_DEPLOY} DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-    if (DBGSHIM_DIR STREQUAL "")
-        if (CLR_CMAKE_PLATFORM_UNIX)
-            if (CLR_CMAKE_PLATFORM_DARWIN)
-                set(DBGSHIM_LIB_NAME "libdbgshim.dylib")
-            else()
-                set(DBGSHIM_LIB_NAME "libdbgshim.so")
-            endif()
-        elseif (WIN32)
-            set(DBGSHIM_LIB_NAME "dbgshim.dll")
+    if (CLR_CMAKE_PLATFORM_UNIX)
+        if (CLR_CMAKE_PLATFORM_DARWIN)
+            set(DBGSHIM_LIB_NAME "libdbgshim.dylib")
         else()
-            message(FATAL_ERROR "Unsupported platform")
+            set(DBGSHIM_LIB_NAME "libdbgshim.so")
         endif()
-
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DBGSHIM_LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
+    elseif (WIN32)
+        set(DBGSHIM_LIB_NAME "dbgshim.dll")
+    else()
+        message(FATAL_ERROR "Unsupported platform")
     endif()
+
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DBGSHIM_LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
 
 # Build Hot Reload managed dll (ncdbhook.dll)
