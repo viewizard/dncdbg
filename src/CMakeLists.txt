@@ -81,39 +81,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_BINARY_DIR}/generated)
 include_directories(${PROJECT_SOURCE_DIR}/src/windows ${PROJECT_SOURCE_DIR}/src/unix)
 
-# Generate error messages from corerror.xml
-
-set(ERRORMESSAGE_DLL_NAME generrmsg/bin/generrmsg.dll)
-find_program(DOTNETCLI dotnet PATHS "${DOTNET_DIR}" ENV PATH NO_DEFAULT_PATH)
-
-add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generrmsg/generrmsg.csproj"
-  COMMAND ${CMAKE_COMMAND} -E env DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NEW_LOCAL_SEARCH_FILE_ONLY=1 ${DOTNETCLI} new console --force -n generrmsg
-  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-  COMMENT "Creating new dotnet project"
-  VERBATIM
-)
-
-add_custom_command(
-  OUTPUT ${ERRORMESSAGE_DLL_NAME}
-  COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/tools/generrmsg/GenErrMsg.cs Program.cs
-  COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/tools/generrmsg/nuget.xml nuget.config
-  COMMAND ${DOTNETCLI} build -o bin/
-  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generrmsg"
-  DEPENDS "${PROJECT_SOURCE_DIR}/tools/generrmsg/GenErrMsg.cs" "${CMAKE_CURRENT_BINARY_DIR}/generrmsg/generrmsg.csproj"
-  COMMENT "Compiling ${ERRORMESSAGE_DLL_NAME}"
-  VERBATIM
-)
-
-add_custom_command(
-  OUTPUT errormessage.cpp
-  COMMAND ${DOTNETCLI} generrmsg/bin/generrmsg.dll ${CORECLR_SRC_DIR}/inc/corerror.xml ${CMAKE_CURRENT_BINARY_DIR}/errormessage.cpp ${CMAKE_CURRENT_BINARY_DIR}/errormessage.h
-  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-  DEPENDS "${CORECLR_SRC_DIR}/inc/corerror.xml" ${ERRORMESSAGE_DLL_NAME}
-  COMMENT "Extracting ${CORECLR_SRC_DIR}/inc/corerror.xml"
-  VERBATIM
-)
-
 set(netcoredbg_SRC
     debugger/breakpoint_break.cpp
     debugger/breakpoint_entry.cpp
@@ -157,7 +124,6 @@ set(netcoredbg_SRC
     protocols/vscodeprotocol.cpp
     protocols/sourcestorage.cpp
     utils/utf.cpp
-    errormessage.cpp
     main.cpp
     buildinfo.cpp
     utils/dynlibs_unix.cpp
@@ -225,14 +191,6 @@ if (CLR_CMAKE_TARGET_TIZEN_LINUX)
     add_definitions(-DDEBUGGER_FOR_TIZEN)
     target_link_libraries(netcoredbg dlog)
 endif (CLR_CMAKE_TARGET_TIZEN_LINUX)
-
-add_custom_command(
-  TARGET netcoredbg
-  PRE_BUILD
-  COMMAND ${CMAKE_COMMAND} -E touch_nocreate ${ERRORMESSAGE_DLL_NAME}
-  COMMAND ${CMAKE_COMMAND} -E remove -f obj/project.assets.json
-  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-)
 
 install(TARGETS netcoredbg DESTINATION ${CMAKE_INSTALL_PREFIX})
 

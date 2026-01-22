@@ -2589,10 +2589,9 @@ HRESULT CLIProtocol::execCommands(LineReader&& lr, bool printCommands)
         {
             if (output.empty())
             {
-                printf("%s" "%.*s Error: 0x%08x: %s" "%s\n",
+                printf("%s" "%.*s Error: 0x%08x %s\n",
                     tty::red.c_str(),
-                    int(prefix.size()), prefix.data(), hr, errormessage(hr),
-                    tty::reset.c_str());
+                    int(prefix.size()), prefix.data(), hr, tty::reset.c_str());
             }
             else
             {

@@ -2024,8 +2024,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, i
         case CORDBG_E_ILLEGAL_IN_OPTIMIZED_CODE:
         case CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT:
             output = "This expression causes side effects and will not be evaluated. ";
-            output += errormessage(Status);
-            LOGE("Eval error: %#x %s\n", Status, errormessage(Status));
+            LOGE("Eval error: 0x%08x\n", Status);
             break;
         case COR_E_TIMEOUT:
             output = "Evaluation timed out.";

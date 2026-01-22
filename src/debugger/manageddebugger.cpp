@@ -355,7 +355,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
-        LOGE("Continue failed: %s", errormessage(Status));
+        LOGE("Continue failed: 0x%08x", Status);
 
     return Status;
 }
@@ -387,7 +387,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
-        LOGE("Continue failed: %s", errormessage(Status));
+        LOGE("Continue failed: 0x%08x", Status);
 
     return Status;
 }
@@ -738,7 +738,7 @@ HRESULT ManagedDebuggerHelpers::DetachFromProcess()
 
         HRESULT Status;
         if (FAILED(Status = m_iCorProcess->Detach()))
-            LOGE("Process detach failed: %s", errormessage(Status));
+            LOGE("Process detach failed: 0x%08x", Status);
 
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
     } while(0);
@@ -771,7 +771,7 @@ HRESULT ManagedDebuggerHelpers::TerminateProcess()
             break;
         }
 
-        LOGE("Process terminate failed: %s", errormessage(Status));
+        LOGE("Process terminate failed: 0x%08x", Status);
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
     } while(0);
 
@@ -1306,7 +1306,7 @@ void ManagedDebugger::FindVariables(ThreadId thread, FrameLevel framelevel, stri
     HRESULT status = m_sharedVariables->GetScopes(m_iCorProcess, frame.id, scopes);
     if (FAILED(status))
     {
-        LOGW("GetScopes failed: %s", errormessage(status));
+        LOGW("GetScopes failed: 0x%08x", status);
         return;
     }
 
@@ -1319,7 +1319,7 @@ void ManagedDebugger::FindVariables(ThreadId thread, FrameLevel framelevel, stri
     status = m_sharedVariables->GetVariables(m_iCorProcess, scopes[0].variablesReference, VariablesNamed, 0, 0, variables);
     if (FAILED(status))
     {
-        LOGW("GetVariables failed: %s", errormessage(status));
+        LOGW("GetVariables failed: 0x%08x", status);
         return;
     }
 

@@ -487,7 +487,7 @@ int
     }
     else if (run && FAILED(Status = LaunchNewProcess(debugger.get(), execFile, execArgs)))
     {
-        fprintf(stderr, "Error: %#x %s\n", Status, errormessage(Status));
+        fprintf(stderr, "Error: 0x%08x\n", Status);
         Interop::Shutdown();
         return EXIT_FAILURE;
     }

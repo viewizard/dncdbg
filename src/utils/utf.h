@@ -41,7 +41,4 @@ bool str_equal(const CharT *left, const CharT (&right)[Size])
     return std::char_traits<CharT>::compare(left, right, Size) == 0;
 }
 
-// TODO move this function definition to separate header file.
-const char* errormessage(HRESULT hr);
-
 } // namespace netcoredbg
