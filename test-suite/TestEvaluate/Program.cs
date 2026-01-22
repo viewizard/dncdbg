@@ -10,470 +10,496 @@ using Newtonsoft.Json;
 
 namespace NetcoreDbgTest.Script
 {
-    class Context
+class Context
+{
+    public void PrepareStart(string caller_trace)
     {
-        public void PrepareStart(string caller_trace)
+        InitializeRequest initializeRequest = new InitializeRequest();
+        initializeRequest.arguments.clientID = "vscode";
+        initializeRequest.arguments.clientName = "Visual Studio Code";
+        initializeRequest.arguments.adapterID = "coreclr";
+        initializeRequest.arguments.pathFormat = "path";
+        initializeRequest.arguments.linesStartAt1 = true;
+        initializeRequest.arguments.columnsStartAt1 = true;
+        initializeRequest.arguments.supportsVariableType = true;
+        initializeRequest.arguments.supportsVariablePaging = true;
+        initializeRequest.arguments.supportsRunInTerminalRequest = true;
+        initializeRequest.arguments.locale = "en-us";
+        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        LaunchRequest launchRequest = new LaunchRequest();
+        launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
+        launchRequest.arguments.type = "coreclr";
+        launchRequest.arguments.preLaunchTask = "build";
+        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath;
+        launchRequest.arguments.cwd = "";
+        launchRequest.arguments.console = "internalConsole";
+        launchRequest.arguments.stopAtEntry = true;
+        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
+        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
+        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void PrepareEnd(string caller_trace)
+    {
+        ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
+        Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void WasEntryPointHit(string caller_trace)
+    {
+        Func<string, bool> filter = (resJSON) =>
         {
-            InitializeRequest initializeRequest = new InitializeRequest();
-            initializeRequest.arguments.clientID = "vscode";
-            initializeRequest.arguments.clientName = "Visual Studio Code";
-            initializeRequest.arguments.adapterID = "coreclr";
-            initializeRequest.arguments.pathFormat = "path";
-            initializeRequest.arguments.linesStartAt1 = true;
-            initializeRequest.arguments.columnsStartAt1 = true;
-            initializeRequest.arguments.supportsVariableType = true;
-            initializeRequest.arguments.supportsVariablePaging = true;
-            initializeRequest.arguments.supportsRunInTerminalRequest = true;
-            initializeRequest.arguments.locale = "en-us";
-            Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            LaunchRequest launchRequest = new LaunchRequest();
-            launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
-            launchRequest.arguments.type = "coreclr";
-            launchRequest.arguments.preLaunchTask = "build";
-            launchRequest.arguments.program = ControlInfo.TargetAssemblyPath;
-            launchRequest.arguments.cwd = "";
-            launchRequest.arguments.console = "internalConsole";
-            launchRequest.arguments.stopAtEntry = true;
-            launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
-            launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
-            Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void PrepareEnd(string caller_trace)
-        {
-            ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
-            Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasEntryPointHit(string caller_trace)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasExit(string caller_trace)
-        {
-            bool wasExited = false;
-            int ?exitCode = null;
-            bool wasTerminated = false;
-
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited")) {
-                    wasExited = true;
-                    ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
-                    exitCode = exitedEvent.body.exitCode;
-                }
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated")) {
-                    wasTerminated = true;
-                }
-                if (wasExited && exitCode == 0 && wasTerminated)
-                    return true;
-
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void DebuggerExit(string caller_trace)
-        {
-            DisconnectRequest disconnectRequest = new DisconnectRequest();
-            disconnectRequest.arguments = new DisconnectArguments();
-            disconnectRequest.arguments.restart = false;
-            Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void AddBreakpoint(string caller_trace, string bpName, string Condition = null)
-        {
-            Breakpoint bp = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)bp;
-
-            BreakpointSourceName = lbp.FileName;
-            BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition));
-            BreakpointLines.Add(lbp.NumLine);
-        }
-
-        public void SetBreakpoints(string caller_trace)
-        {
-            SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
-            setBreakpointsRequest.arguments.source.name = BreakpointSourceName;
-            // NOTE this code works only with one source file
-            setBreakpointsRequest.arguments.source.path = ControlInfo.SourceFilesPath;
-            setBreakpointsRequest.arguments.lines.AddRange(BreakpointLines);
-            setBreakpointsRequest.arguments.breakpoints.AddRange(BreakpointList);
-            setBreakpointsRequest.arguments.sourceModified = false;
-            Assert.True(DAPDebugger.Request(setBreakpointsRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasBreakpointHit(string caller_trace, string bpName)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            StackTraceRequest stackTraceRequest = new StackTraceRequest();
-            stackTraceRequest.arguments.threadId = threadId;
-            stackTraceRequest.arguments.startFrame = 0;
-            stackTraceRequest.arguments.levels = 20;
-            var ret = DAPDebugger.Request(stackTraceRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)breakpoint;
-
-            StackTraceResponse stackTraceResponse =
-                JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-            if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine
-                && stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-                // NOTE this code works only with one source file
-                && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
-                return;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void Continue(string caller_trace)
-        {
-            ContinueRequest continueRequest = new ContinueRequest();
-            continueRequest.arguments.threadId = threadId;
-            Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public Int64 DetectFrameId(string caller_trace, string bpName)
-        {
-            StackTraceRequest stackTraceRequest = new StackTraceRequest();
-            stackTraceRequest.arguments.threadId = threadId;
-            stackTraceRequest.arguments.startFrame = 0;
-            stackTraceRequest.arguments.levels = 20;
-            var ret = DAPDebugger.Request(stackTraceRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)breakpoint;
-
-            StackTraceResponse stackTraceResponse =
-                JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-            if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine
-                && stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-                // NOTE this code works only with one source file
-                && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
-                return stackTraceResponse.body.stackFrames[0].id;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType, string Expression)
-        {
-            EvaluateRequest evaluateRequest = new EvaluateRequest();
-            evaluateRequest.arguments.expression = Expression;
-            evaluateRequest.arguments.frameId = frameId;
-            var ret = DAPDebugger.Request(evaluateRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            EvaluateResponse evaluateResponse =
-                JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
-
-            Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            Assert.Equal(ExpectedType, evaluateResponse.body.type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult1, string ExpectedResult2, string ExpectedType, string Expression)
-        {
-            EvaluateRequest evaluateRequest = new EvaluateRequest();
-            evaluateRequest.arguments.expression = Expression;
-            evaluateRequest.arguments.frameId = frameId;
-            var ret = DAPDebugger.Request(evaluateRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            EvaluateResponse evaluateResponse =
-                JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
-
-            Assert.True(ExpectedResult1 == evaluateResponse.body.result ||
-                        ExpectedResult2 == evaluateResponse.body.result, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            Assert.Equal(ExpectedType, evaluateResponse.body.type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void CheckErrorAtRequest(string caller_trace, Int64 frameId, string Expression, string errMsgStart)
-        {
-            EvaluateRequest evaluateRequest = new EvaluateRequest();
-            evaluateRequest.arguments.expression = Expression;
-            evaluateRequest.arguments.frameId = frameId;
-            var ret = DAPDebugger.Request(evaluateRequest);
-            Assert.False(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            EvaluateResponse evaluateResponse =
-                JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
-
-            Assert.True(evaluateResponse.message.StartsWith(errMsgStart), @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void AddExceptionBreakpointFilterAllWithOptions(string options)
-        {
-            ExceptionFilterAllOptions = new ExceptionFilterOptions();
-            ExceptionFilterAllOptions.filterId = "all";
-            ExceptionFilterAllOptions.condition = options;
-        }
-
-        public void SetExceptionBreakpoints(string caller_trace)
-        {
-            SetExceptionBreakpointsRequest setExceptionBreakpointsRequest = new SetExceptionBreakpointsRequest();
-            if (ExceptionFilterAll)
-                setExceptionBreakpointsRequest.arguments.filters.Add("all");
-            if (ExceptionFilterUserUnhandled)
-                setExceptionBreakpointsRequest.arguments.filters.Add("user-unhandled");
-
-            if (ExceptionFilterAllOptions != null || ExceptionFilterUserUnhandledOptions != null)
-                setExceptionBreakpointsRequest.arguments.filterOptions = new List<ExceptionFilterOptions>();
-            if (ExceptionFilterAllOptions != null)
-                setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterAllOptions);
-            if (ExceptionFilterUserUnhandledOptions != null)
-                setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterUserUnhandledOptions);
-
-            Assert.True(DAPDebugger.Request(setExceptionBreakpointsRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void TestExceptionInfo(string caller_trace, string excCategory, string excMode, string excName)
-        {
-            ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-            exceptionInfoRequest.arguments.threadId = threadId;
-            var ret = DAPDebugger.Request(exceptionInfoRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            ExceptionInfoResponse exceptionInfoResponse =
-                JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr);
-
-            if (exceptionInfoResponse.body.breakMode == excMode
-                && exceptionInfoResponse.body.exceptionId == excCategory + "/" + excName
-                && exceptionInfoResponse.body.details.fullTypeName == excName)
-                return;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasExceptionBreakpointHit(string caller_trace, string bpName, string excCategory, string excMode, string excName)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            StackTraceRequest stackTraceRequest = new StackTraceRequest();
-            stackTraceRequest.arguments.threadId = threadId;
-            stackTraceRequest.arguments.startFrame = 0;
-            stackTraceRequest.arguments.levels = 20;
-            var ret = DAPDebugger.Request(stackTraceRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)breakpoint;
-
-            StackTraceResponse stackTraceResponse =
-                JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-            if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine
-                && stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-                // NOTE this code works only with one source file
-                && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry"))
             {
-                TestExceptionInfo(@"__FILE__:__LINE__"+"\n"+caller_trace, excCategory, excMode, excName);
-                return;
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
             }
+            return false;
+        };
 
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
 
-        public int GetVariablesReference(string caller_trace, Int64 frameId, string ScopeName)
+    public void WasExit(string caller_trace)
+    {
+        bool wasExited = false;
+        int? exitCode = null;
+        bool wasTerminated = false;
+
+        Func<string, bool> filter = (resJSON) =>
         {
-            ScopesRequest scopesRequest = new ScopesRequest();
-            scopesRequest.arguments.frameId = frameId;
-            var ret = DAPDebugger.Request(scopesRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            ScopesResponse scopesResponse =
-                JsonConvert.DeserializeObject<ScopesResponse>(ret.ResponseStr);
-
-            foreach (var Scope in scopesResponse.body.scopes) {
-                if (Scope.name == ScopeName) {
-                    return Scope.variablesReference == null ? 0 : (int)Scope.variablesReference;
-                }
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited"))
+            {
+                wasExited = true;
+                ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
+                exitCode = exitedEvent.body.exitCode;
             }
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public int GetChildVariablesReference(string caller_trace, int VariablesReference, string VariableName)
-        {
-            VariablesRequest variablesRequest = new VariablesRequest();
-            variablesRequest.arguments.variablesReference = VariablesReference;
-            var ret = DAPDebugger.Request(variablesRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            VariablesResponse variablesResponse =
-                JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
-
-            foreach (var Variable in variablesResponse.body.variables) {
-                if (Variable.name == VariableName)
-                    return Variable.variablesReference;
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated"))
+            {
+                wasTerminated = true;
             }
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public bool EvalVariable(string caller_trace, int variablesReference, string ExpectedResult, string ExpectedType, string VariableName)
-        {
-            VariablesRequest variablesRequest = new VariablesRequest();
-            variablesRequest.arguments.variablesReference = variablesReference;
-            var ret = DAPDebugger.Request(variablesRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            VariablesResponse variablesResponse =
-                JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
-
-            foreach (var Variable in variablesResponse.body.variables) {
-                if (Variable.name == VariableName) {
-                    Assert.Equal(ExpectedType, Variable.type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-                    Assert.Equal(ExpectedResult, Variable.value, @"__FILE__:__LINE__"+"\n"+caller_trace);
-                    return true;
-                }
-            }
+            if (wasExited && exitCode == 0 && wasTerminated)
+                return true;
 
             return false;
-        }
+        };
 
-        public void GetAndCheckChildValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType, string VariableName, string ChildName)
-        {
-            int refLocals = GetVariablesReference(@"__FILE__:__LINE__"+"\n"+caller_trace, frameId, "Locals");
-            int refVar = GetChildVariablesReference(@"__FILE__:__LINE__"+"\n"+caller_trace, refLocals, VariableName);
-
-            if (EvalVariable(@"__FILE__:__LINE__"+"\n"+caller_trace, refVar, ExpectedResult, ExpectedType, ChildName))
-                return;
-
-            int refVarStatic = GetChildVariablesReference(@"__FILE__:__LINE__"+"\n"+caller_trace, refVar, "Static members");
-            if (EvalVariable(@"__FILE__:__LINE__"+"\n"+caller_trace, refVarStatic, ExpectedResult, ExpectedType, ChildName))
-                return;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
-        {
-            ControlInfo = controlInfo;
-            DAPDebugger = new DAPDebugger(debuggerClient);
-        }
-
-        ControlInfo ControlInfo;
-        DAPDebugger DAPDebugger;
-        int threadId = -1;
-        string BreakpointSourceName;
-        List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
-        List<int> BreakpointLines = new List<int>();
-        bool ExceptionFilterAll = false;
-        bool ExceptionFilterUserUnhandled = false;
-        ExceptionFilterOptions ExceptionFilterAllOptions = null;
-        ExceptionFilterOptions ExceptionFilterUserUnhandledOptions = null;
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
+
+    public void DebuggerExit(string caller_trace)
+    {
+        DisconnectRequest disconnectRequest = new DisconnectRequest();
+        disconnectRequest.arguments = new DisconnectArguments();
+        disconnectRequest.arguments.restart = false;
+        Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void AddBreakpoint(string caller_trace, string bpName, string Condition = null)
+    {
+        Breakpoint bp = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+
+        BreakpointSourceName = lbp.FileName;
+        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition));
+        BreakpointLines.Add(lbp.NumLine);
+    }
+
+    public void SetBreakpoints(string caller_trace)
+    {
+        SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
+        setBreakpointsRequest.arguments.source.name = BreakpointSourceName;
+        // NOTE this code works only with one source file
+        setBreakpointsRequest.arguments.source.path = ControlInfo.SourceFilesPath;
+        setBreakpointsRequest.arguments.lines.AddRange(BreakpointLines);
+        setBreakpointsRequest.arguments.breakpoints.AddRange(BreakpointList);
+        setBreakpointsRequest.arguments.sourceModified = false;
+        Assert.True(DAPDebugger.Request(setBreakpointsRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void WasBreakpointHit(string caller_trace, string bpName)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)breakpoint;
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
+
+        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
+            stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
+            // NOTE this code works only with one source file
+            && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
+            return;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void Continue(string caller_trace)
+    {
+        ContinueRequest continueRequest = new ContinueRequest();
+        continueRequest.arguments.threadId = threadId;
+        Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public Int64 DetectFrameId(string caller_trace, string bpName)
+    {
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)breakpoint;
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
+
+        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
+            stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
+            // NOTE this code works only with one source file
+            && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
+            return stackTraceResponse.body.stackFrames[0].id;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType,
+                                 string Expression)
+    {
+        EvaluateRequest evaluateRequest = new EvaluateRequest();
+        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.frameId = frameId;
+        var ret = DAPDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
+
+        Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ExpectedType, evaluateResponse.body.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult1, string ExpectedResult2,
+                                 string ExpectedType, string Expression)
+    {
+        EvaluateRequest evaluateRequest = new EvaluateRequest();
+        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.frameId = frameId;
+        var ret = DAPDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
+
+        Assert.True(ExpectedResult1 == evaluateResponse.body.result || ExpectedResult2 == evaluateResponse.body.result,
+                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ExpectedType, evaluateResponse.body.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void CheckErrorAtRequest(string caller_trace, Int64 frameId, string Expression, string errMsgStart)
+    {
+        EvaluateRequest evaluateRequest = new EvaluateRequest();
+        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.frameId = frameId;
+        var ret = DAPDebugger.Request(evaluateRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
+
+        Assert.True(evaluateResponse.message.StartsWith(errMsgStart), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void AddExceptionBreakpointFilterAllWithOptions(string options)
+    {
+        ExceptionFilterAllOptions = new ExceptionFilterOptions();
+        ExceptionFilterAllOptions.filterId = "all";
+        ExceptionFilterAllOptions.condition = options;
+    }
+
+    public void SetExceptionBreakpoints(string caller_trace)
+    {
+        SetExceptionBreakpointsRequest setExceptionBreakpointsRequest = new SetExceptionBreakpointsRequest();
+        if (ExceptionFilterAll)
+            setExceptionBreakpointsRequest.arguments.filters.Add("all");
+        if (ExceptionFilterUserUnhandled)
+            setExceptionBreakpointsRequest.arguments.filters.Add("user-unhandled");
+
+        if (ExceptionFilterAllOptions != null || ExceptionFilterUserUnhandledOptions != null)
+            setExceptionBreakpointsRequest.arguments.filterOptions = new List<ExceptionFilterOptions>();
+        if (ExceptionFilterAllOptions != null)
+            setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterAllOptions);
+        if (ExceptionFilterUserUnhandledOptions != null)
+            setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterUserUnhandledOptions);
+
+        Assert.True(DAPDebugger.Request(setExceptionBreakpointsRequest).Success,
+                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void TestExceptionInfo(string caller_trace, string excCategory, string excMode, string excName)
+    {
+        ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
+        exceptionInfoRequest.arguments.threadId = threadId;
+        var ret = DAPDebugger.Request(exceptionInfoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        ExceptionInfoResponse exceptionInfoResponse =
+            JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr);
+
+        if (exceptionInfoResponse.body.breakMode == excMode &&
+            exceptionInfoResponse.body.exceptionId == excCategory + "/" + excName &&
+            exceptionInfoResponse.body.details.fullTypeName == excName)
+            return;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void WasExceptionBreakpointHit(string caller_trace, string bpName, string excCategory, string excMode,
+                                          string excName)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)breakpoint;
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
+
+        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
+            stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
+            // NOTE this code works only with one source file
+            && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
+        {
+            TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
+            return;
+        }
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public int GetVariablesReference(string caller_trace, Int64 frameId, string ScopeName)
+    {
+        ScopesRequest scopesRequest = new ScopesRequest();
+        scopesRequest.arguments.frameId = frameId;
+        var ret = DAPDebugger.Request(scopesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        ScopesResponse scopesResponse = JsonConvert.DeserializeObject<ScopesResponse>(ret.ResponseStr);
+
+        foreach (var Scope in scopesResponse.body.scopes)
+        {
+            if (Scope.name == ScopeName)
+            {
+                return Scope.variablesReference == null ? 0 : (int)Scope.variablesReference;
+            }
+        }
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public int GetChildVariablesReference(string caller_trace, int VariablesReference, string VariableName)
+    {
+        VariablesRequest variablesRequest = new VariablesRequest();
+        variablesRequest.arguments.variablesReference = VariablesReference;
+        var ret = DAPDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
+
+        foreach (var Variable in variablesResponse.body.variables)
+        {
+            if (Variable.name == VariableName)
+                return Variable.variablesReference;
+        }
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public bool EvalVariable(string caller_trace, int variablesReference, string ExpectedResult, string ExpectedType,
+                             string VariableName)
+    {
+        VariablesRequest variablesRequest = new VariablesRequest();
+        variablesRequest.arguments.variablesReference = variablesReference;
+        var ret = DAPDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
+
+        foreach (var Variable in variablesResponse.body.variables)
+        {
+            if (Variable.name == VariableName)
+            {
+                Assert.Equal(ExpectedType, Variable.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                Assert.Equal(ExpectedResult, Variable.value, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void GetAndCheckChildValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType,
+                                      string VariableName, string ChildName)
+    {
+        int refLocals = GetVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, frameId, "Locals");
+        int refVar = GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, refLocals, VariableName);
+
+        if (EvalVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, refVar, ExpectedResult, ExpectedType, ChildName))
+            return;
+
+        int refVarStatic =
+            GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, refVar, "Static members");
+        if (EvalVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, refVarStatic, ExpectedResult, ExpectedType,
+                         ChildName))
+            return;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
+    {
+        ControlInfo = controlInfo;
+        DAPDebugger = new DAPDebugger(debuggerClient);
+    }
+
+    ControlInfo ControlInfo;
+    DAPDebugger DAPDebugger;
+    int threadId = -1;
+    string BreakpointSourceName;
+    List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
+    List<int> BreakpointLines = new List<int>();
+    bool ExceptionFilterAll = false;
+    bool ExceptionFilterUserUnhandled = false;
+    ExceptionFilterOptions ExceptionFilterAllOptions = null;
+    ExceptionFilterOptions ExceptionFilterUserUnhandledOptions = null;
+}
 }
 
 namespace TestEvaluate
 {
-    public struct test_struct1_t
+public struct test_struct1_t
+{
+    public test_struct1_t(int x)
     {
-        public test_struct1_t(int x)
-        {
-            field_i1 = x;
-        }
-        public int field_i1;
+        field_i1 = x;
+    }
+    public int field_i1;
+}
+
+public class test_class1_t
+{
+    public double field_d1 = 7.1;
+}
+
+public class test_static_class1_t
+{
+    ~test_static_class1_t()
+    {
+        // must be never called in this test!
+        throw new System.Exception("test_static_class1_t finalizer called!");
     }
 
-    public class test_class1_t
+    public int field_i1;
+    public test_struct1_t st2 = new test_struct1_t(9);
+
+    public static test_struct1_t st = new test_struct1_t(8);
+    public static test_class1_t cl = new test_class1_t();
+
+    public static int static_field_i1 = 5;
+    public static int static_property_i2
     {
-        public double field_d1 = 7.1;
+        get
+        {
+            return static_field_i1 + 2;
+        }
+    }
+}
+
+public struct test_static_struct1_t
+{
+    public static int static_field_i1 = 4;
+    public static float static_field_f1 = 3.0f;
+    public int field_i1;
+
+    public static int static_property_i2
+    {
+        get
+        {
+            return static_field_i1 + 2;
+        }
+    }
+}
+
+public class test_this_t
+{
+    static int Calc1()
+    {
+        return 15;
     }
 
-    public class test_static_class1_t
+    int Calc2()
     {
-        ~test_static_class1_t()
-        {
-            // must be never called in this test!
-            throw new System.Exception("test_static_class1_t finalizer called!");
-        }
-
-        public int field_i1;
-        public test_struct1_t st2 = new test_struct1_t(9);
-
-        public static test_struct1_t st = new test_struct1_t(8);
-        public static test_class1_t cl = new test_class1_t();
-
-        public static int static_field_i1 = 5;
-        public static int static_property_i2
-        { get { return static_field_i1 + 2; }}
+        return 16;
     }
 
-    public struct test_static_struct1_t
+    void TestVoidReturn()
     {
-        public static int static_field_i1 = 4;
-        public static float static_field_f1 = 3.0f;
-        public int field_i1;
-
-        public static int static_property_i2
-        { get { return static_field_i1 + 2; }}
+        Console.WriteLine("test void return");
     }
 
-    public class test_this_t
+    public int this_i = 1;
+    public string this_static_str = "2str";
+    public static int this_static_i = 3;
+
+    public void func(int arg_test)
     {
-        static int Calc1()
-        {
-            return 15;
-        }
+        int this_i = 4;
+        int break_line4 = 1;                                                            Label.Breakpoint("BREAK4");
 
-        int Calc2()
-        {
-            return 16;
-        }
-
-        void TestVoidReturn()
-        {
-            Console.WriteLine("test void return");
-        }
-
-        public int this_i = 1;
-        public string this_static_str = "2str";
-        public static int this_static_i = 3;
-
-        public void func(int arg_test)
-        {
-            int this_i = 4;
-            int break_line4 = 1;                                                            Label.Breakpoint("BREAK4");
-
-            Label.Checkpoint("this_test", "nested_test", (Object context) => {
+        Label.Checkpoint(
+            "this_test", "nested_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK4");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK4");
@@ -508,28 +534,31 @@ namespace TestEvaluate
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
-        }
     }
+}
 
-    public class test_nested
+public class test_nested
+{
+    public static int nested_static_i = 53;
+    public int nested_i = 55;
+
+    public class test_nested_1
     {
-        public static int nested_static_i = 53;
-        public int nested_i = 55;
+        // class without members
 
-        public class test_nested_1
+        public class test_nested_2
         {
-           // class without members
+            public static int nested_static_i = 253;
+            public int nested_i = 255;
 
-            public class test_nested_2
+            public void func()
             {
-                public static int nested_static_i = 253;
-                public int nested_i = 255;
+                int break_line5 = 1;                                                            Label.Breakpoint("BREAK5");
 
-                public void func()
-                {
-                    int break_line5 = 1;                                                            Label.Breakpoint("BREAK5");
-
-                    Label.Checkpoint("nested_test", "base_class_test", (Object context) => {
+                Label.Checkpoint(
+                    "nested_test", "base_class_test",
+                    (Object context) =>
+                    {
                         Context Context = (Context)context;
                         Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK5");
                         Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK5");
@@ -557,281 +586,292 @@ namespace TestEvaluate
 
                         Context.Continue(@"__FILE__:__LINE__");
                     });
-                }
             }
-            public class test_nested_3
+        }
+        public class test_nested_3
+        {
+            public static int nested_static_i = 353;
+        }
+    }
+}
+
+abstract public class test_static_parent
+{
+    static public int static_i_f_parent = 301;
+    static public int static_i_p_parent
+    {
+        get
+        {
+            return 302;
+        }
+    }
+    public abstract void test();
+}
+public class test_static_child : test_static_parent
+{
+    static public int static_i_f_child = 401;
+    static public int static_i_p_child
+    {
+        get
+        {
+            return 402;
+        }
+    }
+
+    public override void test()
+    {
+        int break_line5 = 1;                                                            Label.Breakpoint("BREAK7");
+    }
+}
+
+public class test_parent
+{
+    public int i_parent = 302;
+
+    public virtual int GetNumber()
+    {
+        return 10;
+    }
+}
+public class test_child : test_parent
+{
+    public int i_child = 402;
+
+    public override int GetNumber()
+    {
+        return 11;
+    }
+}
+
+public class conditional_access1
+{
+    public int i = 555;
+    public int index = 1;
+}
+
+public class conditional_access2
+{
+    public conditional_access1 member = new conditional_access1();
+}
+
+public class conditional_access3
+{
+    public conditional_access1 member;
+}
+
+public class object_with_array
+{
+    public int[] array = new int[] { 551, 552, 553 };
+}
+
+public struct test_array
+{
+    public int i;
+}
+
+delegate void Lambda(string argVar);
+
+public class MethodCallTest1
+{
+    public static int Calc1()
+    {
+        return 5;
+    }
+
+    public int Calc2()
+    {
+        return 6;
+    }
+}
+
+public class coalesce_test_A
+{
+    public string A = "A";
+}
+public class coalesce_test_B
+{
+    public string B = "B";
+}
+
+public class MethodCallTest2
+{
+    public static MethodCallTest1 member1 = new MethodCallTest1();
+    public MethodCallTest1 nullMember;
+}
+
+public class MethodCallTest3
+{
+    public int Calc1(int i)
+    {
+        return i + 1;
+    }
+
+    public decimal Calc1(decimal d)
+    {
+        return d + 1;
+    }
+
+    public float Calc2(float f1, float f2, float f3)
+    {
+        return f1 * 100 + f2 * 10 + f3;
+    }
+
+    public int Calc2(int i1, int i2, int i3)
+    {
+        return i1 * 100 + i2 * 10 + i3;
+    }
+
+    public int Calc2(int i1, int i2, float f3)
+    {
+        return i1 * 100 + i2 * 10 + (int)f3;
+    }
+}
+
+enum enumUnary_t
+{
+    ONE,
+    TWO
+}
+
+public class TestOperators1
+{
+    public int data;
+    public TestOperators1(int data_)
+    {
+        data = data_;
+    }
+
+    public static implicit operator TestOperators1(int value) => new TestOperators1(value);
+
+    public static int operator +(TestOperators1 d1, int d2) => 55;
+    public static int operator +(int d1, TestOperators1 d2) => 66;
+
+    public static int operator ~(TestOperators1 d1) => ~d1.data;
+    public static bool operator !(TestOperators1 d1) => true;
+    public static int operator +(TestOperators1 d1, TestOperators1 d2) => d1.data + d2.data;
+    public static int operator -(TestOperators1 d1, TestOperators1 d2) => d1.data - d2.data;
+    public static int operator *(TestOperators1 d1, TestOperators1 d2) => d1.data * d2.data;
+    public static int operator /(TestOperators1 d1, TestOperators1 d2) => d1.data / d2.data;
+    public static int operator %(TestOperators1 d1, TestOperators1 d2) => d1.data % d2.data;
+    public static int operator ^(TestOperators1 d1, TestOperators1 d2) => d1.data ^ d2.data;
+    public static int operator &(TestOperators1 d1, TestOperators1 d2) => d1.data & d2.data;
+    public static int operator |(TestOperators1 d1, TestOperators1 d2) => d1.data | d2.data;
+    public static int operator >>(TestOperators1 d1, int d2) => d1.data >> d2;
+    public static int operator <<(TestOperators1 d1, int d2) => d1.data << d2;
+    public static bool operator ==(TestOperators1 d1, TestOperators1 d2) => d1.data == d2.data;
+    public static bool operator !=(TestOperators1 d1, TestOperators1 d2) => d1.data != d2.data;
+    public static bool operator <(TestOperators1 d1, TestOperators1 d2) => d1.data < d2.data;
+    public static bool operator <=(TestOperators1 d1, TestOperators1 d2) => d1.data <= d2.data;
+    public static bool operator >(TestOperators1 d1, TestOperators1 d2) => d1.data > d2.data;
+    public static bool operator >=(TestOperators1 d1, TestOperators1 d2) => d1.data >= d2.data;
+}
+
+public struct TestOperators2
+{
+    public int data;
+    public TestOperators2(int data_)
+    {
+        data = data_;
+    }
+    public static implicit operator TestOperators2(int value) => new TestOperators2(value);
+
+    public static int operator +(TestOperators2 d1, int d2) => 55;
+    public static int operator +(int d1, TestOperators2 d2) => 66;
+
+    public static int operator ~(TestOperators2 d1) => ~d1.data;
+    public static bool operator !(TestOperators2 d1) => true;
+    public static int operator +(TestOperators2 d1, TestOperators2 d2) => d1.data + d2.data;
+    public static int operator -(TestOperators2 d1, TestOperators2 d2) => d1.data - d2.data;
+    public static int operator *(TestOperators2 d1, TestOperators2 d2) => d1.data * d2.data;
+    public static int operator /(TestOperators2 d1, TestOperators2 d2) => d1.data / d2.data;
+    public static int operator %(TestOperators2 d1, TestOperators2 d2) => d1.data % d2.data;
+    public static int operator ^(TestOperators2 d1, TestOperators2 d2) => d1.data ^ d2.data;
+    public static int operator &(TestOperators2 d1, TestOperators2 d2) => d1.data & d2.data;
+    public static int operator |(TestOperators2 d1, TestOperators2 d2) => d1.data | d2.data;
+    public static int operator >>(TestOperators2 d1, int d2) => d1.data >> d2;
+    public static int operator <<(TestOperators2 d1, int d2) => d1.data << d2;
+    public static bool operator ==(TestOperators2 d1, TestOperators2 d2) => d1.data == d2.data;
+    public static bool operator !=(TestOperators2 d1, TestOperators2 d2) => d1.data != d2.data;
+    public static bool operator <(TestOperators2 d1, TestOperators2 d2) => d1.data < d2.data;
+    public static bool operator <=(TestOperators2 d1, TestOperators2 d2) => d1.data <= d2.data;
+    public static bool operator >(TestOperators2 d1, TestOperators2 d2) => d1.data > d2.data;
+    public static bool operator >=(TestOperators2 d1, TestOperators2 d2) => d1.data >= d2.data;
+}
+
+public struct TestOperators3
+{
+    public int data;
+    public TestOperators3(int data_)
+    {
+        data = data_;
+    }
+
+    // Note, in order to test that was used proper operator, we use fixed return here.
+
+    public static implicit operator int(TestOperators3 value) => 777;
+
+    public static int operator +(TestOperators3 d1, int d2) => 555;
+    public static int operator +(int d1, TestOperators3 d2) => 666;
+    public static int operator >>(TestOperators3 d1, int d2) => 777;
+    public static int operator <<(TestOperators3 d1, int d2) => 888;
+}
+
+class Program
+{
+    int int_i = 505;
+    static test_nested test_nested_static_instance;
+
+    static int stGetInt()
+    {
+        return 111;
+    }
+
+    static int stGetInt(int x)
+    {
+        return x * 2;
+    }
+
+    int getInt()
+    {
+        return 222;
+    }
+
+    static int TestTimeOut()
+    {
+        System.Threading.Thread.Sleep(10000);
+        return 5;
+    }
+
+    static int TestArrayArg(int[] arrayArg, int i)
+    {
+        return arrayArg[0] + i;
+    }
+
+    static int TestArrayArg(test_array[] arrayT, int i)
+    {
+        return i;
+    }
+
+    static int TestArrayArg2(short[] arrayArg, int i)
+    {
+        return arrayArg[0] + i;
+    }
+
+    static int TestArray2Arg(int[,] multiArray2, int i)
+    {
+        return multiArray2[0, 0] + i;
+    }
+
+    static int TestArray2Arg2(short[,] multiArray2, int i)
+    {
+        return multiArray2[0, 0] + i;
+    }
+
+    static void Main(string[] args)
+    {
+        Label.Checkpoint("init", "values_test",
+            (Object context) =>
             {
-                public static int nested_static_i = 353;
-            }
-        }
-    }
-
-    abstract public class test_static_parent
-    {
-        static public int static_i_f_parent = 301;
-        static public int static_i_p_parent
-        { get { return 302; }}
-        public abstract void test();
-    }
-    public class test_static_child : test_static_parent
-    {
-        static public int static_i_f_child = 401;
-        static public int static_i_p_child
-        { get { return 402; }}
-
-        public override void test()
-        {
-            int break_line5 = 1;                                                            Label.Breakpoint("BREAK7");
-        }
-    }
-
-    public class test_parent
-    {
-        public int i_parent = 302;
-
-        public virtual int GetNumber()
-        {
-            return 10;
-        }
-    }
-    public class test_child : test_parent
-    {
-        public int i_child = 402;
-
-        public override int GetNumber()
-        {
-            return 11;
-        }
-    }
-
-    public class conditional_access1
-    {
-        public int i = 555;
-        public int index = 1;
-    }
-
-    public class conditional_access2
-    {
-        public conditional_access1 member = new conditional_access1();
-    }
-
-    public class conditional_access3
-    {
-        public conditional_access1 member;
-    }
-
-    public class object_with_array
-    {
-        public int[] array = new int[] { 551, 552, 553 };
-    }
-
-    public struct test_array
-    {
-        public int i;
-    }
-
-    delegate void Lambda(string argVar);
-
-    public class MethodCallTest1
-    {
-        public static int Calc1()
-        {
-            return 5;
-        }
-
-        public int Calc2()
-        {
-            return 6;
-        }
-    }
-
-    public class coalesce_test_A
-    {
-        public string A = "A";
-    }
-    public class coalesce_test_B
-    {
-        public string B = "B";
-    }
-
-    public class MethodCallTest2
-    {
-        public static MethodCallTest1 member1 = new MethodCallTest1();
-        public MethodCallTest1 nullMember;
-
-    }
-
-    public class MethodCallTest3
-    {
-        public int Calc1(int i)
-        {
-            return i + 1;
-        }
-
-        public decimal Calc1(decimal d)
-        {
-            return d + 1;
-        }
-
-        public float Calc2(float f1, float f2, float f3)
-        {
-            return f1 * 100 + f2 * 10 + f3;
-        }
-
-        public int Calc2(int i1, int i2, int i3)
-        {
-            return i1 * 100 + i2 * 10 + i3;
-        }
-
-        public int Calc2(int i1, int i2, float f3)
-        {
-            return i1 * 100 + i2 * 10 + (int)f3;
-        }
-    }
-
-    enum enumUnary_t
-    {
-        ONE,
-        TWO
-    };
-
-    public class TestOperators1
-    {
-        public int data;
-        public TestOperators1(int data_)
-        {
-            data = data_;
-        }
-
-        public static implicit operator TestOperators1(int value) => new TestOperators1(value);
-
-        public static int operator +(TestOperators1 d1, int d2) => 55;
-        public static int operator +(int d1, TestOperators1 d2) => 66;
-
-        public static int operator ~(TestOperators1 d1) => ~d1.data;
-        public static bool operator !(TestOperators1 d1) => true;
-        public static int operator +(TestOperators1 d1, TestOperators1 d2) => d1.data + d2.data;
-        public static int operator -(TestOperators1 d1, TestOperators1 d2) => d1.data - d2.data;
-        public static int operator *(TestOperators1 d1, TestOperators1 d2) => d1.data * d2.data;
-        public static int operator /(TestOperators1 d1, TestOperators1 d2) => d1.data / d2.data;
-        public static int operator %(TestOperators1 d1, TestOperators1 d2) => d1.data % d2.data;
-        public static int operator ^(TestOperators1 d1, TestOperators1 d2) => d1.data ^ d2.data;
-        public static int operator &(TestOperators1 d1, TestOperators1 d2) => d1.data & d2.data;
-        public static int operator |(TestOperators1 d1, TestOperators1 d2) => d1.data | d2.data;
-        public static int operator >>(TestOperators1 d1, int d2) => d1.data >> d2;
-        public static int operator <<(TestOperators1 d1, int d2) => d1.data << d2;
-        public static bool operator ==(TestOperators1 d1, TestOperators1 d2) => d1.data == d2.data;
-        public static bool operator !=(TestOperators1 d1, TestOperators1 d2) => d1.data != d2.data;
-        public static bool operator <(TestOperators1 d1, TestOperators1 d2) => d1.data < d2.data;
-        public static bool operator <=(TestOperators1 d1, TestOperators1 d2) => d1.data <= d2.data;
-        public static bool operator >(TestOperators1 d1, TestOperators1 d2) => d1.data > d2.data;
-        public static bool operator >=(TestOperators1 d1, TestOperators1 d2) => d1.data >= d2.data;
-    }
-
-    public struct TestOperators2
-    {
-        public int data;
-        public TestOperators2(int data_)
-        {
-            data = data_;
-        }
-        public static implicit operator TestOperators2(int value) => new TestOperators2(value);
-
-        public static int operator +(TestOperators2 d1, int d2) => 55;
-        public static int operator +(int d1, TestOperators2 d2) => 66;
-
-        public static int operator ~(TestOperators2 d1) => ~d1.data;
-        public static bool operator !(TestOperators2 d1) => true;
-        public static int operator +(TestOperators2 d1, TestOperators2 d2) => d1.data + d2.data;
-        public static int operator -(TestOperators2 d1, TestOperators2 d2) => d1.data - d2.data;
-        public static int operator *(TestOperators2 d1, TestOperators2 d2) => d1.data * d2.data;
-        public static int operator /(TestOperators2 d1, TestOperators2 d2) => d1.data / d2.data;
-        public static int operator %(TestOperators2 d1, TestOperators2 d2) => d1.data % d2.data;
-        public static int operator ^(TestOperators2 d1, TestOperators2 d2) => d1.data ^ d2.data;
-        public static int operator &(TestOperators2 d1, TestOperators2 d2) => d1.data & d2.data;
-        public static int operator |(TestOperators2 d1, TestOperators2 d2) => d1.data | d2.data;
-        public static int operator >>(TestOperators2 d1, int d2) => d1.data >> d2;
-        public static int operator <<(TestOperators2 d1, int d2) => d1.data << d2;
-        public static bool operator ==(TestOperators2 d1, TestOperators2 d2) => d1.data == d2.data;
-        public static bool operator !=(TestOperators2 d1, TestOperators2 d2) => d1.data != d2.data;
-        public static bool operator <(TestOperators2 d1, TestOperators2 d2) => d1.data < d2.data;
-        public static bool operator <=(TestOperators2 d1, TestOperators2 d2) => d1.data <= d2.data;
-        public static bool operator >(TestOperators2 d1, TestOperators2 d2) => d1.data > d2.data;
-        public static bool operator >=(TestOperators2 d1, TestOperators2 d2) => d1.data >= d2.data;
-    }
-
-    public struct TestOperators3
-    {
-        public int data;
-        public TestOperators3(int data_)
-        {
-            data = data_;
-        }
-
-        // Note, in order to test that was used proper operator, we use fixed return here.
-
-        public static implicit operator int(TestOperators3 value) => 777;
-
-        public static int operator +(TestOperators3 d1, int d2) => 555;
-        public static int operator +(int d1, TestOperators3 d2) => 666;
-        public static int operator >>(TestOperators3 d1, int d2) => 777;
-        public static int operator <<(TestOperators3 d1, int d2) => 888;
-    }
-
-    class Program
-    {
-        int int_i = 505;
-        static test_nested test_nested_static_instance;
-
-        static int stGetInt()
-        {
-            return 111;
-        }
-
-        static int stGetInt(int x)
-        {
-            return x * 2;
-        }
-
-        int getInt()
-        {
-            return 222;
-        }
-
-        static int TestTimeOut()
-        {
-            System.Threading.Thread.Sleep(10000);
-            return 5;
-        }
-
-        static int TestArrayArg(int[] arrayArg, int i)
-        {
-            return arrayArg[0] + i;
-        }
-
-        static int TestArrayArg(test_array[] arrayT, int i)
-        {
-            return i;
-        }
-
-        static int TestArrayArg2(short[] arrayArg, int i)
-        {
-            return arrayArg[0] + i;
-        }
-
-        static int TestArray2Arg(int[,] multiArray2, int i)
-        {
-            return multiArray2[0,0] + i;
-        }
-
-        static int TestArray2Arg2(short[,] multiArray2, int i)
-        {
-            return multiArray2[0,0] + i;
-        }
-
-        static void Main(string[] args)
-        {
-            Label.Checkpoint("init", "values_test", (Object context) => {
                 Context Context = (Context)context;
                 Context.PrepareStart(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
@@ -854,23 +894,26 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            decimal dec = 12345678901234567890123456m;
-            decimal long_zero_dec = 0.00000000000000000017M;
-            decimal short_zero_dec = 0.17M;
-            int[] array1 = new int[] { 10, 20, 30, 40, 50 };
-            int[,] multi_array2 = { { 101, 102, 103 }, { 104, 105, 106 } };
-            test_array[] array2 = new test_array[4];
-            array2[0] = new test_array();
-            array2[0].i = 201;
-            array2[2] = new test_array();
-            array2[2].i = 401;
-            int i1 = 0;
-            int i2 = 2;
-            int i3 = 4;
-            int i4 = 1;
-            int break_line1 = 1;                                                                    Label.Breakpoint("BREAK1");
+        decimal dec = 12345678901234567890123456m;
+        decimal long_zero_dec = 0.00000000000000000017M;
+        decimal short_zero_dec = 0.17M;
+        int[] array1 = new int[] { 10, 20, 30, 40, 50 };
+        int[,] multi_array2 = { { 101, 102, 103 }, { 104, 105, 106 } };
+        test_array[] array2 = new test_array[4];
+        array2[0] = new test_array();
+        array2[0].i = 201;
+        array2[2] = new test_array();
+        array2[2].i = 401;
+        int i1 = 0;
+        int i2 = 2;
+        int i3 = 4;
+        int i4 = 1;
+        int break_line1 = 1;                                                                    Label.Breakpoint("BREAK1");
 
-            Label.Checkpoint("values_test", "expression_test", (Object context) => {
+        Label.Checkpoint(
+            "values_test", "expression_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
@@ -925,16 +968,19 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // Test expression calculation.
-            TestOperators1 testClass = new TestOperators1(12);
-            TestOperators2 testStruct;
-            TestOperators3 testStruct2;
-            testStruct.data = 5;
-            string testString1 = null;
-            string testString2 = "test";
-            int break_line2 = 1;                                                                    Label.Breakpoint("BREAK2");
+        // Test expression calculation.
+        TestOperators1 testClass = new TestOperators1(12);
+        TestOperators2 testStruct;
+        TestOperators3 testStruct2;
+        testStruct.data = 5;
+        string testString1 = null;
+        string testString2 = "test";
+        int break_line2 = 1;                                                                    Label.Breakpoint("BREAK2");
 
-            Label.Checkpoint("expression_test", "static_test", (Object context) => {
+        Label.Checkpoint(
+            "expression_test", "static_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK2");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK2");
@@ -1150,19 +1196,22 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // switch to separate scope, in case `cl` constructor called by some reason, GC will able to care
-            test_SuppressFinalize();
-            void test_SuppressFinalize()
-            {
-                test_static_class1_t cl;
-                test_static_struct1_t st;
-                st.field_i1 = 2;
-                int break_line3 = 1;                                                                Label.Breakpoint("BREAK3");
-            }
-            // in this way we check that finalizer was not called by GC for `cl`
-            GC.Collect();
+        // switch to separate scope, in case `cl` constructor called by some reason, GC will able to care
+        test_SuppressFinalize();
+        void test_SuppressFinalize()
+        {
+            test_static_class1_t cl;
+            test_static_struct1_t st;
+            st.field_i1 = 2;
+            int break_line3 = 1;                                                                Label.Breakpoint("BREAK3");
+        }
+        // in this way we check that finalizer was not called by GC for `cl`
+        GC.Collect();
 
-            Label.Checkpoint("static_test", "this_test", (Object context) => {
+        Label.Checkpoint(
+            "static_test", "this_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK3");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK3");
@@ -1170,8 +1219,14 @@ namespace TestEvaluate
                 // test class fields/properties via local variable
                 Context.GetAndCheckChildValue(@"__FILE__:__LINE__", frameId, "5", "int", "cl", "static_field_i1");
                 Context.GetAndCheckChildValue(@"__FILE__:__LINE__", frameId, "7", "int", "cl", "static_property_i2");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "cl.st", "error:"); // error CS0176: Member 'test_static_class1_t.st' cannot be accessed with an instance reference; qualify it with a type name instead
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "cl.cl", "error:"); // error CS0176: Member 'test_static_class1_t.cl' cannot be accessed with an instance reference; qualify it with a type name instead
+                Context.CheckErrorAtRequest(
+                    @"__FILE__:__LINE__", frameId, "cl.st",
+                    "error:"); // error CS0176: Member 'test_static_class1_t.st' cannot be accessed with an instance
+                               // reference; qualify it with a type name instead
+                Context.CheckErrorAtRequest(
+                    @"__FILE__:__LINE__", frameId, "cl.cl",
+                    "error:"); // error CS0176: Member 'test_static_class1_t.cl' cannot be accessed with an instance
+                               // reference; qualify it with a type name instead
                 // test struct fields via local variable
                 Context.GetAndCheckChildValue(@"__FILE__:__LINE__", frameId, "4", "int", "st", "static_field_i1");
                 Context.GetAndCheckChildValue(@"__FILE__:__LINE__", frameId, "3", "float", "st", "static_field_f1");
@@ -1197,19 +1252,21 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            test_this_t test_this = new test_this_t();
-            test_this.func(501);
+        test_this_t test_this = new test_this_t();
+        test_this.func(501);
 
-            test_nested.test_nested_1.test_nested_2 test_nested = new test_nested.test_nested_1.test_nested_2();
-            test_nested.func();
+        test_nested.test_nested_1.test_nested_2 test_nested = new test_nested.test_nested_1.test_nested_2();
+        test_nested.func();
 
-            test_nested_static_instance  = new test_nested();
+        test_nested_static_instance = new test_nested();
 
-            test_child child = new test_child();
+        test_child child = new test_child();
 
-            int break_line6 = 1;                                                                     Label.Breakpoint("BREAK6");
+        int break_line6 = 1;                                                                     Label.Breakpoint("BREAK6");
 
-            Label.Checkpoint("base_class_test", "override_test", (Object context) => {
+        Label.Checkpoint("base_class_test", "override_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK6");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK6");
@@ -1229,10 +1286,12 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            test_static_parent base_child = new test_static_child();
-            base_child.test();
+        test_static_parent base_child = new test_static_child();
+        base_child.test();
 
-            Label.Checkpoint("override_test", "lambda_test1", (Object context) => {
+        Label.Checkpoint("override_test", "lambda_test1",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK7");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK7");
@@ -1245,14 +1304,18 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // Test lambda.
+        // Test lambda.
 
-            string mainVar = "mainVar";
+        string mainVar = "mainVar";
 
-            Lambda lambda1 = (argVar) => {
-                string localVar = "localVar";
+        Lambda lambda1 = (argVar) =>
+        {
+            string localVar = "localVar";
 
-                Label.Checkpoint("lambda_test1", "lambda_test2", (Object context) => {
+            Label.Checkpoint(
+                "lambda_test1", "lambda_test2",
+                (Object context) =>
+                {
                     Context Context = (Context)context;
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK8");
                     Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK8");
@@ -1264,15 +1327,19 @@ namespace TestEvaluate
                     Context.Continue(@"__FILE__:__LINE__");
                 });
 
-                Console.WriteLine(mainVar);                                                             Label.Breakpoint("BREAK8");
-            };
+            Console.WriteLine(mainVar);                                                             Label.Breakpoint("BREAK8");
+        };
 
-            lambda1("argVar");
+        lambda1("argVar");
 
-            Lambda lambda2 = (argVar) => {
-                string localVar = "localVar";
+        Lambda lambda2 = (argVar) =>
+        {
+            string localVar = "localVar";
 
-                Label.Checkpoint("lambda_test2", "internal_var_test", (Object context) => {
+            Label.Checkpoint(
+                "lambda_test2", "internal_var_test",
+                (Object context) =>
+                {
                     Context Context = (Context)context;
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK9");
                     Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK9");
@@ -1287,20 +1354,24 @@ namespace TestEvaluate
                     Context.Continue(@"__FILE__:__LINE__");
                 });
 
-                int break_line6 = 1;                                                                     Label.Breakpoint("BREAK9");
-            };
+            int break_line6 = 1;                                                                     Label.Breakpoint("BREAK9");
+        };
 
-            lambda2("argVar");
+        lambda2("argVar");
 
-            // Test internal "$exception" variable name.
+        // Test internal "$exception" variable name.
 
-            try
+        try
+        {
+            throw new System.Exception();                                                            Label.Breakpoint("BP_EXCEPTION");
+        }
+        catch
+        {
+        }
+
+        Label.Checkpoint("internal_var_test", "literals_test",
+            (Object context) =>
             {
-                throw new System.Exception();                                                            Label.Breakpoint("BP_EXCEPTION");
-            }
-            catch {}
-
-            Label.Checkpoint("internal_var_test", "literals_test", (Object context) => {
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "BP_EXCEPTION", "CLR", "always", "System.Exception");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
@@ -1308,9 +1379,12 @@ namespace TestEvaluate
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.Exception}", "System.Exception", "$exception");
             });
 
-            // Test literals.
+        // Test literals.
 
-            Label.Checkpoint("literals_test", "conditional_access_test", (Object context) => {
+        Label.Checkpoint(
+            "literals_test", "conditional_access_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
 
@@ -1337,22 +1411,26 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // Test conditional access.
+        // Test conditional access.
 
-            test_child child_null;
-            conditional_access2 conditional_access_null;
-            conditional_access2 conditional_access = new conditional_access2();
-            conditional_access3 conditional_access_double_null = new conditional_access3();
-            conditional_access3 conditional_access_double = new conditional_access3();
-            conditional_access_double.member = new conditional_access1();
-            int[] array1_null;
-            conditional_access2[] conditional_array_null;
-            conditional_access2[] conditional_array = new conditional_access2[] { new conditional_access2(), new conditional_access2() };
-            object_with_array object_with_array_null;
-            object_with_array object_with_array = new object_with_array();
-            int break_line10 = 1;                                                                        Label.Breakpoint("BREAK10");
+        test_child child_null;
+        conditional_access2 conditional_access_null;
+        conditional_access2 conditional_access = new conditional_access2();
+        conditional_access3 conditional_access_double_null = new conditional_access3();
+        conditional_access3 conditional_access_double = new conditional_access3();
+        conditional_access_double.member = new conditional_access1();
+        int[] array1_null;
+        conditional_access2[] conditional_array_null;
+        conditional_access2[] conditional_array =
+            new conditional_access2[] { new conditional_access2(), new conditional_access2() };
+        object_with_array object_with_array_null;
+        object_with_array object_with_array = new object_with_array();
+        int break_line10 = 1;                                                                        Label.Breakpoint("BREAK10");
 
-            Label.Checkpoint("conditional_access_test", "method_calls_test", (Object context) => {
+        Label.Checkpoint(
+            "conditional_access_test", "method_calls_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK10");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK10");
@@ -1383,41 +1461,44 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // Test method calls.
+        // Test method calls.
 
-            int Calc3()
+        int Calc3()
+        {
+            return 8;
+        }
+
+        MethodCallTest1 MethodCallTest = new MethodCallTest1();
+        MethodCallTest1 methodCallTest1Null;
+        MethodCallTest2 methodCallTest2 = new MethodCallTest2();
+        MethodCallTest2 methodCallTest2Null;
+        test_child TestCallChild = new test_child();
+        test_parent TestCallParentOverride = new test_child();
+        test_parent TestCallParent = new test_parent();
+
+        decimal decimalToString = 1.01M;
+        double doubleToString = 2.02;
+        float floatToString = 3.03f;
+        char charToString = 'c';
+        bool boolToString = true;
+        sbyte sbyteToString = -5;
+        byte byteToString = 5;
+        short shortToString = -6;
+        ushort ushortToString = 6;
+        int intToString = -7;
+        uint uintToString = 7;
+        long longToString = -8;
+        ulong ulongToString = 8;
+        string stringToString = "string";
+
+        MethodCallTest3 mcTest3 = new MethodCallTest3();
+
+        int break_line11 = 1;                                                                        Label.Breakpoint("BREAK11");
+
+        Label.Checkpoint(
+            "method_calls_test", "unary_operators_test",
+            (Object context) =>
             {
-                return 8;
-            }
-
-            MethodCallTest1 MethodCallTest = new MethodCallTest1();
-            MethodCallTest1 methodCallTest1Null;
-            MethodCallTest2 methodCallTest2 = new MethodCallTest2();
-            MethodCallTest2 methodCallTest2Null;
-            test_child TestCallChild = new test_child();
-            test_parent TestCallParentOverride = new test_child();
-            test_parent TestCallParent = new test_parent();
-
-            decimal decimalToString = 1.01M;
-            double doubleToString = 2.02;
-            float floatToString = 3.03f;
-            char charToString = 'c';
-            bool boolToString = true;
-            sbyte sbyteToString = -5;
-            byte byteToString = 5;
-            short shortToString = -6;
-            ushort ushortToString = 6;
-            int intToString = -7;
-            uint uintToString = 7;
-            long longToString = -8;
-            ulong ulongToString = 8;
-            string stringToString = "string";
-
-            MethodCallTest3 mcTest3 = new MethodCallTest3();
-
-            int break_line11 = 1;                                                                        Label.Breakpoint("BREAK11");
-
-            Label.Checkpoint("method_calls_test", "unary_operators_test", (Object context) => {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK11");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK11");
@@ -1482,27 +1563,30 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // Test unary plus and negation operators.
+        // Test unary plus and negation operators.
 
-            char charUnary = '영';
-            sbyte sbyteUnary = -5;
-            byte byteUnary = 5;
-            short shortUnary = -6;
-            ushort ushortUnary = 6;
-            int intUnary = -7;
-            uint uintUnary = 7;
-            long longUnary = -8;
-            ulong ulongUnary = 8;
+        char charUnary = '영';
+        sbyte sbyteUnary = -5;
+        byte byteUnary = 5;
+        short shortUnary = -6;
+        ushort ushortUnary = 6;
+        int intUnary = -7;
+        uint uintUnary = 7;
+        long longUnary = -8;
+        ulong ulongUnary = 8;
 
-            decimal decimalUnary = 1.01M;
-            double doubleUnary = 2.02;
-            float floatUnary = 3.03f;
+        decimal decimalUnary = 1.01M;
+        double doubleUnary = 2.02;
+        float floatUnary = 3.03f;
 
-            enumUnary_t enumUnary = enumUnary_t.TWO;
+        enumUnary_t enumUnary = enumUnary_t.TWO;
 
-            int break_line12 = 1;                                                                        Label.Breakpoint("BREAK12");
+        int break_line12 = 1;                                                                        Label.Breakpoint("BREAK12");
 
-            Label.Checkpoint("unary_operators_test", "function_evaluation_test", (Object context) => {
+        Label.Checkpoint(
+            "unary_operators_test", "function_evaluation_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK12");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK12");
@@ -1564,9 +1648,11 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            int break_line13 = 13;                                                                        Label.Breakpoint("BREAK13");
+        int break_line13 = 13;                                                                        Label.Breakpoint("BREAK13");
 
-            Label.Checkpoint("function_evaluation_test", "coalesce_test", (Object context) => {
+        Label.Checkpoint("function_evaluation_test", "coalesce_test",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK13");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK13");
@@ -1579,21 +1665,24 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            coalesce_test_A test_null = null;
-            coalesce_test_A A_class = new coalesce_test_A();
-            coalesce_test_B B_class = new coalesce_test_B();
+        coalesce_test_A test_null = null;
+        coalesce_test_A A_class = new coalesce_test_A();
+        coalesce_test_B B_class = new coalesce_test_B();
 
-            string str_null = null;
-            string A_string = "A";
-            string B_string = "B";
-            string C_string = "C";
+        string str_null = null;
+        string A_string = "A";
+        string B_string = "B";
+        string C_string = "C";
 
-            test_struct1_t test_struct = new test_struct1_t();
-            decimal test_decimal = 1;
-            int test_int = 1;
+        test_struct1_t test_struct = new test_struct1_t();
+        decimal test_decimal = 1;
+        int test_int = 1;
 
-            int break_line14 = 1;                                                                        Label.Breakpoint("BREAK14");
-            Label.Checkpoint("coalesce_test", "finish", (Object context) => {
+        int break_line14 = 1;                                                                        Label.Breakpoint("BREAK14");
+        Label.Checkpoint(
+            "coalesce_test", "finish",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK14");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK14");
@@ -1664,11 +1753,13 @@ namespace TestEvaluate
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            Label.Checkpoint("finish", "", (Object context) => {
+        Label.Checkpoint("finish", "",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasExit(@"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
-        }
     }
+}
 }

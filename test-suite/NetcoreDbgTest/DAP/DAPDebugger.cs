@@ -8,134 +8,152 @@ using Newtonsoft.Json;
 
 namespace NetcoreDbgTest.DAP
 {
-    public class DAPResult : Tuple<bool, string>
+public class DAPResult : Tuple<bool, string>
+{
+    public DAPResult(bool Success, string ResponseStr) : base(Success, ResponseStr)
     {
-        public DAPResult(bool Success, string ResponseStr)
-            :base(Success, ResponseStr)
-        {
-        }
-
-        public bool Success { get{ return this.Item1; } }
-        public string ResponseStr { get{ return this.Item2; } }
     }
 
-    public class DAPDebugger
+    public bool Success
     {
-        public bool isResponseContainProperty(string stringJSON, string testField, string testValue)
+        get
         {
-            JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
-            while (reader.Read()) {
-                if (reader.Value != null
-                    && reader.TokenType.ToString() == "PropertyName"
-                    && reader.Value.ToString() == testField
-                    && reader.Read()
-                    && reader.Value != null
-                    && reader.Value.ToString() == testValue) {
-                    return true;
-                }
-            }
+            return this.Item1;
+        }
+    }
+    public string ResponseStr
+    {
+        get
+        {
+            return this.Item2;
+        }
+    }
+}
 
-            return false;
+public class DAPDebugger
+{
+    public bool isResponseContainProperty(string stringJSON, string testField, string testValue)
+    {
+        JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
+        while (reader.Read())
+        {
+            if (reader.Value != null && reader.TokenType.ToString() == "PropertyName" &&
+                reader.Value.ToString() == testField && reader.Read() && reader.Value != null &&
+                reader.Value.ToString() == testValue)
+            {
+                return true;
+            }
         }
 
-        public object GetResponsePropertyValue(string stringJSON, string testField)
-        {
-            JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
-            while (reader.Read()) {
-                if (reader.Value != null
-                    && reader.TokenType.ToString() == "PropertyName"
-                    && reader.Value.ToString() == testField
-                    && reader.Read()) {
-                    return reader.Value;
-                }
-            }
+        return false;
+    }
 
-            return null;
+    public object GetResponsePropertyValue(string stringJSON, string testField)
+    {
+        JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
+        while (reader.Read())
+        {
+            if (reader.Value != null && reader.TokenType.ToString() == "PropertyName" &&
+                reader.Value.ToString() == testField && reader.Read())
+            {
+                return reader.Value;
+            }
         }
 
-        public DAPResult Request(Request command, int timeout = -1)
+        return null;
+    }
+
+    public DAPResult Request(Request command, int timeout = -1)
+    {
+        command.seq = RequestSeq++;
+        string stringJSON = JsonConvert.SerializeObject(
+            command, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+
+        Logger.LogLine("-> (C) " + stringJSON);
+
+        if (!DebuggerClient.Send(stringJSON))
         {
-            command.seq = RequestSeq++;
-            string stringJSON = JsonConvert.SerializeObject(command,
-                                                            Formatting.None,
-                                                            new JsonSerializerSettings { 
-                                                                NullValueHandling = NullValueHandling.Ignore});
+            throw new DebuggerNotResponses();
+        }
 
-            Logger.LogLine("-> (C) " + stringJSON);
-
-            if (!DebuggerClient.Send(stringJSON)) {
+        while (true)
+        {
+            string[] response = DebuggerClient.Receive(timeout);
+            if (response == null)
+            {
                 throw new DebuggerNotResponses();
             }
+            string line = response[0];
 
-            while (true) {
-                string[] response = DebuggerClient.Receive(timeout);
-                if (response == null) {
-                    throw new DebuggerNotResponses();
-                }
-                string line = response[0];
-
-                if (isResponseContainProperty(line, "type", "response"))
-                {
-                    Logger.LogLine("<- (R) " + line);
-                    if ((Int64)GetResponsePropertyValue(line, "request_seq") == command.seq)
-                        return new DAPResult((bool)GetResponsePropertyValue(line, "success"), line);
-                    else
-                        throw new WrongResponseSequence();
-                } else {
-                    Logger.LogLine("<- (E) " + line);
-                    EventQueue.Enqueue(line);
-                }
+            if (isResponseContainProperty(line, "type", "response"))
+            {
+                Logger.LogLine("<- (R) " + line);
+                if ((Int64)GetResponsePropertyValue(line, "request_seq") == command.seq)
+                    return new DAPResult((bool)GetResponsePropertyValue(line, "success"), line);
+                else
+                    throw new WrongResponseSequence();
             }
-        }
-
-        void ReceiveEvents(int timeout = -1)
-        {
-            while (true) {
-                string[] response = DebuggerClient.Receive(timeout);
-                if (response == null) {
-                    throw new DebuggerNotResponses();
-                }
-                string line = response[0];
-
+            else
+            {
                 Logger.LogLine("<- (E) " + line);
                 EventQueue.Enqueue(line);
+            }
+        }
+    }
 
-                foreach (var Event in StopEvents) {
-                    if (isResponseContainProperty(line, "event", Event)) {
-                        return;
-                    }
+    void ReceiveEvents(int timeout = -1)
+    {
+        while (true)
+        {
+            string[] response = DebuggerClient.Receive(timeout);
+            if (response == null)
+            {
+                throw new DebuggerNotResponses();
+            }
+            string line = response[0];
+
+            Logger.LogLine("<- (E) " + line);
+            EventQueue.Enqueue(line);
+
+            foreach (var Event in StopEvents)
+            {
+                if (isResponseContainProperty(line, "event", Event))
+                {
+                    return;
                 }
             }
         }
-
-        public bool IsEventReceived(Func<string, bool> filter)
-        {
-            // check previously received events first
-            while (EventQueue.Count > 0) {
-                if (filter(EventQueue.Dequeue()))
-                    return true;
-            }
-
-            // receive new events and check them
-            ReceiveEvents();
-            while (EventQueue.Count > 0) {
-                if (filter(EventQueue.Dequeue()))
-                    return true;
-            }
-
-            return false;
-        }
-
-        public DAPDebugger(DebuggerClient debuggerClient)
-        {
-            DebuggerClient = debuggerClient;
-        }
-
-        Queue<string> EventQueue = new Queue<string>();
-        Logger Logger = new Logger();
-        DebuggerClient DebuggerClient;
-        static string[] StopEvents = {"stopped",
-                                      "terminated"};
-        int RequestSeq = 1;
     }
+
+    public bool IsEventReceived(Func<string, bool> filter)
+    {
+        // check previously received events first
+        while (EventQueue.Count > 0)
+        {
+            if (filter(EventQueue.Dequeue()))
+                return true;
+        }
+
+        // receive new events and check them
+        ReceiveEvents();
+        while (EventQueue.Count > 0)
+        {
+            if (filter(EventQueue.Dequeue()))
+                return true;
+        }
+
+        return false;
+    }
+
+    public DAPDebugger(DebuggerClient debuggerClient)
+    {
+        DebuggerClient = debuggerClient;
+    }
+
+    Queue<string> EventQueue = new Queue<string>();
+    Logger Logger = new Logger();
+    DebuggerClient DebuggerClient;
+    static string[] StopEvents = { "stopped", "terminated" };
+    int RequestSeq = 1;
+}
 }

@@ -10,298 +10,317 @@ using Newtonsoft.Json;
 
 namespace NetcoreDbgTest.Script
 {
-    class Context
+class Context
+{
+    public void PrepareStart(string caller_trace)
     {
-        public void PrepareStart(string caller_trace)
-        {
-            InitializeRequest initializeRequest = new InitializeRequest();
-            initializeRequest.arguments.clientID = "vscode";
-            initializeRequest.arguments.clientName = "Visual Studio Code";
-            initializeRequest.arguments.adapterID = "coreclr";
-            initializeRequest.arguments.pathFormat = "path";
-            initializeRequest.arguments.linesStartAt1 = true;
-            initializeRequest.arguments.columnsStartAt1 = true;
-            initializeRequest.arguments.supportsVariableType = true;
-            initializeRequest.arguments.supportsVariablePaging = true;
-            initializeRequest.arguments.supportsRunInTerminalRequest = true;
-            initializeRequest.arguments.locale = "en-us";
-            Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
+        InitializeRequest initializeRequest = new InitializeRequest();
+        initializeRequest.arguments.clientID = "vscode";
+        initializeRequest.arguments.clientName = "Visual Studio Code";
+        initializeRequest.arguments.adapterID = "coreclr";
+        initializeRequest.arguments.pathFormat = "path";
+        initializeRequest.arguments.linesStartAt1 = true;
+        initializeRequest.arguments.columnsStartAt1 = true;
+        initializeRequest.arguments.supportsVariableType = true;
+        initializeRequest.arguments.supportsVariablePaging = true;
+        initializeRequest.arguments.supportsRunInTerminalRequest = true;
+        initializeRequest.arguments.locale = "en-us";
+        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-            LaunchRequest launchRequest = new LaunchRequest();
-            launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
-            launchRequest.arguments.type = "coreclr";
-            launchRequest.arguments.preLaunchTask = "build";
-            launchRequest.arguments.program = ControlInfo.TargetAssemblyPath;
-            launchRequest.arguments.cwd = "";
-            launchRequest.arguments.console = "internalConsole";
-            launchRequest.arguments.stopAtEntry = true;
-            launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
-            launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
-            Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void PrepareEnd(string caller_trace)
-        {
-            ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
-            Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasEntryPointHit(string caller_trace)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void WasExit(string caller_trace)
-        {
-            bool wasExited = false;
-            int ?exitCode = null;
-            bool wasTerminated = false;
-
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited")) {
-                    wasExited = true;
-                    ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
-                    exitCode = exitedEvent.body.exitCode;
-                }
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated")) {
-                    wasTerminated = true;
-                }
-                if (wasExited && exitCode == 0 && wasTerminated)
-                    return true;
-
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void DebuggerExit(string caller_trace)
-        {
-            DisconnectRequest disconnectRequest = new DisconnectRequest();
-            disconnectRequest.arguments = new DisconnectArguments();
-            disconnectRequest.arguments.restart = false;
-            Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void AddBreakpoint(string caller_trace, string bpName, string bpPath = null, string Condition = null)
-        {
-            Breakpoint bp = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)bp;
-            string sourceFile = bpPath != null ? bpPath : lbp.FileName;
-
-            List<SourceBreakpoint> listBp;
-            if (!SrcBreakpoints.TryGetValue(sourceFile, out listBp)) {
-                listBp = new List<SourceBreakpoint>();
-                SrcBreakpoints[sourceFile] = listBp;
-            }
-            listBp.Add(new SourceBreakpoint(lbp.NumLine, Condition));
-
-            List<int?> listBpId;
-            if (!SrcBreakpointIds.TryGetValue(sourceFile, out listBpId)) {
-                listBpId = new List<int?>();
-                SrcBreakpointIds[sourceFile] = listBpId;
-            }
-            listBpId.Add(null);
-        }
-
-        public void RemoveBreakpoint(string caller_trace, string bpName, string bpPath = null)
-        {
-            Breakpoint bp = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)bp;
-            string sourceFile = bpPath != null ? bpPath : lbp.FileName;
-
-            List<SourceBreakpoint> listBp;
-            Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out listBp), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            List<int?> listBpId;
-            Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out listBpId), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            int indexBp = listBp.FindIndex(x => x.line == lbp.NumLine);
-            listBp.RemoveAt(indexBp);
-            listBpId.RemoveAt(indexBp);
-        }
-
-        public int? GetBreakpointId(string caller_trace, string bpName, string bpPath = null)
-        {
-            Breakpoint bp = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)bp;
-            string sourceFile = bpPath != null ? bpPath : lbp.FileName;
-
-            List<SourceBreakpoint> listBp;
-            Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out listBp), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            List<int?> listBpId;
-            Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out listBpId), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            int indexBp = listBp.FindIndex(x => x.line == lbp.NumLine);
-            return listBpId[indexBp];
-        }
-
-        public void SetBreakpoints(string caller_trace)
-        {
-            foreach (var Breakpoints in SrcBreakpoints) {
-                SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
-                setBreakpointsRequest.arguments.source.name = Path.GetFileName(Breakpoints.Key);
-
-                setBreakpointsRequest.arguments.source.path = Breakpoints.Key;
-                setBreakpointsRequest.arguments.breakpoints.AddRange(Breakpoints.Value);
-                setBreakpointsRequest.arguments.sourceModified = false;
-                var ret = DAPDebugger.Request(setBreakpointsRequest);
-                Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-                SetBreakpointsResponse setBreakpointsResponse =
-                    JsonConvert.DeserializeObject<SetBreakpointsResponse>(ret.ResponseStr);
-
-                // check, that we don't have hiddenly re-created breakpoints with different ids
-                for (int i = 0; i < setBreakpointsResponse.body.breakpoints.Count; i++) {
-                    if (SrcBreakpointIds[Breakpoints.Key][i] == null) {
-                        CurrentBpId++;
-                        SrcBreakpointIds[Breakpoints.Key][i] = setBreakpointsResponse.body.breakpoints[i].id;
-                    } else {
-                        Assert.Equal(SrcBreakpointIds[Breakpoints.Key][i], setBreakpointsResponse.body.breakpoints[i].id, @"__FILE__:__LINE__"+"\n"+caller_trace);
-                    }
-                }
-            }
-        }
-
-        public void WasBreakpointHit(string caller_trace, string bpName)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            StackTraceRequest stackTraceRequest = new StackTraceRequest();
-            stackTraceRequest.arguments.threadId = threadId;
-            stackTraceRequest.arguments.startFrame = 0;
-            stackTraceRequest.arguments.levels = 20;
-            var ret = DAPDebugger.Request(stackTraceRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-            Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__"+"\n"+caller_trace);
-            var lbp = (LineBreakpoint)breakpoint;
-
-            StackTraceResponse stackTraceResponse =
-                JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-            if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine
-                && stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName)
-                return;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void AddManualBreakpoint(string caller_trace, string bp_fileName, int bp_line)
-        {
-            List<SourceBreakpoint> listBp;
-            if (!SrcBreakpoints.TryGetValue(bp_fileName, out listBp)) {
-                listBp = new List<SourceBreakpoint>();
-                SrcBreakpoints[bp_fileName] = listBp;
-            }
-            listBp.Add(new SourceBreakpoint(bp_line, null));
-
-            List<int?> listBpId;
-            if (!SrcBreakpointIds.TryGetValue(bp_fileName, out listBpId)) {
-                listBpId = new List<int?>();
-                SrcBreakpointIds[bp_fileName] = listBpId;
-            }
-            listBpId.Add(null);
-        }
-
-        public void WasManualBreakpointHit(string caller_trace, string bp_fileName, int bp_line)
-        {
-            Func<string, bool> filter = (resJSON) => {
-                if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped")
-                    && DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint")) {
-                    threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                    return true;
-                }
-                return false;
-            };
-
-            Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            StackTraceRequest stackTraceRequest = new StackTraceRequest();
-            stackTraceRequest.arguments.threadId = threadId;
-            stackTraceRequest.arguments.startFrame = 0;
-            stackTraceRequest.arguments.levels = 20;
-            var ret = DAPDebugger.Request(stackTraceRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-
-            StackTraceResponse stackTraceResponse =
-                JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-            if (stackTraceResponse.body.stackFrames[0].line == bp_line
-                && stackTraceResponse.body.stackFrames[0].source.name == bp_fileName)
-                return;
-
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public void Continue(string caller_trace)
-        {
-            ContinueRequest continueRequest = new ContinueRequest();
-            continueRequest.arguments.threadId = threadId;
-            Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
-        }
-
-        public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
-        {
-            ControlInfo = controlInfo;
-            DAPDebugger = new DAPDebugger(debuggerClient);
-        }
-
-        ControlInfo ControlInfo;
-        DAPDebugger DAPDebugger;
-        int threadId = -1;
-        public int CurrentBpId = 0;
-        // Note, SrcBreakpoints and SrcBreakpointIds must have same order of the elements, since we use indexes for mapping.
-        Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
-        Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
+        LaunchRequest launchRequest = new LaunchRequest();
+        launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
+        launchRequest.arguments.type = "coreclr";
+        launchRequest.arguments.preLaunchTask = "build";
+        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath;
+        launchRequest.arguments.cwd = "";
+        launchRequest.arguments.console = "internalConsole";
+        launchRequest.arguments.stopAtEntry = true;
+        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
+        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
+        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
+
+    public void PrepareEnd(string caller_trace)
+    {
+        ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
+        Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void WasEntryPointHit(string caller_trace)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void WasExit(string caller_trace)
+    {
+        bool wasExited = false;
+        int? exitCode = null;
+        bool wasTerminated = false;
+
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited"))
+            {
+                wasExited = true;
+                ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
+                exitCode = exitedEvent.body.exitCode;
+            }
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated"))
+            {
+                wasTerminated = true;
+            }
+            if (wasExited && exitCode == 0 && wasTerminated)
+                return true;
+
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void DebuggerExit(string caller_trace)
+    {
+        DisconnectRequest disconnectRequest = new DisconnectRequest();
+        disconnectRequest.arguments = new DisconnectArguments();
+        disconnectRequest.arguments.restart = false;
+        Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void AddBreakpoint(string caller_trace, string bpName, string bpPath = null, string Condition = null)
+    {
+        Breakpoint bp = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+        string sourceFile = bpPath != null ? bpPath : lbp.FileName;
+
+        List<SourceBreakpoint> listBp;
+        if (!SrcBreakpoints.TryGetValue(sourceFile, out listBp))
+        {
+            listBp = new List<SourceBreakpoint>();
+            SrcBreakpoints[sourceFile] = listBp;
+        }
+        listBp.Add(new SourceBreakpoint(lbp.NumLine, Condition));
+
+        List<int?> listBpId;
+        if (!SrcBreakpointIds.TryGetValue(sourceFile, out listBpId))
+        {
+            listBpId = new List<int?>();
+            SrcBreakpointIds[sourceFile] = listBpId;
+        }
+        listBpId.Add(null);
+    }
+
+    public void RemoveBreakpoint(string caller_trace, string bpName, string bpPath = null)
+    {
+        Breakpoint bp = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+        string sourceFile = bpPath != null ? bpPath : lbp.FileName;
+
+        List<SourceBreakpoint> listBp;
+        Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out listBp), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        List<int?> listBpId;
+        Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out listBpId), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        int indexBp = listBp.FindIndex(x => x.line == lbp.NumLine);
+        listBp.RemoveAt(indexBp);
+        listBpId.RemoveAt(indexBp);
+    }
+
+    public int? GetBreakpointId(string caller_trace, string bpName, string bpPath = null)
+    {
+        Breakpoint bp = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+        string sourceFile = bpPath != null ? bpPath : lbp.FileName;
+
+        List<SourceBreakpoint> listBp;
+        Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out listBp), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        List<int?> listBpId;
+        Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out listBpId), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        int indexBp = listBp.FindIndex(x => x.line == lbp.NumLine);
+        return listBpId[indexBp];
+    }
+
+    public void SetBreakpoints(string caller_trace)
+    {
+        foreach (var Breakpoints in SrcBreakpoints)
+        {
+            SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
+            setBreakpointsRequest.arguments.source.name = Path.GetFileName(Breakpoints.Key);
+
+            setBreakpointsRequest.arguments.source.path = Breakpoints.Key;
+            setBreakpointsRequest.arguments.breakpoints.AddRange(Breakpoints.Value);
+            setBreakpointsRequest.arguments.sourceModified = false;
+            var ret = DAPDebugger.Request(setBreakpointsRequest);
+            Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+            SetBreakpointsResponse setBreakpointsResponse =
+                JsonConvert.DeserializeObject<SetBreakpointsResponse>(ret.ResponseStr);
+
+            // check, that we don't have hiddenly re-created breakpoints with different ids
+            for (int i = 0; i < setBreakpointsResponse.body.breakpoints.Count; i++)
+            {
+                if (SrcBreakpointIds[Breakpoints.Key][i] == null)
+                {
+                    CurrentBpId++;
+                    SrcBreakpointIds[Breakpoints.Key][i] = setBreakpointsResponse.body.breakpoints[i].id;
+                }
+                else
+                {
+                    Assert.Equal(SrcBreakpointIds[Breakpoints.Key][i], setBreakpointsResponse.body.breakpoints[i].id,
+                                 @"__FILE__:__LINE__" + "\n" + caller_trace);
+                }
+            }
+        }
+    }
+
+    public void WasBreakpointHit(string caller_trace, string bpName)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)breakpoint;
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
+
+        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
+            stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName)
+            return;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void AddManualBreakpoint(string caller_trace, string bp_fileName, int bp_line)
+    {
+        List<SourceBreakpoint> listBp;
+        if (!SrcBreakpoints.TryGetValue(bp_fileName, out listBp))
+        {
+            listBp = new List<SourceBreakpoint>();
+            SrcBreakpoints[bp_fileName] = listBp;
+        }
+        listBp.Add(new SourceBreakpoint(bp_line, null));
+
+        List<int?> listBpId;
+        if (!SrcBreakpointIds.TryGetValue(bp_fileName, out listBpId))
+        {
+            listBpId = new List<int?>();
+            SrcBreakpointIds[bp_fileName] = listBpId;
+        }
+        listBpId.Add(null);
+    }
+
+    public void WasManualBreakpointHit(string caller_trace, string bp_fileName, int bp_line)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
+
+        if (stackTraceResponse.body.stackFrames[0].line == bp_line &&
+            stackTraceResponse.body.stackFrames[0].source.name == bp_fileName)
+            return;
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void Continue(string caller_trace)
+    {
+        ContinueRequest continueRequest = new ContinueRequest();
+        continueRequest.arguments.threadId = threadId;
+        Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
+    {
+        ControlInfo = controlInfo;
+        DAPDebugger = new DAPDebugger(debuggerClient);
+    }
+
+    ControlInfo ControlInfo;
+    DAPDebugger DAPDebugger;
+    int threadId = -1;
+    public int CurrentBpId = 0;
+    // Note, SrcBreakpoints and SrcBreakpointIds must have same order of the elements, since we use indexes for mapping.
+    Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
+    Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
+}
 }
 
 namespace TestSrcBreakpointResolve
 {
-    class test_constructors
+class test_constructors
+{
+    int test_field = 5; // bp here! make sure you correct code (test constructor)!
+
+    public test_constructors()
     {
-        int test_field = 5; // bp here! make sure you correct code (test constructor)!
-
-        public test_constructors()
-        {
-            int i = 5;     // bp here! make sure you correct code (test constructor)!
-        }
-
-        public test_constructors(int i)
-        {
-            int j = 5;
-        }
+        int i = 5; // bp here! make sure you correct code (test constructor)!
     }
 
-    class Program
+    public test_constructors(int i)
     {
-        static void Main(string[] args)
-        {
-            Label.Checkpoint("init", "bp_test1", (Object context) => {
+        int j = 5;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Label.Checkpoint("init", "bp_test1",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.PrepareStart(@"__FILE__:__LINE__");
 
@@ -336,7 +355,10 @@ Label.Breakpoint("bp3");
 Label.Breakpoint("resolved_bp1");       Console.WriteLine(
                                                           "Hello World!");          Label.Breakpoint("bp4");
 
-            Label.Checkpoint("bp_test1", "bp_test2", (Object context) => {
+        Label.Checkpoint(
+            "bp_test1", "bp_test2",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp1");
 
@@ -358,14 +380,17 @@ Label.Breakpoint("resolved_bp1");       Console.WriteLine(
             });
 
 Label.Breakpoint("bp5_resolve_wrong_source"); // Console.WriteLine("Hello World!");
-                                        /* Console.WriteLine("Hello World!"); */
-                                        Console.WriteLine("Hello World!");
+                                              /* Console.WriteLine("Hello World!"); */
+                                              Console.WriteLine("Hello World!");
 
 Label.Breakpoint("bp5");                // Console.WriteLine("Hello World!");
                                         /* Console.WriteLine("Hello World!"); */
 Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
 
-            Label.Checkpoint("bp_test2", "bp_test3", (Object context) => {
+        Label.Checkpoint(
+            "bp_test2", "bp_test3",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp2");
 
@@ -392,7 +417,10 @@ Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
 Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                                                           "Hello World!");          Label.Breakpoint("bp6");
 
-            Label.Checkpoint("bp_test3", "bp_test4", (Object context) => {
+        Label.Checkpoint(
+            "bp_test3", "bp_test4",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp3");
 
@@ -410,7 +438,7 @@ Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp8", "TestSrcBreakpointResolve/Program.cs");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp9", "./TestSrcBreakpointResolve/folder/../Program.cs");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                int? current_bp_id =  Context.GetBreakpointId(@"__FILE__:__LINE__", "bp9", "./TestSrcBreakpointResolve/folder/../Program.cs");
+                int? current_bp_id = Context.GetBreakpointId(@"__FILE__:__LINE__", "bp9", "./TestSrcBreakpointResolve/folder/../Program.cs");
                 // one more check, that we have proper breakpoint ids
                 Assert.Equal(Context.CurrentBpId, current_bp_id, @"__FILE__:__LINE__");
 
@@ -422,7 +450,9 @@ Label.Breakpoint("bp8");
 Label.Breakpoint("resolved_bp4");       Console.WriteLine(
                                                           "Hello World!");          Label.Breakpoint("bp9");
 
-            Label.Checkpoint("bp_test4", "bp_test_nested", (Object context) => {
+        Label.Checkpoint("bp_test4", "bp_test_nested",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 // check, that actually we have only one active breakpoint per line
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp4");
@@ -453,68 +483,70 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            TestSrcBreakpointResolve2.Program.testfunc();
+        TestSrcBreakpointResolve2.Program.testfunc();
 
-            // tests resolve for nested methods
-                                                                                    Label.Breakpoint("bp10");
-            void nested_func1()
-            {                                                                       Label.Breakpoint("resloved_bp10");
-                Console.WriteLine("Hello World!");                                  
-                                                                                    Label.Breakpoint("bp11");
-            }                                                                       Label.Breakpoint("resloved_bp11");
-            nested_func1();
-                                                                                    Label.Breakpoint("bp12");
-            void nested_func2()
-            {                                                                       Label.Breakpoint("resloved_bp12");
-                Console.WriteLine("Hello World!");                                  Label.Breakpoint("bp13");
-            }
-            nested_func2();
-                                                                                    Label.Breakpoint("bp14");
-            Console.WriteLine("Hello World!");                                      Label.Breakpoint("resloved_bp14");
+        // tests resolve for nested methods
+                                                                                Label.Breakpoint("bp10");
+        void nested_func1()
+        {                                                                       Label.Breakpoint("resloved_bp10");
+            Console.WriteLine("Hello World!");
+                                                                                Label.Breakpoint("bp11");
+        }                                                                       Label.Breakpoint("resloved_bp11");
+        nested_func1();
+                                                                                Label.Breakpoint("bp12");
+        void nested_func2()
+        {                                                                       Label.Breakpoint("resloved_bp12");
+            Console.WriteLine("Hello World!");                                  Label.Breakpoint("bp13");
+        }
+        nested_func2();
+                                                                                Label.Breakpoint("bp14");
+        Console.WriteLine("Hello World!");                                      Label.Breakpoint("resloved_bp14");
 
-            void nested_func3()
-            {
-                Console.WriteLine("Hello World!");                                  Label.Breakpoint("bp15");
-            }
-            nested_func3();
+        void nested_func3()
+        {
+            Console.WriteLine("Hello World!");                                  Label.Breakpoint("bp15");
+        }
+        nested_func3();
 
-            void nested_func4() { }; void nested_func5() { };                       Label.Breakpoint("bp16");
-            nested_func4();
+        void nested_func4() { }; void nested_func5() { };                       Label.Breakpoint("bp16");
+        nested_func4();
 
-            void nested_func6() {
-            }; void nested_func7() { };                                             Label.Breakpoint("bp17");
-            nested_func6();
+        void nested_func6() {
+        }; void nested_func7() { };                                             Label.Breakpoint("bp17");
+        nested_func6();
 
-            void nested_func8() { }; void nested_func9() {
-            }; void nested_func10() { };                                            Label.Breakpoint("bp18");
-            nested_func9();
+        void nested_func8() { }; void nested_func9() {
+        }; void nested_func10() { };                                            Label.Breakpoint("bp18");
+        nested_func9();
 
-            void nested_func11() { void nested_func12() { void nested_func13() { 
-                                                                                    Label.Breakpoint("bp19");
-            };                                                                      Label.Breakpoint("resloved_bp19");
-            nested_func13(); }; 
-            nested_func12(); };
-            nested_func11();
+        void nested_func11() { void nested_func12() { void nested_func13() { 
+                                                                                Label.Breakpoint("bp19");
+        };                                                                      Label.Breakpoint("resloved_bp19");
+        nested_func13(); }; 
+        nested_func12(); };
+        nested_func11();
 
-            Console.WriteLine("1111Hello World!"); void nested_func14() {           Label.Breakpoint("bp20");
-            Console.WriteLine("2222Hello World!");
-            };                                                                      Label.Breakpoint("bp22");
-            nested_func14();                                                        Label.Breakpoint("bp21");
+        Console.WriteLine("1111Hello World!"); void nested_func14() {           Label.Breakpoint("bp20");
+        Console.WriteLine("2222Hello World!");
+        };                                                                      Label.Breakpoint("bp22");
+        nested_func14();                                                        Label.Breakpoint("bp21");
 
-            List<string> numbers = new List<string>();
-            numbers.Add("1");
-            numbers.Add("2");
+        List<string> numbers = new List<string>();
+        numbers.Add("1");
+        numbers.Add("2");
 
 Label.Breakpoint("bp20_1");            numbers.ForEach((string number) => {
-                Console.WriteLine(number);                                          Label.Breakpoint("bp21_1");
-            });                                                                     Label.Breakpoint("bp22_1");
+            Console.WriteLine(number);                                          Label.Breakpoint("bp21_1");
+        });                                                                     Label.Breakpoint("bp22_1");
 
 Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
-                                                                                    Label.Breakpoint("bp21_2");
-                Console.WriteLine(number);                                          Label.Breakpoint("bp21_2_resolved");
-            });                                                                     Label.Breakpoint("bp22_2");
+                                                                               Label.Breakpoint("bp21_2");
+            Console.WriteLine(number);                                          Label.Breakpoint("bp21_2_resolved");
+        });                                                                     Label.Breakpoint("bp22_2");
 
-            Label.Checkpoint("bp_test_nested", "bp_test_constructor", (Object context) => {
+        Label.Checkpoint("bp_test_nested", "bp_test_constructor",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp10");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -566,36 +598,40 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // test constructor
+        // test constructor
 
-            int bp = 23;                                                            Label.Breakpoint("bp23");
-            test_constructors test_constr1 = new test_constructors();
-            test_constructors test_constr2 = new test_constructors(5);
+        int bp = 23;                                                            Label.Breakpoint("bp23");
+        test_constructors test_constr1 = new test_constructors();
+        test_constructors test_constr2 = new test_constructors(5);
 
-            Label.Checkpoint("bp_test_constructor", "bp_test_not_ordered_line_num", (Object context) => {
+        Label.Checkpoint("bp_test_constructor", "bp_test_not_ordered_line_num",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp23");
 
-                Context.AddManualBreakpoint(@"__FILE__:__LINE__", "Program.cs", 287); // line number with "int test_field = 5;" code
-                Context.AddManualBreakpoint(@"__FILE__:__LINE__", "Program.cs", 291); // line number with "int i = 5;" code
+                Context.AddManualBreakpoint(@"__FILE__:__LINE__", "Program.cs", 304); // line number with "int test_field = 5;" code
+                Context.AddManualBreakpoint(@"__FILE__:__LINE__", "Program.cs", 308); // line number with "int i = 5;" code
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 287); // line number with "int test_field = 5;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 304); // line number with "int test_field = 5;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 291); // line number with "int i = 5;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 308); // line number with "int i = 5;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 287); // line number with "int test_field = 5;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", 304); // line number with "int test_field = 5;" code
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // test code with sequence points that not ordered by line numbers
+        // test code with sequence points that not ordered by line numbers
 
-            Label.Breakpoint("bp24"); while(true)
+        Label.Breakpoint("bp24"); while(true)
+        {
+            break;                                                              Label.Breakpoint("bp25");
+        }
+
+        Label.Checkpoint("bp_test_not_ordered_line_num", "finish",
+            (Object context) =>
             {
-                break;                                                              Label.Breakpoint("bp25");
-            }
-
-            Label.Checkpoint("bp_test_not_ordered_line_num", "finish", (Object context) => {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp24");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -603,11 +639,13 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            Label.Checkpoint("finish", "", (Object context) => {
+        Label.Checkpoint("finish", "",
+            (Object context) =>
+            {
                 Context Context = (Context)context;
                 Context.WasExit(@"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
-        }
     }
+}
 }

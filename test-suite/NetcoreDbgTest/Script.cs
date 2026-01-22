@@ -1,7 +1,4 @@
-namespace NetcoreDbgTest
+namespace NetcoreDbgTest.Script
 {
-    namespace Script
-    {
-        // Declarations defined by user in test script
-    }
+// Declarations defined by user in test script
 }
