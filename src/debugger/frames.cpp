@@ -8,26 +8,10 @@
 #include "utils/platform.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
-#ifdef INTEROP_DEBUGGING
-#include "debugger/interop_debugging.h"
-#if DEBUGGER_UNIX_ARM
-#include "debugger/interop_ptrace_helpers.h"
-#include <sys/uio.h> // iovec
-#include <elf.h> // NT_PRSTATUS
-#endif
-#endif // INTEROP_DEBUGGING
 
 
 namespace netcoredbg
 {
-
-#ifdef INTEROP_DEBUGGING
-namespace
-{
-    std::mutex g_mutexInteropDebugger;
-    InteropDebugging::InteropDebugger *g_pInteropDebugger = nullptr;
-} // unnamed namespace
-#endif // INTEROP_DEBUGGING
 
 static std::uintptr_t GetIP(CONTEXT *context)
 {
@@ -105,133 +89,11 @@ static void SetFP(CONTEXT *context, std::uintptr_t value)
 #endif
 }
 
-#ifdef INTEROP_DEBUGGING
-#if DEBUGGER_UNIX_ARM
-static HRESULT EmptyContextForFrame(WalkFramesCallback cb)
-{
-    NativeFrame result;
-    result.unknownFrameAddr = true;
-    result.procName = "[Native Frame(s), unwind failed - CoreCLR don't provide registers context]";
-    return cb(FrameNative, result.addr, nullptr, &result);
-}
-
-static HRESULT EmptyContextForTopFrame(ICorDebugThread *pThread, WalkFramesCallback cb)
-{
-    std::lock_guard<std::mutex> lock(g_mutexInteropDebugger);
-
-    if (g_pInteropDebugger == nullptr)
-        return EmptyContextForFrame(cb);
-
-    DWORD threadId = 0;
-    StackFrame frame;
-    if (SUCCEEDED(pThread->GetID(&threadId)))
-    {
-        user_regs_struct regs;
-        iovec iov;
-        iov.iov_base = &regs;
-        iov.iov_len = sizeof(user_regs_struct);
-        if (InteropDebugging::async_ptrace(PTRACE_GETREGSET, threadId, (void*)NT_PRSTATUS, &iov) == -1)
-        {
-            char buf[1024];
-            LOGW("Ptrace getregset error: %s\n", ErrGetStr(errno, buf, sizeof(buf)));
-        }
-        else
-        {
-            constexpr int REG_PC = 15;
-            if (SUCCEEDED(g_pInteropDebugger->GetFrameForAddr(regs.uregs[REG_PC], frame)))
-            {
-                NativeFrame result;
-                result.addr = regs.uregs[REG_PC];
-                result.libName = frame.moduleOrLibName;
-                result.procName = frame.methodName;
-                result.fullSourcePath = frame.source.path;
-                result.lineNum = frame.line;
-                HRESULT Status;
-                IfFailRet(cb(FrameNative, result.addr, nullptr, &result));
-            }
-        }
-    }
-
-    return EmptyContextForFrame(cb);
-}
-#endif // DEBUGGER_UNIX_ARM
-#endif // INTEROP_DEBUGGING
-
 static HRESULT UnwindNativeFrames(ICorDebugThread *pThread, bool firstFrame, CONTEXT *pStartContext, CONTEXT *pEndContext, WalkFramesCallback cb)
 {
-#ifdef INTEROP_DEBUGGING
-    std::lock_guard<std::mutex> lock(g_mutexInteropDebugger);
-
-    if (g_pInteropDebugger == nullptr)
-        return S_OK; // In case debug session without interop, we merge "[CoreCLR Native Frame]" and "user's native frame" into "[Native Frames]".
-
-    DWORD threadId = 0;
-    if (FAILED(pThread->GetID(&threadId)))
-    {
-        NativeFrame result;
-        result.addr = pStartContext ? GetIP(pStartContext) : 0;
-        result.unknownFrameAddr = !result.addr;
-        result.procName = "[Native Frame(s)]";
-        return cb(FrameNative, result.addr, nullptr, &result);
-    }
-
-    std::uintptr_t endAddr = pEndContext ? GetIP(pEndContext) : 0;
-    return g_pInteropDebugger->UnwindNativeFrames(threadId, firstFrame, endAddr, pStartContext, [&](NativeFrame &nativeFrame)
-    {
-        return cb(FrameNative, nativeFrame.addr, nullptr, &nativeFrame);
-    });
-#else
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
     return S_OK;
-#endif // INTEROP_DEBUGGING
 }
-
-#ifdef INTEROP_DEBUGGING
-static HRESULT UnwindInlinedTopNativeFrames(ICorDebugThread *pThread, ICorDebugFunction *pFunction, CONTEXT &currentCtx, WalkFramesCallback cb)
-{
-    ToRelease<ICorDebugFunction2> iCorFunc2;
-    BOOL bJustMyCode;
-    if (SUCCEEDED(pFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunc2)) &&
-        SUCCEEDED(iCorFunc2->GetJMCStatus(&bJustMyCode)) &&
-        // Check for optimized code. In case of optimized code, JMC status can't be set to TRUE.
-        // https://github.com/dotnet/runtime/blob/main/src/coreclr/debug/ee/debugger.cpp#L11257-L11260
-        SUCCEEDED(iCorFunc2->SetJMCStatus(TRUE)))
-    {
-        // Revert back JMC status if need.
-        if (bJustMyCode != TRUE)
-            iCorFunc2->SetJMCStatus(bJustMyCode);
-
-        return S_OK; // not optimized code for sure, ignore native top frames.
-    }
-
-    // Prevent native top frame unwinding in case thread stopped by managed exception.
-    ToRelease<ICorDebugValue> iCorExceptionValue;
-    if (SUCCEEDED(pThread->GetCurrentException(&iCorExceptionValue)) && iCorExceptionValue != nullptr)
-        return S_OK;
-
-    std::lock_guard<std::mutex> lock(g_mutexInteropDebugger);
-
-    DWORD threadId = 0;
-    if (g_pInteropDebugger == nullptr || FAILED(pThread->GetID(&threadId)))
-        return S_OK;
-
-    HRESULT Status;
-    static const bool firstFrame = true;
-#if DEBUGGER_UNIX_ARM
-    // Linux arm32 CoreCLR have issue:
-    // - ICorDebugStackWalk::GetContext return empty registers context for all frames;
-    if (GetIP(&currentCtx) == 0)
-        IfFailRet(EmptyContextForTopFrame(pThread, cb));
-    else
-#endif // DEBUGGER_UNIX_ARM
-    IfFailRet(g_pInteropDebugger->UnwindNativeFrames(threadId, firstFrame, GetIP(&currentCtx), nullptr, [&](NativeFrame &nativeFrame)
-    {
-        return cb(FrameNative, nativeFrame.addr, nullptr, &nativeFrame);
-    }));
-
-    return S_OK;
-}
-#endif // INTEROP_DEBUGGING
 
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
 HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
@@ -308,21 +170,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
         // Check if we have native frames to unwind
         if (ctxUnmanagedChainValid)
         {
-#ifdef INTEROP_DEBUGGING
-#if DEBUGGER_UNIX_ARM
-            // Linux arm32 CoreCLR have issues:
-            // - ICorDebugStackWalk::Next have first stack frame "native", ICorDebugStackWalk::GetFrame return S_FALSE;
-            // - ICorDebugStackWalk::GetContext return empty registers context for all frames;
-            if (GetIP(&ctxUnmanagedChain) == 0 || GetIP(&currentCtx) == 0)
-            {
-                if (level == 1)
-                    IfFailRet(EmptyContextForTopFrame(pThread, cb));
-                else
-                    IfFailRet(EmptyContextForFrame(cb));
-            }
-            else
-#endif // DEBUGGER_UNIX_ARM
-#endif // INTEROP_DEBUGGING
             IfFailRet(UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, &currentCtx, cb));
             level++;
             // Clear out the CONTEXT
@@ -334,13 +181,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
         ToRelease<ICorDebugFunction> iCorFunction;
         if (SUCCEEDED(iCorFrame->GetFunction(&iCorFunction)))
         {
-#ifdef INTEROP_DEBUGGING
-            // In case of optimized managed code, top frame could be native (optimized code could have inlined pinvoke).
-            // Note, breakpoint can't be set in optimized managed code and step can't stop here, since this code is not JMC for sure.
-            if (level == 0 && FAILED(Status = UnwindInlinedTopNativeFrames(pThread, iCorFunction.GetPtr(), currentCtx, cb)))
-                return Status;
-#endif // INTEROP_DEBUGGING
-
             ToRelease<ICorDebugILFrame> pILFrame;
             IfFailRet(iCorFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID*) &pILFrame));
 
@@ -366,15 +206,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
         // since CoreCLR debug API don't track native code execution and don't really "see" native code at the beginning of unwinding.
         if (level == 0)
         {
-#ifdef INTEROP_DEBUGGING
-#if DEBUGGER_UNIX_ARM
-            // Linux arm32 CoreCLR have issue:
-            // - ICorDebugStackWalk::GetContext return empty registers context for all frames;
-            if (GetIP(&currentCtx) == 0)
-                IfFailRet(EmptyContextForTopFrame(pThread, cb));
-            else
-#endif // DEBUGGER_UNIX_ARM
-#endif // INTEROP_DEBUGGING
             IfFailRet(UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb));
         }
         IfFailRet(cb(FrameCLRNative, GetIP(&currentCtx), iCorFrame, nullptr));
@@ -387,15 +218,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
             IfFailRet(UnwindNativeFrames(pThread, firstFrame, nullptr, nullptr, cb));
         else
         {
-#ifdef INTEROP_DEBUGGING
-#if DEBUGGER_UNIX_ARM
-            // Linux arm32 CoreCLR have issue:
-            // - ICorDebugStackWalk::GetContext return empty registers context for all frames;
-            if (GetIP(&ctxUnmanagedChain) == 0)
-                IfFailRet(EmptyContextForFrame(cb));
-            else
-#endif // DEBUGGER_UNIX_ARM
-#endif // INTEROP_DEBUGGING
             IfFailRet(UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, nullptr, cb));
         }
     }
@@ -454,23 +276,5 @@ const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
         default:                             return "Unknown";
     }
 }
-
-#ifdef INTEROP_DEBUGGING
-
-void InitNativeFramesUnwind(InteropDebugging::InteropDebugger *pInteropDebugger)
-{
-    g_mutexInteropDebugger.lock();
-    g_pInteropDebugger = pInteropDebugger;
-    g_mutexInteropDebugger.unlock();
-}
-
-void ShutdownNativeFramesUnwind()
-{
-    g_mutexInteropDebugger.lock();
-    g_pInteropDebugger = nullptr;
-    g_mutexInteropDebugger.unlock();
-}
-
-#endif // INTEROP_DEBUGGING
 
 } // namespace netcoredbg

@@ -30,10 +30,6 @@ enum class CallbackQueueCall
     Break,
     Exception,
     CreateProcess
-#ifdef INTEROP_DEBUGGING
-    , InteropBreakpoint
-    , InteropSignal
-#endif // INTEROP_DEBUGGING
 };
 
 class CallbacksQueue
@@ -57,10 +53,6 @@ public:
     HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, std::function<void()> callback);
     void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                      CorDebugStepReason Reason, ExceptionCallbackType EventType, const std::string &ExcModule = std::string{});
-#ifdef INTEROP_DEBUGGING
-    HRESULT AddInteropCallbackToQueue(std::function<void()> callback);
-    void EmplaceBackInterop(CallbackQueueCall Call, pid_t pid, std::uintptr_t addr, const std::string &signal);
-#endif // INTEROP_DEBUGGING
 
 private:
 
@@ -96,21 +88,6 @@ private:
             ExcModule(excModule)
         {}
 
-#ifdef INTEROP_DEBUGGING
-        pid_t pid = 0; // Initial value in order to suppress static analyzer warnings.
-        std::uintptr_t addr = 0; // Initial value in order to suppress static analyzer warnings.
-        std::string signal;
-
-        CallbackQueueEntry(CallbackQueueCall call,
-                           pid_t pid_,
-                           std::uintptr_t addr_,
-                           const std::string &signal_) :
-            Call(call),
-            pid(pid_),
-            addr(addr_),
-            signal(signal_)
-        {}
-#endif // INTEROP_DEBUGGING
     };
 
     std::mutex m_callbacksMutex;
@@ -126,12 +103,6 @@ private:
     bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule);
     bool CallbacksWorkerCreateProcess();
     bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
-
-#ifdef INTEROP_DEBUGGING
-    bool CallbacksWorkerInteropBreakpoint(pid_t pid, std::uintptr_t brkAddr);
-    bool CallbacksWorkerInteropSignal(pid_t pid, std::uintptr_t breakAddr, const std::string &signal);
-    void StopAllNativeThreads();
-#endif // INTEROP_DEBUGGING
 
 };
 

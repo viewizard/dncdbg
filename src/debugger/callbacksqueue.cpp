@@ -25,7 +25,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 {
     // S_FALSE or error - continue callback.
     // S_OK - this is internal Hot Reload breakpoint, ignore this callback call.
-    if (S_OK == m_debugger.m_sharedBreakpoints->CheckApplicationReload(pThread, pBreakpoint))
+    if (S_OK == m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread, pBreakpoint))
         return false;
 
     // S_FALSE - not error and steppers not affect on callback
@@ -37,7 +37,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     StoppedEvent event(StopBreakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, event.breakpoint, bpChangeEvents, atEntry))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, event.breakpoint, bpChangeEvents, atEntry))
         return false;
 
     // Disable all steppers if we stop at breakpoint during step.
@@ -49,10 +49,6 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     ToRelease<ICorDebugFrame> pFrame;
     if (SUCCEEDED(pThread->GetActiveFrame(&pFrame)) && pFrame != nullptr)
         m_debugger.GetFrameLocation(pFrame, threadId, FrameLevel(0), event.frame);
-
-#ifdef INTEROP_DEBUGGING
-    StopAllNativeThreads();
-#endif // INTEROP_DEBUGGING
 
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
@@ -73,7 +69,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
 bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, CorDebugStepReason reason)
 {
-    m_debugger.m_sharedBreakpoints->CheckApplicationReload(pThread);
+    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
 
     // S_FALSE - not error and steppers not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
@@ -88,10 +84,6 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain,
     StoppedEvent event(StopStep, threadId);
     event.frame = stackFrame;
 
-#ifdef INTEROP_DEBUGGING
-    StopAllNativeThreads();
-#endif // INTEROP_DEBUGGING
-
     m_debugger.SetLastStoppedThread(pThread);
     m_debugger.pProtocol->EmitStoppedEvent(event);
     m_debugger.m_ioredirect.async_cancel();
@@ -100,10 +92,10 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain,
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    m_debugger.m_sharedBreakpoints->CheckApplicationReload(pThread);
+    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_sharedBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
         return false;
 
     // Disable all steppers if we stop at break during step.
@@ -117,10 +109,6 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr)
         m_debugger.GetFrameLocation(iCorFrame, threadId, FrameLevel(0), stackFrame);
 
-#ifdef INTEROP_DEBUGGING
-    StopAllNativeThreads();
-#endif // INTEROP_DEBUGGING
-
     StoppedEvent event(StopPause, threadId);
     event.frame = stackFrame;
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -130,13 +118,13 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule)
 {
-    m_debugger.m_sharedBreakpoints->CheckApplicationReload(pThread);
+    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
 
     ThreadId threadId(getThreadId(pThread));
     StoppedEvent event(StopException, threadId);
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_sharedBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event))
         return false;
 
     ToRelease<ICorDebugFrame> pActiveFrame;
@@ -145,10 +133,6 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
 
     // Disable all steppers if we stop during step.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
-
-#ifdef INTEROP_DEBUGGING
-    StopAllNativeThreads();
-#endif // INTEROP_DEBUGGING
 
     m_debugger.SetLastStoppedThread(pThread);
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -194,14 +178,6 @@ void CallbacksQueue::CallbacksWorker()
         case CallbackQueueCall::CreateProcess:
             m_stopEventInProcess = CallbacksWorkerCreateProcess();
             break;
-#ifdef INTEROP_DEBUGGING
-        case CallbackQueueCall::InteropBreakpoint:
-            m_stopEventInProcess = CallbacksWorkerInteropBreakpoint(c.pid, c.addr);
-            break;
-        case CallbackQueueCall::InteropSignal:
-            m_stopEventInProcess = CallbacksWorkerInteropSignal(c.pid, c.addr, c.signal);
-            break;
-#endif // INTEROP_DEBUGGING
         default:
             // finish loop
             // called from destructor only, don't need call pop()
@@ -216,26 +192,7 @@ void CallbacksQueue::CallbacksWorker()
         // m_callbacksMutex will be unlocked only in m_callbacksCV.wait(), when CallbacksWorker will be ready for notify_one.
         if (m_callbacksQueue.empty() && !m_stopEventInProcess)
         {
-#ifdef INTEROP_DEBUGGING
-            if (m_debugger.m_interopDebugging)
-                m_debugger.m_sharedInteropDebugger->ContinueAllThreadsWithEvents();
-
-            if (iCorAppDomain) // last stop event was managed
-            {
-                iCorAppDomain->Continue(0);
-            }
-            else // last stop event was native
-            {
-                m_debugger.m_debugProcessRWLock.reader.lock();
-                if (m_debugger.m_iCorProcess)
-                {
-                    m_debugger.m_iCorProcess->Continue(0);
-                }
-                m_debugger.m_debugProcessRWLock.reader.unlock();
-            }
-#else
             iCorAppDomain->Continue(0);
-#endif // INTEROP_DEBUGGING
         }
     }
 }
@@ -338,11 +295,6 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
 
     if (m_callbacksQueue.empty())
     {
-#ifdef INTEROP_DEBUGGING
-        if (m_debugger.m_interopDebugging)
-            m_debugger.m_sharedInteropDebugger->ContinueAllThreadsWithEvents();
-#endif // INTEROP_DEBUGGING
-
         return pProcess->Continue(0);
     }
 
@@ -386,11 +338,6 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     IfFailRet(InternalStop(pProcess, m_stopEventInProcess));
     if (Status == S_FALSE) // Already stopped.
         return S_OK;
-
-#ifdef INTEROP_DEBUGGING
-    if (m_debugger.m_interopDebugging)
-        IfFailRet(m_debugger.m_sharedInteropDebugger->StopAllNativeThreads(pProcess));
-#endif // INTEROP_DEBUGGING
 
     // Same logic as provide vsdbg in case of pause during stepping.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);
@@ -507,111 +454,5 @@ void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAp
 {
     m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType, ExcModule);
 }
-
-#ifdef INTEROP_DEBUGGING
-bool CallbacksQueue::CallbacksWorkerInteropBreakpoint(pid_t pid, std::uintptr_t brkAddr)
-{
-    ThreadId threadId(pid);
-    StoppedEvent event(StopBreakpoint, threadId);
-    if (!m_debugger.m_sharedBreakpoints->IsInteropLineBreakpoint(brkAddr, event.breakpoint))
-        return false;
-
-    // Disable all steppers if we stop at breakpoint during step.
-    m_debugger.m_debugProcessRWLock.reader.lock();
-    if (m_debugger.m_iCorProcess)
-    {
-        m_debugger.m_uniqueSteppers->DisableAllSteppers(m_debugger.m_iCorProcess);
-    }
-    m_debugger.m_debugProcessRWLock.reader.unlock();
-
-    m_debugger.SetLastStoppedThreadId(ThreadId(pid));
-
-    if (FAILED(m_debugger.m_sharedInteropDebugger->GetFrameForAddr(brkAddr, event.frame)))
-    {
-        event.frame.source = event.breakpoint.source;
-        event.frame.line = event.breakpoint.line;
-    }
-
-    m_debugger.pProtocol->EmitStoppedEvent(event);
-    m_debugger.m_ioredirect.async_cancel();
-    return true;
-}
-
-bool CallbacksQueue::CallbacksWorkerInteropSignal(pid_t pid, std::uintptr_t breakAddr, const std::string &signal)
-{
-    ThreadId threadId(pid);
-    StoppedEvent event(StopPause, threadId);
-
-    // Disable all steppers if we stop at breakpoint during step.
-    m_debugger.m_debugProcessRWLock.reader.lock();
-    if (m_debugger.m_iCorProcess)
-    {
-        m_debugger.m_uniqueSteppers->DisableAllSteppers(m_debugger.m_iCorProcess);
-    }
-    m_debugger.m_debugProcessRWLock.reader.unlock();
-
-    m_debugger.SetLastStoppedThreadId(ThreadId(pid));
-
-    if (FAILED(m_debugger.m_sharedInteropDebugger->GetFrameForAddr(breakAddr, event.frame)))
-    {
-        event.frame.source = event.breakpoint.source;
-        event.frame.line = event.breakpoint.line;
-    }
-
-    event.signal_name = signal;
-    m_debugger.pProtocol->EmitStoppedEvent(event);
-    m_debugger.m_ioredirect.async_cancel();
-    return true;
-}
-
-HRESULT CallbacksQueue::AddInteropCallbackToQueue(std::function<void()> callback)
-{
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
-
-    callback(); // Caller should add entries into m_callbacksQueue (this is why m_callbacksMutex cover this call).
-    assert(!m_callbacksQueue.empty());
-
-    // NOTE
-    // In case `m_stopEventInProcess` is `true`, process have "stopped" status for sure, but could already execute some eval (this is OK, do not stop managed part!).
-    // No need to check `IsEvalRunning()` here, since this code covered by `m_callbacksMutex` (that mean, breakpoint condition check with eval not running now for sure).
-    if (!m_stopEventInProcess)
-    {
-        BOOL procRunning = FALSE;
-        m_debugger.m_debugProcessRWLock.reader.lock();
-        if (m_debugger.m_iCorProcess)
-        {
-            if (SUCCEEDED(m_debugger.m_iCorProcess->IsRunning(&procRunning)) && procRunning == TRUE)
-                m_debugger.m_iCorProcess->Stop(0);
-
-            // Early stop of native code at native event, in case this will be not stop event - we will silently continue native code execution.
-            m_debugger.m_sharedInteropDebugger->StopAllNativeThreads(m_debugger.m_iCorProcess);
-        }
-        m_debugger.m_debugProcessRWLock.reader.unlock();
-    }
-
-    m_callbacksCV.notify_one(); // notify_one with lock
-    return S_OK;
-}
-
-// NOTE caller must care about m_callbacksMutex.
-void CallbacksQueue::EmplaceBackInterop(CallbackQueueCall Call, pid_t pid, std::uintptr_t addr, const std::string &signal)
-{
-    m_callbacksQueue.emplace_back(Call, pid, addr, signal);
-}
-
-// NOTE caller must care about m_callbacksMutex.
-void CallbacksQueue::StopAllNativeThreads()
-{
-    if (!m_debugger.m_interopDebugging || m_stopEventInProcess)
-        return;
-
-    m_debugger.m_debugProcessRWLock.reader.lock();
-    if (m_debugger.m_iCorProcess)
-    {
-        m_debugger.m_sharedInteropDebugger->StopAllNativeThreads(m_debugger.m_iCorProcess);
-    }
-    m_debugger.m_debugProcessRWLock.reader.unlock();
-}
-#endif // INTEROP_DEBUGGING
 
 } // namespace netcoredbg

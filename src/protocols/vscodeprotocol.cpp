@@ -222,10 +222,10 @@ void VSCodeProtocol::EmitThreadEvent(const ThreadEvent &event)
 
     switch(event.reason)
     {
-        case ManagedThreadStarted:
+        case ThreadStarted:
             body["reason"] = "started";
             break;
-        case ManagedThreadExited:
+        case ThreadExited:
             body["reason"] = "exited";
             break;
         default:

@@ -470,10 +470,10 @@ void MIProtocol::EmitThreadEvent(const ThreadEvent &event)
     const char *reasonText = "";
     switch(event.reason)
     {
-        case ManagedThreadStarted:
+        case ThreadStarted:
             reasonText = "thread-created";
             break;
-        case ManagedThreadExited:
+        case ThreadExited:
             reasonText = "thread-exited";
             break;
         default:

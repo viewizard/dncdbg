@@ -31,9 +31,6 @@
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpoints_line.h"
 #include "debugger/breakpoint_hotreload.h"
-#include "debugger/breakpoint_interop_rendezvous.h"
-#include "debugger/breakpoints_interop.h"
-#include "debugger/breakpoints_interop_line.h"
 #include "debugger/breakpoints.h"
 #include "debugger/hotreloadhelpers.h"
 #include "debugger/manageddebugger.h"
@@ -43,7 +40,6 @@
 #include "debugger/stepper_async.h"
 #include "debugger/steppers.h"
 #include "managed/interop.h"
-#include "metadata/interop_libraries.h"
 #include "utils/utf.h"
 #include "utils/dynlibs.h"
 #include "metadata/modules.h"
@@ -51,12 +47,6 @@
 #include "utils/logger.h"
 #include "debugger/waitpid.h"
 #include "utils/iosystem.h"
-
-#ifdef INTEROP_DEBUGGING
-#include "elf++.h"
-#include "dwarf++.h"
-#include "debugger/sigaction.h"
-#endif // INTEROP_DEBUGGING
 
 #include "palclr.h"
 
@@ -82,10 +72,6 @@ namespace
 #else  // FEATURE_PAL
     const char delimiterDOTNET_STARTUP_HOOKS = ';';
 #endif // FEATURE_PAL
-
-#ifdef INTEROP_DEBUGGING
-    const std::string envNCDB_INTEROP_DEBUGGING = "NCDB_INTEROP_DEBUGGING";
-#endif // INTEROP_DEBUGGING
 
     int GetSystemEnvironmentAsMap(std::map<std::string, std::string>& outMap)
     {
@@ -151,8 +137,8 @@ void ManagedDebuggerBase::NotifyProcessExited()
 void ManagedDebuggerBase::DisableAllBreakpointsAndSteppers()
 {
     m_uniqueSteppers->DisableAllSteppers(m_iCorProcess); // Async stepper could have breakpoints active, disable them first.
-    m_sharedBreakpoints->DeleteAllManaged();
-    m_sharedBreakpoints->DisableAllManaged(m_iCorProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
+    m_uniqueBreakpoints->DeleteAll();
+    m_uniqueBreakpoints->DisableAll(m_iCorProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
 void ManagedDebuggerBase::SetLastStoppedThread(ICorDebugThread *pThread)
@@ -167,7 +153,7 @@ void ManagedDebuggerBase::SetLastStoppedThreadId(ThreadId threadId)
 
     std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
 
-    m_sharedBreakpoints->SetLastStoppedIlOffset(m_iCorProcess, m_lastStoppedThreadId);
+    m_uniqueBreakpoints->SetLastStoppedIlOffset(m_iCorProcess, m_lastStoppedThreadId);
 }
 
 void ManagedDebuggerBase::InvalidateLastStoppedThreadId()
@@ -197,16 +183,12 @@ ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
     m_sharedEvaluator(new Evaluator(m_sharedModules, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
     m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
     m_uniqueSteppers(new Steppers(m_sharedModules, m_sharedEvalHelpers)),
-    m_sharedBreakpoints(new Breakpoints(m_sharedModules, m_sharedEvaluator, m_sharedEvalHelpers, m_sharedVariables)),
+    m_uniqueBreakpoints(new Breakpoints(m_sharedModules, m_sharedEvaluator, m_sharedEvalHelpers, m_sharedVariables)),
     m_sharedCallbacksQueue(nullptr),
     m_uniqueManagedCallback(nullptr),
-#ifdef INTEROP_DEBUGGING
-    m_sharedInteropDebugger(new InteropDebugging::InteropDebugger(pProtocol, m_sharedBreakpoints, m_sharedEvalWaiter)),
-#endif // INTEROP_DEBUGGING
     m_justMyCode(true),
     m_stepFiltering(true),
     m_hotReload(false),
-    m_interopDebugging(false),
     m_unregisterToken(nullptr),
     m_processId(0),
     m_ioredirect(
@@ -216,10 +198,6 @@ ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
     m_sharedThreads->SetEvaluator(m_sharedEvaluator);
-#ifdef INTEROP_DEBUGGING
-    // Note, we don't care about m_interopDebugging here, since m_interopDebugging could be changed with env parsing before real start/attach.
-    m_sharedEvalWaiter->SetInteropDebugger(m_sharedInteropDebugger);
-#endif // INTEROP_DEBUGGING
 }
 
 ManagedDebuggerHelpers::ManagedDebuggerHelpers(IProtocol *pProtocol_) :
@@ -232,10 +210,6 @@ ManagedDebugger::ManagedDebugger(IProtocol *pProtocol_) :
 
 ManagedDebuggerBase::~ManagedDebuggerBase()
 {
-#ifdef INTEROP_DEBUGGING
-    // Note, we don't care about m_interopDebugging here, since m_interopDebugging could be changed with env parsing before real start/attach.
-    m_sharedEvalWaiter->ResetInteropDebugger();
-#endif // INTEROP_DEBUGGING
     m_sharedThreads->ResetEvaluator();
     m_sharedEvalStackMachine->ResetEval();
 }
@@ -289,7 +263,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
     m_execArgs = execArgs;
     m_cwd = cwd;
     m_env = env;
-    m_sharedBreakpoints->SetStopAtEntry(stopAtEntry);
+    m_uniqueBreakpoints->SetStopAtEntry(stopAtEntry);
     return RunIfReady();
 }
 
@@ -336,11 +310,6 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
         default:
             return E_FAIL;
     }
-
-#ifdef INTEROP_DEBUGGING
-    if (m_interopDebugging)
-        m_sharedInteropDebugger->Shutdown();
-#endif
 
     if (!terminate)
     {
@@ -434,7 +403,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread, EventFormat eventForm
     return m_sharedCallbacksQueue->Pause(m_iCorProcess, lastStoppedThread, eventFormat);
 }
 
-HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads, bool withNativeThreads)
+HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 {
     LogFuncEntry();
 
@@ -442,10 +411,6 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads, bool withNativ
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
-#ifdef INTEROP_DEBUGGING
-    if (m_interopDebugging && withNativeThreads)
-        return m_sharedThreads->GetInteropThreadsWithState(m_iCorProcess, m_sharedInteropDebugger.get(), threads);
-#endif // INTEROP_DEBUGGING
     return m_sharedThreads->GetThreadsWithState(m_iCorProcess, threads);
 }
 
@@ -645,7 +610,7 @@ static void SetCustomEnvironmentArgs(std::map<std::string, std::string> &env, bo
 #endif // NCDB_DOTNET_STARTUP_HOOK
 }
 
-static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv, bool hotReload, bool &interopDebugging)
+static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv, bool hotReload)
 {
     // We need to append the environ values with keeping the current process environment block.
     // It works equal for any platrorms in coreclr CreateProcessW(), but not critical for Linux.
@@ -660,15 +625,6 @@ static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string>
                 envMap[pair.first] = envMap[pair.first] + delimiterDOTNET_STARTUP_HOOKS + pair.second;
                 continue;
             }
-#ifdef INTEROP_DEBUGGING
-            else if (pair.first == envNCDB_INTEROP_DEBUGGING)
-            {
-                interopDebugging = true;
-                continue;
-            }
-#else
-            (void)interopDebugging; // suppress warning about unused param
-#endif // INTEROP_DEBUGGING
             envMap[pair.first] = pair.second;
         }
     }
@@ -706,21 +662,8 @@ HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const st
 
     HANDLE resumeHandle = 0; // Fake thread handle for the process resume
 
-#ifdef INTEROP_DEBUGGING
-    bool prevInteropDebuggingStatus = !!m_interopDebugging;
-#endif INTEROP_DEBUGGING
-
     std::vector<char> outEnv;
-    PrepareSystemEnvironmentArg(m_env, outEnv, m_hotReload, m_interopDebugging);
-
-#ifdef INTEROP_DEBUGGING
-    if ((!!m_interopDebugging) != prevInteropDebuggingStatus)
-    {
-        // In case of interop debugging we depend on SIGCHLD set to SIG_DFL by init code.
-        // Note, debugger include corhost (CoreCLR) that could setup sigaction for SIGCHLD and ruin interop debugger work.
-        SetSigactionMode(!!m_interopDebugging);
-    }
-#endif INTEROP_DEBUGGING
+    PrepareSystemEnvironmentArg(m_env, outEnv, m_hotReload);
 
     // cwd in launch.json set working directory for debugger https://code.visualstudio.com/docs/python/debugging#_cwd
     if (!m_cwd.empty())
@@ -907,13 +850,13 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 
     ToRelease<ICorDebugThread> iCorThread;
     IfFailRet(m_iCorProcess->GetThread(int(threadId), &iCorThread));
-    return m_sharedBreakpoints->GetExceptionInfo(iCorThread, exceptionInfo);
+    return m_uniqueBreakpoints->GetExceptionInfo(iCorThread, exceptionInfo);
 }
 
 HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints)
 {
     LogFuncEntry();
-    return m_sharedBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
+    return m_uniqueBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::UpdateLineBreakpoint(int id, int linenum, Breakpoint &breakpoint)
@@ -921,34 +864,8 @@ HRESULT ManagedDebugger::UpdateLineBreakpoint(int id, int linenum, Breakpoint &b
     LogFuncEntry();
 
     bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->UpdateLineBreakpoint(haveProcess, id, linenum, breakpoint);
+    return m_uniqueBreakpoints->UpdateLineBreakpoint(haveProcess, id, linenum, breakpoint);
 }
-
-#ifdef INTEROP_DEBUGGING
-
-static bool isNativeSource(const std::string &filename)
-{
-    // Detect native code breakpoint by extension:
-    // https://gcc.gnu.org/onlinedocs/gcc-12.2.0/gcc/Overall-Options.html
-    static std::unordered_set<std::string> fileExtension{"c", "C", "cc", "cp", "cxx", "cpp", "CPP", "c++",
-                                                         "i", "ii", "m", "M", "mi", "mm", "mii",
-                                                         "h", "H", "hh", "hp", "hxx", "hpp", "HPP", "h++", "tpp"};
-
-    std::size_t lastDotPos = filename.rfind('.');
-    if (lastDotPos != std::string::npos)
-    {
-        std::string fileExt = filename.substr(lastDotPos + 1);
-        auto find = fileExtension.find(fileExt);
-        if (find != fileExtension.end())
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-#endif // INTEROP_DEBUGGING
 
 HRESULT ManagedDebugger::SetLineBreakpoints(const std::string& filename,
                                             const std::vector<LineBreakpoint> &lineBreakpoints,
@@ -956,14 +873,8 @@ HRESULT ManagedDebugger::SetLineBreakpoints(const std::string& filename,
 {
     LogFuncEntry();
 
-#ifdef INTEROP_DEBUGGING
-    // Note, we don't care about m_interopDebugging here, since breakpoint setup could be start before m_interopDebugging changes with env parsing.
-    if (isNativeSource(filename))
-        return m_sharedInteropDebugger->SetLineBreakpoints(filename, lineBreakpoints, breakpoints);
-#endif // INTEROP_DEBUGGING
-
     bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints);
+    return m_uniqueBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints)
@@ -971,33 +882,20 @@ HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &f
     LogFuncEntry();
 
     bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
+    return m_uniqueBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::BreakpointActivate(int id, bool act)
 {
-    if (SUCCEEDED(m_sharedBreakpoints->BreakpointActivate(id, act)))
+    if (SUCCEEDED(m_uniqueBreakpoints->BreakpointActivate(id, act)))
         return S_OK;
 
-#ifdef INTEROP_DEBUGGING
-    // Note, we don't care about m_interopDebugging here, since breakpoint setup could be start before m_interopDebugging changes with env parsing.
-    return m_sharedInteropDebugger->BreakpointActivate(id, act);
-#else
     return E_FAIL;
-#endif // INTEROP_DEBUGGING
 }
 
 HRESULT ManagedDebugger::AllBreakpointsActivate(bool act)
 {
-    HRESULT Status1 = m_sharedBreakpoints->AllBreakpointsActivate(act);
-
-#ifdef INTEROP_DEBUGGING
-    // Note, we don't care about m_interopDebugging here, since breakpoint setup could be start before m_interopDebugging changes with env parsing.
-    HRESULT Status2 = m_sharedInteropDebugger->AllBreakpointsActivate(act);
-    return FAILED(Status1) ? Status1 : Status2;
-#else
-    return Status1;
-#endif // INTEROP_DEBUGGING
+    return m_uniqueBreakpoints->AllBreakpointsActivate(act);
 }
 
 HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame, bool hotReloadAwareCaller)
@@ -1119,13 +1017,8 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
             stackFrames.back().activeStatementFlags |= StackFrame::ActiveStatementFlags::NonLeafFrame;
     };
 
-#ifdef INTEROP_DEBUGGING
-    // In case debug session without interop, we merge "[CoreCLR Native Frame]" and "user's native frame" into "[Native Frames]".
-    const std::string FrameCLRNativeText = m_interopDebugging ? "[CoreCLR Native Frame]" : "[Native Frames]";
-#else
-    // CoreCLR native frame + at least one user's native frame (note, `FrameNative` case should never happen for not interop build)
+    // CoreCLR native frame + at least one user's native frame (note, `FrameNative` case should never happen)
     static const std::string FrameCLRNativeText = "[Native Frames]";
-#endif // INTEROP_DEBUGGING
 
     IfFailRet(WalkFrames(pThread, [&](
         FrameType frameType,
@@ -1200,10 +1093,6 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
     {
         analyzeExceptions = analyzeExceptions && (stackFrames.front().line == 0);
     }
-
-#ifdef INTEROP_DEBUGGING
-    analyzeExceptions = analyzeExceptions && !m_interopDebugging;
-#endif // INTEROP_DEBUGGING
 
     if (!analyzeExceptions)
         return S_OK;
@@ -1301,44 +1190,6 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
     return S_OK;
 }
 
-#ifdef INTEROP_DEBUGGING
-HRESULT ManagedDebuggerBase::GetNativeStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames)
-{
-    LogFuncEntry();
-
-    HRESULT Status;
-    int currentFrame = -1;
-
-    Status = m_sharedInteropDebugger->UnwindNativeFrames(int(threadId), true, 0, nullptr, [&](NativeFrame &nativeFrame)
-    {
-        currentFrame++;
-
-        if (currentFrame < int(startFrame))
-            return S_OK;
-        if (maxFrames != 0 && currentFrame >= int(startFrame) + int(maxFrames))
-            return S_OK;
-
-        stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, nativeFrame.procName);
-        stackFrames.back().addr = nativeFrame.addr;
-        stackFrames.back().unknownFrameAddr = nativeFrame.unknownFrameAddr;
-        stackFrames.back().moduleOrLibName = nativeFrame.libName;
-        stackFrames.back().source = Source(nativeFrame.fullSourcePath);
-        stackFrames.back().line = nativeFrame.lineNum;
-
-        if (currentFrame == 0)
-            stackFrames.back().activeStatementFlags |= StackFrame::ActiveStatementFlags::LeafFrame;
-        else
-            stackFrames.back().activeStatementFlags |= StackFrame::ActiveStatementFlags::NonLeafFrame;
-
-        return S_OK;
-    });
-
-    totalFrames = currentFrame + 1;
-    
-    return Status;
-}
-#endif // INTEROP_DEBUGGING
-
 HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller)
 {
     LogFuncEntry();
@@ -1350,12 +1201,6 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     ToRelease<ICorDebugThread> pThread;
     if (SUCCEEDED(Status = m_iCorProcess->GetThread(int(threadId), &pThread)))
         return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames, hotReloadAwareCaller);
-
-#ifdef INTEROP_DEBUGGING
-    // E_INVALIDARG for ICorDebugProcess::GetThread() mean thread is not managed (can't found ICorDebugThread object that represents the thread)
-    if (m_interopDebugging && Status == E_INVALIDARG)
-        return GetNativeStackTrace(threadId, startFrame, maxFrames, stackFrames, totalFrames);
-#endif // INTEROP_DEBUGGING
 
     return Status;
 }
@@ -1504,7 +1349,7 @@ void ManagedDebuggerBase::InputCallback(IORedirectHelper::StreamType type, span<
 void ManagedDebugger::EnumerateBreakpoints(std::function<bool (const BreakpointInfo&)>&& callback)
 {
     LogFuncEntry();
-    return m_sharedBreakpoints->EnumerateBreakpoints(std::move(callback));
+    return m_uniqueBreakpoints->EnumerateBreakpoints(std::move(callback));
 }
 
 static HRESULT GetModuleOfCurrentThreadCode(ICorDebugProcess *pProcess, int lastStoppedThreadId, ICorDebugModule **ppModule)
@@ -1552,7 +1397,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
 {
     m_justMyCode = enable;
     m_uniqueSteppers->SetJustMyCode(enable);
-    m_sharedBreakpoints->SetJustMyCode(enable);
+    m_uniqueBreakpoints->SetJustMyCode(enable);
 }
 
 void ManagedDebugger::SetStepFiltering(bool enable)
@@ -1572,13 +1417,6 @@ HRESULT ManagedDebugger::SetHotReload(bool enable)
 
     return S_OK;
 }
-
-#ifdef INTEROP_DEBUGGING
-void ManagedDebugger::SetInteropDebugging(bool enable)
-{
-    m_interopDebugging = enable;
-}
-#endif
 
 static HRESULT ApplyMetadataAndILDeltas(Modules *pModules, const std::string &dllFileName, const std::string &deltaMD, const std::string &deltaIL)
 {
@@ -1637,7 +1475,7 @@ HRESULT ManagedDebuggerBase::ApplyPdbDeltaAndLineUpdates(const std::string &dllF
 
     // Since we could have new code lines and new methods added, check all breakpoints again.
     std::vector<BreakpointEvent> events;
-    m_sharedBreakpoints->UpdateBreakpointsOnHotReload(pModule, pdbMethodTokens, events);
+    m_uniqueBreakpoints->UpdateBreakpointsOnHotReload(pModule, pdbMethodTokens, events);
     for (const BreakpointEvent &event : events)
         pProtocol->EmitBreakpointEvent(event);
 
@@ -1696,7 +1534,7 @@ HRESULT ManagedDebugger::HotReloadApplyDeltas(const std::string &dllFileName, co
     if (SUCCEEDED(FindEvalCapableThread(pThread)))
         IfFailRet(HotReloadHelpers::UpdateApplication(pThread, m_sharedModules.get(), m_sharedEvaluator.get(), m_sharedEvalHelpers.get(), updatedDLL, updatedTypeTokens));
     else
-        IfFailRet(m_sharedBreakpoints->SetHotReloadBreakpoint(updatedDLL, updatedTypeTokens));
+        IfFailRet(m_uniqueBreakpoints->SetHotReloadBreakpoint(updatedDLL, updatedTypeTokens));
 
     if (continueProcess)
         IfFailRet(m_sharedCallbacksQueue->Continue(m_iCorProcess));

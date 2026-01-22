@@ -43,14 +43,4 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
 HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb);
 
-#ifdef INTEROP_DEBUGGING
-namespace InteropDebugging
-{
-class InteropDebugger;
-}
-
-void InitNativeFramesUnwind(InteropDebugging::InteropDebugger *pInteropDebugger);
-void ShutdownNativeFramesUnwind();
-#endif // INTEROP_DEBUGGING
-
 } // namespace netcoredbg

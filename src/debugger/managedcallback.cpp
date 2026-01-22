@@ -156,45 +156,6 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
     // for global variables. coreclr_shutdown only should be called on process exit.
     Interop::Init(m_debugger.m_clrPath);
 
-#ifdef INTEROP_DEBUGGING
-    // Note, in case `attach` CoreCLR also call CreateProcess() that call this method.
-    int error_n = 0;
-    bool attach = m_debugger.m_startMethod == StartAttach;
-    auto NotifyLastThreadExited = [&](int status)
-    {
-        // In case debuggee process rude terminated by some signal, we may have situation when
-        // `ManagedCallback::ExitProcess()` will be newer called by dbgshim.
-        if (!WIFSIGNALED(status))
-            return;
-
-        // If we still `Attached` here, `ManagedCallback::ExitProcess()` was not called.
-        std::unique_lock<std::mutex> lockAttachedMutex(m_debugger.m_processAttachedMutex);
-        if (m_debugger.m_processAttachedState == ProcessAttachedState::Attached)
-            m_debugger.m_processAttachedCV.wait_for(lockAttachedMutex, std::chrono::milliseconds(3000));
-        if (m_debugger.m_processAttachedState == ProcessAttachedState::Unattached)
-            return;
-        lockAttachedMutex.unlock();
-
-        if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
-            LOGW("The target process exited while evaluating the function.");
-
-        m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(nullptr, nullptr);
-
-        m_debugger.pProtocol->EmitExitedEvent(ExitedEvent(GetWaitpid().GetExitCode()));
-        m_debugger.NotifyProcessExited();
-        m_debugger.pProtocol->EmitTerminatedEvent();
-        m_debugger.m_ioredirect.async_cancel();
-    };
-    if (m_debugger.m_interopDebugging &&
-        FAILED(m_debugger.m_sharedInteropDebugger->Init((pid_t)m_debugger.m_processId, m_sharedCallbacksQueue, attach, NotifyLastThreadExited, error_n)))
-    {
-        char buf[1024];
-        LOGE("Interop debugging disabled due to initialization fail: %s", ErrGetStr(error_n, buf, sizeof(buf)));
-        m_debugger.pProtocol->EmitInteropDebuggingErrorEvent(error_n);
-        m_debugger.m_interopDebugging = false;
-    }
-#endif // INTEROP_DEBUGGING
-
     // Important! Care about callback queue before NotifyProcessCreated() call.
     // In case of `attach`, NotifyProcessCreated() call will notify debugger that debuggee process attached and debugger
     // should stop debuggee process by dirrect `Pause()` call. From another side, callback queue have bunch of asynchronous
@@ -262,7 +223,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     ThreadId threadId(getThreadId(pThread));
     m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartAttach);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ManagedThreadStarted, threadId, m_debugger.m_interopDebugging));
+    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadStarted, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -277,9 +238,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
     if (m_debugger.GetLastStoppedThreadId() == threadId)
         m_debugger.InvalidateLastStoppedThreadId();
 
-    m_debugger.m_sharedBreakpoints->ManagedCallbackExitThread(pThread);
+    m_debugger.m_uniqueBreakpoints->ManagedCallbackExitThread(pThread);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ManagedThreadExited, threadId, m_debugger.m_interopDebugging));
+    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadExited, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -299,13 +260,13 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     if (module.symbolStatus == SymbolsLoaded)
     {
         std::vector<BreakpointEvent> events;
-        m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModule(pModule, events);
+        m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
         for (const BreakpointEvent &event : events)
         {
             m_debugger.pProtocol->EmitBreakpointEvent(event);
         }
     }
-    m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModuleAll(pModule);
+    m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModuleAll(pModule);
 
     // enable Debugger.NotifyOfCrossThreadDependency after System.Private.CoreLib.dll loaded (trigger for 1 time call only)
     if (module.name == "System.Private.CoreLib.dll")

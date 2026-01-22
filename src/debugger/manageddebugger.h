@@ -11,7 +11,6 @@
 #include <set>
 #include "interfaces/idebugger.h"
 #include "debugger/dbgshim.h"
-#include "debugger/interop_debugging.h"
 #include "utils/string_view.h"
 #include "utils/span.h"
 #include "utils/ioredirect.h"
@@ -88,12 +87,9 @@ protected:
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<Variables> m_sharedVariables;
     std::unique_ptr<Steppers> m_uniqueSteppers;
-    std::shared_ptr<Breakpoints> m_sharedBreakpoints;
+    std::shared_ptr<Breakpoints> m_uniqueBreakpoints;
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;
-#ifdef INTEROP_DEBUGGING
-    std::shared_ptr<InteropDebugging::InteropDebugger> m_sharedInteropDebugger;
-#endif // INTEROP_DEBUGGING
 
     Utility::RWLock m_debugProcessRWLock;
     ToRelease<ICorDebug> m_iCorDebug;
@@ -102,7 +98,6 @@ protected:
     bool m_justMyCode;
     bool m_stepFiltering;
     bool m_hotReload;
-    bool m_interopDebugging;
 
     PVOID m_unregisterToken;
     DWORD m_processId;
@@ -122,9 +117,6 @@ protected:
     HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame, bool hotReloadAwareCaller = false);
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                  std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller);
-#ifdef INTEROP_DEBUGGING
-    HRESULT GetNativeStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames);
-#endif // INTEROP_DEBUGGING
 
     HRESULT FindEvalCapableThread(ToRelease<ICorDebugThread> &pThread);
     HRESULT ApplyPdbDeltaAndLineUpdates(const std::string &dllFileName, const std::string &deltaPDB, const std::string &lineUpdates,
@@ -159,9 +151,6 @@ public:
     void SetStepFiltering(bool enable) override;
     bool IsHotReload() const override { return m_hotReload; }
     HRESULT SetHotReload(bool enable) override;
-#ifdef INTEROP_DEBUGGING
-    void SetInteropDebugging(bool enable) override;
-#endif
 
     HRESULT Initialize() override;
     HRESULT Attach(int pid) override;
@@ -174,7 +163,7 @@ public:
     ThreadId GetLastStoppedThreadId() override;
     HRESULT Continue(ThreadId threadId) override;
     HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat) override;
-    HRESULT GetThreads(std::vector<Thread> &threads, bool withNativeThreads = false) override;
+    HRESULT GetThreads(std::vector<Thread> &threads) override;
     HRESULT UpdateLineBreakpoint(int id, int linenum, Breakpoint &breakpoint) override;
     HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) override;

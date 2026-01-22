@@ -16,12 +16,6 @@ namespace netcoredbg
 
 class Evaluator;
 ThreadId getThreadId(ICorDebugThread *pThread);
-#ifdef INTEROP_DEBUGGING
-namespace InteropDebugging
-{
-class InteropDebugger;
-}
-#endif // INTEROP_DEBUGGING
 
 class Threads
 {
@@ -35,9 +29,6 @@ public:
     void Add(const ThreadId &threadId, bool processAttached);
     void Remove(const ThreadId &threadId);
     HRESULT GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thread> &threads);
-#ifdef INTEROP_DEBUGGING
-    HRESULT GetInteropThreadsWithState(ICorDebugProcess *pProcess, InteropDebugging::InteropDebugger *pInteropDebugger, std::vector<Thread> &threads);
-#endif // INTEROP_DEBUGGING
     HRESULT GetThreadIds(std::vector<ThreadId> &threads);
     std::string GetThreadName(ICorDebugProcess *pProcess, const ThreadId &userThread);
     void SetEvaluator(std::shared_ptr<Evaluator> &sharedEvaluator);

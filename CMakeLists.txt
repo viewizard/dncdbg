@@ -91,7 +91,4 @@ VCSInfo(CORECLR_VCS_INFO ${CORECLR_DIR})
 
 
 add_subdirectory(third_party/linenoise-ng)
-if (INTEROP_DEBUGGING)
-    add_subdirectory(third_party/libelfin)
-endif (INTEROP_DEBUGGING)
 add_subdirectory(src)

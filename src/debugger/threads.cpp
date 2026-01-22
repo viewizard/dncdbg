@@ -6,9 +6,6 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "utils/torelease.h"
-#ifdef INTEROP_DEBUGGING
-#include "debugger/interop_debugging.h"
-#endif // INTEROP_DEBUGGING
 
 namespace netcoredbg
 {
@@ -103,43 +100,6 @@ HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thr
 
     return S_OK;
 }
-
-#ifdef INTEROP_DEBUGGING
-// Caller should guarantee, that pProcess is not null.
-HRESULT Threads::GetInteropThreadsWithState(ICorDebugProcess *pProcess, InteropDebugging::InteropDebugger *pInteropDebugger, std::vector<Thread> &threads)
-{
-    HRESULT Status;
-    BOOL managedProcRunning = FALSE;
-    IfFailRet(pProcess->IsRunning(&managedProcRunning));
-
-    std::unordered_set<DWORD> managedThreads;
-    ToRelease<ICorDebugThreadEnum> iCorThreadEnum;
-    pProcess->EnumerateThreads(&iCorThreadEnum);
-    ULONG fetched = 0;
-    ToRelease<ICorDebugThread> iCorThread;
-    while (SUCCEEDED(iCorThreadEnum->Next(1, &iCorThread, &fetched)) && fetched == 1)
-    {
-        DWORD tid = 0;
-        if (SUCCEEDED(iCorThread->GetID(&tid)))
-        {
-            managedThreads.emplace(tid);
-        }
-        iCorThread.Free();
-    }
-
-    pInteropDebugger->WalkAllThreads([&](pid_t tid, bool isRunning)
-    {
-        ThreadId threadId(tid);
-
-        if (managedThreads.find((DWORD)tid) != managedThreads.end())
-            threads.emplace_back(threadId, GetThreadName(pProcess, threadId), managedProcRunning == TRUE, true);
-        else
-            threads.emplace_back(threadId, "<No name>", isRunning, false);
-    });
-
-    return S_OK;
-}
-#endif // INTEROP_DEBUGGING
 
 HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
 {

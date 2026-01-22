@@ -36,7 +36,6 @@ public:
     virtual void EmitExitedEvent(const ExitedEvent &event) = 0;
     virtual void EmitTerminatedEvent() = 0;
     virtual void EmitContinuedEvent(ThreadId threadId) = 0;
-    virtual void EmitInteropDebuggingErrorEvent(const int error_n) {}
     virtual void EmitThreadEvent(const ThreadEvent &event) = 0;
     virtual void EmitModuleEvent(const ModuleEvent &event) = 0;
     virtual void EmitOutputEvent(OutputCategory category, string_view output, string_view source = "", DWORD threadId = 0) = 0;

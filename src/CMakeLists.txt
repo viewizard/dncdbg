@@ -192,29 +192,6 @@ if (NOT CLR_CMAKE_TARGET_TIZEN_LINUX)
     list(APPEND netcoredbg_SRC utils/logger.cpp)
 endif()
 
-if (INTEROP_DEBUGGING)
-    list(APPEND netcoredbg_SRC
-            debugger/breakpoint_interop_rendezvous.cpp
-            debugger/breakpoints_interop.cpp
-            debugger/breakpoints_interop_line.cpp
-            debugger/interop_brk_helpers.cpp
-            debugger/interop_debugging.cpp
-            debugger/interop_mem_helpers.cpp
-            debugger/interop_ptrace_helpers.cpp
-            debugger/interop_unwind.cpp
-            debugger/sigaction.cpp
-            metadata/interop_libraries.cpp
-        )
-    if (CLR_CMAKE_PLATFORM_UNIX_ARM OR CLR_CMAKE_PLATFORM_UNIX_RISCV64)
-        list(APPEND netcoredbg_SRC debugger/interop_singlestep_helpers.cpp)
-    endif()
-    if (CLR_CMAKE_PLATFORM_UNIX_ARM)
-        list(APPEND netcoredbg_SRC debugger/interop_arm32_singlestep_helpers.cpp)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_RISCV64)
-        list(APPEND netcoredbg_SRC debugger/interop_riscv64_singlestep_helpers.cpp)
-    endif()
-endif (INTEROP_DEBUGGING)
-
 # special threatment of buildinfo.cpp -- this file rebuilds every time,
 # whatever it changed or not (because it contains version information and
 # date/time of the build).
@@ -244,71 +221,6 @@ endif()
 if (NCDB_DOTNET_STARTUP_HOOK)
     add_definitions(-DNCDB_DOTNET_STARTUP_HOOK="${NCDB_DOTNET_STARTUP_HOOK}")
 endif (NCDB_DOTNET_STARTUP_HOOK)
-
-if (INTEROP_DEBUGGING)
-    if (NOT CLR_CMAKE_PLATFORM_LINUX)
-        message(FATAL_ERROR "Interop debugging feature not implemented for this OS.")
-    endif()
-
-    add_definitions(-DINTEROP_DEBUGGING)
-
-    if (CLR_CMAKE_PLATFORM_UNIX_AMD64)
-        add_definitions(-DDEBUGGER_UNIX_AMD64)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_X86)
-        add_definitions(-DDEBUGGER_UNIX_X86)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_ARM64)
-        add_definitions(-DDEBUGGER_UNIX_ARM64)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_ARM)
-        add_definitions(-DDEBUGGER_UNIX_ARM)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_RISCV64)
-        add_definitions(-DDEBUGGER_UNIX_RISCV64)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_LOONGARCH64)
-        add_definitions(-DDEBUGGER_UNIX_LOONGARCH64)
-    else()
-        message(FATAL_ERROR "Interop debugging feature not implemented for this CPU architecture.")
-    endif()
-
-    target_link_libraries(netcoredbg elf++ dwarf++)
-    include_directories(${PROJECT_SOURCE_DIR}/third_party/libelfin/elf ${PROJECT_SOURCE_DIR}/third_party/libelfin/dwarf)
-
-
-    # libunwind
-    find_path(LIBUNWIND_INCLUDE_DIRS NAMES libunwind.h)
-    find_library(LIBUNWIND_LIBRARY unwind)
-    find_library(LIBUNWIND_PTRACE_LIBRARY unwind-ptrace)
-    if (CLR_CMAKE_PLATFORM_UNIX_AMD64)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-x86_64)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_X86)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-x86)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_ARM64)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-aarch64)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_ARM)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-arm)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_RISCV64)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-riscv)
-    elseif (CLR_CMAKE_PLATFORM_UNIX_LOONGARCH64)
-        find_library(LIBUNWIND_LIBRARY_ARCH unwind-loongarch64)
-    endif()
-
-    if (${LIBUNWIND_INCLUDE_DIRS} STREQUAL "LIBUNWIND_INCLUDE_DIRS-NOTFOUND")
-        message(FATAL_ERROR "Libunwind headers not found")
-    endif()
-
-    if (${LIBUNWIND_LIBRARY} STREQUAL "LIBUNWIND_LIBRARY-NOTFOUND")
-        message(FATAL_ERROR "Libunwind lib not found")
-    endif()
-
-    if (${LIBUNWIND_PTRACE_LIBRARY} STREQUAL "LIBUNWIND_PTRACE_LIBRARY-NOTFOUND")
-        message(FATAL_ERROR "Libunwind-ptrace libs not found")
-    endif()
-
-    if (${LIBUNWIND_LIBRARY_ARCH} STREQUAL "LIBUNWIND_LIBRARY_ARCH-NOTFOUND")
-        message(FATAL_ERROR "Libunwind libs for this arch not found")
-    endif()
-
-    target_link_libraries(netcoredbg ${LIBUNWIND_LIBRARY} ${LIBUNWIND_PTRACE_LIBRARY} ${LIBUNWIND_LIBRARY_ARCH})
-    include_directories(${LIBUNWIND_INCLUDE_DIRS})
-endif (INTEROP_DEBUGGING)
 
 if (CLR_CMAKE_TARGET_TIZEN_LINUX)
     add_definitions(-DDEBUGGER_FOR_TIZEN)

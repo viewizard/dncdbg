@@ -69,9 +69,6 @@ public:
     virtual void SetStepFiltering(bool enable) = 0;
     virtual bool IsHotReload() const = 0;
     virtual HRESULT SetHotReload(bool enable) = 0;
-#ifdef INTEROP_DEBUGGING
-    virtual void SetInteropDebugging(bool enable) = 0;
-#endif
     virtual HRESULT Initialize() = 0;
     virtual HRESULT Attach(int pid) = 0;
     virtual HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs, const std::map<std::string, std::string> &env,
@@ -81,7 +78,7 @@ public:
     virtual ThreadId GetLastStoppedThreadId() = 0;
     virtual HRESULT Continue(ThreadId threadId) = 0;
     virtual HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat) = 0;
-    virtual HRESULT GetThreads(std::vector<Thread> &threads, bool withNativeThreads = false) = 0;
+    virtual HRESULT GetThreads(std::vector<Thread> &threads) = 0;
     virtual HRESULT UpdateLineBreakpoint(int id, int linenum, Breakpoint &breakpoint) = 0;
     virtual HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints) = 0;
     virtual HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) = 0;

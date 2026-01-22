@@ -4,10 +4,6 @@
 
 #include "debugger/evalwaiter.h"
 #include "utils/platform.h"
-#include "debugger/threads.h"
-#ifdef INTEROP_DEBUGGING
-#include "debugger/interop_debugging.h"
-#endif // INTEROP_DEBUGGING
 
 namespace netcoredbg
 {
@@ -41,29 +37,8 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
 bool EvalWaiter::IsEvalRunning()
 {
     std::lock_guard<std::mutex> lock(m_evalResultMutex);
-
     return !!m_evalResult;
 }
-
-#ifdef INTEROP_DEBUGGING
-// Return thread ID for running evaluation, or 0 in case no evaluation running now.
-DWORD EvalWaiter::GetEvalRunningThreadID()
-{
-    std::lock_guard<std::mutex> lock(m_evalResultMutex);
-
-    return !!m_evalResult ? m_evalResult->threadId : 0;
-}
-
-void EvalWaiter::SetInteropDebugger(std::shared_ptr<InteropDebugging::InteropDebugger> &sharedInteropDebugger)
-{
-    m_sharedInteropDebugger = sharedInteropDebugger;
-}
-
-void EvalWaiter::ResetInteropDebugger()
-{
-    m_sharedInteropDebugger.reset();
-}
-#endif // INTEROP_DEBUGGING
 
 void EvalWaiter::CancelEvalRunning()
 {
@@ -144,12 +119,6 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread,
         return E_FAIL;
     DWORD evalThreadId = 0;
     IfFailRet(pThread->GetID(&evalThreadId));
-
-#ifdef INTEROP_DEBUGGING
-    assert(!!m_sharedInteropDebugger);
-    if (m_sharedInteropDebugger->IsManagedThreadWasStoppedInNativeCode((pid_t)evalThreadId))
-        return COR_E_THREADSTATE;
-#endif // INTEROP_DEBUGGING
 
     // Note, we need suspend during eval all managed threads, that not used for eval (delegates, reverse pinvokes, managed threads).
     auto ChangeThreadsState = [&](CorDebugThreadState state)

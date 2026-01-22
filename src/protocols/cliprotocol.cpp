@@ -849,14 +849,6 @@ void CLIProtocol::EmitStoppedEvent(const StoppedEvent &event)
         }
         case StopPause:
         {
-#ifdef INTEROP_DEBUGGING
-            if (!event.signal_name.empty())
-            {
-                printf("\nstopped, reason: interrupted, signal-name=\"%s\", thread id: %i, stopped threads: all, frame={%s}\n",
-                       event.signal_name.c_str(), int(event.threadId), frameLocation.c_str());
-            }
-            else
-#endif INTEROP_DEBUGGING
             {
                 printf("\nstopped, reason: interrupted, thread id: %i, stopped threads: all, frame={%s}\n",
                        int(event.threadId), frameLocation.c_str());
@@ -911,14 +903,6 @@ void CLIProtocol::EmitContinuedEvent(ThreadId threadId)
     LogFuncEntry();
 }
 
-void CLIProtocol::EmitInteropDebuggingErrorEvent(const int error_n)
-{
-    LogFuncEntry();
-
-    char buf[1024];
-    printf("Interop debugging disabled due to initialization fail: %s\n", ErrGetStr(error_n, buf, sizeof(buf)));
-}
-
 // This function implements Debugger interface and called from ManagedDebugger, 
 // as callback function, in separate thread.
 void CLIProtocol::EmitThreadEvent(const ThreadEvent &event)
@@ -928,20 +912,11 @@ void CLIProtocol::EmitThreadEvent(const ThreadEvent &event)
     const char *reasonText = "";
     switch(event.reason)
     {
-        case ManagedThreadStarted:
-            reasonText = event.interopDebugging ? "managed thread created" : "thread created";
+        case ThreadStarted:
+            reasonText = "managed thread created";
             break;
-        case ManagedThreadExited:
-            reasonText = event.interopDebugging ? "managed thread exited" : "thread exited";
-            break;
-        case NativeThreadAttached:
-            reasonText = "native thread attached";
-            break;
-        case NativeThreadStarted:
-            reasonText = "native thread created";
-            break;
-        case NativeThreadExited:
-            reasonText = "native thread exited";
+        case ThreadExited:
+            reasonText = "managed thread exited";
             break;
         default:
             return;
@@ -1026,7 +1001,7 @@ HRESULT CLIProtocol::doCommand<CommandTag::Backtrace>(const std::string &, const
     if (!args.empty() && args[0] == "all")
     {
         std::vector<Thread> threads;
-        if (FAILED(m_sharedDebugger->GetThreads(threads, true)))
+        if (FAILED(m_sharedDebugger->GetThreads(threads)))
         {
             output = "No threads.";
             return E_FAIL;
@@ -1043,9 +1018,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Backtrace>(const std::string &, const
                 ss << "\nThread " << number << ", id=\"" << int(thread.id)
                 << "\", name=\"" << thread.name << "\", state=\""
                 << (thread.running ? "running" : "stopped") << "\"";
-#ifdef INTEROP_DEBUGGING
-                ss << ", type=\"" << (thread.managed ? "managed" : "native") << "\"";
-#endif // INTEROP_DEBUGGING
                 number++;
 
                 ss << "\n" << stackTrace;
@@ -1657,7 +1629,7 @@ HRESULT CLIProtocol::doCommand<CommandTag::InfoThreads>(const std::string &, con
     }
 
     std::vector<Thread> threads;
-    if (FAILED(m_sharedDebugger->GetThreads(threads, true)))
+    if (FAILED(m_sharedDebugger->GetThreads(threads)))
     {
         output = "No threads.";
         return E_FAIL;
@@ -1672,9 +1644,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::InfoThreads>(const std::string &, con
         ss << "\n" << number << ": id=\"" << int(thread.id)
            << "\", name=\"" << thread.name << "\", state=\""
            << (thread.running ? "running" : "stopped") << "\"";
-#ifdef INTEROP_DEBUGGING
-        ss << ", type=\"" << (thread.managed ? "managed" : "native") << "\"";
-#endif // INTEROP_DEBUGGING
         number++;
     }
     output = ss.str();
