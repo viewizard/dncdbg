@@ -110,8 +110,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;
     ULONG32 contextSize;
-    memset(&ctxUnmanagedChain, 0, sizeof(CONTEXT));
-    memset(&currentCtx, 0, sizeof(CONTEXT));
+    memset((void*)(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
+    memset((void*)&currentCtx, 0, sizeof(CONTEXT));
 
     // TODO ICorDebugInternalFrame support for more info about CoreCLR related internal routine and call cb() with `FrameCLRInternal`
     // ICorDebugThread3::GetActiveInternalFrames
@@ -134,7 +134,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
         if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
         {
             // We've hit a native frame, we need to store the CONTEXT
-            memset(&ctxUnmanagedChain, 0, sizeof(CONTEXT));
+            memset((void*)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
             IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, (BYTE*) &ctxUnmanagedChain));
             ctxUnmanagedChainValid = true;
             continue;
@@ -156,7 +156,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
             continue;
 
         // We need to store the CONTEXT when we're at a managed frame.
-        memset(&currentCtx, 0, sizeof(CONTEXT));
+        memset((void*)&currentCtx, 0, sizeof(CONTEXT));
         IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, (BYTE*) &currentCtx));
         // Note, we don't change top managed frame FP in case we don't have SP (for example, registers context related issue)
         // or CoreCLR was able to restore it. This case could happens only with "managed" top frame (`GetFrame()` return `S_OK`),
@@ -173,7 +173,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
             IfFailRet(UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, &currentCtx, cb));
             level++;
             // Clear out the CONTEXT
-            memset(&ctxUnmanagedChain, 0, sizeof(CONTEXT));
+            memset((void*)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
             ctxUnmanagedChainValid = false;
         }
 
