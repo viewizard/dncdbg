@@ -8,10 +8,6 @@
 // Note: this file should be excluded from build on Tizen -- in this
 // case Tizen's logger function should be linked.
 
-#ifdef DEBUGGER_FOR_TIZEN
-#error "This file should be excluded from build on Tizen"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

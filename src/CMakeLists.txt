@@ -1,6 +1,3 @@
-# application name for tizens logger
-add_definitions(-DLOG_TAG="DNCDBG")
-
 # Build corguids static library from coreclr source files
 if (NOT WIN32)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -131,6 +128,7 @@ set(dncdbg_SRC
     utils/iosystem_win32.cpp
     utils/interop_unix.cpp
     utils/interop_win32.cpp
+    utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
     utils/streams.cpp
@@ -145,10 +143,6 @@ endif()
 if (WIN32)
     # fix issue with std::numeric_limits<T>::max() and std::max()
     add_definitions(-DNOMINMAX)
-endif()
-
-if (NOT CLR_CMAKE_TARGET_TIZEN_LINUX)
-    list(APPEND dncdbg_SRC utils/logger.cpp)
 endif()
 
 # special threatment of buildinfo.cpp -- this file rebuilds every time,
@@ -180,11 +174,6 @@ endif()
 if (NCDB_DOTNET_STARTUP_HOOK)
     add_definitions(-DNCDB_DOTNET_STARTUP_HOOK="${NCDB_DOTNET_STARTUP_HOOK}")
 endif (NCDB_DOTNET_STARTUP_HOOK)
-
-if (CLR_CMAKE_TARGET_TIZEN_LINUX)
-    add_definitions(-DDEBUGGER_FOR_TIZEN)
-    target_link_libraries(dncdbg dlog)
-endif (CLR_CMAKE_TARGET_TIZEN_LINUX)
 
 install(TARGETS dncdbg DESTINATION ${CMAKE_INSTALL_PREFIX})
 

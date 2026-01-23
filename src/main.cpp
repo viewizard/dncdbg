@@ -65,7 +65,7 @@ static void print_help()
         "--server[=port_num]                   Start the debugger listening for requests on the\n"
         "                                      specified TCP/IP port instead of stdin/out. If port is not specified\n"
         "                                      TCP %i will be used.\n"
-        "--log[=<type>]                        Enable logging. Supported logging to file and to dlog (only for Tizen)\n"
+        "--log[=<file>]                        Enable logging. Supported logging to file only.\n"
         "                                      File log by default. File is created in 'current' folder.\n"
         "--version                             Displays the current version.\n",
         (int)DEFAULT_SERVER_PORT
@@ -236,13 +236,6 @@ int
     std::cin.tie(nullptr);
 
     ProtocolConstructor protocol_constructor = &instantiate_protocol<VSCodeProtocol>;
-    /*
-#ifdef DEBUGGER_FOR_TIZEN
-        &instantiate_protocol<MIProtocol>;
-#else
-        _isatty(_fileno(stdin)) ?  &instantiate_protocol<CLIProtocol> : &instantiate_protocol<MIProtocol>;
-#endif
-*/
 
     bool engineLogging = false;
     std::string logFilePath;
