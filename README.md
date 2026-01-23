@@ -8,7 +8,7 @@ If you need more feature reach debugger for .NET Core runtime, please, take a lo
 
 ## Copyright
 
-You can find licensing information in the [LICENSE](LICENSE) file within the root directory of the NetCoreDbg-DAP sources.
+You can find licensing information in the [LICENSE](LICENSE) file within the root directory of the DNCDbg sources.
 
 ## Building from Source Code
 
