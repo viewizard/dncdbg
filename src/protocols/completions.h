@@ -1,4 +1,5 @@
-// Copyright (C) 2021 Samsung Electronics Co., Ltd.
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 #include <array>
@@ -12,7 +13,7 @@
 #define LINE_MAX 2048
 #endif
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 using Utility::string_view;
@@ -413,4 +414,4 @@ string_view CLIHelper<Params>::eval(string_view str, Func&& func) const
     return {};
 }
 
-} // ::netcoredbg
+} // ::dncdbg

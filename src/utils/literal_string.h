@@ -1,11 +1,12 @@
-// Copyright (C) 2021 Samsung Electronics Co., Ltd.
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 #pragma once
 #include "utils/utility.h"
 #include "utils/string_view.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace Utility
@@ -63,4 +64,4 @@ constexpr LiteralString<Size> literal(const char (&str)[Size])
 }
 
 } // Utility
-} // ::netcoredbg
+} // ::dncdbg

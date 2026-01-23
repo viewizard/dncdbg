@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -26,7 +27,7 @@
 
 #include <palclr.h>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 Breakpoints::Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<EvalHelpers> &sharedEvalHelpers, std::shared_ptr<Variables> &sharedVariables) :
@@ -266,4 +267,4 @@ HRESULT Breakpoints::SetHotReloadBreakpoint(const std::string &updatedDLL, const
     return m_uniqueHotReloadBreakpoint->SetHotReloadBreakpoint(updatedDLL, updatedTypeTokens);
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

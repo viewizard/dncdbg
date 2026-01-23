@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\NetcoreDbgTest\NetcoreDbgTest.csproj" />
+    <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

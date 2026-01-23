@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file dynlibsi_unix.h  This file contains unix-specific function definitions
@@ -16,7 +17,7 @@
 #include "utils/dynlibs.h"
 #include "utils/logger.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This functon load specified library and returns handle (which then
@@ -74,5 +75,5 @@ bool DLClose(DLHandle handle)
     return ret;
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif // __unix__

@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -17,7 +18,7 @@
 
 #include "utils/logger.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 extern template class EscapedString<MIProtocol::MIProtocolChars>;
@@ -1202,4 +1203,4 @@ template class EscapedString<MIProtocol::MIProtocolChars>;
 template std::ostream& operator<<(std::ostream& os, const EscapedString<MIProtocol::MIProtocolChars>& estr);
 
 
-} // namespace netcoredbg
+} // namespace dncdbg

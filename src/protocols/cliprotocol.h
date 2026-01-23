@@ -1,4 +1,5 @@
-// Copyright (c) 2018 Samsung Electronics Co., LTD
+// Copyright (c) 2018-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 #pragma once
@@ -20,7 +21,7 @@
 #include "utils/span.h"
 #include "sourcestorage.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 using Utility::string_view;
@@ -242,4 +243,4 @@ private:
     void cleanupConsoleInputBuffer();
 };
 
-} // namespace netcoredbg
+} // namespace dncdbg

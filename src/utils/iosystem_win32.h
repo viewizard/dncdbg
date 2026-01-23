@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file iosystem_win32.h  This file contains windows-specific declaration of IOSystem class (see iosystem.h).
@@ -10,7 +11,7 @@
 #include <assert.h>
 #include <tuple>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 template <> struct IOSystemTraits<Win32PlatformTag>
@@ -107,5 +108,5 @@ template <> struct IOSystemTraits<Win32PlatformTag>
     };
 };
 
-} // ::netcoredbg
+} // ::dncdbg
 #endif // WIN32

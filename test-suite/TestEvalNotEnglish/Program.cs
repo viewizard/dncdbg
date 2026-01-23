@@ -2,13 +2,13 @@
 using System.IO;
 using System.Collections.Generic;
 
-using NetcoreDbgTest;
-using NetcoreDbgTest.DAP;
-using NetcoreDbgTest.Script;
+using DNCDbgTest;
+using DNCDbgTest.DAP;
+using DNCDbgTest.Script;
 
 using Newtonsoft.Json;
 
-namespace NetcoreDbgTest.Script
+namespace DNCDbgTest.Script
 {
 class Context
 {
@@ -210,7 +210,7 @@ class Context
         Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
+    public Context(ControlInfo controlInfo, DNCDbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
         DAPDebugger = new DAPDebugger(debuggerClient);

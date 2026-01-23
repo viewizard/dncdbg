@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file iosystem.h  This file contains declaration of IOSystem class, which provices
@@ -12,7 +13,7 @@
 
 #include "utils/platform.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 /// This is platform specific class, which contains implementation details for particular platform.
@@ -227,14 +228,14 @@ IOSystemImpl<Traits>::AsyncHandleIterator::OpsImpl<IteratorType>::ops =
     [](void *thiz) { reinterpret_cast<IteratorType*>(thiz)->~IteratorType(); }
 };
 
-} // ::netcoredbg
+} // ::dncdbg
 
 
 // include here all platform specific implementations of IOSystemTraits<T> classes
 #include "iosystem_unix.h"
 #include "iosystem_win32.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
     /// IOSystem class represents IOSystemImpl<T> for current platform.
     typedef IOSystemImpl<IOSystemTraits<PlatformTag> > IOSystem;

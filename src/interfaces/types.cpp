@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -11,7 +12,7 @@
 
 // Important! All "interfaces" code must not depends from other debugger's code.
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This class implements container, which hold elements of type `T', where
@@ -244,4 +245,4 @@ static std::string GetFileName(const std::string &path)
 
 Source::Source(const std::string &path) : name(GetFileName(path)), path(path) {}
 
-} // namespace netcoredbg
+} // namespace dncdbg

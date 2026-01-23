@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -37,7 +38,7 @@ static void setenv(const char* var, const char* val, int) { _putenv_s(var, val);
 #endif
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 static const uint16_t DEFAULT_SERVER_PORT = 4711;
@@ -87,8 +88,8 @@ static void print_buildinfo()
             BuildInfo::cpu_arch
     );
 
-    printf("NetcoreDBG VCS info:  %s\n", BuildInfo::netcoredbg_vcs_info);
-    printf("CoreCLR VCS info:     %s\n", BuildInfo::coreclr_vcs_info);
+    printf("DNCDbg VCS info:   %s\n", BuildInfo::dncdbg_vcs_info);
+    printf("CoreCLR VCS info:  %s\n", BuildInfo::coreclr_vcs_info);
 }
 
 // protocol names for logging
@@ -156,10 +157,10 @@ Streams open_streams(Holder& holder, unsigned server_port, ProtocolConstructor c
     return {std::cin, std::cout};
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg
 
 
-using namespace netcoredbg;
+using namespace dncdbg;
 
 static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std::function<void(int& i)>>> &partialArguments, int i)
 {
@@ -337,8 +338,8 @@ int
         { "--version", [&](int& i){
 
             fprintf(stdout, "NET Core debugger %s (%s, %s)\n\n",
-                BuildInfo::version, BuildInfo::netcoredbg_vcs_info, BuildInfo::build_type);
-            fprintf(stdout, "Copyright (c) 2017-2025 Samsung Electronics Co., LTD\n");
+                BuildInfo::version, BuildInfo::dncdbg_vcs_info, BuildInfo::build_type);
+            fprintf(stdout, "Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
             fprintf(stdout, "Copyright (c) 2026 Mikhail Kurinnoi\n");
             fprintf(stdout, "Distributed under the MIT License.\n");
             fprintf(stdout, "See the LICENSE file in the project root for more information.\n");
@@ -434,9 +435,9 @@ int
 
     CheckStartOptions(protocol_constructor, initCommands, argv, execFile, run, serverPort);
 
-    LOGI("Netcoredbg started");
+    LOGI("DNCDbg started");
     // Note: there is no possibility to know which exception caused call to std::terminate
-    std::set_terminate([]{ LOGF("Netcoredbg is terminated due to call to std::terminate: see stderr..."); });
+    std::set_terminate([]{ LOGF("DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
     std::vector<std::unique_ptr<std::ios_base> > streams;
     std::shared_ptr<IProtocol> protocol = protocol_constructor(open_streams(streams, serverPort, protocol_constructor));

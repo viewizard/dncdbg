@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -61,14 +62,14 @@ static int printf_checked(const char *, ...) { return -1; }
 #endif
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 using Utility::literal;
 using CommandTag = CLIProtocol::CommandTag;
 using CompletionTag = CLIProtocol::CompletionTag;
 
-// Prompts which displayed when netcoredbg expects next command:
+// Prompts which displayed when dncdbg expects next command:
 const auto CommandPrompt = tty::bold + tty::green + literal("ncdb>") + tty::reset + literal(" ");
 
 CLIProtocol* CLIProtocol::g_console_owner = nullptr;
@@ -2782,4 +2783,4 @@ void CLIProtocol::cleanupConsoleInputBuffer()
 #endif
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

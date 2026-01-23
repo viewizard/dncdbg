@@ -12,9 +12,9 @@ using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-using NetcoreDbgTest;
+using DNCDbgTest;
 
-namespace NetcoreDbgTestCore
+namespace DNCDbgTestCore
 {
 public class ScriptNotBuiltException : Exception
 {
@@ -51,16 +51,16 @@ using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using NetcoreDbgTest;
-using NetcoreDbgTest.Script;
+using DNCDbgTest;
+using DNCDbgTest.Script;
 using Newtonsoft.Json;
-using NetcoreDbgTest." + protocolType.ToString() + @";
+using DNCDbgTest." + protocolType.ToString() + @";
 
-namespace NetcoreDbgTest.Script
+namespace DNCDbgTest.Script
 {
 }
 
-namespace NetcoreDbgTestCore
+namespace DNCDbgTestCore
 {
     public class GeneratedScript
     {
@@ -111,7 +111,7 @@ namespace NetcoreDbgTestCore
         SyntaxTree = BuildTree();
         Compilation compilation = CompileTree(SyntaxTree);
         Assembly scriptAssembly = MakeAssembly(compilation);
-        generatedScriptClass = scriptAssembly.GetType("NetcoreDbgTestCore.GeneratedScript");
+        generatedScriptClass = scriptAssembly.GetType("DNCDbgTestCore.GeneratedScript");
         Breakpoints = TestLabelsInfo.Breakpoints;
     }
 
@@ -261,7 +261,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
     public TestLabelsInfoCollector(ProtocolType protocolType)
     {
         TestLabelsInfo = new TestLabelsInfo();
-        TypeClassBP = Type.GetType("NetcoreDbgTest." + protocolType.ToString() + "." + protocolType.ToString() + "LineBreakpoint");
+        TypeClassBP = Type.GetType("DNCDbgTest." + protocolType.ToString() + "." + protocolType.ToString() + "LineBreakpoint");
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -368,7 +368,7 @@ public class ScriptDeclarationsCollector : CSharpSyntaxWalker
 
     public override void VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (node.Name.ToString() == "NetcoreDbgTest.Script")
+        if (node.Name.ToString() == "DNCDbgTest.Script")
         {
             ScriptDeclarations = ScriptDeclarations.AddRange(node.Members);
             return;
@@ -392,7 +392,7 @@ public class GeneratedScriptDeclarationsBuilder : CSharpSyntaxRewriter
 
     public override SyntaxNode VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (node.Name.ToString() == "NetcoreDbgTest.Script")
+        if (node.Name.ToString() == "DNCDbgTest.Script")
         {
             return node.AddMembers(ScriptDeclarations.ToArray());
         }

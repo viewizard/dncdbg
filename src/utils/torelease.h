@@ -2,14 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 
 #pragma once
 
 #include <assert.h>
 #include "utils/logger.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This class acts a smart pointer which calls the Release method on any object
@@ -144,4 +145,4 @@ const int mdNameLen = 2048;
 #define PACK_END __attribute__((packed))
 #endif
 
-} // namespace netcoredbg
+} // namespace dncdbg

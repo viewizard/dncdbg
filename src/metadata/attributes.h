@@ -1,4 +1,5 @@
-// Copyright (c) 2022 Samsung Electronics Co., LTD
+// Copyright (c) 2022-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -10,7 +11,7 @@
 #include <vector>
 #include <string>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 struct DebuggerAttribute
@@ -23,4 +24,4 @@ struct DebuggerAttribute
 bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const char *attrName);
 bool HasAttribute(IMetaDataImport *pMD, mdToken tok, std::vector<std::string> &attrNames);
 
-} // namespace netcoredbg
+} // namespace dncdbg

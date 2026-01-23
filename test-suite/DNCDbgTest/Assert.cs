@@ -1,4 +1,4 @@
-namespace NetcoreDbgTest
+namespace DNCDbgTest
 {
 public static class Assert
 {

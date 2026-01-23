@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -14,7 +15,7 @@
 #include "metadata/jmc.h"
 #include "utils/filesystem.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 ModuleInfo::~ModuleInfo() noexcept
@@ -825,4 +826,4 @@ void Modules::CopyModulesUpdateHandlerTypes(std::vector<ToRelease<ICorDebugType>
     m_modulesAppUpdate.CopyModulesUpdateHandlerTypes(modulesUpdateHandlerTypes);
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

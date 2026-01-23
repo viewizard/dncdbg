@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -7,7 +8,7 @@
 #include "interfaces/idebugger.h"
 #include "metadata/modules.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType)
@@ -137,4 +138,4 @@ HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

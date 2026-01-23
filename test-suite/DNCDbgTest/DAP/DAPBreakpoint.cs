@@ -1,6 +1,6 @@
-using NetcoreDbgTestCore;
+using DNCDbgTestCore;
 
-namespace NetcoreDbgTest.DAP
+namespace DNCDbgTest.DAP
 {
 class DAPLineBreakpoint : LineBreakpoint
 {

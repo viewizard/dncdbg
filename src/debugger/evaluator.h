@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -15,7 +16,7 @@
 #include "interfaces/types.h"
 #include "utils/torelease.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 class Modules;
@@ -154,4 +155,4 @@ private:
 
 };
 
-} // namespace netcoredbg
+} // namespace dncdbg

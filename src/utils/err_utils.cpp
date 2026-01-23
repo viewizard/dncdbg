@@ -1,4 +1,5 @@
-// Copyright (C) 2024 Samsung Electronics Co., Ltd.
+// Copyright (c) 2024-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 #include <stddef.h>

@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NetcoreDbgTest\NetcoreDbgTest.csproj" />
+    <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
     <ProjectReference Include="..\LocalDebugger\LocalDebugger.csproj" />
   </ItemGroup>
 

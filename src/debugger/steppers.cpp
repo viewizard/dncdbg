@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -9,7 +10,7 @@
 #include "metadata/attributes.h"
 #include "utils/utf.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // From ECMA-335
@@ -286,4 +287,4 @@ void Steppers::SetStepFiltering(bool enable)
     m_stepFiltering = enable;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

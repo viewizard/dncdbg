@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -19,7 +20,7 @@
 #include "managed/interop.h"
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 ULONG ManagedCallback::GetRefCount()
@@ -536,4 +537,4 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CustomNotification(ICorDebugThread *p
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

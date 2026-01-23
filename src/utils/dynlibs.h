@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file dynlibs.h  This file contains declaration required to work
@@ -7,7 +8,7 @@
 #pragma once
 #include "utils/string_view.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
     using Utility::string_view;
 
@@ -29,4 +30,4 @@ namespace netcoredbg
     /// In case of error this function returns `false'.
     bool DLClose(DLHandle handle);
 
-}  // ::netcoredbg
+}  // ::dncdbg

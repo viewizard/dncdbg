@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file platform_win32.cpp  This file contains windows-specific function definitions,
@@ -10,7 +11,7 @@
 #include "utils/platform.h"
 #include "utils/limits.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // Function returns memory mapping page size (like sysconf(_SC_PAGESIZE) on Unix).
@@ -47,5 +48,5 @@ char** GetSystemEnvironment()
     return environ;
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif

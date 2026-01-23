@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NetcoreDbgTest.DAP
+namespace DNCDbgTest.DAP
 {
 public class Request : ProtocolMessage
 {
@@ -145,7 +145,7 @@ public class SetBreakpointsArguments
 {
     public Source source = new Source();
     public List<SourceBreakpoint> breakpoints = new List<SourceBreakpoint>();
-    public List<int> lines = new List<int>(); // Deprecated: The code locations of the breakpoints. netcoredbg don't support it.
+    public List<int> lines = new List<int>(); // Deprecated: The code locations of the breakpoints. dncdbg don't support it.
     public bool? sourceModified;
 }
 

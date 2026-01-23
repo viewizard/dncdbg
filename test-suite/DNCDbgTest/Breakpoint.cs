@@ -1,6 +1,6 @@
-using NetcoreDbgTestCore;
+using DNCDbgTestCore;
 
-namespace NetcoreDbgTest
+namespace DNCDbgTest
 {
 public enum BreakpointType
 {

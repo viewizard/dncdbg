@@ -40,8 +40,8 @@ $ALL_TEST_NAMES = @(
 
 $TEST_NAMES = $tests
 
-if ($NETCOREDBG.count -eq 0) {
-    $NETCOREDBG = "../bin/netcoredbg.exe"
+if ($DNCDBG.count -eq 0) {
+    $DNCDBG = "../bin/dncdbg.exe"
 }
 
 if ($TEST_NAMES.count -eq 0) {
@@ -75,7 +75,7 @@ foreach ($TEST_NAME in $TEST_NAMES) {
     }
 
     dotnet run --project Runner -- `
-        --local $NETCOREDBG `
+        --local $DNCDBG `
         --test $TEST_NAME `
         --sources $SOURCE_FILES `
         --assembly $TEST_NAME/bin/Debug/net10.0/$TEST_NAME.dll

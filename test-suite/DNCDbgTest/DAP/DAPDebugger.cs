@@ -1,12 +1,12 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using NetcoreDbgTestCore;
-using NetcoreDbgTestCore.DAP;
+using DNCDbgTestCore;
+using DNCDbgTestCore.DAP;
 
 using Newtonsoft.Json;
 
-namespace NetcoreDbgTest.DAP
+namespace DNCDbgTest.DAP
 {
 public class DAPResult : Tuple<bool, string>
 {

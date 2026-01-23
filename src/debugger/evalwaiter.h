@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -11,7 +12,7 @@
 #include <future>
 #include "utils/torelease.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 class EvalWaiter
@@ -87,4 +88,4 @@ private:
 
 };
 
-} // namespace netcoredbg
+} // namespace dncdbg

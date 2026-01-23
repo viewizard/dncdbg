@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -17,7 +18,7 @@
 #include "utils/utf.h"
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace
@@ -2128,4 +2129,4 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

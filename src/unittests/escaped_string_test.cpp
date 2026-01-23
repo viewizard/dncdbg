@@ -1,4 +1,5 @@
-// Copyright (C) 2021 Samsung Electronics Co., Ltd.
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 #include <catch2/catch.hpp>
@@ -7,7 +8,7 @@
 #include "protocols/escaped_string.h"
 #include "compile_test.h"
 
-using namespace netcoredbg;
+using namespace dncdbg;
 using string_view = Utility::string_view;
 
 struct EscapeRules

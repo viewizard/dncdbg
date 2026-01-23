@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file span.h  This file contains definition of `span' class, which is similar to std::span from c++20.
@@ -9,7 +10,7 @@
 #include <iterator>
 #include <assert.h>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace Utility
@@ -143,4 +144,4 @@ private:
 };
 
 } // Utility namespace
-} // netcoredbg
+} // dncdbg

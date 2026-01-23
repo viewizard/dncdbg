@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -18,7 +19,7 @@
 #include <algorithm>
 #include <sstream>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
@@ -455,4 +456,4 @@ void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAp
     m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType, ExcModule);
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

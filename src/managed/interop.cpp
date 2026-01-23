@@ -1,8 +1,11 @@
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
+// Distributed under the MIT License.
+// See the LICENSE file in the project root for more information.
+
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-
-// Copyright (c) 2017 Samsung Electronics Co., LTD
 
 #include "managed/interop.h"
 
@@ -31,7 +34,7 @@ static void RaiseException(DWORD dwExceptionCode,
 }
 #endif
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace Interop
@@ -103,9 +106,9 @@ SysFreeStringDelegate sysFreeStringDelegate = nullptr;
 CalculationDelegate calculationDelegate = nullptr;
 
 constexpr char ManagedPartDllName[] = "ManagedPart";
-constexpr char SymbolReaderClassName[] = "NetCoreDbg.SymbolReader";
-constexpr char EvaluationClassName[] = "NetCoreDbg.Evaluation";
-constexpr char UtilsClassName[] = "NetCoreDbg.Utils";
+constexpr char SymbolReaderClassName[] = "DNCDbg.SymbolReader";
+constexpr char EvaluationClassName[] = "DNCDbg.Evaluation";
+constexpr char UtilsClassName[] = "DNCDbg.Utils";
 
 // Pass to managed helper code to read in-memory PEs/PDBs
 // Returns the number of bytes read.
@@ -626,4 +629,4 @@ HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle, st
 
 } // namespace Interop
 
-} // namespace netcoredbg
+} // namespace dncdbg

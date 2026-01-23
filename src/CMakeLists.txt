@@ -1,5 +1,5 @@
 # application name for tizens logger
-add_definitions(-DLOG_TAG="NETCOREDBG")
+add_definitions(-DLOG_TAG="DNCDBG")
 
 # Build corguids static library from coreclr source files
 if (NOT WIN32)
@@ -75,7 +75,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${PROJECT_BINARY_DIR}/generated)
 include_directories(${PROJECT_SOURCE_DIR}/src/windows ${PROJECT_SOURCE_DIR}/src/unix)
 
-set(netcoredbg_SRC
+set(dncdbg_SRC
     debugger/breakpoint_break.cpp
     debugger/breakpoint_entry.cpp
     debugger/breakpoint_hotreload.cpp
@@ -148,7 +148,7 @@ if (WIN32)
 endif()
 
 if (NOT CLR_CMAKE_TARGET_TIZEN_LINUX)
-    list(APPEND netcoredbg_SRC utils/logger.cpp)
+    list(APPEND dncdbg_SRC utils/logger.cpp)
 endif()
 
 # special threatment of buildinfo.cpp -- this file rebuilds every time,
@@ -156,7 +156,7 @@ endif()
 # date/time of the build).
 string(CONCAT buildinfo_flags
     " " -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
-    " " -DNETCOREDBG_VCS_INFO=${NETCOREDBG_VCS_INFO}
+    " " -DDNCDBG_VCS_INFO=${DNCDBG_VCS_INFO}
     " " -DCORECLR_VCS_INFO=${CORECLR_VCS_INFO}
     " " -DOS_NAME=${CMAKE_SYSTEM_NAME}
     " " -DCPU_ARCH=${CLR_CMAKE_TARGET_ARCH}
@@ -166,14 +166,14 @@ add_custom_target(buildinfo ALL COMMAND
     ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp")
 
 
-add_executable(netcoredbg ${netcoredbg_SRC})
+add_executable(dncdbg ${dncdbg_SRC})
 
 if (WIN32)
-    target_link_libraries(netcoredbg corguids wsock32 ws2_32)
+    target_link_libraries(dncdbg corguids wsock32 ws2_32)
 else()
-    target_link_libraries(netcoredbg corguids dl pthread)
+    target_link_libraries(dncdbg corguids dl pthread)
     if (EXISTS "${CORECLR_MINIPAL_SRC_DIR}/guid.c")
-        target_link_libraries(netcoredbg minipalguid)
+        target_link_libraries(dncdbg minipalguid)
     endif()
 endif()
 
@@ -183,10 +183,10 @@ endif (NCDB_DOTNET_STARTUP_HOOK)
 
 if (CLR_CMAKE_TARGET_TIZEN_LINUX)
     add_definitions(-DDEBUGGER_FOR_TIZEN)
-    target_link_libraries(netcoredbg dlog)
+    target_link_libraries(dncdbg dlog)
 endif (CLR_CMAKE_TARGET_TIZEN_LINUX)
 
-install(TARGETS netcoredbg DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS dncdbg DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # Build managed part of the debugger (ManagedPart.dll)
 

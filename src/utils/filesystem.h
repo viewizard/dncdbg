@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem.h
@@ -10,7 +11,7 @@
 #include "utils/string_view.h"
 #include "utils/platform.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
     using Utility::string_view;
 
@@ -55,12 +56,12 @@ namespace netcoredbg
     /// if argument is not the file name, but the path which includes directory names.
     bool IsFullPath(const std::string &path);
 
-}  // ::netcoredbg
+}  // ::dncdbg
 
 #include "filesystem_win32.h"
 #include "filesystem_unix.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
     using FileSystem = FileSystemImpl<FileSystemTraits<PlatformTag> >;
 }

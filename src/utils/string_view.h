@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Licensed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -13,7 +14,7 @@
 #include <ostream>
 #include <string>
 
-namespace netcoredbg { namespace Utility {
+namespace dncdbg { namespace Utility {
 
 template <typename CharT> class StringViewBase
 {
@@ -646,4 +647,4 @@ inline std::ostream& operator<<(std::ostream& os, string_view str)
     return os;
 }
 
-}}  // ::netcoredbg::Utility
+}}  // ::dncdbg::Utility

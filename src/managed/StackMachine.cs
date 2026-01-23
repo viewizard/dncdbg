@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -10,7 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Text;
 
-namespace NetCoreDbg
+namespace DNCDbg
 {
     public partial class Evaluation
     {
@@ -744,7 +745,7 @@ namespace NetCoreDbg
             public string GenerateDebugText()
             {
                 // We cannot derive from sealed type 'StringBuilder' and it use platform-dependant Environment.NewLine for new line.
-                // Use '\n' directly, since netcoredbg use only '\n' for new line.
+                // Use '\n' directly, since dncdbg use only '\n' for new line.
                 StringBuilder sb = new StringBuilder();
                 sb.Append("=======================================\n");
                 sb.Append("Source tree:\n");

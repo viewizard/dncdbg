@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 using LocalDebugger;
-using NetcoreDbgTestCore;
-using NetcoreDbgTestCore.DAP;
+using DNCDbgTestCore;
+using DNCDbgTestCore.DAP;
 
 namespace Runner
 {
@@ -105,7 +105,7 @@ class CLInterface
 {
     public CLInterface(string[] args)
     {
-        Environment = new NetcoreDbgTestCore.Environment();
+        Environment = new DNCDbgTestCore.Environment();
 
         if (args.Length == 0)
         {
@@ -256,7 +256,7 @@ options:
 
     public bool NeedHelp = false;
     public ProtocolType Protocol = ProtocolType.DAP;
-    public NetcoreDbgTestCore.Environment Environment;
+    public DNCDbgTestCore.Environment Environment;
     public LocalClientInfo ClientInfo;
 }
 

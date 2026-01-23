@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -7,7 +8,7 @@
 #pragma once
 #include <stddef.h>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace Utility
@@ -79,4 +80,4 @@ template <typename T> struct Singleton
 };
 
 } // Utility namespace
-} // namespace netcoredbg
+} // namespace dncdbg

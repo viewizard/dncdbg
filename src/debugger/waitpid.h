@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -9,7 +10,7 @@
 #include <signal.h>
 #include <mutex>
 
-namespace netcoredbg
+namespace dncdbg
 {
 namespace hook
 {
@@ -43,6 +44,6 @@ public:
 
 hook::waitpid_t &GetWaitpid();
 
-} // namespace netcoredbg
+} // namespace dncdbg
 
 #endif // FEATURE_PAL

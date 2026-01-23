@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -8,7 +9,7 @@
 #include <thread>
 #include <list>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedCallback2, ICorDebugManagedCallback3
@@ -85,4 +86,4 @@ public:
     HRESULT STDMETHODCALLTYPE CustomNotification(ICorDebugThread *pThread, ICorDebugAppDomain *pAppDomain) override;
 };
 
-} // namespace netcoredbg
+} // namespace dncdbg

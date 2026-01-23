@@ -1,4 +1,4 @@
-namespace NetcoreDbgTestCore
+namespace DNCDbgTestCore
 {
 public enum ProtocolType
 {

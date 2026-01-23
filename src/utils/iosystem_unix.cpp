@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file iosystem_unix.cpp  This file contains unix-specific definitions of
@@ -26,7 +27,7 @@
 namespace
 {
     // short alias for full class name
-    typedef netcoredbg::IOSystemTraits<netcoredbg::UnixPlatformTag> Class;
+    typedef dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag> Class;
     
     
     struct AsyncRead
@@ -347,7 +348,7 @@ Class::IOResult Class::close(const FileHandle &fh)
 
 
 // This function returns triplet of currently selected standard files.
-netcoredbg::IOSystem::StdFiles Class::get_std_files()
+dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
     static const IOSystem::FileHandle handles[std::tuple_size<IOSystem::StdFiles>::value] = {
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)

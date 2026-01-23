@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file streams.cpp  This file contains member definitions of following classes:
@@ -13,7 +14,7 @@
 
 #include "utils/streams.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // These constant define default size of the buffer, which typically can hold few lines of the text.
@@ -194,4 +195,4 @@ int OutStreamBuf::sync()
     return 0;
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg

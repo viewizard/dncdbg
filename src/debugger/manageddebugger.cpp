@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -50,7 +51,7 @@
 
 #include "palclr.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 #ifdef FEATURE_PAL
@@ -1542,4 +1543,4 @@ HRESULT ManagedDebugger::HotReloadApplyDeltas(const std::string &dllFileName, co
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

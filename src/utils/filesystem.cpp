@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem.cpp
@@ -6,7 +7,7 @@
 
 #include "utils/filesystem.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 template <> const char* FileSystemImpl<FileSystemTraits<PlatformTag> >::PathSeparatorSymbols = 
@@ -28,4 +29,4 @@ bool IsFullPath(const std::string &path)
     return pos != std::string::npos;
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg

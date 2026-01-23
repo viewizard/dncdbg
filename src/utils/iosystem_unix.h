@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file iosystem_unix.h  This file contains unix-specific declaration of IOSystem class (see iosystem.h).
@@ -14,9 +15,9 @@
 #include "utils/platform.h"
 #include "utils/iosystem.h"
 
-template <> struct netcoredbg::IOSystemTraits<netcoredbg::UnixPlatformTag>
+template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 {
-    using IOSystem = typename netcoredbg::IOSystemImpl<IOSystemTraits<UnixPlatformTag> >;
+    using IOSystem = typename dncdbg::IOSystemImpl<IOSystemTraits<UnixPlatformTag> >;
     using IOResult = IOSystem::IOResult;
 
     struct FileHandle

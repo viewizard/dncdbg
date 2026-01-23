@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
-using NetcoreDbgTest;
-using NetcoreDbgTest.DAP;
-using NetcoreDbgTest.Script;
+using DNCDbgTest;
+using DNCDbgTest.DAP;
+using DNCDbgTest.Script;
 
 using Newtonsoft.Json;
 
-namespace NetcoreDbgTest.Script
+namespace DNCDbgTest.Script
 {
 class Context
 {
@@ -106,7 +106,7 @@ class Context
         Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
+    public Context(ControlInfo controlInfo, DNCDbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
         DAPDebugger = new DAPDebugger(debuggerClient);
@@ -150,7 +150,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // TODO as soon, as netcoredbg will be able restart debuggee process, implement all tests
+        // TODO as soon, as dncdbg will be able restart debuggee process, implement all tests
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

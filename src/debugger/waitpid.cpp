@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -12,7 +13,7 @@
 
 #include "utils/logger.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 namespace hook
 {
@@ -73,19 +74,19 @@ hook::waitpid_t &GetWaitpid()
 // Note, we guaranty `waitpid()` hook works only during debuggee process execution, it aimed to work only for PAL's `waitpid()` calls interception.
 extern "C" pid_t waitpid(pid_t pid, int *status, int options)
 {
-    pid_t pidWaitRetval = netcoredbg::hook::waitpid(pid, status, options);
+    pid_t pidWaitRetval = dncdbg::hook::waitpid(pid, status, options);
 
     // same logic as PAL have, see PROCGetProcessStatus() and CPalSynchronizationManager::HasProcessExited()
     if (pidWaitRetval == pid)
     {
         if (WIFEXITED(*status))
         {
-            netcoredbg::hook::waitpid.SetExitCode(pid, WEXITSTATUS(*status));
+            dncdbg::hook::waitpid.SetExitCode(pid, WEXITSTATUS(*status));
         }
         else if (WIFSIGNALED(*status))
         {
             LOGW("Process terminated without exiting, can't get exit code. Killed by signal %d. Assuming EXIT_FAILURE.", WTERMSIG(*status));
-            netcoredbg::hook::waitpid.SetExitCode(pid, EXIT_FAILURE);
+            dncdbg::hook::waitpid.SetExitCode(pid, EXIT_FAILURE);
         }
     }
 
@@ -98,6 +99,6 @@ extern "C" pid_t wait(int *status)
     return waitpid(-1, status, 0);
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg
 
 #endif // FEATURE_PAL

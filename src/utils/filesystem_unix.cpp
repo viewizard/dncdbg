@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem_unix.cpp
@@ -17,7 +18,7 @@
 #include "utils/span.h"
 #include "utils/limits.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 using Utility::string_view;
@@ -85,5 +86,5 @@ bool SetWorkDir(const std::string &path)
     return chdir(path.c_str()) == 0;
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif __unix__

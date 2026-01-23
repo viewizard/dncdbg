@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -21,7 +22,7 @@
 #include "utils/utf.h"
 #include "interfaces/types.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
@@ -550,4 +551,4 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

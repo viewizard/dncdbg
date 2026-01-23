@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using NetcoreDbgTestCore;
+using DNCDbgTestCore;
 
-namespace NetcoreDbgTest
+namespace DNCDbgTest
 {
 public class ControlInfo
 {
@@ -11,7 +11,7 @@ public class ControlInfo
     public string TargetAssemblyPath { get; private set; }
     public string CorerunPath { get; private set; }
 
-    public ControlInfo(ControlScript script, NetcoreDbgTestCore.Environment env)
+    public ControlInfo(ControlScript script, DNCDbgTestCore.Environment env)
     {
         Breakpoints = script.Breakpoints;
         TestName = env.TestName;

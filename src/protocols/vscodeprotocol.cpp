@@ -1,4 +1,5 @@
-// Copyright (c) 2018 Samsung Electronics Co., LTD
+// Copyright (c) 2018-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -28,7 +29,7 @@
 // for convenience
 using json = nlohmann::json;
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 namespace
@@ -1223,4 +1224,4 @@ void VSCodeProtocol::Log(const std::string &prefix, const std::string &text)
     }
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

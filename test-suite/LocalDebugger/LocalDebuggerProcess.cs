@@ -38,8 +38,8 @@ public class LocalDebuggerProcess
     {
         if (!CloseCalled && DebuggerProcess.ExitCode != 0)
         {
-            // kill process of test, which is child of netcoredbg
-            System.Console.Error.WriteLine("Runner: netcoredbg is dead with exit code {0}.", DebuggerProcess.ExitCode);
+            // kill process of test, which is child of dncdbg
+            System.Console.Error.WriteLine("Runner: dncdbg is dead with exit code {0}.", DebuggerProcess.ExitCode);
             System.Environment.Exit(DebuggerProcess.ExitCode);
         }
     }

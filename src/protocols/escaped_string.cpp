@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 #include <algorithm>
@@ -6,7 +7,7 @@
 #include "escaped_string.h"
 #include "assert.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(const EscapedStringInternal::EscapedStringImpl::Params& params, Utility::string_view str, const TempRef& ref, bool isstring)
@@ -127,4 +128,4 @@ void EscapedStringInternal::EscapedStringImpl::transform()
     m_isstring = true;
 }
 
-} // ::netcoredbg::Utility
+} // ::dncdbg::Utility

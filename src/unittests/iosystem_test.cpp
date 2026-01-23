@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Licensed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -68,7 +69,7 @@ static int system(const char *command)
 #endif // WIN32
 
 
-using namespace netcoredbg;
+using namespace dncdbg;
 
 const char test_str[] = "A quick brown fox jumps over the lazy dog.";
 

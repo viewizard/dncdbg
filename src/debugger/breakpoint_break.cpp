@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -7,7 +8,7 @@
 #include "metadata/modules.h"
 #include "utils/torelease.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset)
@@ -130,4 +131,4 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

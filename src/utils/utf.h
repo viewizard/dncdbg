@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 #pragma once
@@ -16,7 +17,7 @@
 #include <corerror.h>
 #pragma GCC diagnostic pop
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 #ifdef _MSC_VER
@@ -41,4 +42,4 @@ bool str_equal(const CharT *left, const CharT (&right)[Size])
     return std::char_traits<CharT>::compare(left, right, Size) == 0;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem_unix.h  This file contains unix-specific details to FileSystem class.
@@ -9,7 +10,7 @@
 #include "utils/limits.h"
 #include "utils/platform.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
     template <> struct FileSystemTraits<UnixPlatformTag>
     {

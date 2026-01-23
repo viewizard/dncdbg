@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -18,7 +19,7 @@
 #include "valueprint.h"
 #include "managed/interop.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 bool Evaluator::ArgElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string& name2)
@@ -2001,5 +2002,5 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType,
     return S_OK;
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg
 

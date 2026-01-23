@@ -2,13 +2,13 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 
-using NetcoreDbgTest;
-using NetcoreDbgTest.DAP;
-using NetcoreDbgTest.Script;
+using DNCDbgTest;
+using DNCDbgTest.DAP;
+using DNCDbgTest.Script;
 
 using Newtonsoft.Json;
 
-namespace NetcoreDbgTest.Script
+namespace DNCDbgTest.Script
 {
 class Context
 {
@@ -196,7 +196,7 @@ class Context
         return false;
     }
 
-    public Context(ControlInfo controlInfo, NetcoreDbgTestCore.DebuggerClient debuggerClient)
+    public Context(ControlInfo controlInfo, DNCDbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
         DAPDebugger = new DAPDebugger(debuggerClient);

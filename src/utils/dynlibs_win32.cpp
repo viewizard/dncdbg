@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file dynlibsi_win32.h  This file contains windows-specific function definitions
@@ -9,7 +10,7 @@
 #include "utils/dynlibs.h"
 #include "utils/limits.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This functon load specified library and returns handle (which then
@@ -40,5 +41,5 @@ bool DLClose(DLHandle handle)
     return ::FreeLibrary(reinterpret_cast<HMODULE>(handle));
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif

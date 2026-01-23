@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem_win32.cpp
@@ -11,7 +12,7 @@
 #include "utils/limits.h"
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 const char* FileSystemTraits<Win32PlatformTag>::PathSeparatorSymbols = "/\\";
@@ -48,5 +49,5 @@ bool SetWorkDir(const std::string &path)
     return SetCurrentDirectoryA(path.c_str());
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif

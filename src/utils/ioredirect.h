@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file ioredirect.h
@@ -21,7 +22,7 @@
 #include "span.h"
 #include "utils/rwlock.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 /// This class allows to redirect standard input/output file of the program
@@ -130,4 +131,4 @@ private:
     std::thread   m_thread;     // worker threead (which monitors received data)
 };
 
-}  // ::netcoredbg
+}  // ::dncdbg

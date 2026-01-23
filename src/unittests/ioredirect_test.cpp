@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Licensed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -18,7 +19,7 @@ void usleep(unsigned long usec) { Sleep((usec+999)/1000); }
 #include <unistd.h>
 #endif
 
-using namespace netcoredbg;
+using namespace dncdbg;
 template <typename T> using span = Utility::span<T>;
 
 // TODO...

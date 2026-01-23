@@ -34,8 +34,8 @@ ALL_TEST_NAMES=(
 
 TEST_NAMES="$@"
 
-if [[ -z $NETCOREDBG ]]; then
-    NETCOREDBG="../bin/netcoredbg"
+if [[ -z $DNCDBG ]]; then
+    DNCDBG="../bin/dncdbg"
 fi
 
 if [[ -z $TEST_NAMES ]]; then
@@ -63,7 +63,7 @@ for TEST_NAME in $TEST_NAMES; do
     done
 
     dotnet run --project Runner -- \
-        --local $NETCOREDBG \
+        --local $DNCDBG \
         --test $TEST_NAME \
         --sources "$SOURCE_FILES" \
         --assembly $TEST_NAME/bin/Debug/net10.0/$TEST_NAME.dll

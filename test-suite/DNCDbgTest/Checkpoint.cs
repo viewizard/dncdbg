@@ -1,6 +1,6 @@
 using System;
 
-namespace NetcoreDbgTestCore
+namespace DNCDbgTestCore
 {
 public delegate void Checkpoint(Object Context);
 }

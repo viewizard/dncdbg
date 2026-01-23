@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file filesystem_win32.h  This file contains windows-specific details to FileSystem class.
@@ -8,7 +9,7 @@
 #include <cstddef>
 #include <windows.h>
 
-namespace netcoredbg
+namespace dncdbg
 {
     template <> struct FileSystemTraits<Win32PlatformTag>
     {

@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file ioredirect.h
@@ -12,7 +13,7 @@
 #include "utils/logger.h"
 #include "utils/rwlock.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This constant represents default buffers size for input/output.
@@ -483,4 +484,4 @@ IDebugger::AsyncResult IORedirectHelper::async_input(InStream& in)
 }
 
 
-} // ::netcoredbg
+} // ::dncdbg

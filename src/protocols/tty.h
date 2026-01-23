@@ -1,9 +1,10 @@
-// Copyright (C) 2021 Samsung Electronics Co., Ltd.
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 #pragma once
 #include "utils/literal_string.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 /// This namespace contains definitions of few terminal controlling codes.
@@ -41,4 +42,4 @@ namespace tty
     // Background setting codes excluded intentionally too -- `reverse` might be used instead.
 }
 
-} // ::netcoredbg
+} // ::dncdbg

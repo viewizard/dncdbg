@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 // Licensed to the .NET Foundation under one or more agreements.
@@ -19,7 +20,7 @@
 #include "utils/limits.h"
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // This function searches *.dll files in specified directory and adds full paths to files
@@ -95,5 +96,5 @@ UINT InteropTraits<Win32PlatformTag>::SysStringLen(BSTR bstrString)
     return ::SysStringLen(bstrString);
 }
 
-}  // ::netcoredbg
+}  // ::dncdbg
 #endif  // WIN32

@@ -1,6 +1,6 @@
 using System;
 
-namespace NetcoreDbgTest
+namespace DNCDbgTest
 {
 class Logger
 {

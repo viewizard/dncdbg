@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file iosystem_win32.cpp  This file contains windows-specific definitions of
@@ -19,7 +20,7 @@
 #include "utils/limits.h"
 
 // short alias for full class name
-namespace { typedef netcoredbg::IOSystemTraits<netcoredbg::Win32PlatformTag> Class; }
+namespace { typedef dncdbg::IOSystemTraits<dncdbg::Win32PlatformTag> Class; }
 
 namespace
 {
@@ -84,7 +85,7 @@ namespace
             throw Win32Exception("can't create socket", WSAGetLastError());
 
         // TODO
-        char name[] = "netcoredbg";
+        char name[] = "dncdbg";
         size_t namelen = sizeof(name)-1;
 
         SOCKADDR_UN sa;

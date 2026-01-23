@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 #pragma once
@@ -13,7 +14,7 @@
 #include <functional>
 #include "interfaces/types.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 enum FrameType
@@ -43,4 +44,4 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
 HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb);
 
-} // namespace netcoredbg
+} // namespace dncdbg

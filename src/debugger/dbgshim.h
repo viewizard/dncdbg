@@ -1,4 +1,5 @@
-// Copyright (c) 2020 Samsung Electronics Co., LTD
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -22,7 +23,7 @@
 #include <string>
 
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // Based on coreclr/src/dlls/dbgshim/dbgshim.h
@@ -106,4 +107,4 @@ private:
     DLHandle m_module;
 };
 
-} // namespace netcoredbg
+} // namespace dncdbg

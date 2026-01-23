@@ -1,4 +1,5 @@
-// Copyright (c) 2017 Samsung Electronics Co., LTD
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -13,7 +14,7 @@
 #include "interfaces/idebugger.h"
 #include "utils/torelease.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 void BreakpointsHandle::Cleanup()
@@ -457,4 +458,4 @@ std::string AddrToString(std::uintptr_t addr)
 
 } // namespace ProtocolUtils
 
-} // namespace netcoredbg
+} // namespace dncdbg

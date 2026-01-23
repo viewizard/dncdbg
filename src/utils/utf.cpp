@@ -1,4 +1,5 @@
-// Copyright (c) 2018 Samsung Electronics Co., LTD
+// Copyright (c) 2018-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -7,7 +8,7 @@
 #include <codecvt>
 #include <locale>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 static std::wstring_convert<std::codecvt_utf8_utf16<WCHAR>,WCHAR> convert;
@@ -27,4 +28,4 @@ WSTRING to_utf16(const std::string &utf8)
     return convert.from_bytes(utf8);
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg

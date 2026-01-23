@@ -4,7 +4,7 @@ if (BUILD_TESTING)
     enable_testing()
 endif()
 
-project(netcoredbg)
+project(dncdbg)
 
 set(CORECLR_DIR "" CACHE FILEPATH "Path to CoreCLR source directory")
 set(DOTNET_DIR "" CACHE FILEPATH "Path to .NET SDK directory")
@@ -82,10 +82,10 @@ if (NOT "${DOTNET_DIR}" STREQUAL "")
 endif()
 
 
-# Get references to VCS revision for Netcoredbg itself and CoreCLR
-# (this used in src/debug/netcoredbg/CMakeLists.txt)
+# Get references to VCS revision for DNCDbg itself and CoreCLR
+# (this used in src/debug/dncdbg/CMakeLists.txt)
 include(cmake/vcsinfo.cmake)
-VCSInfo(NETCOREDBG_VCS_INFO)
+VCSInfo(DNCDBG_VCS_INFO)
 VCSInfo(CORECLR_VCS_INFO ${CORECLR_DIR})
 
 

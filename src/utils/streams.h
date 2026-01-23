@@ -1,4 +1,5 @@
-// Copyright (C) 2020 Samsung Electronics Co., Ltd.
+// Copyright (c) 2020-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
 /// \file streams.h  This file contains declaration of few classes implementing
@@ -12,7 +13,7 @@
 #include <vector>
 #include "utils/iosystem.h"
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 // Classes not designated for public use.
@@ -421,4 +422,4 @@ private:
     CountingStreamBuf buffer;
 };
 
-} // ::netcoredbg
+} // ::dncdbg

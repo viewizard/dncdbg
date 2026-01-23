@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Samsung Electronics Co., LTD
+// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
@@ -9,7 +10,7 @@
 #include <unordered_set>
 #include <algorithm>
 
-namespace netcoredbg
+namespace dncdbg
 {
 
 void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname)
@@ -724,4 +725,4 @@ void LineBreakpoints::AddAllBreakpointsInfo(std::vector<IDebugger::BreakpointInf
     }
 }
 
-} // namespace netcoredbg
+} // namespace dncdbg
