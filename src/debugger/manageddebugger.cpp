@@ -339,7 +339,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     IfFailRet(m_iCorProcess->GetThread(int(threadId), &pThread));
     IfFailRet(m_uniqueSteppers->SetupStep(pThread, stepType));
 
-    m_sharedVariables->Clear(); // Important, must be sync with MIProtocol m_vars.clear()
+    m_sharedVariables->Clear();
     FrameId::invalidate(); // Clear all created during break frames.
     pProtocol->EmitContinuedEvent(threadId); // VSCode protocol need thread ID.
 
@@ -371,7 +371,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
         return S_OK; // Send 'OK' response, but don't generate continue event.
     }
 
-    m_sharedVariables->Clear(); // Important, must be sync with MIProtocol m_vars.clear()
+    m_sharedVariables->Clear();
     FrameId::invalidate(); // Clear all created during break frames.
     pProtocol->EmitContinuedEvent(threadId); // VSCode protocol need thread ID.
 
@@ -758,7 +758,7 @@ void ManagedDebuggerBase::Cleanup()
 {
     m_sharedModules->CleanupAllModules();
     m_sharedEvalHelpers->Cleanup();
-    m_sharedVariables->Clear(); // Important, must be sync with MIProtocol m_vars.clear()
+    m_sharedVariables->Clear();
     pProtocol->Cleanup();
 
     std::lock_guard<Utility::RWLock::Writer> guardProcessRWLock(m_debugProcessRWLock.writer);
@@ -1103,13 +1103,6 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
         return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames);
 
     return Status;
-}
-
-int ManagedDebugger::GetNamedVariables(uint32_t variablesReference)
-{
-    LogFuncEntry();
-
-    return m_sharedVariables->GetNamedVariables(variablesReference);
 }
 
 HRESULT ManagedDebugger::GetVariables(

@@ -13,7 +13,6 @@
 
 #include "protocols/vscodeprotocol.h"
 #include "debugger/manageddebugger.h"
-#include "protocols/miprotocol.h"
 #include "managed/interop.h"
 #include "utils/utf.h"
 #include "utils/logger.h"
@@ -50,9 +49,6 @@ static void print_help()
         "Options:\n"
         "--buildinfo                           Print build info.\n"
         "--attach <process-id>                 Attach the debugger to the specified process id.\n"
-        "--interpreter=cli                     Runs the debugger with Command Line Interface. \n"
-        "--interpreter=mi                      Puts the debugger into MI mode.\n"
-        "--interpreter=vscode                  Puts the debugger into VS Code Debugger mode.\n"
         "--run                                 Run program without waiting commands\n"
         "--engineLogging[=<path to log file>]  Enable logging to VsDbg-UI or file for the engine.\n"
         "                                      Only supported by the VsCode interpreter.\n"
@@ -88,7 +84,6 @@ static void print_buildinfo()
 
 // protocol names for logging
 template <typename ProtocolType> struct ProtocolDetails { static const char name[]; };
-template <> const char ProtocolDetails<MIProtocol>::name[] = "MIProtocol";
 template <> const char ProtocolDetails<VSCodeProtocol>::name[] = "VSCodeProtocol";
 
 // argument needed for protocol creation
@@ -224,16 +219,6 @@ int
                 fprintf(stderr, "Error: Missing process id\n");
                 exit(EXIT_FAILURE);
             }
-
-        } },
-        { "--interpreter=mi", [&](int& i){
-
-            protocol_constructor = &instantiate_protocol<MIProtocol>;
-
-        } },
-        { "--interpreter=vscode", [&](int& i){
-
-            protocol_constructor = &instantiate_protocol<VSCodeProtocol>;
 
         } },
         { "--run", [&](int& i){

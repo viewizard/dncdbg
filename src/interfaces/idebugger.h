@@ -67,7 +67,6 @@ public:
     virtual HRESULT StepCommand(ThreadId threadId, StepType stepType) = 0;
     virtual HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes) = 0;
     virtual HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count, std::vector<Variable> &variables) = 0;
-    virtual int GetNamedVariables(uint32_t variablesReference) = 0;
     virtual HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output) = 0;
     virtual void CancelEvalRunning() = 0;
     virtual HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output) = 0;

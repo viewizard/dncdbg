@@ -102,9 +102,6 @@ set(dncdbg_SRC
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
     protocols/escaped_string.cpp
-    protocols/protocol_utils.cpp
-    protocols/miprotocol.cpp
-    protocols/tokenizer.cpp
     protocols/vscodeprotocol.cpp
     utils/utf.cpp
     main.cpp

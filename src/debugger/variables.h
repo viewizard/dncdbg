@@ -32,8 +32,6 @@ public:
         m_sharedEvalStackMachine(sharedEvalStackMachine)
     {}
 
-    int GetNamedVariables(uint32_t variablesReference);
-
     HRESULT GetVariables(
         ICorDebugProcess *pProcess,
         uint32_t variablesReference,

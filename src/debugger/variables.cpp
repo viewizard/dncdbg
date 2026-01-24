@@ -139,16 +139,6 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
     return S_OK;
 }
 
-int Variables::GetNamedVariables(uint32_t variablesReference)
-{
-    std::lock_guard<std::recursive_mutex> lock(m_referencesMutex);
-
-    auto it = m_references.find(variablesReference);
-    if (it == m_references.end())
-        return 0;
-    return it->second.namedVariables;
-}
-
 // Caller should guarantee, that pProcess is not null.
 HRESULT Variables::GetVariables(
     ICorDebugProcess *pProcess,
