@@ -1283,17 +1283,6 @@ static HRESULT GetModuleOfCurrentThreadCode(ICorDebugProcess *pProcess, int last
     return pFunc->GetModule(ppModule);
 }
 
-HRESULT ManagedDebugger::GetSourceFile(const std::string &sourcePath, char** fileBuf, int* fileLen)
-{
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
-    HRESULT Status;
-    IfFailRet(CheckDebugProcess());
-
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(GetModuleOfCurrentThreadCode(m_iCorProcess, int(GetLastStoppedThreadId()), &pModule));
-    return m_sharedModules->GetSource(pModule, sourcePath, fileBuf, fileLen);
-}
-
 void ManagedDebugger::FreeUnmanaged(PVOID mem)
 {
     Interop::CoTaskMemFree(mem);

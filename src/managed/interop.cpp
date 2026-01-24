@@ -70,7 +70,6 @@ typedef  RetCode (*GetStepRangesFromIPDelegate)(PVOID, int32_t, mdMethodDef, uin
 typedef  RetCode (*GetModuleMethodsRangesDelegate)(PVOID, uint32_t, PVOID, uint32_t, PVOID, PVOID*);
 typedef  RetCode (*ResolveBreakPointsDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t*, const WCHAR*, PVOID*);
 typedef  RetCode (*GetAsyncMethodSteppingInfoDelegate)(PVOID, mdMethodDef, PVOID*, int32_t*, uint32_t*);
-typedef  RetCode (*GetSourceDelegate)(PVOID, const WCHAR*, int32_t*, PVOID*);
 typedef  PVOID (*LoadDeltaPdbDelegate)(const WCHAR*, PVOID*, int32_t*);
 typedef  RetCode (*CalculationDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t*, PVOID*, BSTR*);
 typedef  int (*GenerateStackMachineProgramDelegate)(const WCHAR*, PVOID*, BSTR*);
@@ -93,7 +92,6 @@ GetStepRangesFromIPDelegate getStepRangesFromIPDelegate = nullptr;
 GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate = nullptr;
 ResolveBreakPointsDelegate resolveBreakPointsDelegate = nullptr;
 GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate = nullptr;
-GetSourceDelegate getSourceDelegate = nullptr;
 LoadDeltaPdbDelegate loadDeltaPdbDelegate = nullptr;
 GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate = nullptr;
 ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate = nullptr;
@@ -240,7 +238,6 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetModuleMethodsRanges", (void **)&getModuleMethodsRangesDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "ResolveBreakPoints", (void **)&resolveBreakPointsDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetAsyncMethodSteppingInfo", (void **)&getAsyncMethodSteppingInfoDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSource", (void **)&getSourceDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadDeltaPdb", (void **)&loadDeltaPdbDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "CalculationDelegate", (void **)&calculationDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "GenerateStackMachineProgram", (void **)&generateStackMachineProgramDelegate)) &&
@@ -266,7 +263,6 @@ void Init(const std::string &coreClrPath)
                               getModuleMethodsRangesDelegate &&
                               resolveBreakPointsDelegate &&
                               getAsyncMethodSteppingInfoDelegate &&
-                              getSourceDelegate &&
                               loadDeltaPdbDelegate &&
                               generateStackMachineProgramDelegate &&
                               releaseStackMachineProgramDelegate &&
@@ -306,7 +302,6 @@ void Shutdown()
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     getAsyncMethodSteppingInfoDelegate = nullptr;
-    getSourceDelegate = nullptr;
     loadDeltaPdbDelegate = nullptr;
     stringToUpperDelegate = nullptr;
     coTaskMemAllocDelegate = nullptr;
@@ -587,16 +582,6 @@ void CoTaskMemFree(PVOID ptr)
         return;
 
     coTaskMemFreeDelegate(ptr);
-}
-
-HRESULT GetSource(PVOID symbolReaderHandle, std::string fileName, PVOID *data, int32_t *length)
-{
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
-    if (!getSourceDelegate || !symbolReaderHandle)
-        return E_FAIL;
-
-    RetCode retCode = getSourceDelegate(symbolReaderHandle, to_utf16(fileName).c_str(), length, data);
-    return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
 HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle, std::unordered_set<mdMethodDef> &methodTokens)

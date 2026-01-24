@@ -148,7 +148,6 @@ public:
 
     void FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
     void FindFunctions(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
-    HRESULT GetSource(ICorDebugModule *pModule, const std::string &sourcePath, char** fileBuf, int* fileLen);
 
 private:
 

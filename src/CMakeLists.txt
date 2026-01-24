@@ -110,7 +110,6 @@ set(dncdbg_SRC
     protocols/miprotocol.cpp
     protocols/tokenizer.cpp
     protocols/vscodeprotocol.cpp
-    protocols/sourcestorage.cpp
     utils/utf.cpp
     main.cpp
     buildinfo.cpp

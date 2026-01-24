@@ -92,7 +92,6 @@ enum class CLIProtocol::CommandTag
     Finish,
     Frame,
     Interrupt,
-    List,
     Next,
     Print,
     Quit,
@@ -259,9 +258,6 @@ constexpr static const CLIParams::CommandInfo commands_list[] =
 
     {CommandTag::Interrupt, {}, {}, {{"interrupt"}},
         {{}, "Interrupt program execution, stop all threads."}},
-
-    {CommandTag::List, {}, {}, {{"list", "l"}},
-        {{}, "List source code lines, 5 by default."}},
 
     {CommandTag::Next, {}, {}, {{"next", "n"}},
         {{}, "Step program, through function calls."}},
@@ -552,7 +548,6 @@ CLIProtocol::CLIProtocol(InStream& input, OutStream& output) :
   m_listSize(10),
   m_stoppedAt(0),
   m_frameIdx(0),
-  m_sources(nullptr),
   m_term_settings(*this), 
   line_reader(),
   m_commandMode(CommandMode::Unset)
@@ -1748,124 +1743,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Interrupt>(const std::string &, const
 }
 
 template <>
-HRESULT CLIProtocol::doCommand<CommandTag::List>(const std::string &, const std::vector<std::string> &args, std::string &output)
-{
-    HRESULT status = S_OK;
-    int line = m_sourceLine;
-    int lines = m_listSize;
-
-    std::string params;
-    std::string to_repeat = "l";  // eliminate any params to repeat the last command by pressing <Enter> 
-                                  // see exception below for "l -"
-    if (!args.empty())
-    {
-        bool er;
-        std::string params;
-        for (size_t i = 0; i<args.size(); i++)
-            params += args[i];
-
-        size_t pos = params.find(",");
-        if (pos == 0) // ex: list ,100 -- m_listSize lines till the 100th line
-        {
-            int i = ProtocolUtils::ParseInt(params.erase(0,1), er);
-            if (er) {
-                line = i - lines + 1;
-            }
-            else
-            {
-                status = E_FAIL;
-            }
-        }
-        else if (pos == params.length()-1) // ex: list 10, -- m_listSize lines starting from 10th
-        {
-            int i = ProtocolUtils::ParseInt(params, er);
-            if (er) {
-                line = i;
-            }
-            else
-            {
-                status = E_FAIL;
-            }
-        }
-        else if (pos > 0 && pos < params.length()-1) // ex: list 10,100 -- lines from 10th till 100th
-        {
-            int i = ProtocolUtils::ParseInt(params, er);
-            if (er) {
-                line = i;
-                i = ProtocolUtils::ParseInt(params.erase(0, pos+1), er);
-                if (er) {
-                    lines = i - line + 1;
-                }
-                else
-                {
-                    status = E_FAIL;
-                }
-            }
-            else
-            {
-                status = E_FAIL;
-            }
-        }
-        else if (params.front() == '-') // ex: list -  -- m_listSize lines just before last printed
-        {
-            line -= 2 * m_listSize;
-            to_repeat = "l -";          // exception for this case to repeat command by pressing <Enter>
-        }
-        else if (params.front() == '+') // ex: list +  -- m_listSize lines just after last printed
-        {
-
-        } else // ex: list 100  -- m_listSize lines with 100th centered
-        {
-            int i = ProtocolUtils::ParseInt(args[0], er);
-            if (er)
-            {
-                line = i - m_listSize / 2;
-            }
-            else
-            {
-                printf("invalid parameter(s)\n");
-                return E_FAIL;
-            }
-        }
-    }
-
-    if (status != S_OK)
-    {
-        printf("Invalid parameter(s). \n");
-        return status;
-    }
-
-    if (line < 1) {
-        line = 1;
-    }
-
-    if (m_sources)
-    {
-        for (int i = 0; i < lines; i++, line++)
-        {
-            const char* errMessage = nullptr;
-            char* toPrint = m_sources->getLine(m_sourcePath, line, &errMessage);
-            if (errMessage)
-            {
-                printf("Source code file: %s\n%s\n", m_sourcePath.c_str(), errMessage);
-            }
-            if (toPrint)
-            {
-                if(line == m_stoppedAt)
-                    printf(" > %d\t%s\n", line,  toPrint);
-                else
-                    printf("   %d\t%s\n", line,  toPrint);
-            }
-            else
-                break; // end of file
-        }
-        m_sourceLine = line;
-    }
-    line_reader->setLastCommand(to_repeat);
-    return S_OK;
-}
-
-template <>
 HRESULT CLIProtocol::doCommand<CommandTag::Next>(const std::string &, const std::vector<std::string> &args, std::string &output)
 {
     return StepCommand(args, output, IDebugger::StepType::STEP_OVER);
@@ -1942,7 +1819,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Quit>(const std::string &, const std:
 {
     // no mutex locking needed here
     m_exit = true;
-    m_sources.reset(nullptr);
     m_sharedDebugger->Disconnect(); // Terminate debuggee process if debugger ran this process and detach in case debugger was attached to it.
     return S_OK;
 }
@@ -1967,7 +1843,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Run>(const std::string &, const std::
 
     HRESULT Status;
     m_sharedDebugger->Initialize();
-    m_sources.reset(new SourceStorage(m_sharedDebugger.get()));
     IfFailRet(m_sharedDebugger->Launch(exec_file, exec_args, {}, "", false));
 
     lock.lock();
@@ -2015,7 +1890,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Attach>(const std::string &, const st
 
     HRESULT Status;
     m_sharedDebugger->Initialize();
-    m_sources.reset(new SourceStorage(m_sharedDebugger.get()));
     IfFailRet(m_sharedDebugger->Attach(pid));
 
     lock.lock();

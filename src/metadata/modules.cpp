@@ -765,18 +765,4 @@ void Modules::FindFunctions(Utility::string_view pattern, unsigned limit, std::f
     }
 }
 
-HRESULT Modules::GetSource(ICorDebugModule *pModule, const std::string &sourcePath, char** fileBuf, int* fileLen)
-{
-    HRESULT Status;
-    CORDB_ADDRESS modAddress;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
-
-    return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
-    {
-        return mdInfo.m_symbolReaderHandle == nullptr ?
-            E_FAIL :
-            Interop::GetSource(mdInfo.m_symbolReaderHandle, sourcePath, (PVOID*)fileBuf, fileLen);
-    });
-}
-
 } // namespace dncdbg

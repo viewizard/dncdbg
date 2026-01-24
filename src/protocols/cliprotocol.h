@@ -19,7 +19,6 @@
 #include "utils/string_view.h"
 #include "utils/streams.h"
 #include "utils/span.h"
-#include "sourcestorage.h"
 
 namespace dncdbg
 {
@@ -64,7 +63,6 @@ class CLIProtocol : public IProtocol
     int m_listSize;
     int m_stoppedAt;
     int m_frameIdx;
-    std::unique_ptr<SourceStorage> m_sources;
 
     // Functor which is called when UI repaint required.
     std::function<void()> m_repaint_fn;

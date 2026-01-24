@@ -174,7 +174,6 @@ public:
     HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output) override;
     HRESULT SetExpression(FrameId frameId, const std::string &expression, int evalFlags, const std::string &value, std::string &output) override;
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo) override;
-    HRESULT GetSourceFile(const std::string &sourcePath, char** fileBuf, int* fileLen) override;
     void FreeUnmanaged(PVOID mem) override;
 
     void FindFileNames(string_view pattern, unsigned limit, SearchCallback) override;
