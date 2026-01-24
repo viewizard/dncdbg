@@ -113,7 +113,7 @@ private:
 #define _countof(x) (sizeof(x)/sizeof(x[0]))
 #endif
 
-#ifdef PAL_STDCPP_COMPAT
+#ifdef PAL_STDCPP_COMPAT // this define was removed from runtime 9.0 sources
 #define _iswprint   PAL_iswprint
 #define _wcslen     PAL_wcslen
 #define _wcsncmp    PAL_wcsncmp
@@ -136,13 +136,5 @@ private:
 #endif // !PAL_STDCPP_COMPAT
 
 const int mdNameLen = 2048;
-
-#ifdef _MSC_VER
-#define PACK_BEGIN __pragma( pack(push, 1) )
-#define PACK_END __pragma( pack(pop) )
-#else
-#define PACK_BEGIN
-#define PACK_END __attribute__((packed))
-#endif
 
 } // namespace dncdbg
