@@ -82,6 +82,16 @@ static void print_buildinfo()
     printf("CoreCLR VCS info:  %s\n", BuildInfo::coreclr_vcs_info);
 }
 
+static void print_version()
+{
+    printf("NET Core debugger %s (%s, %s)\n\n",
+        BuildInfo::version, BuildInfo::dncdbg_vcs_info, BuildInfo::build_type);
+    printf("Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
+    printf("Copyright (c) 2026 Mikhail Kurinnoi\n");
+    printf("Distributed under the MIT License.\n");
+    printf("See the LICENSE file in the project root for more information.\n");
+}
+
 // protocol names for logging
 template <typename ProtocolType> struct ProtocolDetails { static const char name[]; };
 template <> const char ProtocolDetails<VSCodeProtocol>::name[] = "VSCodeProtocol";
@@ -245,12 +255,7 @@ int
         } },
         { "--version", [&](int& i){
 
-            fprintf(stdout, "NET Core debugger %s (%s, %s)\n\n",
-                BuildInfo::version, BuildInfo::dncdbg_vcs_info, BuildInfo::build_type);
-            fprintf(stdout, "Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
-            fprintf(stdout, "Copyright (c) 2026 Mikhail Kurinnoi\n");
-            fprintf(stdout, "Distributed under the MIT License.\n");
-            fprintf(stdout, "See the LICENSE file in the project root for more information.\n");
+            print_version();
             exit(EXIT_SUCCESS);
 
         } },
