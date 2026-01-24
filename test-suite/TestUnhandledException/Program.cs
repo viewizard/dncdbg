@@ -8,210 +8,6 @@ using DNCDbgTest;
 using DNCDbgTest.DAP;
 using DNCDbgTest.Script;
 
-using Newtonsoft.Json;
-
-namespace DNCDbgTest.Script
-{
-class Context
-{
-    public void PrepareStart(string caller_trace)
-    {
-        InitializeRequest initializeRequest = new InitializeRequest();
-        initializeRequest.arguments.clientID = "vscode";
-        initializeRequest.arguments.clientName = "Visual Studio Code";
-        initializeRequest.arguments.adapterID = "coreclr";
-        initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = true;
-        initializeRequest.arguments.columnsStartAt1 = true;
-        initializeRequest.arguments.supportsVariableType = true;
-        initializeRequest.arguments.supportsVariablePaging = true;
-        initializeRequest.arguments.supportsRunInTerminalRequest = true;
-        initializeRequest.arguments.locale = "en-us";
-        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        LaunchRequest launchRequest = new LaunchRequest();
-        launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
-        launchRequest.arguments.type = "coreclr";
-        launchRequest.arguments.preLaunchTask = "build";
-        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath;
-        launchRequest.arguments.cwd = "";
-        launchRequest.arguments.console = "internalConsole";
-        launchRequest.arguments.stopAtEntry = true;
-        launchRequest.arguments.justMyCode = true; // Explicitly enable JMC for this test.
-        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
-        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
-        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void PrepareEnd(string caller_trace)
-    {
-        ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
-        Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void WasEntryPointHit(string caller_trace)
-    {
-        Func<string, bool> filter = (resJSON) =>
-        {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry"))
-            {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                return true;
-            }
-            return false;
-        };
-
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void WasExit(string caller_trace)
-    {
-        bool wasExited = false;
-        bool wasTerminated = false;
-
-        Func<string, bool> filter = (resJSON) =>
-        {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited"))
-            {
-                wasExited = true;
-                ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
-            }
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated"))
-            {
-                wasTerminated = true;
-            }
-            // we don't check exit code here, since Windows and Linux provide different exit code in case of unhandled
-            // exception
-            if (wasExited && wasTerminated)
-                return true;
-
-            return false;
-        };
-
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void AbortExecution(string caller_trace)
-    {
-        TerminateRequest terminateRequest = new TerminateRequest();
-        terminateRequest.arguments = new TerminateArguments();
-        terminateRequest.arguments.restart = false;
-        Assert.True(DAPDebugger.Request(terminateRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void DebuggerExit(string caller_trace)
-    {
-        DisconnectRequest disconnectRequest = new DisconnectRequest();
-        disconnectRequest.arguments = new DisconnectArguments();
-        disconnectRequest.arguments.restart = false;
-        Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void Continue(string caller_trace)
-    {
-        ContinueRequest continueRequest = new ContinueRequest();
-        continueRequest.arguments.threadId = threadId;
-        Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void TestExceptionInfo(string caller_trace, string excCategory, string excMode, string excName)
-    {
-        ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-        exceptionInfoRequest.arguments.threadId = threadId;
-        var ret = DAPDebugger.Request(exceptionInfoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        ExceptionInfoResponse exceptionInfoResponse =
-            JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr);
-
-        if (exceptionInfoResponse.body.breakMode == excMode &&
-            exceptionInfoResponse.body.exceptionId == excCategory + "/" + excName &&
-            exceptionInfoResponse.body.details.fullTypeName == excName)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void TestInnerException(string caller_trace, int innerLevel, string excName, string excMessage)
-    {
-        ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-        exceptionInfoRequest.arguments.threadId = threadId;
-        var ret = DAPDebugger.Request(exceptionInfoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        ExceptionInfoResponse exceptionInfoResponse =
-            JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr);
-
-        ExceptionDetails exceptionDetails = exceptionInfoResponse.body.details.innerException[0];
-        for (int i = 0; i < innerLevel; ++i)
-            exceptionDetails = exceptionDetails.innerException[0];
-
-        if (exceptionDetails.fullTypeName == excName && exceptionDetails.message == excMessage)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void TestExceptionStackTrace(string caller_trace, string[] stacktrace, int num)
-    {
-        Func<string, bool> filter = (resJSON) =>
-        {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception"))
-            {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                return true;
-            }
-            return false;
-        };
-
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
-        stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr);
-
-        for (int i = 0; i < num; i++)
-        {
-            Breakpoint bp = ControlInfo.Breakpoints[stacktrace[i]];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            var lbp = (LineBreakpoint)bp;
-
-            if (lbp.FileName != stackTraceResponse.body.stackFrames[i].source.name ||
-                ControlInfo.SourceFilesPath != stackTraceResponse.body.stackFrames[i].source.path ||
-                lbp.NumLine != stackTraceResponse.body.stackFrames[i].line)
-            {
-                throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-            }
-        }
-        return;
-    }
-
-    public Context(ControlInfo controlInfo, DNCDbgTestCore.DebuggerClient debuggerClient)
-    {
-        ControlInfo = controlInfo;
-        DAPDebugger = new DAPDebugger(debuggerClient);
-    }
-
-    ControlInfo ControlInfo;
-    DAPDebugger DAPDebugger;
-    int threadId = -1;
-    string BreakpointSourceName;
-    List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
-    List<int> BreakpointLines = new List<int>();
-    bool ExceptionFilterAll = false;
-    bool ExceptionFilterUserUnhandled = false;
-    ExceptionFilterOptions ExceptionFilterAllOptions = null;
-    ExceptionFilterOptions ExceptionFilterUserUnhandledOptions = null;
-}
-}
-
 namespace TestUnhandledException
 {
 class Program
@@ -227,7 +23,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.PrepareStart(@"__FILE__:__LINE__");
+                Context.PrepareStart(true, null, @"__FILE__:__LINE__");
 
                 Context.PrepareEnd(@"__FILE__:__LINE__");
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
@@ -252,7 +48,7 @@ class Program
                 Context Context = (Context)context;
                 // At this point debugger stops at unhandled exception, no reason continue process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__");
+                Context.WasExit(null, @"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

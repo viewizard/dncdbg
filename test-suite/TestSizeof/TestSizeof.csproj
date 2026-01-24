@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
+    <Compile Include="..\ScriptContext\Context.cs" />
   </ItemGroup>
 
   <PropertyGroup>

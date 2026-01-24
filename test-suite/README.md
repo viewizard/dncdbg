@@ -27,9 +27,18 @@
     $ dotnet new console -o NewTest
 ```
 
-- add reference to NetcoreDbgTest library:
+- add reference to DNCDbgTest library and `Context.cs` file to `ItemGroup` section by edit `NewTest.csproj` file, for example:
 ```
-    $ dotnet add NewTest/NewTest.csproj reference NetcoreDbgTest/NetcoreDbgTest.csproj
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
+    <Compile Include="..\ScriptContext\Context.cs" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>
 ```
 
-- add test name into ALL_TEST_NAMES list in "run_tests.sh" and "run_tests.ps1" scripts;
+- add test name into ALL_TEST_NAMES list in `run_tests.sh` and `run_tests.ps1` scripts.

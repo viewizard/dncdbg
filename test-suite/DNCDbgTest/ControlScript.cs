@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -16,6 +17,16 @@ using DNCDbgTest;
 
 namespace DNCDbgTestCore
 {
+
+public static class SourceLocation
+{
+    // This method will return the full path of the file where it is called from.
+    public static string GetSourceFilePath([CallerFilePath] string path = null)
+    {
+        return path;
+    }
+}
+
 public class ScriptNotBuiltException : Exception
 {
     public ScriptNotBuiltException(EmitResult result)
@@ -81,6 +92,8 @@ namespace DNCDbgTestCore
 }";
 
         // we may have list of files separated by ';' symbol
+        string scriptContextPath = Path.GetDirectoryName(SourceLocation.GetSourceFilePath()) + "/../ScriptContext/Context.cs";
+        pathToTestFiles = pathToTestFiles + ";" + scriptContextPath;
         string[] pathToFiles = pathToTestFiles.Split(';');
         List<SyntaxTree> trees = new List<SyntaxTree>();
 
