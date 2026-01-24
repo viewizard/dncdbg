@@ -203,29 +203,6 @@ HRESULT Breakpoints::BreakpointActivate(uint32_t id, bool act)
     return m_uniqueFuncBreakpoints->BreakpointActivate(id, act);
 }
 
-// This function allows to enumerate breakpoints (sorted by number).
-// Callback which is called for each breakpoint might return `false` to stop iteration over breakpoints list.
-void Breakpoints::EnumerateBreakpoints(std::function<bool (const IDebugger::BreakpointInfo&)>&& callback)
-{
-    std::vector<IDebugger::BreakpointInfo> list;
-    m_uniqueLineBreakpoints->AddAllBreakpointsInfo(list);
-    m_uniqueFuncBreakpoints->AddAllBreakpointsInfo(list);
-    m_uniqueExceptionBreakpoints->AddAllBreakpointsInfo(list);
-
-    // sort breakpoint list by ascending order, preserve order of elements with same number
-    std::stable_sort(list.begin(), list.end());
-
-    // remove duplicates (ones from m_lineBreakpointMapping which have resolved pair in m_lineResolvedBreakpoints)
-    list.erase(std::unique(list.begin(), list.end()), list.end());
-
-    for (const auto &item : list)
-    {
-        if (!callback(item))
-            break;
-    }
-
-}
-
 HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
 {
     return m_uniqueExceptionBreakpoints->ManagedCallbackExitThread(pThread);

@@ -317,19 +317,4 @@ HRESULT FuncBreakpoints::BreakpointActivate(uint32_t id, bool act)
     return E_FAIL;
 }
 
-void FuncBreakpoints::AddAllBreakpointsInfo(std::vector<IDebugger::BreakpointInfo> &list)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    list.reserve(list.size() + m_funcBreakpoints.size());
-
-    for (auto &pair_bp : m_funcBreakpoints)
-    {
-        auto &bp = pair_bp.second;
-
-        list.emplace_back(IDebugger::BreakpointInfo{ bp.id, bp.IsVerified(), bp.enabled, bp.times, bp.condition, 
-                                                     bp.name, 0, 0, bp.module, bp.params });
-    }
-}
-
 } // namespace dncdbg

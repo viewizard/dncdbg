@@ -1259,30 +1259,6 @@ void ManagedDebuggerBase::InputCallback(IORedirectHelper::StreamType type, span<
 }
 
 
-void ManagedDebugger::EnumerateBreakpoints(std::function<bool (const BreakpointInfo&)>&& callback)
-{
-    LogFuncEntry();
-    return m_uniqueBreakpoints->EnumerateBreakpoints(std::move(callback));
-}
-
-static HRESULT GetModuleOfCurrentThreadCode(ICorDebugProcess *pProcess, int lastStoppedThreadId, ICorDebugModule **ppModule)
-{
-    HRESULT Status;
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(lastStoppedThreadId, &pThread));
-
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
-        return E_FAIL;
-
-    mdMethodDef methodToken;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
-    return pFunc->GetModule(ppModule);
-}
-
 void ManagedDebugger::FreeUnmanaged(PVOID mem)
 {
     Interop::CoTaskMemFree(mem);

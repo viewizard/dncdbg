@@ -45,7 +45,6 @@ public:
 
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
 
-    void EnumerateBreakpoints(std::function<bool (const IDebugger::BreakpointInfo&)>&& callback);
     HRESULT BreakpointActivate(uint32_t id, bool act);
     HRESULT AllBreakpointsActivate(bool act);
 

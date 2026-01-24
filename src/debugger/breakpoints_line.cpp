@@ -527,37 +527,4 @@ HRESULT LineBreakpoints::BreakpointActivate(uint32_t id, bool act)
     return activateAllMapped();
 }
 
-void LineBreakpoints::AddAllBreakpointsInfo(std::vector<IDebugger::BreakpointInfo> &list)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    // m_lineResolvedBreakpoints should be first
-    for (auto &file_bps : m_lineResolvedBreakpoints)
-    {
-        list.reserve(list.size() + file_bps.second.size());
-        std::string resolved_fullname;
-        m_sharedModules->GetSourceFullPathByIndex(file_bps.first, resolved_fullname);
-
-        for(auto &line_bps : file_bps.second)
-        {
-            for(auto &bp : line_bps.second)
-            {
-                list.emplace_back(IDebugger::BreakpointInfo{ bp.id, bp.IsVerified(), bp.enabled, bp.times, bp.condition,
-                                                             resolved_fullname, bp.linenum, bp.endLine, bp.module, {} });
-            }
-        }
-    }
-
-    for (auto &file_bps : m_lineBreakpointMapping)
-    {
-        list.reserve(list.size() + file_bps.second.size());
-
-        for(auto &bp : file_bps.second)
-        {
-            list.emplace_back(IDebugger::BreakpointInfo{ bp.id, false, true, 0, bp.breakpoint.condition,
-                                                         file_bps.first, bp.breakpoint.line, 0, bp.breakpoint.module, {} });
-        }
-    }
-}
-
 } // namespace dncdbg

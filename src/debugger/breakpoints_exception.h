@@ -48,7 +48,6 @@ public:
     //     return S_OK;
     HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule, StoppedEvent &event);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
-    void AddAllBreakpointsInfo(std::vector<IDebugger::BreakpointInfo> &list);
 
 private:
 

@@ -39,7 +39,6 @@ public:
                                std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
     HRESULT AllBreakpointsActivate(bool act);
     HRESULT BreakpointActivate(uint32_t id, bool act);
-    void AddAllBreakpointsInfo(std::vector<IDebugger::BreakpointInfo> &list);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit

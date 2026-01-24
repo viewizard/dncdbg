@@ -111,12 +111,10 @@ enum class CLIProtocol::CommandTag
     // info subcommand
     Info,
     InfoThreads,
-    InfoBreakpoints,
     InfoHelp,
 
     // save subcommand
     Save,
-    SaveBreakpoints,
     SaveHelp,
 
     // help subcommands
@@ -161,7 +159,6 @@ using CLIParams = CLIHelperParams<
 // Subcommand for "save" command.
 constexpr static const CLIParams::CommandInfo save_commands[] =
 {
-    {CommandTag::SaveBreakpoints,{}, {}, {{"breakpoints", "break"}}, {{"file"}, "Save breakpoints to the file."}},
     {CommandTag::SaveHelp,       {}, {}, {{"help"}}, {{}, {}}},
 
     // This should be placed at end of command (sub)lists.
@@ -172,7 +169,6 @@ constexpr static const CLIParams::CommandInfo save_commands[] =
 constexpr static const CLIParams::CommandInfo info_commands[] =
 {
     {CommandTag::InfoThreads,    {}, {}, {{"threads"}}, {{}, "Display currently known threads."}},
-    {CommandTag::InfoBreakpoints,{}, {}, {{"breakpoints", "break"}}, {{}, "Display existing breakpoints."}},
     {CommandTag::InfoHelp,       {}, {}, {{"help"}}, {{}, {}}},
 
     // This should be placed at end of command (sub)lists.
@@ -1628,95 +1624,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::InfoThreads>(const std::string &, con
     return S_OK;
 }
 
-
-template <>
-HRESULT CLIProtocol::doCommand<CommandTag::InfoBreakpoints>(const std::string &, const std::vector<std::string>& args, std::string& output)
-{
-    const static string_view header[] {"#", "Enb", "Rslvd", "Hits", "Source/Function"};
-    const static string_view data[] { "99999", "Y", "N", "999999999", "" };
-    const static int justify[] = {+1, +1, -1, -1, -1};
-    const static char gap[] = "  ";
-
-    static_assert(Utility::Size(header) == Utility::Size(data)
-                    && Utility::Size(justify) == Utility::Size(header), "logic error");
-
-    // compute width for each column (excluding gaps between columns)
-    static const std::array<unsigned, Utility::Size(header)> widths = []{
-            std::array<unsigned, Utility::Size(header)> result {};
-            for (unsigned n = 0; n < result.size(); ++n)
-                result[n] = unsigned(std::max(header[n].size(), data[n].size()));
-            return result;
-        }();
-
-    // dashed line length (after the header)
-    unsigned static const dashlen = std::accumulate(widths.begin(), widths.end(), 0)
-                    + unsigned(Utility::Size(gap)-1) * unsigned(Utility::Size(header) - 1);
-
-    // offset, number of spaces for module name and condition
-    unsigned const static offset = dashlen - widths[Utility::Size(widths)-1]
-                                    + unsigned(Utility::Size(gap)) - 1;
-   
-    // prepare dashed line for the header
-    char *dashline = static_cast<char*>(alloca(dashlen + 1));
-    memset(dashline, '-', dashlen), dashline[dashlen] = 0;
-
-    unsigned nlines = 0;
-
-    // function which prints each particular breakpoint
-    auto printer = [&](const IDebugger::BreakpointInfo& bp) -> bool
-    {
-        // print header each few lines
-        if (nlines % 24 == 0)
-        {
-            for (unsigned n = 0; n < Utility::Size(header); n++)
-            {
-                printf("%s%*.*s",
-                    n == 0 ? "" : gap,
-                    widths[n]*justify[n], int(header[n].size()), header[n].data());
-            }
-
-            printf("\n%.*s\n", dashlen, dashline);
-        }
-
-        nlines++;
-
-        // common information for each breakpoint
-        printf("%*u%s%*s%s%*s%s%*u%s%.*s",
-            widths[0]*justify[0], bp.id, gap,
-            widths[1]*justify[1], (bp.enabled ? "y" : "n"), gap,
-            widths[2]*justify[2], (bp.resolved ? "y" : "n"), gap,
-            widths[3]*justify[3], bp.hit_count, gap,
-            int(bp.name.size()), bp.name.data());
-
-        if (!bp.funcsig.empty())
-        {
-            printf("%.*s", int(bp.funcsig.size()), bp.funcsig.data());
-        }
-        else if (bp.line)
-        {
-            printf(":%u", bp.line);
-        }
-
-        if (!bp.module.empty())
-            printf("\n%*s[in %.*s]", offset, "", int(bp.module.size()), bp.module.data());
-
-        if (!bp.condition.empty())
-            printf("\n%*sif (%.*s)", offset, "", int(bp.condition.size()), bp.condition.data());
-
-        printf("\n");
-
-        return true;  // return false to stop enumerating breakpoints
-    };
-
-    m_sharedDebugger->EnumerateBreakpoints(printer);
-
-    if (nlines == 0)
-        output = "No breakpoints.";
-
-    return S_OK;
-}
-
-
 template <>
 HRESULT CLIProtocol::doCommand<CommandTag::Interrupt>(const std::string &, const std::vector<std::string> &, std::string &output)
 {
@@ -1973,67 +1880,6 @@ HRESULT CLIProtocol::doCommand<CommandTag::Save>(const std::string &, const std:
 {
     printf("Argument(s) required: see 'help save' for details.\n");
     return S_FALSE;
-}
-
-template <>
-HRESULT CLIProtocol::doCommand<CommandTag::SaveBreakpoints>(const std::string &, const std::vector<std::string> &args, std::string &output)
-{
-    if (args.empty())
-    {
-        output = "Argument required (file name in which to save).";
-        return E_INVALIDARG;
-    }
-
-    HRESULT result = S_OK;
-    const std::string& filename = args[0];
-
-    std::unique_ptr<FILE, std::function<void(FILE*)> >
-        file {nullptr, [](FILE *file){ fclose(file); }};
-
-    auto printer = [&](const IDebugger::BreakpointInfo& bp) -> bool
-    {
-        if (!file)
-        {
-            file.reset(fopen(filename.c_str(), "w"));
-            if (!file)
-            {
-                output = filename + ": ";
-                char buf[1024];
-                output += ErrGetStr(errno, buf, sizeof(buf));
-                result = E_FAIL;
-                return false;
-            }
-        }
-
-        fputs("break ", file.get());
-
-        if (!bp.condition.empty())
-            fprintf(file.get(), "-c \"%.*s\" ", int(bp.condition.size()), bp.condition.data());
-
-        if (!bp.module.empty())
-        {
-            fwrite(bp.module.data(), bp.module.size(), 1, file.get());
-            fputc('!', file.get());
-        }
-
-        fwrite(bp.name.data(), bp.name.size(), 1, file.get());
-
-        // TODO function signature and module name may contains spaces!
-        if (!bp.funcsig.empty())
-        {
-            fwrite(bp.funcsig.data(), bp.funcsig.size(), 1, file.get());
-        }
-        else if (bp.line)
-        {
-            fprintf(file.get(), ":%u", bp.line);
-        }
-
-        fputc('\n', file.get());
-        return true;
-    };
-
-    m_sharedDebugger->EnumerateBreakpoints(printer);
-    return result;
 }
 
 template <>

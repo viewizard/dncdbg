@@ -36,24 +36,6 @@ public:
         DisconnectDetach
     };
 
-    // This is lightweight structure which carry breakpoint information.
-    struct BreakpointInfo
-    {
-        unsigned    id;
-        bool        resolved;
-        bool        enabled;
-        unsigned    hit_count;
-        std::string condition; // not empty for conditional breakpoints
-        std::string name;      // file name or function name, depending on type.
-        int         line;      // first line, 0 for function breakpoint
-        int         last_line;
-        std::string module;    // module name
-        std::string funcsig;   // might be non-empty for function breakpoints
-
-        bool operator<(const BreakpointInfo& other) const { return id < other.id; }
-        bool operator==(const BreakpointInfo& other) const { return id == other.id; }
-    };
-
     enum class AsyncResult
     {
         Canceled,   // function canceled due to debugger interruption
@@ -82,7 +64,6 @@ public:
     virtual HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) = 0;
     virtual HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints) = 0;
     virtual HRESULT BreakpointActivate(int id, bool act) = 0;
-    virtual void EnumerateBreakpoints(std::function<bool (const BreakpointInfo&)>&& callback) = 0;
     virtual HRESULT AllBreakpointsActivate(bool act) = 0;
     virtual HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames) = 0;
     virtual HRESULT StepCommand(ThreadId threadId, StepType stepType) = 0;
