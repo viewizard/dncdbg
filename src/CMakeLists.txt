@@ -67,10 +67,7 @@ endif()
 # Build native part of the debugger
 
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${PROJECT_BINARY_DIR}/generated)
-include_directories(${PROJECT_SOURCE_DIR}/src/windows ${PROJECT_SOURCE_DIR}/src/unix)
 
 set(dncdbg_SRC
     debugger/breakpoint_break.cpp
@@ -104,7 +101,6 @@ set(dncdbg_SRC
     metadata/modules.cpp
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
-    protocols/cliprotocol.cpp
     protocols/escaped_string.cpp
     protocols/protocol_utils.cpp
     protocols/miprotocol.cpp

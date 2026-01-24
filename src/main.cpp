@@ -14,7 +14,6 @@
 #include "protocols/vscodeprotocol.h"
 #include "debugger/manageddebugger.h"
 #include "protocols/miprotocol.h"
-#include "protocols/cliprotocol.h"
 #include "managed/interop.h"
 #include "utils/utf.h"
 #include "utils/logger.h"
@@ -54,8 +53,6 @@ static void print_help()
         "--interpreter=cli                     Runs the debugger with Command Line Interface. \n"
         "--interpreter=mi                      Puts the debugger into MI mode.\n"
         "--interpreter=vscode                  Puts the debugger into VS Code Debugger mode.\n"
-        "--command=<file>                      Interpret commands file at the start.\n"
-        "-ex \"<command>\"                       Execute command at the start\n"
         "--run                                 Run program without waiting commands\n"
         "--engineLogging[=<path to log file>]  Enable logging to VsDbg-UI or file for the engine.\n"
         "                                      Only supported by the VsCode interpreter.\n"
@@ -93,7 +90,6 @@ static void print_buildinfo()
 template <typename ProtocolType> struct ProtocolDetails { static const char name[]; };
 template <> const char ProtocolDetails<MIProtocol>::name[] = "MIProtocol";
 template <> const char ProtocolDetails<VSCodeProtocol>::name[] = "VSCodeProtocol";
-template <> const char ProtocolDetails<CLIProtocol>::name[] = "CLIProtocol";
 
 // argument needed for protocol creation
 using Streams = std::pair<std::istream&, std::ostream&>;
@@ -109,13 +105,6 @@ ProtocolHolder instantiate_protocol(Streams streams)
     return ProtocolHolder{new ProtocolType(streams.first, streams.second)};
 }
 
-template <>
-ProtocolHolder instantiate_protocol<CLIProtocol>(Streams streams)
-{
-    using ProtocolType = CLIProtocol;
-    LOGI("Creating protocol %s", ProtocolDetails<ProtocolType>::name);
-    return ProtocolHolder{new ProtocolType(dynamic_cast<InStream&>(streams.first), dynamic_cast<OutStream&>(streams.second))};
-}
 
 
 // function creates pair of input/output streams for debugger protocol
@@ -134,21 +123,6 @@ Streams open_streams(Holder& holder, unsigned server_port, ProtocolConstructor c
         std::iostream *stream = new IOStream(StreamBuf(socket));
         holder.push_back(typename Holder::value_type{stream});
         return {*stream, *stream};
-    }
-
-#ifdef _WIN32
-    _setmode(_fileno(stdin), _O_BINARY);
-    _setmode(_fileno(stdout), _O_BINARY);
-#endif
-
-    if (constructor == instantiate_protocol<CLIProtocol>)
-    {
-        IOSystem::StdFiles stdio = IOSystem::get_std_files();
-        auto cin = new InStream(InStreamBuf(std::get<IOSystem::Stdin>(stdio)));
-        auto cout = new OutStream(OutStreamBuf(std::get<IOSystem::Stdout>(stdio)));
-        holder.push_back(typename Holder::value_type{cin}),
-        holder.push_back(typename Holder::value_type{cout});
-        return {*cin, *cout};
     }
 
     return {std::cin, std::cout};
@@ -173,24 +147,11 @@ static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std
     exit(EXIT_FAILURE);
 }
 
-static void CheckStartOptions(ProtocolConstructor &protocol_constructor, std::vector<string_view> &initCommands,
-                              char* argv[], std::string &execFile, bool run, uint16_t serverPort)
+static void CheckStartOptions(ProtocolConstructor &protocol_constructor, char* argv[], std::string &execFile, bool run, uint16_t serverPort)
 {
-    if (protocol_constructor != &instantiate_protocol<CLIProtocol> && !initCommands.empty())
-    {
-        fprintf(stderr, "%s: options -ex and --command can be used only with CLI interpreter!\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
     if (run && execFile.empty())
     {
         fprintf(stderr, "--run option was given, but no executable file specified!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if (protocol_constructor == &instantiate_protocol<CLIProtocol> && serverPort)
-    {
-        fprintf(stderr, "server mode can't be used with CLI interpreter!\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -238,7 +199,6 @@ int
     std::string logFilePath;
 
     std::vector<std::string> initTexts;
-    std::vector<string_view> initCommands;
 
     uint16_t serverPort = 0;
 
@@ -276,24 +236,9 @@ int
             protocol_constructor = &instantiate_protocol<VSCodeProtocol>;
 
         } },
-        { "--interpreter=cli", [&](int& i){
-
-            protocol_constructor = &instantiate_protocol<CLIProtocol>;
-
-        } },
         { "--run", [&](int& i){
 
             run = true;
-
-        } },
-        { "-ex", [&](int& i){
-
-            if (++i >= argc)
-            {
-                fprintf(stderr, "%s: -ex option requires an argument!\n", argv[0]);
-                exit(EXIT_FAILURE);
-            }
-            initCommands.emplace_back(argv[i]);
 
         } },
         { "--engineLogging", [&](int& i){
@@ -368,12 +313,6 @@ int
 
     std::vector<std::pair<std::string, std::function<void(int& i)>>> partialArguments
     {
-        { "--command=", [&](int& i){
-
-            initTexts.push_back(std::string() + "source " + (strchr(argv[i], '=') + 1));
-            initCommands.push_back(initTexts.back());
-
-        } },
         { "--engineLogging=", [&](int& i){
 
             engineLogging = true;
@@ -411,7 +350,7 @@ int
         }
     }
 
-    CheckStartOptions(protocol_constructor, initCommands, argv, execFile, run, serverPort);
+    CheckStartOptions(protocol_constructor, argv, execFile, run, serverPort);
 
     LOGI("DNCDbg started");
     // Note: there is no possibility to know which exception caused call to std::terminate
@@ -462,24 +401,6 @@ int
         fprintf(stderr, "Error: 0x%08x\n", Status);
         Interop::Shutdown();
         return EXIT_FAILURE;
-    }
-
-    // switch CLIProtocol to asynchronous mode when attaching
-    auto cliProtocol = dynamic_cast<CLIProtocol*>(protocol.get());
-    if (cliProtocol)
-    {
-        if (pidDebuggee != 0)
-            cliProtocol->SetCommandMode(CLIProtocol::CommandMode::Asynchronous);
-
-        // inform CLIProtocol that process is already running
-        if (run || pidDebuggee)
-            cliProtocol->SetRunningState();
-
-        if (pidDebuggee != 0)
-            cliProtocol->Pause();
-
-        // run commands passed in command line via '-ex' option
-        cliProtocol->Source({initCommands});
     }
 
     protocol->CommandLoop();
