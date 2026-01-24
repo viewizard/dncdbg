@@ -2,20 +2,14 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file filesystem_win32.cpp
-/// This file contains definitions of windows-specific functions related to file system.
-
 #ifdef WIN32
 #include <windows.h>
 #include <string>
 #include "utils/filesystem.h"
 #include "utils/limits.h"
 
-
 namespace dncdbg
 {
-
-const char* FileSystemTraits<Win32PlatformTag>::PathSeparatorSymbols = "/\\";
 
 // Function returns absolute path to currently running executable.
 std::string GetExeAbsPath()

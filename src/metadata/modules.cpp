@@ -734,7 +734,7 @@ HRESULT Modules::GetIndexBySourceFullPath(std::string fullPath, unsigned &index)
     return m_modulesSources.GetIndexBySourceFullPath(fullPath, index);
 }
 
-void Modules::FindFileNames(string_view pattern, unsigned limit, std::function<void(const char *)> cb)
+void Modules::FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb)
 {
     m_modulesSources.FindFileNames(pattern, limit, cb);
 }

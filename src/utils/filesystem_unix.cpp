@@ -12,15 +12,10 @@
 #include <string>
 #include "utils/filesystem.h"
 #include "utils/string_view.h"
-#include "utils/span.h"
 #include "utils/limits.h"
 
 namespace dncdbg
 {
-
-template <typename T> using span = Utility::span<T>;
-
-const char* FileSystemTraits<UnixPlatformTag>::PathSeparatorSymbols = "/";
 
 namespace
 {

@@ -7,31 +7,32 @@
 #include "utils/string_view.h"
 #include "utils/platform.h"
 
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <cstddef>
+#include "utils/limits.h"
+#include "utils/platform.h"
+#elif WIN32
+#include <cstddef>
+#include <windows.h>
+#endif
+
 namespace dncdbg
 {
-    using Utility::string_view;
 
-    // This is platform-specific traits class, which implements
-    // some operations in platform-specific way.
-    template <typename Platform> struct FileSystemTraits {};
-
-    // This class defines platform-specific details.
-    // These definitions should be accessible via `FileSystem` class (not FileSystemImpl).
-    template <typename Traits>
-    struct FileSystemImpl
-    {
-        // Maximum allowed length of a full path, in characters, including terminal null.
-        const static size_t PathMax = Traits::PathMax;
-
-        // Maximum allowed length of a file name only (characters, not including terminal null).
-        const static size_t NameMax = Traits::NameMax;
-
-        // Symbol used to separate directories and file name.
-        const static char PathSeparator = Traits::PathSeparator;
-
-        // C-String which contains all possible symbols which can be used as path separator.
-        const static char* PathSeparatorSymbols;
-    };
+namespace FileSystem
+{
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+    const static size_t PathMax = PATH_MAX;
+    const static size_t NameMax = NAME_MAX;
+    const static char PathSeparator = '/';
+    const static char* PathSeparatorSymbols = "/";
+#elif WIN32
+    const static size_t PathMax = MAX_PATH;
+    const static size_t NameMax = MAX_PATH - 1; // not include terminal null.
+    const static char PathSeparator = '\\';
+    const static char* PathSeparatorSymbols = "/\\";
+#endif
+} // namespace FileSystem
 
     // Function returns absolute path to currently running executable.
     std::string GetExeAbsPath();
@@ -45,19 +46,11 @@ namespace dncdbg
     // Function returns path to directory, which should be used for creation of
     // temporary files. Typically this is `/tmp` on Unix and something like
     // `C:\Users\localuser\Appdata\Local\Temp` on Windows.
-    string_view GetTempDir();
+    Utility::string_view GetTempDir();
 
     // Function checks, if given path contains directory names (strictly speaking,
     // contains path separator) or consists only of a file name. Return value is `true`
     // if argument is not the file name, but the path which includes directory names.
     bool IsFullPath(const std::string &path);
 
-} // namespace dncdbg
-
-#include "filesystem_win32.h"
-#include "filesystem_unix.h"
-
-namespace dncdbg
-{
-    using FileSystem = FileSystemImpl<FileSystemTraits<PlatformTag> >;
 } // namespace dncdbg

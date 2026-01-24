@@ -2,16 +2,10 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file filesystem.cpp
-/// This file contains definitions of cross-platform functions related to file system.
-
 #include "utils/filesystem.h"
 
 namespace dncdbg
 {
-
-template <> const char* FileSystemImpl<FileSystemTraits<PlatformTag> >::PathSeparatorSymbols = 
-                            FileSystemTraits<PlatformTag>::PathSeparatorSymbols;
 
 // Function returns only file name part of the full path.
 std::string GetBasename(const std::string &path)
