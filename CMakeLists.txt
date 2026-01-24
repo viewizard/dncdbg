@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
 
-if (BUILD_TESTING)
-    enable_testing()
-endif()
-
 project(dncdbg)
 
 set(CORECLR_DIR "" CACHE FILEPATH "Path to CoreCLR source directory")

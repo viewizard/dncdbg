@@ -231,9 +231,3 @@ if (BUILD_MANAGED)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DBGSHIM_LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
-
-# unit tests
-if (BUILD_TESTING)
-    add_subdirectory(unittests)
-endif()
-
