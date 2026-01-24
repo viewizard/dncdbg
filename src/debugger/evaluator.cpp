@@ -1253,7 +1253,7 @@ static HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalNa
 }
 
 static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, ULONG32 currentIlOffset, std::unordered_set<WSTRING> &usedNames, 
-                                        mdMethodDef methodDef, ULONG32 methodVersion, Modules *pModules, ICorDebugModule *pModule, Evaluator::WalkStackVarsCallback cb)
+                                        mdMethodDef methodDef, Modules *pModules, ICorDebugModule *pModule, Evaluator::WalkStackVarsCallback cb)
 {
     HRESULT Status;
     BOOL isNull = FALSE;
@@ -1310,14 +1310,14 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, defaultEvalFlags));
-            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef, methodVersion, pModules, pModule, cb));
+            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef, pModules, pModule, cb));
         }
         else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
         {
             if (hoistedLocalScopesCount == -1)
             {
                 PVOID data = nullptr;
-                if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, methodVersion, &data, hoistedLocalScopesCount)) && data)
+                if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
                     hoistedLocalScopes.reset((hoisted_local_scope_t*)data);
                 else
                     hoistedLocalScopesCount = 0;
@@ -1373,8 +1373,6 @@ static HRESULT InternalWalkStackVars(Modules *pModules, ICorDebugThread *pThread
 
     ToRelease<ICorDebugCode> pCode;
     IfFailRet(pFunction->GetILCode(&pCode));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunction->GetModule(&pModule));
@@ -1493,7 +1491,7 @@ static HRESULT InternalWalkStackVars(Modules *pModules, ICorDebugThread *pThread
         WSTRING wLocalName;
         ULONG32 ilStart;
         ULONG32 ilEnd;
-        if (FAILED(pModules->GetFrameNamedLocalVariable(pModule, methodDef, methodVersion, i, wLocalName, &ilStart, &ilEnd)))
+        if (FAILED(pModules->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)))
             continue;
 
         if (currentIlOffset < ilStart || currentIlOffset >= ilEnd)
@@ -1517,7 +1515,7 @@ static HRESULT InternalWalkStackVars(Modules *pModules, ICorDebugThread *pThread
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, defaultEvalFlags));
-            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef, methodVersion, pModules, pModule, cb));
+            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef, pModules, pModule, cb));
             continue;
         }
 
@@ -1529,7 +1527,7 @@ static HRESULT InternalWalkStackVars(Modules *pModules, ICorDebugThread *pThread
     }
 
     if (generatedCodeKind != GeneratedCodeKind::Normal)
-        return WalkGeneratedClassFields(pMD, currentThis, currentIlOffset, usedNames, methodDef, methodVersion, pModules, pModule, cb);
+        return WalkGeneratedClassFields(pMD, currentThis, currentIlOffset, usedNames, methodDef, pModules, pModule, cb);
 
     return S_OK;
 }

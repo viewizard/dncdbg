@@ -163,10 +163,8 @@ struct ClrAddr
     uint32_t ilOffset;
     uint32_t nativeOffset;
     uint32_t methodToken;
-    ULONG32 methodVersion; // EnC
 
-    // Note, initial/default method code version is 1 (not zero!).
-    ClrAddr() : ilOffset(0), nativeOffset(0), methodToken(0), methodVersion(1) {}
+    ClrAddr() : ilOffset(0), nativeOffset(0), methodToken(0) {}
     bool IsNull() const { return methodToken == 0; }
 };
 
@@ -193,29 +191,18 @@ public:
     bool unknownFrameAddr; // exposed for CLI protocol
     std::string moduleOrLibName; // exposed for CLI protocol
 
-    enum ActiveStatementFlags : uint16_t
-    {
-        None = 0x00,
-        LeafFrame = 0x01,
-        PartiallyExecuted = 0x02,
-        MethodUpToDate = 0x08,
-        NonLeafFrame = 0x10,
-        Stale = 0x20
-    };
-    uint16_t activeStatementFlags; // EnC
-
     StackFrame() :
         thread(ThreadId{}, true), level(FrameLevel{}, true), id(),
-        line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false), activeStatementFlags(0) {}
+        line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false) {}
 
     StackFrame(ThreadId threadId, FrameLevel level_, const std::string& methodName_) :
         thread(threadId, true), level(level_, true), id(FrameId(threadId, level_)),
-        methodName(methodName_), line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false), activeStatementFlags(0)
+        methodName(methodName_), line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false)
     {}
 
     StackFrame(FrameId id) :
         thread(ThreadId{}, false), level(FrameLevel{}, false), id(id),
-        line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false), activeStatementFlags(0)
+        line(0), column(0), endLine(0), endColumn(0), addr(0), unknownFrameAddr(false)
     {}
 
     FrameLevel GetLevel() const

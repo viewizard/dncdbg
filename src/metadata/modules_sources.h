@@ -82,50 +82,6 @@ struct method_data_t_hash
     }
 };
 
-struct block_update_t
-{
-    int32_t newLine;
-    int32_t oldLine;
-    int32_t endLineOffset;
-    block_update_t(int32_t newLine_, int32_t oldLine_, int32_t endLineOffset_) :
-        newLine(newLine_), oldLine(oldLine_), endLineOffset(endLineOffset_)
-    {}
-};
-typedef std::unordered_map<unsigned /*source fullPathIndex*/, std::vector<block_update_t>> src_block_updates_t;
-
-struct file_block_update_t
-{
-    unsigned fullPathIndex;
-    int32_t newLine;
-    int32_t oldLine;
-    int32_t endLineOffset;
-    file_block_update_t(unsigned fullPathIndex_, int32_t newLine_, int32_t oldLine_, int32_t endLineOffset_) :
-        fullPathIndex(fullPathIndex_), newLine(newLine_), oldLine(oldLine_), endLineOffset(endLineOffset_)
-    {}
-};
-typedef std::unordered_map<mdMethodDef, std::vector<file_block_update_t>> method_block_updates_t;
-
-template <class T>
-void LineUpdatesForwardCorrection(unsigned fullPathIndex, mdMethodDef methodToken, method_block_updates_t &methodBlockUpdates, T &block)
-{
-    auto findSourceUpdate = methodBlockUpdates.find(methodToken);
-    if (findSourceUpdate == methodBlockUpdates.end())
-        return;
-
-    for (const auto &entry : findSourceUpdate->second)
-    {
-        if (entry.fullPathIndex != fullPathIndex ||
-            entry.oldLine > block.startLine ||
-            entry.oldLine + entry.endLineOffset < block.startLine)
-            continue;
-
-        int32_t offset = entry.newLine - entry.oldLine;
-        block.startLine += offset;
-        block.endLine += offset;
-        break;
-    }
-}
-
 class Modules;
 struct ModuleInfo;
 
@@ -161,8 +117,6 @@ public:
     HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, PVOID pSymbolReaderHandle);
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
     HRESULT GetIndexBySourceFullPath(std::string fullPath, unsigned &index);
-    HRESULT ApplyPdbDeltaAndLineUpdates(Modules *pModules, ICorDebugModule *pModule, bool needJMC, const std::string &deltaPDB,
-                                        const std::string &lineUpdates, std::unordered_set<mdMethodDef> &methodTokens);
 
     void FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
 
@@ -192,11 +146,7 @@ private:
     std::vector<std::vector<FileMethodsData>> m_sourcesMethodsData;
 
     HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);
-    HRESULT UpdateSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, std::unordered_set<mdMethodDef> methodTokens,
-                                            src_block_updates_t &blockUpdates, ModuleInfo &mdInfo);
     HRESULT ResolveRelativeSourceFileName(std::string &filename);
-    HRESULT LineUpdatesForMethodData(ICorDebugModule *pModule, unsigned fullPathIndex, method_data_t &methodData,
-                                     const std::vector<block_update_t> &blockUpdate, ModuleInfo &mdInfo);
 
 #ifdef WIN32
     // on Windows OS, all files names converted to uppercase in containers above, but this vector hold initial full path names

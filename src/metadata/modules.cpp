@@ -20,11 +20,8 @@ namespace dncdbg
 
 ModuleInfo::~ModuleInfo() noexcept
 {
-    for (auto symbolReaderHandle : m_symbolReaderHandles)
-    {
-        if (symbolReaderHandle != nullptr)
-            Interop::DisposeSymbols(symbolReaderHandle);
-    }
+    if (m_symbolReaderHandle != nullptr)
+        Interop::DisposeSymbols(m_symbolReaderHandle);
 }
 
 static bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
@@ -181,7 +178,6 @@ void Modules::CleanupAllModules()
 {
     std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.clear();
-    m_modulesAppUpdate.Clear();
 }
 
 std::string GetModuleFileName(ICorDebugModule *pModule)
@@ -322,8 +318,6 @@ HRESULT Modules::GetFrameILAndSequencePoint(
 
     ToRelease<ICorDebugCode> pCode;
     IfFailRet(pFunc->GetILCode(&pCode));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
 
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID*) &pILFrame));
@@ -342,17 +336,10 @@ HRESULT Modules::GetFrameILAndSequencePoint(
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        IfFailRet(GetSequencePointByILOffset(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, ilOffset, &sequencePoint));
-
-        // In case Hot Reload we may have line updates that we must take into account.
-        unsigned fullPathIndex;
-        IfFailRet(GetIndexBySourceFullPath(sequencePoint.document, fullPathIndex));
-        LineUpdatesForwardCorrection(fullPathIndex, methodToken, mdInfo.m_methodBlockUpdates, sequencePoint);
-
-        return S_OK;
+        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
     });
 }
 
@@ -372,8 +359,6 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(
 
     ToRelease<ICorDebugCode> pCode;
     IfFailRet(pFunc->GetILCode(&pCode));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
 
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID*) &pILFrame));
@@ -387,7 +372,7 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    return GetNextUserCodeILOffsetInMethod(pModule, methodToken, methodVersion, ilOffset, ilNextOffset, noUserCodeFound);
+    return GetNextUserCodeILOffsetInMethod(pModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
 }
 
 HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
@@ -406,8 +391,6 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
 
     ToRelease<ICorDebugCode> pCode;
     IfFailRet(pFunc->GetILCode(&pCode));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
@@ -430,10 +413,10 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
 
     IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandles[methodVersion - 1], nOffset, methodToken, &ilStartOffset, &ilEndOffset);
+        return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
     }));
 
     if (ilStartOffset == ilEndOffset)
@@ -521,7 +504,7 @@ static HRESULT LoadSymbols(IMetaDataImport *pMD, ICorDebugModule *pModule, VOID 
     );
 }
 
-HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, bool needHotReload, std::string &outputText)
+HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
 {
     HRESULT Status;
 
@@ -542,9 +525,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
         ToRelease<ICorDebugModule2> pModule2;
         if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, (LPVOID *)&pModule2)))
         {
-            if (needHotReload)
-                pModule2->SetJITCompilerFlags(CORDEBUG_JIT_ENABLE_ENC);
-            else if (!needJMC) // Note, CORDEBUG_JIT_DISABLE_OPTIMIZATION is part of CORDEBUG_JIT_ENABLE_ENC.
+            if (!needJMC)
                 pModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
 
             if (SUCCEEDED(Status = pModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason disable JMC on module's types/methods.
@@ -590,16 +571,12 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
 
-    if (needHotReload)
-        IfFailRet(m_modulesAppUpdate.AddUpdateHandlerTypesForModule(pModule, pMDImport));
-
     return S_OK;
 }
 
 HRESULT Modules::GetFrameNamedLocalVariable(
     ICorDebugModule *pModule,
     mdMethodDef methodToken,
-    ULONG32 methodVersion,
     ULONG localIndex,
     WSTRING &localName,
     ULONG32 *pIlStart,
@@ -614,10 +591,10 @@ HRESULT Modules::GetFrameNamedLocalVariable(
 
     IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, localIndex, wLocalName, _countof(wLocalName), pIlStart, pIlEnd);
+        return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandle, methodToken, localIndex, wLocalName, _countof(wLocalName), pIlStart, pIlEnd);
     }));
 
     localName = wLocalName;
@@ -628,7 +605,6 @@ HRESULT Modules::GetFrameNamedLocalVariable(
 HRESULT Modules::GetHoistedLocalScopes(
     ICorDebugModule *pModule,
     mdMethodDef methodToken,
-    ULONG32 methodVersion,
     PVOID *data,
     int32_t &hoistedLocalScopesCount)
 {
@@ -638,14 +614,14 @@ HRESULT Modules::GetHoistedLocalScopes(
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        return Interop::GetHoistedLocalScopes(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, data, hoistedLocalScopesCount);
+        return Interop::GetHoistedLocalScopes(mdInfo.m_symbolReaderHandle, methodToken, data, hoistedLocalScopesCount);
     });
 }
 
-HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule, bool onlyWithPDB)
+HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule)
 {
     std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
 
@@ -654,9 +630,6 @@ HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **pp
         ModuleInfo &mdInfo = info_pair.second;
 
         std::string path = GetModuleFileName(mdInfo.m_iCorModule);
-
-        if (onlyWithPDB && mdInfo.m_symbolReaderHandles.empty())
-            continue;
 
         if (GetFileName(path) == name)
         {
@@ -671,7 +644,6 @@ HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **pp
 HRESULT Modules::GetNextUserCodeILOffsetInMethod(
     ICorDebugModule *pModule,
     mdMethodDef methodToken,
-    ULONG32 methodVersion,
     ULONG32 ilOffset,
     ULONG32 &ilNextOffset,
     bool *noUserCodeFound)
@@ -682,10 +654,10 @@ HRESULT Modules::GetNextUserCodeILOffsetInMethod(
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        return Interop::GetNextUserCodeILOffset(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, ilOffset, ilNextOffset, noUserCodeFound);
+        return Interop::GetNextUserCodeILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
     });
 }
 
@@ -714,16 +686,15 @@ HRESULT Modules::GetSequencePointByILOffset(
 HRESULT Modules::GetSequencePointByILOffset(
     CORDB_ADDRESS modAddress,
     mdMethodDef methodToken,
-    ULONG32 methodVersion,
     ULONG32 ilOffset,
     Modules::SequencePoint &sequencePoint)
 {
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
-        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, ilOffset, &sequencePoint);
+        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
     });
 }
 
@@ -751,12 +722,6 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress, /*in*/ std::
     // Note, in all code we use m_modulesInfoMutex > m_sourcesInfoMutex lock sequence.
     std::lock_guard<std::mutex> lockModulesInfo(m_modulesInfoMutex);
     return m_modulesSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
-}
-
-HRESULT Modules::ApplyPdbDeltaAndLineUpdates(ICorDebugModule *pModule, bool needJMC, const std::string &deltaPDB,
-                                             const std::string &lineUpdates, std::unordered_set<mdMethodDef> &methodTokens)
-{
-    return m_modulesSources.ApplyPdbDeltaAndLineUpdates(this, pModule, needJMC, deltaPDB, lineUpdates, methodTokens);
 }
 
 HRESULT Modules::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
@@ -808,22 +773,10 @@ HRESULT Modules::GetSource(ICorDebugModule *pModule, const std::string &sourcePa
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.size() > 1)
-        {
-            LOGE("This feature not support simultaneous work with Hot Reload.");
-            return E_FAIL;
-        }
-
-        return mdInfo.m_symbolReaderHandles.empty() ?
+        return mdInfo.m_symbolReaderHandle == nullptr ?
             E_FAIL :
-            Interop::GetSource(mdInfo.m_symbolReaderHandles[0], sourcePath, (PVOID*)fileBuf, fileLen);
+            Interop::GetSource(mdInfo.m_symbolReaderHandle, sourcePath, (PVOID*)fileBuf, fileLen);
     });
-}
-
-void Modules::CopyModulesUpdateHandlerTypes(std::vector<ToRelease<ICorDebugType>> &modulesUpdateHandlerTypes)
-{
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
-    m_modulesAppUpdate.CopyModulesUpdateHandlerTypes(modulesUpdateHandlerTypes);
 }
 
 } // namespace dncdbg

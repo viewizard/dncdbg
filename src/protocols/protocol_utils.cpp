@@ -24,32 +24,6 @@ void BreakpointsHandle::Cleanup()
     m_exceptionBreakpoints.clear();
 }
 
-HRESULT BreakpointsHandle::UpdateLineBreakpoint(std::shared_ptr<IDebugger> &sharedDebugger, int id, int linenum, Breakpoint &breakpoint)
-{
-    for (auto &breakpointsInSource : m_lineBreakpoints)
-    {
-        for (auto &brk : breakpointsInSource.second)
-        {
-            if (brk.first != (unsigned)id)
-                continue;
-
-            brk.second.line = linenum;
-
-            breakpoint.id = brk.first;
-            breakpoint.verified = false;
-            breakpoint.condition = brk.second.condition;
-            breakpoint.source = breakpointsInSource.first;
-            breakpoint.line = brk.second.line;
-            breakpoint.endLine = brk.second.line;
-            breakpoint.hitCount = 0;
-
-            return sharedDebugger->UpdateLineBreakpoint(id, linenum, breakpoint);
-        }
-    }
-
-    return E_INVALIDARG;
-}
-
 HRESULT BreakpointsHandle::SetLineBreakpoint(std::shared_ptr<IDebugger> &sharedDebugger,
                                              const std::string &module, const std::string &filename, int linenum,
                                              const std::string &condition, Breakpoint &breakpoint)
@@ -286,23 +260,6 @@ int GetIntArg(const std::vector<std::string> &args, const std::string& name, int
     bool ok;
     int val = ProtocolUtils::ParseInt(*it, ok);
     return ok ? val : defaultValue;
-}
-
-// Return `true` in case arg was found and erased.
-bool FindAndEraseArg(std::vector<std::string> &args, const std::string& name)
-{
-    auto it = args.begin();
-    while (it != args.end())
-    {
-        if (*it == name)
-        {
-            it = args.erase(it);
-            return true;
-        }
-        else
-            ++it;
-    }
-    return false;
 }
 
 bool GetIndices(const std::vector<std::string> &args, int &index1, int &index2)

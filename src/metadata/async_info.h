@@ -35,9 +35,9 @@ public:
         {};
     };
 
-    bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion);
-    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion, ULONG32 ipOffset, AwaitInfo **awaitInfo);
-    bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion, ULONG32 &lastIlOffset);
+    bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
+    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ipOffset, AwaitInfo **awaitInfo);
+    bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 &lastIlOffset);
 
 private:
 
@@ -47,7 +47,6 @@ private:
     {
         CORDB_ADDRESS modAddress;
         mdMethodDef methodToken;
-        ULONG32 methodVersion;
         HRESULT retCode;
 
         std::vector<AwaitInfo> awaits;
@@ -55,14 +54,14 @@ private:
         ULONG32 lastIlOffset;
 
         AsyncMethodInfo() :
-            modAddress(0), methodToken(mdMethodDefNil), methodVersion(0), retCode(S_OK), awaits(), lastIlOffset(0)
+            modAddress(0), methodToken(mdMethodDefNil), retCode(S_OK), awaits(), lastIlOffset(0)
         {};
     };
 
     AsyncMethodInfo asyncMethodSteppingInfo;
     std::mutex m_asyncMethodSteppingInfoMutex;
     // Note, result stored into asyncMethodSteppingInfo.
-    HRESULT GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion);
+    HRESULT GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
 
 };
 

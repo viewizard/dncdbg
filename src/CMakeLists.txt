@@ -75,7 +75,6 @@ include_directories(${PROJECT_SOURCE_DIR}/src/windows ${PROJECT_SOURCE_DIR}/src/
 set(dncdbg_SRC
     debugger/breakpoint_break.cpp
     debugger/breakpoint_entry.cpp
-    debugger/breakpoint_hotreload.cpp
     debugger/breakpoints_exception.cpp
     debugger/breakpoints_func.cpp
     debugger/breakpoints_line.cpp
@@ -88,7 +87,6 @@ set(dncdbg_SRC
     debugger/evalwaiter.cpp
     debugger/evalutils.cpp
     debugger/frames.cpp
-    debugger/hotreloadhelpers.cpp
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp
     debugger/threads.cpp
@@ -104,7 +102,6 @@ set(dncdbg_SRC
     metadata/async_info.cpp
     metadata/jmc.cpp
     metadata/modules.cpp
-    metadata/modules_app_update.cpp
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
     protocols/cliprotocol.cpp
@@ -170,10 +167,6 @@ else()
         target_link_libraries(dncdbg minipalguid)
     endif()
 endif()
-
-if (NCDB_DOTNET_STARTUP_HOOK)
-    add_definitions(-DNCDB_DOTNET_STARTUP_HOOK="${NCDB_DOTNET_STARTUP_HOOK}")
-endif (NCDB_DOTNET_STARTUP_HOOK)
 
 install(TARGETS dncdbg DESTINATION ${CMAKE_INSTALL_PREFIX})
 
@@ -245,30 +238,6 @@ if (BUILD_MANAGED)
     endif()
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${DBGSHIM_LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
-endif()
-
-# Build Hot Reload managed dll (ncdbhook.dll)
-
-if (BUILD_MANAGED AND NCDB_DOTNET_STARTUP_HOOK)
-    set(NCDBHOOK_PROJECT ${CMAKE_CURRENT_SOURCE_DIR}/ncdbhook/ncdbhook.csproj)
-    set(NCDBHOOK_DLL_NAME ncdbhook.dll)
-    set(NCDBHOOK_DOTNET_BUILD_RESULT ${CMAKE_CURRENT_BINARY_DIR}/${NCDBHOOK_DLL_NAME})
-    set(NCDB_HOOK_TargetFramework "net6.0")
-
-    find_program(DOTNETCLI dotnet PATHS "${DOTNET_DIR}" ENV PATH NO_DEFAULT_PATH)
-
-    # Build Debug only, code must be not optimized.
-    add_custom_command(OUTPUT ${NCDBHOOK_DOTNET_BUILD_RESULT}
-      COMMAND NCDB_HOOK_TargetFramework=${NCDB_HOOK_TargetFramework} ${DOTNETCLI} publish ${NCDBHOOK_PROJECT} -c Debug -o ${CMAKE_CURRENT_BINARY_DIR} /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/ /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/
-      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-      DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ncdbhook/*.cs" "${NCDBHOOK_PROJECT}"
-      COMMENT "Compiling ${NCDBHOOK_DLL_NAME}"
-      VERBATIM
-    )
-
-    add_custom_target(ncdbhook_dll ALL DEPENDS ${NCDBHOOK_DOTNET_BUILD_RESULT})
-
-    install(FILES ${NCDBHOOK_DOTNET_BUILD_RESULT} DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
 
 # unit tests

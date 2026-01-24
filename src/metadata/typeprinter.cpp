@@ -224,7 +224,7 @@ static HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args
     return S_OK;
 }
 
-HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
+static HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 {
     HRESULT Status;
 

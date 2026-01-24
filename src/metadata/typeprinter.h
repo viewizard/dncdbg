@@ -21,7 +21,6 @@ namespace dncdbg
 namespace TypePrinter
 {
 
-    HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
     HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::string &mdName,
                            std::list<std::string> *args);
     HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, bool bClassName,

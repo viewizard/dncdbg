@@ -131,7 +131,6 @@ static HRESULT PrintFrameLocation(const StackFrame &stackFrame, std::string &out
         ss << "clr-addr={module-id=\"{" << stackFrame.moduleId << "}\","
            << "method-token=\"0x"
            << std::setw(8) << std::setfill('0') << std::hex << stackFrame.clrAddr.methodToken << "\","
-           << "method-version=\"" << std::dec << stackFrame.clrAddr.methodVersion << "\","
            << "il-offset=\"" << std::dec << stackFrame.clrAddr.ilOffset
            << "\",native-offset=\"" << stackFrame.clrAddr.nativeOffset << "\"},";
     }
@@ -140,50 +139,19 @@ static HRESULT PrintFrameLocation(const StackFrame &stackFrame, std::string &out
     if (stackFrame.id)
         ss << ",addr=\"" << ProtocolUtils::AddrToString(stackFrame.addr) << "\"";
 
-    ss << ",active-statement-flags=\"";
-    if (stackFrame.activeStatementFlags == StackFrame::ActiveStatementFlags::None)
-    {
-        ss << "None";
-    }
-    else
-    {
-        struct flag_t
-        {
-            StackFrame::ActiveStatementFlags bit;
-            std::string name;
-            flag_t(StackFrame::ActiveStatementFlags bit_, const std::string &name_) : bit(bit_), name(name_) {}
-        };
-        static const std::vector<flag_t> flagsMap
-           {{StackFrame::ActiveStatementFlags::LeafFrame,          "LeafFrame"},
-            {StackFrame::ActiveStatementFlags::NonLeafFrame,       "NonLeafFrame"},
-            {StackFrame::ActiveStatementFlags::PartiallyExecuted,  "PartiallyExecuted"},
-            {StackFrame::ActiveStatementFlags::MethodUpToDate,     "MethodUpToDate"},
-            {StackFrame::ActiveStatementFlags::Stale,              "Stale"}};
-        bool first = true;
-        for (auto &flag : flagsMap)
-        {
-            if ((stackFrame.activeStatementFlags & flag.bit) == flag.bit)
-            {
-                ss << (first ? "":",") << flag.name;
-                first = false;
-            }
-        }
-    }
-    ss << "\"";
-
     output = ss.str();
 
     return stackFrame.source.IsNull() ? S_FALSE : S_OK;
 }
 
-static HRESULT PrintFrames(std::shared_ptr<IDebugger> &sharedDebugger, ThreadId threadId, std::string &output, FrameLevel lowFrame, FrameLevel highFrame, bool hotReloadAwareCaller)
+static HRESULT PrintFrames(std::shared_ptr<IDebugger> &sharedDebugger, ThreadId threadId, std::string &output, FrameLevel lowFrame, FrameLevel highFrame)
 {
     HRESULT Status;
     std::ostringstream ss;
 
     int totalFrames = 0;
     std::vector<StackFrame> stackFrames;
-    IfFailRet(sharedDebugger->GetStackTrace(threadId, lowFrame, int(highFrame) - int(lowFrame), stackFrames, totalFrames, hotReloadAwareCaller));
+    IfFailRet(sharedDebugger->GetStackTrace(threadId, lowFrame, int(highFrame) - int(lowFrame), stackFrames, totalFrames));
 
     int currentFrame = int(lowFrame);
 
@@ -579,44 +547,6 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, Breakpo
         output = "^done";
         return S_OK;
     } },
-    { "break-update-line", [&](const std::vector<std::string> &args, std::string &output) -> HRESULT {
-        // Custom MI protocol command for line breakpoint update.
-        // Command format:
-        //    break-update-line ID NEW_LINE
-        // where
-        //    ID - ID of previously added breakpoint, that should be changed;
-        //    NEW_LINE - new line number in source file.
-        if (args.size() != 2)
-        {
-            output = "Command requires 2 arguments";
-            return E_FAIL;
-        }
-
-        bool ok;
-        int id = ProtocolUtils::ParseInt(args.at(0), ok);
-        if (!ok)
-        {
-            output = "Unknown breakpoint id";
-            return E_FAIL;
-        }
-
-        int linenum = ProtocolUtils::ParseInt(args.at(1), ok);
-        if (!ok)
-        {
-            output = "Unknown breakpoint new line";
-            return E_FAIL;
-        }
-
-        Breakpoint breakpoint;
-        if (SUCCEEDED(breakpointsHandle.UpdateLineBreakpoint(sharedDebugger, id, linenum, breakpoint)))
-        {
-            PrintBreakpoint(breakpoint, output);
-            return S_OK;
-        }
-
-        output = "Unknown breakpoint location, breakpoint was not updated";
-        return E_FAIL;
-    } },
     { "break-insert", [&](const std::vector<std::string> &unmutable_args, std::string &output) -> HRESULT {
         HRESULT Status = E_FAIL;
         Breakpoint breakpoint;
@@ -785,12 +715,11 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, Breakpo
     { "stack-list-frames", [&](const std::vector<std::string> &args_orig, std::string &output) -> HRESULT {
         std::vector<std::string> args = args_orig;
         ThreadId threadId { ProtocolUtils::GetIntArg(args, "--thread", int(sharedDebugger->GetLastStoppedThreadId())) };
-        bool hotReloadAwareCaller = ProtocolUtils::FindAndEraseArg(args, "--hot-reload");
         int lowFrame = 0;
         int highFrame = FrameLevel::MaxFrameLevel;
         ProtocolUtils::StripArgs(args);
         ProtocolUtils::GetIndices(args, lowFrame, highFrame);
-        return PrintFrames(sharedDebugger, threadId, output, FrameLevel{lowFrame}, FrameLevel{highFrame}, hotReloadAwareCaller);
+        return PrintFrames(sharedDebugger, threadId, output, FrameLevel{lowFrame}, FrameLevel{highFrame});
     }},
     { "stack-list-variables", [&](const std::vector<std::string> &args, std::string &output) -> HRESULT {
         HRESULT Status;
@@ -915,8 +844,6 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, Breakpo
             sharedDebugger->SetJustMyCode(args.at(1) == "1");
         else if (args.at(0) == "enable-step-filtering")
             sharedDebugger->SetStepFiltering(args.at(1) == "1");
-        else if (args.at(0) == "enable-hot-reload")
-            return sharedDebugger->SetHotReload(args.at(1) == "1");
         else
             return E_FAIL;
 
@@ -999,25 +926,6 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, Breakpo
         IfFailRet(sharedDebugger->Evaluate(frameId, miVariable.variable.evaluateName, variable, output));
 
         output = "value=\"" + MIProtocol::EscapeMIValue(variable.value) + "\"";
-        return S_OK;
-    }},
-    { "apply-deltas", [&](const std::vector<std::string> &args, std::string &output) -> HRESULT {
-        HRESULT Status;
-
-        if (args.size() != 5)
-        {
-            output = "Command requires 5 arguments";
-            return E_FAIL;
-        }
-
-        std::string dllFileName = args.at(0);
-        std::string deltaMD = args.at(1);
-        std::string deltaIL = args.at(2);
-        std::string deltaPDB = args.at(3);
-        std::string lineUpdates = args.at(4);
-
-        IfFailRet(sharedDebugger->HotReloadApplyDeltas(dllFileName, deltaMD, deltaIL, deltaPDB, lineUpdates));
-
         return S_OK;
     }},
     };

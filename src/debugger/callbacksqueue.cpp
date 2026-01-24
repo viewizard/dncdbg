@@ -24,11 +24,6 @@ namespace dncdbg
 
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
-    // S_FALSE or error - continue callback.
-    // S_OK - this is internal Hot Reload breakpoint, ignore this callback call.
-    if (S_OK == m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread, pBreakpoint))
-        return false;
-
     // S_FALSE - not error and steppers not affect on callback
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackBreakpoint(pAppDomain, pThread))
         return false;
@@ -70,8 +65,6 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
 bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, CorDebugStepReason reason)
 {
-    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
-
     // S_FALSE - not error and steppers not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
         return false;
@@ -93,8 +86,6 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain,
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
-
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
         return false;
@@ -119,8 +110,6 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule)
 {
-    m_debugger.m_uniqueBreakpoints->CheckApplicationReload(pThread);
-
     ThreadId threadId(getThreadId(pThread));
     StoppedEvent event(StopException, threadId);
 

@@ -12,14 +12,13 @@ namespace dncdbg
 {
 
 // Caller must care about m_asyncMethodSteppingInfoMutex.
-HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion)
+HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
     // Note, for normal methods, `Interop::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset` to 0.
     // Error during async info search (debug info not available or method token belong to normal method) is proper behaviour and debugger logic also count on this.
 
     if (asyncMethodSteppingInfo.modAddress == modAddress &&
-        asyncMethodSteppingInfo.methodToken == methodToken &&
-        asyncMethodSteppingInfo.methodVersion == methodVersion)
+        asyncMethodSteppingInfo.methodToken == methodToken)
         return asyncMethodSteppingInfo.retCode;
 
     if (!asyncMethodSteppingInfo.awaits.empty())
@@ -27,15 +26,14 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
 
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
-    asyncMethodSteppingInfo.methodVersion = methodVersion;
     asyncMethodSteppingInfo.retCode = m_sharedModules->GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
     {
-        if (mdInfo.m_symbolReaderHandles.empty() || mdInfo.m_symbolReaderHandles.size() < methodVersion)
+        if (mdInfo.m_symbolReaderHandle == nullptr)
             return E_FAIL;
 
         HRESULT Status;
         std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
-        IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandles[methodVersion - 1], methodToken, AsyncAwaitInfo, &asyncMethodSteppingInfo.lastIlOffset));
+        IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo, &asyncMethodSteppingInfo.lastIlOffset));
 
         for (const auto &entry : AsyncAwaitInfo)
         {
@@ -51,11 +49,11 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
 // Check if method have await block. In this way we detect async method with awaits.
 // [in] modAddress - module address;
 // [in] methodToken - method token (from module with address modAddress).
-bool AsyncInfo::IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion)
+bool AsyncInfo::IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
     const std::lock_guard<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
-    return SUCCEEDED(GetAsyncMethodSteppingInfo(modAddress, methodToken, methodVersion));
+    return SUCCEEDED(GetAsyncMethodSteppingInfo(modAddress, methodToken));
 }
 
 // Find await block after IL offset in particular async method and return await info, if present.
@@ -64,11 +62,11 @@ bool AsyncInfo::IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 // [in] methodToken - method token (from module with address modAddress).
 // [in] ipOffset - IL offset;
 // [out] awaitInfo - result, next await info.
-bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion, ULONG32 ipOffset, AwaitInfo **awaitInfo)
+bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ipOffset, AwaitInfo **awaitInfo)
 {
     const std::lock_guard<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
-    if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken, methodVersion)))
+    if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken)))
         return false;
 
     for (auto &await : asyncMethodSteppingInfo.awaits)
@@ -95,11 +93,11 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 // [in] modAddress - module address;
 // [in] methodToken - method token (from module with address modAddress).
 // [out] lastIlOffset - result, IL offset for last user code line in async method.
-bool AsyncInfo::FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 methodVersion, ULONG32 &lastIlOffset)
+bool AsyncInfo::FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 &lastIlOffset)
 {
     const std::lock_guard<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
-    if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken, methodVersion)))
+    if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken)))
         return false;
 
     lastIlOffset = asyncMethodSteppingInfo.lastIlOffset;

@@ -8,7 +8,6 @@
 #include "debugger/breakpoints_exception.h"
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpoints_line.h"
-#include "debugger/breakpoint_hotreload.h"
 #include "debugger/breakpoints.h"
 #include "debugger/breakpointutils.h"
 
@@ -30,13 +29,12 @@
 namespace dncdbg
 {
 
-Breakpoints::Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<EvalHelpers> &sharedEvalHelpers, std::shared_ptr<Variables> &sharedVariables) :
+Breakpoints::Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<Variables> &sharedVariables) :
         m_uniqueBreakBreakpoint(new BreakBreakpoint(sharedModules)),
         m_uniqueEntryBreakpoint(new EntryBreakpoint(sharedModules)),
         m_uniqueExceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
         m_uniqueFuncBreakpoints(new FuncBreakpoints(sharedModules, sharedVariables)),
         m_uniqueLineBreakpoints(new LineBreakpoints(sharedModules, sharedVariables)),
-        m_uniqueHotReloadBreakpoint(new HotReloadBreakpoint(sharedModules, sharedEvaluator, sharedEvalHelpers)),
         m_nextBreakpointId(1)
     {}
 
@@ -68,7 +66,6 @@ void Breakpoints::DeleteAll()
     m_uniqueFuncBreakpoints->DeleteAll();
     m_uniqueLineBreakpoints->DeleteAll();
     m_uniqueExceptionBreakpoints->DeleteAll();
-    m_uniqueHotReloadBreakpoint->Delete();
 }
 
 HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
@@ -107,11 +104,6 @@ HRESULT Breakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<Func
     });
 }
 
-HRESULT Breakpoints::UpdateLineBreakpoint(bool haveProcess, int id, int linenum, Breakpoint &breakpoint)
-{
-    return m_uniqueLineBreakpoints->UpdateLineBreakpoint(haveProcess, id, linenum, breakpoint);
-}
-
 HRESULT Breakpoints::SetLineBreakpoints(bool haveProcess, const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints)
 {
     return m_uniqueLineBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints, [&]() -> uint32_t
@@ -128,13 +120,6 @@ HRESULT Breakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoi
         std::lock_guard<std::mutex> lock(m_nextBreakpointIdMutex);
         return m_nextBreakpointId++;
     });
-}
-
-HRESULT Breakpoints::UpdateBreakpointsOnHotReload(ICorDebugModule *pModule, std::unordered_set<mdMethodDef> &methodTokens, std::vector<BreakpointEvent> &events)
-{
-    m_uniqueFuncBreakpoints->UpdateBreakpointsOnHotReload(pModule, methodTokens, events);
-    m_uniqueLineBreakpoints->UpdateBreakpointsOnHotReload(pModule, methodTokens, events);
-    return S_OK;
 }
 
 HRESULT Breakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
@@ -198,12 +183,6 @@ HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::ve
     return S_OK;
 }
 
-HRESULT Breakpoints::ManagedCallbackLoadModuleAll(ICorDebugModule *pModule)
-{
-    m_uniqueHotReloadBreakpoint->ManagedCallbackLoadModuleAll(pModule);
-    return S_OK;
-}
-
 HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule, StoppedEvent &event)
 {
     return m_uniqueExceptionBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event);
@@ -250,21 +229,6 @@ void Breakpoints::EnumerateBreakpoints(std::function<bool (const IDebugger::Brea
 HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
 {
     return m_uniqueExceptionBreakpoints->ManagedCallbackExitThread(pThread);
-}
-
-HRESULT Breakpoints::CheckApplicationReload(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
-{
-    return m_uniqueHotReloadBreakpoint->CheckApplicationReload(pThread, pBreakpoint);
-}
-
-void Breakpoints::CheckApplicationReload(ICorDebugThread *pThread)
-{
-    m_uniqueHotReloadBreakpoint->CheckApplicationReload(pThread);
-}
-
-HRESULT Breakpoints::SetHotReloadBreakpoint(const std::string &updatedDLL, const std::unordered_set<mdTypeDef> &updatedTypeTokens)
-{
-    return m_uniqueHotReloadBreakpoint->SetHotReloadBreakpoint(updatedDLL, updatedTypeTokens);
 }
 
 } // namespace dncdbg

@@ -31,9 +31,7 @@
 #include "debugger/breakpoints_exception.h"
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpoints_line.h"
-#include "debugger/breakpoint_hotreload.h"
 #include "debugger/breakpoints.h"
-#include "debugger/hotreloadhelpers.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/managedcallback.h"
 #include "debugger/callbacksqueue.h"
@@ -66,13 +64,6 @@ extern "C" const IID IID_IUnknown = { 0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0
 namespace
 {
     const auto startupWaitTimeout = std::chrono::milliseconds(5000);
-
-    const std::string envDOTNET_STARTUP_HOOKS = "DOTNET_STARTUP_HOOKS";
-#ifdef FEATURE_PAL
-    const char delimiterDOTNET_STARTUP_HOOKS = ':';
-#else  // FEATURE_PAL
-    const char delimiterDOTNET_STARTUP_HOOKS = ';';
-#endif // FEATURE_PAL
 
     int GetSystemEnvironmentAsMap(std::map<std::string, std::string>& outMap)
     {
@@ -184,12 +175,11 @@ ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
     m_sharedEvaluator(new Evaluator(m_sharedModules, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
     m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
     m_uniqueSteppers(new Steppers(m_sharedModules, m_sharedEvalHelpers)),
-    m_uniqueBreakpoints(new Breakpoints(m_sharedModules, m_sharedEvaluator, m_sharedEvalHelpers, m_sharedVariables)),
+    m_uniqueBreakpoints(new Breakpoints(m_sharedModules, m_sharedEvaluator, m_sharedVariables)),
     m_sharedCallbacksQueue(nullptr),
     m_uniqueManagedCallback(nullptr),
     m_justMyCode(true),
     m_stepFiltering(true),
-    m_hotReload(false),
     m_unregisterToken(nullptr),
     m_processId(0),
     m_ioredirect(
@@ -198,7 +188,6 @@ ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
     )
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
-    m_sharedThreads->SetEvaluator(m_sharedEvaluator);
 }
 
 ManagedDebuggerHelpers::ManagedDebuggerHelpers(IProtocol *pProtocol_) :
@@ -595,55 +584,40 @@ static bool IsDirExists(const char* const path)
     return true;
 }
 
-static void SetCustomEnvironmentArgs(std::map<std::string, std::string> &env, bool hotReload)
-{
-#ifdef NCDB_DOTNET_STARTUP_HOOK
-    if (hotReload)
-    {
-        auto find = env.find(envDOTNET_STARTUP_HOOKS);
-        if (find != env.end())
-            find->second = find->second + delimiterDOTNET_STARTUP_HOOKS + NCDB_DOTNET_STARTUP_HOOK;
-        else
-            env[envDOTNET_STARTUP_HOOKS] = NCDB_DOTNET_STARTUP_HOOK;
-    }
-#else
-    (void)hotReload; // suppress warning about unused param
-#endif // NCDB_DOTNET_STARTUP_HOOK
-}
-
-static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv, bool hotReload)
+static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
     // We need to append the environ values with keeping the current process environment block.
     // It works equal for any platrorms in coreclr CreateProcessW(), but not critical for Linux.
     std::map<std::string, std::string> envMap;
     if (GetSystemEnvironmentAsMap(envMap) != -1)
     {
+        auto it = env.begin();
+        auto end = env.end();
         // Override the system value (PATHs appending needs a complex implementation)
-        for (const auto &pair : env)
+        while (it != end)
         {
-            if (pair.first == envDOTNET_STARTUP_HOOKS && !envMap[pair.first].empty())
-            {
-                envMap[pair.first] = envMap[pair.first] + delimiterDOTNET_STARTUP_HOOKS + pair.second;
-                continue;
-            }
-            envMap[pair.first] = pair.second;
+            envMap[it->first] = it->second;
+            ++it;
         }
+        for (const auto &pair : envMap)
+        {
+            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.push_back('=');
+            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.push_back('\0');
+        }
+        outEnv.push_back('\0');
     }
     else
     {
-        envMap = env;
+        for (const auto &pair : env)
+        {
+            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.push_back('=');
+            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.push_back('\0');
+        }
     }
-    SetCustomEnvironmentArgs(envMap, hotReload);
-    for (const auto &pair : envMap)
-    {
-        outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
-        outEnv.push_back('=');
-        outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
-        outEnv.push_back('\0');
-    }
-    // Environtment variable should looks like: "Var=Value\0OtherVar=OtherValue\0\0"
-    if (!outEnv.empty())
-        outEnv.push_back('\0');
 }
 
 HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const std::vector<std::string>& execArgs)
@@ -664,7 +638,7 @@ HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const st
     HANDLE resumeHandle = 0; // Fake thread handle for the process resume
 
     std::vector<char> outEnv;
-    PrepareSystemEnvironmentArg(m_env, outEnv, m_hotReload);
+    PrepareSystemEnvironmentArg(m_env, outEnv);
 
     // cwd in launch.json set working directory for debugger https://code.visualstudio.com/docs/python/debugging#_cwd
     if (!m_cwd.empty())
@@ -860,14 +834,6 @@ HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBrea
     return m_uniqueBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::UpdateLineBreakpoint(int id, int linenum, Breakpoint &breakpoint)
-{
-    LogFuncEntry();
-
-    bool haveProcess = HaveDebugProcess();
-    return m_uniqueBreakpoints->UpdateLineBreakpoint(haveProcess, id, linenum, breakpoint);
-}
-
 HRESULT ManagedDebugger::SetLineBreakpoints(const std::string& filename,
                                             const std::vector<LineBreakpoint> &lineBreakpoints,
                                             std::vector<Breakpoint> &breakpoints)
@@ -899,7 +865,7 @@ HRESULT ManagedDebugger::AllBreakpointsActivate(bool act)
     return m_uniqueBreakpoints->AllBreakpointsActivate(act);
 }
 
-HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame, bool hotReloadAwareCaller)
+HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame)
 {
     HRESULT Status;
 
@@ -912,39 +878,6 @@ HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId t
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
-
-    ULONG32 methodVersion = 1;
-    ULONG32 currentVersion = 1;
-    if (m_hotReload)
-    {
-        // In case current (top) code version is 1, executed in this frame method version can't be not 1.
-        if (SUCCEEDED(pFunc->GetCurrentVersionNumber(&currentVersion)) && currentVersion != 1)
-        {
-            ToRelease<ICorDebugCode> pCode;
-            IfFailRet(pFunc->GetILCode(&pCode));
-            IfFailRet(pCode->GetVersionNumber(&methodVersion));
-        }
-
-        if (!hotReloadAwareCaller && methodVersion != currentVersion)
-        {
-            std::string moduleNamePrefix;
-            WCHAR name[mdNameLen];
-            ULONG32 name_len = 0;
-            if (SUCCEEDED(pModule->GetName(_countof(name), &name_len, name)))
-            {
-                moduleNamePrefix = to_utf8(name);
-                std::size_t i = moduleNamePrefix.find_last_of("/\\");
-                if (i != std::string::npos)
-                    moduleNamePrefix = moduleNamePrefix.substr(i + 1);
-                moduleNamePrefix += "!";
-            }
-
-            // [Outdated Code] module.dll!MethodName()
-            stackFrame.methodName = "[Outdated Code] " + moduleNamePrefix + stackFrame.methodName;
-
-            return S_OK;
-        }
-    }
 
     ULONG32 ilOffset;
     Modules::SequencePoint sp;
@@ -970,16 +903,8 @@ HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId t
     stackFrame.clrAddr.methodToken = methodToken;
     stackFrame.clrAddr.ilOffset = ilOffset;
     stackFrame.clrAddr.nativeOffset = nOffset;
-    stackFrame.clrAddr.methodVersion = methodVersion;
 
     stackFrame.addr = 0; // This method used for managed stop events only, but all implemented protocols don't use `addr` in managed stop events outputs.
-
-    if (stackFrame.clrAddr.ilOffset != 0)
-        stackFrame.activeStatementFlags |= StackFrame::ActiveStatementFlags::PartiallyExecuted;
-    if (methodVersion == currentVersion)
-        stackFrame.activeStatementFlags |= StackFrame::ActiveStatementFlags::MethodUpToDate;
-    else
-        stackFrame.activeStatementFlags |= StackFrame::ActiveStatementFlags::Stale;
 
     return S_OK;
 }
@@ -1003,20 +928,12 @@ static std::string GetModuleNameForFrame(ICorDebugFrame *pFrame)
 }
 
 HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                                  std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller)
+                                                  std::vector<StackFrame> &stackFrames, int &totalFrames)
 {
     LogFuncEntry();
 
     HRESULT Status;
     int currentFrame = -1;
-
-    auto AddFrameStatementFlag = [&] ()
-    {
-        if (currentFrame == 0)
-            stackFrames.back().activeStatementFlags |= StackFrame::ActiveStatementFlags::LeafFrame;
-        else
-            stackFrames.back().activeStatementFlags |= StackFrame::ActiveStatementFlags::NonLeafFrame;
-    };
 
     // CoreCLR native frame + at least one user's native frame (note, `FrameNative` case should never happen)
     static const std::string FrameCLRNativeText = "[Native Frames]";
@@ -1039,7 +956,6 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
             case FrameUnknown:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, "?");
                 stackFrames.back().addr = addr;
-                AddFrameStatementFlag();
                 break;
             case FrameNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, pNative->procName);
@@ -1048,13 +964,11 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
                 stackFrames.back().moduleOrLibName = pNative->libName;
                 stackFrames.back().source = Source(pNative->fullSourcePath);
                 stackFrames.back().line = pNative->lineNum;
-                AddFrameStatementFlag();
                 break;
             case FrameCLRNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
                 stackFrames.back().addr = addr;
                 stackFrames.back().unknownFrameAddr = !addr; // Could be 0 here only in case some CoreCLR registers context issue.
-                AddFrameStatementFlag();
                 break;
             case FrameCLRInternal:
                 {
@@ -1068,18 +982,16 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
                     stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
                     stackFrames.back().addr = addr;
                     stackFrames.back().unknownFrameAddr = !addr; // Could be 0 here only in case some CoreCLR registers context issue.
-                    AddFrameStatementFlag();
                 }
                 break;
             case FrameCLRManaged:
                 {
                     StackFrame stackFrame;
-                    GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame, hotReloadAwareCaller);
+                    GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
                     stackFrames.push_back(stackFrame);
                     stackFrames.back().addr = addr;
                     stackFrames.back().unknownFrameAddr = !addr; // Could be 0 here only in case some CoreCLR registers context issue.
                     stackFrames.back().moduleOrLibName = GetModuleNameForFrame(pFrame);
-                    AddFrameStatementFlag();
                 }
                 break;
         }
@@ -1191,7 +1103,7 @@ HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, Thre
     return S_OK;
 }
 
-HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller)
+HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames)
 {
     LogFuncEntry();
 
@@ -1201,7 +1113,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
 
     ToRelease<ICorDebugThread> pThread;
     if (SUCCEEDED(Status = m_iCorProcess->GetThread(int(threadId), &pThread)))
-        return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames, hotReloadAwareCaller);
+        return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames);
 
     return Status;
 }
@@ -1405,142 +1317,6 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 {
     m_stepFiltering = enable;
     m_uniqueSteppers->SetStepFiltering(enable);
-}
-
-HRESULT ManagedDebugger::SetHotReload(bool enable)
-{
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
-
-    if (m_iCorProcess && m_startMethod == StartAttach)
-        return CORDBG_E_CANNOT_BE_ON_ATTACH;
-
-    m_hotReload = enable;
-
-    return S_OK;
-}
-
-static HRESULT ApplyMetadataAndILDeltas(Modules *pModules, const std::string &dllFileName, const std::string &deltaMD, const std::string &deltaIL)
-{
-    HRESULT Status;
-
-    std::ifstream deltaILFileStream(deltaIL, std::ios::in | std::ios::binary | std::ios::ate);
-    std::ifstream deltaMDFileStream(deltaMD, std::ios::in | std::ios::binary | std::ios::ate);
-
-    if (!deltaILFileStream.is_open() || !deltaMDFileStream.is_open())
-        return COR_E_FILENOTFOUND;
-
-    auto deltaILSize = deltaILFileStream.tellg();
-    if (deltaILSize < 0)
-        return E_FAIL;
-    std::unique_ptr<BYTE[]> deltaILMemBlock(new BYTE[(size_t)deltaILSize]);
-    deltaILFileStream.seekg(0, std::ios::beg);
-    deltaILFileStream.read((char*)deltaILMemBlock.get(), deltaILSize);
-
-    auto deltaMDSize = deltaMDFileStream.tellg();
-    if (deltaMDSize < 0)
-        return E_FAIL;
-    std::unique_ptr<BYTE[]> deltaMDMemBlock(new BYTE[(size_t)deltaMDSize]);
-    deltaMDFileStream.seekg(0, std::ios::beg);
-    deltaMDFileStream.read((char*)deltaMDMemBlock.get(), deltaMDSize);
-
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pModules->GetModuleWithName(dllFileName, &pModule, true));
-    ToRelease<ICorDebugModule2> pModule2;
-    IfFailRet(pModule->QueryInterface(IID_ICorDebugModule2, (LPVOID *)&pModule2));
-    IfFailRet(pModule2->ApplyChanges((ULONG)deltaMDSize, deltaMDMemBlock.get(), (ULONG)deltaILSize, deltaILMemBlock.get()));
-
-    return S_OK;
-}
-
-HRESULT ManagedDebuggerBase::ApplyPdbDeltaAndLineUpdates(const std::string &dllFileName, const std::string &deltaPDB, const std::string &lineUpdates,
-                                                         std::string &updatedDLL, std::unordered_set<mdTypeDef> &updatedTypeTokens)
-{
-    HRESULT Status;
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(m_sharedModules->GetModuleWithName(dllFileName, &pModule, true));
-
-    std::unordered_set<mdMethodDef> pdbMethodTokens;
-    IfFailRet(m_sharedModules->ApplyPdbDeltaAndLineUpdates(pModule, m_justMyCode, deltaPDB, lineUpdates, pdbMethodTokens));
-
-    updatedDLL = GetModuleFileName(pModule);
-    for (const auto &methodToken : pdbMethodTokens)
-    {
-        mdTypeDef typeDef;
-        ToRelease<ICorDebugFunction> iCorFunction;
-        ToRelease<ICorDebugClass> iCorClass;
-        if (SUCCEEDED(pModule->GetFunctionFromToken(methodToken, &iCorFunction)) &&
-            SUCCEEDED(iCorFunction->GetClass(&iCorClass)) &&
-            SUCCEEDED(iCorClass->GetToken(&typeDef)))
-            updatedTypeTokens.insert(typeDef);
-    }
-
-    // Since we could have new code lines and new methods added, check all breakpoints again.
-    std::vector<BreakpointEvent> events;
-    m_uniqueBreakpoints->UpdateBreakpointsOnHotReload(pModule, pdbMethodTokens, events);
-    for (const BreakpointEvent &event : events)
-        pProtocol->EmitBreakpointEvent(event);
-
-    return S_OK;
-}
-
-HRESULT ManagedDebuggerBase::FindEvalCapableThread(ToRelease<ICorDebugThread> &pThread)
-{
-    ThreadId lastStoppedId = GetLastStoppedThreadId();
-    std::vector<ThreadId> threadIds;
-    m_sharedThreads->GetThreadIds(threadIds);
-    for (size_t i = 0; i < threadIds.size(); ++i)
-    {
-        if (threadIds[i] == lastStoppedId)
-        {
-            std::swap(threadIds[0], threadIds[i]);
-            break;
-        }
-    }
-
-    for (auto &threadId : threadIds)
-    {
-        ToRelease<ICorDebugValue> iCorValue;
-        if (SUCCEEDED(m_iCorProcess->GetThread(int(threadId), &pThread)) &&
-            SUCCEEDED(m_sharedEvalHelpers->CreateString(pThread, "test_string", &iCorValue)))
-        {
-            return S_OK;
-        }
-        pThread.Free();
-    }
-
-    return E_FAIL;
-}
-
-HRESULT ManagedDebugger::HotReloadApplyDeltas(const std::string &dllFileName, const std::string &deltaMD, const std::string &deltaIL,
-                                              const std::string &deltaPDB, const std::string &lineUpdates)
-{
-    LogFuncEntry();
-
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
-
-    if (!m_iCorProcess)
-        return E_FAIL;
-
-    // Deltas can be applied only on stopped debuggee process. For Hot Reload scenario we temporary stop it and continue after deltas applied.
-    HRESULT Status;
-    IfFailRet(m_sharedCallbacksQueue->Stop(m_iCorProcess));
-    bool continueProcess = (Status == S_OK); // Was stopped by m_sharedCallbacksQueue->Stop() call.
-
-    IfFailRet(ApplyMetadataAndILDeltas(m_sharedModules.get(), dllFileName, deltaMD, deltaIL));
-    std::string updatedDLL;
-    std::unordered_set<mdTypeDef> updatedTypeTokens;
-    IfFailRet(ApplyPdbDeltaAndLineUpdates(dllFileName, deltaPDB, lineUpdates, updatedDLL, updatedTypeTokens));
-
-    ToRelease<ICorDebugThread> pThread;
-    if (SUCCEEDED(FindEvalCapableThread(pThread)))
-        IfFailRet(HotReloadHelpers::UpdateApplication(pThread, m_sharedModules.get(), m_sharedEvaluator.get(), m_sharedEvalHelpers.get(), updatedDLL, updatedTypeTokens));
-    else
-        IfFailRet(m_uniqueBreakpoints->SetHotReloadBreakpoint(updatedDLL, updatedTypeTokens));
-
-    if (continueProcess)
-        IfFailRet(m_sharedCallbacksQueue->Continue(m_iCorProcess));
-
-    return S_OK;
 }
 
 } // namespace dncdbg

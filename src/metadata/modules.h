@@ -18,7 +18,6 @@
 #include <mutex>
 #include <memory>
 #include "interfaces/types.h"
-#include "metadata/modules_app_update.h"
 #include "metadata/modules_sources.h"
 #include "utils/string_view.h"
 #include "utils/torelease.h"
@@ -33,25 +32,19 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
 
 struct ModuleInfo
 {
-    std::vector<PVOID> m_symbolReaderHandles;
+    PVOID m_symbolReaderHandle = nullptr;
     ToRelease<ICorDebugModule> m_iCorModule;
-    // Cache for LineUpdates data for all methods in this module (Hot Reload related).
-    method_block_updates_t m_methodBlockUpdates;
 
     ModuleInfo(PVOID Handle, ICorDebugModule *Module) :
+        m_symbolReaderHandle(Handle),
         m_iCorModule(Module)
-    {
-        if (Handle == nullptr)
-            return;
-
-        m_symbolReaderHandles.reserve(1);
-        m_symbolReaderHandles.emplace_back(Handle);
-    }
+    {}
 
     ModuleInfo(ModuleInfo&& other) noexcept :
-        m_symbolReaderHandles(std::move(other.m_symbolReaderHandles)),
+        m_symbolReaderHandle(other.m_symbolReaderHandle),
         m_iCorModule(std::move(other.m_iCorModule))
     {
+        other.m_symbolReaderHandle = nullptr;
     }
     ModuleInfo(const ModuleInfo&) = delete;
     ModuleInfo& operator=(ModuleInfo&&) = delete;
@@ -81,12 +74,8 @@ public:
 
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
     HRESULT GetIndexBySourceFullPath(std::string fullPath, unsigned &index);
-    HRESULT ApplyPdbDeltaAndLineUpdates(ICorDebugModule *pModule, bool needJMC, const std::string &deltaPDB,
-                                        const std::string &lineUpdates, std::unordered_set<mdMethodDef> &methodTokens);
 
-    HRESULT GetModuleWithName(const std::string &name, ICorDebugModule **ppModule, bool onlyWithPDB = false);
-
-    void CopyModulesUpdateHandlerTypes(std::vector<ToRelease<ICorDebugType>> &modulesUpdateHandlerTypes);
+    HRESULT GetModuleWithName(const std::string &name, ICorDebugModule **ppModule);
 
     typedef std::function<HRESULT(ModuleInfo &)> ModuleInfoCallback;
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfoCallback cb);
@@ -124,7 +113,6 @@ public:
         ICorDebugModule *pModule,
         Module &module,
         bool needJMC,
-        bool needHotReload,
         std::string &outputText);
 
     void CleanupAllModules();
@@ -132,7 +120,6 @@ public:
     HRESULT GetFrameNamedLocalVariable(
         ICorDebugModule *pModule,
         mdMethodDef methodToken,
-        ULONG32 methodVersion,
         ULONG localIndex,
         WSTRING &localName,
         ULONG32 *pIlStart,
@@ -141,14 +128,12 @@ public:
     HRESULT GetHoistedLocalScopes(
         ICorDebugModule *pModule,
         mdMethodDef methodToken,
-        ULONG32 methodVersion,
         PVOID *data,
         int32_t &hoistedLocalScopesCount);
 
     HRESULT GetNextUserCodeILOffsetInMethod(
         ICorDebugModule *pModule,
         mdMethodDef methodToken,
-        ULONG32 methodVersion,
         ULONG32 ilOffset,
         ULONG32 &ilNextOffset,
         bool *noUserCodeFound = nullptr);
@@ -156,7 +141,6 @@ public:
     HRESULT GetSequencePointByILOffset(
         CORDB_ADDRESS modAddress,
         mdMethodDef methodToken,
-        ULONG32 methodVersion,
         ULONG32 ilOffset,
         SequencePoint &sequencePoint);
 
@@ -170,7 +154,6 @@ private:
 
     std::mutex m_modulesInfoMutex;
     std::unordered_map<CORDB_ADDRESS, ModuleInfo> m_modulesInfo;
-    ModulesAppUpdate m_modulesAppUpdate;
 
     // Note, m_modulesSources have its own mutex for private data state sync.
     ModulesSources m_modulesSources;

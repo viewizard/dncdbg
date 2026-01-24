@@ -98,7 +98,6 @@ protected:
 
     bool m_justMyCode;
     bool m_stepFiltering;
-    bool m_hotReload;
 
     PVOID m_unregisterToken;
     DWORD m_processId;
@@ -115,13 +114,9 @@ protected:
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();
 
-    HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame, bool hotReloadAwareCaller = false);
+    HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame);
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                 std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller);
-
-    HRESULT FindEvalCapableThread(ToRelease<ICorDebugThread> &pThread);
-    HRESULT ApplyPdbDeltaAndLineUpdates(const std::string &dllFileName, const std::string &deltaPDB, const std::string &lineUpdates,
-                                        std::string &updatedDLL, std::unordered_set<mdTypeDef> &updatedTypeTokens);
+                                 std::vector<StackFrame> &stackFrames, int &totalFrames);
 };
 
 class ManagedDebuggerHelpers : public ManagedDebuggerBase
@@ -150,8 +145,6 @@ public:
     void SetJustMyCode(bool enable) override;
     bool IsStepFiltering() const override { return m_stepFiltering; }
     void SetStepFiltering(bool enable) override;
-    bool IsHotReload() const override { return m_hotReload; }
-    HRESULT SetHotReload(bool enable) override;
 
     HRESULT Initialize() override;
     HRESULT Attach(int pid) override;
@@ -165,14 +158,13 @@ public:
     HRESULT Continue(ThreadId threadId) override;
     HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat) override;
     HRESULT GetThreads(std::vector<Thread> &threads) override;
-    HRESULT UpdateLineBreakpoint(int id, int linenum, Breakpoint &breakpoint) override;
     HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT BreakpointActivate(int id, bool act) override;
     void EnumerateBreakpoints(std::function<bool (const IDebugger::BreakpointInfo&)>&& callback) override;
     HRESULT AllBreakpointsActivate(bool act) override;
-    HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames, bool hotReloadAwareCaller = false) override;
+    HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames) override;
     HRESULT StepCommand(ThreadId threadId, StepType stepType) override;
     HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes) override;
     HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count, std::vector<Variable> &variables) override;
@@ -184,8 +176,6 @@ public:
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo) override;
     HRESULT GetSourceFile(const std::string &sourcePath, char** fileBuf, int* fileLen) override;
     void FreeUnmanaged(PVOID mem) override;
-    HRESULT HotReloadApplyDeltas(const std::string &dllFileName, const std::string &deltaMD, const std::string &deltaIL,
-                                 const std::string &deltaPDB, const std::string &lineUpdates) override;
 
     void FindFileNames(string_view pattern, unsigned limit, SearchCallback) override;
     void FindFunctions(string_view pattern, unsigned limit, SearchCallback) override;

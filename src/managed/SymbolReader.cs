@@ -727,16 +727,19 @@ namespace DNCDbg
         /// <param name="Count">entry's count in data</param>
         /// <param name="data">pointer to memory with result</param>
         /// <returns>"Ok" if information is available</returns>
-        internal static RetCode ResolveBreakPoints(IntPtr symbolReaderHandles, int tokenNum, IntPtr Tokens, int sourceLine, int nestedToken,
+        internal static RetCode ResolveBreakPoints(IntPtr symbolReaderHandle, int tokenNum, IntPtr Tokens, int sourceLine, int nestedToken,
                                                    out int Count, [MarshalAs(UnmanagedType.LPWStr)] string sourcePath, out IntPtr data)
         {
-            Debug.Assert(symbolReaderHandles != IntPtr.Zero);
+            Debug.Assert(symbolReaderHandle != IntPtr.Zero);
             Count = 0;
             data = IntPtr.Zero;
             var list = new List<resolved_bp_t>();
 
             try
             {
+                GCHandle gch = GCHandle.FromIntPtr(symbolReaderHandle);
+                MetadataReader reader = ((OpenedReader)gch.Target).Reader;
+
                 // In case nestedToken + sourceLine is part of constructor (tokenNum > 1) we could have cases:
                 // 1. type FieldName1 = new Type();
                 //    void MethodName() {}; type FieldName2 = new Type(); ...  <-- sourceLine
@@ -751,19 +754,19 @@ namespace DNCDbg
                 // We need check if nestedToken's method code closer to sourceLine than code from methodToken's method.
                 // If sourceLine closer to nestedToken's method code - setup breakpoint in nestedToken's method.
 
-                SequencePoint SequencePointForSourceLine(Position reqPos, ref MetadataReader reader, int methodToken)
+                SequencePoint SequencePointForSourceLine(Position reqPos, ref MetadataReader _reader, int methodToken)
                 {
                     // Note, SequencePoints ordered by IL offsets, not by line numbers.
                     // For example, infinite loop `while(true)` will have IL offset after cycle body's code.
                     SequencePoint nearestSP = new SequencePoint();
 
-                    foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))
+                    foreach (SequencePoint p in GetSequencePointCollection(methodToken, _reader))
                     {
                         if (p.StartLine == 0 || p.StartLine == SequencePoint.HiddenLine || p.EndLine < sourceLine)
                             continue;
 
                         // Note, in case of constructors, we must care about source too, since we may have situation when field/property have same line in another source.
-                        var fileName = reader.GetString(reader.GetDocument(p.Document).Name);
+                        var fileName = _reader.GetString(_reader.GetDocument(p.Document).Name);
                         if (fileName != sourcePath)
                             continue;
 
@@ -794,10 +797,6 @@ namespace DNCDbg
                 int elementSize = 4;
                 for (int i = 0; i < tokenNum; i++)
                 {
-                    IntPtr symbolReaderHandle = Marshal.ReadIntPtr(symbolReaderHandles, i * IntPtr.Size);
-                    GCHandle gch = GCHandle.FromIntPtr(symbolReaderHandle);
-                    MetadataReader reader = ((OpenedReader)gch.Target).Reader;
-
                     int methodToken = Marshal.ReadInt32(Tokens, i * elementSize);
                     SequencePoint current_p = SequencePointForSourceLine(Position.First, ref reader, methodToken);
                     // Note, we don't check that current_p was found or not, since we know for sure, that sourceLine could be resolved in method.

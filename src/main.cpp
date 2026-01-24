@@ -56,9 +56,6 @@ static void print_help()
         "--interpreter=vscode                  Puts the debugger into VS Code Debugger mode.\n"
         "--command=<file>                      Interpret commands file at the start.\n"
         "-ex \"<command>\"                       Execute command at the start\n"
-#ifdef NCDB_DOTNET_STARTUP_HOOK
-        "--hot-reload                          Enable Hot Reload feature.\n"
-#endif
         "--run                                 Run program without waiting commands\n"
         "--engineLogging[=<path to log file>]  Enable logging to VsDbg-UI or file for the engine.\n"
         "                                      Only supported by the VsCode interpreter.\n"
@@ -248,8 +245,6 @@ int
     std::string execFile;
     std::vector<std::string> execArgs;
 
-    bool needHotReload = false;
-    bool needInteropDebugging = false;
     bool run = false;
 
     std::unordered_map<std::string, std::function<void(int& i)>> entireArguments
@@ -284,16 +279,6 @@ int
         { "--interpreter=cli", [&](int& i){
 
             protocol_constructor = &instantiate_protocol<CLIProtocol>;
-
-        } },
-        { "--interop-debugging", [&](int& i){
-
-            needInteropDebugging = true;
-
-        } },
-        { "--hot-reload", [&](int& i){
-
-            needHotReload = true;
 
         } },
         { "--run", [&](int& i){
@@ -460,13 +445,6 @@ int
     }
 
     protocol->SetDebugger(debugger);
-    if (needHotReload)
-    {
-        if (pidDebuggee == 0)
-            debugger->SetHotReload(needHotReload);
-        else
-            fprintf(stderr, "Warning: Hot Reload can't be be enabled for attached process.\n");
-    }
 
     if (!execFile.empty())
         protocol->SetLaunchCommand(execFile, execArgs);

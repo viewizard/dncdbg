@@ -25,11 +25,6 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(pFrame->GetFunction(&pFunc));
 
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
-
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
@@ -48,7 +43,6 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
 
     fullyQualifiedIlOffset.modAddress = modAddress;
     fullyQualifiedIlOffset.methodToken = methodToken;
-    fullyQualifiedIlOffset.methodVersion = methodVersion;
     fullyQualifiedIlOffset.ilOffset = ilOffset;
 
     return S_OK;
@@ -108,17 +102,16 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     IfFailRet(GetFullyQualifiedIlOffset(pThread, fullyQualifiedIlOffset));
 
     if (fullyQualifiedIlOffset.modAddress != m_lastStoppedIlOffset.modAddress ||
-        fullyQualifiedIlOffset.methodToken != m_lastStoppedIlOffset.methodToken ||
-        fullyQualifiedIlOffset.methodVersion != m_lastStoppedIlOffset.methodVersion)
+        fullyQualifiedIlOffset.methodToken != m_lastStoppedIlOffset.methodToken)
         return S_FALSE;
 
     Modules::SequencePoint lastSP;
     IfFailRet(m_sharedModules->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
-                                                          m_lastStoppedIlOffset.methodVersion, m_lastStoppedIlOffset.ilOffset, lastSP));
+                                                          m_lastStoppedIlOffset.ilOffset, lastSP));
 
     Modules::SequencePoint curSP;
     IfFailRet(m_sharedModules->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
-                                                          fullyQualifiedIlOffset.methodVersion, fullyQualifiedIlOffset.ilOffset, curSP));
+                                                          fullyQualifiedIlOffset.ilOffset, curSP));
 
     if (lastSP.startLine != curSP.startLine ||
         lastSP.startColumn != curSP.startColumn ||

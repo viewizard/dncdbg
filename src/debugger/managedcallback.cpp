@@ -251,7 +251,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 
     Module module;
     std::string outputText;
-    m_debugger.m_sharedModules->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), m_debugger.IsHotReload(), outputText);
+    m_debugger.m_sharedModules->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), outputText);
     if (!outputText.empty())
     {
         m_debugger.pProtocol->EmitOutputEvent(OutputStdErr, outputText);
@@ -267,7 +267,6 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
             m_debugger.pProtocol->EmitBreakpointEvent(event);
         }
     }
-    m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModuleAll(pModule);
 
     // enable Debugger.NotifyOfCrossThreadDependency after System.Private.CoreLib.dll loaded (trigger for 1 time call only)
     if (module.name == "System.Private.CoreLib.dll")

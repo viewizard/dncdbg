@@ -43,7 +43,6 @@ private:
     std::unordered_map<uint32_t, ExceptionBreakpoint> m_exceptionBreakpoints;
 
 public:
-    HRESULT UpdateLineBreakpoint(std::shared_ptr<IDebugger> &sharedDebugger, int id, int linenum, Breakpoint &breakpoint);
     HRESULT SetLineBreakpoint(std::shared_ptr<IDebugger> &sharedDebugger, const std::string &module, const std::string &filename,
                               int linenum, const std::string &condition, Breakpoint &breakpoints);
     HRESULT SetFuncBreakpoint(std::shared_ptr<IDebugger> &sharedDebugger, const std::string &module, const std::string &funcname,
@@ -63,7 +62,6 @@ namespace ProtocolUtils
     int ParseInt(const std::string &s, bool &ok);
     void StripArgs(std::vector<std::string> &args);
     int GetIntArg(const std::vector<std::string> &args, const std::string& name, int defaultValue);
-    bool FindAndEraseArg(std::vector<std::string> &args, const std::string &name);
     bool GetIndices(const std::vector<std::string> &args, int &index1, int &index2);
     BreakType GetBreakpointType(const std::vector<std::string> &args);
     std::string GetConditionPrepareArgs(std::vector<std::string> &args);

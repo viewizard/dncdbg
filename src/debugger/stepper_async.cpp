@@ -257,10 +257,8 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType st
     IfFailRet(pFunc->GetModule(&pModule));
     CORDB_ADDRESS modAddress;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
-    ULONG32 methodVersion;
-    IfFailRet(pCode->GetVersionNumber(&methodVersion));
 
-    if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken, methodVersion))
+    if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken))
         return S_FALSE; // setup simple stepper
 
     ToRelease<ICorDebugILFrame> pILFrame;
@@ -277,7 +275,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType st
     // switch to step-out, so whole NotifyDebuggerOfWaitCompletion magic happens.
     ULONG32 lastIlOffset;
     if (stepType != IDebugger::StepType::STEP_OUT &&
-        m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, methodVersion, lastIlOffset) &&
+        m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
         ipOffset >= lastIlOffset)
     {
         stepType = IDebugger::StepType::STEP_OUT;
@@ -302,7 +300,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType st
     }
 
     AsyncInfo::AwaitInfo *awaitInfo = nullptr;
-    if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, methodVersion, ipOffset, &awaitInfo))
+    if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, &awaitInfo))
     {
         // We have step inside async function with await, setup breakpoint at closest await's yield_offset.
         // Two possible cases here:
