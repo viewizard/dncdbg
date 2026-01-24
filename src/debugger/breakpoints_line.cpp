@@ -69,9 +69,6 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     // Same logic as provide vsdbg - only one breakpoint is active for one line, find first active in the list.
     for (auto &b : bList)
     {
-        if (!b.enabled)
-            continue;
-
         for (const auto &iCorFuncBreakpoint : b.iCorFuncBreakpoints)
         {
             IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, iCorFuncBreakpoint));
@@ -113,22 +110,12 @@ static HRESULT EnableOneICorBreakpointForLine(std::list<LineBreakpoints::Managed
         if ((*it).iCorFuncBreakpoints.empty())
             continue;
 
-        if ((*it).enabled)
+        for (const auto &iCorFuncBreakpoint : (*it).iCorFuncBreakpoints)
         {
-            for (const auto &iCorFuncBreakpoint : (*it).iCorFuncBreakpoints)
-            {
-                HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
-                Status = FAILED(ret) ? ret : Status;
-            }
-            needEnable = FALSE;
+            HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
+            Status = FAILED(ret) ? ret : Status;
         }
-        else
-        {
-            for (const auto &iCorFuncBreakpoint : (*it).iCorFuncBreakpoints)
-            {
-                iCorFuncBreakpoint->Activate(FALSE);
-            }
-        }
+        needEnable = FALSE;
     }
     return Status;
 }
@@ -211,7 +198,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
 
         ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
         IfFailRet(pCode->CreateBreakpoint(resolvedBP.ilOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(bp.enabled ? TRUE : FALSE));
+        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
 
         bp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
     }
@@ -244,7 +231,6 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
             ManagedLineBreakpoint bp;
             bp.id = initialBreakpoint.id;
             bp.module = initialBreakpoint.breakpoint.module;
-            bp.enabled = initialBreakpoint.enabled;
             bp.linenum = initialBreakpoint.breakpoint.line;
             bp.endLine = initialBreakpoint.breakpoint.line;
             bp.condition = initialBreakpoint.breakpoint.condition;
@@ -445,86 +431,6 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string&
     }
 
     return S_OK;
-}
-
-HRESULT LineBreakpoints::AllBreakpointsActivate(bool act)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    HRESULT Status = S_OK;
-    // resolved breakpoints
-    for (auto &file_bps : m_lineResolvedBreakpoints)
-    {
-        for(auto &line_bps : file_bps.second)
-        {
-            for (auto &rbp : line_bps.second)
-            {
-                rbp.enabled = act;
-            }
-            HRESULT ret = EnableOneICorBreakpointForLine(line_bps.second);
-            Status = FAILED(ret) ? ret : Status;
-        }
-    }
-
-    // mapping (for both - resolved and unresolved breakpoints)
-    for (auto &file_bps : m_lineBreakpointMapping)
-    {
-        for (auto &bp: file_bps.second)
-        {
-            bp.enabled = act;
-        }
-    }
-
-    return Status;
-}
-
-HRESULT LineBreakpoints::BreakpointActivate(uint32_t id, bool act)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    auto activateResolved = [&](ManagedLineBreakpointMapping &bp) -> HRESULT
-    {
-        auto bMap_it = m_lineResolvedBreakpoints.find(bp.resolved_fullname_index);
-        if (bMap_it == m_lineResolvedBreakpoints.end())
-            return E_FAIL;
-
-        auto bList_it = bMap_it->second.find(bp.resolved_linenum);
-        if (bList_it == bMap_it->second.end())
-            return E_FAIL;
-
-        for(auto &rbp : bList_it->second)
-        {
-            if (rbp.id != bp.id)
-                continue;
-
-            rbp.enabled = act;
-            return EnableOneICorBreakpointForLine(bList_it->second);
-        }
-
-        return E_FAIL;
-    };
-
-    auto activateAllMapped = [&]() -> HRESULT
-    {
-        for (auto &file_bps : m_lineBreakpointMapping)
-        {
-            for (auto &bp: file_bps.second)
-            {
-                if (bp.id != id)
-                    continue;
-
-                bp.enabled = act;
-                if (!bp.resolved_linenum)
-                    return S_OK; // no resolved breakpoint, we done with success
-                else
-                    return activateResolved(bp); // use mapped data for fast find resolved breakpoint
-            }
-        }
-
-        return E_FAIL;
-    };
-
-    return activateAllMapped();
 }
 
 } // namespace dncdbg

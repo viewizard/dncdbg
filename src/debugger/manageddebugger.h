@@ -161,8 +161,6 @@ public:
     HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) override;
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints) override;
-    HRESULT BreakpointActivate(int id, bool act) override;
-    HRESULT AllBreakpointsActivate(bool act) override;
     HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames) override;
     HRESULT StepCommand(ThreadId threadId, StepType stepType) override;
     HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes) override;

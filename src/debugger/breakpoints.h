@@ -45,9 +45,6 @@ public:
 
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
 
-    HRESULT BreakpointActivate(uint32_t id, bool act);
-    HRESULT AllBreakpointsActivate(bool act);
-
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
     // Bad :

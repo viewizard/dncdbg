@@ -37,8 +37,6 @@ public:
     void DeleteAll();
     HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
                                std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
-    HRESULT AllBreakpointsActivate(bool act);
-    HRESULT BreakpointActivate(uint32_t id, bool act);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
@@ -68,7 +66,6 @@ private:
         std::string name;
         std::string params;
         ULONG32 times;
-        bool enabled;
         std::string condition;
         std::vector<ToRelease<ICorDebugFunctionBreakpoint> > iCorFuncBreakpoints;
 
@@ -76,7 +73,7 @@ private:
         bool IsVerified() const { return !iCorFuncBreakpoints.empty(); }
 
         ManagedFuncBreakpoint() :
-            id(0), module_checked(false), times(0), enabled(true)
+            id(0), module_checked(false), times(0)
         {}
 
         ~ManagedFuncBreakpoint()

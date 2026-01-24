@@ -188,21 +188,6 @@ HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, Exceptio
     return m_uniqueExceptionBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event);
 }
 
-HRESULT Breakpoints::AllBreakpointsActivate(bool act)
-{
-    HRESULT Status1 = m_uniqueLineBreakpoints->AllBreakpointsActivate(act);
-    HRESULT Status2 = m_uniqueFuncBreakpoints->AllBreakpointsActivate(act);
-    return FAILED(Status1) ? Status1 : Status2;
-}
-
-HRESULT Breakpoints::BreakpointActivate(uint32_t id, bool act)
-{
-    if (SUCCEEDED(m_uniqueLineBreakpoints->BreakpointActivate(id, act)))
-        return S_OK;
-
-    return m_uniqueFuncBreakpoints->BreakpointActivate(id, act);
-}
-
 HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
 {
     return m_uniqueExceptionBreakpoints->ManagedCallbackExitThread(pThread);

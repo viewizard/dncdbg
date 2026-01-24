@@ -81,7 +81,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     {
         ManagedFuncBreakpoint &fbp = fb.second;
 
-        if (!fbp.enabled || (!fbp.params.empty() && params != fbp.params))
+        if (!fbp.params.empty() && params != fbp.params)
             continue;
 
         for (auto &iCorFuncBreakpoint : fbp.iCorFuncBreakpoints)
@@ -231,7 +231,7 @@ HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedF
 
         ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
         IfFailRet(pCode->CreateBreakpoint(ilNextOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(fbp.enabled ? TRUE : FALSE));
+        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
 
         fbp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
     }
@@ -271,50 +271,5 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule,
     return AddFuncBreakpoint(fbp, fbpResolved);
 }
 
-HRESULT FuncBreakpoints::AllBreakpointsActivate(bool act)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    HRESULT Status = S_OK;
-    for (auto &fbp : m_funcBreakpoints)
-    {
-        for (auto &iCorFuncBreakpoint : fbp.second.iCorFuncBreakpoints)
-        {
-            if (!iCorFuncBreakpoint)
-                continue;
-
-            HRESULT ret = iCorFuncBreakpoint->Activate(act ? TRUE : FALSE);
-            Status = FAILED(ret) ? ret : Status;
-        }
-        fbp.second.enabled = act;
-    }
-
-    return Status;
-}
-
-HRESULT FuncBreakpoints::BreakpointActivate(uint32_t id, bool act)
-{
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
-
-    for (auto &fbp : m_funcBreakpoints)
-    {
-        if (fbp.second.id != id)
-            continue;
-
-        HRESULT Status = S_OK;
-        for (auto &iCorFuncBreakpoint : fbp.second.iCorFuncBreakpoints)
-        {
-            if (!iCorFuncBreakpoint)
-                continue;
-
-            HRESULT ret = iCorFuncBreakpoint->Activate(act ? TRUE : FALSE);
-            Status = FAILED(ret) ? ret : Status;
-        }
-        fbp.second.enabled = act;
-        return Status;
-    }
-
-    return E_FAIL;
-}
 
 } // namespace dncdbg

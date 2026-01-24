@@ -37,8 +37,6 @@ public:
     void DeleteAll();
     HRESULT SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
                                std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
-    HRESULT AllBreakpointsActivate(bool act);
-    HRESULT BreakpointActivate(uint32_t id, bool act);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
@@ -61,7 +59,6 @@ public:
         CORDB_ADDRESS modAddress;
         int linenum;
         int endLine;
-        bool enabled;
         ULONG32 times;
         std::string condition;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
@@ -71,7 +68,7 @@ public:
         bool IsVerified() const { return !iCorFuncBreakpoints.empty(); }
 
         ManagedLineBreakpoint() :
-            id(0), modAddress(0), linenum(0), endLine(0), enabled(true), times(0)
+            id(0), modAddress(0), linenum(0), endLine(0), times(0)
         {}
 
         ~ManagedLineBreakpoint()
@@ -101,11 +98,10 @@ private:
     {
         LineBreakpoint breakpoint;
         uint32_t id;
-        bool enabled;
         unsigned resolved_fullname_index;
         int resolved_linenum; // if int is 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
 
-        ManagedLineBreakpointMapping() : breakpoint("", 0, ""), id(0), enabled(true), resolved_fullname_index(0), resolved_linenum(0) {}
+        ManagedLineBreakpointMapping() : breakpoint("", 0, ""), id(0), resolved_fullname_index(0), resolved_linenum(0) {}
         ~ManagedLineBreakpointMapping() = default;
     };
 

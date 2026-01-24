@@ -852,19 +852,6 @@ HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &f
     return m_uniqueBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::BreakpointActivate(int id, bool act)
-{
-    if (SUCCEEDED(m_uniqueBreakpoints->BreakpointActivate(id, act)))
-        return S_OK;
-
-    return E_FAIL;
-}
-
-HRESULT ManagedDebugger::AllBreakpointsActivate(bool act)
-{
-    return m_uniqueBreakpoints->AllBreakpointsActivate(act);
-}
-
 HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame)
 {
     HRESULT Status;
