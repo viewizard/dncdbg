@@ -114,8 +114,6 @@ set(dncdbg_SRC
     utils/ioredirect.cpp
     utils/iosystem_unix.cpp
     utils/iosystem_win32.cpp
-    utils/interop_unix.cpp
-    utils/interop_win32.cpp
     utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp

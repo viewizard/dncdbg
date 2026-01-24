@@ -119,22 +119,4 @@ namespace Interop
     void CoTaskMemFree(PVOID ptr);
 } // namespace Interop
 
-
-// Set of platform-specific functions implemented in separate, platform-specific modules.
-template <typename PlatformTag>
-struct InteropTraits
-{
-    /// This function searches *.dll files in specified directory and adds full paths to files
-    /// to colon-separated list `tpaList` (semicolon-separated list on Windows).
-    static void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& tpaList);
-
-    /// This function unsets `CORECLR_ENABLE_PROFILING' environment variable.
-    static void UnsetCoreCLREnv();
-
-    /// Returns the length of a BSTR.
-    static UINT SysStringLen(BSTR bstrString);
-};
-
-typedef InteropTraits<PlatformTag> InteropPlatform;
-
 } // namespace dncdbg

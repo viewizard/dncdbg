@@ -12,9 +12,25 @@
 #include <coreclrhost.h>
 #include <thread>
 #include <string>
+#include <set>
+
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <dirent.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#elif WIN32
+#include <windows.h>
+#include <stddef.h>
+#include <string.h>
+#include <string>
+#include <set>
+#include "utils/limits.h"
+#endif
 
 #include "palclr.h"
-#include "utils/platform.h"
 #include "metadata/modules.h"
 #include "utils/dynlibs.h"
 #include "utils/utf.h"
@@ -42,6 +58,172 @@ namespace Interop
 
 namespace // unnamed namespace
 {
+
+// This function searches *.dll files in specified directory and adds full paths to files
+// to colon-separated list `tpaList'.
+void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& tpaList)
+{
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+    const char * const tpaExtensions[] = {
+                ".ni.dll",      // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
+                ".dll",
+                ".ni.exe",
+                ".exe",
+                };
+
+    DIR* dir = opendir(directory.c_str());
+    if (dir == nullptr)
+        return;
+
+    std::set<std::string> addedAssemblies;
+
+    // Walk the directory for each extension separately so that we first get files with .ni.dll extension,
+    // then files with .dll extension, etc.
+    for (size_t extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
+    {
+        const char* ext = tpaExtensions[extIndex];
+        int extLength = strlen(ext);
+
+        struct dirent* entry;
+
+        // For all entries in the directory
+        while ((entry = readdir(dir)) != nullptr)
+        {
+            // We are interested in files only
+            switch (entry->d_type)
+            {
+            case DT_REG:
+                break;
+
+            // Handle symlinks and file systems that do not support d_type
+            case DT_LNK:
+            case DT_UNKNOWN:
+            {
+                std::string fullFilename;
+
+                fullFilename.append(directory);
+                fullFilename += FileSystem::PathSeparator;
+                fullFilename.append(entry->d_name);
+
+                struct stat sb;
+                if (stat(fullFilename.c_str(), &sb) == -1)
+                    continue;
+
+                if (!S_ISREG(sb.st_mode))
+                    continue;
+            }
+            break;
+
+            default:
+                continue;
+            }
+
+            std::string filename(entry->d_name);
+
+            // Check if the extension matches the one we are looking for
+            int extPos = filename.length() - extLength;
+            if ((extPos <= 0) || (filename.compare(extPos, extLength, ext) != 0))
+            {
+                continue;
+            }
+
+            std::string filenameWithoutExt(filename.substr(0, extPos));
+
+            // Make sure if we have an assembly with multiple extensions present,
+            // we insert only one version of it.
+            if (addedAssemblies.find(filenameWithoutExt) == addedAssemblies.end())
+            {
+                addedAssemblies.insert(filenameWithoutExt);
+
+                tpaList.append(directory);
+                tpaList += FileSystem::PathSeparator;
+                tpaList.append(filename);
+                tpaList.append(":");
+            }
+        }
+
+        // Rewind the directory stream to be able to iterate over it for the next extension
+        rewinddir(dir);
+    }
+
+    closedir(dir);
+#elif WIN32
+    const char * const tpaExtensions[] = {
+        "*.ni.dll",      // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
+        "*.dll",
+        "*.ni.exe",
+        "*.exe",
+    };
+
+    std::set<std::string> addedAssemblies;
+
+    // Walk the directory for each extension separately so that we first get files with .ni.dll extension,
+    // then files with .dll extension, etc.
+    for (int extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
+    {
+        const char* ext = tpaExtensions[extIndex];
+        size_t extLength = strlen(ext);
+
+        std::string assemblyPath(directory);
+        assemblyPath += FileSystem::PathSeparator;
+        assemblyPath.append(tpaExtensions[extIndex]);
+
+        WIN32_FIND_DATAA data;
+        HANDLE findHandle = FindFirstFileA(assemblyPath.c_str(), &data);
+
+        if (findHandle != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+                {
+
+                    std::string filename(data.cFileName);
+                    size_t extPos = filename.length() - extLength;
+                    std::string filenameWithoutExt(filename.substr(0, extPos));
+
+                    // Make sure if we have an assembly with multiple extensions present,
+                    // we insert only one version of it.
+                    if (addedAssemblies.find(filenameWithoutExt) == addedAssemblies.end())
+                    {
+                        addedAssemblies.insert(filenameWithoutExt);
+
+                        tpaList.append(directory);
+                        tpaList += FileSystem::PathSeparator;
+                        tpaList.append(filename);
+                        tpaList.append(";");
+                    }
+                }
+            }
+            while (0 != FindNextFileA(findHandle, &data));
+
+            FindClose(findHandle);
+        }
+    }
+#endif
+}
+
+// This function unsets `CORECLR_ENABLE_PROFILING' environment variable.
+void UnsetCoreCLREnv()
+{
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+    unsetenv("CORECLR_ENABLE_PROFILING");
+#elif WIN32
+    _putenv("CORECLR_ENABLE_PROFILING=");
+#endif
+}
+
+// Returns the length of a BSTR.
+UINT SysStringLen(BSTR bstrString)
+{
+    if (bstrString == NULL)
+        return 0;
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+    return (unsigned int)((((DWORD FAR*)bstrString)[-1]) / sizeof(OLECHAR));
+#elif WIN32
+    return ::SysStringLen(bstrString);
+#endif
+}
 
 enum class RetCode : int32_t
 {
@@ -173,7 +355,7 @@ void Init(const std::string &coreClrPath)
 
     HRESULT Status;
 
-    InteropPlatform::UnsetCoreCLREnv();
+    UnsetCoreCLREnv();
 
     // Pin the module - CoreCLR.so/dll does not support being unloaded.
     // "CoreCLR does not support reinitialization or unloading. Do not call `coreclr_initialize` again or unload the CoreCLR library."
@@ -187,7 +369,7 @@ void Init(const std::string &coreClrPath)
         throw std::invalid_argument("coreclr_initialize not found in lib, CoreCLR path=" + coreClrPath);
 
     std::string tpaList;
-    InteropPlatform::AddFilesFromDirectoryToTpaList(clrDir, tpaList);
+    AddFilesFromDirectoryToTpaList(clrDir, tpaList);
 
     const char *propertyKeys[] = {
         "TRUSTED_PLATFORM_ASSEMBLIES",
@@ -369,7 +551,7 @@ HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef met
         return E_FAIL;
 
     BSTR wszLocalName = Interop::SysAllocStringLen(mdNameLen);
-    if (InteropPlatform::SysStringLen(wszLocalName) == 0)
+    if (SysStringLen(wszLocalName) == 0)
         return E_OUTOFMEMORY;
 
     RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, methodToken, localIndex, &wszLocalName, pIlStart, pIlEnd);
@@ -522,7 +704,7 @@ PVOID AllocString(const std::string &str)
 
     auto wstr = to_utf16(str);
     BSTR bstr = Interop::SysAllocStringLen((int32_t)wstr.size());
-    if (InteropPlatform::SysStringLen(bstr) == 0)
+    if (SysStringLen(bstr) == 0)
         return nullptr;
 
     memmove(bstr, wstr.data(), wstr.size() * sizeof(decltype(wstr[0])));
