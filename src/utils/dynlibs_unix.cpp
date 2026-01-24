@@ -2,9 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file dynlibsi_unix.h  This file contains unix-specific function definitions
-/// required to work with dynamically loading libraries.
-
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
 #if defined(__APPLE__)
@@ -37,7 +34,7 @@ DLHandle DLOpen(const std::string &path)
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns NULL.
-void* DLSym(DLHandle handle, string_view name)
+void* DLSym(DLHandle handle, Utility::string_view name)
 {
     char str[LINE_MAX];
     if (name.size() >= sizeof(str))
@@ -60,8 +57,8 @@ void* DLSym(DLHandle handle, string_view name)
     return tmpPointer;
 }
 
-/// This function unloads previously loadded library, specified by handle.
-/// In case of error this function returns `false'.
+// This function unloads previously loadded library, specified by handle.
+// In case of error this function returns `false'.
 bool DLClose(DLHandle handle)
 {
     int ret = ::dlclose(handle);
@@ -75,5 +72,5 @@ bool DLClose(DLHandle handle)
     return ret;
 }
 
-}  // ::dncdbg
+} // namespace dncdbg
 #endif // __unix__

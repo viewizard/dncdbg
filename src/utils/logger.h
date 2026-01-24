@@ -128,8 +128,6 @@ namespace DLogInternal
 #define LOGE(fmt, ...) LOG_(DLOG_ERROR, LOG_TAG, fmt, ##__VA_ARGS__)
 #define LOGF(fmt, ...) LOG_(DLOG_FATAL, LOG_TAG, fmt, ##__VA_ARGS__)
 
-extern const char *ErrGetStr(int err_code, char buf[], size_t buf_size);
-
 // This macro allows to specify priority and a tag. 
 // The macro definition is similar to original from Tizen's dlog.h
 #define LOG(priority, tag, format, ...) LOG_(D##priority, tag, format, ##__VA_ARGS__)

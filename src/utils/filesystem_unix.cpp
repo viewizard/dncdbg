@@ -2,9 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file filesystem_unix.cpp
-/// This file contains definitions of unix-specific functions related to file system.
-
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -21,7 +18,6 @@
 namespace dncdbg
 {
 
-using Utility::string_view;
 template <typename T> using span = Utility::span<T>;
 
 const char* FileSystemTraits<UnixPlatformTag>::PathSeparatorSymbols = "/";
@@ -64,7 +60,7 @@ std::string GetExeAbsPath()
 // Function returns path to directory, which should be used for creation of
 // temporary files. Typically this is `/tmp` on Unix and something like
 // `C:\Users\localuser\Appdata\Local\Temp` on Windows.
-string_view GetTempDir()
+Utility::string_view GetTempDir()
 {
     auto get_tmpdir = []()
     {
@@ -79,12 +75,11 @@ string_view GetTempDir()
     return result;
 }
 
-
 // Function changes current working directory. Return value is `false` in case of error.
 bool SetWorkDir(const std::string &path)
 {
     return chdir(path.c_str()) == 0;
 }
 
-}  // ::dncdbg
-#endif __unix__
+} // namespace dncdbg
+#endif // __unix__

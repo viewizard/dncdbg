@@ -2,9 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file dynlibsi_win32.h  This file contains windows-specific function definitions
-/// required to work with dynamically loading libraries.
-
 #ifdef WIN32
 #include <windows.h>
 #include "utils/dynlibs.h"
@@ -23,7 +20,7 @@ DLHandle DLOpen(const std::string &path)
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns NULL.
-void* DLSym(DLHandle handle, string_view name)
+void* DLSym(DLHandle handle, Utility::string_view name)
 {
     char str[LINE_MAX];
     if (name.size() >= sizeof(str))
@@ -34,12 +31,12 @@ void* DLSym(DLHandle handle, string_view name)
     return ::GetProcAddress((HMODULE)handle, str);
 }
 
-/// This function unloads previously loadded library, specified by handle.
-/// In case of error this function returns `false'.
+// This function unloads previously loadded library, specified by handle.
+// In case of error this function returns `false'.
 bool DLClose(DLHandle handle)
 {
     return ::FreeLibrary(reinterpret_cast<HMODULE>(handle));
 }
 
-}  // ::dncdbg
-#endif
+} // namespace dncdbg
+#endif // WIN32

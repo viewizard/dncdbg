@@ -29,4 +29,4 @@ bool IsFullPath(const std::string &path)
     return pos != std::string::npos;
 }
 
-}  // ::dncdbg
+} // namespace dncdbg

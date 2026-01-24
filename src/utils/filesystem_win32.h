@@ -18,5 +18,5 @@ namespace dncdbg
         const static char PathSeparator = '\\';
         const static char* PathSeparatorSymbols;
     };
-} 
-#endif
+} // namespace dncdbg
+#endif // WIN32

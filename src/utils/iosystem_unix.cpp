@@ -57,11 +57,8 @@ namespace
                 if (errno == EAGAIN)
                     return {Class::IOResult::Pending, 0};
 
-                // TODO make exception class
-                char buf[1024];
-                char msg[256];
-                snprintf(msg, sizeof(msg), "select: %s", ErrGetStr(errno, buf, sizeof(buf)));
-                throw std::runtime_error(msg);
+                fprintf(stderr, "select error %i", errno);
+                throw std::runtime_error("select error");
             }
 
             return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
@@ -101,10 +98,8 @@ namespace
                 if (errno == EAGAIN)
                     return {Class::IOResult::Pending, 0};
 
-                char buf[1024];
-                char msg[256];
-                snprintf(msg, sizeof(msg), "select: %s", ErrGetStr(errno, buf, sizeof(buf)));
-                throw std::runtime_error(msg);
+                fprintf(stderr, "select error %i", errno);
+                throw std::runtime_error("select error");
             }
 
             return {Class::IOResult::Success, size_t(result)};
@@ -281,10 +276,8 @@ bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandl
 
     if (result < 0)
     {
-        char buf[1024];
-        char msg[256];
-        snprintf(msg, sizeof(msg), "select: %s", ErrGetStr(errno, buf, sizeof(buf)));
-        throw std::runtime_error(msg);
+        fprintf(stderr, "select error %i", errno);
+        throw std::runtime_error("select error");
     }
 
     return result > 0;
@@ -346,18 +339,14 @@ Class::StdIOSwap::StdIOSwap(const StdFiles& files) : m_valid(true)
         m_orig_fd[n] = ::dup(oldfd[n]);
         if (m_orig_fd[n] == -1)
         {
-            char buf[1024];
-            char msg[256];
-            snprintf(msg, sizeof(msg), "dup(%d): %s", oldfd[n], ErrGetStr(errno, buf, sizeof(buf)));
-            throw std::runtime_error(msg);
+            fprintf(stderr, "dup error %i", errno);
+            throw std::runtime_error("dup error");
         }
 
         if (::dup2(newfd[n], oldfd[n]) == -1)
         {
-            char buf[1024];
-            char msg[256];
-            snprintf(msg, sizeof(msg), "dup2(%d, %d): %s", newfd[n], oldfd[n], ErrGetStr(errno, buf, sizeof(buf)));
-            throw std::runtime_error(msg);
+            fprintf(stderr, "dup2 error %i", errno);
+            throw std::runtime_error("dup2 error");
         }
     }
 }

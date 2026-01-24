@@ -128,4 +128,4 @@ void EscapedStringInternal::EscapedStringImpl::transform()
     m_isstring = true;
 }
 
-} // ::dncdbg::Utility
+} // namespace dncdbg

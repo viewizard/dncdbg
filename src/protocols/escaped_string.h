@@ -118,26 +118,26 @@ namespace EscapedStringInternal
 } // namespace EscapedStringInternal
 
 
-/// This class allows lazy transformation of the given source string by substituting
-/// set of "forbidden" characters with escape symbol and other substituted character.
-/// The main idea is to avoid unwanted memory allocation: when it is possible no
-/// memory allocation performed. To achieve this lazy evaluation is used: string
-/// transformation is perfomed only if it is needed.
-///
-/// This class should be used in two steps: first -- creation of class instance from given
-/// arguments, at this time neither memory allocation, nor string transformation is
-/// performed. Only arguments is remembered. And second step -- calling one of the
-/// member functions (see below). At this time string transformation is performed
-/// and memory might be allocated. The latter depends on string content, which
-/// function and when was called... Memory allocation avoided in cases when no
-/// transformation is required (string doesn't contain forbidden characters) and
-/// when arguments, given to class constructor, still not destroyed. Also memory
-/// allocation always avoided in case of call to `operator()`:  in this case
-/// output generated on the fly, but again only if constructor arguments still
-/// exists. String is always transformed and copy saved to allocated memory in
-/// moment, when constructor arguments destroyed (if `EscapedString` class instance
-/// is not temporary variable itself, but continue to exist after end of full expression).
-///
+// This class allows lazy transformation of the given source string by substituting
+// set of "forbidden" characters with escape symbol and other substituted character.
+// The main idea is to avoid unwanted memory allocation: when it is possible no
+// memory allocation performed. To achieve this lazy evaluation is used: string
+// transformation is perfomed only if it is needed.
+//
+// This class should be used in two steps: first -- creation of class instance from given
+// arguments, at this time neither memory allocation, nor string transformation is
+// performed. Only arguments is remembered. And second step -- calling one of the
+// member functions (see below). At this time string transformation is performed
+// and memory might be allocated. The latter depends on string content, which
+// function and when was called... Memory allocation avoided in cases when no
+// transformation is required (string doesn't contain forbidden characters) and
+// when arguments, given to class constructor, still not destroyed. Also memory
+// allocation always avoided in case of call to `operator()`:  in this case
+// output generated on the fly, but again only if constructor arguments still
+// exists. String is always transformed and copy saved to allocated memory in
+// moment, when constructor arguments destroyed (if `EscapedString` class instance
+// is not temporary variable itself, but continue to exist after end of full expression).
+//
 template <typename Traits> class EscapedString
 {
     using string_view = Utility::string_view;
@@ -145,8 +145,8 @@ template <typename Traits> class EscapedString
     static EscapedStringImpl::Params params;
 
 public:
-    /// Construct `EscapedString` from c-strings (via implicit conversion) or string_view.
-    /// Second parameter must have default value (shouldn't be assigned explicitly).
+    // Construct `EscapedString` from c-strings (via implicit conversion) or string_view.
+    // Second parameter must have default value (shouldn't be assigned explicitly).
     EscapedString(string_view str,
         const EscapedStringImpl::TempRef& ref = EscapedStringImpl::TempRef())
     : 
@@ -157,25 +157,25 @@ public:
     // temporary objects construction and destruction ordef for constructors are
     // predefined, and TempRef always destructed prior to temporary string.
 
-    /// This function allows to avoid memory allocation: functor `func` given as argument
-    /// will consume parts of result (transformed string) which will be generated on the fly.
-    /// Functor `func` must accept `string_view` as argument.
+    // This function allows to avoid memory allocation: functor `func` given as argument
+    // will consume parts of result (transformed string) which will be generated on the fly.
+    // Functor `func` must accept `string_view` as argument.
     template <typename Func, typename = decltype(std::declval<Func>()(std::declval<string_view>()))>
     void operator()(Func&& func) const
     {
         impl.operator()(&func, [](void *thiz, string_view str) { (*static_cast<Func*>(thiz))(str); });
     }
 
-    /// Function returns size of transformed string (no actual transformation performed).
+    // Function returns size of transformed string (no actual transformation performed).
     size_t size() const noexcept { return impl.size(); }
 
-    /// Function transforms string (if it was not transformed earlier) and allocates memory.
+    // Function transforms string (if it was not transformed earlier) and allocates memory.
     explicit operator const std::string&() const& { return static_cast<const std::string&>(impl); }
 
-    /// Function transforms string and allocates memory.
+    // Function transforms string and allocates memory.
     operator string_view() const noexcept { return static_cast<string_view>(impl); }
 
-    /// Function transforms string to allocated memory.
+    // Function transforms string to allocated memory.
     const char* c_str() const    { return impl.c_str(); }
 
 private:
@@ -194,8 +194,8 @@ template <typename Traits> EscapedStringInternal::EscapedStringImpl::Params Esca
 };
 
 
-/// Implementation of `operator<<`, which allows write `EscapedString` contents to
-/// the supplied `std::ostream` avoiding memory allocations.
+// Implementation of `operator<<`, which allows write `EscapedString` contents to
+// the supplied `std::ostream` avoiding memory allocations.
 template <typename Traits>
 std::ostream& operator<<(std::ostream& os, const EscapedString<Traits>& estr)
 {
@@ -204,20 +204,20 @@ std::ostream& operator<<(std::ostream& os, const EscapedString<Traits>& estr)
     return os;
 }
 
-/// Overloading of `operator+` for `EscapedString`, which allows concatenation
-/// of `EscapedString` instances with ordinary strings.
+// Overloading of `operator+` for `EscapedString`, which allows concatenation
+// of `EscapedString` instances with ordinary strings.
 template <typename Traits, typename T>
 std::string operator+(const EscapedString<Traits>& left, T&& right)
 {
     return static_cast<const std::string&>(left) + std::forward<T>(right);
 }
 
-/// Overloading of `operator+` for `EscapedString`, which allows concatenation
-/// of `EscapedString` instances with ordinary strings.
+// Overloading of `operator+` for `EscapedString`, which allows concatenation
+// of `EscapedString` instances with ordinary strings.
 template <typename Traits, typename T>
 std::string operator+(T&& left, const EscapedString<Traits>& right)
 {
     return std::forward<T>(left) + static_cast<const std::string&>(right);
 }
 
-} // ::dncdbg
+} // namespace dncdbg
