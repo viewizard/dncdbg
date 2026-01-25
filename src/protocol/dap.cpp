@@ -19,12 +19,12 @@
 #include "protocol/dap.h"
 #include "winerror.h"
 
-#include "interfaces/idebugger.h"
-#include "utils/streams.h"
+#include "debugger/manageddebugger.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include "utils/logger.h"
 #include "protocol/escaped_string.h"
+#include "utils/string_view.h"
 
 // for convenience
 using json = nlohmann::json;
@@ -287,7 +287,7 @@ namespace
     struct JSON_escape_rules
     {
        static const char forbidden_chars[];
-       static const string_view subst_chars[];
+       static const Utility::string_view subst_chars[];
        constexpr static const char escape_char = '\\';
     };
 
@@ -297,7 +297,7 @@ namespace
     "\000\001\002\003\004\005\006\007\010\011\012\013\014\015\016\017"
     "\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037";
 
-    const string_view JSON_escape_rules::subst_chars[] = {
+    const Utility::string_view JSON_escape_rules::subst_chars[] = {
         "\\\"", "\\\\",
         "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005", "\\u0006", "\\u0007",
         "\\b", "\\t", "\\n", "\\u000b", "\\f", "\\r", "\\u000e", "\\u000f",
@@ -308,7 +308,7 @@ namespace
     // This function serializes "OutputEvent" to specified output stream and used for two
     // purposes: to compute output size, and to perform the output directly.
     template <typename T1>
-    void serialize_output(std::ostream& stream, uint64_t counter, string_view name, T1& text, Source& source)
+    void serialize_output(std::ostream& stream, uint64_t counter, Utility::string_view name, T1& text, Source& source)
     {
         stream << "{\"seq\":" << counter 
             << ", \"event\":\"output\",\"type\":\"event\",\"body\":{\"category\":\"" << name
@@ -331,11 +331,11 @@ void DAP::EmitOutputEvent(OutputCategory category, Utility::string_view output, 
 {
     LogFuncEntry();
 
-    static const string_view categories[] = {"console", "stdout", "stderr"};
+    static const Utility::string_view categories[] = {"console", "stdout", "stderr"};
 
     // determine "category name"
     assert(category == OutputConsole || category == OutputStdOut || category == OutputStdErr);
-    const string_view& name = categories[category];
+    const Utility::string_view& name = categories[category];
 
     EscapedString<JSON_escape_rules> escaped_text(output);
 
@@ -358,11 +358,11 @@ void DAP::EmitOutputEvent(OutputCategory category, Utility::string_view output, 
     }
 
     // compute size of headers without text (text could be huge, no reason parse it for size, that we already know)
-    CountingStream count;
+    std::ostringstream count;
     serialize_output(count, m_seqCounter, name, "", source);
 
     // compute total size of headers + text
-    auto const total_size = count.size() + escaped_text.size();
+    auto const total_size = count.str().size() + escaped_text.size();
 
     // perform output
     cout << CONTENT_LENGTH << total_size << TWO_CRLF;
@@ -482,7 +482,7 @@ void DAP::EmitEvent(const std::string &name, const nlohmann::json &body)
     EmitMessageWithLog(LOG_EVENT, message);
 }
 
-static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
+static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
                              const std::string &command, const json &arguments, json &body)
 {
     typedef std::function<HRESULT(const json &arguments, json &body)> CommandCallback;
@@ -630,18 +630,18 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
     } },
     { "disconnect", [&](const json &arguments, json &body){
         auto terminateArgIter = arguments.find("terminateDebuggee");
-        IDebugger::DisconnectAction action;
+        ManagedDebugger::DisconnectAction action;
         if (terminateArgIter == arguments.end())
-            action = IDebugger::DisconnectAction::DisconnectDefault;
+            action = ManagedDebugger::DisconnectAction::DisconnectDefault;
         else
-            action = terminateArgIter.value().get<bool>() ? IDebugger::DisconnectAction::DisconnectTerminate : IDebugger::DisconnectAction::DisconnectDetach;
+            action = terminateArgIter.value().get<bool>() ? ManagedDebugger::DisconnectAction::DisconnectTerminate : ManagedDebugger::DisconnectAction::DisconnectDetach;
 
         sharedDebugger->Disconnect(action);
 
         return S_OK;
     } },
     { "terminate", [&](const json &arguments, json &body){
-        sharedDebugger->Disconnect(IDebugger::DisconnectAction::DisconnectTerminate);
+        sharedDebugger->Disconnect(ManagedDebugger::DisconnectAction::DisconnectTerminate);
         return S_OK;
     } },
     { "stackTrace", [&](const json &arguments, json &body){
@@ -677,13 +677,13 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
         return sharedDebugger->Pause(threadId, EventFormat::Default);
     } },
     { "next", [&](const json &arguments, json &body){
-        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, IDebugger::StepType::STEP_OVER);
+        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, ManagedDebugger::StepType::STEP_OVER);
     } },
     { "stepIn", [&](const json &arguments, json &body){
-        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, IDebugger::StepType::STEP_IN);
+        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, ManagedDebugger::StepType::STEP_IN);
     } },
     { "stepOut", [&](const json &arguments, json &body){
-        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, IDebugger::StepType::STEP_OUT);
+        return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))}, ManagedDebugger::StepType::STEP_OUT);
     } },
     { "scopes", [&](const json &arguments, json &body){
         HRESULT Status;
@@ -875,7 +875,7 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
     return command_it->second(arguments, body);
 }
 
-static HRESULT HandleCommandJSON(std::shared_ptr<IDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
+static HRESULT HandleCommandJSON(std::shared_ptr<ManagedDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
                                  const std::string &command, const json &arguments, json &body)
 {
     try

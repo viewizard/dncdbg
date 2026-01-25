@@ -8,7 +8,7 @@
 #include "cordebug.h"
 
 #include <mutex>
-#include "interfaces/idebugger.h"
+#include "debugger/manageddebugger.h"
 #include "utils/torelease.h"
 #include "metadata/async_info.h"
 
@@ -32,7 +32,7 @@ public:
         m_asyncStepNotifyDebuggerOfWaitCompletion(nullptr)
     {}
 
-    HRESULT SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType);
+    HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -82,7 +82,7 @@ private:
     struct asyncStep_t
     {
         ThreadId m_threadId;
-        IDebugger::StepType m_initialStepType;
+        ManagedDebugger::StepType m_initialStepType;
         uint32_t m_resume_offset;
         asyncStepStatus m_stepStatus;
         std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
@@ -90,7 +90,7 @@ private:
 
         asyncStep_t() :
             m_threadId(ThreadId::Invalid),
-            m_initialStepType(IDebugger::StepType::STEP_OVER),
+            m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
             m_resume_offset(0),
             m_stepStatus(asyncStepStatus::yield_offset_breakpoint),
             m_Breakpoint(nullptr),

@@ -68,7 +68,7 @@ static const std::unordered_set<WSTRING> g_operatorMethodNames
     W("op_DivisionAssignment")            // /=
 };
 
-HRESULT Steppers::SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType)
+HRESULT Steppers::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType)
 {
     HRESULT Status;
     m_filteredPrevStep = false;
@@ -171,7 +171,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
     if (m_stepFiltering && methodShouldBeFltered())
     {
-        IfFailRet(m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_OUT));
+        IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OUT));
         m_filteredPrevStep = true;
         return S_OK;
     }
@@ -214,13 +214,13 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         // Current IL offset less than IL offset of next close user code line (for example, step-in into async method)
         else if (reason == CorDebugStepReason::STEP_CALL && ipOffset < ilNextUserCodeOffset)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_OVER));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OVER));
             return S_OK;
         }
         // was return from filtered method
         else if (reason == CorDebugStepReason::STEP_RETURN && filteredPrevStep)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_IN));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_IN));
             return S_OK;
         }
     }
@@ -241,7 +241,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
         if (HasAttribute(iMD, typeDef, DebuggerAttribute::StepThrough) || HasAttribute(iMD, methodDef, attrNames))
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_IN));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_IN));
             // In case step-in will return from filtered method and no user code was called, step-in again.
             m_filteredPrevStep = true;
 

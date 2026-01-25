@@ -8,6 +8,7 @@
 #include "debugger/manageddebugger.h"
 #include <thread>
 #include <list>
+#include <functional>
 
 namespace dncdbg
 {
@@ -37,7 +38,7 @@ class CallbacksQueue
 {
 public:
 
-    CallbacksQueue(ManagedDebuggerHelpers &debugger) :
+    CallbacksQueue(ManagedDebugger &debugger) :
         m_debugger(debugger), m_stopEventInProcess(false), m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this} {}
     ~CallbacksQueue();
 
@@ -57,7 +58,7 @@ public:
 
 private:
 
-    ManagedDebuggerHelpers &m_debugger;
+    ManagedDebugger &m_debugger;
 
     // NOTE we have one entry type for both (managed and interop) callbacks (stop events),
     //      since almost all the time we have CallbackQueue with 1 entry only, no reason complicate code.

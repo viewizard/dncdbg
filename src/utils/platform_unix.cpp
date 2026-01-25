@@ -17,13 +17,6 @@ extern char** environ;
 namespace dncdbg
 {
 
-// Function returns memory mapping page size (like sysconf(_SC_PAGESIZE) on Unix).
-unsigned long OSPageSize()
-{
-    static unsigned long pageSize = sysconf(_SC_PAGESIZE);
-    return pageSize;
-}
-
 
 // Function suspends process execution for specified amount of time (in microseconds)
 void USleep(unsigned long usec)

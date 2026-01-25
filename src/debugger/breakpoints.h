@@ -12,7 +12,7 @@
 #include <mutex>
 #include <memory>
 #include <unordered_set>
-#include "interfaces/idebugger.h"
+#include "debugger/manageddebugger.h"
 
 namespace dncdbg
 {

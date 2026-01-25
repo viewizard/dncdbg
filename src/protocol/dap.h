@@ -9,6 +9,7 @@
 #include <string>
 #include <list>
 #include <condition_variable>
+#include <atomic>
 
 #include "interfaces/types.h"
 #include "utils/string_view.h"
@@ -22,12 +23,12 @@
 namespace dncdbg
 {
 
-class IDebugger;
+class ManagedDebugger;
 
 class DAP
 {
     std::atomic<bool> m_exit;
-    std::shared_ptr<IDebugger> m_sharedDebugger;
+    std::shared_ptr<ManagedDebugger> m_sharedDebugger;
 
     // File streams used to read commands and write responses.
     std::istream& cin;
@@ -70,7 +71,7 @@ public:
 
     DAP(std::istream& input, std::ostream& output) :
         m_exit(false), m_sharedDebugger(nullptr), cin(input), cout(output), m_engineLogOutput(LogNone), m_seqCounter(1) {}
-    void SetDebugger(std::shared_ptr<IDebugger> &sharedDebugger) { m_sharedDebugger = sharedDebugger; }
+    void SetDebugger(std::shared_ptr<ManagedDebugger> &sharedDebugger) { m_sharedDebugger = sharedDebugger; }
     void EngineLogging(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {

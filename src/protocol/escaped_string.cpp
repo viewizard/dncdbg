@@ -6,6 +6,7 @@
 #include <string>
 #include "escaped_string.h"
 #include "assert.h"
+#include "utils/string_view.h"
 
 namespace dncdbg
 {

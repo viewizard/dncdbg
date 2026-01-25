@@ -18,12 +18,12 @@ private:
 
     std::mutex m_refCountMutex;
     ULONG m_refCount;
-    ManagedDebuggerHelpers &m_debugger;
+    ManagedDebugger &m_debugger;
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
 
 public:
 
-    ManagedCallback(ManagedDebuggerHelpers &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue) :
+    ManagedCallback(ManagedDebugger &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue) :
         m_refCount(0), m_debugger(debugger), m_sharedCallbacksQueue(sharedCallbacksQueue){}
     ULONG GetRefCount();
 

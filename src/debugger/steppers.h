@@ -8,7 +8,7 @@
 #include "cordebug.h"
 
 #include <memory>
-#include "interfaces/idebugger.h"
+#include "debugger/manageddebugger.h"
 
 namespace dncdbg
 {
@@ -26,13 +26,13 @@ public:
         m_simpleStepper(new SimpleStepper(sharedModules)),
         m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
         m_sharedModules(sharedModules),
-        m_initialStepType(IDebugger::StepType::STEP_OVER),
+        m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
         m_justMyCode(true),
         m_stepFiltering(true),
         m_filteredPrevStep(false)
     {}
 
-    HRESULT SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType);
+    HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -56,7 +56,7 @@ private:
     std::shared_ptr<SimpleStepper> m_simpleStepper;
     std::unique_ptr<AsyncStepper> m_asyncStepper;
     std::shared_ptr<Modules> m_sharedModules;
-    IDebugger::StepType m_initialStepType;
+    ManagedDebugger::StepType m_initialStepType;
     Modules::SequencePoint m_StepStartSP;
     bool m_justMyCode;
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code

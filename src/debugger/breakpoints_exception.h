@@ -9,7 +9,6 @@
 #include "cordebug.h"
 
 #include "interfaces/types.h"
-#include "interfaces/idebugger.h"
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -20,7 +19,6 @@ namespace dncdbg
 {
 
 class Evaluator;
-class IDebugger;
 
 class ExceptionBreakpoints
 {

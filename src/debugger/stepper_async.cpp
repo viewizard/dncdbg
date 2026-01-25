@@ -238,7 +238,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     return S_OK;
 }
 
-HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType)
+HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType)
 {
     HRESULT Status;
 
@@ -274,13 +274,13 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType st
     // If we are at end of async method with await blocks and doing step-in or step-over,
     // switch to step-out, so whole NotifyDebuggerOfWaitCompletion magic happens.
     ULONG32 lastIlOffset;
-    if (stepType != IDebugger::StepType::STEP_OUT &&
+    if (stepType != ManagedDebugger::StepType::STEP_OUT &&
         m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
         ipOffset >= lastIlOffset)
     {
-        stepType = IDebugger::StepType::STEP_OUT;
+        stepType = ManagedDebugger::StepType::STEP_OUT;
     }
-    if (stepType == IDebugger::StepType::STEP_OUT)
+    if (stepType == ManagedDebugger::StepType::STEP_OUT)
     {
         ToRelease<ICorDebugValue> pBuilderValue;
         IfFailRet(GetAsyncTBuilder(pFrame, &pBuilderValue));
@@ -291,7 +291,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType st
         std::string builderType;
         IfFailRet(TypePrinter::GetTypeOfValue(pBuilderValue, builderType));
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
-            return m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_OUT);
+            return m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OUT);
 
         IfFailRet(SetNotificationForWaitCompletion(pThread, pFrame, pBuilderValue, m_sharedEvalHelpers.get()));
         IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion());
@@ -431,7 +431,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
         // Update stepping request to new thread/frame_count that we are continuing on
         // so continuing with normal step-out works as expected.
-        m_simpleStepper->SetupStep(pThread, IDebugger::StepType::STEP_OUT);
+        m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OUT);
         return S_OK;
     }
 

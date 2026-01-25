@@ -111,13 +111,9 @@ set(dncdbg_SRC
     utils/filesystem.cpp
     utils/filesystem_unix.cpp
     utils/filesystem_win32.cpp
-    utils/ioredirect.cpp
-    utils/iosystem_unix.cpp
-    utils/iosystem_win32.cpp
     utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
-    utils/streams.cpp
     )
 
 set(CMAKE_INCLUDE_CURRENT_DIR OFF)

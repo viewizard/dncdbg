@@ -5,13 +5,13 @@
 
 #include "debugger/stepper_simple.h"
 #include "debugger/threads.h"
-#include "interfaces/idebugger.h"
+#include "debugger/manageddebugger.h"
 #include "metadata/modules.h"
 
 namespace dncdbg
 {
 
-HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType stepType)
+HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType)
 {
     HRESULT Status;
 
@@ -34,7 +34,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType s
 
     ThreadId threadId(getThreadId(pThread));
 
-    if (stepType == IDebugger::STEP_OUT)
+    if (stepType == ManagedDebugger::STEP_OUT)
     {
         IfFailRet(pStepper->StepOut());
 
@@ -44,7 +44,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, IDebugger::StepType s
         return S_OK;
     }
 
-    BOOL bStepIn = stepType == IDebugger::STEP_IN;
+    BOOL bStepIn = stepType == ManagedDebugger::STEP_IN;
 
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))

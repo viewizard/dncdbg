@@ -8,6 +8,7 @@
 #include "utils/limits.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 #include "buildinfo.h"
 #include "debugger/manageddebugger.h"
@@ -92,7 +93,7 @@ static void CheckStartOptions(std::string &execFile, bool run)
     }
 }
 
-static HRESULT AttachToExistingProcess(IDebugger *pDebugger, DWORD pidDebuggee)
+static HRESULT AttachToExistingProcess(ManagedDebugger *pDebugger, DWORD pidDebuggee)
 {
     HRESULT Status;
     IfFailRet(pDebugger->Initialize());
@@ -100,7 +101,7 @@ static HRESULT AttachToExistingProcess(IDebugger *pDebugger, DWORD pidDebuggee)
     return pDebugger->ConfigurationDone();
 }
 
-static HRESULT LaunchNewProcess(IDebugger *pDebugger, std::string &execFile, std::vector<std::string> &execArgs)
+static HRESULT LaunchNewProcess(ManagedDebugger *pDebugger, std::string &execFile, std::vector<std::string> &execArgs)
 {
     HRESULT Status;
     IfFailRet(pDebugger->Initialize());
@@ -239,7 +240,7 @@ int
         protocol->EngineLogging(logFilePath);
     }
 
-    std::shared_ptr<IDebugger> debugger;
+    std::shared_ptr<ManagedDebugger> debugger;
     try
     {
         debugger.reset(new ManagedDebugger(protocol.get()));

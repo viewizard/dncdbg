@@ -81,7 +81,7 @@ namespace
 }
 
 // Caller must care about m_debugProcessRWLock.
-HRESULT ManagedDebuggerBase::CheckDebugProcess()
+HRESULT ManagedDebugger::CheckDebugProcess()
 {
     if (!m_iCorProcess)
         return E_FAIL;
@@ -96,13 +96,13 @@ HRESULT ManagedDebuggerBase::CheckDebugProcess()
     return S_OK;
 }
 
-bool ManagedDebuggerBase::HaveDebugProcess()
+bool ManagedDebugger::HaveDebugProcess()
 {
     std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
     return SUCCEEDED(CheckDebugProcess());
 }
 
-void ManagedDebuggerBase::NotifyProcessCreated()
+void ManagedDebugger::NotifyProcessCreated()
 {
     std::unique_lock<std::mutex> lock(m_processAttachedMutex);
     m_processAttachedState = ProcessAttachedState::Attached;
@@ -110,7 +110,7 @@ void ManagedDebuggerBase::NotifyProcessCreated()
     m_processAttachedCV.notify_one();
 }
 
-void ManagedDebuggerBase::NotifyProcessExited()
+void ManagedDebugger::NotifyProcessExited()
 {
     std::unique_lock<std::mutex> lock(m_processAttachedMutex);
     m_processAttachedState = ProcessAttachedState::Unattached;
@@ -119,19 +119,19 @@ void ManagedDebuggerBase::NotifyProcessExited()
 }
 
 // Caller must care about m_debugProcessRWLock.
-void ManagedDebuggerBase::DisableAllBreakpointsAndSteppers()
+void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
     m_uniqueSteppers->DisableAllSteppers(m_iCorProcess); // Async stepper could have breakpoints active, disable them first.
     m_uniqueBreakpoints->DeleteAll();
     m_uniqueBreakpoints->DisableAll(m_iCorProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
-void ManagedDebuggerBase::SetLastStoppedThread(ICorDebugThread *pThread)
+void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
 {
     SetLastStoppedThreadId(getThreadId(pThread));
 }
 
-void ManagedDebuggerBase::SetLastStoppedThreadId(ThreadId threadId)
+void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
 {
     std::lock_guard<std::mutex> lock(m_lastStoppedMutex);
     m_lastStoppedThreadId = threadId;
@@ -141,7 +141,7 @@ void ManagedDebuggerBase::SetLastStoppedThreadId(ThreadId threadId)
     m_uniqueBreakpoints->SetLastStoppedIlOffset(m_iCorProcess, m_lastStoppedThreadId);
 }
 
-void ManagedDebuggerBase::InvalidateLastStoppedThreadId()
+void ManagedDebugger::InvalidateLastStoppedThreadId()
 {
     SetLastStoppedThreadId(ThreadId::AllThreads);
 }
@@ -154,7 +154,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
     return m_lastStoppedThreadId;
 }
 
-ManagedDebuggerBase::ManagedDebuggerBase(DAP *pProtocol_) :
+ManagedDebugger::ManagedDebugger(DAP *pProtocol_) :
     m_processAttachedState(ProcessAttachedState::Unattached),
     m_lastStoppedThreadId(ThreadId::AllThreads),
     m_startMethod(StartNone),
@@ -174,24 +174,12 @@ ManagedDebuggerBase::ManagedDebuggerBase(DAP *pProtocol_) :
     m_justMyCode(true),
     m_stepFiltering(true),
     m_unregisterToken(nullptr),
-    m_processId(0),
-    m_ioredirect(
-        { IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe() },
-        std::bind(&ManagedDebugger::InputCallback, this, std::placeholders::_1, std::placeholders::_2)
-    )
+    m_processId(0)
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
 
-ManagedDebuggerHelpers::ManagedDebuggerHelpers(DAP *pProtocol_) :
-    ManagedDebuggerBase(pProtocol_)
-{}
-
-ManagedDebugger::ManagedDebugger(DAP *pProtocol_) :
-    ManagedDebuggerHelpers(pProtocol_)
-{}
-
-ManagedDebuggerBase::~ManagedDebuggerBase()
+ManagedDebugger::~ManagedDebugger()
 {
     m_sharedThreads->ResetEvaluator();
     m_sharedEvalStackMachine->ResetEval();
@@ -206,7 +194,7 @@ HRESULT ManagedDebugger::Initialize()
     return S_OK;
 }
 
-HRESULT ManagedDebuggerHelpers::RunIfReady()
+HRESULT ManagedDebugger::RunIfReady()
 {
     FrameId::invalidate();
 
@@ -300,7 +288,6 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
         if (SUCCEEDED(Status))
             pProtocol->EmitTerminatedEvent();
 
-        m_ioredirect.async_cancel();
         return Status;
     }
 
@@ -397,7 +384,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
     return m_sharedThreads->GetThreadsWithState(m_iCorProcess, threads);
 }
 
-VOID ManagedDebuggerHelpers::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr)
+VOID ManagedDebugger::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr)
 {
     ManagedDebugger *self = static_cast<ManagedDebugger*>(parameter);
 
@@ -498,7 +485,7 @@ static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
     return result;
 }
 
-HRESULT ManagedDebuggerHelpers::Startup(IUnknown *punk)
+HRESULT ManagedDebugger::Startup(IUnknown *punk)
 {
     HRESULT Status;
 
@@ -613,7 +600,7 @@ static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string>
     }
 }
 
-HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const std::vector<std::string>& execArgs)
+HRESULT ManagedDebugger::RunProcess(const std::string& fileExec, const std::vector<std::string>& execArgs)
 {
     HRESULT Status;
 
@@ -640,17 +627,11 @@ HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const st
             m_cwd.clear();
     }
 
-    Status = m_ioredirect.exec([&]() -> HRESULT {
-            IfFailRet(m_dbgshim.CreateProcessForLaunch(reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
-                                     /* Suspend process */ TRUE,
-                                     outEnv.empty() ? NULL : &outEnv[0],
-                                     m_cwd.empty() ? NULL : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
-                                     &m_processId, &resumeHandle));
-            return Status;
-        });
-
-    if (FAILED(Status))
-        return Status;
+    IfFailRet(m_dbgshim.CreateProcessForLaunch(reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
+                                /* Suspend process */ TRUE,
+                                outEnv.empty() ? NULL : &outEnv[0],
+                                m_cwd.empty() ? NULL : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
+                                &m_processId, &resumeHandle));
 
 #ifdef FEATURE_PAL
     GetWaitpid().SetupTrackingPID(m_processId);
@@ -671,7 +652,7 @@ HRESULT ManagedDebuggerHelpers::RunProcess(const std::string& fileExec, const st
     return S_OK;
 }
 
-HRESULT ManagedDebuggerBase::CheckNoProcess()
+HRESULT ManagedDebugger::CheckNoProcess()
 {
     std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
 
@@ -687,7 +668,7 @@ HRESULT ManagedDebuggerBase::CheckNoProcess()
     return S_OK;
 }
 
-HRESULT ManagedDebuggerHelpers::DetachFromProcess()
+HRESULT ManagedDebugger::DetachFromProcess()
 {
     do {
         std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
@@ -715,7 +696,7 @@ HRESULT ManagedDebuggerHelpers::DetachFromProcess()
     return S_OK;
 }
 
-HRESULT ManagedDebuggerHelpers::TerminateProcess()
+HRESULT ManagedDebugger::TerminateProcess()
 {
     do {
         std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
@@ -747,7 +728,7 @@ HRESULT ManagedDebuggerHelpers::TerminateProcess()
     return S_OK;
 }
 
-void ManagedDebuggerBase::Cleanup()
+void ManagedDebugger::Cleanup()
 {
     m_sharedModules->CleanupAllModules();
     m_sharedEvalHelpers->Cleanup();
@@ -775,7 +756,7 @@ void ManagedDebuggerBase::Cleanup()
     m_sharedCallbacksQueue = nullptr;
 }
 
-HRESULT ManagedDebuggerHelpers::AttachToProcess()
+HRESULT ManagedDebugger::AttachToProcess()
 {
     HRESULT Status;
 
@@ -845,7 +826,7 @@ HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &f
     return m_uniqueBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebuggerBase::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame)
+HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame)
 {
     HRESULT Status;
 
@@ -907,7 +888,7 @@ static std::string GetModuleNameForFrame(ICorDebugFrame *pFrame)
     return GetBasename(to_utf8(name));
 }
 
-HRESULT ManagedDebuggerBase::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
+HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                                   std::vector<StackFrame> &stackFrames, int &totalFrames)
 {
     LogFuncEntry();
@@ -1163,18 +1144,6 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->SetExpression(m_iCorProcess, frameId, expression, evalFlags, value, output);
-}
-
-
-void ManagedDebuggerBase::InputCallback(IORedirectHelper::StreamType type, span<char> text)
-{
-    pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputStdErr : OutputStdOut, {text.begin(), text.size()});
-}
-
-IDebugger::AsyncResult ManagedDebugger::ProcessStdin(InStream& stream)
-{
-    LogFuncEntry();
-    return m_ioredirect.async_input(stream);
 }
 
 void ManagedDebugger::SetJustMyCode(bool enable)

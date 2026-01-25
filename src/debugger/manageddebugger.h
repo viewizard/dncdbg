@@ -9,10 +9,10 @@
 
 #include <vector>
 #include <map>
-#include "interfaces/idebugger.h"
+
+#include "interfaces/types.h"
 #include "debugger/dbgshim.h"
 #include "utils/span.h"
-#include "utils/ioredirect.h"
 #include "utils/torelease.h"
 #include "utils/rwlock.h"
 
@@ -48,12 +48,9 @@ enum StartMethod
     //StartAttachForSuspendedLaunch
 };
 
-class ManagedDebuggerBase : public IDebugger
+class ManagedDebugger
 {
 protected:
-    ManagedDebuggerBase(DAP *pProtocol);
-    ~ManagedDebuggerBase() override;
-
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
     std::condition_variable m_processAttachedCV;
     ProcessAttachedState m_processAttachedState;
@@ -101,12 +98,8 @@ protected:
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
 
-    IORedirectHelper m_ioredirect;
-
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
-
-    void InputCallback(IORedirectHelper::StreamType, span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();
@@ -114,15 +107,9 @@ protected:
     HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame);
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                  std::vector<StackFrame> &stackFrames, int &totalFrames);
-};
 
-class ManagedDebuggerHelpers : public ManagedDebuggerBase
-{
-protected:
     friend class ManagedCallback;
     friend class CallbacksQueue;
-
-    ManagedDebuggerHelpers(DAP *pProtocol);
 
     static VOID StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr);
     HRESULT Startup(IUnknown *punk);
@@ -131,45 +118,55 @@ protected:
     HRESULT AttachToProcess();
     HRESULT DetachFromProcess();
     HRESULT TerminateProcess();
-};
 
-class ManagedDebugger final : public ManagedDebuggerHelpers
-{
 public:
+
+    enum StepType
+    {
+        STEP_IN = 0,
+        STEP_OVER,
+        STEP_OUT
+    };
+
+    enum DisconnectAction
+    {
+        DisconnectDefault, // Attach -> Detach, Launch -> Terminate
+        DisconnectTerminate,
+        DisconnectDetach
+    };
+
     ManagedDebugger(DAP *pProtocol);
+    ~ManagedDebugger();
 
-    bool IsJustMyCode() const override { return m_justMyCode; }
-    void SetJustMyCode(bool enable) override;
-    bool IsStepFiltering() const override { return m_stepFiltering; }
-    void SetStepFiltering(bool enable) override;
+    bool IsJustMyCode() const { return m_justMyCode; }
+    void SetJustMyCode(bool enable);
+    bool IsStepFiltering() const { return m_stepFiltering; }
+    void SetStepFiltering(bool enable);
 
-    HRESULT Initialize() override;
-    HRESULT Attach(int pid) override;
+    HRESULT Initialize();
+    HRESULT Attach(int pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs, const std::map<std::string, std::string> &env,
-                   const std::string &cwd, bool stopAtEntry = false) override;
-    HRESULT ConfigurationDone() override;
+                   const std::string &cwd, bool stopAtEntry = false);
+    HRESULT ConfigurationDone();
 
-    HRESULT Disconnect(DisconnectAction action = DisconnectDefault) override;
+    HRESULT Disconnect(DisconnectAction action = DisconnectDefault);
 
-    ThreadId GetLastStoppedThreadId() override;
-    HRESULT Continue(ThreadId threadId) override;
-    HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat) override;
-    HRESULT GetThreads(std::vector<Thread> &threads) override;
-    HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints) override;
-    HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints) override;
-    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints) override;
-    HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames) override;
-    HRESULT StepCommand(ThreadId threadId, StepType stepType) override;
-    HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes) override;
-    HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count, std::vector<Variable> &variables) override;
-    HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output) override;
-    void CancelEvalRunning() override;
-    HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output) override;
-    HRESULT SetExpression(FrameId frameId, const std::string &expression, int evalFlags, const std::string &value, std::string &output) override;
-    HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo) override;
-
-    // pass some data to debugee stdin
-    IDebugger::AsyncResult ProcessStdin(InStream &) override;
+    ThreadId GetLastStoppedThreadId();
+    HRESULT Continue(ThreadId threadId);
+    HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat);
+    HRESULT GetThreads(std::vector<Thread> &threads);
+    HRESULT SetLineBreakpoints(const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints);
+    HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints);
+    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
+    HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames);
+    HRESULT StepCommand(ThreadId threadId, StepType stepType);
+    HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes);
+    HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count, std::vector<Variable> &variables);
+    HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output);
+    void CancelEvalRunning();
+    HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output);
+    HRESULT SetExpression(FrameId frameId, const std::string &expression, int evalFlags, const std::string &value, std::string &output);
+    HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
 };
 
 } // namespace dncdbg

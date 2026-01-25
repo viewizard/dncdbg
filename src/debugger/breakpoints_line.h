@@ -14,7 +14,7 @@
 #include <list>
 #include <string>
 #include <unordered_map>
-#include "interfaces/idebugger.h"
+#include "debugger/manageddebugger.h"
 #include "utils/torelease.h"
 
 namespace dncdbg

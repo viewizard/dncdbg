@@ -210,7 +210,6 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProces
     m_debugger.pProtocol->EmitExitedEvent(ExitedEvent(exitCode));
     m_debugger.NotifyProcessExited();
     m_debugger.pProtocol->EmitTerminatedEvent();
-    m_debugger.m_ioredirect.async_cancel();
     return S_OK;
 }
 
@@ -313,7 +312,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         return S_OK;
     }
 
-    string_view src;
+    Utility::string_view src;
     std::string src_holder;
     if (pLogSwitchName && *pLogSwitchName)
     {
