@@ -13,7 +13,6 @@
 #include <vector>
 #include <map>
 
-#include "interfaces/iprotocol.h"
 #include "debugger/threads.h"
 #include "debugger/frames.h"
 #include "debugger/evalhelpers.h"
@@ -39,6 +38,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include "debugger/waitpid.h"
+#include "protocols/vscodeprotocol.h"
 
 #include "palclr.h"
 
@@ -154,7 +154,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
     return m_lastStoppedThreadId;
 }
 
-ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
+ManagedDebuggerBase::ManagedDebuggerBase(VSCodeProtocol *pProtocol_) :
     m_processAttachedState(ProcessAttachedState::Unattached),
     m_lastStoppedThreadId(ThreadId::AllThreads),
     m_startMethod(StartNone),
@@ -183,11 +183,11 @@ ManagedDebuggerBase::ManagedDebuggerBase(IProtocol *pProtocol_) :
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
 
-ManagedDebuggerHelpers::ManagedDebuggerHelpers(IProtocol *pProtocol_) :
+ManagedDebuggerHelpers::ManagedDebuggerHelpers(VSCodeProtocol *pProtocol_) :
     ManagedDebuggerBase(pProtocol_)
 {}
 
-ManagedDebugger::ManagedDebugger(IProtocol *pProtocol_) :
+ManagedDebugger::ManagedDebugger(VSCodeProtocol *pProtocol_) :
     ManagedDebuggerHelpers(pProtocol_)
 {}
 

@@ -232,12 +232,11 @@ int
     // Note: there is no possibility to know which exception caused call to std::terminate
     std::set_terminate([] { LOGF("DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
-    std::unique_ptr<IProtocol> protocol(new VSCodeProtocol(std::cin, std::cout));
+    std::unique_ptr<VSCodeProtocol> protocol(new VSCodeProtocol(std::cin, std::cout));
 
     if (engineLogging)
     {
-        auto p = dynamic_cast<VSCodeProtocol *>(protocol.get());
-        p->EngineLogging(logFilePath);
+        protocol->EngineLogging(logFilePath);
     }
 
     std::shared_ptr<IDebugger> debugger;

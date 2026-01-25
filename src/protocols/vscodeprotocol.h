@@ -10,19 +10,29 @@
 #include <list>
 #include <condition_variable>
 
+#include "interfaces/types.h"
+#include "utils/string_view.h"
+
 #pragma warning (disable:4068)  // Visual Studio should ignore GCC pragmas
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtautological-overlap-compare"
 #include "json/json.hpp"
 #pragma GCC diagnostic pop
 
-#include "interfaces/iprotocol.h"
-
 namespace dncdbg
 {
 
-class VSCodeProtocol : public IProtocol
+class IDebugger;
+
+class VSCodeProtocol
 {
+    std::atomic<bool> m_exit;
+    std::shared_ptr<IDebugger> m_sharedDebugger;
+
+    // File streams used to read commands and write responses.
+    std::istream& cin;
+    std::ostream& cout;
+
     std::mutex m_outMutex;
     enum {
         LogNone,
@@ -59,25 +69,26 @@ class VSCodeProtocol : public IProtocol
 public:
 
     VSCodeProtocol(std::istream& input, std::ostream& output) :
-        IProtocol(input, output), m_engineLogOutput(LogNone), m_seqCounter(1) {}
+        m_exit(false), m_sharedDebugger(nullptr), cin(input), cout(output), m_engineLogOutput(LogNone), m_seqCounter(1) {}
+    void SetDebugger(std::shared_ptr<IDebugger> &sharedDebugger) { m_sharedDebugger = sharedDebugger; }
     void EngineLogging(const std::string &path);
-    void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args) override
+    void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {
         m_fileExec = fileExec;
         m_execArgs = args;
     }
 
-    void EmitExecEvent(PID, const std::string& argv0) override;
-    void EmitStoppedEvent(const StoppedEvent &event) override;
-    void EmitExitedEvent(const ExitedEvent &event) override;
-    void EmitTerminatedEvent() override;
-    void EmitContinuedEvent(ThreadId threadId) override;
-    void EmitThreadEvent(const ThreadEvent &event) override;
-    void EmitModuleEvent(const ModuleEvent &event) override;
-    void EmitOutputEvent(OutputCategory category, string_view output, string_view source = "", DWORD threadId = 0) override;
-    void EmitBreakpointEvent(const BreakpointEvent &event) override;
-    void Cleanup() override;
-    void CommandLoop() override;
+    void EmitExecEvent(PID, const std::string& argv0);
+    void EmitStoppedEvent(const StoppedEvent &event);
+    void EmitExitedEvent(const ExitedEvent &event);
+    void EmitTerminatedEvent();
+    void EmitContinuedEvent(ThreadId threadId);
+    void EmitThreadEvent(const ThreadEvent &event);
+    void EmitModuleEvent(const ModuleEvent &event);
+    void EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view source = "", DWORD threadId = 0);
+    void EmitBreakpointEvent(const BreakpointEvent &event);
+    void Cleanup();
+    void CommandLoop();
 
     void EmitInitializedEvent();
     void EmitCapabilitiesEvent();

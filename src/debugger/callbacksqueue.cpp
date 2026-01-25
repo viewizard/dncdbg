@@ -14,7 +14,7 @@
 #include "debugger/stepper_simple.h"
 #include "debugger/stepper_async.h"
 #include "debugger/steppers.h"
-#include "interfaces/iprotocol.h"
+#include "protocols/vscodeprotocol.h"
 
 #include <algorithm>
 #include <sstream>

@@ -327,7 +327,7 @@ namespace
     };
 }
 
-void VSCodeProtocol::EmitOutputEvent(OutputCategory category, string_view output, string_view, DWORD threadId)
+void VSCodeProtocol::EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view, DWORD threadId)
 {
     LogFuncEntry();
 
