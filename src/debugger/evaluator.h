@@ -115,9 +115,10 @@ public:
         int evalFlags);
 
     HRESULT WalkMembers(
-        ICorDebugValue *pValue,
+        ICorDebugValue *pInputValue,
         ICorDebugThread *pThread,
         FrameLevel frameLevel,
+        ICorDebugType *pTypeCast,
         bool provideSetterData,
         WalkMembersCallback cb);
 
@@ -139,10 +140,36 @@ public:
         std::vector<Evaluator::ArgElementType> &methodGenerics,
         ICorDebugFunction** ppCorFunc);
 
+    HRESULT FollowNestedFindType(
+        ICorDebugThread *pThread,
+        const std::string &methodClass,
+        std::vector<std::string> &identifiers,
+        ICorDebugType **ppResultType);
+
+    HRESULT FollowFields(
+        ICorDebugThread *pThread,
+        FrameLevel frameLevel,
+        ICorDebugValue *pValue,
+        Evaluator::ValueKind valueKind,
+        std::vector<std::string> &identifiers,
+        int nextIdentifier,
+        ICorDebugValue **ppResult,
+        std::unique_ptr<Evaluator::SetterData> *resultSetterData,
+        int evalFlags);
+
+    HRESULT FollowNestedFindValue(
+        ICorDebugThread *pThread,
+        FrameLevel frameLevel,
+        const std::string &methodClass,
+        std::vector<std::string> &identifiers,
+        ICorDebugValue **ppResult,
+        std::unique_ptr<Evaluator::SetterData> *resultSetterData,
+        int evalFlags);
+
     HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType, std::vector<Evaluator::ArgElementType> &methodGenerics, WalkMethodsCallback cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, WalkMethodsCallback cb);
-    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorValue, GetValueCallback *getValue, SetterData *setterData,
+    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue, GetValueCallback *getValue, SetterData *setterData,
                      const std::string &value, int evalFlags, std::string &output);
 
     ArgElementType GetElementTypeByTypeName(const std::string typeName);
