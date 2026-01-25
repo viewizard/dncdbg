@@ -123,7 +123,7 @@ set(dncdbg_SRC
 set(CMAKE_INCLUDE_CURRENT_DIR OFF)
 
 if (NOT WIN32)
-    add_definitions(-DPAL_STDCPP_COMPAT) // this define was removed from runtime 9.0 sources
+    add_definitions(-DPAL_STDCPP_COMPAT) # this define was removed from runtime 9.0 sources
 endif()
 
 if (WIN32)
