@@ -9,15 +9,10 @@
 
 #include <sstream>
 #include <mutex>
-#include <memory>
 #include <chrono>
-#include <stdexcept>
 #include <vector>
 #include <map>
-#include <fstream>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "interfaces/iprotocol.h"
 #include "debugger/threads.h"
 #include "debugger/frames.h"
@@ -40,12 +35,10 @@
 #include "debugger/steppers.h"
 #include "managed/interop.h"
 #include "utils/utf.h"
-#include "utils/dynlibs.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include "debugger/waitpid.h"
-#include "utils/iosystem.h"
 
 #include "palclr.h"
 
@@ -1173,75 +1166,9 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
 }
 
 
-void ManagedDebugger::FindFileNames(string_view pattern, unsigned limit, SearchCallback cb)
-{
-    LogFuncEntry();
-    m_sharedModules->FindFileNames(pattern, limit, cb);
-}
-
-void ManagedDebugger::FindFunctions(string_view pattern, unsigned limit, SearchCallback cb)
-{
-    LogFuncEntry();
-    m_sharedModules->FindFunctions(pattern, limit, cb);
-}
-
-void ManagedDebugger::FindVariables(ThreadId thread, FrameLevel framelevel, string_view pattern, unsigned limit, SearchCallback cb)
-{
-    LogFuncEntry();
-
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
-    if (FAILED(CheckDebugProcess()))
-        return;
-
-    StackFrame frame{thread, framelevel, ""};
-    std::vector<Scope> scopes;
-    std::vector<Variable> variables;
-    HRESULT status = m_sharedVariables->GetScopes(m_iCorProcess, frame.id, scopes);
-    if (FAILED(status))
-    {
-        LOGW("GetScopes failed: 0x%08x", status);
-        return;
-    }
-
-    if (scopes.empty() || scopes[0].variablesReference == 0)
-    {
-        LOGW("no variables in visible scopes");
-        return;
-    }
-
-    status = m_sharedVariables->GetVariables(m_iCorProcess, scopes[0].variablesReference, VariablesNamed, 0, 0, variables);
-    if (FAILED(status))
-    {
-        LOGW("GetVariables failed: 0x%08x", status);
-        return;
-    }
-
-    for (const Variable& var : variables)
-    {
-        LOGD("var: '%s'", var.name.c_str());
-
-        if (limit == 0)
-            break;
-
-        auto pos = var.name.find(pattern.data(), 0, pattern.size());
-        if (pos != std::string::npos && (pos == 0 || var.name[pos-1] == '.'))
-        {
-            limit--;
-            cb(var.name.c_str());
-        }
-    }
-}
-
-
 void ManagedDebuggerBase::InputCallback(IORedirectHelper::StreamType type, span<char> text)
 {
     pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputStdErr : OutputStdOut, {text.begin(), text.size()});
-}
-
-
-void ManagedDebugger::FreeUnmanaged(PVOID mem)
-{
-    Interop::CoTaskMemFree(mem);
 }
 
 IDebugger::AsyncResult ManagedDebugger::ProcessStdin(InStream& stream)
@@ -1249,7 +1176,6 @@ IDebugger::AsyncResult ManagedDebugger::ProcessStdin(InStream& stream)
     LogFuncEntry();
     return m_ioredirect.async_input(stream);
 }
-
 
 void ManagedDebugger::SetJustMyCode(bool enable)
 {

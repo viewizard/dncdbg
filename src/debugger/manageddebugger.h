@@ -9,10 +9,8 @@
 
 #include <vector>
 #include <map>
-#include <set>
 #include "interfaces/idebugger.h"
 #include "debugger/dbgshim.h"
-#include "utils/string_view.h"
 #include "utils/span.h"
 #include "utils/ioredirect.h"
 #include "utils/torelease.h"
@@ -21,7 +19,6 @@
 namespace dncdbg
 {
 
-using Utility::string_view;
 template <typename T> using span = Utility::span<T>;
 
 class IProtocol;
@@ -170,11 +167,6 @@ public:
     HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output) override;
     HRESULT SetExpression(FrameId frameId, const std::string &expression, int evalFlags, const std::string &value, std::string &output) override;
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo) override;
-    void FreeUnmanaged(PVOID mem) override;
-
-    void FindFileNames(string_view pattern, unsigned limit, SearchCallback) override;
-    void FindFunctions(string_view pattern, unsigned limit, SearchCallback) override;
-    void FindVariables(ThreadId, FrameLevel, string_view pattern, unsigned limit, SearchCallback) override;
 
     // pass some data to debugee stdin
     IDebugger::AsyncResult ProcessStdin(InStream &) override;

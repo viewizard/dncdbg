@@ -72,11 +72,6 @@ public:
     virtual HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output) = 0;
     virtual HRESULT SetExpression(FrameId frameId, const std::string &expression, int evalFlags, const std::string &value, std::string &output) = 0;
     virtual HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo) = 0;
-    virtual void FreeUnmanaged(PVOID mem) = 0;
-    typedef std::function<void(const char *)> SearchCallback;
-    virtual void FindFileNames(string_view pattern, unsigned limit, SearchCallback) = 0;
-    virtual void FindFunctions(string_view pattern, unsigned limit, SearchCallback) = 0;
-    virtual void FindVariables(ThreadId, FrameLevel, string_view, unsigned limit, SearchCallback) = 0;
 };
 
 } // namespace dncdbg
