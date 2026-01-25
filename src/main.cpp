@@ -12,7 +12,7 @@
 #include "buildinfo.h"
 #include "debugger/manageddebugger.h"
 #include "managed/interop.h"
-#include "protocols/vscodeprotocol.h"
+#include "protocol/dap.h"
 #include "utils/logger.h"
 
 #ifdef _WIN32
@@ -232,7 +232,7 @@ int
     // Note: there is no possibility to know which exception caused call to std::terminate
     std::set_terminate([] { LOGF("DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
-    std::unique_ptr<VSCodeProtocol> protocol(new VSCodeProtocol(std::cin, std::cout));
+    std::unique_ptr<DAP> protocol(new DAP(std::cin, std::cout));
 
     if (engineLogging)
     {

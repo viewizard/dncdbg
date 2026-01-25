@@ -15,8 +15,8 @@
 #include <thread>
 #include <future>
 
-// note: order matters, vscodeprotocol.h should be included before winerror.h
-#include "protocols/vscodeprotocol.h"
+// note: order matters, DAP.h should be included before winerror.h
+#include "protocol/dap.h"
 #include "winerror.h"
 
 #include "interfaces/idebugger.h"
@@ -24,7 +24,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include "utils/logger.h"
-#include "protocols/escaped_string.h"
+#include "protocol/escaped_string.h"
 
 // for convenience
 using json = nlohmann::json;
@@ -34,7 +34,7 @@ namespace dncdbg
 
 namespace
 {
-    std::unordered_map<std::string, ExceptionBreakpointFilter> g_VSCodeFilters{
+    std::unordered_map<std::string, ExceptionBreakpointFilter> g_DAPFilters{
         {"all",            ExceptionBreakpointFilter::THROW},
         {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}};
 
@@ -137,7 +137,7 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
     if (details.innerException)
     {
-        // Note, VSCode protocol have "innerException" field as array, but in real we don't have array with inner exceptions here,
+        // Note, DAP protocol have "innerException" field as array, but in real we don't have array with inner exceptions here,
         // since exception object have only one exeption object reference in InnerException field.
         json arr = json::array();
         arr.push_back(FormJsonForExceptionDetails(*details.innerException.get()));
@@ -147,7 +147,7 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
     return result;
 }
 
-void VSCodeProtocol::EmitContinuedEvent(ThreadId threadId)
+void DAP::EmitContinuedEvent(ThreadId threadId)
 {
     LogFuncEntry();
 
@@ -160,7 +160,7 @@ void VSCodeProtocol::EmitContinuedEvent(ThreadId threadId)
     EmitEvent("continued", body);
 }
 
-void VSCodeProtocol::EmitStoppedEvent(const StoppedEvent &event)
+void DAP::EmitStoppedEvent(const StoppedEvent &event)
 {
     LogFuncEntry();
 
@@ -202,7 +202,7 @@ void VSCodeProtocol::EmitStoppedEvent(const StoppedEvent &event)
     EmitEvent("stopped", body);
 }
 
-void VSCodeProtocol::EmitExitedEvent(const ExitedEvent &event)
+void DAP::EmitExitedEvent(const ExitedEvent &event)
 {
     LogFuncEntry();
     json body;
@@ -210,13 +210,13 @@ void VSCodeProtocol::EmitExitedEvent(const ExitedEvent &event)
     EmitEvent("exited", body);
 }
 
-void VSCodeProtocol::EmitTerminatedEvent()
+void DAP::EmitTerminatedEvent()
 {
     LogFuncEntry();
     EmitEvent("terminated", json::object());
 }
 
-void VSCodeProtocol::EmitThreadEvent(const ThreadEvent &event)
+void DAP::EmitThreadEvent(const ThreadEvent &event)
 {
     LogFuncEntry();
     json body;
@@ -238,7 +238,7 @@ void VSCodeProtocol::EmitThreadEvent(const ThreadEvent &event)
     EmitEvent("thread", body);
 }
 
-void VSCodeProtocol::EmitModuleEvent(const ModuleEvent &event)
+void DAP::EmitModuleEvent(const ModuleEvent &event)
 {
     LogFuncEntry();
     json body;
@@ -327,7 +327,7 @@ namespace
     };
 }
 
-void VSCodeProtocol::EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view, DWORD threadId)
+void DAP::EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view, DWORD threadId)
 {
     LogFuncEntry();
 
@@ -371,7 +371,7 @@ void VSCodeProtocol::EmitOutputEvent(OutputCategory category, Utility::string_vi
     ++m_seqCounter;
 }
 
-void VSCodeProtocol::EmitBreakpointEvent(const BreakpointEvent &event)
+void DAP::EmitBreakpointEvent(const BreakpointEvent &event)
 {
     LogFuncEntry();
     json body;
@@ -394,13 +394,13 @@ void VSCodeProtocol::EmitBreakpointEvent(const BreakpointEvent &event)
     EmitEvent("breakpoint", body);
 }
 
-void VSCodeProtocol::EmitInitializedEvent()
+void DAP::EmitInitializedEvent()
 {
     LogFuncEntry();
     EmitEvent("initialized", json::object());
 }
 
-void VSCodeProtocol::EmitExecEvent(PID pid, const std::string& argv0)
+void DAP::EmitExecEvent(PID pid, const std::string& argv0)
 {
     json body;
 
@@ -426,7 +426,7 @@ static void AddCapabilitiesTo(json &capabilities)
     capabilities["supportsExceptionInfoRequest"] = true;
     capabilities["supportsExceptionFilterOptions"] = true;
     json excFilters = json::array();
-    for (const auto &entry : g_VSCodeFilters)
+    for (const auto &entry : g_DAPFilters)
     {
         json filter{{"filter", entry.first},
                     {"label",  entry.first}};
@@ -436,7 +436,7 @@ static void AddCapabilitiesTo(json &capabilities)
     capabilities["supportsExceptionOptions"] = false; // TODO add implementation
 }
 
-void VSCodeProtocol::EmitCapabilitiesEvent()
+void DAP::EmitCapabilitiesEvent()
 {
     LogFuncEntry();
 
@@ -450,13 +450,13 @@ void VSCodeProtocol::EmitCapabilitiesEvent()
     EmitEvent("capabilities", body);
 }
 
-void VSCodeProtocol::Cleanup()
+void DAP::Cleanup()
 {
 
 }
 
 // Caller must care about m_outMutex.
-void VSCodeProtocol::EmitMessage(nlohmann::json &message, std::string &output)
+void DAP::EmitMessage(nlohmann::json &message, std::string &output)
 {
     message["seq"] = m_seqCounter;
     ++m_seqCounter;
@@ -465,7 +465,7 @@ void VSCodeProtocol::EmitMessage(nlohmann::json &message, std::string &output)
     cout.flush();
 }
 
-void VSCodeProtocol::EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message)
+void DAP::EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message)
 {
     std::lock_guard<std::mutex> lock(m_outMutex);
     std::string output;
@@ -473,7 +473,7 @@ void VSCodeProtocol::EmitMessageWithLog(const std::string &message_prefix, nlohm
     Log(message_prefix, output);
 }
 
-void VSCodeProtocol::EmitEvent(const std::string &name, const nlohmann::json &body)
+void DAP::EmitEvent(const std::string &name, const nlohmann::json &body)
 {
     json message;
     message["type"] = "event";
@@ -506,10 +506,10 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
 
         for (auto &entry : filters)
         {
-            auto findFilter = g_VSCodeFilters.find(entry);
-            if (findFilter == g_VSCodeFilters.end())
+            auto findFilter = g_DAPFilters.find(entry);
+            if (findFilter == g_DAPFilters.end())
                 return E_INVALIDARG;
-            // in case of VSCode protocol, we can't setup categoryHint during breakpoint setup, since this protocol don't provide such information
+            // in case of DAP protocol, we can't setup categoryHint during breakpoint setup, since this protocol don't provide such information
             exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
         }
 
@@ -519,10 +519,10 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
             if (findId == entry.end() || findId->second.empty())
                 return E_INVALIDARG;
 
-            auto findFilter = g_VSCodeFilters.find(findId->second);
-            if (findFilter == g_VSCodeFilters.end())
+            auto findFilter = g_DAPFilters.find(findId->second);
+            if (findFilter == g_DAPFilters.end())
                 return E_INVALIDARG;
-            // in case of VSCode protocol, we can't setup categoryHint during breakpoint setup, since this protocol don't provide such information
+            // in case of DAP protocol, we can't setup categoryHint during breakpoint setup, since this protocol don't provide such information
             exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
 
             auto findCondition = entry.find("condition");
@@ -731,9 +731,7 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
             }
         }());
 
-        // NOTE
-        // VSCode don't support evaluation flags, we can't disable implicit function calls during evaluation.
-        // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+        // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
         Variable variable;
         std::string output;
         Status = sharedDebugger->Evaluate(frameId, expression, variable, output);
@@ -777,9 +775,7 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
             }
         }());
 
-        // NOTE
-        // VSCode don't support evaluation flags, we can't disable implicit function calls during evaluation.
-        // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+        // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
         std::string output;
         Status = sharedDebugger->SetExpression(frameId, expression, defaultEvalFlags, value, output);
         if (FAILED(Status))
@@ -953,7 +949,7 @@ static std::string ReadData(std::istream& cin)
     return result;
 }
 
-void VSCodeProtocol::CommandsWorker()
+void DAP::CommandsWorker()
 {
     std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
 
@@ -1046,7 +1042,7 @@ void VSCodeProtocol::CommandsWorker()
 }
 
 // Caller must care about m_commandsMutex.
-std::list<VSCodeProtocol::CommandQueueEntry>::iterator VSCodeProtocol::CancelCommand(const std::list<VSCodeProtocol::CommandQueueEntry>::iterator &iter)
+std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<DAP::CommandQueueEntry>::iterator &iter)
 {
     iter->response["success"] = false;
     iter->response["message"] = std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled.");
@@ -1054,9 +1050,9 @@ std::list<VSCodeProtocol::CommandQueueEntry>::iterator VSCodeProtocol::CancelCom
     return m_commandsQueue.erase(iter);
 }
 
-void VSCodeProtocol::CommandLoop()
+void DAP::CommandLoop()
 {
-    std::thread commandsWorker{&VSCodeProtocol::CommandsWorker, this};
+    std::thread commandsWorker{&DAP::CommandsWorker, this};
 
     m_exit = false;
 
@@ -1184,7 +1180,7 @@ void VSCodeProtocol::CommandLoop()
     commandsWorker.join();
 }
 
-void VSCodeProtocol::EngineLogging(const std::string &path)
+void DAP::EngineLogging(const std::string &path)
 {
     if (path.empty())
     {
@@ -1198,7 +1194,7 @@ void VSCodeProtocol::EngineLogging(const std::string &path)
 }
 
 // Caller must care about m_outMutex.
-void VSCodeProtocol::Log(const std::string &prefix, const std::string &text)
+void DAP::Log(const std::string &prefix, const std::string &text)
 {
     switch(m_engineLogOutput)
     {

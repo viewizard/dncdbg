@@ -14,7 +14,7 @@
 #include "debugger/stepper_simple.h"
 #include "debugger/stepper_async.h"
 #include "debugger/steppers.h"
-#include "protocols/vscodeprotocol.h"
+#include "protocol/dap.h"
 
 #include <algorithm>
 #include <sstream>
@@ -340,10 +340,10 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     // In case `lastStoppedThread` provided, just check that we really have it.
     if (lastStoppedThread != ThreadId::AllThreads)
     {
-        // In case VSCode protocol, user provide "pause" thread id.
+        // In case DAP protocol, user provide "pause" thread id.
         if (std::find_if(threads.begin(), threads.end(), [&](Thread t){ return t.id == lastStoppedThread; }) != threads.end())
         {
-            // VSCode protocol event must provide thread only (VSCode count on this), even if this thread don't have user code.
+            // DAP protocol event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
             m_debugger.SetLastStoppedThreadId(lastStoppedThread);
             m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StopPause, lastStoppedThread));
             m_debugger.m_ioredirect.async_cancel();

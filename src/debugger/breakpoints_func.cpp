@@ -165,7 +165,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
 
     // Export function breakpoints
-    // Note, VSCode and MI/GDB protocols requires, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP protocol require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &fb : funcBreakpoints)
     {

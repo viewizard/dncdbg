@@ -24,7 +24,7 @@ namespace dncdbg
 
 class IDebugger;
 
-class VSCodeProtocol
+class DAP
 {
     std::atomic<bool> m_exit;
     std::shared_ptr<IDebugger> m_sharedDebugger;
@@ -68,7 +68,7 @@ class VSCodeProtocol
 
 public:
 
-    VSCodeProtocol(std::istream& input, std::ostream& output) :
+    DAP(std::istream& input, std::ostream& output) :
         m_exit(false), m_sharedDebugger(nullptr), cin(input), cout(output), m_engineLogOutput(LogNone), m_seqCounter(1) {}
     void SetDebugger(std::shared_ptr<IDebugger> &sharedDebugger) { m_sharedDebugger = sharedDebugger; }
     void EngineLogging(const std::string &path);

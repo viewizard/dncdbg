@@ -21,7 +21,7 @@ namespace dncdbg
 
 template <typename T> using span = Utility::span<T>;
 
-class VSCodeProtocol;
+class DAP;
 class Threads;
 class Steppers;
 class Evaluator;
@@ -51,7 +51,7 @@ enum StartMethod
 class ManagedDebuggerBase : public IDebugger
 {
 protected:
-    ManagedDebuggerBase(VSCodeProtocol *pProtocol);
+    ManagedDebuggerBase(DAP *pProtocol);
     ~ManagedDebuggerBase() override;
 
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
@@ -76,7 +76,7 @@ protected:
     std::map<std::string, std::string> m_env;
     bool m_isConfigurationDone;
 
-    VSCodeProtocol *pProtocol;
+    DAP *pProtocol;
     std::shared_ptr<Threads> m_sharedThreads;
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
@@ -122,7 +122,7 @@ protected:
     friend class ManagedCallback;
     friend class CallbacksQueue;
 
-    ManagedDebuggerHelpers(VSCodeProtocol *pProtocol);
+    ManagedDebuggerHelpers(DAP *pProtocol);
 
     static VOID StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr);
     HRESULT Startup(IUnknown *punk);
@@ -136,7 +136,7 @@ protected:
 class ManagedDebugger final : public ManagedDebuggerHelpers
 {
 public:
-    ManagedDebugger(VSCodeProtocol *pProtocol);
+    ManagedDebugger(DAP *pProtocol);
 
     bool IsJustMyCode() const override { return m_justMyCode; }
     void SetJustMyCode(bool enable) override;

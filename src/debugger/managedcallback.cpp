@@ -15,7 +15,7 @@
 #include "debugger/waitpid.h"
 #include "debugger/evalstackmachine.h"
 #include "metadata/modules.h"
-#include "protocols/vscodeprotocol.h"
+#include "protocol/dap.h"
 #include "utils/utf.h"
 #include "managed/interop.h"
 

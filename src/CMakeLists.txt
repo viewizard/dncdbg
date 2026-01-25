@@ -101,8 +101,8 @@ set(dncdbg_SRC
     metadata/modules.cpp
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
-    protocols/escaped_string.cpp
-    protocols/vscodeprotocol.cpp
+    protocol/escaped_string.cpp
+    protocol/dap.cpp
     utils/utf.cpp
     main.cpp
     buildinfo.cpp

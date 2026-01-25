@@ -174,7 +174,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
     for (const auto &resolvedBP : resolvedPoints)
     {
         // Note, we might have situation with same source path in different modules.
-        // VSCode/MI protocols and internal debugger routine don't support this case.
+        // DAP protocol and internal debugger routine don't support this case.
         IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
         if (modAddress && modAddress != modAddressTrack)
         {
@@ -335,7 +335,7 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string&
     }
 
     // Export breakpoints
-    // Note, VSCode and MI/GDB protocols requires, that "breakpoints" and "lineBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP protocol require, that "breakpoints" and "lineBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &sb : lineBreakpoints)
     {

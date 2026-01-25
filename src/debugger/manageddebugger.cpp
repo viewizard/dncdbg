@@ -38,7 +38,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include "debugger/waitpid.h"
-#include "protocols/vscodeprotocol.h"
+#include "protocol/dap.h"
 
 #include "palclr.h"
 
@@ -154,7 +154,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
     return m_lastStoppedThreadId;
 }
 
-ManagedDebuggerBase::ManagedDebuggerBase(VSCodeProtocol *pProtocol_) :
+ManagedDebuggerBase::ManagedDebuggerBase(DAP *pProtocol_) :
     m_processAttachedState(ProcessAttachedState::Unattached),
     m_lastStoppedThreadId(ThreadId::AllThreads),
     m_startMethod(StartNone),
@@ -183,11 +183,11 @@ ManagedDebuggerBase::ManagedDebuggerBase(VSCodeProtocol *pProtocol_) :
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
 
-ManagedDebuggerHelpers::ManagedDebuggerHelpers(VSCodeProtocol *pProtocol_) :
+ManagedDebuggerHelpers::ManagedDebuggerHelpers(DAP *pProtocol_) :
     ManagedDebuggerBase(pProtocol_)
 {}
 
-ManagedDebugger::ManagedDebugger(VSCodeProtocol *pProtocol_) :
+ManagedDebugger::ManagedDebugger(DAP *pProtocol_) :
     ManagedDebuggerHelpers(pProtocol_)
 {}
 
@@ -334,7 +334,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
     m_sharedVariables->Clear();
     FrameId::invalidate(); // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // VSCode protocol need thread ID.
+    pProtocol->EmitContinuedEvent(threadId); // DAP protocol need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
@@ -366,7 +366,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
     m_sharedVariables->Clear();
     FrameId::invalidate(); // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // VSCode protocol need thread ID.
+    pProtocol->EmitContinuedEvent(threadId); // DAP protocol need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
