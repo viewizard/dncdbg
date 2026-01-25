@@ -10,7 +10,7 @@ namespace DNCDbgTestCore.DAP
 {
 public class DAPLocalDebuggerClient : DebuggerClient
 {
-    public DAPLocalDebuggerClient(StreamWriter input, StreamReader output) : base(ProtocolType.DAP)
+    public DAPLocalDebuggerClient(StreamWriter input, StreamReader output)
     {
         DebuggerInput = input;
         DebuggerOutput = output;

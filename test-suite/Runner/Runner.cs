@@ -62,7 +62,7 @@ class Program
 
         try
         {
-            script = new ControlScript(cli.Environment.SourceFilesPath, debugger.Protocol);
+            script = new ControlScript(cli.Environment.SourceFilesPath);
         }
         catch (ScriptNotBuiltException e)
         {
@@ -255,7 +255,6 @@ options:
     }
 
     public bool NeedHelp = false;
-    public ProtocolType Protocol = ProtocolType.DAP;
     public DNCDbgTestCore.Environment Environment;
     public LocalClientInfo ClientInfo;
 }

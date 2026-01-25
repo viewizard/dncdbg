@@ -22,16 +22,14 @@ public class Breakpoint
 
 public class LineBreakpoint : Breakpoint
 {
-    public LineBreakpoint(string name, string fileName, int numLine, ProtocolType protocol = ProtocolType.None)
+    public LineBreakpoint(string name, string fileName, int numLine)
         : base(name, BreakpointType.Line)
     {
         FileName = fileName;
         NumLine = numLine;
-        Protocol = protocol;
     }
 
     public string FileName;
     public int NumLine;
-    public ProtocolType Protocol;
 }
 }

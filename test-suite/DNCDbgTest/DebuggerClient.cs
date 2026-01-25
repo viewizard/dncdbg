@@ -1,18 +1,7 @@
 namespace DNCDbgTestCore
 {
-public enum ProtocolType
-{
-    None,
-    DAP,
-}
-
 public class DebuggerClient
 {
-    public DebuggerClient(ProtocolType protocol)
-    {
-        Protocol = protocol;
-    }
-
     // Protocol specific handshake gives a guarantee
     // of a debugger ability to receive commands and
     // response messages
@@ -37,7 +26,5 @@ public class DebuggerClient
     public virtual void Close()
     {
     }
-
-    public ProtocolType Protocol;
 }
 }

@@ -54,7 +54,7 @@ public class ScriptNotBuiltException : Exception
 
 public class ControlScript
 {
-    public ControlScript(string pathToTestFiles, ProtocolType protocolType)
+    public ControlScript(string pathToTestFiles)
     {
         ControlScriptDummyText =
 @"using System;
@@ -64,8 +64,8 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using DNCDbgTest;
 using DNCDbgTest.Script;
+using DNCDbgTest.DAP;
 using Newtonsoft.Json;
-using DNCDbgTest." + protocolType.ToString() + @";
 
 namespace DNCDbgTest.Script
 {
@@ -119,7 +119,7 @@ namespace DNCDbgTestCore
             trees.Add(testTree);
         }
 
-        TestLabelsInfo = CollectTestLabelsInfo(trees, protocolType);
+        TestLabelsInfo = CollectTestLabelsInfo(trees);
         ScriptDeclarations = CollectScriptDeclarations(trees);
         SyntaxTree = BuildTree();
         Compilation compilation = CompileTree(SyntaxTree);
@@ -155,9 +155,9 @@ namespace DNCDbgTestCore
         }
     }
 
-    TestLabelsInfo CollectTestLabelsInfo(List<SyntaxTree> trees, ProtocolType protocolType)
+    TestLabelsInfo CollectTestLabelsInfo(List<SyntaxTree> trees)
     {
-        var visitor = new TestLabelsInfoCollector(protocolType);
+        var visitor = new TestLabelsInfoCollector();
 
         foreach (SyntaxTree tree in trees)
         {
@@ -271,10 +271,10 @@ public class TestLabelsInfo
 
 public class TestLabelsInfoCollector : CSharpSyntaxWalker
 {
-    public TestLabelsInfoCollector(ProtocolType protocolType)
+    public TestLabelsInfoCollector()
     {
         TestLabelsInfo = new TestLabelsInfo();
-        TypeClassBP = Type.GetType("DNCDbgTest." + protocolType.ToString() + "." + protocolType.ToString() + "LineBreakpoint");
+        TypeClassBP = Type.GetType("DNCDbgTest.LineBreakpoint");
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
