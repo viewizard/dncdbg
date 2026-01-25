@@ -3,9 +3,9 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-using DNCDbgTest;
-using DNCDbgTest.DAP;
-using DNCDbgTest.Script;
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
 
 namespace TestNoJMCNoFilterStepping
 {

@@ -1,4 +1,4 @@
-namespace DNCDbgTest
+namespace DbgTest
 {
 public static class Assert
 {

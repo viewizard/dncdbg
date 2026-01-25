@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Text;
 
-using DNCDbgTestCore;
+using DbgTestCore;
 
-namespace DNCDbgTestCore.DAP
+namespace DbgTestCore.DAP
 {
 public class DAPLocalDebuggerClient : DebuggerClient
 {

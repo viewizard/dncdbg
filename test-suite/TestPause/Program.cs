@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 
-using DNCDbgTest;
-using DNCDbgTest.DAP;
-using DNCDbgTest.Script;
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
 
 namespace TestPause
 {

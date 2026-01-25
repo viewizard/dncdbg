@@ -5,13 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using DNCDbgTest;
-using DNCDbgTest.DAP;
-using DNCDbgTest.Script;
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
 
 using Newtonsoft.Json;
 
-namespace DNCDbgTest.Script
+namespace DbgTest.Script
 {
 class Context
 {
@@ -1169,7 +1169,7 @@ class Context
         strRes = evaluateResponse.body.result;
     }
 
-    public Context(ControlInfo controlInfo, DNCDbgTestCore.DebuggerClient debuggerClient)
+    public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
         DAPDebugger = new DAPDebugger(debuggerClient);

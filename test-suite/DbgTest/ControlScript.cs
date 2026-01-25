@@ -13,9 +13,9 @@ using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-using DNCDbgTest;
+using DbgTest;
 
-namespace DNCDbgTestCore
+namespace DbgTestCore
 {
 
 public static class SourceLocation
@@ -62,16 +62,16 @@ using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using DNCDbgTest;
-using DNCDbgTest.Script;
-using DNCDbgTest.DAP;
+using DbgTest;
+using DbgTest.Script;
+using DbgTest.DAP;
 using Newtonsoft.Json;
 
-namespace DNCDbgTest.Script
+namespace DbgTest.Script
 {
 }
 
-namespace DNCDbgTestCore
+namespace DbgTestCore
 {
     public class GeneratedScript
     {
@@ -124,7 +124,7 @@ namespace DNCDbgTestCore
         SyntaxTree = BuildTree();
         Compilation compilation = CompileTree(SyntaxTree);
         Assembly scriptAssembly = MakeAssembly(compilation);
-        generatedScriptClass = scriptAssembly.GetType("DNCDbgTestCore.GeneratedScript");
+        generatedScriptClass = scriptAssembly.GetType("DbgTestCore.GeneratedScript");
         Breakpoints = TestLabelsInfo.Breakpoints;
     }
 
@@ -274,7 +274,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
     public TestLabelsInfoCollector()
     {
         TestLabelsInfo = new TestLabelsInfo();
-        TypeClassBP = Type.GetType("DNCDbgTest.LineBreakpoint");
+        TypeClassBP = Type.GetType("DbgTest.LineBreakpoint");
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -381,7 +381,7 @@ public class ScriptDeclarationsCollector : CSharpSyntaxWalker
 
     public override void VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (node.Name.ToString() == "DNCDbgTest.Script")
+        if (node.Name.ToString() == "DbgTest.Script")
         {
             ScriptDeclarations = ScriptDeclarations.AddRange(node.Members);
             return;
@@ -405,7 +405,7 @@ public class GeneratedScriptDeclarationsBuilder : CSharpSyntaxRewriter
 
     public override SyntaxNode VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
-        if (node.Name.ToString() == "DNCDbgTest.Script")
+        if (node.Name.ToString() == "DbgTest.Script")
         {
             return node.AddMembers(ScriptDeclarations.ToArray());
         }

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DNCDbgTest.DAP
+namespace DbgTest.DAP
 {
 public class Event : ProtocolMessage
 {

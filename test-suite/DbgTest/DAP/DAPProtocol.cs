@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DNCDbgTest.DAP
+namespace DbgTest.DAP
 {
 // https://github.com/Microsoft/DAP-debugadapter-node/blob/master/debugProtocol.json
 // https://github.com/Microsoft/DAP-debugadapter-node/blob/master/protocol/src/debugProtocol.ts

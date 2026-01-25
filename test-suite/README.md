@@ -27,11 +27,11 @@
     $ dotnet new console -o NewTest
 ```
 
-- add reference to DNCDbgTest library and `Context.cs` file to `ItemGroup` section by edit `NewTest.csproj` file, for example:
+- add reference to DbgTest library and `Context.cs` file to `ItemGroup` section by edit `NewTest.csproj` file, for example:
 ```
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
+    <ProjectReference Include="..\DbgTest\DbgTest.csproj" />
     <Compile Include="..\ScriptContext\Context.cs" />
   </ItemGroup>
   <PropertyGroup>

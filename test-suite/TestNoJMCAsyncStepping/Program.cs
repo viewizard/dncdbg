@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 
-using DNCDbgTest;
-using DNCDbgTest.DAP;
-using DNCDbgTest.Script;
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
 
 namespace TestNoJMCAsyncStepping
 {

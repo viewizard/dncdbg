@@ -1,6 +1,6 @@
 using System;
 
-namespace DNCDbgTest
+namespace DbgTest
 {
 class Logger
 {

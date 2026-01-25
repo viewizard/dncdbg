@@ -1,4 +1,4 @@
-namespace DNCDbgTestCore
+namespace DbgTestCore
 {
 public class DebuggerClient
 {

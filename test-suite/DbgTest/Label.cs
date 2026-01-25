@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using DNCDbgTestCore;
+using DbgTestCore;
 
-namespace DNCDbgTest
+namespace DbgTest
 {
 public static class Label
 {

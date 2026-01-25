@@ -1,4 +1,4 @@
-namespace DNCDbgTestCore
+namespace DbgTestCore
 {
 public class BrokenTestCheckpointLogic : System.Exception
 {
@@ -13,11 +13,11 @@ public class WrongResponseSequence : System.Exception
 }
 }
 
-namespace DNCDbgTest
+namespace DbgTest
 {
-public class DNCDbgTestException : System.Exception
+public class DbgTestException : System.Exception
 {
-    public DNCDbgTestException(string stacktrace)
+    public DbgTestException(string stacktrace)
     {
         UserMessage = "\n Stack Trace:";
 
@@ -31,14 +31,14 @@ public class DNCDbgTestException : System.Exception
     public override string Message => UserMessage;
 }
 
-public class DebuggerTimedOut : DNCDbgTestException
+public class DebuggerTimedOut : DbgTestException
 {
     public DebuggerTimedOut(string stacktrace) : base(stacktrace)
     {
     }
 }
 
-public class ResultNotSuccessException : DNCDbgTestException
+public class ResultNotSuccessException : DbgTestException
 {
     public ResultNotSuccessException(string stacktrace) : base(stacktrace)
     {

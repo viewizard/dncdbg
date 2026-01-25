@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\DNCDbgTest\DNCDbgTest.csproj" />
+    <ProjectReference Include="..\DbgTest\DbgTest.csproj" />
     <Compile Include="..\ScriptContext\Context.cs" />
   </ItemGroup>
 

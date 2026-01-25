@@ -1,12 +1,12 @@
 using System;
 
-using DNCDbgTest;
+using DbgTest;
 
-namespace DNCDbgTestCore
+namespace DbgTestCore
 {
 public class ControlPart
 {
-    public void Run(ControlScript script, DebuggerClient debugger, DNCDbgTestCore.Environment env)
+    public void Run(ControlScript script, DebuggerClient debugger, DbgTestCore.Environment env)
     {
         ControlInfo info = new ControlInfo(script, env);
         script.ExecuteCheckPoints(info, debugger);
