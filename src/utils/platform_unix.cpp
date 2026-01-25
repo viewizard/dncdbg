@@ -2,9 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file platform_unix.cpp  This file contains unix-specific function definitions,
-/// for functions defined in platform.h
-
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #ifdef __APPLE__
 #include <crt_externs.h>
@@ -17,13 +14,11 @@ extern char** environ;
 namespace dncdbg
 {
 
-
 // Function suspends process execution for specified amount of time (in microseconds)
 void USleep(unsigned long usec)
 {
     usleep(usec);
 }
-
 
 // Function returns list of environment variables (like char **environ).
 char** GetSystemEnvironment()
@@ -35,5 +30,5 @@ char** GetSystemEnvironment()
 #endif  // __APPLE__
 }
 
-}  // ::dncdbg
+} // namespace dncdbg
 #endif  // __unix__

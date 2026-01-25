@@ -2,9 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-/// \file platform_win32.cpp  This file contains windows-specific function definitions,
-/// for functions defined in platform.h
-
 #ifdef WIN32
 #include <windows.h>
 #include <stdlib.h>  // char **environ
@@ -28,12 +25,11 @@ void USleep(unsigned long usec)
     CloseHandle(timer);
 }
 
-
 // Function returns list of environment variables (like char **environ).
 char** GetSystemEnvironment()
 {
     return environ;
 }
 
-}  // ::dncdbg
+} // namespace dncdbg
 #endif

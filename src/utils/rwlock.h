@@ -128,7 +128,7 @@ private:
     }
 };
 
-}
-}
+} // namespace Utility
+} // namespace dncdbg
 
 
