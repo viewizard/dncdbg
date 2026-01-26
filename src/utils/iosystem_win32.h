@@ -107,4 +107,4 @@ template <> struct IOSystemTraits<Win32PlatformTag>
 };
 
 } // namespace dncdbg
-#endif // WIN32
+#endif // _WIN32

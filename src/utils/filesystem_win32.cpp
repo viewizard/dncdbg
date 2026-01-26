@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include <string>
 #include "utils/filesystem.h"
@@ -44,4 +44,4 @@ bool SetWorkDir(const std::string &path)
 }
 
 } // namespace dncdbg
-#endif // WIN32
+#endif // _WIN32

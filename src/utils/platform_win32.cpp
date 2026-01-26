@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include <stdlib.h>  // char **environ
 #include "utils/platform.h"

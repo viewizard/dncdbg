@@ -61,7 +61,7 @@ struct dbgshim_t
             return;
         std::string libName = exe.substr(0, dirSepIndex + 1);
 
-#ifdef WIN32
+#ifdef _WIN32
         libName += "dbgshim.dll";
 #elif defined(__APPLE__)
         libName += "libdbgshim.dylib";

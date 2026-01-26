@@ -272,7 +272,7 @@ static std::string GetFileName(const std::string &path)
 HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
     std::string fullPath = to_utf8(document);
-#ifdef WIN32
+#ifdef _WIN32
     HRESULT Status;
     std::string initialFullPath = fullPath;
     IfFailRet(Interop::StringToUpper(fullPath));
@@ -283,7 +283,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
         fullPathIndex = (unsigned)m_sourceIndexToPath.size();
         m_sourcePathToIndex.emplace(std::make_pair(fullPath, fullPathIndex));
         m_sourceIndexToPath.emplace_back(fullPath);
-#ifdef WIN32
+#ifdef _WIN32
         m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
 #endif
         m_sourceNameToFullPathsIndexes[GetFileName(fullPath)].emplace(fullPathIndex);
@@ -308,7 +308,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
     // Usually, modules provide files with unique full paths for sources.
     m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData->fileNum);
     m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData->fileNum);
-#ifdef WIN32
+#ifdef _WIN32
     m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData->fileNum);
 #endif
 
@@ -353,7 +353,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
 
     m_sourcesMethodsData.shrink_to_fit();
     m_sourceIndexToPath.shrink_to_fit();
-#ifdef WIN32
+#ifdef _WIN32
     m_sourceIndexToInitialFullPath.shrink_to_fit();
 #endif
 
@@ -459,7 +459,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules, /*in*/ CORDB
     if (findIndex == m_sourcePathToIndex.end())
     {
         // Check for absolute path.
-#ifdef WIN32
+#ifdef _WIN32
         // Check, if start from drive letter, for example "D:\" or "D:/".
         if (filename.size() > 2 && filename[1] == ':' && (filename[2] == '/' || filename[2] == '\\'))
 #else
@@ -562,7 +562,7 @@ HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fu
 
 HRESULT ModulesSources::GetIndexBySourceFullPath(std::string fullPath, unsigned &index)
 {
-#ifdef WIN32
+#ifdef _WIN32
     HRESULT Status;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
@@ -579,7 +579,7 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(std::string fullPath, unsigned 
 
 void ModulesSources::FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb)
 {
-#ifdef WIN32
+#ifdef _WIN32
     std::string uppercase {pattern};
     if (FAILED(Interop::StringToUpper(uppercase)))
         return;

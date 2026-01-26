@@ -11,7 +11,7 @@
 #include <cstddef>
 #include "utils/limits.h"
 #include "utils/platform.h"
-#elif WIN32
+#elif _WIN32
 #include <cstddef>
 #include <windows.h>
 #endif
@@ -26,7 +26,7 @@ namespace FileSystem
     const static size_t NameMax = NAME_MAX;
     const static char PathSeparator = '/';
     const static char* PathSeparatorSymbols = "/";
-#elif WIN32
+#elif _WIN32
     const static size_t PathMax = MAX_PATH;
     const static size_t NameMax = MAX_PATH - 1; // not include terminal null.
     const static char PathSeparator = '\\';

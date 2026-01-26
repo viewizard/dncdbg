@@ -27,12 +27,12 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     FILE *pFile = nullptr;
     scope_guard file(&pFile);
 
-#ifdef WIN32
+#ifdef _WIN32
     if (_wfopen_s(&pFile, to_utf16(path).c_str(), L"rb") != 0)
         return mdMethodDefNil;
 #else
     pFile = fopen(path.c_str(), "rb");
-#endif // WIN32
+#endif // _WIN32
 
     if (!pFile)
         return mdMethodDefNil;

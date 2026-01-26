@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#elif WIN32
+#elif _WIN32
 #include <windows.h>
 #include <stddef.h>
 #include <string.h>
@@ -147,7 +147,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& t
     }
 
     closedir(dir);
-#elif WIN32
+#elif _WIN32
     const char * const tpaExtensions[] = {
         "*.ni.dll",      // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         "*.dll",
@@ -208,7 +208,7 @@ void UnsetCoreCLREnv()
 {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     unsetenv("CORECLR_ENABLE_PROFILING");
-#elif WIN32
+#elif _WIN32
     _putenv("CORECLR_ENABLE_PROFILING=");
 #endif
 }
@@ -220,7 +220,7 @@ UINT SysStringLen(BSTR bstrString)
         return 0;
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     return (unsigned int)((((DWORD FAR*)bstrString)[-1]) / sizeof(OLECHAR));
-#elif WIN32
+#elif _WIN32
     return ::SysStringLen(bstrString);
 #endif
 }

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
 #include <ws2tcpip.h>
@@ -516,7 +516,7 @@ Class::IOSystem::StdFiles Class::get_std_files()
 {
     using Handles = std::tuple<IOSystem::FileHandle, IOSystem::FileHandle, IOSystem::FileHandle>;
 
-#if defined(WIN32) && defined(_TARGET_X86_)
+#if defined(_WIN32) && defined(_TARGET_X86_)
     // Note, we can't use `alignas(alignof(std::max_align_t))` here, since at least MSVC 32bit (VS2019) compiler can't
     // generate proper code and ASAN detect "ERROR: AddressSanitizer: stack - buffer - underflow on address...".
     union mem_align_t
@@ -624,4 +624,4 @@ Class::StdIOSwap::~StdIOSwap()
     }
 }
 
-#endif  // WIN32
+#endif  // _WIN32

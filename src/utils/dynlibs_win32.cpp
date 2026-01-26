@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include "utils/dynlibs.h"
 #include "utils/limits.h"
@@ -39,4 +39,4 @@ bool DLClose(DLHandle handle)
 }
 
 } // namespace dncdbg
-#endif // WIN32
+#endif // _WIN32

@@ -120,7 +120,7 @@ static HRESULT LaunchNewProcess(ManagedDebugger *pDebugger, std::string &execFil
 }
 
 int
-#if defined(WIN32) && defined(_TARGET_X86_)
+#if defined(_WIN32) && defined(_TARGET_X86_)
     __cdecl
 #endif
     main(int argc, char *argv[])

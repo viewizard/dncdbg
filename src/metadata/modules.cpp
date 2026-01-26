@@ -714,7 +714,7 @@ HRESULT Modules::ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> 
 HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress, /*in*/ std::string filename, /*out*/ unsigned &fullname_index,
                                    /*in*/ int sourceLine, /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
 {
-#ifdef WIN32
+#ifdef _WIN32
     HRESULT Status;
     IfFailRet(Interop::StringToUpper(filename));
 #endif
