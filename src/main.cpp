@@ -233,6 +233,11 @@ int
     // Note: there is no possibility to know which exception caused call to std::terminate
     std::set_terminate([] { LOGF("DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
     std::unique_ptr<DAP> protocol(new DAP(std::cin, std::cout));
 
     if (engineLogging)
