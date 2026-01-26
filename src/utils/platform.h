@@ -11,8 +11,21 @@
 #define W(s) u##s
 #endif
 
+#ifdef WIN32
+#define PLATFORM_TAG Win32PlatformTag
+#else
+#define PLATFORM_TAG UnixPlatformTag
+#endif
+
 namespace dncdbg
 {
+
+    struct Win32PlatformTag {};  // PlatformTag for Windows (see below)
+    struct UnixPlatformTag {};   // PlatformTAg for Unix and MacOS.
+   
+    // PlatformTag is the type, which determines platform, for which code is currenly compilih.
+    // This tag might be used to select proper template specialization.
+    using PlatformTag = PLATFORM_TAG;
 
     // Function suspends process execution for specified amount of time (in microseconds)
     void USleep(unsigned long usec);

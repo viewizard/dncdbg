@@ -521,4 +521,11 @@ enum class EventFormat
     CLI
 };
 
+enum class AsyncResult
+{
+    Canceled,   // function canceled due to debugger interruption
+    Error,      // IO error
+    Eof         // EOF reached
+};
+
 } // namespace dncdbg

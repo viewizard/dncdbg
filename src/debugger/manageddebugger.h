@@ -13,6 +13,7 @@
 #include "interfaces/types.h"
 #include "debugger/dbgshim.h"
 #include "utils/span.h"
+#include "utils/ioredirect.h"
 #include "utils/torelease.h"
 #include "utils/rwlock.h"
 
@@ -97,9 +98,12 @@ protected:
     DWORD m_processId;
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
+    IORedirectHelper m_ioredirect;
 
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
+
+    void InputCallback(IORedirectHelper::StreamType, span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

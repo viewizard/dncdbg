@@ -174,7 +174,11 @@ ManagedDebugger::ManagedDebugger(DAP *pProtocol_) :
     m_justMyCode(true),
     m_stepFiltering(true),
     m_unregisterToken(nullptr),
-    m_processId(0)
+    m_processId(0),
+    m_ioredirect(
+        { IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe() },
+        std::bind(&ManagedDebugger::InputCallback, this, std::placeholders::_1, std::placeholders::_2)
+    )
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
@@ -627,11 +631,17 @@ HRESULT ManagedDebugger::RunProcess(const std::string& fileExec, const std::vect
             m_cwd.clear();
     }
 
-    IfFailRet(m_dbgshim.CreateProcessForLaunch(reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
-                                /* Suspend process */ TRUE,
-                                outEnv.empty() ? NULL : &outEnv[0],
-                                m_cwd.empty() ? NULL : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
-                                &m_processId, &resumeHandle));
+    Status = m_ioredirect.exec([&]() -> HRESULT {
+            IfFailRet(m_dbgshim.CreateProcessForLaunch(reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
+                                     /* Suspend process */ TRUE,
+                                     outEnv.empty() ? NULL : &outEnv[0],
+                                     m_cwd.empty() ? NULL : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
+                                     &m_processId, &resumeHandle));
+            return Status;
+        });
+
+    if (FAILED(Status))
+        return Status;
 
 #ifdef FEATURE_PAL
     GetWaitpid().SetupTrackingPID(m_processId);
@@ -1157,6 +1167,11 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 {
     m_stepFiltering = enable;
     m_uniqueSteppers->SetStepFiltering(enable);
+}
+
+void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, span<char> text)
+{
+    pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputStdErr : OutputStdOut, {text.begin(), text.size()});
 }
 
 } // namespace dncdbg

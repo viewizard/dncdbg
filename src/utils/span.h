@@ -60,7 +60,7 @@ public:
     // Default copy constructor copies the size and data pointer.
     span(const span &) noexcept = default;
 
-    /// Assigns other span to this.
+    // Assigns other span to this.
     #ifndef _MSC_VER
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Weffc++"  // avoid bug in gcc (false warning)

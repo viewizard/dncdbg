@@ -20,6 +20,7 @@
 #include "winerror.h"
 
 #include "debugger/manageddebugger.h"
+#include "utils/streams.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include "utils/logger.h"
@@ -358,11 +359,11 @@ void DAP::EmitOutputEvent(OutputCategory category, Utility::string_view output, 
     }
 
     // compute size of headers without text (text could be huge, no reason parse it for size, that we already know)
-    std::ostringstream count;
+    CountingStream count;
     serialize_output(count, m_seqCounter, name, "", source);
 
     // compute total size of headers + text
-    auto const total_size = count.str().size() + escaped_text.size();
+    auto const total_size = count.size() + escaped_text.size();
 
     // perform output
     cout << CONTENT_LENGTH << total_size << TWO_CRLF;
