@@ -1169,6 +1169,38 @@ class Context
         strRes = evaluateResponse.body.result;
     }
 
+    public void WasOutputEvent(string category, string output, string caller_trace)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "output"))
+            {
+                OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON);
+                if (outputEvent.body.category == category && outputEvent.body.output == output)
+                    return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsNotStopEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void FailedOutputEventCheck(string category, string output, string caller_trace)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "output"))
+            {
+                OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON);
+                if (outputEvent.body.category == category && outputEvent.body.output == output)
+                    return false;
+            }
+            return true;
+        };
+
+        Assert.True(DAPDebugger.IsNotStopEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;

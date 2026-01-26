@@ -97,6 +97,18 @@ public class DAPDebugger
             {
                 Logger.LogLine("<- (E) " + line);
                 EventQueue.Enqueue(line);
+
+                bool stopEvent = false;
+                foreach (var Event in StopEvents)
+                {
+                    if (isResponseContainProperty(line, "event", Event))
+                    {
+                        stopEvent = true;
+                    }
+                }
+
+                if (!stopEvent)
+                    NotStopEventList.Add(line);
             }
         }
     }
@@ -122,6 +134,8 @@ public class DAPDebugger
                     return;
                 }
             }
+
+            NotStopEventList.Add(line);
         }
     }
 
@@ -145,12 +159,27 @@ public class DAPDebugger
         return false;
     }
 
+    public bool IsNotStopEventReceived(Func<string, bool> filter)
+    {
+        // check previously received events
+        foreach (var Event in NotStopEventList)
+        {
+            if (filter(Event))
+            {
+                NotStopEventList.Remove(Event);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public DAPDebugger(DebuggerClient debuggerClient)
     {
         DebuggerClient = debuggerClient;
     }
 
     Queue<string> EventQueue = new Queue<string>();
+    List<string> NotStopEventList = new List<string>();
     Logger Logger = new Logger();
     DebuggerClient DebuggerClient;
     static string[] StopEvents = { "stopped", "terminated" };

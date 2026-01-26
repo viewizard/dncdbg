@@ -36,6 +36,7 @@ $ALL_TEST_NAMES = @(
     "TestExtensionMethods"
     "TestBreakpointWithoutStop"
     "TestUnhandledException"
+    "TestStdIO"
 )
 
 $TEST_NAMES = $tests

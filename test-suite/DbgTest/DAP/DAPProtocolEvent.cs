@@ -42,4 +42,15 @@ public class ExitedEventBody
 {
     public int exitCode;
 }
+
+public class OutputEvent : Event
+{
+    public OutputEventBody body;
+}
+
+public class OutputEventBody
+{
+    public string category;
+    public string output;
+}
 }
