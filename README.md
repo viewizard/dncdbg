@@ -12,9 +12,8 @@ You can find licensing information in the [LICENSE](LICENSE) file within the roo
 
 ## Building from Source Code
 
-TODO
-- Windows OS build.
-- Linux OS build.
+- [Windows OS build.](docs/build_windows.md)
+- [Linux OS build.](docs/build_linux.md)
 
 ## Usage
 
