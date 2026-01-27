@@ -6,9 +6,9 @@
 #pragma once
 
 #include "debugger/manageddebugger.h"
-#include <thread>
-#include <list>
 #include <functional>
+#include <list>
+#include <thread>
 
 namespace dncdbg
 {
@@ -17,12 +17,12 @@ namespace dncdbg
 //
 // Callbacks will be dispatched one at a time, each time ICorDebugController::Continue is called.
 // The debugger can check this flag if it wants to report multiple debugging events that occur simultaneously.
-// 
+//
 // When debugging events are queued, they have already occurred, so the debugger must drain the entire queue
 // to be sure of the state of the debuggee. (Call ICorDebugController::Continue to drain the queue.) For example,
 // if the queue contains two debugging events on thread X, and the debugger suspends thread X after the first debugging
-// event and then calls ICorDebugController::Continue, the second debugging event for thread X will be dispatched although
-// the thread has been suspended.
+// event and then calls ICorDebugController::Continue, the second debugging event for thread X will be dispatched
+// although the thread has been suspended.
 
 enum class CallbackQueueCall
 {
@@ -36,16 +36,21 @@ enum class CallbackQueueCall
 
 class CallbacksQueue
 {
-public:
+  public:
 
-    CallbacksQueue(ManagedDebugger &debugger) :
-        m_debugger(debugger), m_stopEventInProcess(false), m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this} {}
+    CallbacksQueue(ManagedDebugger &debugger)
+        : m_debugger(debugger),
+          m_stopEventInProcess(false),
+          m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this}
+    {
+    }
     ~CallbacksQueue();
 
     // Called from ManagedDebugger by protocol request (Continue/Pause).
     bool IsRunning();
     HRESULT Continue(ICorDebugProcess *pProcess);
-    // Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best thread.
+    // Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best
+    // thread.
     HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread, EventFormat eventFormat);
     // Analog of "pProcess->Stop(0)" call that also care about callbacks.
     HRESULT Stop(ICorDebugProcess *pProcess);
@@ -53,10 +58,11 @@ public:
     HRESULT ContinueProcess(ICorDebugProcess *pProcess);
     HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain);
     HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, std::function<void()> callback);
-    void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                     CorDebugStepReason Reason, ExceptionCallbackType EventType, const std::string &ExcModule = std::string{});
+    void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                     ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType,
+                     const std::string &ExcModule = std::string{});
 
-private:
+  private:
 
     ManagedDebugger &m_debugger;
 
@@ -80,14 +86,14 @@ private:
                            ICorDebugBreakpoint *pBreakpoint,
                            CorDebugStepReason reason,
                            ExceptionCallbackType eventType,
-                           const std::string &excModule = "") :
-            Call(call),
-            iCorAppDomain(pAppDomain),
-            iCorThread(pThread),
-            iCorBreakpoint(pBreakpoint),
-            Reason(reason),
-            EventType(eventType),
-            ExcModule(excModule)
+                           const std::string &excModule = "")
+            : Call(call),
+              iCorAppDomain(pAppDomain),
+              iCorThread(pThread),
+              iCorBreakpoint(pBreakpoint),
+              Reason(reason),
+              EventType(eventType),
+              ExcModule(excModule)
         {}
 
     };
@@ -95,7 +101,7 @@ private:
     std::mutex m_callbacksMutex;
     std::condition_variable m_callbacksCV;
     std::list<CallbackQueueEntry> m_callbacksQueue; // Make sure this one initialized before m_callbacksWorker.
-    bool m_stopEventInProcess; // Make sure this one initialized before m_callbacksWorker.
+    bool m_stopEventInProcess;                      // Make sure this one initialized before m_callbacksWorker.
     std::thread m_callbacksWorker;
 
     void CallbacksWorker();
@@ -105,7 +111,6 @@ private:
     bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule);
     bool CallbacksWorkerCreateProcess();
     bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
-
 };
 
 } // namespace dncdbg

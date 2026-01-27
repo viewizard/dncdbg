@@ -7,8 +7,8 @@
 
 #ifdef FEATURE_PAL
 
-#include <signal.h>
 #include <mutex>
+#include <signal.h>
 
 namespace dncdbg
 {
@@ -17,7 +17,18 @@ namespace hook
 
 class waitpid_t
 {
-private:
+  public:
+
+    waitpid_t() = default;
+    ~waitpid_t() = default;
+
+    pid_t operator()(pid_t pid, int *status, int options);
+    void SetupTrackingPID(pid_t PID);
+    int GetExitCode();
+    void SetExitCode(pid_t PID, int Code);
+
+  private:
+
     typedef pid_t (*Signature)(pid_t pid, int *status, int options);
     Signature original = nullptr;
     static constexpr pid_t notConfigured = -1;
@@ -25,19 +36,10 @@ private:
     int exitCode = 0; // same behaviour as CoreCLR have, by default exit code is 0
     std::recursive_mutex interlock;
 
-    waitpid_t(const waitpid_t&) = delete;
-    waitpid_t& operator=(const waitpid_t&) = delete;
+    waitpid_t(const waitpid_t &) = delete;
+    waitpid_t &operator=(const waitpid_t &) = delete;
 
     void init() noexcept;
-
-public:
-    waitpid_t() = default;
-    ~waitpid_t() = default;
-
-    pid_t operator() (pid_t pid, int *status, int options);
-    void SetupTrackingPID(pid_t PID);
-    int GetExitCode();
-    void SetExitCode(pid_t PID, int Code);
 };
 
 } // namespace hook

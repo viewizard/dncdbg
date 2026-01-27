@@ -3,11 +3,11 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include <string>
 #include "debugger/breakpoint_entry.h"
 #include "debugger/breakpointutils.h"
 #include "metadata/modules.h"
 #include "utils/utf.h"
+#include <string>
 
 namespace dncdbg
 {
@@ -16,12 +16,21 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 {
     class scope_guard
     {
-    private:
-        FILE **ppFile_;
+      public:
 
-    public:
-        scope_guard(FILE **ppFile) : ppFile_(ppFile) {}
-        ~scope_guard() {if (*ppFile_) fclose(*ppFile_);}
+        scope_guard(FILE **ppFile)
+            : ppFile_(ppFile)
+        {
+        }
+        ~scope_guard()
+        {
+            if (*ppFile_)
+                fclose(*ppFile_);
+        }
+
+      private:
+
+        FILE **ppFile_;
     };
 
     FILE *pFile = nullptr;
@@ -40,9 +49,12 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     IMAGE_DOS_HEADER dosHeader;
     IMAGE_NT_HEADERS32 ntHeaders;
 
-    if (fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1) return mdMethodDefNil;
-    if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) return mdMethodDefNil;
-    if (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1) return mdMethodDefNil;
+    if (fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1)
+        return mdMethodDefNil;
+    if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
+        return mdMethodDefNil;
+    if (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1)
+        return mdMethodDefNil;
 
     ULONG corRVA = 0;
     if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
@@ -52,8 +64,10 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     else
     {
         IMAGE_NT_HEADERS64 ntHeaders64;
-        if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) return mdMethodDefNil;
-        if (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1) return mdMethodDefNil;
+        if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
+            return mdMethodDefNil;
+        if (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1)
+            return mdMethodDefNil;
         corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
     }
 
@@ -63,13 +77,15 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
         return mdMethodDefNil;
     pos += sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader);
 
-    if (fseek(pFile, pos, SEEK_SET) != 0) return mdMethodDefNil;
+    if (fseek(pFile, pos, SEEK_SET) != 0)
+        return mdMethodDefNil;
 
     for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
     {
         IMAGE_SECTION_HEADER sectionHeader;
 
-        if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1) return mdMethodDefNil;
+        if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1)
+            return mdMethodDefNil;
 
         if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
             corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
@@ -79,8 +95,10 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
                 return mdMethodDefNil;
 
             IMAGE_COR20_HEADER corHeader;
-            if (fseek(pFile, offset, SEEK_SET) != 0) return mdMethodDefNil;
-            if (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1) return mdMethodDefNil;
+            if (fseek(pFile, offset, SEEK_SET) != 0)
+                return mdMethodDefNil;
+            if (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1)
+                return mdMethodDefNil;
 
             if (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT)
                 return mdMethodDefNil;
@@ -110,15 +128,14 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     // Note, `Namespace.ClassName` could be different (see `-main` compiler option).
     // Note, `Namespace.ClassName.<Main>d__0` type have enclosing class as method `Namespace.ClassName.<Main>()` class.
     HRESULT Status;
-     ULONG numTypedefs = 0;
+    ULONG numTypedefs = 0;
     HCORENUM hEnum = NULL;
     mdTypeDef typeDef;
     mdMethodDef resultToken = mdMethodDefNil;
     while(SUCCEEDED(pMD->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
     {
         mdTypeDef mdEnclosingClass;
-        if (FAILED(pMD->GetNestedClassProps(typeDef, &mdEnclosingClass) ||
-            mdEnclosingClass != mdMainClass))
+        if (FAILED(pMD->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
             continue;
 
         DWORD flags;
@@ -131,7 +148,7 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
         ULONG numMethods = 0;
         HCORENUM fEnum = NULL;
         mdMethodDef methodDef;
-        while(SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
             mdTypeDef memTypeDef;
             WCHAR funcName[mdNameLen];
@@ -186,7 +203,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     ULONG funcNameLen;
     // If we can't setup entry point correctly for async method, leave it "as is".
     if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown)) &&
-        SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &pMD)) &&
+        SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD)) &&
         SUCCEEDED(pMD->GetMethodProps(entryPointToken, &mdMainClass, funcName, _countof(funcName), &funcNameLen,
                                       nullptr, nullptr, nullptr, nullptr, nullptr)) &&
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
@@ -219,7 +236,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
 
     HRESULT Status;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID*) &pFunctionBreakpoint));
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
     IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, m_iCorFuncBreakpoint));
     if (Status == S_FALSE)
         return S_FALSE;

@@ -6,42 +6,43 @@
 #pragma once
 
 #include "debugger/manageddebugger.h"
-#include <thread>
 #include <list>
+#include <thread>
 
 namespace dncdbg
 {
 
 class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedCallback2, ICorDebugManagedCallback3
 {
-private:
+  public:
 
-    std::mutex m_refCountMutex;
-    ULONG m_refCount;
-    ManagedDebugger &m_debugger;
-    std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
-
-public:
-
-    ManagedCallback(ManagedDebugger &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue) :
-        m_refCount(0), m_debugger(debugger), m_sharedCallbacksQueue(sharedCallbacksQueue){}
+    ManagedCallback(ManagedDebugger &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue)
+        : m_refCount(0),
+          m_debugger(debugger),
+          m_sharedCallbacksQueue(sharedCallbacksQueue)
+    {
+    }
     ULONG GetRefCount();
 
     // IUnknown
 
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, VOID** ppInterface) override;
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, VOID **ppInterface) override;
     ULONG STDMETHODCALLTYPE AddRef() override;
     ULONG STDMETHODCALLTYPE Release() override;
 
     // ICorDebugManagedCallback
 
-    HRESULT STDMETHODCALLTYPE Breakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint) override;
+    HRESULT STDMETHODCALLTYPE Breakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                         ICorDebugBreakpoint *pBreakpoint) override;
     HRESULT STDMETHODCALLTYPE StepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                            ICorDebugStepper *pStepper, CorDebugStepReason reason) override;
     HRESULT STDMETHODCALLTYPE Break(ICorDebugAppDomain *pAppDomain, ICorDebugThread *thread) override;
-    HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, BOOL unhandled) override;
-    HRESULT STDMETHODCALLTYPE EvalComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugEval *pEval) override;
-    HRESULT STDMETHODCALLTYPE EvalException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugEval *pEval) override;
+    HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                        BOOL unhandled) override;
+    HRESULT STDMETHODCALLTYPE EvalComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                           ICorDebugEval *pEval) override;
+    HRESULT STDMETHODCALLTYPE EvalException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                            ICorDebugEval *pEval) override;
     HRESULT STDMETHODCALLTYPE CreateProcess(ICorDebugProcess *pProcess) override;
     HRESULT STDMETHODCALLTYPE ExitProcess(ICorDebugProcess *pProcess) override;
     HRESULT STDMETHODCALLTYPE CreateThread(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread) override;
@@ -61,7 +62,8 @@ public:
     HRESULT STDMETHODCALLTYPE UnloadAssembly(ICorDebugAppDomain *pAppDomain, ICorDebugAssembly *pAssembly) override;
     HRESULT STDMETHODCALLTYPE ControlCTrap(ICorDebugProcess *pProcess) override;
     HRESULT STDMETHODCALLTYPE NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread) override;
-    HRESULT STDMETHODCALLTYPE UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule, IStream *pSymbolStream) override;
+    HRESULT STDMETHODCALLTYPE UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule,
+                                                  IStream *pSymbolStream) override;
     HRESULT STDMETHODCALLTYPE EditAndContinueRemap(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                                    ICorDebugFunction *pFunction, BOOL fAccurate) override;
     HRESULT STDMETHODCALLTYPE BreakpointSetError(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
@@ -70,20 +72,32 @@ public:
     // ICorDebugManagedCallback2
 
     HRESULT STDMETHODCALLTYPE FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                       ICorDebugFunction *pOldFunction, ICorDebugFunction *pNewFunction, ULONG32 oldILOffset) override;
-    HRESULT STDMETHODCALLTYPE CreateConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId, WCHAR *pConnName) override;
+                                                       ICorDebugFunction *pOldFunction, ICorDebugFunction *pNewFunction,
+                                                       ULONG32 oldILOffset) override;
+    HRESULT STDMETHODCALLTYPE CreateConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId,
+                                               WCHAR *pConnName) override;
     HRESULT STDMETHODCALLTYPE ChangeConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId) override;
     HRESULT STDMETHODCALLTYPE DestroyConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId) override;
-    HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
-                                        ULONG32 nOffset, CorDebugExceptionCallbackType dwEventType, DWORD dwFlags) override;
+    HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                        ICorDebugFrame *pFrame, ULONG32 nOffset,
+                                        CorDebugExceptionCallbackType dwEventType, DWORD dwFlags) override;
     HRESULT STDMETHODCALLTYPE ExceptionUnwind(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               CorDebugExceptionUnwindCallbackType dwEventType, DWORD dwFlags) override;
-    HRESULT STDMETHODCALLTYPE FunctionRemapComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugFunction *pFunction) override;
-    HRESULT STDMETHODCALLTYPE MDANotification(ICorDebugController *pController, ICorDebugThread *pThread, ICorDebugMDA *pMDA) override;
+    HRESULT STDMETHODCALLTYPE FunctionRemapComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                    ICorDebugFunction *pFunction) override;
+    HRESULT STDMETHODCALLTYPE MDANotification(ICorDebugController *pController, ICorDebugThread *pThread,
+                                              ICorDebugMDA *pMDA) override;
 
     // ICorDebugManagedCallback3
 
     HRESULT STDMETHODCALLTYPE CustomNotification(ICorDebugThread *pThread, ICorDebugAppDomain *pAppDomain) override;
+
+  private:
+
+    std::mutex m_refCountMutex;
+    ULONG m_refCount;
+    ManagedDebugger &m_debugger;
+    std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
 };
 
 } // namespace dncdbg

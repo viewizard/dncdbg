@@ -7,18 +7,17 @@
 #include <wtypes.h>
 #endif
 
-#include "debugger/managedcallback.h"
-#include "debugger/callbacksqueue.h"
-#include "debugger/threads.h"
-#include "debugger/evalwaiter.h"
 #include "debugger/breakpoints.h"
-#include "debugger/waitpid.h"
+#include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h"
+#include "debugger/evalwaiter.h"
+#include "debugger/managedcallback.h"
+#include "debugger/threads.h"
+#include "debugger/waitpid.h"
+#include "managed/interop.h"
 #include "metadata/modules.h"
 #include "protocol/dap.h"
 #include "utils/utf.h"
-#include "managed/interop.h"
-
 
 namespace dncdbg
 {
@@ -31,28 +30,27 @@ ULONG ManagedCallback::GetRefCount()
     return m_refCount;
 }
 
-
 // IUnknown
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, VOID** ppInterface)
+HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, VOID **ppInterface)
 {
     LogFuncEntry();
 
     if (riid == IID_ICorDebugManagedCallback)
     {
-        *ppInterface = static_cast<ICorDebugManagedCallback*>(this);
+        *ppInterface = static_cast<ICorDebugManagedCallback *>(this);
     }
     else if (riid == IID_ICorDebugManagedCallback2)
     {
-        *ppInterface = static_cast<ICorDebugManagedCallback2*>(this);
+        *ppInterface = static_cast<ICorDebugManagedCallback2 *>(this);
     }
     else if (riid == IID_ICorDebugManagedCallback3)
     {
-        *ppInterface = static_cast<ICorDebugManagedCallback3*>(this);
+        *ppInterface = static_cast<ICorDebugManagedCallback3 *>(this);
     }
     else if (riid == IID_IUnknown)
     {
-        *ppInterface = static_cast<IUnknown*>(static_cast<ICorDebugManagedCallback*>(this));
+        *ppInterface = static_cast<IUnknown *>(static_cast<ICorDebugManagedCallback *>(this));
     }
     else
     {
@@ -86,18 +84,18 @@ ULONG STDMETHODCALLTYPE ManagedCallback::Release()
     return --m_refCount;
 }
 
-
 // ICorDebugManagedCallback
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::Breakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
+HRESULT STDMETHODCALLTYPE ManagedCallback::Breakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                      ICorDebugBreakpoint *pBreakpoint)
 {
     LogFuncEntry();
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
-    {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         pAppDomain->AddRef();
         pThread->AddRef();
         pBreakpoint->AddRef();
-        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Breakpoint, pAppDomain, pThread, pBreakpoint, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
+        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Breakpoint, pAppDomain, pThread, pBreakpoint,
+                                            STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
     });
 }
 
@@ -105,40 +103,43 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::StepComplete(ICorDebugAppDomain *pApp
                                                         ICorDebugStepper *pStepper, CorDebugStepReason reason)
 {
     LogFuncEntry();
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
-    {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         pAppDomain->AddRef();
         pThread->AddRef();
-        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::StepComplete, pAppDomain, pThread, nullptr, reason, ExceptionCallbackType::FIRST_CHANCE);
+        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::StepComplete, pAppDomain, pThread, nullptr, reason,
+                                            ExceptionCallbackType::FIRST_CHANCE);
     });
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::Break(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     LogFuncEntry();
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
-    {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         pAppDomain->AddRef();
         pThread->AddRef();
-        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Break, pAppDomain, pThread, nullptr, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
+        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Break, pAppDomain, pThread, nullptr, STEP_NORMAL,
+                                            ExceptionCallbackType::FIRST_CHANCE);
     });
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, BOOL unhandled)
+HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                     BOOL unhandled)
 {
     // Obsolete callback
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EvalComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugEval *pEval)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EvalComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                        ICorDebugEval *pEval)
 {
     LogFuncEntry();
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
     return S_OK; // Eval-related routine - no callbacks queue related code here.
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugEval *pEval)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                         ICorDebugEval *pEval)
 {
     LogFuncEntry();
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
@@ -330,8 +331,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::LogSwitch(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, LONG lLevel,
-                                                     ULONG ulReason, WCHAR *pLogSwitchName, WCHAR *pParentName)
+HRESULT STDMETHODCALLTYPE ManagedCallback::LogSwitch(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                     LONG lLevel, ULONG ulReason, WCHAR *pLogSwitchName, WCHAR *pParentName)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -373,14 +374,16 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDo
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule, IStream *pSymbolStream)
+HRESULT STDMETHODCALLTYPE ManagedCallback::UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule,
+                                                               IStream *pSymbolStream)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EditAndContinueRemap(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                                ICorDebugFunction *pFunction, BOOL fAccurate)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EditAndContinueRemap(ICorDebugAppDomain *pAppDomain,
+                                                                ICorDebugThread *pThread, ICorDebugFunction *pFunction,
+                                                                BOOL fAccurate)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -393,17 +396,20 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::BreakpointSetError(ICorDebugAppDomain
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-
 // ICorDebugManagedCallback2
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                                    ICorDebugFunction *pOldFunction, ICorDebugFunction *pNewFunction, ULONG32 oldILOffset)
+HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain,
+                                                                    ICorDebugThread *pThread,
+                                                                    ICorDebugFunction *pOldFunction,
+                                                                    ICorDebugFunction *pNewFunction,
+                                                                    ULONG32 oldILOffset)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::CreateConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId, WCHAR *pConnName)
+HRESULT STDMETHODCALLTYPE ManagedCallback::CreateConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId,
+                                                            WCHAR *pConnName)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
@@ -440,7 +446,7 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &pMDImport));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
 
     WCHAR mdName[mdNameLen];
     ULONG nameLen;
@@ -458,11 +464,9 @@ static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame 
     BOOL JMCStatus = FALSE;
     ToRelease<ICorDebugFunction> iCorFunction;
     ToRelease<ICorDebugFunction2> iCorFunction2;
-    if (pFrame != nullptr &&
-        SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID*) &iCorFunction2)) &&
-        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) &&
-        JMCStatus == TRUE)
+    if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
+        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2)) &&
+        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
     {
         return ExceptionCallbackType::USER_CATCH_HANDLER_FOUND;
     }
@@ -470,16 +474,16 @@ static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame 
     return ExceptionCallbackType::CATCH_HANDLER_FOUND;
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
-                                                     ULONG32 nOffset, CorDebugExceptionCallbackType dwEventType, DWORD dwFlags)
+HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                                     ICorDebugFrame *pFrame, ULONG32 nOffset,
+                                                     CorDebugExceptionCallbackType dwEventType, DWORD dwFlags)
 {
     LogFuncEntry();
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
-    {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         // pFrame could be neutered in case of evaluation during brake, do all stuff with pFrame in callback itself.
         ExceptionCallbackType eventType;
         std::string excModule;
-        switch(dwEventType)
+        switch (dwEventType)
         {
         case DEBUG_EXCEPTION_FIRST_CHANCE:
             eventType = ExceptionCallbackType::FIRST_CHANCE;
@@ -499,31 +503,34 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
 
         pAppDomain->AddRef();
         pThread->AddRef();
-        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Exception, pAppDomain, pThread, nullptr, STEP_NORMAL, eventType, excModule);
+        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Exception, pAppDomain, pThread, nullptr, STEP_NORMAL,
+                                            eventType, excModule);
     });
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::ExceptionUnwind(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                           CorDebugExceptionUnwindCallbackType dwEventType, DWORD dwFlags)
+                                                           CorDebugExceptionUnwindCallbackType dwEventType,
+                                                           DWORD dwFlags)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugFunction *pFunction)
+HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapComplete(ICorDebugAppDomain *pAppDomain,
+                                                                 ICorDebugThread *pThread, ICorDebugFunction *pFunction)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController *pController, ICorDebugThread *pThread, ICorDebugMDA *pMDA)
+HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController *pController, ICorDebugThread *pThread,
+                                                           ICorDebugMDA *pMDA)
 {
     LogFuncEntry();
     ToRelease<ICorDebugProcess> iCorProcess;
     pThread->GetProcess(&iCorProcess);
     return m_sharedCallbacksQueue->ContinueProcess(iCorProcess);
 }
-
 
 // ICorDebugManagedCallback3
 

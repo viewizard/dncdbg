@@ -7,9 +7,9 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <mutex>
 #include "debugger/manageddebugger.h"
 #include "utils/torelease.h"
+#include <mutex>
 
 namespace dncdbg
 {
@@ -18,12 +18,12 @@ class Modules;
 
 class SimpleStepper
 {
-public:
+  public:
 
-    SimpleStepper(std::shared_ptr<Modules> &sharedModules) :
-        m_sharedModules(sharedModules),
-        m_justMyCode(true),
-        m_enabledSimpleStepId(0)
+    SimpleStepper(std::shared_ptr<Modules> &sharedModules)
+        : m_sharedModules(sharedModules),
+          m_justMyCode(true),
+          m_enabledSimpleStepId(0)
     {}
 
     HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
@@ -40,9 +40,12 @@ public:
 
     HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
 
-    void SetJustMyCode(bool enable) { m_justMyCode = enable; }
+    void SetJustMyCode(bool enable)
+    {
+        m_justMyCode = enable;
+    }
 
-private:
+  private:
 
     std::shared_ptr<Modules> m_sharedModules;
     bool m_justMyCode;

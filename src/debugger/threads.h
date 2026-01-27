@@ -7,10 +7,10 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <set>
-#include <vector>
 #include "interfaces/types.h"
 #include "utils/rwlock.h"
+#include <set>
+#include <vector>
 
 namespace dncdbg
 {
@@ -20,12 +20,7 @@ ThreadId getThreadId(ICorDebugThread *pThread);
 
 class Threads
 {
-    Utility::RWLock m_userThreadsRWLock;
-    std::set<ThreadId> m_userThreads;
-    ThreadId MainThread;
-    std::shared_ptr<Evaluator> m_sharedEvaluator;
-
-public:
+  public:
 
     void Add(const ThreadId &threadId, bool processAttached);
     void Remove(const ThreadId &threadId);
@@ -34,6 +29,13 @@ public:
     std::string GetThreadName(ICorDebugProcess *pProcess, const ThreadId &userThread);
     void SetEvaluator(std::shared_ptr<Evaluator> &sharedEvaluator);
     void ResetEvaluator();
+
+  private:
+
+    Utility::RWLock m_userThreadsRWLock;
+    std::set<ThreadId> m_userThreads;
+    ThreadId MainThread;
+    std::shared_ptr<Evaluator> m_sharedEvaluator;
 };
 
 } // namespace dncdbg

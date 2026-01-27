@@ -8,11 +8,11 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <string>
-#include <list>
-#include <mutex>
-#include <memory>
 #include "utils/torelease.h"
+#include <list>
+#include <memory>
+#include <mutex>
+#include <string>
 
 namespace dncdbg
 {
@@ -22,57 +22,37 @@ class EvalWaiter;
 
 class EvalHelpers
 {
-public:
+  public:
 
-    EvalHelpers(std::shared_ptr<Modules> &sharedModules,
-                std::shared_ptr<EvalWaiter> &sharedEvalWaiter) :
-        m_sharedModules(sharedModules),
-        m_sharedEvalWaiter(sharedEvalWaiter)
+    EvalHelpers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+        : m_sharedModules(sharedModules),
+          m_sharedEvalWaiter(sharedEvalWaiter)
     {}
 
-    HRESULT CreatTypeObjectStaticConstructor(
-        ICorDebugThread *pThread,
-        ICorDebugType *pType,
-        ICorDebugValue **ppTypeObjectResult = nullptr,
-        bool DetectStaticMembers = true);
+    HRESULT CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
+                                             ICorDebugValue **ppTypeObjectResult = nullptr,
+                                             bool DetectStaticMembers = true);
 
-    HRESULT EvalFunction(
-        ICorDebugThread *pThread,
-        ICorDebugFunction *pFunc,
-        ICorDebugType **ppArgsType,
-        ULONG32 ArgsTypeCount,
-        ICorDebugValue **ppArgsValue,
-        ULONG32 ArgsValueCount,
-        ICorDebugValue **ppEvalResult,
-        int evalFlags);
+    HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
+                         ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
+                         ICorDebugValue **ppEvalResult, int evalFlags);
 
-    HRESULT EvalGenericFunction(
-        ICorDebugThread *pThread,
-        ICorDebugFunction *pFunc,
-        ICorDebugType **ppArgsType,
-        ULONG32 ArgsTypeCount,
-        ICorDebugValue **ppArgsValue,
-        ULONG32 ArgsValueCount,
-        ICorDebugValue **ppEvalResult,
-        int evalFlags);
+    HRESULT EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
+                                ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
+                                ICorDebugValue **ppEvalResult, int evalFlags);
 
-    HRESULT GetLiteralValue(
-        ICorDebugThread *pThread,
-        ICorDebugType *pType,
-        ICorDebugModule *pModule,
-        PCCOR_SIGNATURE pSignatureBlob,
-        ULONG sigBlobLength,
-        UVCP_CONSTANT pRawValue,
-        ULONG rawValueLength,
-        ICorDebugValue **ppLiteralValue);
+    HRESULT GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugModule *pModule,
+                            PCCOR_SIGNATURE pSignatureBlob, ULONG sigBlobLength, UVCP_CONSTANT pRawValue,
+                            ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    HRESULT FindMethodInModule(const std::string &moduleName, const WCHAR className[], const WCHAR methodName[], ICorDebugFunction **ppFunction);
+    HRESULT FindMethodInModule(const std::string &moduleName, const WCHAR className[], const WCHAR methodName[],
+                               ICorDebugFunction **ppFunction);
 
     void Cleanup();
 
-private:
+  private:
 
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
@@ -99,7 +79,6 @@ private:
 
     HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult);
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
-
 };
 
 } // namespace dncdbg

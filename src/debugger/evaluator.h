@@ -8,13 +8,13 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <functional>
-#include <unordered_set>
-#include <list>
-#include <vector>
-#include <mutex>
 #include "interfaces/types.h"
 #include "utils/torelease.h"
+#include <functional>
+#include <list>
+#include <mutex>
+#include <unordered_set>
+#include <vector>
 
 namespace dncdbg
 {
@@ -25,15 +25,15 @@ class EvalStackMachine;
 
 class Evaluator
 {
-public:
+  public:
 
     struct ArgElementType
     {
         CorElementType corType;
         std::string typeName;
 
-        ArgElementType() :
-            corType(ELEMENT_TYPE_END)
+        ArgElementType()
+            : corType(ELEMENT_TYPE_END)
         {}
 
         ArgElementType(CorElementType t, std::string n)
@@ -42,10 +42,16 @@ public:
             typeName = n;
         }
 
-        bool isAlias (const CorElementType type1, const CorElementType type2, const std::string& name2);
-        bool areEqual(const ArgElementType& arg);
-        inline bool operator==(const ArgElementType& arg) { return areEqual(arg); }
-        inline bool operator!=(const ArgElementType& arg) { return !areEqual(arg); }
+        bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
+        bool areEqual(const ArgElementType &arg);
+        inline bool operator==(const ArgElementType &arg)
+        {
+            return areEqual(arg);
+        }
+        inline bool operator!=(const ArgElementType &arg)
+        {
+            return !areEqual(arg);
+        }
     };
 
     typedef ArgElementType ReturnElementType;
@@ -82,11 +88,11 @@ public:
         }
     };
 
-    typedef std::function<HRESULT(ICorDebugValue**,int)> GetValueCallback;
-    typedef std::function<HRESULT(ICorDebugType*,bool,const std::string&,GetValueCallback,SetterData*)> WalkMembersCallback;
-    typedef std::function<HRESULT(const std::string&,GetValueCallback)> WalkStackVarsCallback;
-    typedef std::function<HRESULT(ICorDebugFunction**)> GetFunctionCallback;
-    typedef std::function<HRESULT(bool,const std::string&,ReturnElementType&,std::vector<ArgElementType>&,GetFunctionCallback)> WalkMethodsCallback;
+    typedef std::function<HRESULT(ICorDebugValue **, int)> GetValueCallback;
+    typedef std::function<HRESULT(ICorDebugType *, bool, const std::string &, GetValueCallback, SetterData *)> WalkMembersCallback;
+    typedef std::function<HRESULT(const std::string &, GetValueCallback)> WalkStackVarsCallback;
+    typedef std::function<HRESULT(ICorDebugFunction **)> GetFunctionCallback;
+    typedef std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)> WalkMethodsCallback;
 
     enum ValueKind
     {
@@ -97,89 +103,56 @@ public:
 
     Evaluator(std::shared_ptr<Modules> &sharedModules,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
-              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine) :
-        m_sharedModules(sharedModules),
-        m_sharedEvalHelpers(sharedEvalHelpers),
-        m_sharedEvalStackMachine(sharedEvalStackMachine)
+              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+        : m_sharedModules(sharedModules),
+          m_sharedEvalHelpers(sharedEvalHelpers),
+          m_sharedEvalStackMachine(sharedEvalStackMachine)
     {}
 
-    HRESULT ResolveIdentifiers(
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        ICorDebugValue *pInputValue,
-        SetterData *inputSetterData,
-        std::vector<std::string> &identifiers,
-        ICorDebugValue **ppResultValue,
-        std::unique_ptr<SetterData> *resultSetterData,
-        ICorDebugType **ppResultType,
-        int evalFlags);
+    HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
+                               SetterData *inputSetterData, std::vector<std::string> &identifiers,
+                               ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
+                               ICorDebugType **ppResultType, int evalFlags);
 
-    HRESULT WalkMembers(
-        ICorDebugValue *pInputValue,
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        ICorDebugType *pTypeCast,
-        bool provideSetterData,
-        WalkMembersCallback cb);
+    HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
+                        ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb);
 
-    HRESULT WalkStackVars(
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        WalkStackVarsCallback cb);
+    HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, WalkStackVarsCallback cb);
 
-    HRESULT GetMethodClass(
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        std::string &methodClass,
-        bool &thisParam);
+    HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &thisParam);
 
-    HRESULT LookupExtensionMethods(
-        ICorDebugType *pType,
-        const std::string &methodName,
-        std::vector<Evaluator::ArgElementType> &methodArgs,
-        std::vector<Evaluator::ArgElementType> &methodGenerics,
-        ICorDebugFunction** ppCorFunc);
+    HRESULT LookupExtensionMethods(ICorDebugType *pType, const std::string &methodName,
+                                   std::vector<Evaluator::ArgElementType> &methodArgs,
+                                   std::vector<Evaluator::ArgElementType> &methodGenerics,
+                                   ICorDebugFunction **ppCorFunc);
 
-    HRESULT FollowNestedFindType(
-        ICorDebugThread *pThread,
-        const std::string &methodClass,
-        std::vector<std::string> &identifiers,
-        ICorDebugType **ppResultType);
+    HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
+                                 std::vector<std::string> &identifiers, ICorDebugType **ppResultType);
 
-    HRESULT FollowFields(
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        ICorDebugValue *pValue,
-        Evaluator::ValueKind valueKind,
-        std::vector<std::string> &identifiers,
-        int nextIdentifier,
-        ICorDebugValue **ppResult,
-        std::unique_ptr<Evaluator::SetterData> *resultSetterData,
-        int evalFlags);
+    HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                         Evaluator::ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
+                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
+                         int evalFlags);
 
-    HRESULT FollowNestedFindValue(
-        ICorDebugThread *pThread,
-        FrameLevel frameLevel,
-        const std::string &methodClass,
-        std::vector<std::string> &identifiers,
-        ICorDebugValue **ppResult,
-        std::unique_ptr<Evaluator::SetterData> *resultSetterData,
-        int evalFlags);
+    HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
+                                  std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
+                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags);
 
     HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue);
-    HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType, std::vector<Evaluator::ArgElementType> &methodGenerics, WalkMethodsCallback cb);
+    HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
+                        std::vector<Evaluator::ArgElementType> &methodGenerics, WalkMethodsCallback cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, WalkMethodsCallback cb);
-    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue, GetValueCallback *getValue, SetterData *setterData,
-                     const std::string &value, int evalFlags, std::string &output);
+    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
+                     GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
+                     std::string &output);
 
     ArgElementType GetElementTypeByTypeName(const std::string typeName);
 
-private:
+  private:
 
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
-
 };
 
 } // namespace dncdbg

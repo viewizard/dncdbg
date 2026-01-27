@@ -7,8 +7,8 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <memory>
 #include "debugger/manageddebugger.h"
+#include <memory>
 
 namespace dncdbg
 {
@@ -20,16 +20,16 @@ class EvalHelpers;
 
 class Steppers
 {
-public:
+  public:
 
-    Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers) :
-        m_simpleStepper(new SimpleStepper(sharedModules)),
-        m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
-        m_sharedModules(sharedModules),
-        m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
-        m_justMyCode(true),
-        m_stepFiltering(true),
-        m_filteredPrevStep(false)
+    Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+        : m_simpleStepper(new SimpleStepper(sharedModules)),
+          m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
+          m_sharedModules(sharedModules),
+          m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
+          m_justMyCode(true),
+          m_stepFiltering(true),
+          m_filteredPrevStep(false)
     {}
 
     HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
@@ -51,7 +51,7 @@ public:
     void SetJustMyCode(bool enable);
     void SetStepFiltering(bool enable);
 
-private:
+  private:
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
     std::unique_ptr<AsyncStepper> m_asyncStepper;

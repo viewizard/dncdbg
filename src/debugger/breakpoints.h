@@ -8,11 +8,11 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <string>
-#include <mutex>
-#include <memory>
-#include <unordered_set>
 #include "debugger/manageddebugger.h"
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_set>
 
 namespace dncdbg
 {
@@ -29,7 +29,7 @@ class LineBreakpoints;
 
 class Breakpoints
 {
-public:
+  public:
 
     Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<Variables> &sharedVariables);
 
@@ -39,8 +39,10 @@ public:
     void DeleteAll();
     HRESULT DisableAll(ICorDebugProcess *pProcess);
 
-    HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints, std::vector<Breakpoint> &breakpoints);
-    HRESULT SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints, std::vector<Breakpoint> &breakpoints);
+    HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
+                               std::vector<Breakpoint> &breakpoints);
+    HRESULT SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
+                               std::vector<Breakpoint> &breakpoints);
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
 
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
@@ -53,12 +55,14 @@ public:
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
     HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
-    HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint, Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents, bool &atEntry);
-    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule, StoppedEvent &event);
+    HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                      Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents,  bool &atEntry);
+    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType,
+                                     const std::string &excModule, StoppedEvent &event);
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
-private:
+  private:
 
     std::unique_ptr<BreakBreakpoint> m_uniqueBreakBreakpoint;
     std::unique_ptr<EntryBreakpoint> m_uniqueEntryBreakpoint;
@@ -68,7 +72,6 @@ private:
 
     std::mutex m_nextBreakpointIdMutex;
     uint32_t m_nextBreakpointId;
-
 };
 
 } // namespace dncdbg

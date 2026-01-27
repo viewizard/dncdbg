@@ -4,15 +4,15 @@
 // See the LICENSE file in the project root for more information.
 #pragma once
 
-#pragma warning (disable:4068)  // Visual Studio should ignore GCC pragmas
+#pragma warning(disable : 4068) // Visual Studio should ignore GCC pragmas
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cor.h>
 #include <cordebug.h>
 #pragma GCC diagnostic pop
 
-#include <functional>
 #include "interfaces/types.h"
+#include <functional>
 
 namespace dncdbg
 {
@@ -36,7 +36,7 @@ struct NativeFrame
     int lineNum = 0;
 };
 
-typedef std::function<HRESULT(FrameType,std::uintptr_t,ICorDebugFrame*,NativeFrame*)> WalkFramesCallback;
+typedef std::function<HRESULT(FrameType, std::uintptr_t, ICorDebugFrame *, NativeFrame *)> WalkFramesCallback;
 
 struct Thread;
 

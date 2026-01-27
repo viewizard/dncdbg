@@ -101,7 +101,7 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     ToRelease<ICorDebugFunction> iCorFunction;
     IfFailRet(pModule->GetFunctionFromToken(methodToken, &iCorFunction));
     ToRelease<ICorDebugFunction2> iCorFunction2;
-    IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID*) &iCorFunction2));
+    IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2));
     BOOL JMCStatus = FALSE;
     // In case process was not stopped, GetJMCStatus() could return CORDBG_E_PROCESS_NOT_SYNCHRONIZED or another error code.
     // It is OK, check it as JMC code (pModule have symbols for sure), we will also check JMC status at breakpoint callback itself.
@@ -120,7 +120,7 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
         ToRelease<IUnknown> iUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &iUnknown));
         ToRelease<IMetaDataImport> iMD;
-        IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &iMD));
+        IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&iMD));
 
         if (HasAttribute(iMD, methodToken, DebuggerAttribute::Hidden))
             return S_OK; // need skip breakpoint

@@ -13,7 +13,7 @@ namespace dncdbg
 
 ThreadId getThreadId(ICorDebugThread *pThread)
 {
-    DWORD threadId = 0;  // invalid value for Win32
+    DWORD threadId = 0; // invalid value for Win32
     HRESULT res = pThread->GetID(&threadId);
     return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
 }
@@ -51,29 +51,26 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
             SUCCEEDED(pThread->GetObject(&iCorThreadObject)))
         {
             HRESULT Status;
-            m_sharedEvaluator->WalkMembers(iCorThreadObject, nullptr, FrameLevel{0}, nullptr, false, [&](
-                ICorDebugType *,
-                bool,
-                const std::string &memberName,
-                Evaluator::GetValueCallback getValue,
-                Evaluator::SetterData*)
-            {
-                // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
-                // this thread can be in not consistent state for evaluation or thread could break in optimized code.
-                if (memberName != "_name")
-                    return S_OK;
+            m_sharedEvaluator->WalkMembers(iCorThreadObject, nullptr, FrameLevel{0}, nullptr, false,
+                [&](ICorDebugType *, bool, const std::string &memberName,
+                    Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
+                {
+                    // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
+                    // this thread can be in not consistent state for evaluation or thread could break in optimized code.
+                    if (memberName != "_name")
+                        return S_OK;
 
-                ToRelease<ICorDebugValue> iCorResultValue;
-                IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
+                    ToRelease<ICorDebugValue> iCorResultValue;
+                    IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
 
-                BOOL isNull = TRUE;
-                ToRelease<ICorDebugValue> pValue;
-                IfFailRet(DereferenceAndUnboxValue(iCorResultValue, &pValue, &isNull));
-                if (!isNull)
-                    IfFailRet(PrintStringValue(pValue, threadName));
+                    BOOL isNull = TRUE;
+                    ToRelease<ICorDebugValue> pValue;
+                    IfFailRet(DereferenceAndUnboxValue(iCorResultValue, &pValue, &isNull));
+                    if (!isNull)
+                        IfFailRet(PrintStringValue(pValue, threadName));
 
-                return E_ABORT; // Fast exit from cycle.
-            });
+                    return E_ABORT; // Fast exit from cycle.
+                });
         }
     }
 

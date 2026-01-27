@@ -7,13 +7,13 @@
 #include <wtypes.h>
 #endif
 
-#include "debugger/callbacksqueue.h"
-#include "debugger/threads.h"
-#include "debugger/evalwaiter.h"
 #include "debugger/breakpoints.h"
-#include "debugger/stepper_simple.h"
+#include "debugger/callbacksqueue.h"
+#include "debugger/evalwaiter.h"
 #include "debugger/stepper_async.h"
+#include "debugger/stepper_simple.h"
 #include "debugger/steppers.h"
+#include "debugger/threads.h"
 #include "protocol/dap.h"
 
 #include <algorithm>
@@ -33,7 +33,8 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     StoppedEvent event(StopBreakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, event.breakpoint, bpChangeEvents, atEntry))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, event.breakpoint,
+                                                                             bpChangeEvents, atEntry))
         return false;
 
     // Disable all steppers if we stop at breakpoint during step.
@@ -51,7 +52,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     {
         std::ostringstream ss;
         ss << "Breakpoint error: " << changeEvent.breakpoint.message << " - ";
-        if(changeEvent.breakpoint.source.IsNull())
+        if (changeEvent.breakpoint.source.IsNull())
             ss << changeEvent.breakpoint.funcname << "()\n";
         else
             ss << changeEvent.breakpoint.source.path << ":" << changeEvent.breakpoint.line << "\n";
@@ -105,7 +106,8 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule)
+bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                              ExceptionCallbackType eventType, const std::string &excModule)
 {
     ThreadId threadId(getThreadId(pThread));
     StoppedEvent event(StopException, threadId);
@@ -227,7 +229,8 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
     std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     ToRelease<ICorDebugProcess> iCorProcess;
-    if (m_callbacksQueue.empty() || (pAppDomain && SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess)))
+    if (m_callbacksQueue.empty() ||
+        (pAppDomain && SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess)))
     {
         if (!pAppDomain)
             return E_NOTIMPL;
@@ -337,7 +340,8 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     if (lastStoppedThread != ThreadId::AllThreads)
     {
         // In case DAP protocol, user provide "pause" thread id.
-        if (std::find_if(threads.begin(), threads.end(), [&](Thread t){ return t.id == lastStoppedThread; }) != threads.end())
+        if (std::find_if(threads.begin(), threads.end(),
+                         [&](Thread t) { return t.id == lastStoppedThread; }) != threads.end())
         {
             // DAP protocol event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
             m_debugger.SetLastStoppedThreadId(lastStoppedThread);
@@ -365,7 +369,8 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
         int totalFrames = 0;
         StoppedEvent event(StopPause, threadId);
         std::vector<StackFrame> stackFrames;
-        if (SUCCEEDED(m_debugger.GetStackTrace(threadId, FrameLevel(0), 1, stackFrames, totalFrames)) && !stackFrames.empty())
+        if (SUCCEEDED(m_debugger.GetStackTrace(threadId, FrameLevel(0), 1, stackFrames, totalFrames)) &&
+            !stackFrames.empty())
         {
             event.frame = stackFrames[0];
         }
@@ -374,8 +379,8 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     }
     else
     {
-        // MI protocol provide ThreadId::AllThreads as lastStoppedThread, this protocols require thread and frame with user code.
-        // Note, MIEngine (MI/GDB) require frame connected to user source or it will crash Visual Studio.
+        // MI protocol provide ThreadId::AllThreads as lastStoppedThread, this protocols require thread and frame with
+        // user code. Note, MIEngine (MI/GDB) require frame connected to user source or it will crash Visual Studio.
 
         ThreadId lastStoppedId = m_debugger.GetLastStoppedThreadId();
 
@@ -390,7 +395,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
         }
 
         // Now get stack trace for each thread and find a frame with valid source location.
-        for (const Thread& thread : threads)
+        for (const Thread &thread : threads)
         {
             int totalFrames = 0;
             std::vector<StackFrame> stackFrames;
@@ -398,7 +403,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
             if (FAILED(m_debugger.GetStackTrace(thread.id, FrameLevel(0), 0, stackFrames, totalFrames)))
                 continue;
 
-            for (const StackFrame& stackFrame : stackFrames)
+            for (const StackFrame &stackFrame : stackFrames)
             {
                 if (stackFrame.source.IsNull())
                     continue;
@@ -424,16 +429,18 @@ CallbacksQueue::~CallbacksQueue()
 
     // Clear queue and do notify_one call with FinishWorker request.
     m_callbacksQueue.clear();
-    m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
+    m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
+                                   ExceptionCallbackType::FIRST_CHANCE);
     m_stopEventInProcess = false; // forced to proceed during brake too
-    m_callbacksCV.notify_one(); // notify_one with lock
+    m_callbacksCV.notify_one();   // notify_one with lock
     lock.unlock();
     m_callbacksWorker.join();
 }
 
 // NOTE caller must care about m_callbacksMutex.
-void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                 CorDebugStepReason Reason, ExceptionCallbackType EventType, const std::string &ExcModule)
+void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                                 ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason,
+                                 ExceptionCallbackType EventType, const std::string &ExcModule)
 {
     m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType, ExcModule);
 }

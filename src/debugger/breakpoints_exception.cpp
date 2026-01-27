@@ -45,8 +45,8 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
     return ss.str();
 }
 
-HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints,
-                                                      std::function<uint32_t()> getId)
+HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
+                                                      std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId)
 {
     std::lock_guard<std::mutex> lock(m_breakpointsMutex);
 
@@ -130,67 +130,67 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
 
 static void GetExceptionShorDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
 {
-    switch(breakMode)
+    switch (breakMode)
     {
-        case ExceptionBreakMode::THROW:
-            result = "Exception thrown: '" + excType + "' in " + excModule;
-            break;
+    case ExceptionBreakMode::THROW:
+        result = "Exception thrown: '" + excType + "' in " + excModule;
+        break;
 
-        case ExceptionBreakMode::USER_UNHANDLED:
-            result = "An exception of type '" + excType + "' occurred in " + excModule + " but was not handled in user code";
-            break;
+    case ExceptionBreakMode::USER_UNHANDLED:
+        result = "An exception of type '" + excType + "' occurred in " + excModule + " but was not handled in user code";
+        break;
 
-        case ExceptionBreakMode::UNHANDLED:
-            result = "An unhandled exception of type '" + excType + "' occurred in " + excModule;
-            break;
+    case ExceptionBreakMode::UNHANDLED:
+        result = "An unhandled exception of type '" + excType + "' occurred in " + excModule;
+        break;
 
-        default:
-            result = "";
-            break;
+    default:
+        result = "";
+        break;
     }
 }
 
 static void GetExceptionStageName(ExceptionBreakMode breakMode, std::string &result)
 {
-    switch(breakMode)
+    switch (breakMode)
     {
-        case ExceptionBreakMode::THROW:
-            result = "throw";
-            break;
+    case ExceptionBreakMode::THROW:
+        result = "throw";
+        break;
 
-        case ExceptionBreakMode::USER_UNHANDLED:
-            result = "user-unhandled";
-            break;
+    case ExceptionBreakMode::USER_UNHANDLED:
+        result = "user-unhandled";
+        break;
 
-        case ExceptionBreakMode::UNHANDLED:
-            result = "unhandled";
-            break;
+    case ExceptionBreakMode::UNHANDLED:
+        result = "unhandled";
+        break;
 
-        default:
-            result = "";
-            break;
+    default:
+        result = "";
+        break;
     }
 }
 
 static void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result)
 {
-    switch(breakMode)
+    switch (breakMode)
     {
-        case ExceptionBreakMode::THROW:
-            result = "always";
-            break;
+    case ExceptionBreakMode::THROW:
+        result = "always";
+        break;
 
-        case ExceptionBreakMode::USER_UNHANDLED:
-            result = "userUnhandled";
-            break;
+    case ExceptionBreakMode::USER_UNHANDLED:
+        result = "userUnhandled";
+        break;
 
-        case ExceptionBreakMode::UNHANDLED:
-            result = "unhandled";
-            break;
+    case ExceptionBreakMode::UNHANDLED:
+        result = "unhandled";
+        break;
 
-        default:
-            result = "";
-            break;
+    default:
+        result = "";
+        break;
     }
 }
 
@@ -213,59 +213,53 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
     HRESULT Status;
     ToRelease<ICorDebugValue> iCorInnerExceptionValue;
     const bool escape = false;
-    m_sharedEvaluator->WalkMembers(pExceptionValue, pThread, FrameLevel{0}, nullptr, false, [&](
-        ICorDebugType*,
-        bool,
-        const std::string &memberName,
-        Evaluator::GetValueCallback getValue,
-        Evaluator::SetterData*)
-    {
-        auto getMemberWithName = [&](const std::string &name, std::string &result) -> HRESULT
+    m_sharedEvaluator->WalkMembers(
+        pExceptionValue, pThread, FrameLevel{0}, nullptr, false,
+        [&](ICorDebugType *, bool, const std::string &memberName, Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
         {
-            if (memberName != name)
-                return S_FALSE;
+            auto getMemberWithName = [&](const std::string &name, std::string &result) -> HRESULT {
+                if (memberName != name)
+                    return S_FALSE;
 
-            ToRelease<ICorDebugValue> iCorResultValue;
-            IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
+                ToRelease<ICorDebugValue> iCorResultValue;
+                IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
 
-            BOOL isNull = TRUE;
-            ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-            if (SUCCEEDED(iCorResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID*) &iCorReferenceValue)) &&
-                SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) &&
-                isNull == FALSE)
+                BOOL isNull = TRUE;
+                ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
+                if (SUCCEEDED(iCorResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&iCorReferenceValue)) &&
+                    SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == FALSE)
+                {
+                    PrintValue(iCorResultValue, result, escape);
+                }
+                return S_OK;
+            };
+
+            IfFailRet(Status = getMemberWithName("_message", details.message));
+            if (Status == S_OK)
+                return S_OK;
+
+            IfFailRet(Status = getMemberWithName("StackTrace", details.stackTrace));
+            if (Status == S_OK)
+                return S_OK;
+
+            IfFailRet(Status = getMemberWithName("Source", details.source));
+            if (Status == S_OK)
+                return S_OK;
+
+            if (memberName == "InnerException")
             {
-                PrintValue(iCorResultValue, result, escape);
+                IfFailRet(getValue(&iCorInnerExceptionValue, defaultEvalFlags));
+                BOOL isNull = FALSE;
+                ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
+                if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&iCorReferenceValue)) &&
+                    SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == TRUE)
+                {
+                    iCorInnerExceptionValue.Free();
+                }
             }
+
             return S_OK;
-        };
-
-        IfFailRet(Status = getMemberWithName("_message", details.message));
-        if (Status == S_OK)
-            return S_OK;
-
-        IfFailRet(Status = getMemberWithName("StackTrace", details.stackTrace));
-        if (Status == S_OK)
-            return S_OK;
-
-        IfFailRet(Status = getMemberWithName("Source", details.source));
-        if (Status == S_OK)
-            return S_OK;
-
-        if (memberName == "InnerException")
-        {
-            IfFailRet(getValue(&iCorInnerExceptionValue, defaultEvalFlags));
-            BOOL isNull = FALSE;
-            ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-            if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID*) &iCorReferenceValue)) &&
-                SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) &&
-                isNull == TRUE)
-            {
-                iCorInnerExceptionValue.Free();
-            }
-        }
-
-        return S_OK;
-    });
+        });
 
     details.formattedDescription = "**" + details.fullTypeName + "**";
     if (!details.message.empty())
@@ -386,7 +380,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
     std::lock_guard<std::mutex> lock(m_threadsExceptionMutex);
 
-    switch(eventType)
+    switch (eventType)
     {
         case ExceptionCallbackType::FIRST_CHANCE:
         {
@@ -490,32 +484,28 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
     // Note, this is optional field in exception object that could have nulled reference.
     std::string excMessage;
     const bool escape = false;
-    m_sharedEvaluator->WalkMembers(iCorExceptionValue, pThread, FrameLevel{0}, nullptr, false, [&](
-        ICorDebugType*,
-        bool,
-        const std::string &memberName,
-        Evaluator::GetValueCallback getValue,
-        Evaluator::SetterData*)
-    {
-        ToRelease<ICorDebugValue> pResultValue;
-
-        if (memberName != "_message")
-            return S_OK;
-
-        IfFailRet(getValue(&pResultValue, defaultEvalFlags));
-
-        BOOL isNull = TRUE;
-        ToRelease<ICorDebugReferenceValue> pReferenceValue;
-        if (SUCCEEDED(pResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID*) &pReferenceValue)) &&
-            SUCCEEDED(pReferenceValue->IsNull(&isNull)) &&
-            isNull == FALSE)
+    m_sharedEvaluator->WalkMembers(
+        iCorExceptionValue, pThread, FrameLevel{0}, nullptr, false,
+        [&](ICorDebugType *, bool, const std::string &memberName, Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
         {
-            PrintValue(pResultValue, excMessage, escape);
-            return E_ABORT; // Fast exit from cycle.
-        }
+            ToRelease<ICorDebugValue> pResultValue;
 
-        return S_OK;
-    });
+            if (memberName != "_message")
+                return S_OK;
+
+            IfFailRet(getValue(&pResultValue, defaultEvalFlags));
+
+            BOOL isNull = TRUE;
+            ToRelease<ICorDebugReferenceValue> pReferenceValue;
+            if (SUCCEEDED(pResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue)) &&
+                SUCCEEDED(pReferenceValue->IsNull(&isNull)) && isNull == FALSE)
+            {
+                PrintValue(pResultValue, excMessage, escape);
+                return E_ABORT; // Fast exit from cycle.
+            }
+
+            return S_OK;
+        });
 
     GetExceptionShorDescription(m_threadsExceptionBreakMode[tid], excType, excModule, event.text);
     GetExceptionStageName(m_threadsExceptionBreakMode[tid], event.exception_stage);

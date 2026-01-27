@@ -8,35 +8,36 @@
 #include "cor.h"
 #include "cordebug.h"
 
+#include "utils/torelease.h"
 #include <functional>
 #include <future>
-#include "utils/torelease.h"
 
 namespace dncdbg
 {
 
 class EvalWaiter
 {
-public:
+  public:
 
-    typedef std::function<HRESULT(ICorDebugEval*)> WaitEvalResultCallback;
+    typedef std::function<HRESULT(ICorDebugEval *)> WaitEvalResultCallback;
 
-    EvalWaiter() : m_evalCanceled(false), m_evalCrossThreadDependency(false) {}
+    EvalWaiter()
+        : m_evalCanceled(false), m_evalCrossThreadDependency(false)
+    {
+    }
 
     bool IsEvalRunning();
     void CancelEvalRunning();
     ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread);
 
-    HRESULT WaitEvalResult(ICorDebugThread *pThread,
-                           ICorDebugValue **ppEvalResult,
-                           WaitEvalResultCallback cbSetupEval);
+    HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, WaitEvalResultCallback cbSetupEval);
 
     // Should be called by ICorDebugManagedCallback.
     void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval);
     HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread);
     HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule);
 
-private:
+  private:
 
     bool m_evalCanceled;
     bool m_evalCrossThreadDependency;
@@ -50,42 +51,38 @@ private:
         HRESULT Status = E_FAIL;
     };
 
-    struct evalResult_t {
+    struct evalResult_t
+    {
         evalResult_t() = delete;
-        evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, const std::promise< std::unique_ptr<evalResultData_t> > &promiseValue_) = delete;
+        evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, const std::promise<std::unique_ptr<evalResultData_t>> &promiseValue_) = delete;
         evalResult_t(const evalResult_t &B) = delete;
-        evalResult_t& operator = (const evalResult_t &B) = delete;
-        evalResult_t& operator = (evalResult_t &&B) = delete;
+        evalResult_t &operator=(const evalResult_t &B) = delete;
+        evalResult_t &operator=(evalResult_t &&B) = delete;
 
-        evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, std::promise< std::unique_ptr<evalResultData_t> > &&promiseValue_) :
-            threadId(threadId_),
-            pEval(pEval_),
-            promiseValue(std::move(promiseValue_))
-        {}
-        evalResult_t(evalResult_t &&B) :
-            threadId(B.threadId),
-            pEval(B.pEval),
-            promiseValue(std::move(B.promiseValue))
-        {}
+        evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, std::promise<std::unique_ptr<evalResultData_t>> &&promiseValue_)
+            : threadId(threadId_),
+              pEval(pEval_),
+              promiseValue(std::move(promiseValue_))
+        {
+        }
+        evalResult_t(evalResult_t &&B) : threadId(B.threadId), pEval(B.pEval), promiseValue(std::move(B.promiseValue))
+        {
+        }
 
         ~evalResult_t() = default;
 
         DWORD threadId;
         ICorDebugEval *pEval;
-        std::promise< std::unique_ptr<evalResultData_t> > promiseValue;
+        std::promise<std::unique_ptr<evalResultData_t>> promiseValue;
     };
 
     std::mutex m_waitEvalResultMutex;
     std::mutex m_evalResultMutex;
     std::unique_ptr<evalResult_t> m_evalResult;
 
-    std::future< std::unique_ptr<evalResultData_t> > RunEval(
-        HRESULT &Status,
-        ICorDebugProcess *pProcess,
-        ICorDebugThread *pThread,
-        ICorDebugEval *pEval,
-        WaitEvalResultCallback cbSetupEval);
-
+    std::future<std::unique_ptr<evalResultData_t>> RunEval(HRESULT &Status, ICorDebugProcess *pProcess,
+                                                           ICorDebugThread *pThread, ICorDebugEval *pEval,
+                                                           WaitEvalResultCallback cbSetupEval);
 };
 
 } // namespace dncdbg

@@ -8,14 +8,14 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <mutex>
-#include <memory>
-#include <functional>
-#include <vector>
-#include <string>
-#include <unordered_map>
 #include "debugger/manageddebugger.h"
 #include "utils/torelease.h"
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace dncdbg
 {
@@ -25,15 +25,18 @@ class Modules;
 
 class FuncBreakpoints
 {
-public:
+  public:
 
-    FuncBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables) :
-        m_sharedModules(sharedModules),
-        m_sharedVariables(sharedVariables),
-        m_justMyCode(true)
+    FuncBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
+        : m_sharedModules(sharedModules),
+          m_sharedVariables(sharedVariables),
+          m_justMyCode(true)
     {}
 
-    void SetJustMyCode(bool enable) { m_justMyCode = enable; };
+    void SetJustMyCode(bool enable)
+    {
+        m_justMyCode = enable;
+    };
     void DeleteAll();
     HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
                                std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
@@ -41,7 +44,8 @@ public:
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
     // S_FALSE - no breakpoint hit
-    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint, Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents);
+    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint, Breakpoint &breakpoint,
+                               std::vector<BreakpointEvent> &bpChangeEvents);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -52,7 +56,7 @@ public:
     //     return S_OK;
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
 
-private:
+  private:
 
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<Variables> m_sharedVariables;
@@ -67,13 +71,21 @@ private:
         std::string params;
         ULONG32 times;
         std::string condition;
-        std::vector<ToRelease<ICorDebugFunctionBreakpoint> > iCorFuncBreakpoints;
+        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> iCorFuncBreakpoints;
 
-        bool IsResolved() const { return module_checked; }
-        bool IsVerified() const { return !iCorFuncBreakpoints.empty(); }
+        bool IsResolved() const
+        {
+            return module_checked;
+        }
+        bool IsVerified() const
+        {
+            return !iCorFuncBreakpoints.empty();
+        }
 
-        ManagedFuncBreakpoint() :
-            id(0), module_checked(false), times(0)
+        ManagedFuncBreakpoint()
+            : id(0),
+              module_checked(false),
+              times(0)
         {}
 
         ~ManagedFuncBreakpoint()
@@ -89,18 +101,17 @@ private:
 
         ManagedFuncBreakpoint(ManagedFuncBreakpoint &&that) = default;
         ManagedFuncBreakpoint(const ManagedFuncBreakpoint &that) = delete;
-        ManagedFuncBreakpoint& operator=(ManagedFuncBreakpoint &&that) = default;
-        ManagedFuncBreakpoint& operator=(const ManagedFuncBreakpoint &that) = delete;
+        ManagedFuncBreakpoint &operator=(ManagedFuncBreakpoint &&that) = default;
+        ManagedFuncBreakpoint &operator=(const ManagedFuncBreakpoint &that) = delete;
     };
 
     std::mutex m_breakpointsMutex;
     std::unordered_map<std::string, ManagedFuncBreakpoint> m_funcBreakpoints;
 
-    typedef std::vector<std::pair<ICorDebugModule*,mdMethodDef> > ResolvedFBP;
+    typedef std::vector<std::pair<ICorDebugModule *, mdMethodDef>> ResolvedFBP;
     HRESULT AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedFBP &fbpResolved);
     HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, ManagedFuncBreakpoint &fbp);
     HRESULT ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp);
-
 };
 
 } // namespace dncdbg

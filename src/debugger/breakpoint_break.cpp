@@ -32,7 +32,7 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID*) &pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
     ULONG32 ilOffset;
     CorDebugMappingResult mappingResult;
@@ -74,7 +74,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         ToRelease<ICorDebugFunction> iCorFunction;
         IfFailRet(iCorFrame->GetFunction(&iCorFunction));
         ToRelease<ICorDebugFunction2> iCorFunction2;
-        IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID*) &iCorFunction2));
+        IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2));
         BOOL JMCStatus;
         IfFailRet(iCorFunction2->GetJMCStatus(&JMCStatus));
 

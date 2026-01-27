@@ -5,11 +5,11 @@
 
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpointutils.h"
-#include "metadata/typeprinter.h"
 #include "metadata/modules.h"
+#include "metadata/typeprinter.h"
+#include <algorithm>
 #include <sstream>
 #include <unordered_set>
-#include <algorithm>
 
 namespace dncdbg
 {
@@ -31,14 +31,15 @@ void FuncBreakpoints::DeleteAll()
     m_breakpointsMutex.unlock();
 }
 
-HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint, Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents)
+HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                            Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents)
 {
     if (m_funcBreakpoints.empty())
         return S_FALSE; // Stopped at break, but no breakpoints.
 
     HRESULT Status;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *) &pFunctionBreakpoint));
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
 
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
@@ -46,7 +47,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
         return E_FAIL;
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *) &pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
     ToRelease<ICorDebugValueEnum> pParamEnum;
     IfFailRet(pILFrame->EnumerateArguments(&pParamEnum));
@@ -104,7 +105,8 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
 
             if (!output.empty())
             {
-                breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" + fbp.condition + "'. The error returned was '" + output + "'.";
+                breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
+                                     fbp.condition + "'. The error returned was '" + output + "'.";
                 bpChangeEvents.emplace_back(BreakpointChanged, breakpoint);
             }
 
@@ -162,7 +164,6 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
     if (funcBreakpoints.empty())
         return S_OK;
-
 
     // Export function breakpoints
     // Note, DAP protocol require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
@@ -245,12 +246,12 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp)
     ResolvedFBP fbpResolved;
 
     IfFailRet(m_sharedModules->ResolveFuncBreakpointInAny(
-        fbp.module, fbp.module_checked, fbp.name, 
+        fbp.module, fbp.module_checked, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
-    {
-        fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
-        return S_OK;
-    }));
+        {
+            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
+            return S_OK;
+        }));
 
     return AddFuncBreakpoint(fbp, fbpResolved);
 }
@@ -263,13 +264,12 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule,
     IfFailRet(m_sharedModules->ResolveFuncBreakpointInModule(
         pModule, fbp.module, fbp.module_checked, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
-    {
-        fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
-        return S_OK;
-    }));
+        {
+            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
+            return S_OK;
+        }));
 
     return AddFuncBreakpoint(fbp, fbpResolved);
 }
-
 
 } // namespace dncdbg

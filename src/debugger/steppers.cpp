@@ -3,12 +3,12 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include <unordered_set>
 #include "debugger/stepper_simple.h"
 #include "debugger/stepper_async.h"
 #include "debugger/steppers.h"
 #include "metadata/attributes.h"
 #include "utils/utf.h"
+#include <unordered_set>
 
 namespace dncdbg
 {
@@ -127,7 +127,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     ToRelease<IUnknown> iUnknown;
     IfFailRet(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &iUnknown));
     ToRelease<IMetaDataImport> iMD;
-    IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &iMD));
+    IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&iMD));
 
     auto methodShouldBeFltered = [&]() -> bool
     {
@@ -138,8 +138,8 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
         ULONG nameLen;
         WCHAR szFunctionName[mdNameLen] = {0};
-        if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName, _countof(szFunctionName),
-                                          &nameLen, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName, _countof(szFunctionName), &nameLen,
+                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.end())
                 return true;
@@ -148,7 +148,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         mdProperty propertyDef;
         ULONG numProperties = 0;
         HCORENUM propEnum = NULL;
-        while(SUCCEEDED(iMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+        while (SUCCEEDED(iMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
         {
             mdMethodDef mdSetter;
             mdMethodDef mdGetter;
@@ -182,7 +182,8 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // Same behaviour as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
     ULONG32 ipOffset = 0;
     ULONG32 ilNextUserCodeOffset = 0;
-    bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call could be failed before delegate call.
+    bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call
+                                  // could be failed before delegate call.
     if (SUCCEEDED(Status = m_sharedModules->GetFrameILAndNextUserCodeILOffset(iCorFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
     {
         if (reason == CorDebugStepReason::STEP_NORMAL)

@@ -8,9 +8,9 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <mutex>
-#include <memory>
 #include "interfaces/types.h"
+#include <memory>
+#include <mutex>
 
 namespace dncdbg
 {
@@ -19,10 +19,12 @@ class Modules;
 
 class BreakBreakpoint
 {
-public:
+  public:
 
-    BreakBreakpoint(std::shared_ptr<Modules> &sharedModules) :
-        m_sharedModules(sharedModules) {}
+    BreakBreakpoint(std::shared_ptr<Modules> &sharedModules)
+        : m_sharedModules(sharedModules)
+    {
+    }
 
     void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
 
@@ -35,7 +37,7 @@ public:
     //     return S_OK;
     HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
 
-private:
+  private:
 
     std::mutex m_breakMutex;
     std::shared_ptr<Modules> m_sharedModules;

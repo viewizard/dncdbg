@@ -80,7 +80,7 @@ namespace EscapedStringInternal
 
         ~EscapedStringImpl() { if (m_ref) m_ref->reset(); }
 
-        // see comments in `EscapeString` class below
+        // see comments in `EscapedString` class below
         void operator()(void *thiz, void (*func)(void*, string_view));
         size_t size() noexcept;
         explicit operator const std::string&();

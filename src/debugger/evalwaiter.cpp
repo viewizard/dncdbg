@@ -50,19 +50,18 @@ void EvalWaiter::CancelEvalRunning()
 
     ToRelease<ICorDebugEval2> iCorEval2;
     if (SUCCEEDED(m_evalResult->pEval->Abort()) ||
-        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID*) &iCorEval2)) &&
+        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)) &&
          SUCCEEDED(iCorEval2->RudeAbort())))
         m_evalCanceled = true;
 }
 
-std::future<std::unique_ptr<EvalWaiter::evalResultData_t> > EvalWaiter::RunEval(
-    HRESULT &Status,
-    ICorDebugProcess *pProcess,
-    ICorDebugThread *pThread,
-    ICorDebugEval *pEval,
-    WaitEvalResultCallback cbSetupEval)
+std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(HRESULT &Status,
+                                                                               ICorDebugProcess *pProcess,
+                                                                               ICorDebugThread *pThread,
+                                                                               ICorDebugEval *pEval,
+                                                                               WaitEvalResultCallback cbSetupEval)
 {
-    std::promise<std::unique_ptr<evalResultData_t > > p;
+    std::promise<std::unique_ptr<evalResultData_t>> p;
     auto f = p.get_future();
     if (!f.valid())
     {
@@ -103,9 +102,8 @@ ICorDebugEval *EvalWaiter::FindEvalForThread(ICorDebugThread *pThread)
     return m_evalResult->threadId == threadId ? m_evalResult->pEval : nullptr;
 }
 
-HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread,
-                                  ICorDebugValue **ppEvalResult,
-                                  WaitEvalResultCallback cbSetupEval)
+HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult,
+                                   WaitEvalResultCallback cbSetupEval)
 {
     // Important! Evaluation should be proceed only for 1 thread.
     std::lock_guard<std::mutex> lock(m_waitEvalResultMutex);
@@ -137,7 +135,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread,
                 {
                     if (state == THREAD_SUSPEND)
                         LOGW("%s %s", "SetDebugState(THREAD_SUSPEND) during eval setup failed.",
-                            "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
+                             "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
                     else
                         LOGW("SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
                 }
@@ -188,7 +186,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread,
                 if (FAILED(iCorEval->Abort()))
                 {
                     ToRelease<ICorDebugEval2> iCorEval2;
-                    if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, (LPVOID*) &iCorEval2)))
+                    if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)))
                         iCorEval2->RudeAbort();
                 }
 
@@ -217,7 +215,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread,
             *ppEvalResult = evalResult.get()->iCorEval.Detach();
             return evalResult.get()->Status;
         }
-        catch (const std::future_error&)
+        catch (const std::future_error &)
         {
             return E_FAIL;
         }
@@ -263,7 +261,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     HRESULT Status;
     ToRelease<ICorDebugEval2> iCorEval2;
     if (FAILED(Status = pEval->Abort()) &&
-        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID*) &iCorEval2)) ||
+        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)) ||
          FAILED(Status = iCorEval2->RudeAbort())))
     {
         LOGE("Can't abort evaluation in custom notification callback, %0x", Status);
@@ -280,7 +278,7 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     // in order to make code simple and clear, we don't check enclosing classes with recursion here
     // since we know behaviour for sure, just find "System.Diagnostics.Debugger" first
@@ -300,7 +298,7 @@ HRESULT EvalWaiter::SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL
 {
     HRESULT Status;
     ToRelease<ICorDebugProcess3> pProcess3;
-    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, (LPVOID*) &pProcess3));
+    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, (LPVOID *)&pProcess3));
     return pProcess3->SetEnableCustomNotification(m_iCorCrossThreadDependencyNotification, fEnable);
 }
 

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#pragma warning (disable:4068)  // Visual Studio should ignore GCC pragmas
+#pragma warning(disable : 4068) // Visual Studio should ignore GCC pragmas
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cor.h>
@@ -14,14 +14,13 @@
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
 #else
-#include <wtypes.h>
 #include "palclr.h"
+#include <wtypes.h>
 #endif
 
-#include "utils/filesystem.h"
 #include "utils/dynlibs.h"
+#include "utils/filesystem.h"
 #include <string>
-
 
 namespace dncdbg
 {
@@ -30,27 +29,28 @@ namespace dncdbg
 struct dbgshim_t
 {
     typedef VOID (*PSTARTUP_CALLBACK)(IUnknown *pCordb, PVOID parameter, HRESULT hr);
-    HRESULT (*CreateProcessForLaunch)(LPWSTR lpCommandLine, BOOL bSuspendProcess, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, PDWORD pProcessId, HANDLE *pResumeHandle);
+    HRESULT (*CreateProcessForLaunch)(LPWSTR lpCommandLine, BOOL bSuspendProcess, LPVOID lpEnvironment,
+                                      LPCWSTR lpCurrentDirectory, PDWORD pProcessId, HANDLE *pResumeHandle);
     HRESULT (*ResumeProcess)(HANDLE hResumeHandle);
     HRESULT (*CloseResumeHandle)(HANDLE hResumeHandle);
     HRESULT (*RegisterForRuntimeStartup)(DWORD dwProcessId, PSTARTUP_CALLBACK pfnCallback, PVOID parameter, PVOID *ppUnregisterToken);
     HRESULT (*UnregisterForRuntimeStartup)(PVOID pUnregisterToken);
-    HRESULT (*EnumerateCLRs)(DWORD debuggeePID, HANDLE** ppHandleArrayOut, LPWSTR** ppStringArrayOut, DWORD* pdwArrayLengthOut);
-    HRESULT (*CloseCLREnumeration)(HANDLE* pHandleArray, LPWSTR* pStringArray, DWORD dwArrayLength);
-    HRESULT (*CreateVersionStringFromModule)(DWORD pidDebuggee, LPCWSTR szModuleName, LPWSTR pBuffer, DWORD cchBuffer, DWORD* pdwLength);
-    HRESULT (*CreateDebuggingInterfaceFromVersionEx)(int iDebuggerVersion, LPCWSTR szDebuggeeVersion, IUnknown ** ppCordb);
+    HRESULT (*EnumerateCLRs)(DWORD debuggeePID, HANDLE **ppHandleArrayOut, LPWSTR **ppStringArrayOut, DWORD *pdwArrayLengthOut);
+    HRESULT (*CloseCLREnumeration)(HANDLE *pHandleArray, LPWSTR *pStringArray, DWORD dwArrayLength);
+    HRESULT (*CreateVersionStringFromModule)(DWORD pidDebuggee, LPCWSTR szModuleName, LPWSTR pBuffer, DWORD cchBuffer, DWORD *pdwLength);
+    HRESULT (*CreateDebuggingInterfaceFromVersionEx)(int iDebuggerVersion, LPCWSTR szDebuggeeVersion, IUnknown **ppCordb);
 
-    dbgshim_t() :
-        CreateProcessForLaunch(nullptr),
-        ResumeProcess(nullptr),
-        CloseResumeHandle(nullptr),
-        RegisterForRuntimeStartup(nullptr),
-        UnregisterForRuntimeStartup(nullptr),
-        EnumerateCLRs(nullptr),
-        CloseCLREnumeration(nullptr),
-        CreateVersionStringFromModule(nullptr),
-        CreateDebuggingInterfaceFromVersionEx(nullptr),
-        m_module(nullptr)
+    dbgshim_t()
+        : CreateProcessForLaunch(nullptr),
+          ResumeProcess(nullptr),
+          CloseResumeHandle(nullptr),
+          RegisterForRuntimeStartup(nullptr),
+          UnregisterForRuntimeStartup(nullptr),
+          EnumerateCLRs(nullptr),
+          CloseCLREnumeration(nullptr),
+          CreateVersionStringFromModule(nullptr),
+          CreateDebuggingInterfaceFromVersionEx(nullptr),
+          m_module(nullptr)
     {
         std::string exe = GetExeAbsPath();
         if (exe.empty())
@@ -73,15 +73,15 @@ struct dbgshim_t
         if (!m_module)
             throw std::invalid_argument("Unable to load " + libName);
 
-        *((void**)&CreateProcessForLaunch) = DLSym(m_module, "CreateProcessForLaunch");
-        *((void**)&ResumeProcess) = DLSym(m_module, "ResumeProcess");
-        *((void**)&CloseResumeHandle) = DLSym(m_module, "CloseResumeHandle");
-        *((void**)&RegisterForRuntimeStartup) = DLSym(m_module, "RegisterForRuntimeStartup");
-        *((void**)&UnregisterForRuntimeStartup) = DLSym(m_module, "UnregisterForRuntimeStartup");
-        *((void**)&EnumerateCLRs) = DLSym(m_module, "EnumerateCLRs");
-        *((void**)&CloseCLREnumeration) = DLSym(m_module, "CloseCLREnumeration");
-        *((void**)&CreateVersionStringFromModule) = DLSym(m_module, "CreateVersionStringFromModule");
-        *((void**)&CreateDebuggingInterfaceFromVersionEx) = DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx");
+        *((void **)&CreateProcessForLaunch) = DLSym(m_module, "CreateProcessForLaunch");
+        *((void **)&ResumeProcess) = DLSym(m_module, "ResumeProcess");
+        *((void **)&CloseResumeHandle) = DLSym(m_module, "CloseResumeHandle");
+        *((void **)&RegisterForRuntimeStartup) = DLSym(m_module, "RegisterForRuntimeStartup");
+        *((void **)&UnregisterForRuntimeStartup) = DLSym(m_module, "UnregisterForRuntimeStartup");
+        *((void **)&EnumerateCLRs) = DLSym(m_module, "EnumerateCLRs");
+        *((void **)&CloseCLREnumeration) = DLSym(m_module, "CloseCLREnumeration");
+        *((void **)&CreateVersionStringFromModule) = DLSym(m_module, "CreateVersionStringFromModule");
+        *((void **)&CreateDebuggingInterfaceFromVersionEx) = DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx");
 
         bool dlsym_ok = CreateProcessForLaunch &&
                         ResumeProcess &&
@@ -103,7 +103,8 @@ struct dbgshim_t
             DLClose(m_module);
     }
 
-private:
+  private:
+
     DLHandle m_module;
 };
 

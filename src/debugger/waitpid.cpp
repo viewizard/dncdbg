@@ -29,7 +29,7 @@ void waitpid_t::init() noexcept
     original = reinterpret_cast<Signature>(ret);
 }
 
-pid_t waitpid_t::operator() (pid_t pid, int *status, int options)
+pid_t waitpid_t::operator()(pid_t pid, int *status, int options)
 {
     std::lock_guard<std::recursive_mutex> mutex_guard(interlock);
     if (!original)

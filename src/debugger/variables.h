@@ -7,10 +7,10 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <mutex>
-#include <unordered_map>
 #include "interfaces/types.h"
 #include "utils/torelease.h"
+#include <mutex>
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -22,55 +22,31 @@ class EvalStackMachine;
 
 class Variables
 {
-public:
+  public:
 
     Variables(std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
               std::shared_ptr<Evaluator> &sharedEvaluator,
-              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine) :
-        m_sharedEvalHelpers(sharedEvalHelpers),
-        m_sharedEvaluator(sharedEvaluator),
-        m_sharedEvalStackMachine(sharedEvalStackMachine)
+              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+        : m_sharedEvalHelpers(sharedEvalHelpers),
+          m_sharedEvaluator(sharedEvaluator),
+          m_sharedEvalStackMachine(sharedEvalStackMachine)
     {}
 
-    HRESULT GetVariables(
-        ICorDebugProcess *pProcess,
-        uint32_t variablesReference,
-        VariablesFilter filter,
-        int start,
-        int count,
-        std::vector<Variable> &variables);
+    HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter, int start,
+                         int count, std::vector<Variable> &variables);
 
-    HRESULT SetVariable(
-        ICorDebugProcess *pProcess,
-        const std::string &name,
-        const std::string &value,
-        uint32_t ref,
-        std::string &output);
+    HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value, uint32_t ref,
+                        std::string &output);
 
-    HRESULT SetExpression(
-        ICorDebugProcess *pProcess,
-        FrameId frameId,
-        const std::string &expression,
-        int evalFlags,
-        const std::string &value,
-        std::string &output);
+    HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression, int evalFlags,
+                          const std::string &value, std::string &output);
 
-    HRESULT GetScopes(
-        ICorDebugProcess *pProcess,
-        FrameId frameId,
-        std::vector<Scope> &scopes);
+    HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);
 
-    HRESULT Evaluate(
-        ICorDebugProcess *pProcess,
-        FrameId frameId,
-        const std::string &expression,
-        Variable &variable,
-        std::string &output);
+    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression, Variable &variable,
+                     std::string &output);
 
-    HRESULT GetExceptionVariable(
-        FrameId frameId,
-        ICorDebugThread *pThread,
-        Variable &variable);
+    HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &variable);
 
     void Clear()
     {
@@ -79,7 +55,7 @@ public:
         m_referencesMutex.unlock();
     }
 
-private:
+  private:
 
     enum ValueKind
     {
@@ -101,28 +77,31 @@ private:
         ToRelease<ICorDebugValue> iCorValue;
         FrameId frameId;
 
-        VariableReference(const Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind) :
-            variablesReference(variable.variablesReference),
-            namedVariables(variable.namedVariables),
-            indexedVariables(variable.indexedVariables),
-            evalFlags(variable.evalFlags),
-            evaluateName(variable.evaluateName),
-            valueKind(valueKind),
-            iCorValue(pValue),
-            frameId(frameId)
+        VariableReference(const Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
+            : variablesReference(variable.variablesReference),
+              namedVariables(variable.namedVariables),
+              indexedVariables(variable.indexedVariables),
+              evalFlags(variable.evalFlags),
+              evaluateName(variable.evaluateName),
+              valueKind(valueKind),
+              iCorValue(pValue),
+              frameId(frameId)
         {}
 
-        VariableReference(uint32_t variablesReference, FrameId frameId, int namedVariables) :
-            variablesReference(variablesReference),
-            namedVariables(namedVariables),
-            indexedVariables(0),
-            evalFlags(0), // unused in this case, not involved into GetScopes routine
-            valueKind(ValueIsScope),
-            iCorValue(nullptr),
-            frameId(frameId)
+        VariableReference(uint32_t variablesReference, FrameId frameId, int namedVariables)
+            : variablesReference(variablesReference),
+              namedVariables(namedVariables),
+              indexedVariables(0),
+              evalFlags(0), // unused in this case, not involved into GetScopes routine
+              valueKind(ValueIsScope),
+              iCorValue(nullptr),
+              frameId(frameId)
         {}
 
-        bool IsScope() const { return valueKind == ValueIsScope; }
+        bool IsScope() const
+        {
+            return valueKind == ValueIsScope;
+        }
 
         VariableReference(VariableReference &&that) = default;
         VariableReference(const VariableReference &that) = delete;
@@ -137,34 +116,17 @@ private:
 
     HRESULT AddVariableReference(Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind);
 
-    HRESULT GetStackVariables(
-        FrameId frameId,
-        ICorDebugThread *pThread,
-        int start,
-        int count,
-        std::vector<Variable> &variables);
+    HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
+                              std::vector<Variable> &variables);
 
-    HRESULT GetChildren(
-        VariableReference &ref,
-        ICorDebugThread *pThread,
-        int start,
-        int count,
-        std::vector<Variable> &variables);
+    HRESULT GetChildren(VariableReference &ref, ICorDebugThread *pThread, int start, int count,
+                        std::vector<Variable> &variables);
 
-    HRESULT SetStackVariable(
-        VariableReference &ref,
-        ICorDebugThread *pThread,
-        const std::string &name,
-        const std::string &value,
-        std::string &output);
+    HRESULT SetStackVariable(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+                             const std::string &value, std::string &output);
 
-    HRESULT SetChild(
-        VariableReference &ref,
-        ICorDebugThread *pThread,
-        const std::string &name,
-        const std::string &value,
-        std::string &output);
-
+    HRESULT SetChild(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+                     const std::string &value, std::string &output);
 };
 
 } // namespace dncdbg

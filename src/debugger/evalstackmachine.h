@@ -8,14 +8,14 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <string>
-#include <memory>
-#include <vector>
-#include <list>
-#include <unordered_map>
+#include "debugger/evaluator.h"
 #include "interfaces/types.h"
 #include "utils/torelease.h"
-#include "debugger/evaluator.h"
+#include <list>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace dncdbg
 {
@@ -27,7 +27,7 @@ struct EvalStackEntry
 {
     enum class ResetLiteralStatus
     {
-        No  = 0,
+        No = 0,
         Yes = 1
     };
 
@@ -50,8 +50,12 @@ struct EvalStackEntry
     // Note, this data directly connected with `iCorValue` and could be available only in case `editable` is true.
     std::unique_ptr<Evaluator::SetterData> setterData;
 
-    EvalStackEntry() : preventBinding(false), literal(false), editable(false)
-    {}
+    EvalStackEntry()
+        : preventBinding(false),
+          literal(false),
+          editable(false)
+    {
+    }
 
     void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
     {
@@ -81,23 +85,18 @@ struct EvalData
     FrameLevel frameLevel;
     int evalFlags;
 
-    EvalData() :
-        pThread(nullptr), pEvaluator(nullptr), pEvalHelpers(nullptr), pEvalWaiter(nullptr), evalFlags(defaultEvalFlags)
+    EvalData()
+        : pThread(nullptr),
+          pEvaluator(nullptr),
+          pEvalHelpers(nullptr),
+          pEvalWaiter(nullptr),
+          evalFlags(defaultEvalFlags)
     {}
 };
 
 class EvalStackMachine
 {
-    std::shared_ptr<Evaluator> m_sharedEvaluator;
-    std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
-    std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
-    EvalData m_evalData;
-
-    // Run stack machine for particular expression.
-    HRESULT Run(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags, const std::string &expression,
-                std::list<EvalStackEntry> &evalStack, std::string &output);
-
-public:
+  public:
 
     void SetupEval(std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<EvalHelpers> &sharedEvalHelpers, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
     {
@@ -131,6 +130,16 @@ public:
     // See ManagedCallback::LoadModule().
     HRESULT FindPredefinedTypes(ICorDebugModule *pModule);
 
+  private:
+
+    std::shared_ptr<Evaluator> m_sharedEvaluator;
+    std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
+    std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
+    EvalData m_evalData;
+
+    // Run stack machine for particular expression.
+    HRESULT Run(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags, const std::string &expression,
+                std::list<EvalStackEntry> &evalStack, std::string &output);
 };
 
 } // namespace dncdbg

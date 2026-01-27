@@ -8,9 +8,9 @@
 #include "cor.h"
 #include "cordebug.h"
 
+#include "utils/torelease.h"
 #include <memory>
 #include <mutex>
-#include "utils/torelease.h"
 
 namespace dncdbg
 {
@@ -19,14 +19,18 @@ class Modules;
 
 class EntryBreakpoint
 {
-public:
+  public:
 
-    EntryBreakpoint(std::shared_ptr<Modules> &sharedModules) :
-        m_sharedModules(sharedModules),
-        m_stopAtEntry(false)
-    {}
+    EntryBreakpoint(std::shared_ptr<Modules> &sharedModules)
+        : m_sharedModules(sharedModules),
+          m_stopAtEntry(false)
+    {
+    }
 
-    void SetStopAtEntry(bool enable) { m_stopAtEntry = enable; }
+    void SetStopAtEntry(bool enable)
+    {
+        m_stopAtEntry = enable;
+    }
     void Delete();
 
     // Important! Must provide succeeded return code:
@@ -43,7 +47,7 @@ public:
     //     return S_OK;
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 
-private:
+  private:
 
     std::mutex m_entryMutex;
     std::shared_ptr<Modules> m_sharedModules;

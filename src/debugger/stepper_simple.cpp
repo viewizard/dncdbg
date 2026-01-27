@@ -4,8 +4,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/stepper_simple.h"
-#include "debugger/threads.h"
 #include "debugger/manageddebugger.h"
+#include "debugger/threads.h"
 #include "metadata/modules.h"
 
 namespace dncdbg
@@ -50,7 +50,9 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))
     {
         IfFailRet(pStepper->StepRange(bStepIn, &range, 1));
-    } else {
+    }
+    else
+    {
         IfFailRet(pStepper->Step(bStepIn));
     }
 
@@ -64,8 +66,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
 {
     ThreadId threadId(getThreadId(pThread));
 
-    auto stepForcedIgnoreBP = [&]()
-    {
+    auto stepForcedIgnoreBP = [&]() {
         {
             std::lock_guard<std::mutex> lock(m_stepMutex);
             if (m_enabledSimpleStepId != int(threadId))
@@ -92,7 +93,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
     };
 
     if (stepForcedIgnoreBP())
-        return S_OK;  
+        return S_OK;
 
     return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
 }

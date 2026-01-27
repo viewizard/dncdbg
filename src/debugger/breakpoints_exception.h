@@ -9,11 +9,11 @@
 #include "cordebug.h"
 
 #include "interfaces/types.h"
-#include <unordered_map>
-#include <string>
+#include <functional>
 #include <memory>
 #include <mutex>
-#include <functional>
+#include <string>
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -22,18 +22,21 @@ class Evaluator;
 
 class ExceptionBreakpoints
 {
-public:
+  public:
 
-    ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator) :
-        m_sharedEvaluator(sharedEvaluator),
-        m_justMyCode(true),
-        m_exceptionBreakpoints((size_t)ExceptionBreakpointFilter::Size)
+    ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
+        : m_sharedEvaluator(sharedEvaluator),
+          m_justMyCode(true),
+          m_exceptionBreakpoints((size_t)ExceptionBreakpointFilter::Size)
     {}
 
-    void SetJustMyCode(bool enable) { m_justMyCode = enable; };
+    void SetJustMyCode(bool enable)
+    {
+        m_justMyCode = enable;
+    };
     void DeleteAll();
-    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints,
-                                    std::function<uint32_t()> getId);
+    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
+                                    std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
     bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory);
 
@@ -47,7 +50,7 @@ public:
     HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule, StoppedEvent &event);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
-private:
+  private:
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     bool m_justMyCode;
@@ -57,8 +60,8 @@ private:
         ExceptionCallbackType m_lastEvent;
         std::string m_excModule;
 
-        ExceptionStatus() :
-            m_lastEvent(ExceptionCallbackType::FIRST_CHANCE)
+        ExceptionStatus()
+            : m_lastEvent(ExceptionCallbackType::FIRST_CHANCE)
         {}
     };
 
@@ -76,21 +79,23 @@ private:
         std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
         bool negativeCondition;
 
-        ManagedExceptionBreakpoint() :
-            id(0), categoryHint(ExceptionCategory::ANY), negativeCondition(false)
-        {}
+        ManagedExceptionBreakpoint()
+            : id(0),
+              categoryHint(ExceptionCategory::ANY),
+              negativeCondition(false)
+        {
+        }
 
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
         ManagedExceptionBreakpoint(ManagedExceptionBreakpoint &&that) = default;
         ManagedExceptionBreakpoint(const ManagedExceptionBreakpoint &that) = delete;
-        ManagedExceptionBreakpoint& operator=(ManagedExceptionBreakpoint &&that) = default;
-        ManagedExceptionBreakpoint& operator=(const ManagedExceptionBreakpoint &that) = delete;
+        ManagedExceptionBreakpoint &operator=(ManagedExceptionBreakpoint &&that) = default;
+        ManagedExceptionBreakpoint &operator=(const ManagedExceptionBreakpoint &that) = delete;
     };
 
     std::mutex m_breakpointsMutex;
     std::vector<std::unordered_multimap<std::string, ManagedExceptionBreakpoint>> m_exceptionBreakpoints;
-
 };
 
 } // namespace dncdbg
