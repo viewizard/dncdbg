@@ -44,25 +44,30 @@ class Program
         Label.Checkpoint("testio", "finish",
             (Object context) =>
             {
+                string endLine = "\n";
+                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+                if (isWindows)
+                    endLine = "\r\n";
+
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
-                Context.FailedOutputEventCheck("stderr", "test stdout\n", @"__FILE__:__LINE__");
-                Context.FailedOutputEventCheck("stdout", "test stderr\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("stdout", "test stdout\n", @"__FILE__:__LINE__");
+                Context.FailedOutputEventCheck("stderr", "test stdout" + endLine, @"__FILE__:__LINE__");
+                Context.FailedOutputEventCheck("stdout", "test stderr" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent("stdout", "test stdout" + endLine, @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2");
-                Context.WasOutputEvent("stdout", "test more stdout\n", @"__FILE__:__LINE__");
+                Context.WasOutputEvent("stdout", "test more stdout" + endLine, @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3");
                 Context.FailedOutputEventCheck("stderr", "test", @"__FILE__:__LINE__");
-                Context.FailedOutputEventCheck("stderr", "stderr\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("stderr", "test stderr\n", @"__FILE__:__LINE__");
+                Context.FailedOutputEventCheck("stderr", "stderr" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent("stderr", "test stderr" + endLine, @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp4");
-                Context.WasOutputEvent("stderr", "test more stderr\n", @"__FILE__:__LINE__");
+                Context.WasOutputEvent("stderr", "test more stderr" + endLine, @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
