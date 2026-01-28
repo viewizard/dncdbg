@@ -21,7 +21,7 @@ void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint
     breakpoint.source = Source(fullname);
     breakpoint.line = this->linenum;
     breakpoint.endLine = this->endLine;
-    breakpoint.hitCount = this->times;
+    breakpoint.hitCount = this->hitCount;
 }
 
 void LineBreakpoints::DeleteAll()
@@ -85,7 +85,7 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
             if (Status == S_FALSE)
                 continue;
 
-            ++b.times;
+            ++b.hitCount;
             b.ToBreakpoint(breakpoint, sp.document);
 
             if (!output.empty())

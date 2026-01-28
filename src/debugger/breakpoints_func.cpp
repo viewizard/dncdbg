@@ -100,7 +100,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
             if (Status == S_FALSE)
                 continue;
 
-            ++fbp.times;
+            ++fbp.hitCount;
             fbp.ToBreakpoint(breakpoint);
 
             if (!output.empty())
