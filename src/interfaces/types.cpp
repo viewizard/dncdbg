@@ -3,12 +3,12 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include <algorithm>
-#include <vector>
-#include <tuple>
-#include <mutex>
-#include <cstddef> // ptrdiff_t
 #include "interfaces/types.h"
+#include <algorithm>
+#include <cstddef> // ptrdiff_t
+#include <mutex>
+#include <tuple>
+#include <vector>
 
 // Important! All "interfaces" code must not depends from other debugger's code.
 
@@ -25,10 +25,12 @@ namespace dncdbg
 // This container tries avoid using of repeated `Key' value after call
 // to `clear()' (it uses cyclically increased number, which wraps around
 // after reaching `Max' value).
-template <typename Key, typename T, Key Max = std::numeric_limits<Key>::max(), class = typename std::enable_if<std::is_unsigned<Key>::value>::type>
+template <typename Key, typename T, Key Max = std::numeric_limits<Key>::max(),
+          class = typename std::enable_if<std::is_unsigned<Key>::value>::type>
 class IndexedStorage
 {
-public:
+  public:
+
     // Data type used as the key.
     typedef Key key_type;
 
@@ -41,26 +43,36 @@ public:
     // These definitions needed for standard library algoithms.
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
-    typedef const value_type& reference;
-    typedef const value_type* pointer;
+    typedef const value_type &reference;
+    typedef const value_type *pointer;
 
     // This class implemens at lest input-iterator
     // which allows to iterate over all elements stored in container.
     typedef typename std::vector<value_type>::const_iterator iterator;
 
     // Return iterator pointing on first element.
-    iterator begin() const { return m_data.begin(); }
+    iterator begin() const
+    {
+        return m_data.begin();
+    }
 
     // Return iterator pointing beyond last element.
-    iterator end() const { return m_data.end(); }
+    iterator end() const
+    {
+        return m_data.end();
+    }
 
     // Constructor which creates new empty container.
-    IndexedStorage() :
-        m_base(0)
-    {}
+    IndexedStorage()
+        : m_base(0)
+    {
+    }
 
     // Return number of elements currently stored in container.
-    size_type size() const { return m_data.size(); }
+    size_type size() const
+    {
+        return m_data.size();
+    }
 
     // Erase all contents.
     void clear()
@@ -73,10 +85,9 @@ public:
     // pair containing iterator pointing to new created element and boolean
     // value which is false when element already present in container or true
     // if new element was created.
-    template <typename... Args>
-    std::pair<iterator, bool> emplace(Args&&... args)
+    template <typename... Args> std::pair<iterator, bool> emplace(Args &&...args)
     {
-        mapped_type data {std::forward<Args&&>(args)...};
+        mapped_type data{std::forward<Args &&>(args)...};
         return insert(std::move(data));
     }
 
@@ -85,19 +96,21 @@ public:
     // the container and second element of the pair is boolean value which is
     // set to false if element was already present in the container or set to
     // true, if new element was added.
-    std::pair<iterator, bool> insert(const value_type& val)
+    std::pair<iterator, bool> insert(const value_type &val)
     {
         iterator it = do_insert(val);
-        if (it != m_data.end()) return {it, false};
+        if (it != m_data.end())
+            return {it, false};
         m_data.push_back(value_type(next_id(), val));
         return {--m_data.end(), true};
     }
 
     // This function do the same as previous, but avoid copying of `val'.
-    std::pair<iterator, bool> insert(mapped_type&& val)
+    std::pair<iterator, bool> insert(mapped_type &&val)
     {
         iterator it = do_insert(val);
-        if (it != m_data.end()) return {it, false};
+        if (it != m_data.end())
+            return {it, false};
         m_data.push_back(value_type(next_id(), std::move(val)));
         return {--m_data.end(), true};
     }
@@ -118,16 +131,20 @@ public:
     }
 
     // This function checks if element with corresponding `key' value present in the container.
-    bool contains(key_type key) const { return find(key) != end(); }
+    bool contains(key_type key) const
+    {
+        return find(key) != end();
+    }
 
-private:
+  private:
+
     key_type m_base;
     std::vector<value_type> m_data;
 
-    iterator do_insert(const mapped_type& val)
+    iterator do_insert(const mapped_type &val)
     {
         return std::find_if(m_data.cbegin(), m_data.cend(),
-            [&](const value_type& other){ return other.second == val; });
+                            [&](const value_type &other) { return other.second == val; });
     }
 
     key_type next_id() const
@@ -150,7 +167,7 @@ private:
 //
 template <typename T> struct Singleton
 {
-    static T& instance()
+    static T &instance()
     {
         static T val;
         return val;
@@ -158,49 +175,63 @@ template <typename T> struct Singleton
 };
 
 // ThreadId == 0 is invalid for Win32 API and PAL library.
-/*static*/ const ThreadId ThreadId::Invalid {InvalidValue};
+/*static*/ const ThreadId ThreadId::Invalid{InvalidValue};
 
-/*static*/ const ThreadId ThreadId::AllThreads {AllThreadsValue};
+/*static*/ const ThreadId ThreadId::AllThreads{AllThreadsValue};
 
 namespace
 {
-    struct FramesList
+
+struct FramesList
+{
+    typedef IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel>> ListType;
+
+    struct ScopeGuard
     {
-        typedef IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel> > ListType;
-
-        struct ScopeGuard
+        ScopeGuard(FramesList &f) : frames_list(f)
         {
-            ScopeGuard(FramesList& f) : frames_list(f) { frames_list.mutex.lock(); }
-
-            ~ScopeGuard()  { frames_list.mutex.unlock(); }
-
-            ListType* operator->() const { return &frames_list.list; }
-
-        private:
-            FramesList& frames_list;
-        };
-
-        ScopeGuard get()
-        {
-            return *this;
+            frames_list.mutex.lock();
         }
 
-    private:
-        std::mutex mutex;
-        ListType list;
+        ~ScopeGuard()
+        {
+            frames_list.mutex.unlock();
+        }
+
+        ListType *operator->() const
+        {
+            return &frames_list.list;
+        }
+
+      private:
+
+        FramesList &frames_list;
     };
 
-    // This singleton holds list of frames accessible by index value,
-    // this list expires every time when program continues execution.
-    typedef Singleton<FramesList> KnownFrames;
-}
+    ScopeGuard get()
+    {
+        return *this;
+    }
+
+  private:
+    std::mutex mutex;
+    ListType list;
+};
+
+// This singleton holds list of frames accessible by index value,
+// this list expires every time when program continues execution.
+typedef Singleton<FramesList> KnownFrames;
+
+} // namespace
 
 FrameId::FrameId(ThreadId thread, FrameLevel level)
-: m_id(KnownFrames::instance().get()->emplace(thread, level).first->first)
+    : m_id(KnownFrames::instance().get()->emplace(thread, level).first->first)
 {
 }
 
-FrameId::FrameId(int n) : m_id(n) {}
+FrameId::FrameId(int n) : m_id(n)
+{
+}
 
 ThreadId FrameId::getThread() const noexcept
 {
@@ -216,14 +247,13 @@ ThreadId FrameId::getThread() const noexcept
     return {};
 }
 
-
 FrameLevel FrameId::getLevel() const noexcept
 {
     if (*this)
     {
         auto list = KnownFrames::instance().get();
         auto it = list->find(m_id);
-        if (it !=list->end())
+        if (it != list->end())
         {
             return std::get<1>(it->second);
         }
@@ -236,13 +266,14 @@ FrameLevel FrameId::getLevel() const noexcept
     KnownFrames::instance().get()->clear();
 }
 
-
 static std::string GetFileName(const std::string &path)
 {
     std::size_t i = path.find_last_of("/\\");
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
-Source::Source(const std::string &path) : name(GetFileName(path)), path(path) {}
+Source::Source(const std::string &path) : name(GetFileName(path)), path(path)
+{
+}
 
 } // namespace dncdbg
