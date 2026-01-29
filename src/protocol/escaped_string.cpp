@@ -2,25 +2,31 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include <algorithm>
-#include <string>
 #include "escaped_string.h"
 #include "assert.h"
 #include "utils/string_view.h"
+#include <algorithm>
+#include <string>
 
 namespace dncdbg
 {
 
-EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(const EscapedStringInternal::EscapedStringImpl::Params& params, Utility::string_view str, const TempRef& ref, bool isstring)
-: 
-    m_ref(&ref), m_params(params), m_input(str), m_result(), m_size(UndefinedSize), m_isstring(isstring), m_isresult(false)
+EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
+    const EscapedStringInternal::EscapedStringImpl::Params &params, Utility::string_view str, const TempRef &ref, bool isstring)
+    : m_ref(&ref),
+      m_params(params),
+      m_input(str),
+      m_result(),
+      m_size(UndefinedSize),
+      m_isstring(isstring),
+      m_isresult(false)
 {
     ref.set(this, &EscapedStringImpl::transform);
 }
 
 // This function performs input string transformation according to specified (via `m_params) rules.
 // Result will be passed to supplied callback function.
-void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void*, Utility::string_view))
+void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void *, Utility::string_view))
 {
     // always have transformed result
     if (m_isresult)
@@ -67,7 +73,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
 size_t EscapedStringInternal::EscapedStringImpl::size() noexcept
 {
     if (m_size == UndefinedSize)
-        (*this)(nullptr, [](void *, string_view){});
+        (*this)(nullptr, [](void *, string_view) {});
 
     return m_size;
 }
@@ -77,7 +83,7 @@ size_t EscapedStringInternal::EscapedStringImpl::size() noexcept
 // input arguments still not destroyed.
 EscapedStringInternal::EscapedStringImpl::operator Utility::string_view() noexcept
 {
-    if (! m_isresult)
+    if (!m_isresult)
     {
         if (size() == m_input.size())
             return m_input;
@@ -88,7 +94,7 @@ EscapedStringInternal::EscapedStringImpl::operator Utility::string_view() noexce
 }
 
 // function allocates memory and transforms string.
-EscapedStringInternal::EscapedStringImpl::operator const std::string&()
+EscapedStringInternal::EscapedStringImpl::operator const std::string &()
 {
     if (!m_isresult)
         transform();
@@ -100,12 +106,12 @@ EscapedStringInternal::EscapedStringImpl::operator const std::string&()
 // except of case, when transformation isn't required at all, and
 // input arguments still not destroyed, and input argument contains
 // terminating zero.
-const char* EscapedStringInternal::EscapedStringImpl::c_str()
+const char *EscapedStringInternal::EscapedStringImpl::c_str()
 {
     if (m_isstring && !m_isresult && size() == m_input.size())
         return m_input.data();
     else
-        return static_cast<const std::string&>(*this).c_str();
+        return static_cast<const std::string &>(*this).c_str();
 }
 
 // function performs string transformation to allocated memory
@@ -117,13 +123,12 @@ void EscapedStringInternal::EscapedStringImpl::transform()
     m_result.resize(size(), 0);
     auto it = m_result.begin();
 
-    auto func = [&](string_view str)
-    {
+    auto func = [&](string_view str) {
         m_result.replace(it, it + str.size(), str.begin(), str.end());
         it += str.size();
     };
 
-    (*this)(&func, [](void *fp, string_view str) { (*static_cast<decltype(func)*>(fp))(str); });
+    (*this)(&func, [](void *fp, string_view str) { (*static_cast<decltype(func) *>(fp))(str); });
 
     m_isresult = true;
     m_isstring = true;
