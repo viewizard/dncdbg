@@ -78,15 +78,13 @@ public struct TestSetVarStruct
 
     public static int static_prop_i_noset
     {
-        get
-        {
+        get {
             return 5001;
         }
     }
     public int prop_i_noset
     {
-        get
-        {
+        get {
             return 5002;
         }
     }
@@ -102,15 +100,13 @@ public struct TestSetExprStruct
 
     public static int static_prop_i_noset
     {
-        get
-        {
+        get {
             return 5001;
         }
     }
     public int prop_i_noset
     {
-        get
-        {
+        get {
             return 5002;
         }
     }
@@ -121,8 +117,7 @@ public struct TestStruct4
     [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public int val1
     {
-        get
-        {
+        get {
             return 666;
         }
     }
@@ -130,16 +125,14 @@ public struct TestStruct4
     [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public int val2
     {
-        get
-        {
+        get {
             return 777;
         }
     }
 
     public int val3
     {
-        get
-        {
+        get {
             return 888;
         }
     }
@@ -149,16 +142,14 @@ public struct TestStruct5
 {
     public int val1
     {
-        get
-        {
+        get {
             return 111;
         }
     }
 
     public int val2
     {
-        get
-        {
+        get {
             System.Diagnostics.Debugger.NotifyOfCrossThreadDependency();
             return 222;
         }
@@ -166,16 +157,14 @@ public struct TestStruct5
 
     public string val3
     {
-        get
-        {
+        get {
             return "text_333";
         }
     }
 
     public float val4
     {
-        get
-        {
+        get {
             System.Diagnostics.Debugger.NotifyOfCrossThreadDependency();
             return 444.4f;
         }
@@ -183,8 +172,7 @@ public struct TestStruct5
 
     public float val5
     {
-        get
-        {
+        get {
             return 555.5f;
         }
     }
@@ -194,8 +182,7 @@ public struct TestStruct6
 {
     public int val1
     {
-        get
-        {
+        get {
             // Test, that debugger ignore Break() callback during eval.
             Debugger.Break();
             return 123;
@@ -204,8 +191,7 @@ public struct TestStruct6
 
     public int val2
     {
-        get
-        {
+        get {
             // CoreCLR 7.0, 8.0 and 9.0 have issue with abortable internal native code.
             // https://github.com/dotnet/runtime/issues/82422
             if (System.Environment.Version.Major == 7 ||
@@ -226,8 +212,7 @@ public struct TestStruct6
 
     public string val3
     {
-        get
-        {
+        get {
             // Test, that debugger ignore Breakpoint() callback during eval.
             return "text_123";                              Label.Breakpoint("bp_getter");
         }
@@ -238,16 +223,14 @@ public struct TestStruct7
 {
     public int val1
     {
-        get
-        {
+        get {
             return 567;
         }
     }
 
     public int val2
     {
-        get
-        {
+        get {
             try
             {
                 throw new System.DivideByZeroException();
@@ -262,8 +245,7 @@ public struct TestStruct7
 
     public int val3
     {
-        get
-        {
+        get {
             throw new System.DivideByZeroException();
             return 777;
         }
@@ -271,8 +253,7 @@ public struct TestStruct7
 
     public string val4
     {
-        get
-        {
+        get {
             return "text_567";
         }
     }

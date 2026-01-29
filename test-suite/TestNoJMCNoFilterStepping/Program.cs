@@ -39,14 +39,12 @@ public class TestBreakpointInProperty
     public int Data
     {
         [DebuggerStepThrough]
-        get
-        {
+        get {
             int tmp = AddOne(_value);
             return tmp;
         }
         [DebuggerStepThrough]
-        set
-        {
+        set {
             _value = value;
         }
     }
@@ -56,15 +54,13 @@ class TestStepInArguments
 {
     public int P1
     {
-        get 
-        {                                                               Label.Breakpoint("test_step_arguments_P1_1");
+        get {                                                           Label.Breakpoint("test_step_arguments_P1_1");
             return 1;                                                   Label.Breakpoint("test_step_arguments_P1_2");
         Label.Breakpoint("test_step_arguments_P1_3");}
     }
     public int P2
     {
-        get
-        {                                                               Label.Breakpoint("test_step_arguments_P2_1");
+        get {                                                           Label.Breakpoint("test_step_arguments_P2_1");
             return 1;                                                   Label.Breakpoint("test_step_arguments_P2_2");
         Label.Breakpoint("test_step_arguments_P2_3");}
     }
@@ -646,8 +642,7 @@ class Program
     public static int test_property1
     {
         [DebuggerStepThroughAttribute()]
-        get
-        {
+        get {
             return 1;
         }
     }
@@ -655,8 +650,7 @@ class Program
     public static int test_property2
     {
         [DebuggerNonUserCodeAttribute()]
-        get
-        {                                          Label.Breakpoint("test_property2_in");
+        get {                                      Label.Breakpoint("test_property2_in");
             return 2;
         }
     }
@@ -664,16 +658,14 @@ class Program
     public static int test_property3
     {
         [DebuggerHiddenAttribute()]
-        get
-        {
+        get {
             return 3;
         }
     }
 
     public static int test_property4
     {
-        get
-        {                                          Label.Breakpoint("test_property4_in");
+        get {                                      Label.Breakpoint("test_property4_in");
             return 4;
         }
     }
@@ -709,8 +701,7 @@ public class TestImplHolder
 
     static public TestImpl getImpl1
     {
-        get 
-        {                                                               Label.Breakpoint("test_step_through_getImpl1");
+        get {                                                           Label.Breakpoint("test_step_through_getImpl1");
             return impl;
         }
     }

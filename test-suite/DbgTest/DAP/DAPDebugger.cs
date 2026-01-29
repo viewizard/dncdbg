@@ -16,15 +16,13 @@ public class DAPResult : Tuple<bool, string>
 
     public bool Success
     {
-        get
-        {
+        get {
             return this.Item1;
         }
     }
     public string ResponseStr
     {
-        get
-        {
+        get {
             return this.Item2;
         }
     }

@@ -39,8 +39,7 @@ public class test_static_class1_t
     public static int static_field_i1 = 5;
     public static int static_property_i2
     {
-        get
-        {
+        get {
             return static_field_i1 + 2;
         }
     }
@@ -54,8 +53,7 @@ public struct test_static_struct1_t
 
     public static int static_property_i2
     {
-        get
-        {
+        get {
             return static_field_i1 + 2;
         }
     }
@@ -191,8 +189,7 @@ abstract public class test_static_parent
     static public int static_i_f_parent = 301;
     static public int static_i_p_parent
     {
-        get
-        {
+        get {
             return 302;
         }
     }
@@ -203,8 +200,7 @@ public class test_static_child : test_static_parent
     static public int static_i_f_child = 401;
     static public int static_i_p_child
     {
-        get
-        {
+        get {
             return 402;
         }
     }

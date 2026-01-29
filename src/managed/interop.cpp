@@ -10,42 +10,39 @@
 #include "managed/interop.h"
 
 #include <coreclrhost.h>
-#include <thread>
-#include <string>
 #include <set>
+#include <string>
+#include <thread>
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include <dirent.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #elif _WIN32
-#include <windows.h>
+#include "utils/limits.h"
+#include <set>
 #include <stddef.h>
 #include <string.h>
 #include <string>
-#include <set>
-#include "utils/limits.h"
+#include <windows.h>
 #endif
 
-#include "palclr.h"
 #include "metadata/modules.h"
+#include "palclr.h"
 #include "utils/dynlibs.h"
-#include "utils/utf.h"
-#include "utils/rwlock.h"
 #include "utils/filesystem.h"
-
+#include "utils/rwlock.h"
+#include "utils/utf.h"
 
 #ifdef FEATURE_PAL
 // Suppress undefined reference
 // `_invalid_parameter(char16_t const*, char16_t const*, char16_t const*, unsigned int, unsigned long)':
 //      /coreclr/src/pal/inc/rt/safecrt.h:386: undefined reference to `RaiseException'
-static void RaiseException(DWORD dwExceptionCode,
-               DWORD dwExceptionFlags,
-               DWORD nNumberOfArguments,
-               CONST ULONG_PTR *lpArguments)
+static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags,
+                           DWORD nNumberOfArguments, CONST ULONG_PTR *lpArguments)
 {
 }
 #endif
@@ -61,17 +58,17 @@ namespace // unnamed namespace
 
 // This function searches *.dll files in specified directory and adds full paths to files
 // to colon-separated list `tpaList'.
-void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& tpaList)
+void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &tpaList)
 {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    const char * const tpaExtensions[] = {
-                ".ni.dll",      // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
-                ".dll",
-                ".ni.exe",
-                ".exe",
-                };
+    const char *const tpaExtensions[] ={
+        ".ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
+        ".dll",
+        ".ni.exe",
+        ".exe",
+    };
 
-    DIR* dir = opendir(directory.c_str());
+    DIR *dir = opendir(directory.c_str());
     if (dir == nullptr)
         return;
 
@@ -81,10 +78,10 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& t
     // then files with .dll extension, etc.
     for (size_t extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
     {
-        const char* ext = tpaExtensions[extIndex];
+        const char *ext = tpaExtensions[extIndex];
         int extLength = strlen(ext);
 
-        struct dirent* entry;
+        struct dirent *entry;
 
         // For all entries in the directory
         while ((entry = readdir(dir)) != nullptr)
@@ -148,8 +145,8 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& t
 
     closedir(dir);
 #elif _WIN32
-    const char * const tpaExtensions[] = {
-        "*.ni.dll",      // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
+    const char *const tpaExtensions[] = {
+        "*.ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         "*.dll",
         "*.ni.exe",
         "*.exe",
@@ -161,7 +158,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& t
     // then files with .dll extension, etc.
     for (int extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
     {
-        const char* ext = tpaExtensions[extIndex];
+        const char *ext = tpaExtensions[extIndex];
         size_t extLength = strlen(ext);
 
         std::string assemblyPath(directory);
@@ -194,8 +191,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string& t
                         tpaList.append(";");
                     }
                 }
-            }
-            while (0 != FindNextFileA(findHandle, &data));
+            } while (0 != FindNextFileA(findHandle, &data));
 
             FindClose(findHandle);
         }
@@ -219,7 +215,7 @@ UINT SysStringLen(BSTR bstrString)
     if (bstrString == NULL)
         return 0;
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    return (unsigned int)((((DWORD FAR*)bstrString)[-1]) / sizeof(OLECHAR));
+    return (unsigned int)((((DWORD FAR *)bstrString)[-1]) / sizeof(OLECHAR));
 #elif _WIN32
     return ::SysStringLen(bstrString);
 #endif
@@ -240,28 +236,28 @@ coreclr_shutdown_ptr shutdownCoreClr = nullptr;
 // CoreCLR use fixed size integers, don't use system/arch size dependent types for delegates.
 // Important! In case of usage pointer to variable as delegate arg, make sure it have proper size for CoreCLR!
 // For example, native code "int" != managed code "int", since managed code "int" is 4 byte fixed size.
-typedef  int (*ReadMemoryDelegate)(uint64_t, char*, int32_t);
-typedef  PVOID (*LoadSymbolsForModuleDelegate)(const WCHAR*, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate);
-typedef  void (*DisposeDelegate)(PVOID);
-typedef  RetCode (*GetLocalVariableNameAndScope)(PVOID, int32_t, int32_t, BSTR*, uint32_t*, uint32_t*);
-typedef  RetCode (*GetHoistedLocalScopes)(PVOID, int32_t, PVOID*, int32_t*);
-typedef  RetCode (*GetSequencePointByILOffsetDelegate)(PVOID, mdMethodDef, uint32_t, PVOID);
-typedef  RetCode (*GetSequencePointsDelegate)(PVOID, mdMethodDef, PVOID*, int32_t*);
-typedef  RetCode (*GetNextUserCodeILOffsetDelegate)(PVOID, mdMethodDef, uint32_t, uint32_t*, int32_t*);
-typedef  RetCode (*GetStepRangesFromIPDelegate)(PVOID, int32_t, mdMethodDef, uint32_t*, uint32_t*);
-typedef  RetCode (*GetModuleMethodsRangesDelegate)(PVOID, uint32_t, PVOID, uint32_t, PVOID, PVOID*);
-typedef  RetCode (*ResolveBreakPointsDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t*, const WCHAR*, PVOID*);
-typedef  RetCode (*GetAsyncMethodSteppingInfoDelegate)(PVOID, mdMethodDef, PVOID*, int32_t*, uint32_t*);
-typedef  PVOID (*LoadDeltaPdbDelegate)(const WCHAR*, PVOID*, int32_t*);
-typedef  RetCode (*CalculationDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t*, PVOID*, BSTR*);
-typedef  int (*GenerateStackMachineProgramDelegate)(const WCHAR*, PVOID*, BSTR*);
-typedef  void (*ReleaseStackMachineProgramDelegate)(PVOID);
-typedef  int (*NextStackCommandDelegate)(PVOID, int32_t*, PVOID*, BSTR*);
-typedef  RetCode (*StringToUpperDelegate)(const WCHAR*, BSTR*);
-typedef  PVOID (*CoTaskMemAllocDelegate)(int32_t);
-typedef  void (*CoTaskMemFreeDelegate)(PVOID);
-typedef  PVOID (*SysAllocStringLenDelegate)(int32_t);
-typedef  void (*SysFreeStringDelegate)(PVOID);
+typedef int (*ReadMemoryDelegate)(uint64_t, char *, int32_t);
+typedef PVOID (*LoadSymbolsForModuleDelegate)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate);
+typedef void (*DisposeDelegate)(PVOID);
+typedef RetCode (*GetLocalVariableNameAndScope)(PVOID, int32_t, int32_t, BSTR *, uint32_t *, uint32_t *);
+typedef RetCode (*GetHoistedLocalScopes)(PVOID, int32_t, PVOID *, int32_t *);
+typedef RetCode (*GetSequencePointByILOffsetDelegate)(PVOID, mdMethodDef, uint32_t, PVOID);
+typedef RetCode (*GetSequencePointsDelegate)(PVOID, mdMethodDef, PVOID *, int32_t *);
+typedef RetCode (*GetNextUserCodeILOffsetDelegate)(PVOID, mdMethodDef, uint32_t, uint32_t *, int32_t *);
+typedef RetCode (*GetStepRangesFromIPDelegate)(PVOID, int32_t, mdMethodDef, uint32_t *, uint32_t *);
+typedef RetCode (*GetModuleMethodsRangesDelegate)(PVOID, uint32_t, PVOID, uint32_t, PVOID, PVOID *);
+typedef RetCode (*ResolveBreakPointsDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t *, const WCHAR *, PVOID *);
+typedef RetCode (*GetAsyncMethodSteppingInfoDelegate)(PVOID, mdMethodDef, PVOID *, int32_t *, uint32_t *);
+typedef PVOID (*LoadDeltaPdbDelegate)(const WCHAR *, PVOID *, int32_t *);
+typedef RetCode (*CalculationDelegate)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t *, PVOID *, BSTR *);
+typedef int (*GenerateStackMachineProgramDelegate)(const WCHAR *, PVOID *, BSTR *);
+typedef void (*ReleaseStackMachineProgramDelegate)(PVOID);
+typedef int (*NextStackCommandDelegate)(PVOID, int32_t *, PVOID *, BSTR *);
+typedef RetCode (*StringToUpperDelegate)(const WCHAR *, BSTR *);
+typedef PVOID (*CoTaskMemAllocDelegate)(int32_t);
+typedef void (*CoTaskMemFreeDelegate)(PVOID);
+typedef PVOID (*SysAllocStringLenDelegate)(int32_t);
+typedef void (*SysFreeStringDelegate)(PVOID);
 
 LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate = nullptr;
 DisposeDelegate disposeDelegate = nullptr;
@@ -297,14 +293,15 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
     if (address == 0 || buffer == 0 || cb == 0)
         return 0;
 
-    std::memcpy(buffer, (const void*) address, cb);
+    std::memcpy(buffer, (const void *)address, cb);
     return cb;
 }
 
 } // unnamed namespace
 
-HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, ULONG64 peAddress, ULONG64 peSize,
-                                  ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize, VOID **ppSymbolReaderHandle)
+HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, ULONG64 peAddress,
+                                  ULONG64 peSize, ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize,
+                                  VOID **ppSymbolReaderHandle)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!loadSymbolsForModuleDelegate || !ppSymbolReaderHandle)
@@ -318,8 +315,8 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
         szModuleName = wModulePath.c_str();
     }
 
-    *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress,
-        (int)peSize, inMemoryPdbAddress, (int)inMemoryPdbSize, ReadMemoryForSymbols);
+    *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, (int)peSize, inMemoryPdbAddress,
+                                                         (int)inMemoryPdbSize, ReadMemoryForSymbols);
 
     if (*ppSymbolReaderHandle == 0)
         return E_FAIL;
@@ -358,8 +355,8 @@ void Init(const std::string &coreClrPath)
     UnsetCoreCLREnv();
 
     // Pin the module - CoreCLR.so/dll does not support being unloaded.
-    // "CoreCLR does not support reinitialization or unloading. Do not call `coreclr_initialize` again or unload the CoreCLR library."
-    // https://docs.microsoft.com/en-us/dotnet/core/tutorials/netcore-hosting
+    // "CoreCLR does not support reinitialization or unloading. Do not call `coreclr_initialize` again or unload the
+    // CoreCLR library." https://docs.microsoft.com/en-us/dotnet/core/tutorials/netcore-hosting
     DLHandle coreclrLib = DLOpen(coreClrPath);
     if (coreclrLib == nullptr)
         throw std::invalid_argument("Failed to load coreclr path=" + coreClrPath);
@@ -376,7 +373,8 @@ void Init(const std::string &coreClrPath)
         "APP_PATHS",
         "APP_NI_PATHS",
         "NATIVE_DLL_SEARCH_DIRECTORIES",
-        "AppDomainCompatSwitch"};
+        "AppDomainCompatSwitch"
+    };
 
     std::string exe = GetExeAbsPath();
     if (exe.empty())
@@ -388,14 +386,14 @@ void Init(const std::string &coreClrPath)
 
     std::string exeDir = exe.substr(0, dirSepIndex);
 
-    const char *propertyValues[] = {tpaList.c_str(), // TRUSTED_PLATFORM_ASSEMBLIES
-                                    exeDir.c_str(), // APP_PATHS
-                                    exeDir.c_str(), // APP_NI_PATHS
-                                    clrDir.c_str(), // NATIVE_DLL_SEARCH_DIRECTORIES
-                                    "UseLatestBehaviorWhenTFMNotSpecified"};  // AppDomainCompatSwitch
+    const char *propertyValues[] = {tpaList.c_str(),                         // TRUSTED_PLATFORM_ASSEMBLIES
+                                    exeDir.c_str(),                          // APP_PATHS
+                                    exeDir.c_str(),                          // APP_NI_PATHS
+                                    clrDir.c_str(),                          // NATIVE_DLL_SEARCH_DIRECTORIES
+                                    "UseLatestBehaviorWhenTFMNotSpecified"}; // AppDomainCompatSwitch
 
-    Status = initializeCoreCLR(exe.c_str(), "debugger",
-        sizeof(propertyKeys) / sizeof(propertyKeys[0]), propertyKeys, propertyValues, &hostHandle, &domainId);
+    Status = initializeCoreCLR(exe.c_str(), "debugger", sizeof(propertyKeys) / sizeof(propertyKeys[0]), propertyKeys,
+                               propertyValues, &hostHandle, &domainId);
 
     if (FAILED(Status))
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));
@@ -493,7 +491,8 @@ void Shutdown()
     calculationDelegate = nullptr;
 }
 
-HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset, SequencePoint *sequencePoint)
+HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
+                                   SequencePoint *sequencePoint)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!getSequencePointByILOffsetDelegate || !pSymbolReaderHandle || !sequencePoint)
@@ -511,12 +510,13 @@ HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, Se
     if (!getSequencePointsDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
-    RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, (PVOID*)sequencePoints, &Count);
+    RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, (PVOID *)sequencePoints, &Count);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset, ULONG32 &ilNextOffset, bool *noUserCodeFound)
+HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
+                                ULONG32 &ilNextOffset, bool *noUserCodeFound)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!getNextUserCodeILOffsetDelegate || !pSymbolReaderHandle)
@@ -579,7 +579,8 @@ HRESULT GetHoistedLocalScopes(PVOID pSymbolReaderHandle, mdMethodDef methodToken
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, int32_t secondType, int32_t operationType, int32_t &resultType, PVOID *data, std::string &errorText)
+HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, int32_t secondType, int32_t operationType,
+                            int32_t &resultType, PVOID *data, std::string &errorText)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!calculationDelegate)
@@ -599,27 +600,33 @@ HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, in
     return S_OK;
 }
 
-HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensNum, PVOID constrTokens, uint32_t normalTokensNum, PVOID normalTokens, PVOID *data)
+HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensNum, PVOID constrTokens,
+                               uint32_t normalTokensNum, PVOID normalTokens, PVOID *data)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
-    if (!getModuleMethodsRangesDelegate || !pSymbolReaderHandle || (constrTokensNum && !constrTokens) || (normalTokensNum && !normalTokens) || !data)
+    if (!getModuleMethodsRangesDelegate || !pSymbolReaderHandle || (constrTokensNum && !constrTokens) ||
+        (normalTokensNum && !normalTokens) || !data)
         return E_FAIL;
 
-    RetCode retCode = getModuleMethodsRangesDelegate(pSymbolReaderHandle, constrTokensNum, constrTokens, normalTokensNum, normalTokens, data);
+    RetCode retCode = getModuleMethodsRangesDelegate(pSymbolReaderHandle, constrTokensNum, constrTokens,
+                                                     normalTokensNum, normalTokens, data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandle, int32_t tokenNum, PVOID Tokens, int32_t sourceLine, int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data)
+HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandle, int32_t tokenNum, PVOID Tokens, int32_t sourceLine,
+                           int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!resolveBreakPointsDelegate || !pSymbolReaderHandle || !Tokens || !data)
         return E_FAIL;
 
-    RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count, to_utf16(sourcePath).c_str(), data);
+    RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
+                                                 to_utf16(sourcePath).c_str(), data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef methodToken, std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, ULONG32 *ilOffset)
+HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef methodToken,
+                                   std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, ULONG32 *ilOffset)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
     if (!getAsyncMethodSteppingInfoDelegate || !pSymbolReaderHandle || !ilOffset)
@@ -628,7 +635,8 @@ HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef method
     AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
     int32_t asyncInfoCount = 0;
 
-    RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, (PVOID*)&allocatedAsyncInfo, &asyncInfoCount, ilOffset);
+    RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, (PVOID *)&allocatedAsyncInfo,
+                                                         &asyncInfoCount, ilOffset);
     read_lock.unlock();
 
     if (retCode != RetCode::OK)
@@ -766,10 +774,11 @@ void CoTaskMemFree(PVOID ptr)
     coTaskMemFreeDelegate(ptr);
 }
 
-HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle, std::unordered_set<mdMethodDef> &methodTokens)
+HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
+                     std::unordered_set<mdMethodDef> &methodTokens)
 {
     std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
-    if (!loadDeltaPdbDelegate|| !ppSymbolReaderHandle || pdbPath.empty())
+    if (!loadDeltaPdbDelegate || !ppSymbolReaderHandle || pdbPath.empty())
         return E_FAIL;
 
     PVOID pMethodTokens = nullptr;
@@ -779,9 +788,9 @@ HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle, st
 
     if (tokensCount > 0 && pMethodTokens)
     {
-        for(int i = 0; i < tokensCount; i++)
+        for (int i = 0; i < tokensCount; i++)
         {
-            methodTokens.insert(((mdMethodDef*)pMethodTokens)[i]);
+            methodTokens.insert(((mdMethodDef *)pMethodTokens)[i]);
         }
     }
 
