@@ -21,7 +21,6 @@ void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint
     breakpoint.source = Source(fullname);
     breakpoint.line = this->linenum;
     breakpoint.endLine = this->endLine;
-    breakpoint.hitCount = this->hitCount;
 }
 
 void LineBreakpoints::DeleteAll()

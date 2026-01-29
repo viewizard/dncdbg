@@ -334,7 +334,6 @@ struct Breakpoint
     int line;
     int endLine;
 
-    uint32_t hitCount;
     std::string condition;
     std::string module;
     std::string funcname;
@@ -344,8 +343,7 @@ struct Breakpoint
         : id(0),
           verified(false),
           line(0),
-          endLine(0),
-          hitCount(0)
+          endLine(0)
     {
     }
 };
