@@ -232,47 +232,55 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
 
     switch (elemType)
     {
-    case ELEMENT_TYPE_I1: {
+    case ELEMENT_TYPE_I1:
+    {
         int8_t tmp = *(int8_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32((uint8_t)tmp);
         break;
     }
-    case ELEMENT_TYPE_U1: {
+    case ELEMENT_TYPE_U1:
+    {
         index = ULONG32(*(uint8_t *)&(indexValue[0]));
         break;
     }
-    case ELEMENT_TYPE_I2: {
+    case ELEMENT_TYPE_I2:
+    {
         int16_t tmp = *(int16_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32((uint16_t)tmp);
         break;
     }
-    case ELEMENT_TYPE_U2: {
+    case ELEMENT_TYPE_U2:
+    {
         index = ULONG32(*(uint16_t *)&(indexValue[0]));
         break;
     }
-    case ELEMENT_TYPE_I4: {
+    case ELEMENT_TYPE_I4:
+    {
         int32_t tmp = *(int32_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32(tmp);
         break;
     }
-    case ELEMENT_TYPE_U4: {
+    case ELEMENT_TYPE_U4:
+    {
         index = ULONG32(*(uint32_t *)&(indexValue[0]));
         break;
     }
-    case ELEMENT_TYPE_I8: {
+    case ELEMENT_TYPE_I8:
+    {
         int64_t tmp = *(int64_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32(tmp);
         break;
     }
-    case ELEMENT_TYPE_U8: {
+    case ELEMENT_TYPE_U8:
+    {
         index = ULONG32(*(uint64_t *)&(indexValue[0]));
         break;
     }

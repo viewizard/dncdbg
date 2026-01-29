@@ -16,30 +16,34 @@ class Modules;
 
 class AsyncInfo
 {
-public:
+  public:
 
-    AsyncInfo(std::shared_ptr<Modules> &sharedModules) :
-        m_sharedModules(sharedModules)
-    {}
+    AsyncInfo(std::shared_ptr<Modules> &sharedModules) : m_sharedModules(sharedModules)
+    {
+    }
 
     struct AwaitInfo
     {
         uint32_t yield_offset;
         uint32_t resume_offset;
 
-        AwaitInfo() :
-            yield_offset(0), resume_offset(0)
-        {};
-        AwaitInfo(uint32_t offset1, uint32_t offset2) :
-            yield_offset(offset1), resume_offset(offset2)
-        {};
+        AwaitInfo()
+          : yield_offset(0),
+            resume_offset(0)
+        {
+        };
+        AwaitInfo(uint32_t offset1, uint32_t offset2)
+          : yield_offset(offset1),
+            resume_offset(offset2)
+        {
+        };
     };
 
     bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
     bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ipOffset, AwaitInfo **awaitInfo);
     bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 &lastIlOffset);
 
-private:
+  private:
 
     std::shared_ptr<Modules> m_sharedModules;
 
@@ -53,16 +57,20 @@ private:
         // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
         ULONG32 lastIlOffset;
 
-        AsyncMethodInfo() :
-            modAddress(0), methodToken(mdMethodDefNil), retCode(S_OK), awaits(), lastIlOffset(0)
-        {};
+        AsyncMethodInfo()
+          : modAddress(0),
+            methodToken(mdMethodDefNil),
+            retCode(S_OK),
+            awaits(),
+            lastIlOffset(0)
+        {
+        };
     };
 
     AsyncMethodInfo asyncMethodSteppingInfo;
     std::mutex m_asyncMethodSteppingInfoMutex;
     // Note, result stored into asyncMethodSteppingInfo.
     HRESULT GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
-
 };
 
 } // namespace dncdbg

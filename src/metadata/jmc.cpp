@@ -3,14 +3,14 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include <string>
-#include <vector>
-#include <iterator>
 #include "metadata/jmc.h"
+#include "managed/interop.h"
 #include "metadata/attributes.h"
 #include "utils/platform.h"
-#include "managed/interop.h"
 #include "utils/torelease.h"
+#include <iterator>
+#include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -33,22 +33,18 @@ const char DebuggerAttribute::Hidden[] = "System.Diagnostics.DebuggerHiddenAttri
 static std::vector<std::string> typeAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough};
 static std::vector<std::string> methodAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough, DebuggerAttribute::Hidden};
 
-static HRESULT GetNonJMCMethodsForTypeDef(
-    IMetaDataImport *pMD,
-    mdTypeDef typeDef,
-    std::vector<mdToken> &excludeMethods)
+static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
     ULONG numMethods = 0;
     HCORENUM fEnum = NULL;
     mdMethodDef methodDef;
-    while(SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
         mdTypeDef memTypeDef;
         ULONG nameLen;
         WCHAR szFunctionName[mdNameLen] = {0};
 
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef,
-                                       szFunctionName, _countof(szFunctionName), &nameLen,
+        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
             continue;
 
@@ -67,12 +63,12 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     ULONG numTypedefs = 0;
     HCORENUM fEnum = NULL;
     mdTypeDef typeDef;
-    while(SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
+    while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         if (HasAttribute(pMD, typeDef, typeAttrNames))
             excludeTokens.push_back(typeDef);
@@ -130,7 +126,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID*) &pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     for (mdMethodDef methodToken : methodTokens)
     {

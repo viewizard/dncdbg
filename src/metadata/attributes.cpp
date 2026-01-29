@@ -5,11 +5,10 @@
 
 #include "metadata/attributes.h"
 
-#include <functional>
 #include <algorithm>
+#include <functional>
 
 #include "metadata/typeprinter.h"
-
 
 namespace dncdbg
 {
@@ -20,7 +19,7 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, std::function<HR
     ULONG numAttributes = 0;
     HCORENUM fEnum = NULL;
     mdCustomAttribute attr;
-    while(SUCCEEDED(pMD->EnumCustomAttributes(&fEnum, tok, 0, &attr, 1, &numAttributes)) && numAttributes != 0)
+    while (SUCCEEDED(pMD->EnumCustomAttributes(&fEnum, tok, 0, &attr, 1, &numAttributes)) && numAttributes != 0)
     {
         std::string mdName;
         mdToken ptkObj = mdTokenNil;
@@ -39,18 +38,20 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, std::function<HR
 
 bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const char *attrName)
 {
-    return ForEachAttribute(pMD, tok, [&attrName](const std::string &AttrName) -> bool
-    {
-        return AttrName == attrName;
-    });
+    return ForEachAttribute(pMD, tok,
+        [&attrName](const std::string &AttrName) -> bool
+        {
+            return AttrName == attrName;
+        });
 }
 
 bool HasAttribute(IMetaDataImport *pMD, mdToken tok, std::vector<std::string> &attrNames)
 {
-    return ForEachAttribute(pMD, tok, [&attrNames](const std::string &AttrName) -> bool
-    {
-        return std::find(attrNames.begin(), attrNames.end(), AttrName) != attrNames.end();
-    });
+    return ForEachAttribute(pMD, tok,
+        [&attrNames](const std::string &AttrName) -> bool
+        {
+            return std::find(attrNames.begin(), attrNames.end(), AttrName) != attrNames.end();
+        });
 }
 
 } // namespace dncdbg

@@ -375,7 +375,8 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
         argElementType.corType = (CorElementType)corType;
         argElementType.typeName += "[]";
         break;
-    case ELEMENT_TYPE_ARRAY: {
+    case ELEMENT_TYPE_ARRAY:
+    {
         if (FAILED(Status = ParseElementType(pMD, ppSig, argElementType, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
             return Status;
         argElementType.corType = (CorElementType)corType;

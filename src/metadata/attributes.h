@@ -8,8 +8,8 @@
 #include "cor.h"
 #include "cordebug.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {

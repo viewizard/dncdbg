@@ -4,9 +4,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/async_info.h"
-#include "metadata/modules.h"
 #include "managed/interop.h"
-
+#include "metadata/modules.h"
 
 namespace dncdbg
 {
@@ -14,11 +13,11 @@ namespace dncdbg
 // Caller must care about m_asyncMethodSteppingInfoMutex.
 HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
-    // Note, for normal methods, `Interop::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset` to 0.
-    // Error during async info search (debug info not available or method token belong to normal method) is proper behaviour and debugger logic also count on this.
+    // Note, for normal methods, `Interop::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset`
+    // to 0. Error during async info search (debug info not available or method token belong to normal method) is proper
+    // behaviour and debugger logic also count on this.
 
-    if (asyncMethodSteppingInfo.modAddress == modAddress &&
-        asyncMethodSteppingInfo.methodToken == methodToken)
+    if (asyncMethodSteppingInfo.modAddress == modAddress && asyncMethodSteppingInfo.methodToken == methodToken)
         return asyncMethodSteppingInfo.retCode;
 
     if (!asyncMethodSteppingInfo.awaits.empty())
@@ -26,22 +25,24 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
 
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
-    asyncMethodSteppingInfo.retCode = m_sharedModules->GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT
-    {
-        if (mdInfo.m_symbolReaderHandle == nullptr)
-            return E_FAIL;
-
-        HRESULT Status;
-        std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
-        IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo, &asyncMethodSteppingInfo.lastIlOffset));
-
-        for (const auto &entry : AsyncAwaitInfo)
+    asyncMethodSteppingInfo.retCode = m_sharedModules->GetModuleInfo(modAddress,
+        [&](ModuleInfo &mdInfo) -> HRESULT
         {
-            asyncMethodSteppingInfo.awaits.emplace_back(entry.yield_offset, entry.resume_offset);
-        }
+            if (mdInfo.m_symbolReaderHandle == nullptr)
+                return E_FAIL;
 
-        return S_OK;
-    });
+            HRESULT Status;
+            std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
+            IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo,
+                                                          &asyncMethodSteppingInfo.lastIlOffset));
+
+            for (const auto &entry : AsyncAwaitInfo)
+            {
+                asyncMethodSteppingInfo.awaits.emplace_back(entry.yield_offset, entry.resume_offset);
+            }
+
+            return S_OK;
+        });
 
     return asyncMethodSteppingInfo.retCode;
 }

@@ -5,23 +5,22 @@
 
 #pragma once
 
-#pragma warning (disable:4068)  // Visual Studio should ignore GCC pragmas
+#pragma warning(disable : 4068) // Visual Studio should ignore GCC pragmas
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cor.h>
 #include <cordebug.h>
 #pragma GCC diagnostic pop
 
-
-#include <functional>
-#include <unordered_map>
-#include <mutex>
-#include <memory>
 #include "interfaces/types.h"
 #include "metadata/modules_sources.h"
 #include "utils/string_view.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -35,28 +34,30 @@ struct ModuleInfo
     PVOID m_symbolReaderHandle = nullptr;
     ToRelease<ICorDebugModule> m_iCorModule;
 
-    ModuleInfo(PVOID Handle, ICorDebugModule *Module) :
-        m_symbolReaderHandle(Handle),
+    ModuleInfo(PVOID Handle, ICorDebugModule *Module)
+      : m_symbolReaderHandle(Handle),
         m_iCorModule(Module)
-    {}
+    {
+    }
 
-    ModuleInfo(ModuleInfo&& other) noexcept :
-        m_symbolReaderHandle(other.m_symbolReaderHandle),
-        m_iCorModule(std::move(other.m_iCorModule))
+    ModuleInfo(ModuleInfo &&other) noexcept
+        : m_symbolReaderHandle(other.m_symbolReaderHandle),
+          m_iCorModule(std::move(other.m_iCorModule))
     {
         other.m_symbolReaderHandle = nullptr;
     }
-    ModuleInfo(const ModuleInfo&) = delete;
-    ModuleInfo& operator=(ModuleInfo&&) = delete;
-    ModuleInfo& operator=(const ModuleInfo&) = delete;
+    ModuleInfo(const ModuleInfo &) = delete;
+    ModuleInfo &operator=(ModuleInfo &&) = delete;
+    ModuleInfo &operator=(const ModuleInfo &) = delete;
     ~ModuleInfo() noexcept;
 };
 
 class Modules
 {
-public:
+  public:
 
-    struct SequencePoint {
+    struct SequencePoint
+    {
         int32_t startLine;
         int32_t startColumn;
         int32_t endLine;
@@ -81,75 +82,41 @@ public:
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfoCallback cb);
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo);
 
-    HRESULT GetFrameILAndSequencePoint(
-        ICorDebugFrame *pFrame,
-        ULONG32 &ilOffset,
-        SequencePoint &sequencePoint);
+    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset, SequencePoint &sequencePoint);
 
-    HRESULT GetFrameILAndNextUserCodeILOffset(
-        ICorDebugFrame *pFrame,
-        ULONG32 &ilOffset,
-        ULONG32 &ilNextOffset,
-        bool *noUserCodeFound);
+    HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG32 &ilOffset, ULONG32 &ilNextOffset,
+                                              bool *noUserCodeFound);
 
-    HRESULT ResolveFuncBreakpointInAny(
-        const std::string &module,
-        bool &module_checked,
-        const std::string &funcname,
-        ResolveFuncBreakpointCallback cb);
+    HRESULT ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked, const std::string &funcname,
+                                       ResolveFuncBreakpointCallback cb);
 
-    HRESULT ResolveFuncBreakpointInModule(
-        ICorDebugModule *pModule,
-        const std::string &module,
-        bool &module_checked,
-        std::string &funcname,
-        ResolveFuncBreakpointCallback cb);
+    HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module, bool &module_checked,
+                                          std::string &funcname, ResolveFuncBreakpointCallback cb);
 
-    HRESULT GetStepRangeFromCurrentIP(
-        ICorDebugThread *pThread,
-        COR_DEBUG_STEP_RANGE *range);
+    HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 
-    HRESULT TryLoadModuleSymbols(
-        ICorDebugModule *pModule,
-        Module &module,
-        bool needJMC,
-        std::string &outputText);
+    HRESULT TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText);
 
     void CleanupAllModules();
 
-    HRESULT GetFrameNamedLocalVariable(
-        ICorDebugModule *pModule,
-        mdMethodDef methodToken,
-        ULONG localIndex,
-        WSTRING &localName,
-        ULONG32 *pIlStart,
-        ULONG32 *pIlEnd);
+    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
+                                       WSTRING &localName, ULONG32 *pIlStart, ULONG32 *pIlEnd);
 
-    HRESULT GetHoistedLocalScopes(
-        ICorDebugModule *pModule,
-        mdMethodDef methodToken,
-        PVOID *data,
-        int32_t &hoistedLocalScopesCount);
+    HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, PVOID *data,
+                                  int32_t &hoistedLocalScopesCount);
 
-    HRESULT GetNextUserCodeILOffsetInMethod(
-        ICorDebugModule *pModule,
-        mdMethodDef methodToken,
-        ULONG32 ilOffset,
-        ULONG32 &ilNextOffset,
-        bool *noUserCodeFound = nullptr);
+    HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG32 ilOffset,
+                                            ULONG32 &ilNextOffset, bool *noUserCodeFound = nullptr);
 
-    HRESULT GetSequencePointByILOffset(
-        CORDB_ADDRESS modAddress,
-        mdMethodDef methodToken,
-        ULONG32 ilOffset,
-        SequencePoint &sequencePoint);
+    HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ilOffset,
+                                       SequencePoint &sequencePoint);
 
     HRESULT ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> cb);
 
     void FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
     void FindFunctions(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
 
-private:
+  private:
 
     std::mutex m_modulesInfoMutex;
     std::unordered_map<CORDB_ADDRESS, ModuleInfo> m_modulesInfo;
@@ -157,12 +124,8 @@ private:
     // Note, m_modulesSources have its own mutex for private data state sync.
     ModulesSources m_modulesSources;
 
-    HRESULT GetSequencePointByILOffset(
-        PVOID pSymbolReaderHandle,
-        mdMethodDef methodToken,
-        ULONG32 ilOffset,
-        SequencePoint *sequencePoint);
-
+    HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
+                                       SequencePoint *sequencePoint);
 };
 
 } // namespace dncdbg
