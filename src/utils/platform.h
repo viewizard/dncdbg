@@ -20,17 +20,21 @@
 namespace dncdbg
 {
 
-    struct Win32PlatformTag {};  // PlatformTag for Windows (see below)
-    struct UnixPlatformTag {};   // PlatformTAg for Unix and MacOS.
-   
-    // PlatformTag is the type, which determines platform, for which code is currenly compilih.
-    // This tag might be used to select proper template specialization.
-    using PlatformTag = PLATFORM_TAG;
+struct Win32PlatformTag
+{
+}; // PlatformTag for Windows (see below)
+struct UnixPlatformTag
+{
+}; // PlatformTAg for Unix and MacOS.
 
-    // Function suspends process execution for specified amount of time (in microseconds)
-    void USleep(unsigned long usec);
+// PlatformTag is the type, which determines platform, for which code is currenly compilih.
+// This tag might be used to select proper template specialization.
+using PlatformTag = PLATFORM_TAG;
 
-    // Function returns list of environment variables (like char **environ).
-    char** GetSystemEnvironment();
+// Function suspends process execution for specified amount of time (in microseconds)
+void USleep(unsigned long usec);
+
+// Function returns list of environment variables (like char **environ).
+char **GetSystemEnvironment();
 
 } // namespace dncdbg

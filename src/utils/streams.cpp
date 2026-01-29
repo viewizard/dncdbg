@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include <cstring>
-#include <cassert>
 #include "utils/limits.h"
+#include <cassert>
+#include <cstring>
 
 #include <algorithm>
 #include <thread>
@@ -15,36 +15,33 @@ namespace dncdbg
 {
 
 // These constant define default size of the buffer, which typically can hold few lines of the text.
-const size_t InStreamBuf::DefaultBufferSize  = 2*LINE_MAX;
-const size_t OutStreamBuf::DefaultBufferSize = 2*LINE_MAX;
-const size_t StreamBuf::DefaultBufferSize    = 2*LINE_MAX;
+const size_t InStreamBuf::DefaultBufferSize = 2 * LINE_MAX;
+const size_t OutStreamBuf::DefaultBufferSize = 2 * LINE_MAX;
+const size_t StreamBuf::DefaultBufferSize = 2 * LINE_MAX;
 
 namespace
 {
-    const size_t UngetChars = 1;              // number of extra chars in buffer for ungetting
-    const size_t OverflowChars = 1;           // number of extra chars in buffer for overflow
+const size_t UngetChars = 1;    // number of extra chars in buffer for ungetting
+const size_t OverflowChars = 1; // number of extra chars in buffer for overflow
 
-    // minimal buffer sizes for input/output (1 char is minimal buffer size)
-    const size_t InputMinBuf = UngetChars + 1;
-    const size_t OutputMinBuf = OverflowChars + 1;
+// minimal buffer sizes for input/output (1 char is minimal buffer size)
+const size_t InputMinBuf = UngetChars + 1;
+const size_t OutputMinBuf = OverflowChars + 1;
 
-    // constants for InStreamBuf
-    const static size_t MaxMoveSize = sizeof(void*) * 4;
-}
-
+// constants for InStreamBuf
+const static size_t MaxMoveSize = sizeof(void *) * 4;
+} // namespace
 
 // Arguments are following: `fh` -- file descriptor opened for reading,
 // buf_size -- the size of the input buffer.
-InStreamBuf::InStreamBuf(const FileHandle& fh, size_t buf_size)
-: FileOwner(fh),
-  inbuf(std::max(buf_size, InputMinBuf))
+InStreamBuf::InStreamBuf(const FileHandle &fh, size_t buf_size) : FileOwner(fh), inbuf(std::max(buf_size, InputMinBuf))
 {
     setg(inbuf.data(), inbuf.data() + UngetChars, inbuf.data() + UngetChars);
 
     assert(gptr() == egptr());
 }
 
-void InStreamBuf::setegptr(char* egptr)
+void InStreamBuf::setegptr(char *egptr)
 {
     assert(egptr <= endp() && egptr >= gptr());
     setg(eback(), gptr(), egptr);
@@ -61,12 +58,12 @@ void InStreamBuf::compactify()
     assert(egptr() >= eback());
     size_t free = endp() - egptr();
 
-    // if some relatively small portion of unread data occupies tail of the 
+    // if some relatively small portion of unread data occupies tail of the
     // buffer -- move it to the beginning of the buffer to allow reading more
     // data from the file.
     if (free < min_read_size())
     {
-        if (size_t(in_avail()) <= MaxMoveSize)   // tail is not too big
+        if (size_t(in_avail()) <= MaxMoveSize) // tail is not too big
         {
             memmove(eback() + UngetChars, gptr(), size_t(in_avail()));
             setg(eback(), eback() + UngetChars, eback() + UngetChars + in_avail());
@@ -96,13 +93,14 @@ int InStreamBuf::underflow()
         case IOResult::Eof:
             return traits_type::eof();
 
-        default: break;  // at least one byte was read
+        default:
+            break; // at least one byte was read
         }
 
         if (res.status == IOResult::Success)
             break;
 
-        std::this_thread::yield();  // loop  for non-blocking streams
+        std::this_thread::yield(); // loop  for non-blocking streams
     }
 
     assert(res.size > 0);
@@ -110,14 +108,13 @@ int InStreamBuf::underflow()
     return traits_type::to_int_type(*gptr());
 }
 
-
 // Arguments are following: `fh` -- file descriptor opened for writing,
 // buf_size -- the size of the output buffer.
-OutStreamBuf::OutStreamBuf(const FileHandle& fh, size_t buf_size)
-: FileOwner(fh),
-  outbuf(std::max(buf_size, OutputMinBuf))
+OutStreamBuf::OutStreamBuf(const FileHandle &fh, size_t buf_size)
+    : FileOwner(fh),
+      outbuf(std::max(buf_size, OutputMinBuf))
 {
-    buf_size = std::max(buf_size, OutputMinBuf);  // TODO govnokod
+    buf_size = std::max(buf_size, OutputMinBuf); // TODO govnokod
     setp(outbuf.data(), outbuf.data() + outbuf.size() - OverflowChars);
 
     assert(pptr() == pbase());
@@ -132,7 +129,7 @@ int OutStreamBuf::overflow(int c)
     if (!traits_type::eq_int_type(c, traits_type::eof()))
     {
         *pptr() = traits_type::to_char_type(c);
-        pbump(1);  // need extra char at buffer
+        pbump(1); // need extra char at buffer
     }
 
     using IOResult = IOSystem::IOResult;
@@ -150,8 +147,8 @@ int OutStreamBuf::overflow(int c)
         if (res.status == IOResult::Success)
             break;
 
-        std::this_thread::yield();      // for non-blocking streams
-     }
+        std::this_thread::yield(); // for non-blocking streams
+    }
 
     // move unwritten part to the beginning of the buffer
     // left == 0 for blocking streams
@@ -162,7 +159,6 @@ int OutStreamBuf::overflow(int c)
     pbump(int(left));
     return traits_type::not_eof(c);
 }
-
 
 // Function flushes the buffer to the underlying file
 int OutStreamBuf::sync()
@@ -180,12 +176,12 @@ int OutStreamBuf::sync()
             return -1;
 
         if (res.status == IOResult::Success && size == res.size)
-           break;   // all data written 
+            break; // all data written
 
         setp(pbase() + res.size, epptr());
         pbump(int(size - res.size));
 
-        std::this_thread::yield();      // for non-blocking streams
+        std::this_thread::yield(); // for non-blocking streams
     }
 
     setp(outbuf.data(), epptr());

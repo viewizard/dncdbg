@@ -6,10 +6,10 @@
 #ifdef __APPLE__
 #include <crt_externs.h>
 #endif
-#include <unistd.h>
 #include "utils/platform.h"
+#include <unistd.h>
 
-extern char** environ;
+extern char **environ;
 
 namespace dncdbg
 {
@@ -21,14 +21,14 @@ void USleep(unsigned long usec)
 }
 
 // Function returns list of environment variables (like char **environ).
-char** GetSystemEnvironment()
+char **GetSystemEnvironment()
 {
 #if __APPLE__
     return *(_NSGetEnviron());
-#else   // __APPLE__
+#else  // __APPLE__
     return environ;
-#endif  // __APPLE__
+#endif // __APPLE__
 }
 
 } // namespace dncdbg
-#endif  // __unix__
+#endif // __unix__

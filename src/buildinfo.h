@@ -9,19 +9,20 @@ namespace dncdbg
 
 namespace BuildInfo
 {
-    extern const char version[];    // version for displaying
-    extern const char build_type[]; // build type (same version might have different build types)
 
-    // Following two strings contain GIT revision hash, tag, SVN revision number, etc...
-    extern const char dncdbg_vcs_info[];      // for dncdbg itself
-    extern const char coreclr_vcs_info[];     // for CoreCLR (which might come from different source tree)
+extern const char version[];    // version for displaying
+extern const char build_type[]; // build type (same version might have different build types)
 
-    extern const char os_name[];   // OS name for which project was build.
-    extern const char cpu_arch[];  // CPU architecture name for which project was build.
+// Following two strings contain GIT revision hash, tag, SVN revision number, etc...
+extern const char dncdbg_vcs_info[];      // for dncdbg itself
+extern const char coreclr_vcs_info[];     // for CoreCLR (which might come from different source tree)
 
-    extern const char date[];
-    extern const char time[];      // Date and time of the build.
-}
+extern const char os_name[];   // OS name for which project was build.
+extern const char cpu_arch[];  // CPU architecture name for which project was build.
 
+extern const char date[];
+extern const char time[];      // Date and time of the build.
+
+} // namespace BuildInfo
 
 } // namespace dncdbg

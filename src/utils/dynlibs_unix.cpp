@@ -5,14 +5,14 @@
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
 #if defined(__APPLE__)
-#include <mach-o/dyld.h>
 #include <crt_externs.h>
+#include <mach-o/dyld.h>
 #endif
 
-#include <dlfcn.h>
-#include "utils/limits.h"
 #include "utils/dynlibs.h"
+#include "utils/limits.h"
 #include "utils/logger.h"
+#include <dlfcn.h>
 
 namespace dncdbg
 {
@@ -34,7 +34,7 @@ DLHandle DLOpen(const std::string &path)
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns NULL.
-void* DLSym(DLHandle handle, Utility::string_view name)
+void *DLSym(DLHandle handle, Utility::string_view name)
 {
     char str[LINE_MAX];
     if (name.size() >= sizeof(str))

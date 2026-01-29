@@ -11,7 +11,7 @@
 namespace dncdbg
 {
 
-static std::wstring_convert<std::codecvt_utf8_utf16<WCHAR>,WCHAR> convert;
+static std::wstring_convert<std::codecvt_utf8_utf16<WCHAR>, WCHAR> convert;
 
 std::string to_utf8(const WCHAR *wstr)
 {

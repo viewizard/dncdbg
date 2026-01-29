@@ -6,13 +6,13 @@
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
-#include <stdlib.h>
-#include <unistd.h>
-#include <array>
-#include <string>
 #include "utils/filesystem.h"
-#include "utils/string_view.h"
 #include "utils/limits.h"
+#include "utils/string_view.h"
+#include <array>
+#include <stdlib.h>
+#include <string>
+#include <unistd.h>
 
 namespace dncdbg
 {
@@ -20,30 +20,30 @@ namespace dncdbg
 namespace
 {
 #ifdef __linux__
-    std::string get_exe_path()
-    {
-        static const char self_link[] = "/proc/self/exe";
-        char buffer[PATH_MAX];
-        ssize_t r = readlink(self_link, buffer, PATH_MAX);
-        return std::string(buffer, r < 0 ? 0 : r);
-    }
-#elif defined(__APPLE__)
-    std::string get_exe_path()
-    {
-        uint32_t lenActualPath = 0;
-        if (_NSGetExecutablePath(nullptr, &lenActualPath) == -1)
-        {
-            // OSX has placed the actual path length in lenActualPath,
-            // so re-attempt the operation
-            std::string resizedPath(lenActualPath, '\0');
-            char *pResizedPath = const_cast<char *>(resizedPath.data());
-            if (_NSGetExecutablePath(pResizedPath, &lenActualPath) == 0)
-                return pResizedPath;
-        }
-        return std::string();
-    }
-#endif
+std::string get_exe_path()
+{
+    static const char self_link[] = "/proc/self/exe";
+    char buffer[PATH_MAX];
+    ssize_t r = readlink(self_link, buffer, PATH_MAX);
+    return std::string(buffer, r < 0 ? 0 : r);
 }
+#elif defined(__APPLE__)
+std::string get_exe_path()
+{
+    uint32_t lenActualPath = 0;
+    if (_NSGetExecutablePath(nullptr, &lenActualPath) == -1)
+    {
+        // OSX has placed the actual path length in lenActualPath,
+        // so re-attempt the operation
+        std::string resizedPath(lenActualPath, '\0');
+        char *pResizedPath = const_cast<char *>(resizedPath.data());
+        if (_NSGetExecutablePath(pResizedPath, &lenActualPath) == 0)
+            return pResizedPath;
+    }
+    return std::string();
+}
+#endif
+} // namespace
 
 // Function returns absolute path to currently running executable.
 std::string GetExeAbsPath()
@@ -58,15 +58,15 @@ std::string GetExeAbsPath()
 Utility::string_view GetTempDir()
 {
     auto get_tmpdir = []()
-    {
-        const char *pPath = getenv("TMPDIR");
-        if (pPath != nullptr)
-            return pPath;
-        else
-            return P_tmpdir;
-    };
+        {
+            const char *pPath = getenv("TMPDIR");
+            if (pPath != nullptr)
+                return pPath;
+            else
+                return P_tmpdir;
+        };
 
-    static const std::string result {get_tmpdir()};
+    static const std::string result{get_tmpdir()};
     return result;
 }
 

@@ -28,17 +28,19 @@ namespace dncdbg
 
 namespace BuildInfo
 {
-    const char version[] = "0.0.1";
-    const char build_type[] = STRINGIFY(BUILD_TYPE);
 
-    const char dncdbg_vcs_info[] = STRINGIFY(DNCDBG_VCS_INFO);
-    const char coreclr_vcs_info[]    = STRINGIFY(CORECLR_VCS_INFO);
+const char version[] = "0.0.1";
+const char build_type[] = STRINGIFY(BUILD_TYPE);
 
-    const char os_name[]  = STRINGIFY(OS_NAME);
-    const char cpu_arch[] = STRINGIFY(CPU_ARCH);
+const char dncdbg_vcs_info[] = STRINGIFY(DNCDBG_VCS_INFO);
+const char coreclr_vcs_info[]    = STRINGIFY(CORECLR_VCS_INFO);
 
-    const char date[]     = __DATE__;
-    const char time[]     = __TIME__;
-}
+const char os_name[]  = STRINGIFY(OS_NAME);
+const char cpu_arch[] = STRINGIFY(CPU_ARCH);
 
-}
+const char date[]     = __DATE__;
+const char time[]     = __TIME__;
+
+} // namespace BuildInfo
+
+} // namespace dncdbg

@@ -4,10 +4,10 @@
 
 #ifdef _WIN32
 #pragma once
-#include <winsock2.h>
-#include <windows.h> // TODO
 #include <assert.h>
 #include <tuple>
+#include <windows.h> // TODO
+#include <winsock2.h>
 
 namespace dncdbg
 {
@@ -16,9 +16,14 @@ template <> struct IOSystemTraits<Win32PlatformTag>
 {
     struct FileHandle
     {
-        FileHandle() : handle(INVALID_HANDLE_VALUE), type(FileOrPipe) {}
+        FileHandle() : handle(INVALID_HANDLE_VALUE), type(FileOrPipe)
+        {
+        }
 
-        explicit operator bool() const { return handle != INVALID_HANDLE_VALUE; }
+        explicit operator bool() const
+        {
+            return handle != INVALID_HANDLE_VALUE;
+        }
 
         enum FileType
         {
@@ -26,8 +31,12 @@ template <> struct IOSystemTraits<Win32PlatformTag>
             Socket
         };
 
-        FileHandle(HANDLE filefd) : handle(filefd), type(FileOrPipe) {}
-        FileHandle(SOCKET sockfd) : handle((HANDLE)sockfd), type(Socket) {}
+        FileHandle(HANDLE filefd) : handle(filefd), type(FileOrPipe)
+        {
+        }
+        FileHandle(SOCKET sockfd) : handle((HANDLE)sockfd), type(Socket)
+        {
+        }
 
         HANDLE handle;
         enum FileType type;
@@ -44,25 +53,36 @@ template <> struct IOSystemTraits<Win32PlatformTag>
         size_t count;
 
         AsyncHandle()
-        : handle(INVALID_HANDLE_VALUE), overlapped(), check_eof(false), buf(nullptr), count(0)
-        {}
+          : handle(INVALID_HANDLE_VALUE),
+            overlapped(),
+            check_eof(false),
+            buf(nullptr),
+            count(0)
+        {
+        }
 
-        AsyncHandle(AsyncHandle&& other) noexcept 
-        : handle(other.handle), overlapped(std::move(other.overlapped)), check_eof(other.check_eof),
-          buf(other.buf), count(other.count)
+        AsyncHandle(AsyncHandle &&other) noexcept
+            : handle(other.handle),
+              overlapped(std::move(other.overlapped)),
+              check_eof(other.check_eof),
+              buf(other.buf),
+              count(other.count)
         {
             other.handle = INVALID_HANDLE_VALUE;
         }
 
-        AsyncHandle& operator=(AsyncHandle&& other) noexcept
+        AsyncHandle &operator=(AsyncHandle &&other) noexcept
         {
             return this->~AsyncHandle(), *new (this) AsyncHandle(std::move(other));
         }
 
-        explicit operator bool() const { return handle != INVALID_HANDLE_VALUE; }
+        explicit operator bool() const
+        {
+            return handle != INVALID_HANDLE_VALUE;
+        }
     };
 
-    using IOSystem = typename IOSystemImpl<IOSystemTraits<Win32PlatformTag> >;
+    using IOSystem = typename IOSystemImpl<IOSystemTraits<Win32PlatformTag>>;
     using IOResult = IOSystem::IOResult;
 
     static std::pair<FileHandle, FileHandle> unnamed_pipe();
@@ -86,7 +106,7 @@ template <> struct IOSystemTraits<Win32PlatformTag>
         StdIOSwap(const StdFiles &);
         ~StdIOSwap();
 
-        StdIOSwap(StdIOSwap&& other)
+        StdIOSwap(StdIOSwap &&other)
         {
             m_valid = other.m_valid;
             if (!m_valid)

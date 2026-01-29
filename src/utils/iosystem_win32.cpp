@@ -3,74 +3,82 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
-#include <ws2tcpip.h>
-#include <afunix.h>
-#include <stdexcept>
-#include <new>
-#include <memory>
-#include <atomic>
-#include <string.h>
-#include <assert.h>
 #include "utils/iosystem.h"
 #include "utils/limits.h"
+#include <afunix.h>
+#include <assert.h>
+#include <atomic>
+#include <fcntl.h>
+#include <io.h>
+#include <memory>
+#include <new>
+#include <stdexcept>
+#include <string.h>
+#include <ws2tcpip.h>
 
 // short alias for full class name
-namespace { typedef dncdbg::IOSystemTraits<dncdbg::Win32PlatformTag> Class; }
+namespace
+{
+typedef dncdbg::IOSystemTraits<dncdbg::Win32PlatformTag> Class;
+}
 
 namespace
 {
-    class Win32Exception : public std::runtime_error
+class Win32Exception : public std::runtime_error
+{
+    struct Msg
     {
-        struct Msg
-        {
-            mutable char buf[2 * LINE_MAX];
-        };
+        mutable char buf[2 * LINE_MAX];
+    };
 
-        static const char* getmsg(const char *prefix, DWORD error, const Msg& msg = Msg())
-        {
-            int len = prefix ? snprintf(msg.buf, sizeof(msg.buf), "%s: ", prefix) : 0;
+    static const char *getmsg(const char *prefix, DWORD error, const Msg &msg = Msg())
+    {
+        int len = prefix ? snprintf(msg.buf, sizeof(msg.buf), "%s: ", prefix) : 0;
 
-            if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
-                    msg.buf + len, sizeof(msg.buf) - len, NULL))
-            {
-                return msg.buf;
-            }
-            
-            snprintf(msg.buf + len, sizeof(msg.buf) - len, "error %#x", error);
+        if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
+                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), msg.buf + len, sizeof(msg.buf) - len, NULL))
+        {
             return msg.buf;
         }
 
-    public:
-        // Specify Win32 error code and, optionally, error message prefix.
-        Win32Exception(DWORD error, const char* prefix = nullptr) : std::runtime_error(getmsg(prefix, error)) {}
+        snprintf(msg.buf + len, sizeof(msg.buf) - len, "error %#x", error);
+        return msg.buf;
+    }
 
-        // Specify error message prefix (optionally). Win32 error code will be obtained via call to GetLastError().
-        Win32Exception(const char *prefix = nullptr) : Win32Exception(prefix, GetLastError()) {}
-
-        // Specify explicitly error message prefix and error code.
-        Win32Exception(const char *prefix, DWORD error) : Win32Exception(error, prefix) {}
-    };
-
-    struct Initializer
+  public:
+    // Specify Win32 error code and, optionally, error message prefix.
+    Win32Exception(DWORD error, const char *prefix = nullptr) : std::runtime_error(getmsg(prefix, error))
     {
-        Initializer()
-        {
-            WSADATA wsa;
-            int wsa_error = WSAStartup(MAKEWORD(2, 2), &wsa);
-            if (wsa_error != 0)
-                throw Win32Exception("WSAStartup failed", wsa_error);
-        }
+    }
 
-        ~Initializer()
-        {
-            WSACleanup();
-        }
-    };
+    // Specify error message prefix (optionally). Win32 error code will be obtained via call to GetLastError().
+    Win32Exception(const char *prefix = nullptr) : Win32Exception(prefix, GetLastError())
+    {
+    }
 
-    static Initializer initializer;
+    // Specify explicitly error message prefix and error code.
+    Win32Exception(const char *prefix, DWORD error) : Win32Exception(error, prefix)
+    {
+    }
+};
+
+struct Initializer
+{
+    Initializer()
+    {
+        WSADATA wsa;
+        int wsa_error = WSAStartup(MAKEWORD(2, 2), &wsa);
+        if (wsa_error != 0)
+            throw Win32Exception("WSAStartup failed", wsa_error);
+    }
+
+    ~Initializer()
+    {
+        WSACleanup();
+    }
+};
+
+static Initializer initializer;
 
 #if 0 
     // assuming domain=AF_UNIX, type=SOCK_STREAM, protocol=0
@@ -155,7 +163,6 @@ namespace
 #endif
 } // unnamed namespace
 
-
 // Function should create unnamed pipe and return two file handles
 // (reading and writing pipe ends) or return empty file handles if pipe can't be created.
 std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
@@ -177,54 +184,46 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
 
     static std::atomic<long> pipe_num;
     char pipe_name[MAX_PATH + 1];
-    snprintf(pipe_name, sizeof(pipe_name), "\\\\.\\Pipe\\Win32Pipes.%08x.%08x",
-                GetCurrentProcessId(), pipe_num++);
+    snprintf(pipe_name, sizeof(pipe_name), "\\\\.\\Pipe\\Win32Pipes.%08x.%08x", GetCurrentProcessId(), pipe_num++);
 
-    reading_fd = CreateNamedPipeA(pipe_name,
-                    PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                    PIPE_TYPE_BYTE | PIPE_WAIT,
-                    1,  // number of pipes
-                    PipeSize, PipeSize,
-                    0,  // 50ms default timeout
-                    &saAttr);
-                
+    reading_fd = CreateNamedPipeA(pipe_name, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_WAIT,
+                                  1, // number of pipes
+                                  PipeSize, PipeSize,
+                                  0, // 50ms default timeout
+                                  &saAttr);
+
     if (reading_fd == INVALID_HANDLE_VALUE)
     {
         perror("CreateNamedPipeA");
-        return { FileHandle(), FileHandle() };
+        return {FileHandle(), FileHandle()};
     }
 
-    writing_fd = CreateFileA(pipe_name,
-                    GENERIC_WRITE,
-                    0,  // no sharing
-                    &saAttr,
-                    OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
-                    NULL);
+    writing_fd = CreateFileA(pipe_name, GENERIC_WRITE,
+                             0, // no sharing
+                             &saAttr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
 
     if (writing_fd == INVALID_HANDLE_VALUE)
     {
         auto err = GetLastError();
         ::CloseHandle(writing_fd);
         fprintf(stderr, "CreateFile pipe error: %#x\n", err);
-        return { FileHandle(), FileHandle() };
+        return {FileHandle(), FileHandle()};
     }
 
     if (!SetHandleInformation(writing_fd, HANDLE_FLAG_INHERIT, 0))
     {
         fprintf(stderr, "SetHandleInformation failed!\n");
-        return { FileHandle(), FileHandle() };
+        return {FileHandle(), FileHandle()};
     }
 
     if (!SetHandleInformation(reading_fd, HANDLE_FLAG_INHERIT, 0))
     {
         fprintf(stderr, "SetHandleInformation failed!\n");
-        return { FileHandle(), FileHandle() };
+        return {FileHandle(), FileHandle()};
     }
 
-    return { FileHandle(reading_fd), FileHandle(writing_fd) };
+    return {FileHandle(reading_fd), FileHandle(writing_fd)};
 }
-
 
 // Function creates listening TCP socket on given port, waits, accepts single
 // connection, and return file descriptor related to the accepted connection.
@@ -267,7 +266,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     ::listen(sockFd, 1);
 
     clilen = sizeof(cli_addr);
-    newsockfd = ::accept(sockFd, (struct sockaddr*)&cli_addr, &clilen);
+    newsockfd = ::accept(sockFd, (struct sockaddr *)&cli_addr, &clilen);
     ::closesocket(sockFd);
     if (newsockfd == INVALID_SOCKET)
     {
@@ -279,7 +278,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 }
 
 // Function enables or disables inheritance of file handle for child processes.
-Class::IOResult Class::set_inherit(const FileHandle& fh, bool inherit)
+Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 {
     DWORD flags;
     if (!GetHandleInformation(fh.handle, &flags))
@@ -297,36 +296,34 @@ Class::IOResult Class::set_inherit(const FileHandle& fh, bool inherit)
 }
 
 // Function perform reading from the file: it may read up to `count' bytes to `buf'.
-Class::IOResult Class::read(const FileHandle& fh, void *buf, size_t count)
+Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
 {
     DWORD dwRead = 0;
     OVERLAPPED ov = {};
-    if (! ReadFile(fh.handle, buf, (DWORD)count, &dwRead, &ov))
-        return { (GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwRead };
+    if (!ReadFile(fh.handle, buf, (DWORD)count, &dwRead, &ov))
+        return {(GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwRead};
     else
-        return { (dwRead == 0 ? IOResult::Eof : IOResult::Success), dwRead };
+        return {(dwRead == 0 ? IOResult::Eof : IOResult::Success), dwRead};
 }
 
-
 // Function perform writing to the file: it may write up to `count' byte from `buf'.
-Class::IOResult Class::write(const FileHandle& fh, const void *buf, size_t count)
+Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count)
 {
     // see https://stackoverflow.com/questions/43939424/writefile-with-windows-sockets-returns-invalid-parameter-error
     DWORD dwWritten = 0;
     OVERLAPPED ov = {};
-    if (! WriteFile(fh.handle, buf, (DWORD)count, &dwWritten, &ov))
-        return { (GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwWritten };
+    if (!WriteFile(fh.handle, buf, (DWORD)count, &dwWritten, &ov))
+        return {(GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwWritten};
     else
-        return { IOResult::Success, dwWritten };
+        return {IOResult::Success, dwWritten};
 }
 
-
-Class::AsyncHandle Class::async_read(const FileHandle& fh, void *buf, size_t count)
+Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t count)
 {
     if (fh.handle == INVALID_HANDLE_VALUE)
         return {};
 
-    AsyncHandle result; 
+    AsyncHandle result;
     result.check_eof = true;
     result.handle = fh.handle;
     result.overlapped.reset(new OVERLAPPED);
@@ -339,7 +336,7 @@ Class::AsyncHandle Class::async_read(const FileHandle& fh, void *buf, size_t cou
     DWORD bytesRead;
 
     if (GetConsoleMode(fh.handle, &val))
-    {   // file handle is the console
+    { // file handle is the console
         // first, remove all events before the first key event, if exists
         while (GetNumberOfConsoleInputEvents(fh.handle, &val) && val)
         {
@@ -362,7 +359,7 @@ Class::AsyncHandle Class::async_read(const FileHandle& fh, void *buf, size_t cou
         }
     }
 
-    if (! ReadFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
+    if (!ReadFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
             return {};
@@ -371,7 +368,7 @@ Class::AsyncHandle Class::async_read(const FileHandle& fh, void *buf, size_t cou
     return result;
 }
 
-Class::AsyncHandle Class::async_write(const FileHandle& fh, const void *buf, size_t count)
+Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, size_t count)
 {
     if (fh.handle == INVALID_HANDLE_VALUE)
         return {};
@@ -384,7 +381,7 @@ Class::AsyncHandle Class::async_write(const FileHandle& fh, const void *buf, siz
     if (result.overlapped->hEvent == INVALID_HANDLE_VALUE)
         return {};
 
-    if (! WriteFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
+    if (!WriteFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
             return {};
@@ -393,7 +390,8 @@ Class::AsyncHandle Class::async_write(const FileHandle& fh, const void *buf, siz
     return result;
 }
 
-bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end, std::chrono::milliseconds timeout)
+bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end,
+                       std::chrono::milliseconds timeout)
 {
     // console workaround
     for (auto it = begin; it != end; ++it)
@@ -409,10 +407,11 @@ bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandl
     // count number of active handles
     unsigned count = 0;
     for (auto it = begin; it != end; ++it)
-        if (*it) ++count;
+        if (*it)
+            ++count;
 
     // allocate memory for events array
-    HANDLE *events = static_cast<HANDLE*>(alloca(count * sizeof(HANDLE)));
+    HANDLE *events = static_cast<HANDLE *>(alloca(count * sizeof(HANDLE)));
     unsigned n = 0;
     for (auto it = begin; it != end; ++it)
     {
@@ -425,11 +424,11 @@ bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandl
     return result != WAIT_FAILED && result != WAIT_TIMEOUT;
 }
 
-Class::IOResult Class::async_cancel(AsyncHandle& h)
+Class::IOResult Class::async_cancel(AsyncHandle &h)
 {
     if (!h)
         return {IOResult::Error};
-    
+
     if (!CloseHandle(h.overlapped->hEvent))
         perror("CloseHandle(event) error");
 
@@ -443,14 +442,14 @@ Class::IOResult Class::async_cancel(AsyncHandle& h)
     IOResult result;
     if (!CancelIoEx(h.handle, h.overlapped.get()))
         result = {IOResult::Error};
-    else 
+    else
         result = {IOResult::Success};
 
     h = AsyncHandle();
     return result;
 }
 
-Class::IOResult Class::async_result(AsyncHandle& h)
+Class::IOResult Class::async_result(AsyncHandle &h)
 {
     if (!h)
         return {IOResult::Error};
@@ -487,20 +486,19 @@ Class::IOResult Class::async_result(AsyncHandle& h)
 
     if (check_eof && bytes == 0)
         return {IOResult::Eof, bytes};
-        
+
     return {IOResult::Success, bytes};
 }
 
 // Function closes the file represented by file handle.
-Class::IOResult Class::close(const FileHandle& fh)
+Class::IOResult Class::close(const FileHandle &fh)
 {
     assert(fh);
     if (fh.type == FileHandle::Socket)
-        return { ::closesocket((SOCKET)fh.handle) == 0 ? IOResult::Success : IOResult::Error };
+        return {::closesocket((SOCKET)fh.handle) == 0 ? IOResult::Success : IOResult::Error};
     else
-        return { ::CloseHandle(fh.handle) ? IOResult::Success : IOResult::Error };
+        return {::CloseHandle(fh.handle) ? IOResult::Success : IOResult::Error};
 }
-
 
 // Function allows non-blocking IO on files, it is similar with select(2) system call on Unix.
 // Arguments includes: pointers to three sets of file handles (for reading, for writing, and for
@@ -510,7 +508,6 @@ Class::IOResult Class::close(const FileHandle& fh)
 // If function returns value greater than zero, at least one of the sets, passed in arguments,
 // is not empty and contains file handles ready to read/write/etc...
 
-
 // This function returns triplet of currently selected standard files.
 Class::IOSystem::StdFiles Class::get_std_files()
 {
@@ -519,41 +516,36 @@ Class::IOSystem::StdFiles Class::get_std_files()
 #if defined(_WIN32) && defined(_TARGET_X86_)
     // Note, we can't use `alignas(alignof(std::max_align_t))` here, since at least MSVC 32bit (VS2019) compiler can't
     // generate proper code and ASAN detect "ERROR: AddressSanitizer: stack - buffer - underflow on address...".
-    union mem_align_t
-    {
+    union mem_align_t {
         std::max_align_t align_field;
         char mem[sizeof(Handles)];
     };
     static mem_align_t mem_align_tmp;
-    char * const mem = mem_align_tmp.mem;
+    char *const mem = mem_align_tmp.mem;
 #else
     /*thread_local*/ static alignas(alignof(Handles)) char mem[sizeof(Handles)]; // TODO
 #endif
 
-    Handles& handles = *new (mem) Handles {
-        FileHandle(GetStdHandle(STD_INPUT_HANDLE)),
-        FileHandle(GetStdHandle(STD_OUTPUT_HANDLE)),
-        FileHandle(GetStdHandle(STD_ERROR_HANDLE))
-    };
+    Handles& handles = *new (mem) Handles {FileHandle(GetStdHandle(STD_INPUT_HANDLE)),
+                                           FileHandle(GetStdHandle(STD_OUTPUT_HANDLE)),
+                                           FileHandle(GetStdHandle(STD_ERROR_HANDLE))};
     return { std::get<IOSystem::Stdin>(handles),
              std::get<IOSystem::Stdout>(handles),
              std::get<IOSystem::Stderr>(handles) };
 }
 
-
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
 // Substitution exists only during life time of StsIOSwap instance.
-Class::StdIOSwap::StdIOSwap(const StdFiles& files) : m_valid(true)
+Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 {
     const static unsigned NFD = std::tuple_size<StdFiles>::value;
     static const DWORD std_handles[NFD] = {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
     static const int open_flags[NFD] = {_O_RDONLY | _O_BINARY, _O_BINARY, _O_BINARY};
     const int open_fds[NFD] = {_fileno(stdin), _fileno(stdout), _fileno(stderr)};
 
-    const FileHandle new_handles[NFD] = {
-        std::get<IOSystem::Stdin>(files).handle,
-        std::get<IOSystem::Stdout>(files).handle,
-        std::get<IOSystem::Stderr>(files).handle };
+    const FileHandle new_handles[NFD] = {std::get<IOSystem::Stdin>(files).handle,
+                                         std::get<IOSystem::Stdout>(files).handle,
+                                         std::get<IOSystem::Stderr>(files).handle};
 
     fflush(stdout);
     fflush(stderr);
@@ -582,10 +574,9 @@ Class::StdIOSwap::StdIOSwap(const StdFiles& files) : m_valid(true)
             char msg[256];
             snprintf(msg, sizeof(msg), "SetStdHandle(%#x, %p): error", std_handles[n], new_handles[n].handle);
             throw std::runtime_error(msg);
-        } 
+        }
 
-
-        int fd = _open_osfhandle(reinterpret_cast<intptr_t>(new_handles[n].handle), open_flags[n]); 
+        int fd = _open_osfhandle(reinterpret_cast<intptr_t>(new_handles[n].handle), open_flags[n]);
         if (fd == -1)
             throw Win32Exception("_open_osfhandle");
 
@@ -624,4 +615,4 @@ Class::StdIOSwap::~StdIOSwap()
     }
 }
 
-#endif  // _WIN32
+#endif // _WIN32

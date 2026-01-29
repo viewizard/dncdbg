@@ -4,8 +4,8 @@
 
 #pragma once
 #include "utils/utility.h"
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
 
 namespace dncdbg
 {
@@ -15,52 +15,83 @@ namespace Utility
 
 class RWLock
 {
-private:
+  private:
+
     template <typename T> struct LockBase
     {
-        LockBase() {}
-        LockBase(const LockBase&) = delete;
-        LockBase& operator=(const LockBase&) = delete;
-
-        template <typename Member> RWLock* rwlock(const Member RWLock::*mem)
+        LockBase()
         {
-            return Utility::container_of(static_cast<T*>(this), mem);
+        }
+        LockBase(const LockBase &) = delete;
+        LockBase &operator=(const LockBase &) = delete;
+
+        template <typename Member> RWLock *rwlock(const Member RWLock::*mem)
+        {
+            return Utility::container_of(static_cast<T *>(this), mem);
         }
     };
 
-public:
+  public:
+
     class Reader : LockBase<Reader>
     {
+      private:
+
         friend class RWLock;
-        Reader() {}
+        Reader()
+        {
+        }
 
-    public:
-        void lock()     { rwlock(&RWLock::reader)->read_lock(); }
+      public:
 
-        bool try_lock() { return rwlock(&RWLock::reader)->read_try_lock(); }
+        void lock()
+        {
+            rwlock(&RWLock::reader)->read_lock();
+        }
 
-        void unlock()   { rwlock(&RWLock::reader)->read_unlock(); }
+        bool try_lock()
+        {
+            return rwlock(&RWLock::reader)->read_try_lock();
+        }
+
+        void unlock()
+        {
+            rwlock(&RWLock::reader)->read_unlock();
+        }
     };
 
     struct Writer : LockBase<Writer>
     {
         friend class RWLock;
-        Writer() {}
+        Writer()
+        {
+        }
 
-    public:
-        void lock()     { rwlock(&RWLock::writer)->write_lock(); }
+        void lock()
+        {
+            rwlock(&RWLock::writer)->write_lock();
+        }
 
-        bool try_lock() { return rwlock(&RWLock::writer)->write_try_lock(); }
+        bool try_lock()
+        {
+            return rwlock(&RWLock::writer)->write_try_lock();
+        }
 
-        void unlock()   { rwlock(&RWLock::writer)->write_unlock(); }
+        void unlock()
+        {
+            rwlock(&RWLock::writer)->write_unlock();
+        }
     };
 
     Reader reader;
     Writer writer;
 
-    RWLock() : nreaders(0), nwriters(0), is_writing(false) {}
+    RWLock() : nreaders(0), nwriters(0), is_writing(false)
+    {
+    }
 
-private:
+  private:
+
     std::mutex m;
     std::condition_variable cv;
     unsigned nreaders;
@@ -130,5 +161,3 @@ private:
 
 } // namespace Utility
 } // namespace dncdbg
-
-

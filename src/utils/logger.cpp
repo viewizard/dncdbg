@@ -8,101 +8,105 @@
 // Note: this file should be excluded from build on Tizen -- in this
 // case Tizen's logger function should be linked.
 
+#include "utils/limits.h"
+#include <assert.h>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>
-#include <mutex>
-#include "utils/limits.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 #endif
 
 #include "utils/logger.h"
 
 namespace
 {
-    char log_buffer[2*LINE_MAX];
+char log_buffer[2 * LINE_MAX];
 
-    // Implementation clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
-    #ifdef _WIN32
-    enum { CLOCK_MONOTONIC = 0 };
+// Implementation clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
+#ifdef _WIN32
+enum
+{
+    CLOCK_MONOTONIC = 0
+};
 
-    int clock_gettime(int tsrc, struct timespec* ts)
-    {
-        (void)tsrc;
-        assert(tsrc == CLOCK_MONOTONIC);
+int clock_gettime(int tsrc, struct timespec *ts)
+{
+    (void)tsrc;
+    assert(tsrc == CLOCK_MONOTONIC);
 
-        static __int64 base = []() {
-                __int64 t;  GetSystemTimeAsFileTime((FILETIME*)&t); return t;
-        } ();
+    static __int64 base = []() {
+        __int64 t;
+        GetSystemTimeAsFileTime((FILETIME *)&t);
+        return t;
+    }();
 
-        __int64 cur;
-        GetSystemTimeAsFileTime((FILETIME*)&cur);
-        cur -= base;
-        ts->tv_sec = time_t(cur / 10000000i64), ts->tv_nsec = long(cur % 10000000i64 * 100);
-        return 0;
-    }
-    #endif
+    __int64 cur;
+    GetSystemTimeAsFileTime((FILETIME *)&cur);
+    cur -= base;
+    ts->tv_sec = time_t(cur / 10000000i64), ts->tv_nsec = long(cur % 10000000i64 * 100);
+    return 0;
+}
+#endif
 
-    // Function returns thread identifier.
-    unsigned get_tid()
-    {
-        #ifndef _WIN32
-        static thread_local unsigned thread_id = syscall(SYS_gettid);
-        #else
-        static thread_local unsigned thread_id = unsigned(GetCurrentThreadId());
-        #endif
+// Function returns thread identifier.
+unsigned get_tid()
+{
+#ifndef _WIN32
+    static thread_local unsigned thread_id = syscall(SYS_gettid);
+#else
+    static thread_local unsigned thread_id = unsigned(GetCurrentThreadId());
+#endif
 
-        return thread_id;
-    }
-
-    // Function returns process identifier.
-    int get_pid()
-    {
-        #ifndef _WIN32
-        static unsigned process_id = ::getpid();
-        #else
-        static unsigned process_id = unsigned(GetCurrentProcessId());
-        #endif
-
-        return process_id;
-    }
-
-    // This function opens log file, log file name is determined
-    // by contents of environment variable "LOG_OUTPUT".
-    FILE* open_log_file()
-    {
-        const char *env = getenv("LOG_OUTPUT");
-        if (!env)
-            return nullptr;   // log disabled
-
-        if (!strcmp("stdout", env))
-            return stdout;
-
-        if (!strcmp("stderr", env))
-            return stderr;
-
-        FILE *result = fopen(env, "a");
-        if (!result)
-        {
-            perror(env);
-            return nullptr;
-        }
-
-        setvbuf(result, log_buffer, _IOFBF, sizeof(log_buffer));
-        return result;
-    }
+    return thread_id;
 }
 
+// Function returns process identifier.
+int get_pid()
+{
+#ifndef _WIN32
+    static unsigned process_id = ::getpid();
+#else
+    static unsigned process_id = unsigned(GetCurrentProcessId());
+#endif
+
+    return process_id;
+}
+
+// This function opens log file, log file name is determined
+// by contents of environment variable "LOG_OUTPUT".
+FILE *open_log_file()
+{
+    const char *env = getenv("LOG_OUTPUT");
+    if (!env)
+        return nullptr; // log disabled
+
+    if (!strcmp("stdout", env))
+        return stdout;
+
+    if (!strcmp("stderr", env))
+        return stderr;
+
+    FILE *result = fopen(env, "a");
+    if (!result)
+    {
+        perror(env);
+        return nullptr;
+    }
+
+    setvbuf(result, log_buffer, _IOFBF, sizeof(log_buffer));
+    return result;
+}
+} // namespace
 
 extern "C" int dlog_print(log_priority prio, const char *tag, const char *fmt, ...)
 {
@@ -123,7 +127,7 @@ extern "C" int dlog_print(log_priority prio, const char *tag, const char *fmt, .
 //
 extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, va_list ap)
 {
-    struct timespec ts {};
+    struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
     static std::mutex mutex;
@@ -140,11 +144,12 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     if (log_file == NULL || ferror(log_file))
         return DLOG_ERROR_NOT_PERMITTED;
 
-    int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ",
-                long(ts.tv_sec & 0x7fffff), int(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
+    int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff), int(ts.tv_nsec / 1000000),
+                      level, tag, get_pid(), get_tid());
 
     int r = vfprintf(log_file, fmt, ap);
-    if (r < 0) {
+    if (r < 0)
+    {
         fputc('\n', log_file);
         return DLOG_ERROR_INVALID_PARAMETER;
     }
@@ -152,4 +157,3 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     fputc('\n', log_file);
     return fflush(log_file) < 0 ? DLOG_ERROR_NOT_PERMITTED : len + r + 1;
 }
-

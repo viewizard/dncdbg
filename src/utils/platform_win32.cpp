@@ -3,10 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
-#include <windows.h>
-#include <stdlib.h>  // char **environ
-#include "utils/platform.h"
 #include "utils/limits.h"
+#include "utils/platform.h"
+#include <stdlib.h> // char **environ
+#include <windows.h>
 
 namespace dncdbg
 {
@@ -17,7 +17,7 @@ void USleep(unsigned long usec)
     HANDLE timer;
     LARGE_INTEGER ft;
 
-    ft.QuadPart = -(10*(long)usec); // Convert to 100 nanosecond interval, negative value indicates relative time
+    ft.QuadPart = -(10 * (long)usec); // Convert to 100 nanosecond interval, negative value indicates relative time
 
     timer = CreateWaitableTimer(NULL, TRUE, NULL);
     SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
@@ -26,7 +26,7 @@ void USleep(unsigned long usec)
 }
 
 // Function returns list of environment variables (like char **environ).
-char** GetSystemEnvironment()
+char **GetSystemEnvironment()
 {
     return environ;
 }

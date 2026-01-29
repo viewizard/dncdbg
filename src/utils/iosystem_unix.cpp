@@ -3,130 +3,133 @@
 // See the LICENSE file in the project root for more information.
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#include <cstdlib>
+#include "utils/logger.h"
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdexcept>
-#include <algorithm>
-#include "utils/logger.h"
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "iosystem_unix.h"
 
 namespace
 {
-    // short alias for full class name
-    typedef dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag> Class;
-    
-    
-    struct AsyncRead
-    {
-        int    fd;
-        void*  buffer;
-        size_t size;
+// short alias for full class name
+typedef dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag> Class;
 
-        AsyncRead(int fd, void *buf, size_t size) : fd(fd), buffer(buf), size(size) {}
-
-        Class::IOResult operator()()
-        {
-            // TODO need to optimize code to left only one syscall.
-            fd_set set;
-            FD_ZERO(&set);
-            FD_SET(fd, &set);
-            struct timeval tv = {0, 0};
-            ssize_t result = ::select(fd + 1, &set, NULL, &set, &tv);
-            if (result == 0)
-                return {Class::IOResult::Pending, 0};
-
-            if (result >= 0)
-                result = read(fd, buffer, size);
-
-            if (result < 0)
-            {
-                if (errno == EAGAIN)
-                    return {Class::IOResult::Pending, 0};
-
-                fprintf(stderr, "select error %i", errno);
-                throw std::runtime_error("select error");
-            }
-
-            return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
-        }
-
-        int poll(fd_set* read, fd_set *, fd_set* except) const
-        {
-            FD_SET(fd, read);
-            FD_SET(fd, except);
-            return fd;
-        }
-    };
-
-    struct AsyncWrite
-    {
-        int         fd;
-        void const* buffer;
-        size_t      size;
-
-        AsyncWrite(int fd, const void *buf, size_t size) : fd(fd), buffer(buf), size(size) {}
-
-        Class::IOResult operator()()
-        {
-            fd_set set;
-            FD_ZERO(&set);
-            FD_SET(fd, &set);
-            struct timeval tv = {0, 0};
-            ssize_t result = select(fd + 1, NULL, &set, NULL, &tv);
-            if (result == 0)
-                return {Class::IOResult::Pending, 0};
-
-            if (result >= 0)
-                result = write(fd, buffer, size);
-
-            if (result < 0)
-            {
-                if (errno == EAGAIN)
-                    return {Class::IOResult::Pending, 0};
-
-                fprintf(stderr, "select error %i", errno);
-                throw std::runtime_error("select error");
-            }
-
-            return {Class::IOResult::Success, size_t(result)};
-        }
-
-
-        int poll(fd_set *, fd_set *write, fd_set *) const
-        {
-            FD_SET(fd, write);
-            return fd;
-        }
-    };
-} // unnamed namespace
-
-
-template <typename T> Class::AsyncHandle::Traits  Class::AsyncHandle::TraitsImpl<T>::traits =
+struct AsyncRead
 {
-    [](void *thiz) 
-        -> Class::IOResult { return reinterpret_cast<T*>(thiz)->operator()(); },
+    int fd;
+    void *buffer;
+    size_t size;
 
-    [](void *thiz, fd_set* read, fd_set* write, fd_set* except)
-        -> int { return reinterpret_cast<T*>(thiz)->poll(read, write, except); },
+    AsyncRead(int fd, void *buf, size_t size)
+      : fd(fd),
+        buffer(buf),
+        size(size)
+    {
+    }
 
-    [](void *src, void *dst)
-        -> void { *reinterpret_cast<T*>(dst) = *reinterpret_cast<T*>(src); },
+    Class::IOResult operator()()
+    {
+        // TODO need to optimize code to left only one syscall.
+        fd_set set;
+        FD_ZERO(&set);
+        FD_SET(fd, &set);
+        struct timeval tv = {0, 0};
+        ssize_t result = ::select(fd + 1, &set, NULL, &set, &tv);
+        if (result == 0)
+            return {Class::IOResult::Pending, 0};
 
-    [](void *thiz)
-        -> void { reinterpret_cast<T*>(thiz)->~T(); }
+        if (result >= 0)
+            result = read(fd, buffer, size);
+
+        if (result < 0)
+        {
+            if (errno == EAGAIN)
+                return {Class::IOResult::Pending, 0};
+
+            fprintf(stderr, "select error %i", errno);
+            throw std::runtime_error("select error");
+        }
+
+        return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
+    }
+
+    int poll(fd_set *read, fd_set *, fd_set *except) const
+    {
+        FD_SET(fd, read);
+        FD_SET(fd, except);
+        return fd;
+    }
 };
 
+struct AsyncWrite
+{
+    int fd;
+    void const *buffer;
+    size_t size;
+
+    AsyncWrite(int fd, const void *buf, size_t size)
+      : fd(fd),
+        buffer(buf),
+        size(size)
+    {
+    }
+
+    Class::IOResult operator()()
+    {
+        fd_set set;
+        FD_ZERO(&set);
+        FD_SET(fd, &set);
+        struct timeval tv = {0, 0};
+        ssize_t result = select(fd + 1, NULL, &set, NULL, &tv);
+        if (result == 0)
+            return {Class::IOResult::Pending, 0};
+
+        if (result >= 0)
+            result = write(fd, buffer, size);
+
+        if (result < 0)
+        {
+            if (errno == EAGAIN)
+                return {Class::IOResult::Pending, 0};
+
+            fprintf(stderr, "select error %i", errno);
+            throw std::runtime_error("select error");
+        }
+
+        return {Class::IOResult::Success, size_t(result)};
+    }
+
+    int poll(fd_set *, fd_set *write, fd_set *) const
+    {
+        FD_SET(fd, write);
+        return fd;
+    }
+};
+} // unnamed namespace
+
+template <typename T>
+Class::AsyncHandle::Traits Class::AsyncHandle::TraitsImpl<T>::traits = {
+    [](void *thiz) -> Class::IOResult { return reinterpret_cast<T *>(thiz)->operator()(); },
+
+    [](void *thiz, fd_set *read, fd_set *write, fd_set *except) -> int {
+        return reinterpret_cast<T *>(thiz)->poll(read, write, except);
+    },
+
+    [](void *src, void *dst) -> void { *reinterpret_cast<T *>(dst) = *reinterpret_cast<T *>(src); },
+
+    [](void *thiz) -> void { reinterpret_cast<T *>(thiz)->~T(); }};
 
 // Function should create unnamed pipe and return two file handles
 // (reading and writing pipe ends) or return empty file handles if pipe can't be created.
@@ -142,9 +145,8 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     // TODO what to do with this?
     signal(SIGPIPE, SIG_IGN);
 
-    return { fds[0], fds[1] };
+    return {fds[0], fds[1]};
 }
-
 
 // Function creates listening TCP socket on given port, waits, accepts single
 // connection, and return file descriptor related to the accepted connection.
@@ -187,7 +189,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     ::listen(sockFd, 1);
 
     clilen = sizeof(cli_addr);
-    newsockfd = ::accept(sockFd, (struct sockaddr *) &cli_addr, &clilen);
+    newsockfd = ::accept(sockFd, (struct sockaddr *)&cli_addr, &clilen);
     ::close(sockFd);
     if (newsockfd < 0)
     {
@@ -221,35 +223,33 @@ Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
 {
     ssize_t rsize = ::read(fh.fd, buf, count);
     if (rsize < 0)
-        return { (errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0 };
+        return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
     else
-        return { (rsize == 0 ? IOResult::Eof : IOResult::Success), size_t(rsize) };
+        return {(rsize == 0 ? IOResult::Eof : IOResult::Success), size_t(rsize)};
 }
-
 
 // Function perform writing to the file: it may write up to `count' byte from `buf'.
 Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count)
 {
     ssize_t wsize = ::write(fh.fd, buf, count);
     if (wsize < 0)
-        return { (errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0 };
+        return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
     else
-        return { IOResult::Success, size_t(wsize) };
+        return {IOResult::Success, size_t(wsize)};
 }
 
-
-Class::AsyncHandle Class::async_read(const FileHandle& fh, void *buf, size_t count)
+Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t count)
 {
     return fh.fd == -1 ? AsyncHandle() : AsyncHandle::create<AsyncRead>(fh.fd, buf, count);
 }
 
-Class::AsyncHandle Class::async_write(const FileHandle& fh, const void *buf, size_t count)
+Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, size_t count)
 {
     return fh.fd == -1 ? AsyncHandle() : AsyncHandle::create<AsyncWrite>(fh.fd, buf, count);
 }
 
-
-bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end, std::chrono::milliseconds timeout)
+bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end,
+                       std::chrono::milliseconds timeout)
 {
     fd_set read_set, write_set, except_set;
     FD_ZERO(&read_set);
@@ -268,7 +268,8 @@ bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandl
     tv.tv_sec = us.count() / 1000000, tv.tv_usec = us.count() % 1000000;
 
     int result;
-    do result = ::select(maxfd + 1, &read_set, &write_set, &except_set, &tv);
+    do
+        result = ::select(maxfd + 1, &read_set, &write_set, &except_set, &tv);
     while (result < 0 && errno == EINTR);
 
     if (result < 0)
@@ -280,7 +281,7 @@ bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandl
     return result > 0;
 }
 
-Class::IOResult Class::async_cancel(Class::AsyncHandle& handle)
+Class::IOResult Class::async_cancel(Class::AsyncHandle &handle)
 {
     if (!handle)
         return {Class::IOResult::Error, 0};
@@ -289,7 +290,7 @@ Class::IOResult Class::async_cancel(Class::AsyncHandle& handle)
     return {Class::IOResult::Success, 0};
 }
 
-Class::IOResult Class::async_result(Class::AsyncHandle& handle)
+Class::IOResult Class::async_result(Class::AsyncHandle &handle)
 {
     if (!handle)
         return {Class::IOResult::Error, 0};
@@ -301,35 +302,30 @@ Class::IOResult Class::async_result(Class::AsyncHandle& handle)
     return result;
 }
 
-
 // Function closes the file represented by file handle.
 Class::IOResult Class::close(const FileHandle &fh)
 {
-    return { (::close(fh.fd) == 0 ? IOResult::Success : IOResult::Error), 0 };
+    return {(::close(fh.fd) == 0 ? IOResult::Success : IOResult::Error), 0};
 }
-
 
 // This function returns triplet of currently selected standard files.
 dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
     static const IOSystem::FileHandle handles[std::tuple_size<IOSystem::StdFiles>::value] = {
-        FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)
-    };
+        FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
     return {handles[0], handles[1], handles[2]};
 }
 
-
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
 // Substitution exists only during life time of StsIOSwap instance.
-Class::StdIOSwap::StdIOSwap(const StdFiles& files) : m_valid(true)
+Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 {
     const static unsigned NFD = std::tuple_size<StdFiles>::value;
-    static const int oldfd[NFD] = { StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr };
+    static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
 
-    const int newfd[NFD] = {
-        std::get<StdFileType::Stdin>(files).handle.fd,
-        std::get<StdFileType::Stdout>(files).handle.fd,
-        std::get<StdFileType::Stderr>(files).handle.fd };
+    const int newfd[NFD] = {std::get<StdFileType::Stdin>(files).handle.fd,
+                            std::get<StdFileType::Stdout>(files).handle.fd,
+                            std::get<StdFileType::Stderr>(files).handle.fd};
 
     for (unsigned n = 0; n < NFD; n++)
     {
@@ -348,23 +344,22 @@ Class::StdIOSwap::StdIOSwap(const StdFiles& files) : m_valid(true)
     }
 }
 
-
 Class::StdIOSwap::~StdIOSwap()
 {
     if (!m_valid)
         return;
 
     const static unsigned NFD = std::tuple_size<StdFiles>::value;
-    static const int oldfd[NFD] = { StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr };
+    static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
     for (unsigned n = 0; n < NFD; n++)
     {
         if (::dup2(m_orig_fd[n], oldfd[n]) == -1)
         {
             abort();
         }
-        
+
         ::close(m_orig_fd[n]);
     }
 }
 
-#endif  // __unix__
+#endif // __unix__

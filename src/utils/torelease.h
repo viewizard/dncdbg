@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <assert.h>
 #include "utils/logger.h"
+#include <assert.h>
 
 namespace dncdbg
 {
@@ -22,17 +22,17 @@ namespace dncdbg
 //     2. You should never use & to try to get a pointer to a pointer unless
 //        you call Release first, or you will leak whatever this object contains
 //        prior to updating its internal pointer.
-template<class T>
-class ToRelease
+template <class T> class ToRelease
 {
-public:
-    ToRelease()
-        : m_ptr(nullptr)
-    {}
+  public:
 
-    ToRelease(T* ptr)
-        : m_ptr(ptr)
-    {}
+    ToRelease() : m_ptr(nullptr)
+    {
+    }
+
+    ToRelease(T *ptr) : m_ptr(ptr)
+    {
+    }
 
     ~ToRelease()
     {
@@ -46,52 +46,56 @@ public:
         m_ptr = ptr;
     }
 
-    T* operator->() const
+    T *operator->() const
     {
-        assert(m_ptr != 0);  // accessing NULL pointer
+        assert(m_ptr != 0); // accessing NULL pointer
         return m_ptr;
     }
 
-    operator T*() const
+    operator T *() const
     {
         return m_ptr;
     }
 
-    T** operator&()
+    T **operator&()
     {
-        assert(m_ptr == 0);  // make sure, that previously stored value of type `T' isn't lost
+        assert(m_ptr == 0); // make sure, that previously stored value of type `T' isn't lost
         return &m_ptr;
     }
 
     // Special case for EvalFunction() arguments in order to avoid temporary array pointers creation code.
     // DO NOT use it, unless you know what you are doing. Operator & must be used instead.
-    T** GetRef()
+    T **GetRef()
     {
         return &m_ptr;
     }
 
-    T* GetPtr() const
+    T *GetPtr() const
     {
         return m_ptr;
     }
 
-    T* Detach()
+    T *Detach()
     {
-        T* pT = m_ptr;
+        T *pT = m_ptr;
         m_ptr = nullptr;
         return pT;
     }
 
     void Free()
     {
-        if (m_ptr != nullptr) {
+        if (m_ptr != nullptr)
+        {
             m_ptr->Release();
             m_ptr = nullptr;
         }
     }
 
-    ToRelease(ToRelease&& that) noexcept : m_ptr(that.m_ptr) { that.m_ptr = nullptr; }
-    ToRelease& operator=(ToRelease&& that)
+    ToRelease(ToRelease &&that) noexcept : m_ptr(that.m_ptr)
+    {
+        that.m_ptr = nullptr;
+    }
+    ToRelease &operator=(ToRelease &&that)
     {
         if (m_ptr != nullptr)
             m_ptr->Release();
@@ -99,10 +103,12 @@ public:
         m_ptr = that.m_ptr;
         that.m_ptr = nullptr;
     }
-private:
-    ToRelease(const ToRelease& that) = delete;
-    ToRelease& operator=(const ToRelease& that) = delete;
-    T* m_ptr;
+
+  private:
+
+    ToRelease(const ToRelease &that) = delete;
+    ToRelease &operator=(const ToRelease &that) = delete;
+    T *m_ptr;
 };
 
 #ifndef IfFailRet
@@ -110,7 +116,7 @@ private:
 #endif
 
 #ifndef _countof
-#define _countof(x) (sizeof(x)/sizeof(x[0]))
+#define _countof(x) (sizeof(x) / sizeof(x[0]))
 #endif
 
 #ifdef PAL_STDCPP_COMPAT // this define was removed from runtime 9.0 sources

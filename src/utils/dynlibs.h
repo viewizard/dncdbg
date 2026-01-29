@@ -7,22 +7,22 @@
 
 namespace dncdbg
 {
-    struct DLHandleRef;
+struct DLHandleRef;
 
-    // Opaque type representing loaded dynamic library handle.
-    typedef DLHandleRef* DLHandle;
+// Opaque type representing loaded dynamic library handle.
+typedef DLHandleRef *DLHandle;
 
-    // This functon load specified library and returns handle (which then
-    // can be passed to DLSym and DLCLose functions).
-    // In case of error function returns NULL.
-    DLHandle DLOpen(const std::string &path);
+// This functon load specified library and returns handle (which then
+// can be passed to DLSym and DLCLose functions).
+// In case of error function returns NULL.
+DLHandle DLOpen(const std::string &path);
 
-    // This function resolves symbol address within library specified by handle,
-    // and returns it's address, in case of error function returns NULL.
-    void* DLSym(DLHandle handle, Utility::string_view symbol);
+// This function resolves symbol address within library specified by handle,
+// and returns it's address, in case of error function returns NULL.
+void *DLSym(DLHandle handle, Utility::string_view symbol);
 
-    // This function unloads previously loadded library, specified by handle.
-    // In case of error this function returns `false'.
-    bool DLClose(DLHandle handle);
+// This function unloads previously loadded library, specified by handle.
+// In case of error this function returns `false'.
+bool DLClose(DLHandle handle);
 
 } // namespace dncdbg

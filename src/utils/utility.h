@@ -16,16 +16,20 @@ namespace Utility
 // the object size as number of elements, which might be stored within object
 // (opposed to sizeof(), which returns object sizes in bytes). Typically these
 // functions applicable to arrays and to classes like std::array.
-template <typename T> constexpr auto Size(const T& v) -> decltype(v.size()) { return v.size(); }
-template <class T, size_t N> constexpr size_t Size(const T (&)[N]) noexcept { return N; }
-
+template <typename T> constexpr auto Size(const T &v) -> decltype(v.size())
+{
+    return v.size();
+}
+template <class T, size_t N> constexpr size_t Size(const T (&)[N]) noexcept
+{
+    return N;
+}
 
 // This template is similar to `offsetof` macros in plain C. It allows
 // to get offset of specified member in some particular class.
-template <typename Owner, typename Member>
-static inline constexpr size_t offset_of(const Member Owner::*mem)
+template <typename Owner, typename Member> static inline constexpr size_t offset_of(const Member Owner::*mem)
 {
-    return reinterpret_cast<size_t>(&(reinterpret_cast<Owner*>(0)->*mem));
+    return reinterpret_cast<size_t>(&(reinterpret_cast<Owner *>(0)->*mem));
 }
 
 // This template is similar to well known `container_of` macros. It allows
@@ -33,7 +37,7 @@ static inline constexpr size_t offset_of(const Member Owner::*mem)
 template <typename Owner, typename Member>
 static inline constexpr Owner *container_of(Member *ptr, const Member Owner::*mem)
 {
-    return reinterpret_cast<Owner*>(reinterpret_cast<size_t>(ptr) - offset_of(mem));
+    return reinterpret_cast<Owner *>(reinterpret_cast<size_t>(ptr) - offset_of(mem));
 }
 
 } // namespace Utility
