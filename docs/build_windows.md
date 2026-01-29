@@ -34,7 +34,7 @@ Add your build type (`Release` or `Debug`), for example:
 To compile and install, use the following command:
 
 ```
-C:\Users\localuser\dncdbg\build> cmake --build . --target install --config Release
+C:\Users\localuser\dncdbg\build> cmake --build . --target install --parallel $env:NUMBER_OF_PROCESSORS --config Release
 ```
 
 As an example, all build sequence for VS powershell session could looks like:
@@ -43,5 +43,5 @@ As an example, all build sequence for VS powershell session could looks like:
 C:\Users\localuser\dncdbg> md build
 C:\Users\localuser\dncdbg> cd build
 C:\Users\localuser\dncdbg\build> cmake .. -G "Visual Studio 18 2026" -DCMAKE_INSTALL_PREFIX="$PWD.Path\..\bin" -DDOTNET_DIR="C:\Program Files\dotnet" -DCORECLR_DIR="C:\Users\user\runtime\src\coreclr" -DCMAKE_BUILD_TYPE=Release
-C:\Users\localuser\dncdbg\build> cmake --build . --target install --config Release
+C:\Users\localuser\dncdbg\build> cmake --build . --target install --parallel $env:NUMBER_OF_PROCESSORS --config Release
 ```

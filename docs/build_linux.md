@@ -32,7 +32,7 @@ If cmake tries to download the .NET SDK or CoreCLR sources and fails, then pleas
 After configuration has finished, you can then build debugger:
 
 ```
-cmake --build . --target install
+cmake --build . --target install --parallel $(nproc --all)
 ```
 
 As an example, all build sequence could looks like:
@@ -41,5 +41,5 @@ As an example, all build sequence could looks like:
 user@dncdbg$ mkdir build
 user@dncdbg$ cd build
 user@build$ CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=$PWD/../bin -DCORECLR_DIR=/home/user/runtime/src/coreclr/ -DDOTNET_DIR=/home/user/SDK/ -DCMAKE_BUILD_TYPE=Release
-user@build$ cmake --build . --target install -j12
+user@build$ cmake --build . --target install --parallel $(nproc --all)
 ```
