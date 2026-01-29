@@ -6,6 +6,7 @@
 #pragma once
 #include <assert.h>
 #include <tuple>
+#include <memory>
 #include <windows.h> // TODO
 #include <winsock2.h>
 

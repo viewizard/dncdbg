@@ -10,7 +10,6 @@
 #include <atomic>
 #include <fcntl.h>
 #include <io.h>
-#include <memory>
 #include <new>
 #include <stdexcept>
 #include <string.h>
