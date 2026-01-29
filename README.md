@@ -6,10 +6,6 @@ Initially based on [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3
 
 If you need more feature reach debugger for .NET Core runtime, please, take a look at [NetCoreDbg](https://github.com/Samsung/netcoredbg).
 
-## Copyright
-
-You can find licensing information in the [LICENSE](LICENSE) file within the root directory of the DNCDbg sources.
-
 ## Building from Source Code
 
 - [Windows OS build.](docs/build_windows.md)
