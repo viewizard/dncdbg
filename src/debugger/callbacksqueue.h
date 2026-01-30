@@ -51,7 +51,7 @@ class CallbacksQueue
     HRESULT Continue(ICorDebugProcess *pProcess);
     // Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best
     // thread.
-    HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread, EventFormat eventFormat);
+    HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread);
     // Analog of "pProcess->Stop(0)" call that also care about callbacks.
     HRESULT Stop(ICorDebugProcess *pProcess);
 

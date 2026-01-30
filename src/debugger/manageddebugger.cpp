@@ -366,7 +366,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     return Status;
 }
 
-HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread, EventFormat eventFormat)
+HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 {
     LogFuncEntry();
 
@@ -374,7 +374,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread, EventFormat eventForm
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedCallbacksQueue->Pause(m_iCorProcess, lastStoppedThread, eventFormat);
+    return m_sharedCallbacksQueue->Pause(m_iCorProcess, lastStoppedThread);
 }
 
 HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)

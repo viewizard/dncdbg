@@ -314,7 +314,7 @@ HRESULT CallbacksQueue::Stop(ICorDebugProcess *pProcess)
 }
 
 // Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best thread.
-HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread, EventFormat eventFormat)
+HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread)
 {
     // Must be real thread ID or ThreadId::AllThreads.
     if (!lastStoppedThread)
@@ -331,93 +331,20 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     // Same logic as provide vsdbg in case of pause during stepping.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);
 
-    // For Visual Studio, we have to report a thread ID in async stop event.
-    // We have to find a thread which has a stack frame with valid location in its stack trace.
     std::vector<Thread> threads;
     m_debugger.GetThreads(threads);
 
-    // In case `lastStoppedThread` provided, just check that we really have it.
-    if (lastStoppedThread != ThreadId::AllThreads)
+    // In case DAP, command provide "pause" thread id.
+    if (std::find_if(threads.begin(), threads.end(),
+                     [&](Thread t) { return t.id == lastStoppedThread; }) != threads.end())
     {
-        // In case DAP protocol, user provide "pause" thread id.
-        if (std::find_if(threads.begin(), threads.end(),
-                         [&](Thread t) { return t.id == lastStoppedThread; }) != threads.end())
-        {
-            // DAP protocol event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
-            m_debugger.SetLastStoppedThreadId(lastStoppedThread);
-            m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StopPause, lastStoppedThread));
-            return S_OK;
-        }
-    }
-    else if (eventFormat == EventFormat::CLI)
-    {
-        ThreadId threadId;
-        if (threads.empty())
-        {
-            DWORD pid = 0;
-            IfFailRet(pProcess->GetID(&pid));
-            threadId = ThreadId(pid);
-        }
-        else
-        {
-            threadId = threads[0].id;
-        }
-
-        // CLI protocol provide ThreadId::AllThreads as lastStoppedThread, stop at main thread with real top frame in event.
-        m_debugger.SetLastStoppedThreadId(threadId);
-
-        int totalFrames = 0;
-        StoppedEvent event(StopPause, threadId);
-        std::vector<StackFrame> stackFrames;
-        if (SUCCEEDED(m_debugger.GetStackTrace(threadId, FrameLevel(0), 1, stackFrames, totalFrames)) &&
-            !stackFrames.empty())
-        {
-            event.frame = stackFrames[0];
-        }
-        m_debugger.pProtocol->EmitStoppedEvent(event);
+        // DAP event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
+        m_debugger.SetLastStoppedThreadId(lastStoppedThread);
+        m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StopPause, lastStoppedThread));
         return S_OK;
     }
-    else
-    {
-        // MI protocol provide ThreadId::AllThreads as lastStoppedThread, this protocols require thread and frame with
-        // user code. Note, MIEngine (MI/GDB) require frame connected to user source or it will crash Visual Studio.
 
-        ThreadId lastStoppedId = m_debugger.GetLastStoppedThreadId();
-
-        // Reorder threads so that last stopped thread is checked first
-        for (size_t i = 0; i < threads.size(); ++i)
-        {
-            if (threads[i].id == lastStoppedId)
-            {
-                std::swap(threads[0], threads[i]);
-                break;
-            }
-        }
-
-        // Now get stack trace for each thread and find a frame with valid source location.
-        for (const Thread &thread : threads)
-        {
-            int totalFrames = 0;
-            std::vector<StackFrame> stackFrames;
-
-            if (FAILED(m_debugger.GetStackTrace(thread.id, FrameLevel(0), 0, stackFrames, totalFrames)))
-                continue;
-
-            for (const StackFrame &stackFrame : stackFrames)
-            {
-                if (stackFrame.source.IsNull())
-                    continue;
-
-                StoppedEvent event(StopPause, thread.id);
-                event.frame = stackFrame;
-                m_debugger.SetLastStoppedThreadId(thread.id);
-                m_debugger.pProtocol->EmitStoppedEvent(event);
-                return S_OK;
-            }
-        }
-    }
-
-    // Fatal error during stop, just fail Pause request and don't stop process.
+    // Fatal error during stop (command provide wrong thread id), just fail Pause request and don't stop process.
     m_stopEventInProcess = false;
     IfFailRet(pProcess->Continue(0));
     return E_FAIL;

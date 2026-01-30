@@ -147,7 +147,7 @@ public class DAPDebugger
         }
 
         // receive new events and check them
-        ReceiveEvents();
+        ReceiveEvents(10000);
         while (EventQueue.Count > 0)
         {
             if (filter(EventQueue.Dequeue()))

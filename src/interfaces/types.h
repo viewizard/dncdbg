@@ -661,12 +661,6 @@ struct ExceptionBreakpoint
     }
 };
 
-enum class EventFormat
-{
-    Default,
-    CLI
-};
-
 enum class AsyncResult
 {
     Canceled, // function canceled due to debugger interruption

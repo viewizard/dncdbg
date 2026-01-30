@@ -693,7 +693,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 ThreadId threadId{int(arguments.at("threadId"))};
                 body["threadId"] = int(threadId);
-                return sharedDebugger->Pause(threadId, EventFormat::Default);
+                return sharedDebugger->Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &body)
             {

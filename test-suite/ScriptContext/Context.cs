@@ -597,7 +597,9 @@ class Context
             if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
                 DAPDebugger.isResponseContainProperty(resJSON, "reason", "pause"))
             {
-                return true;
+                PauseResponse pauseResponse = JsonConvert.DeserializeObject<PauseResponse>(resJSON);
+                if (pauseResponse.body.threadId == threadId)
+                    return true;
             }
             return false;
         };

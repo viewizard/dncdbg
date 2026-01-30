@@ -91,7 +91,7 @@ class ManagedDebugger
 
     ThreadId GetLastStoppedThreadId();
     HRESULT Continue(ThreadId threadId);
-    HRESULT Pause(ThreadId lastStoppedThread, EventFormat eventFormat);
+    HRESULT Pause(ThreadId lastStoppedThread);
     HRESULT GetThreads(std::vector<Thread> &threads);
     HRESULT SetLineBreakpoints(const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
                                std::vector<Breakpoint> &breakpoints);

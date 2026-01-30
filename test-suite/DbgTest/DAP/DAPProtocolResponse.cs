@@ -194,4 +194,14 @@ public class SetExpressionResponseBody
     public int? namedVariables;
     public int? indexedVariables;
 }
+
+public class PauseResponse : Response
+{
+    public PauseResponseBody body;
+}
+
+public class PauseResponseBody
+{
+    public int threadId;
+}
 }
