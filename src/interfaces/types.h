@@ -352,10 +352,8 @@ struct Module
     // bool isOptimized; // TODO: support both fields for DAP
     // bool isUserCode;
     SymbolStatus symbolStatus;
-    uint64_t baseAddress; // exposed for MI protocol
-    uint32_t size;        // exposed for MI protocol
 
-    Module() : symbolStatus(SymbolsSkipped), baseAddress(0), size(0)
+    Module() : symbolStatus(SymbolsSkipped)
     {
     }
 };

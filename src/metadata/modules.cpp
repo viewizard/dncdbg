@@ -558,11 +558,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     IfFailRet(GetModuleId(pModule, module.id));
 
     CORDB_ADDRESS baseAddress;
-    ULONG32 size;
     IfFailRet(pModule->GetBaseAddress(&baseAddress));
-    IfFailRet(pModule->GetSize(&size));
-    module.baseAddress = baseAddress;
-    module.size = size;
 
     pModule->AddRef();
     ModuleInfo mdInfo{pSymbolReaderHandle, pModule};
