@@ -142,7 +142,7 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
     if (details.innerException)
     {
-        // Note, DAP protocol have "innerException" field as array, but in real we don't have array with inner
+        // Note, DAP have "innerException" field as array, but in real we don't have array with inner
         // exceptions here, since exception object have only one exeption object reference in InnerException field.
         json arr = json::array();
         arr.push_back(FormJsonForExceptionDetails(*details.innerException.get()));
@@ -517,7 +517,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     auto findFilter = g_DAPFilters.find(entry);
                     if (findFilter == g_DAPFilters.end())
                         return E_INVALIDARG;
-                    // in case of DAP protocol, we can't setup categoryHint during breakpoint setup, since this protocol
+                    // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
                     // don't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
                 }
@@ -531,7 +531,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     auto findFilter = g_DAPFilters.find(findId->second);
                     if (findFilter == g_DAPFilters.end())
                         return E_INVALIDARG;
-                    // in case of DAP protocol, we can't setup categoryHint during breakpoint setup, since this protocol
+                    // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
                     // don't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
 

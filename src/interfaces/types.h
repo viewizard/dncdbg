@@ -360,7 +360,7 @@ struct Module
     std::string id;
     std::string name;
     std::string path;
-    // bool isOptimized; // TODO: support both fields for DAP protocol
+    // bool isOptimized; // TODO: support both fields for DAP
     // bool isUserCode;
     SymbolStatus symbolStatus;
     uint64_t baseAddress; // exposed for MI protocol
@@ -609,7 +609,7 @@ struct ExceptionDetails
     std::string fullTypeName;
     std::string evaluateName;
     std::string stackTrace;
-    // Note, DAP protocol have "innerException" field as array, but in real we don't have array with inner exceptions
+    // Note, DAP have "innerException" field as array, but in real we don't have array with inner exceptions
     // here, since exception object have only one exeption object reference in InnerException field.
     std::unique_ptr<ExceptionDetails> innerException;
     std::string formattedDescription;

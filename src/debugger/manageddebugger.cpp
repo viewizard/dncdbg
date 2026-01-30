@@ -325,7 +325,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
     m_sharedVariables->Clear();
     FrameId::invalidate();                   // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // DAP protocol need thread ID.
+    pProtocol->EmitContinuedEvent(threadId); // DAP need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
@@ -357,7 +357,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
     m_sharedVariables->Clear();
     FrameId::invalidate();                   // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // DAP protocol need thread ID.
+    pProtocol->EmitContinuedEvent(threadId); // DAP need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))

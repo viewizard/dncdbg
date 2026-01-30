@@ -166,7 +166,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
         return S_OK;
 
     // Export function breakpoints
-    // Note, DAP protocol require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &fb : funcBreakpoints)
     {

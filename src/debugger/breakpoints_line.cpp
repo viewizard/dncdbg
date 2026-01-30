@@ -178,7 +178,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
     for (const auto &resolvedBP : resolvedPoints)
     {
         // Note, we might have situation with same source path in different modules.
-        // DAP protocol and internal debugger routine don't support this case.
+        // DAP and internal debugger routine don't support this case.
         IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
         if (modAddress && modAddress != modAddressTrack)
         {
@@ -341,7 +341,7 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string&
     }
 
     // Export breakpoints
-    // Note, DAP protocol require, that "breakpoints" and "lineBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP require, that "breakpoints" and "lineBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &sb : lineBreakpoints)
     {
