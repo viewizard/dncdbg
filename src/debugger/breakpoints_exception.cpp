@@ -150,28 +150,6 @@ static void GetExceptionShorDescription(ExceptionBreakMode breakMode, const std:
     }
 }
 
-static void GetExceptionStageName(ExceptionBreakMode breakMode, std::string &result)
-{
-    switch (breakMode)
-    {
-    case ExceptionBreakMode::THROW:
-        result = "throw";
-        break;
-
-    case ExceptionBreakMode::USER_UNHANDLED:
-        result = "user-unhandled";
-        break;
-
-    case ExceptionBreakMode::UNHANDLED:
-        result = "unhandled";
-        break;
-
-    default:
-        result = "";
-        break;
-    }
-}
-
 static void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result)
 {
     switch (breakMode)
@@ -476,42 +454,6 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         default:
             return E_INVALIDARG;
     }
-
-    if (excModule.empty())
-        excModule = "<unknown module>";
-
-    // Custom message, provided by runtime (in case internal runtime exception) or directly by user as exception constructor argument on throw.
-    // Note, this is optional field in exception object that could have nulled reference.
-    std::string excMessage;
-    const bool escape = false;
-    m_sharedEvaluator->WalkMembers(
-        iCorExceptionValue, pThread, FrameLevel{0}, nullptr, false,
-        [&](ICorDebugType *, bool, const std::string &memberName, Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
-        {
-            ToRelease<ICorDebugValue> pResultValue;
-
-            if (memberName != "_message")
-                return S_OK;
-
-            IfFailRet(getValue(&pResultValue, defaultEvalFlags));
-
-            BOOL isNull = TRUE;
-            ToRelease<ICorDebugReferenceValue> pReferenceValue;
-            if (SUCCEEDED(pResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue)) &&
-                SUCCEEDED(pReferenceValue->IsNull(&isNull)) && isNull == FALSE)
-            {
-                PrintValue(pResultValue, excMessage, escape);
-                return E_ABORT; // Fast exit from cycle.
-            }
-
-            return S_OK;
-        });
-
-    GetExceptionShorDescription(m_threadsExceptionBreakMode[tid], excType, excModule, event.text);
-    GetExceptionStageName(m_threadsExceptionBreakMode[tid], event.exception_stage);
-    event.exception_category = "clr"; // ManagedCallbackException() called for CLR exceptions only
-    event.exception_name = excType;
-    event.exception_message = excMessage;
 
     return S_FALSE; // S_FALSE - breakpoint hit, not affect on callback (callback will emit stop event)
 }

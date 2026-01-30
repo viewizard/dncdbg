@@ -44,7 +44,7 @@ class FuncBreakpoints
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
     // S_FALSE - no breakpoint hit
-    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint, Breakpoint &breakpoint,
+    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                                std::vector<BreakpointEvent> &bpChangeEvents);
 
     // Important! Callbacks related methods must control return for succeeded return code.

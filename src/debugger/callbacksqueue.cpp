@@ -33,8 +33,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     StoppedEvent event(StopBreakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, event.breakpoint,
-                                                                             bpChangeEvents, atEntry))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, bpChangeEvents, atEntry))
         return false;
 
     // Disable all steppers if we stop at breakpoint during step.
@@ -42,10 +41,6 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
     if (atEntry)
         event.reason = StopEntry;
-
-    ToRelease<ICorDebugFrame> pFrame;
-    if (SUCCEEDED(pThread->GetActiveFrame(&pFrame)) && pFrame != nullptr)
-        m_debugger.GetFrameLocation(pFrame, threadId, FrameLevel(0), event.frame);
 
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
@@ -69,14 +64,8 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain,
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
         return false;
 
-    StackFrame stackFrame;
-    ToRelease<ICorDebugFrame> iCorFrame;
     ThreadId threadId(getThreadId(pThread));
-    if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr)
-        m_debugger.GetFrameLocation(iCorFrame, threadId, FrameLevel(0), stackFrame);
-
     StoppedEvent event(StopStep, threadId);
-    event.frame = stackFrame;
 
     m_debugger.SetLastStoppedThread(pThread);
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -96,12 +85,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     ThreadId threadId(getThreadId(pThread));
     StackFrame stackFrame;
 
-    ToRelease<ICorDebugFrame> iCorFrame;
-    if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr)
-        m_debugger.GetFrameLocation(iCorFrame, threadId, FrameLevel(0), stackFrame);
-
     StoppedEvent event(StopPause, threadId);
-    event.frame = stackFrame;
     m_debugger.pProtocol->EmitStoppedEvent(event);
     return true;
 }
@@ -115,10 +99,6 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event))
         return false;
-
-    ToRelease<ICorDebugFrame> pActiveFrame;
-    if (SUCCEEDED(pThread->GetActiveFrame(&pActiveFrame)) && pActiveFrame != nullptr)
-        m_debugger.GetFrameLocation(pActiveFrame, threadId, FrameLevel(0), event.frame);
 
     // Disable all steppers if we stop during step.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);

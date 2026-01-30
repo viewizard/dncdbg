@@ -32,7 +32,7 @@ void FuncBreakpoints::DeleteAll()
 }
 
 HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                            Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents)
+                                            std::vector<BreakpointEvent> &bpChangeEvents)
 {
     if (m_funcBreakpoints.empty())
         return S_FALSE; // Stopped at break, but no breakpoints.
@@ -101,10 +101,11 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
                 continue;
 
             ++fbp.hitCount;
-            fbp.ToBreakpoint(breakpoint);
 
             if (!output.empty())
             {
+                Breakpoint breakpoint;
+                fbp.ToBreakpoint(breakpoint);
                 breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
                                      fbp.condition + "'. The error returned was '" + output + "'.";
                 bpChangeEvents.emplace_back(BreakpointChanged, breakpoint);

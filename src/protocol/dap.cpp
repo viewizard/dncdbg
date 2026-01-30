@@ -201,7 +201,6 @@ void DAP::EmitStoppedEvent(const StoppedEvent &event)
     // vsdbg shows additional info, but it is not a part of the protocol
     // body["line"] = event.frame.line;
     // body["column"] = event.frame.column;
-
     // body["source"] = event.frame.source;
 
     EmitEvent("stopped", body);

@@ -32,7 +32,7 @@ void LineBreakpoints::DeleteAll()
 }
 
 HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                            Breakpoint &breakpoint, std::vector<BreakpointEvent> &bpChangeEvents)
+                                            std::vector<BreakpointEvent> &bpChangeEvents)
 {
     HRESULT Status;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
@@ -85,10 +85,11 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
                 continue;
 
             ++b.hitCount;
-            b.ToBreakpoint(breakpoint, sp.document);
 
             if (!output.empty())
             {
+                Breakpoint breakpoint;
+                b.ToBreakpoint(breakpoint, sp.document);
                 breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
                                      b.condition + "'. The error returned was '" + output + "'.";
                 bpChangeEvents.emplace_back(BreakpointChanged, breakpoint);

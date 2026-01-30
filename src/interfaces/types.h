@@ -381,14 +381,6 @@ struct StoppedEvent
     std::string text;
     bool allThreadsStopped;
 
-    std::string exception_category; // exposed for MI and CLI protocols
-    std::string exception_stage;    // exposed for MI and CLI protocols
-    std::string exception_name;     // exposed for MI and CLI protocols
-    std::string exception_message;  // exposed for MI and CLI protocols
-
-    StackFrame frame;      // exposed for MI and CLI protocols
-    Breakpoint breakpoint; // exposed for MI and CLI protocols
-
     StoppedEvent(StopReason reason, ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
