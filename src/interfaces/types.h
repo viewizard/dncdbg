@@ -262,19 +262,12 @@ struct StackFrame
     int endColumn;
     std::string moduleId;
 
-    ClrAddr clrAddr;             // exposed for MI protocol
-    std::uintptr_t addr;         // exposed for MI and CLI protocols
-    bool unknownFrameAddr;       // exposed for CLI protocol
-    std::string moduleOrLibName; // exposed for CLI protocol
-
     StackFrame()
         : id(),
           line(0),
           column(0),
           endLine(0),
           endColumn(0),
-          addr(0),
-          unknownFrameAddr(false),
           thread(ThreadId{}, true),
           level(FrameLevel{}, true)
     {
@@ -287,8 +280,6 @@ struct StackFrame
           column(0),
           endLine(0),
           endColumn(0),
-          addr(0),
-          unknownFrameAddr(false),
           thread(threadId, true),
           level(level_, true)
     {
@@ -300,8 +291,6 @@ struct StackFrame
           column(0),
           endLine(0),
           endColumn(0),
-          addr(0),
-          unknownFrameAddr(false),
           thread(ThreadId{}, false),
           level(FrameLevel{}, false)
     {

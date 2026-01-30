@@ -876,41 +876,9 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
         stackFrame.endColumn = sp.endColumn;
     }
 
-    mdMethodDef methodToken;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
-
-    ULONG32 nOffset = 0;
-    ToRelease<ICorDebugNativeFrame> pNativeFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugNativeFrame, (LPVOID *)&pNativeFrame));
-    IfFailRet(pNativeFrame->GetIP(&nOffset));
-
     IfFailRet(GetModuleId(pModule, stackFrame.moduleId));
 
-    stackFrame.clrAddr.methodToken = methodToken;
-    stackFrame.clrAddr.ilOffset = ilOffset;
-    stackFrame.clrAddr.nativeOffset = nOffset;
-
-    stackFrame.addr = 0; // This method used for managed stop events only, but all implemented protocols don't use `addr` in managed stop events outputs.
-
     return S_OK;
-}
-
-static std::string GetModuleNameForFrame(ICorDebugFrame *pFrame)
-{
-    ToRelease<ICorDebugFunction> pFunc;
-    if (!pFrame || FAILED(pFrame->GetFunction(&pFunc)))
-        return std::string{};
-
-    ToRelease<ICorDebugModule> pModule;
-    if (FAILED(pFunc->GetModule(&pModule)))
-        return std::string{};
-
-    WCHAR name[mdNameLen];
-    ULONG32 name_len = 0;
-    if (FAILED(pModule->GetName(_countof(name), &name_len, name)))
-        return std::string{};
-
-    return GetBasename(to_utf8(name));
 }
 
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
@@ -938,20 +906,14 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             {
             case FrameUnknown:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, "?");
-                stackFrames.back().addr = addr;
                 break;
             case FrameNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, pNative->procName);
-                stackFrames.back().addr = pNative->addr;
-                stackFrames.back().unknownFrameAddr = pNative->unknownFrameAddr;
-                stackFrames.back().moduleOrLibName = pNative->libName;
                 stackFrames.back().source = Source(pNative->fullSourcePath);
                 stackFrames.back().line = pNative->lineNum;
                 break;
             case FrameCLRNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
-                stackFrames.back().addr = addr;
-                stackFrames.back().unknownFrameAddr = !addr; // Could be 0 here only in case some CoreCLR registers context issue.
                 break;
             case FrameCLRInternal:
             {
@@ -963,9 +925,6 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 name += GetInternalTypeName(corFrameType);
                 name += "]";
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
-                stackFrames.back().addr = addr;
-                stackFrames.back().unknownFrameAddr =
-                    !addr; // Could be 0 here only in case some CoreCLR registers context issue.
             }
             break;
             case FrameCLRManaged:
@@ -973,10 +932,6 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 StackFrame stackFrame;
                 GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
                 stackFrames.push_back(stackFrame);
-                stackFrames.back().addr = addr;
-                stackFrames.back().unknownFrameAddr =
-                    !addr; // Could be 0 here only in case some CoreCLR registers context issue.
-                stackFrames.back().moduleOrLibName = GetModuleNameForFrame(pFrame);
             }
             break;
             }
