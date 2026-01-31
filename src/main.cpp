@@ -186,6 +186,9 @@ int
             snprintf(tmp, sizeof(tmp), "%.*s/%s.%u.log", int(tempdir.size()), tempdir.data(), s, getpid());
             setenv("LOG_OUTPUT", tmp, 1);
         }},
+        {"--interpreter=vscode" , [&](int &i) {
+            // VSCode IDE send this option silently to debugger, just ignore it
+        }},
         {"--", [&](int &i) {
             ++i;
             if (i < argc)
@@ -210,7 +213,7 @@ int
         }},
         {"--log=", [&](int &i) {
             setenv("LOG_OUTPUT", *argv + strlen("--log="), 1);
-        }},
+        }}
     };
 
     for (int i = 1; i < argc; i++)
