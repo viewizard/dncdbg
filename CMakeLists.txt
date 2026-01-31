@@ -44,6 +44,12 @@ set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
 include(cmake/vcsinfo.cmake)
 VCSInfo(DNCDBG_VCS_INFO)
 
+# AddressSanitize
+if (ASAN)
+    set(CLR_CMAKE_ENABLE_SANITIZERS "address")
+    #TODO UBSanitizer for Debug build
+    #set(ENV{DEBUG_SANITIZERS} "ubsan")
+endif()
 
 ### diagnostic's CMakeList.txt part
 #

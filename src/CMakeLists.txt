@@ -91,8 +91,9 @@ set_source_files_properties(buildinfo.cpp PROPERTIES COMPILE_FLAGS "${buildinfo_
 add_custom_target(buildinfo ALL COMMAND
     ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp")
 
-
 add_executable(dncdbg ${dncdbg_SRC})
+# Define "DEBUG" only when the configuration is "Debug"
+target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG>)
 
 if (WIN32)
     target_link_libraries(dncdbg corguids wsock32 ws2_32)
