@@ -7,8 +7,6 @@ if (NOT WIN32)
 endif()
 include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/shim)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/dlls/dbgshim)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native/)
 
 # Build native part of the debugger
