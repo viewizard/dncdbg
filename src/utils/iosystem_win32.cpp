@@ -253,7 +253,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(port);
+    serv_addr.sin_port = htons((unsigned short)port);
 
     if (::bind(sockFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == SOCKET_ERROR)
     {
