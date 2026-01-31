@@ -9,7 +9,6 @@
 
 #include "managed/interop.h"
 
-#include <coreclrhost.h>
 #include <set>
 #include <string>
 #include <thread>
@@ -231,6 +230,24 @@ enum class RetCode : int32_t
 Utility::RWLock CLRrwlock;
 void *hostHandle = nullptr;
 unsigned int domainId = 0;
+
+// part of coreclrhost.h file from runtime sources
+#if defined(_WIN32) && defined(_M_IX86)
+#define CORECLR_CALLING_CONVENTION __stdcall
+#else
+#define CORECLR_CALLING_CONVENTION
+#endif
+
+#define CORECLR_HOSTING_API(function, ...) \
+    extern "C" int CORECLR_CALLING_CONVENTION function(__VA_ARGS__); \
+    typedef int (CORECLR_CALLING_CONVENTION *function##_ptr)(__VA_ARGS__)
+
+CORECLR_HOSTING_API(coreclr_shutdown, void *hostHandle, unsigned int domainId);
+CORECLR_HOSTING_API(coreclr_initialize, const char *exePath, const char *appDomainFriendlyName, int propertyCount,
+                    const char **propertyKeys, const char **propertyValues, void **hostHandle, unsigned int *domainId);
+CORECLR_HOSTING_API(coreclr_create_delegate, void *hostHandle, unsigned int domainId, const char *entryPointAssemblyName,
+                    const char *entryPointTypeName, const char *entryPointMethodName, void **delegate);
+
 coreclr_shutdown_ptr shutdownCoreClr = nullptr;
 
 // CoreCLR use fixed size integers, don't use system/arch size dependent types for delegates.

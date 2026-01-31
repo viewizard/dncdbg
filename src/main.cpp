@@ -54,7 +54,6 @@ static void print_buildinfo()
            BuildInfo::build_type, BuildInfo::date, BuildInfo::time, BuildInfo::os_name, BuildInfo::cpu_arch);
 
     printf("DNCDbg VCS info:   %s\n", BuildInfo::dncdbg_vcs_info);
-    printf("CoreCLR VCS info:  %s\n", BuildInfo::coreclr_vcs_info);
 }
 
 static void print_version()

@@ -593,7 +593,7 @@ if (CLR_CMAKE_HOST_UNIX)
   # optimization in the IEEE 754 specification and is therefore considered unsafe.
   add_compile_options(-ffp-contract=off)
 
-  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
+  #add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wno-unknown-warning-option)
@@ -803,8 +803,8 @@ if (MSVC)
 
   # Disable C++ RTTI
   # /GR is added by default by CMake, so remove it manually.
-  string(REPLACE "/GR " " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
+  #string(REPLACE "/GR " " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 
   add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/FC>) # use full pathnames in diagnostics
   add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>) # Build with Multiple Processes (number of processes equal to the number of processors)

@@ -1,8 +1,0 @@
-<Project>
-  <PropertyGroup Condition="$(MSBuildProjectName.Contains('dncdbg'))">
-    <BaseIntermediateOutputPath>obj_dncdbg</BaseIntermediateOutputPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="$(MSBuildProjectName.Contains('corguids'))">
-    <BaseIntermediateOutputPath>obj_corguids</BaseIntermediateOutputPath>
-  </PropertyGroup>
-</Project>

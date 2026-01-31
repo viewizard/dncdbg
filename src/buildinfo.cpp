@@ -8,7 +8,7 @@
 //
 //   * BUILD_TYPE -- Debug, Release...
 //
-//   * DNCDBG_VCS_INFO, CORECLR_VCS_INFO -- both should contain GIT revision hash,
+//   * DNCDBG_VCS_INFO -- should contain GIT revision hash,
 //     tag name, SVN revision number, etc... might be empty, if revision isn't known;
 //
 //   * OS_NAME should constain OS name for which project was build;
@@ -33,7 +33,6 @@ const char version[] = "0.0.1";
 const char build_type[] = STRINGIFY(BUILD_TYPE);
 
 const char dncdbg_vcs_info[] = STRINGIFY(DNCDBG_VCS_INFO);
-const char coreclr_vcs_info[]    = STRINGIFY(CORECLR_VCS_INFO);
 
 const char os_name[]  = STRINGIFY(OS_NAME);
 const char cpu_arch[] = STRINGIFY(CPU_ARCH);
