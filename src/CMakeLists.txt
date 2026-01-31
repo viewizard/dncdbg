@@ -128,9 +128,7 @@ add_custom_target(managedpart_dll ALL DEPENDS ${DOTNET_BUILD_RESULT})
 # Copy dlls
 set(ROSLYN_DLLS
     Microsoft.CodeAnalysis.dll
-    Microsoft.CodeAnalysis.CSharp.dll
-    Microsoft.CodeAnalysis.Scripting.dll
-    Microsoft.CodeAnalysis.CSharp.Scripting.dll)
+    Microsoft.CodeAnalysis.CSharp.dll)
 
 set(DLLS_TO_DEPLOY ${DOTNET_BUILD_RESULT})
 foreach(ITEM ${ROSLYN_DLLS})
