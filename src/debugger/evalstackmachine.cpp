@@ -2001,6 +2001,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, i
         break;
     case COR_E_THREADSTATE:
         output = "Thread is in an invalid state for this operation.";
+        break;
     default:
         break;
     }
