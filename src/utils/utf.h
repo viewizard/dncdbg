@@ -11,11 +11,7 @@
 #include <wtypes.h>
 #endif
 
-#pragma warning(disable : 4068) // Visual Studio should ignore GCC pragmas
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <corerror.h>
-#pragma GCC diagnostic pop
 
 namespace dncdbg
 {

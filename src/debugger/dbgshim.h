@@ -5,11 +5,7 @@
 
 #pragma once
 
-#pragma warning(disable : 4068) // Visual Studio should ignore GCC pragmas
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cor.h>
-#pragma GCC diagnostic pop
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
