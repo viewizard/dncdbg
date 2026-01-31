@@ -51,16 +51,21 @@ if (ASAN)
     #set(ENV{DEBUG_SANITIZERS} "ubsan")
 endif()
 
+include(cmake/configurepaths.cmake)
+
 ### diagnostic's CMakeList.txt part
 #
 # Note, we don't use separate cmake parts, just re-use diagnostics cmake parts with changes:
-# - copy and corrected `configurepaths.cmake` file to `cmake` folder
-# - corrected `third_party/diagnostics/eng/native/configurecompiler.cmake` file (enable `rtti` related options)
+#
+# - copy main part of `third_party/diagnostics/CMakeLists.cmake` to this file below,
+#   remove header, `project`, `cmake_minimum_required`, etc. and add `add_subdirectory(third_party/diagnostics)`
+# - copy and correct `third_party/diagnostics/eng/native/configurepaths.cmake` file to `cmake` folder
+# - correct `third_party/diagnostics/src/CMakeLists.cmake`, remove lines with `SOS` and `tests`
+# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` file (enable `rtti` related options)
 #
 ###
 
 # include shared compiler configs
-include(cmake/configurepaths.cmake)
 include(${CLR_ENG_NATIVE_DIR}/configurecompiler.cmake)
 
 if(CLR_CMAKE_HOST_UNIX)
