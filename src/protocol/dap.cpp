@@ -1220,7 +1220,7 @@ void DAP::CommandLoop()
     commandsWorker.join();
 }
 
-void DAP::EngineLogging(const std::string &path)
+void DAP::ProtocolMessages(const std::string &path)
 {
     if (path.empty())
     {

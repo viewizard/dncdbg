@@ -33,13 +33,13 @@ static void print_help()
     fprintf(stdout, ".NET Core debugger\n"
                     "\n"
                     "Options:\n"
-                    "--buildinfo                           Print build info.\n"
-                    "--attach <process-id>                 Attach the debugger to the specified process id.\n"
-                    "--run                                 Run program without waiting commands\n"
-                    "--engineLogging[=<path to log file>]  Enable logging to VsDbg-UI or file for the engine.\n"
-                    "--log[=<file>]                        Enable logging. Supported logging to file only.\n"
-                    "                                      File log by default. File is created in 'current' folder.\n"
-                    "--version                             Displays the current version.\n");
+                    "--buildinfo                              Print build info.\n"
+                    "--attach <process-id>                    Attach the debugger to the specified process id.\n"
+                    "--run                                    Run program without waiting commands\n"
+                    "--protocolMessages[=<path to log file>]  Enable logging protocol interaction to DAP or file.\n"
+                    "--log[=<file>]                           Enable logging. Supported logging to file only.\n"
+                    "                                         File log by default. File is created in 'current' folder.\n"
+                    "--version                                Displays the current version.\n");
 }
 
 static void print_buildinfo()
@@ -128,7 +128,7 @@ int
     // prevent std::cout flush triggered by read operation on std::cin
     std::cin.tie(nullptr);
 
-    bool engineLogging = false;
+    bool protocolMessages = false;
     std::string logFilePath;
 
     std::string execFile;
@@ -155,8 +155,8 @@ int
         {"--run", [&](int &i) {
             run = true;
         }},
-        {"--engineLogging", [&](int &i) {
-            engineLogging = true;
+        {"--protocolMessages", [&](int &i) {
+            protocolMessages = true;
         }},
         {"--help", [&](int &i) {
             print_help();
@@ -207,9 +207,9 @@ int
         }}};
 
     std::vector<std::pair<std::string, std::function<void(int &i)>>> partialArguments{
-        {"--engineLogging=", [&](int &i) {
-            engineLogging = true;
-            logFilePath = argv[i] + strlen("--engineLogging=");
+        {"--protocolMessages=", [&](int &i) {
+            protocolMessages = true;
+            logFilePath = argv[i] + strlen("--protocolMessages=");
         }},
         {"--log=", [&](int &i) {
             setenv("LOG_OUTPUT", *argv + strlen("--log="), 1);
@@ -242,9 +242,9 @@ int
 
     std::unique_ptr<DAP> protocol(new DAP(std::cin, std::cout));
 
-    if (engineLogging)
+    if (protocolMessages)
     {
-        protocol->EngineLogging(logFilePath);
+        protocol->ProtocolMessages(logFilePath);
     }
 
     std::shared_ptr<ManagedDebugger> debugger;

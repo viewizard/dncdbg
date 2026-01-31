@@ -37,7 +37,7 @@ class DAP
     {
         m_sharedDebugger = sharedDebugger;
     }
-    void EngineLogging(const std::string &path);
+    void ProtocolMessages(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {
         m_fileExec = fileExec;
