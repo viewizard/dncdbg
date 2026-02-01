@@ -267,7 +267,7 @@ int
     HRESULT Status;
     if (pidDebuggee != 0 && FAILED(Status = AttachToExistingProcess(debugger.get(), pidDebuggee)))
     {
-        fprintf(stderr, "Error: 0x%x Failed to attach to %i\n", Status, pidDebuggee);
+        fprintf(stderr, "Error: 0x%08x Failed to attach to %i\n", Status, pidDebuggee);
         Interop::Shutdown();
         return EXIT_FAILURE;
     }
