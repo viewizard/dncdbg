@@ -46,7 +46,7 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
 }
 
 HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
-                                                      std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId)
+                                                      std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
     std::lock_guard<std::mutex> lock(m_breakpointsMutex);
 
@@ -180,7 +180,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         excType = "<unknown exception>";
     }
 
-    auto lastDotPosition = details.fullTypeName.find_last_of(".");
+    auto lastDotPosition = details.fullTypeName.find_last_of('.');
     if (lastDotPosition < details.fullTypeName.size())
         details.typeName = details.fullTypeName.substr(lastDotPosition + 1);
     else
@@ -193,7 +193,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
     const bool escape = false;
     m_sharedEvaluator->WalkMembers(
         pExceptionValue, pThread, FrameLevel{0}, nullptr, false,
-        [&](ICorDebugType *, bool, const std::string &memberName, Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
+        [&](ICorDebugType *, bool, const std::string &memberName, const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
         {
             auto getMemberWithName = [&](const std::string &name, std::string &result) -> HRESULT {
                 if (memberName != name)

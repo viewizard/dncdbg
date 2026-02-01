@@ -40,7 +40,7 @@ class LineBreakpoints
     };
     void DeleteAll();
     HRESULT SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
+                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit

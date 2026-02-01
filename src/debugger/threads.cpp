@@ -53,7 +53,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
             HRESULT Status;
             m_sharedEvaluator->WalkMembers(iCorThreadObject, nullptr, FrameLevel{0}, nullptr, false,
                 [&](ICorDebugType *, bool, const std::string &memberName,
-                    Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
+                    const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
                 {
                     // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
                     // this thread can be in not consistent state for evaluation or thread could break in optimized code.

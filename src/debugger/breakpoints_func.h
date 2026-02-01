@@ -39,7 +39,7 @@ class FuncBreakpoints
     };
     void DeleteAll();
     HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
+                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit

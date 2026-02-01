@@ -36,7 +36,7 @@ class ExceptionBreakpoints
     };
     void DeleteAll();
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
-                                    std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId);
+                                    std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
     bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory);
 

@@ -54,7 +54,7 @@ struct FormatFIP
 };
 
 // Keep in sync with BasicTypes enum in Evaluation.cs
-enum class BasicTypes : int32_t
+enum class BasicTypes : std::uint8_t
 {
     TypeBoolean = 1,
     TypeByte,
@@ -72,7 +72,7 @@ enum class BasicTypes : int32_t
 };
 
 // Keep in sync with OperationType enum in Evaluation.cs
-enum class OperationType : int32_t
+enum class OperationType : std::uint8_t
 {
     AddExpression = 1,
     SubtractExpression,
@@ -373,7 +373,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
     ToRelease<ICorDebugFunction> iCorFunc;
     ed.pEvaluator->WalkMethods(pValue,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+            std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
             {
                 if (!is_static || methodArgs.size() != 1 || opName != methodName ||
                     elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
@@ -400,7 +400,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
     ToRelease<ICorDebugFunction> iCorFunc;
     ed.pEvaluator->WalkMethods(pValue,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
-            std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+            std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
             {
                 if (!is_static || methodArgs.size() != 1 || opName != methodName || elemRetType != methodRet.corType ||
                     typeRetName != methodRet.typeName || elemType != methodArgs[0].corType ||
@@ -734,7 +734,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         ToRelease<ICorDebugFunction> iCorFunc;
         ed.pEvaluator->WalkMethods(pValue,
             [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-                std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+                std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
             {
                 if (!is_static || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     return S_OK; // Return with success to continue walk.
@@ -1021,7 +1021,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std:
             IfFailRet(GetFrontStackEntryType(&icdt, evalStack, ed, output));
         }
         TypePrinter::GetTypeOfValue(icdt, genericType);
-        generics = "," + genericType + generics;
+        generics = "," + genericType + generics; // NOLINT(performance-inefficient-string-concatenation)
         genericValues.emplace_back(icdt.Detach());
         evalStack.pop_front();
     }
@@ -1149,7 +1149,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     ToRelease<ICorDebugType> iCorResultType;
     ed.pEvaluator->WalkMethods(iCorType, &iCorResultType, methodGenerics,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+            std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
             {
                 if ((searchStatic && !is_static) || (!searchStatic && is_static && !idsEmpty) ||
                     funcArgs.size() != methodArgs.size() || funcName != methodName)
@@ -1292,7 +1292,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
         ToRelease<ICorDebugFunction> iCorFunc;
         ed.pEvaluator->WalkMethods(iCorObjectValue,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+                std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
                 {
                     std::string name = "get_Item";
                     std::size_t found = methodName.rfind(name);
@@ -1399,7 +1399,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
         ToRelease<ICorDebugFunction> iCorFunc;
         ed.pEvaluator->WalkMethods(iCorObjectValue,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<Evaluator::ArgElementType> &methodArgs, Evaluator::GetFunctionCallback getFunction)
+                std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
                 {
                     std::string name = "get_Item";
                     std::size_t found = methodName.rfind(name);

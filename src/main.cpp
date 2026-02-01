@@ -71,7 +71,7 @@ using namespace dncdbg;
 
 static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std::function<void(int &i)>>> &partialArguments, int i)
 {
-    for (auto argument : partialArguments)
+    for (auto const &argument : partialArguments)
     {
         if (strstr(argv[i], argument.first.c_str()) == argv[i])
         {

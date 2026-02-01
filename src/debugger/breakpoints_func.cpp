@@ -139,7 +139,7 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 }
 
 HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                                            std::vector<Breakpoint> &breakpoints, std::function<uint32_t()> getId)
+                                            std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
     std::lock_guard<std::mutex> lock(m_breakpointsMutex);
 

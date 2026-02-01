@@ -69,7 +69,7 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
     while (pEnv[counter] != nullptr)
     {
         const std::string env = pEnv[counter];
-        size_t pos = env.find_first_of("=");
+        size_t pos = env.find_first_of('=');
         if (pos != std::string::npos && pos != 0)
             outMap.emplace(env.substr(0, pos), env.substr(pos + 1));
 
@@ -407,7 +407,7 @@ static bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
     for (DWORD i = 0; i < arrayLength; i++)
     {
         HANDLE h = handleArray[i];
-        if (h == INVALID_HANDLE_VALUE)
+        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr)
         {
             return false;
         }

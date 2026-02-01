@@ -36,7 +36,8 @@ static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numC
     int numInstance = 0;
     // No thread and FrameLevel{0} here, since we need only count children.
     if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, nullptr, false,
-               [&numStatic, &numInstance](ICorDebugType *, bool is_static, const std::string &, Evaluator::GetValueCallback, Evaluator::SetterData *)
+               [&numStatic, &numInstance](ICorDebugType *, bool is_static, const std::string &,
+                                          const Evaluator::GetValueCallback &, Evaluator::SetterData *)
                 {
                     if (is_static)
                         numStatic++;
@@ -101,7 +102,8 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
     int currentIndex = -1;
 
     IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, nullptr, false,
-        [&](ICorDebugType *pType, bool is_static, const std::string &name, Evaluator::GetValueCallback getValue, Evaluator::SetterData *)
+        [&](ICorDebugType *pType, bool is_static, const std::string &name,
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
         {
             if (is_static)
                 hasStaticMembers = true;
@@ -217,7 +219,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
     }
 
     if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
-        [&](const std::string &name, Evaluator::GetValueCallback getValue) -> HRESULT
+        [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
             ++currentIndex;
 
@@ -263,7 +265,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
         namedVariables++;
 
     IfFailRet(m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
-        [&](const std::string &name, Evaluator::GetValueCallback) -> HRESULT
+        [&](const std::string &name, const Evaluator::GetValueCallback &) -> HRESULT
         {
             namedVariables++;
             return S_OK;
@@ -410,7 +412,7 @@ HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pTh
     bool found = false;
 
     if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, ref.frameId.getLevel(),
-        [&](const std::string &varName, Evaluator::GetValueCallback getValue) -> HRESULT
+        [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
             if (varName != name)
                 return S_OK;
@@ -450,7 +452,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
 
     if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.iCorValue, pThread, ref.frameId.getLevel(), nullptr, true,
         [&](ICorDebugType *, bool is_static, const std::string &varName,
-            Evaluator::GetValueCallback getValue, Evaluator::SetterData *setterData) -> HRESULT
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
             if (varName != name)
                 return S_OK;

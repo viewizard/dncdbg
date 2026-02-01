@@ -61,7 +61,7 @@ bool Evaluator::ArgElementType::areEqual(const ArgElementType &arg)
     return false;
 }
 
-Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string typeName)
+Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
 {
     static const std::unordered_map<std::string, Evaluator::ArgElementType> stypes = {
         {"void",    {ELEMENT_TYPE_VALUETYPE, "System.Void"}},
@@ -196,7 +196,7 @@ static std::string IndiciesToStr(const std::vector<ULONG32> &ind, const std::vec
 typedef std::function<HRESULT(mdFieldDef)> WalkFieldsCallback;
 typedef std::function<HRESULT(mdProperty)> WalkPropertiesCallback;
 
-static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, WalkFieldsCallback cb)
+static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {
     HRESULT Status = S_OK;
     ULONG numFields = 0;
@@ -212,7 +212,7 @@ static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, Wal
     return Status;
 }
 
-static HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, WalkPropertiesCallback cb)
+static HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
     mdProperty propertyDef;
@@ -467,7 +467,7 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
     return S_OK;
 }
 
-HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, WalkMethodsCallback cb)
+HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb)
 {
     HRESULT Status;
     ToRelease<ICorDebugValue2> iCorValue2;
@@ -485,7 +485,7 @@ static const ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
 static const ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                                std::vector<Evaluator::ArgElementType> &methodGenerics,
-                               Evaluator::WalkMethodsCallback cb)
+                               const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status;
     ToRelease<ICorDebugClass> pClass;
@@ -603,7 +603,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 }
 
 HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
-                            GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
+                            const GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
                             std::string &output)
 {
     if (!pThread)
@@ -967,14 +967,14 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-enum class GeneratedCodeKind
+enum class GeneratedCodeKind : std::uint8_t
 {
     Normal,
     Async,
     Lambda
 };
 
-static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
+static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
     HRESULT Status;
     WCHAR name[mdNameLen];
@@ -1008,7 +1008,7 @@ static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING methodNa
     return S_OK;
 }
 
-enum class GeneratedNameKind
+enum class GeneratedNameKind : std::uint8_t
 {
     None,
     ThisProxyField,
@@ -1326,7 +1326,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
     return S_OK;
 }
 
-HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, WalkStackVarsCallback cb)
+HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
 {
     HRESULT Status;
     ToRelease<ICorDebugFrame> pFrame;
@@ -1529,7 +1529,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         WalkMembers(pClassValue, pThread, frameLevel, nullptr, !!resultSetterData,
                     [&](ICorDebugType *pType, bool is_static, const std::string &memberName,
-                        Evaluator::GetValueCallback getValue, Evaluator::SetterData *setterData)
+                        const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData)
                         {
                             if (is_static && valueKind == Evaluator::ValueIsVariable)
                                 return S_OK;
@@ -1656,7 +1656,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     {
         // Note, we use E_ABORT error code as fast way to exit from stack vars walk routine here.
         if (FAILED(Status = WalkStackVars(pThread, frameLevel,
-                [&](const std::string &name, Evaluator::GetValueCallback getValue) -> HRESULT
+                [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
                 {
                     if (name == "this")
                     {

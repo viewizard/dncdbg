@@ -89,8 +89,8 @@ class Evaluator
     };
 
     typedef std::function<HRESULT(ICorDebugValue **, int)> GetValueCallback;
-    typedef std::function<HRESULT(ICorDebugType *, bool, const std::string &, GetValueCallback, SetterData *)> WalkMembersCallback;
-    typedef std::function<HRESULT(const std::string &, GetValueCallback)> WalkStackVarsCallback;
+    typedef std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)> WalkMembersCallback;
+    typedef std::function<HRESULT(const std::string &, const GetValueCallback &)> WalkStackVarsCallback;
     typedef std::function<HRESULT(ICorDebugFunction **)> GetFunctionCallback;
     typedef std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)> WalkMethodsCallback;
 
@@ -117,7 +117,7 @@ class Evaluator
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                         ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb);
 
-    HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, WalkStackVarsCallback cb);
+    HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
     HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &thisParam);
 
@@ -140,13 +140,13 @@ class Evaluator
 
     HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
-                        std::vector<Evaluator::ArgElementType> &methodGenerics, WalkMethodsCallback cb);
-    HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, WalkMethodsCallback cb);
+                        std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
+    HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
-                     GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
+                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
                      std::string &output);
 
-    ArgElementType GetElementTypeByTypeName(const std::string typeName);
+    ArgElementType GetElementTypeByTypeName(const std::string &typeName);
 
   private:
 
