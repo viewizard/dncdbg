@@ -330,7 +330,7 @@ void serialize_output(std::ostream &stream, uint64_t counter, Utility::string_vi
 };
 } // namespace
 
-void DAP::EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view, DWORD threadId)
+void DAP::EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId)
 {
     LogFuncEntry();
 

@@ -51,8 +51,7 @@ class DAP
     void EmitContinuedEvent(ThreadId threadId);
     void EmitThreadEvent(const ThreadEvent &event);
     void EmitModuleEvent(const ModuleEvent &event);
-    void EmitOutputEvent(OutputCategory category, Utility::string_view output, Utility::string_view source = "",
-                         DWORD threadId = 0);
+    void EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId = 0);
     void EmitBreakpointEvent(const BreakpointEvent &event);
     void Cleanup();
     void CommandLoop();

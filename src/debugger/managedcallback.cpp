@@ -313,21 +313,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         return S_OK;
     }
 
-    Utility::string_view src;
-    std::string src_holder;
-    if (pLogSwitchName && *pLogSwitchName)
-    {
-        src_holder = to_utf8(pLogSwitchName);
-        src = src_holder;
-    }
-    else
-    {
-        src = "Debugger.Log";
-    }
-
     DWORD threadId = 0;
     pThread->GetID(&threadId);
-    m_debugger.pProtocol->EmitOutputEvent(OutputStdOut, to_utf8(pMessage), src, threadId);
+    m_debugger.pProtocol->EmitOutputEvent(OutputStdOut, to_utf8(pMessage), threadId);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
