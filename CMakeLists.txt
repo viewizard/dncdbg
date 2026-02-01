@@ -36,8 +36,12 @@ if (NOT "${DOTNET_DIR}" STREQUAL "")
     endif()
 endif()
 
-# Prevent debug symbols striping form libdbgshim
-set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
+# Debug symbols striping form libdbgshim and dncdbg for Release build ony
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 0)
+else()
+    set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
+endif()
 
 # Get references to VCS revision for DNCDbg itself and CoreCLR
 # (this used in src/debug/dncdbg/CMakeLists.txt)

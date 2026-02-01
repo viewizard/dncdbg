@@ -89,7 +89,7 @@ set_source_files_properties(buildinfo.cpp PROPERTIES COMPILE_FLAGS "${buildinfo_
 add_custom_target(buildinfo ALL COMMAND
     ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp")
 
-add_executable(dncdbg ${dncdbg_SRC})
+add_executable_clr(dncdbg ${dncdbg_SRC})
 # Define "DEBUG" only when the configuration is "Debug"
 target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG>)
 
@@ -99,7 +99,7 @@ else()
     target_link_libraries(dncdbg corguids dl pthread)
 endif()
 
-install(TARGETS dncdbg DESTINATION ${CMAKE_INSTALL_PREFIX})
+install_clr(TARGETS dncdbg DESTINATIONS . )
 
 # Build managed part of the debugger (ManagedPart.dll)
 
