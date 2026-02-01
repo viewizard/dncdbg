@@ -311,7 +311,7 @@ const Utility::string_view JSON_escape_rules::subst_chars[] = {
 // This function serializes "OutputEvent" to specified output stream and used for two
 // purposes: to compute output size, and to perform the output directly.
 template <typename T1>
-void serialize_output(std::ostream &stream, uint64_t counter, Utility::string_view name, T1 &text, Source &source)
+void serialize_output(std::ostream &stream, uint64_t counter, const Utility::string_view &name, T1 &text, Source &source)
 {
     stream << "{\"seq\":" << counter
            << ", \"event\":\"output\",\"type\":\"event\",\"body\":{\"category\":\"" << name
@@ -1224,25 +1224,25 @@ void DAP::ProtocolMessages(const std::string &path)
 {
     if (path.empty())
     {
-        m_engineLogOutput = LogConsole;
+        m_protocolMessagesOutput = LogConsole;
     }
     else
     {
-        m_engineLogOutput = LogFile;
-        m_engineLog.open(path);
+        m_protocolMessagesOutput = LogFile;
+        m_protocolMessagesLog.open(path);
     }
 }
 
 // Caller must care about m_outMutex.
 void DAP::Log(const std::string &prefix, const std::string &text)
 {
-    switch (m_engineLogOutput)
+    switch (m_protocolMessagesOutput)
     {
     case LogNone:
         return;
     case LogFile:
-        m_engineLog << prefix << text << std::endl;
-        m_engineLog.flush();
+        m_protocolMessagesLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
+        m_protocolMessagesLog.flush();
         return;
     case LogConsole: {
         json response;
