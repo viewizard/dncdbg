@@ -26,6 +26,9 @@ If you have previously downloaded the .NET SDK, then you should modify the comma
 Add your build type (`Release` or `Debug`), for example:
 `-DCMAKE_BUILD_TYPE=Release`
 
+For build with Address Sanitizer, add the option
+`-DASAN=1`
+
 If cmake tries to download the .NET SDK and fails, then please see bullet numbers 4 above. *You can download any required files manually*.
 
 After configuration has finished, you can then build debugger:

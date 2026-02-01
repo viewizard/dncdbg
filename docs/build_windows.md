@@ -29,6 +29,9 @@ If you have downloaded either the .NET SDK manually, you should add the followin
 Add your build type (`Release` or `Debug`), for example:
 `-DCMAKE_BUILD_TYPE=Release`
 
+For build with Address Sanitizer, add the option
+`-DASAN=1`
+
 To compile and install, use the following command:
 
 ```
