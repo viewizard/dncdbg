@@ -600,48 +600,4 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(std::string fullPath, unsigned 
     return S_OK;
 }
 
-void ModulesSources::FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb)
-{
-#ifdef _WIN32
-    std::string uppercase{pattern};
-    if (FAILED(Interop::StringToUpper(uppercase)))
-        return;
-    pattern = uppercase;
-#endif
-
-    auto check = [&](const std::string &str) {
-        if (limit == 0)
-            return false;
-
-        auto pos = str.find(pattern);
-        if (pos != std::string::npos && (pos == 0 || str[pos - 1] == '/' || str[pos - 1] == '\\'))
-        {
-            limit--;
-#ifndef _WIN32
-            cb(str.c_str());
-#else
-            auto it = m_sourcePathToIndex.find(str);
-            cb(it != m_sourcePathToIndex.end() ? m_sourceIndexToInitialFullPath[it->second].c_str() : str.c_str());
-#endif
-        }
-
-        return true;
-    };
-
-    std::lock_guard<std::mutex> lock(m_sourcesInfoMutex);
-    for (const auto &pair : m_sourceNameToFullPathsIndexes)
-    {
-        LOGD("first '%s'", pair.first.c_str());
-        if (!check(pair.first))
-            return;
-
-        for (const unsigned fileIndex : pair.second)
-        {
-            LOGD("second '%s'", m_sourceIndexToPath[fileIndex].c_str());
-            if (!check(m_sourceIndexToPath[fileIndex]))
-                return;
-        }
-    }
-}
-
 } // namespace dncdbg

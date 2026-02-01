@@ -720,35 +720,4 @@ HRESULT Modules::GetIndexBySourceFullPath(std::string fullPath, unsigned &index)
     return m_modulesSources.GetIndexBySourceFullPath(fullPath, index);
 }
 
-void Modules::FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb)
-{
-    m_modulesSources.FindFileNames(pattern, limit, cb);
-}
-
-void Modules::FindFunctions(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb)
-{
-    auto functor = [&](const std::string &fullName, mdMethodDef &)
-        {
-            if (limit == 0)
-                return false; // limit exceeded
-
-            auto pos = fullName.find(pattern);
-            if (pos != std::string::npos && (pos == 0 || fullName[pos - 1] == '.'))
-            {
-                limit--;
-                cb(fullName.c_str());
-            }
-
-            return true; // continue for next functions
-        };
-
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
-    for (const auto &modpair : m_modulesInfo)
-    {
-        HRESULT Status = ForEachMethod(modpair.second.m_iCorModule, functor);
-        if (FAILED(Status))
-            break;
-    }
-}
-
 } // namespace dncdbg

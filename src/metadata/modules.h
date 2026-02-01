@@ -109,9 +109,6 @@ class Modules
 
     HRESULT ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> cb);
 
-    void FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
-    void FindFunctions(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
-
   private:
 
     std::mutex m_modulesInfoMutex;

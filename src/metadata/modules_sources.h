@@ -119,8 +119,6 @@ class ModulesSources
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
     HRESULT GetIndexBySourceFullPath(std::string fullPath, unsigned &index);
 
-    void FindFileNames(Utility::string_view pattern, unsigned limit, std::function<void(const char *)> cb);
-
   private:
 
     struct FileMethodsData
