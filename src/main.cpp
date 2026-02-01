@@ -36,8 +36,8 @@ static void print_help()
                     "--buildinfo                              Print build info.\n"
                     "--attach <process-id>                    Attach the debugger to the specified process id.\n"
                     "--run                                    Run program without waiting commands\n"
-                    "--protocolMessages[=<path to log file>]  Enable logging protocol interaction to DAP or file.\n"
-                    "--log[=<file>]                           Enable logging. Supported logging to file only.\n"
+                    "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
+                    "--log=<path to log file>                 Enable debugger logging to file.\n"
                     "                                         File log by default. File is created in 'current' folder.\n"
                     "--version                                Displays the current version.\n");
 }
@@ -128,8 +128,7 @@ int
     // prevent std::cout flush triggered by read operation on std::cin
     std::cin.tie(nullptr);
 
-    bool protocolMessages = false;
-    std::string logFilePath;
+    std::string protocolLogFilePath;
 
     std::string execFile;
     std::vector<std::string> execArgs;
@@ -155,9 +154,6 @@ int
         {"--run", [&](int &i) {
             run = true;
         }},
-        {"--protocolMessages", [&](int &i) {
-            protocolMessages = true;
-        }},
         {"--help", [&](int &i) {
             print_help();
             exit(EXIT_SUCCESS);
@@ -169,22 +165,6 @@ int
         {"--version", [&](int &i) {
             print_version();
             exit(EXIT_SUCCESS);
-        }},
-        {"--log", [&](int &i) {
-#ifdef _WIN32
-            static const char path_separator[] = "/\\";
-#else
-            static const char path_separator[] = "/";
-#endif
-            // somethat similar to basename(3)
-            char *s = argv[0] + strlen(argv[0]);
-            while (s > argv[0] && !strchr(path_separator, s[-1]))
-                s--;
-
-            char tmp[PATH_MAX];
-            auto tempdir = GetTempDir();
-            snprintf(tmp, sizeof(tmp), "%.*s/%s.%u.log", int(tempdir.size()), tempdir.data(), s, getpid());
-            setenv("LOG_OUTPUT", tmp, 1);
         }},
         {"--interpreter=vscode" , [&](int &i) {
             // VSCode IDE send this option silently to debugger, just ignore it
@@ -207,12 +187,11 @@ int
         }}};
 
     std::vector<std::pair<std::string, std::function<void(int &i)>>> partialArguments{
-        {"--protocolMessages=", [&](int &i) {
-            protocolMessages = true;
-            logFilePath = argv[i] + strlen("--protocolMessages=");
+        {"--logProtocol=", [&](int &i) {
+            protocolLogFilePath = argv[i] + strlen("--logProtocol=");
         }},
         {"--log=", [&](int &i) {
-            setenv("LOG_OUTPUT", *argv + strlen("--log="), 1);
+            setenv("LOG_OUTPUT", argv[i] + strlen("--log="), 1);
         }}
     };
 
@@ -242,9 +221,9 @@ int
 
     std::unique_ptr<DAP> protocol(new DAP(std::cin, std::cout));
 
-    if (protocolMessages)
+    if (!protocolLogFilePath.empty())
     {
-        protocol->ProtocolMessages(logFilePath);
+        protocol->SetupProtocolLogging(protocolLogFilePath);
     }
 
     std::shared_ptr<ManagedDebugger> debugger;

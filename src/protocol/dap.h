@@ -29,7 +29,6 @@ class DAP
           m_sharedDebugger(nullptr),
           cin(input),
           cout(output),
-          m_protocolMessagesOutput(LogNone),
           m_seqCounter(1)
     {
     }
@@ -37,7 +36,7 @@ class DAP
     {
         m_sharedDebugger = sharedDebugger;
     }
-    void ProtocolMessages(const std::string &path);
+    void SetupProtocolLogging(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {
         m_fileExec = fileExec;
@@ -69,13 +68,7 @@ class DAP
     std::ostream &cout;
 
     std::mutex m_outMutex;
-    enum
-    {
-        LogNone,
-        LogConsole,
-        LogFile
-    } m_protocolMessagesOutput;
-    std::ofstream m_protocolMessagesLog;
+    std::ofstream m_protocolLog;
     uint64_t m_seqCounter; // Note, this counter must be covered by m_outMutex.
 
     std::string m_fileExec;

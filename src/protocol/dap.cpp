@@ -1220,41 +1220,21 @@ void DAP::CommandLoop()
     commandsWorker.join();
 }
 
-void DAP::ProtocolMessages(const std::string &path)
+void DAP::SetupProtocolLogging(const std::string &path)
 {
     if (path.empty())
-    {
-        m_protocolMessagesOutput = LogConsole;
-    }
-    else
-    {
-        m_protocolMessagesOutput = LogFile;
-        m_protocolMessagesLog.open(path);
-    }
+        return;
+
+    m_protocolLog.open(path);
 }
 
 // Caller must care about m_outMutex.
 void DAP::Log(const std::string &prefix, const std::string &text)
 {
-    switch (m_protocolMessagesOutput)
-    {
-    case LogNone:
+    if (!m_protocolLog.is_open())
         return;
-    case LogFile:
-        m_protocolMessagesLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
-        m_protocolMessagesLog.flush();
-        return;
-    case LogConsole: {
-        json response;
-        response["type"] = "event";
-        response["event"] = "output";
-        response["body"] = json{{"category", "console"},
-                                {"output", prefix + text + "\n"}};
-        std::string output;
-        EmitMessage(response, output);
-        return;
-    }
-    }
+    
+    m_protocolLog << prefix << text << std::endl;
 }
 
 } // namespace dncdbg
