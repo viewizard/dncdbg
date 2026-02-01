@@ -32,9 +32,6 @@ Add your build type (`Release` or `Debug`), for example:
 For build with Address Sanitizer, add the option
 `-DASAN=1`
 
-For build with clang-tidy, add the option
-`-DCLANG_TIDY=1`
-
 To compile and install, use the following command:
 
 ```
