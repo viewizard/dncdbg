@@ -69,7 +69,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR OFF)
 
 # clang-tidy for dncdbg build only
 if (CLANG_TIDY)
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*;-checks=performance-*")
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*;-checks=performance-*;-checks=portability-*")
 endif()
 
 if (NOT WIN32)
