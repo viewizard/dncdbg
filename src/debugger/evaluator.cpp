@@ -1525,7 +1525,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         if (identifiers[i].empty())
             return E_FAIL;
 
-        ToRelease<ICorDebugValue> pClassValue(std::move(pResultValue));
+        ToRelease<ICorDebugValue> pClassValue(pResultValue.Detach());
 
         WalkMembers(pClassValue, pThread, frameLevel, nullptr, !!resultSetterData,
                     [&](ICorDebugType *pType, bool is_static, const std::string &memberName,
@@ -1750,10 +1750,10 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         valueKind = Evaluator::ValueIsClass;
     }
 
-    ToRelease<ICorDebugValue> pValue(std::move(pResolvedValue));
-    IfFailRet(FollowFields(pThread, frameLevel, pValue, valueKind, identifiers, nextIdentifier, &pResolvedValue, resultSetterData, evalFlags));
+    ToRelease<ICorDebugValue> iCorResultValue;
+    IfFailRet(FollowFields(pThread, frameLevel, pResolvedValue, valueKind, identifiers, nextIdentifier, &iCorResultValue, resultSetterData, evalFlags));
 
-    *ppResultValue = pResolvedValue.Detach();
+    *ppResultValue = iCorResultValue.Detach();
     return S_OK;
 }
 

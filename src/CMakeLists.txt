@@ -67,6 +67,11 @@ set(dncdbg_SRC
 
 set(CMAKE_INCLUDE_CURRENT_DIR OFF)
 
+# clang-tidy for dncdbg build only
+if (CLANG_TIDY)
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*")
+endif()
+
 if (NOT WIN32)
     add_definitions(-DPAL_STDCPP_COMPAT) # this define was removed from runtime 9.0 sources
 endif()

@@ -29,6 +29,9 @@ Add your build type (`Release` or `Debug`), for example:
 For build with Address Sanitizer, add the option
 `-DASAN=1`
 
+For build with clang-tidy, add the option
+`-DCLANG_TIDY=1`
+
 If cmake tries to download the .NET SDK and fails, then please see bullet numbers 4 above. *You can download any required files manually*.
 
 After configuration has finished, you can then build debugger:

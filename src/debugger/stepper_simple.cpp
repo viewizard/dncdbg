@@ -18,7 +18,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
     ToRelease<ICorDebugStepper> pStepper;
     IfFailRet(pThread->CreateStepper(&pStepper));
 
-    CorDebugIntercept mask = (CorDebugIntercept)(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT));
+    CorDebugIntercept mask = (CorDebugIntercept)(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
     IfFailRet(pStepper->SetInterceptMask(mask));
 
     CorDebugUnmappedStop stopMask = STOP_NONE;
