@@ -13,7 +13,7 @@
 namespace dncdbg
 {
 
-static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, std::function<HRESULT(const std::string &AttrName)> cb)
+static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::function<HRESULT(const std::string &AttrName)> &cb)
 {
     bool found = false;
     ULONG numAttributes = 0;

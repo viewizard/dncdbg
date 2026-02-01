@@ -59,7 +59,7 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
                                                                                ICorDebugProcess *pProcess,
                                                                                ICorDebugThread *pThread,
                                                                                ICorDebugEval *pEval,
-                                                                               WaitEvalResultCallback cbSetupEval)
+                                                                               const WaitEvalResultCallback &cbSetupEval)
 {
     std::promise<std::unique_ptr<evalResultData_t>> p;
     auto f = p.get_future();
@@ -103,7 +103,7 @@ ICorDebugEval *EvalWaiter::FindEvalForThread(ICorDebugThread *pThread)
 }
 
 HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult,
-                                   WaitEvalResultCallback cbSetupEval)
+                                   const WaitEvalResultCallback &cbSetupEval)
 {
     // Important! Evaluation should be proceed only for 1 thread.
     std::lock_guard<std::mutex> lock(m_waitEvalResultMutex);

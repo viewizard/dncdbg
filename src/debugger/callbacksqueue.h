@@ -57,7 +57,7 @@ class CallbacksQueue
 
     HRESULT ContinueProcess(ICorDebugProcess *pProcess);
     HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain);
-    HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, std::function<void()> callback);
+    HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback);
     void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                      ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType,
                      const std::string &ExcModule = std::string{});

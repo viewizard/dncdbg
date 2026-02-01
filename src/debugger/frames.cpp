@@ -90,14 +90,14 @@ static void SetFP(CONTEXT *context, std::uintptr_t value)
 }
 
 static HRESULT UnwindNativeFrames(ICorDebugThread *pThread, bool firstFrame, CONTEXT *pStartContext,
-                                  CONTEXT *pEndContext, WalkFramesCallback cb)
+                                  CONTEXT *pEndContext, const WalkFramesCallback &cb)
 {
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
     return S_OK;
 }
 
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
-HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb)
+HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 {
     HRESULT Status;
 

@@ -109,7 +109,8 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
     static IOResult write(const FileHandle &, const void *buf, size_t count);
     static AsyncHandle async_read(const FileHandle &, void *buf, size_t count);
     static AsyncHandle async_write(const FileHandle &, const void *buf, size_t count);
-    static bool async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end, std::chrono::milliseconds);
+    static bool async_wait(const IOSystem::AsyncHandleIterator &begin,
+                           const IOSystem::AsyncHandleIterator &end, std::chrono::milliseconds);
     static IOResult async_cancel(AsyncHandle &);
     static IOResult async_result(AsyncHandle &);
     static IOResult close(const FileHandle &);

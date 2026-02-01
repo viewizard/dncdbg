@@ -64,18 +64,18 @@ class Modules
 
     HRESULT ResolveBreakpoint(
         /*in*/ CORDB_ADDRESS modAddress,
-        /*in*/ std::string filename,
+        /*in*/ const std::string &filename,
         /*out*/ unsigned &fullname_index,
         /*in*/ int sourceLine,
         /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints);
 
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
-    HRESULT GetIndexBySourceFullPath(std::string fullPath, unsigned &index);
+    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
 
     HRESULT GetModuleWithName(const std::string &name, ICorDebugModule **ppModule);
 
     typedef std::function<HRESULT(ModuleInfo &)> ModuleInfoCallback;
-    HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfoCallback cb);
+    HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb);
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo);
 
     HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset, SequencePoint &sequencePoint);
@@ -84,10 +84,10 @@ class Modules
                                               bool *noUserCodeFound);
 
     HRESULT ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked, const std::string &funcname,
-                                       ResolveFuncBreakpointCallback cb);
+                                       const ResolveFuncBreakpointCallback &cb);
 
     HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module, bool &module_checked,
-                                          std::string &funcname, ResolveFuncBreakpointCallback cb);
+                                          std::string &funcname, const ResolveFuncBreakpointCallback &cb);
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 
@@ -107,7 +107,7 @@ class Modules
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ilOffset,
                                        SequencePoint &sequencePoint);
 
-    HRESULT ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> cb);
+    HRESULT ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
 
   private:
 

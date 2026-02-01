@@ -389,7 +389,7 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
     return result;
 }
 
-bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end,
+bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSystem::AsyncHandleIterator &end,
                        std::chrono::milliseconds timeout)
 {
     // console workaround

@@ -172,7 +172,7 @@ bool CallbacksQueue::HasQueuedCallbacks(ICorDebugProcess *pProcess)
     return bQueued == TRUE;
 }
 
-HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, std::function<void()> callback)
+HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback)
 {
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
@@ -316,7 +316,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
 
     // In case DAP, command provide "pause" thread id.
     if (std::find_if(threads.begin(), threads.end(),
-                     [&](Thread t) { return t.id == lastStoppedThread; }) != threads.end())
+                     [&](const Thread &t) { return t.id == lastStoppedThread; }) != threads.end())
     {
         // DAP event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);

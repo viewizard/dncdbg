@@ -248,7 +248,7 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
     return fh.fd == -1 ? AsyncHandle() : AsyncHandle::create<AsyncWrite>(fh.fd, buf, count);
 }
 
-bool Class::async_wait(IOSystem::AsyncHandleIterator begin, IOSystem::AsyncHandleIterator end,
+bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSystem::AsyncHandleIterator &end,
                        std::chrono::milliseconds timeout)
 {
     fd_set read_set, write_set, except_set;

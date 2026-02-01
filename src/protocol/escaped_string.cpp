@@ -12,7 +12,7 @@ namespace dncdbg
 {
 
 EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
-    const EscapedStringInternal::EscapedStringImpl::Params &params, Utility::string_view str, const TempRef &ref, bool isstring)
+    const EscapedStringInternal::EscapedStringImpl::Params &params, const Utility::string_view &str, const TempRef &ref, bool isstring)
     : m_ref(&ref),
       m_params(params),
       m_input(str),
@@ -26,7 +26,7 @@ EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
 
 // This function performs input string transformation according to specified (via `m_params) rules.
 // Result will be passed to supplied callback function.
-void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void *, Utility::string_view))
+void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void *, const Utility::string_view &))
 {
     // always have transformed result
     if (m_isresult)
@@ -73,7 +73,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
 size_t EscapedStringInternal::EscapedStringImpl::size() noexcept
 {
     if (m_size == UndefinedSize)
-        (*this)(nullptr, [](void *, string_view) {});
+        (*this)(nullptr, [](void *, const string_view &) {});
 
     return m_size;
 }
@@ -123,12 +123,12 @@ void EscapedStringInternal::EscapedStringImpl::transform()
     m_result.resize(size(), 0);
     auto it = m_result.begin();
 
-    auto func = [&](string_view str) {
+    auto func = [&](const string_view &str) {
         m_result.replace(it, it + str.size(), str.begin(), str.end());
         it += str.size();
     };
 
-    (*this)(&func, [](void *fp, string_view str) { (*static_cast<decltype(func) *>(fp))(str); });
+    (*this)(&func, [](void *fp, const string_view &str) { (*static_cast<decltype(func) *>(fp))(str); });
 
     m_isresult = true;
     m_isstring = true;

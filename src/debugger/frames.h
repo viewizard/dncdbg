@@ -38,6 +38,6 @@ struct Thread;
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
-HRESULT WalkFrames(ICorDebugThread *pThread, WalkFramesCallback cb);
+HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb);
 
 } // namespace dncdbg

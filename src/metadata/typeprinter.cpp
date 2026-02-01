@@ -437,7 +437,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
                 static const Utility::string_view nullablePattern = "System.Nullable<";
                 if (name.rfind(nullablePattern, 0) == 0)
                 {
-                    ss << name.substr(nullablePattern.size(), name.rfind(">") - nullablePattern.size()) << "?";
+                    ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
                 }
                 else
                     ss << name;

@@ -50,7 +50,7 @@ static bool IsTargetFunction(const std::vector<std::string> &fullName, const std
     return true;
 }
 
-static HRESULT ForEachMethod(ICorDebugModule *pModule, std::function<bool(const std::string &, mdMethodDef &)> functor)
+static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
 {
     HRESULT Status;
     ToRelease<IUnknown> pMDUnknown;
@@ -118,7 +118,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, std::function<bool(const 
                 fullName += "<" + genParams + ">";
             }
 
-            if (!functor(typeName + "." + fullName, mdMethod))
+            if (!functor(typeName + "." + fullName, mdMethod)) // NOLINT(performance-inefficient-string-concatenation)
             {
                 pMDImport->CloseEnum(fFuncEnum);
                 pMDImport->CloseEnum(fTypeEnum);
@@ -154,7 +154,7 @@ static std::vector<std::string> split_on_tokens(const std::string &str, const ch
     return res;
 }
 
-static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, ResolveFuncBreakpointCallback cb)
+static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFuncBreakpointCallback &cb)
 {
     std::vector<std::string> splitName = split_on_tokens(funcName, '.');
 
@@ -235,7 +235,7 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
     return modName == Name ? S_OK : S_FALSE;
 }
 
-HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfoCallback cb)
+HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
 {
     std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
     auto info_pair = m_modulesInfo.find(modAddress);
@@ -254,7 +254,7 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
 }
 
 HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked,
-                                            const std::string &funcname, ResolveFuncBreakpointCallback cb)
+                                            const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
 {
     bool isFullPath = IsFullPath(module);
     HRESULT Status;
@@ -286,7 +286,7 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &mod
 
 HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module,
                                                bool &module_checked, std::string &funcname,
-                                               ResolveFuncBreakpointCallback cb)
+                                               const ResolveFuncBreakpointCallback &cb)
 {
     HRESULT Status;
 
@@ -681,7 +681,7 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
         });
 }
 
-HRESULT Modules::ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> cb)
+HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
     HRESULT Status;
     std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
@@ -695,7 +695,7 @@ HRESULT Modules::ForEachModule(std::function<HRESULT(ICorDebugModule *pModule)> 
 }
 
 HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
-                                   /*in*/ std::string filename,
+                                   /*in*/ const std::string &filename,
                                    /*out*/ unsigned &fullname_index,
                                    /*in*/ int sourceLine,
                                    /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
@@ -715,7 +715,7 @@ HRESULT Modules::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
     return m_modulesSources.GetSourceFullPathByIndex(index, fullPath);
 }
 
-HRESULT Modules::GetIndexBySourceFullPath(std::string fullPath, unsigned &index)
+HRESULT Modules::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
 {
     return m_modulesSources.GetIndexBySourceFullPath(fullPath, index);
 }

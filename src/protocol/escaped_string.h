@@ -84,7 +84,7 @@ struct EscapedStringImpl
     // `str` is the source string, in which all `forbidden` characters must be replaced,
     // `isstring` must be set to true only in case, when `str` contains terminating zero
     // (to which `str->end()` points).
-    EscapedStringImpl(const Params &params, string_view str, const TempRef &ref, bool isstring);
+    EscapedStringImpl(const Params &params, const string_view &str, const TempRef &ref, bool isstring);
 
     ~EscapedStringImpl()
     {
@@ -93,7 +93,7 @@ struct EscapedStringImpl
     }
 
     // see comments in `EscapedString` class below
-    void operator()(void *thiz, void (*func)(void *, string_view));
+    void operator()(void *thiz, void (*func)(void *, const string_view &));
     size_t size() noexcept;
     explicit operator const std::string &();
     operator string_view() noexcept;
@@ -173,7 +173,7 @@ template <typename Traits> class EscapedString
     template <typename Func, typename = decltype(std::declval<Func>()(std::declval<string_view>()))>
     void operator()(Func &&func) const
     {
-        impl.operator()(&func, [](void *thiz, string_view str) { (*static_cast<Func *>(thiz))(str); });
+        impl.operator()(&func, [](void *thiz, const string_view &str) { (*static_cast<Func *>(thiz))(str); });
     }
 
     // Function returns size of transformed string (no actual transformation performed).

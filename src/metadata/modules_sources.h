@@ -110,14 +110,14 @@ class ModulesSources
     HRESULT ResolveBreakpoint(
         /*in*/ Modules *pModules,
         /*in*/ CORDB_ADDRESS modAddress,
-        /*in*/ std::string filename,
+        /*in*/ const std::string &filename,
         /*out*/ unsigned &fullname_index,
         /*in*/ int sourceLine,
         /*out*/ std::vector<resolved_bp_t> &resolvedPoints);
 
     HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, PVOID pSymbolReaderHandle);
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
-    HRESULT GetIndexBySourceFullPath(std::string fullPath, unsigned &index);
+    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
 
   private:
 

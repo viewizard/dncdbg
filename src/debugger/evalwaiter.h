@@ -30,7 +30,7 @@ class EvalWaiter
     void CancelEvalRunning();
     ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread);
 
-    HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, WaitEvalResultCallback cbSetupEval);
+    HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval);
 
     // Should be called by ICorDebugManagedCallback.
     void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval);
@@ -82,7 +82,7 @@ class EvalWaiter
 
     std::future<std::unique_ptr<evalResultData_t>> RunEval(HRESULT &Status, ICorDebugProcess *pProcess,
                                                            ICorDebugThread *pThread, ICorDebugEval *pEval,
-                                                           WaitEvalResultCallback cbSetupEval);
+                                                           const WaitEvalResultCallback &cbSetupEval);
 };
 
 } // namespace dncdbg

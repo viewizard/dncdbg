@@ -220,7 +220,7 @@ UINT SysStringLen(BSTR bstrString)
 #endif
 }
 
-enum class RetCode : int32_t
+enum class RetCode : int32_t // NOLINT(performance-enum-size)
 {
     OK = 0,
     Fail = 1,
@@ -310,7 +310,7 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
     if (address == 0 || buffer == 0 || cb == 0)
         return 0;
 
-    std::memcpy(buffer, (const void *)address, cb);
+    std::memcpy(buffer, (const void *)address, cb); // NOLINT(performance-no-int-to-ptr)
     return cb;
 }
 
@@ -365,7 +365,7 @@ void Init(const std::string &coreClrPath)
     if (shutdownCoreClr != nullptr)
         return;
 
-    std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_STR_A));
+    std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_CHAR_A));
 
     HRESULT Status;
 
@@ -397,7 +397,7 @@ void Init(const std::string &coreClrPath)
     if (exe.empty())
         throw std::runtime_error("Unable to detect exe path");
 
-    std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_STR_A);
+    std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_CHAR_A);
     if (dirSepIndex == std::string::npos)
         throw std::runtime_error("Can't find directory separator in string returned by GetExeAbsPath");
 

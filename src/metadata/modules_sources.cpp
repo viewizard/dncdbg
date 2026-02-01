@@ -396,7 +396,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
     }
     for (const auto &dir : pathDirs)
     {
-        result = dir + '/' + result;
+        result = dir + '/' + result; // NOLINT(performance-inefficient-string-concatenation)
     }
 
     // The problem is - we could have several assemblies that could have same source file name with different path's
@@ -467,7 +467,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
 
 HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
                                           /*in*/ CORDB_ADDRESS modAddress,
-                                          /*in*/ std::string filename,
+                                          /*in*/ const std::string &filename,
                                           /*out*/ unsigned &fullname_index,
                                           /*in*/ int sourceLine,
                                           /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
@@ -489,9 +489,10 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
             return E_FAIL;
         }
 
-        IfFailRet(ResolveRelativeSourceFileName(filename));
+        std::string resolvedFilename = filename;
+        IfFailRet(ResolveRelativeSourceFileName(resolvedFilename));
 
-        findIndex = m_sourcePathToIndex.find(filename);
+        findIndex = m_sourcePathToIndex.find(resolvedFilename);
         if (findIndex == m_sourcePathToIndex.end())
             return E_FAIL;
     }
@@ -583,10 +584,15 @@ HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fu
     return S_OK;
 }
 
-HRESULT ModulesSources::GetIndexBySourceFullPath(std::string fullPath, unsigned &index)
+#ifdef _WIN32
+HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath_, unsigned &index)
+#else
+HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
+#endif
 {
 #ifdef _WIN32
     HRESULT Status;
+    std::string fullPath = fullPath_;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
 
