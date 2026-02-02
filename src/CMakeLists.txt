@@ -12,7 +12,7 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/nat
 # Build native part of the debugger
 
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(dncdbg_SRC
     debugger/breakpoint_break.cpp
@@ -64,8 +64,6 @@ set(dncdbg_SRC
     utils/platform_win32.cpp
     utils/streams.cpp
     )
-
-set(CMAKE_INCLUDE_CURRENT_DIR OFF)
 
 # clang-tidy for dncdbg build only
 if (CLANG_TIDY)
