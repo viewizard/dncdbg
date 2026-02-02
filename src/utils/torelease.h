@@ -119,28 +119,6 @@ template <class T> class ToRelease
 #define _countof(x) (sizeof(x) / sizeof(x[0]))
 #endif
 
-#ifdef PAL_STDCPP_COMPAT // this define was removed from runtime 9.0 sources
-#define _iswprint   PAL_iswprint
-#define _wcslen     PAL_wcslen
-#define _wcsncmp    PAL_wcsncmp
-#define _wcsrchr    PAL_wcsrchr
-#define _wcscmp     PAL_wcscmp
-#define _wcschr     PAL_wcschr
-#define _wcscspn    PAL_wcscspn
-#define _wcscat     PAL_wcscat
-#define _wcsstr     PAL_wcsstr
-#else // PAL_STDCPP_COMPAT
-#define _iswprint   iswprint
-#define _wcslen     wcslen
-#define _wcsncmp    wcsncmp
-#define _wcsrchr    wcsrchr
-#define _wcscmp     wcscmp
-#define _wcschr     wcschr
-#define _wcscspn    wcscspn
-#define _wcscat     wcscat
-#define _wcsstr     wcsstr
-#endif // !PAL_STDCPP_COMPAT
-
 const int mdNameLen = 2048;
 
 } // namespace dncdbg
