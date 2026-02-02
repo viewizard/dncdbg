@@ -558,10 +558,16 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
                                       IMetaDataImport *pImport, std::string &out, std::string &appendix)
 {
     mdToken tk;
-    const char *str;
     int typ;
     std::string tmp;
     int n;
+
+    auto getGetNameWithAppendix = [&](const char *str) -> std::string
+    {
+        std::string subAppendix;
+        typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
+        return str + subAppendix;
+    };
 
     switch (typ = CorSigUncompressElementType(typePtr))
     {
@@ -633,8 +639,8 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
         std::string subAppendix;
         typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
         appendix = "[]" + subAppendix;
+        break;
     }
-    break;
 
     case ELEMENT_TYPE_ARRAY:
     {
@@ -692,8 +698,8 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
             newAppendix += ']';
         }
         appendix = newAppendix + subAppendix;
+        break;
     }
-    break;
 
     case ELEMENT_TYPE_VAR:
         n = CorSigUncompressData(typePtr);
@@ -729,26 +735,18 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
             genericArgs.push_back(genType + genTypeAppendix);
         }
         NameForToken(tk, pImport, out, true, &genericArgs);
+        break;
     }
-    break;
 
     case ELEMENT_TYPE_PINNED:
-        str = " pinned";
-        goto MODIFIER;
+        appendix = getGetNameWithAppendix(" pinned");
+        break;
     case ELEMENT_TYPE_PTR:
-        str = "*";
-        goto MODIFIER;
+        appendix = getGetNameWithAppendix("*");
+        break;
     case ELEMENT_TYPE_BYREF:
-        str = "&";
-        goto MODIFIER;
-    MODIFIER:
-    {
-        std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
-        appendix = str + subAppendix;
-    }
-    break;
-
+        appendix = getGetNameWithAppendix("&");
+        break;
     default:
     case ELEMENT_TYPE_SENTINEL:
     case ELEMENT_TYPE_END:
