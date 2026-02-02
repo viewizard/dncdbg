@@ -1234,7 +1234,7 @@ void DAP::Log(const std::string &prefix, const std::string &text)
     if (!m_protocolLog.is_open())
         return;
     
-    m_protocolLog << prefix << text << std::endl;
+    m_protocolLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 
 } // namespace dncdbg

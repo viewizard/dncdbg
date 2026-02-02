@@ -67,7 +67,7 @@ set(dncdbg_SRC
 
 # clang-tidy for dncdbg build only
 if (CLANG_TIDY)
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=clang-analyzer-*;-checks=performance-*;-checks=portability-*")
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 endif()
 
 if (WIN32)
