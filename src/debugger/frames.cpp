@@ -106,7 +106,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     ToRelease<ICorDebugStackWalk> iCorStackWalk;
     IfFailRet(iCorThread3->CreateStackWalk(&iCorStackWalk));
 
-    static const ULONG32 ctxFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+    static const ULONG32 ctxFlags = (ULONG32)CONTEXT_CONTROL | (ULONG32)CONTEXT_INTEGER;
     CONTEXT ctxUnmanagedChain;
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;

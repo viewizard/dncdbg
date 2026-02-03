@@ -41,7 +41,6 @@ Checks: >
   -misc-include-cleaner,
   -misc-unused-parameters,
   -misc-use-anonymous-namespace,
-  -misc-redundant-expression,
   -misc-no-recursion,
   -misc-use-internal-linkage,
   -misc-non-private-member-variables-in-classes,
