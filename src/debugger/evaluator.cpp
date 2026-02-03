@@ -1193,7 +1193,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
     int32_t slotIndex = 0;
     for (WSTRING::size_type i = 0; i < slotIndexString.size(); i++)
     {
-        if (slotIndexString[i] < W('0') && slotIndexString[i] > W('9'))
+        if (slotIndexString[i] < W('0') || slotIndexString[i] > W('9'))
             return E_FAIL;
 
         slotIndex = slotIndex * 10 + (int32_t)(slotIndexString[i] - W('0'));
