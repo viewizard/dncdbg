@@ -889,11 +889,11 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     HRESULT Status;
     int currentFrame = -1;
 
-    // CoreCLR native frame + at least one user's native frame (note, `FrameNative` case should never happen)
+    // CoreCLR native frame + at least one user's native frame
     static const std::string FrameCLRNativeText = "[Native Frames]";
 
     IfFailRet(WalkFrames(pThread,
-        [&](FrameType frameType, std::uintptr_t addr, ICorDebugFrame *pFrame, NativeFrame *pNative)
+        [&](FrameType frameType, ICorDebugFrame *pFrame)
         {
             currentFrame++;
 
@@ -906,11 +906,6 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             {
             case FrameUnknown:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, "?");
-                break;
-            case FrameNative:
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, pNative->procName);
-                stackFrames.back().source = Source(pNative->fullSourcePath);
-                stackFrames.back().line = pNative->lineNum;
                 break;
             case FrameCLRNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);

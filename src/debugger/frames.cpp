@@ -13,25 +13,6 @@
 namespace dncdbg
 {
 
-static std::uintptr_t GetIP(CONTEXT *context)
-{
-#if defined(_TARGET_AMD64_)
-    return (std::uintptr_t)context->Rip;
-#elif defined(_TARGET_X86_)
-    return (std::uintptr_t)context->Eip;
-#elif defined(_TARGET_ARM_)
-    return (std::uintptr_t)context->Pc;
-#elif defined(_TARGET_ARM64_)
-    return (std::uintptr_t)context->Pc;
-#elif defined(_TARGET_RISCV64_)
-    return (std::uintptr_t)context->Pc;
-#elif defined(_TARGET_LOONGARCH64_)
-    return (std::uintptr_t)context->Pc;
-#else
-#error "Unsupported platform"
-#endif
-}
-
 static std::uintptr_t GetSP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_)
@@ -191,14 +172,14 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
                 continue;
 
-            IfFailRet(cb(FrameCLRManaged, GetIP(&currentCtx), iCorFrame, nullptr));
+            IfFailRet(cb(FrameCLRManaged, iCorFrame));
             continue;
         }
 
         ToRelease<ICorDebugNativeFrame> iCorNativeFrame;
         if (FAILED(iCorFrame->QueryInterface(IID_ICorDebugNativeFrame, (LPVOID *)&iCorNativeFrame)))
         {
-            IfFailRet(cb(FrameUnknown, GetIP(&currentCtx), iCorFrame, nullptr));
+            IfFailRet(cb(FrameUnknown, iCorFrame));
             continue;
         }
         // If the first frame is CoreCLR native frame then we might be in a call to unmanaged code.
@@ -208,7 +189,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         {
             IfFailRet(UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb));
         }
-        IfFailRet(cb(FrameCLRNative, GetIP(&currentCtx), iCorFrame, nullptr));
+        IfFailRet(cb(FrameCLRNative, nullptr));
     }
 
     // We may have native frames at the end of the stack
@@ -233,7 +214,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 
     int currentFrame = -1;
 
-    WalkFrames(pThread, [&](FrameType frameType, std::uintptr_t addr, ICorDebugFrame *pFrame, NativeFrame *pNative) {
+    WalkFrames(pThread, [&](FrameType frameType, ICorDebugFrame *pFrame) {
         currentFrame++;
 
         if (currentFrame < int(level))

@@ -16,25 +16,12 @@ namespace dncdbg
 enum FrameType
 {
     FrameUnknown,
-    FrameNative,
     FrameCLRNative,
     FrameCLRInternal,
     FrameCLRManaged
 };
 
-struct NativeFrame
-{
-    std::uintptr_t addr = 0;
-    bool unknownFrameAddr = false;
-    std::string libName;
-    std::string procName;
-    std::string fullSourcePath;
-    int lineNum = 0;
-};
-
-typedef std::function<HRESULT(FrameType, std::uintptr_t, ICorDebugFrame *, NativeFrame *)> WalkFramesCallback;
-
-struct Thread;
+typedef std::function<HRESULT(FrameType, ICorDebugFrame *)> WalkFramesCallback;
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
