@@ -985,6 +985,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "int", "7");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "0x0F");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "42", "int", "0b00101010");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "42", "int", "0b_0010_1010");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "uint", "7u");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "long", "7L");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "ulong", "7UL");
@@ -992,7 +993,6 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "null");
 
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "0b_0010_1010", "error"); // Error could be CS1013 or CS8107 here.
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character need 2 whcars and not supported
 
                 Context.Continue(@"__FILE__:__LINE__");
