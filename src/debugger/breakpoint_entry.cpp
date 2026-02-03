@@ -227,7 +227,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
+HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
     std::lock_guard<std::mutex> lock(m_entryMutex);
 

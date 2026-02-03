@@ -36,7 +36,7 @@ class EntryBreakpoint
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
     // S_FALSE - no breakpoint hit
-    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint);
+    HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.

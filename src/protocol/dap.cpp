@@ -490,7 +490,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 {
     typedef std::function<HRESULT(const json &arguments, json &body)> CommandCallback;
     static std::unordered_map<std::string, CommandCallback> commands{
-        {"initialize", [&](const json &arguments, json &body)
+        {"initialize", [&](const json &/*arguments*/, json &body)
             {
                 sharedDebugger->Initialize();
 
@@ -498,7 +498,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 return S_OK;
             }},
-        {"setExceptionBreakpoints", [&](const json &arguments, json &body)
+        {"setExceptionBreakpoints", [&](const json &arguments, json &/*body*/)
             {
                 std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
                 std::vector<std::map<std::string, std::string>> filterOptions =
@@ -563,7 +563,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 return S_OK;
             }},
-        {"configurationDone", [&](const json &arguments, json &body)
+        {"configurationDone", [&](const json &/*arguments*/, json &/*body*/)
             {
                 return sharedDebugger->ConfigurationDone(); 
             }},
@@ -595,7 +595,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 return S_OK;
             }},
-        {"launch", [&](const json &arguments, json &body)
+        {"launch", [&](const json &arguments, json &/*body*/)
             {
                 auto cwdIt = arguments.find("cwd");
                 const std::string cwd(cwdIt != arguments.end() ? cwdIt.value().get<std::string>() : std::string{});
@@ -635,7 +635,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     return sharedDebugger->Launch(program, args, env, cwd, arguments.value("stopAtEntry", false));
                 }
             }},
-        {"threads", [&](const json &arguments, json &body)
+        {"threads", [&](const json &/*arguments*/, json &body)
             {
                 HRESULT Status;
                 std::vector<Thread> threads;
@@ -645,7 +645,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 return S_OK;
             }},
-        {"disconnect", [&](const json &arguments, json &body)
+        {"disconnect", [&](const json &arguments, json &/*body*/)
             {
                 auto terminateArgIter = arguments.find("terminateDebuggee");
                 ManagedDebugger::DisconnectAction action;
@@ -659,7 +659,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 return S_OK;
             }},
-        {"terminate", [&](const json &arguments, json &body)
+        {"terminate", [&](const json &/*arguments*/, json &/*body*/)
             {
                 sharedDebugger->Disconnect(ManagedDebugger::DisconnectAction::DisconnectTerminate);
                 return S_OK;
@@ -694,17 +694,17 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 body["threadId"] = int(threadId);
                 return sharedDebugger->Pause(threadId);
             }},
-        {"next", [&](const json &arguments, json &body)
+        {"next", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
                                                    ManagedDebugger::StepType::STEP_OVER);
             }},
-        {"stepIn", [&](const json &arguments, json &body)
+        {"stepIn", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
                                                    ManagedDebugger::StepType::STEP_IN);
             }},
-        {"stepOut", [&](const json &arguments, json &body)
+        {"stepOut", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
                                                    ManagedDebugger::StepType::STEP_OUT);
@@ -824,7 +824,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 body["value"] = output;
                 return S_OK;
             }},
-        {"attach", [&](const json &arguments, json &body)
+        {"attach", [&](const json &arguments, json &/*body*/)
             {
                 int processId;
 

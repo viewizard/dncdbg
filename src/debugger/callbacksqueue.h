@@ -106,7 +106,7 @@ class CallbacksQueue
 
     void CallbacksWorker();
     bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint);
-    bool CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, CorDebugStepReason reason);
+    bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
     bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
     bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule);
     bool CallbacksWorkerCreateProcess();

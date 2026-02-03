@@ -339,7 +339,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
     https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger.md#exception-settings
     https://docs.microsoft.com/en-us/visualstudio/debugger/managing-exceptions-with-the-debugger
 */
-HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule, StoppedEvent &event)
+HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule)
 {
     HRESULT Status;
     DWORD tid = 0;

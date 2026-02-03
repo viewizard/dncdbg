@@ -47,7 +47,7 @@ class ExceptionBreakpoints
     // Good:
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
-    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule, StoppedEvent &event);
+    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
   private:

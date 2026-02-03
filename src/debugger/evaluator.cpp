@@ -1528,7 +1528,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         ToRelease<ICorDebugValue> pClassValue(pResultValue.Detach());
 
         WalkMembers(pClassValue, pThread, frameLevel, nullptr, !!resultSetterData,
-                    [&](ICorDebugType *pType, bool is_static, const std::string &memberName,
+                    [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
                         const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData)
                         {
                             if (is_static && valueKind == Evaluator::ValueIsVariable)

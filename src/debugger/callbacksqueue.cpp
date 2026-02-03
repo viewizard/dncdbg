@@ -58,7 +58,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, CorDebugStepReason reason)
+bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
     // S_FALSE - not error and steppers not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
@@ -97,7 +97,7 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     StoppedEvent event(StopException, threadId);
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event))
+    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
         return false;
 
     // Disable all steppers if we stop during step.
@@ -135,7 +135,7 @@ void CallbacksQueue::CallbacksWorker()
             m_stopEventInProcess = CallbacksWorkerBreakpoint(c.iCorAppDomain, c.iCorThread, c.iCorBreakpoint);
             break;
         case CallbackQueueCall::StepComplete:
-            m_stopEventInProcess = CallbacksWorkerStepComplete(c.iCorAppDomain, c.iCorThread, c.Reason);
+            m_stopEventInProcess = CallbacksWorkerStepComplete(c.iCorThread, c.Reason);
             break;
         case CallbackQueueCall::Break:
             m_stopEventInProcess = CallbacksWorkerBreak(c.iCorAppDomain, c.iCorThread);

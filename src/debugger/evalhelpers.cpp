@@ -369,7 +369,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 }
 
 HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugModule *pModule,
-                                     PCCOR_SIGNATURE pSignatureBlob, ULONG sigBlobLength, UVCP_CONSTANT pRawValue,
+                                     PCCOR_SIGNATURE pSignatureBlob, ULONG /*sigBlobLength*/, UVCP_CONSTANT pRawValue,
                                      ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     HRESULT Status = S_OK;

@@ -145,7 +145,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
 
     HRESULT Status;
     atEntry = false;
-    if (SUCCEEDED(Status = m_uniqueEntryBreakpoint->CheckBreakpointHit(pThread, pBreakpoint)) &&
+    if (SUCCEEDED(Status = m_uniqueEntryBreakpoint->CheckBreakpointHit(pBreakpoint)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         atEntry = true;
@@ -191,9 +191,9 @@ HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::ve
 }
 
 HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType,
-                                              const std::string &excModule, StoppedEvent &event)
+                                              const std::string &excModule)
 {
-    return m_uniqueExceptionBreakpoints->ManagedCallbackException(pThread, eventType, excModule, event);
+    return m_uniqueExceptionBreakpoints->ManagedCallbackException(pThread, eventType, excModule);
 }
 
 HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)

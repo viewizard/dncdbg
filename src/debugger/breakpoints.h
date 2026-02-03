@@ -58,7 +58,7 @@ class Breakpoints
     HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                                       std::vector<BreakpointEvent> &bpChangeEvents,  bool &atEntry);
     HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType,
-                                     const std::string &excModule, StoppedEvent &event);
+                                     const std::string &excModule);
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 

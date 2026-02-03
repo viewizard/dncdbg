@@ -452,7 +452,7 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     return S_OK;
 }
 
-static HRESULT LoadSymbols(IMetaDataImport *pMD, ICorDebugModule *pModule, VOID **ppSymbolReaderHandle)
+static HRESULT LoadSymbols(ICorDebugModule *pModule, VOID **ppSymbolReaderHandle)
 {
     HRESULT Status = S_OK;
     BOOL isDynamic = FALSE;
@@ -499,16 +499,11 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 {
     HRESULT Status;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMDImport;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
-
     module.path = GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
 
     PVOID pSymbolReaderHandle = nullptr;
-    LoadSymbols(pMDImport, pModule, &pSymbolReaderHandle);
+    LoadSymbols(pModule, &pSymbolReaderHandle);
     module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolsLoaded : SymbolsNotFound;
 
     if (module.symbolStatus == SymbolsLoaded)
@@ -549,6 +544,11 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
                                  "breakpoints will not be hit).";
             }
         }
+
+        ToRelease<IUnknown> pMDUnknown;
+        ToRelease<IMetaDataImport> pMDImport;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
+        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
 
         if (FAILED(m_modulesSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
             LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "
