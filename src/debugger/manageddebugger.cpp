@@ -178,7 +178,8 @@ ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
       m_ioredirect(
         { IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe() },
         std::bind(&ManagedDebugger::InputCallback, this, std::placeholders::_1, std::placeholders::_2)
-    )
+      ),
+      StartupCallbackHR(S_OK)
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
@@ -391,6 +392,23 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 VOID ManagedDebugger::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr)
 {
     ManagedDebugger *self = static_cast<ManagedDebugger *>(parameter);
+
+    if (FAILED(hr))
+    {
+        std::ostringstream ss;
+        ss << "Error: 0x" << std::setw(8) << std::setfill('0') << std::hex << hr;
+        if (CORDBG_E_DEBUG_COMPONENT_MISSING == hr)
+        {
+            ss << " component that is necessary for CLR debugging cannot be located.";
+        }
+        else if (CORDBG_E_INCOMPATIBLE_PROTOCOL == hr)
+        {
+            ss << " mscordbi or mscordaccore libs is not the same version as the target CoreCLR.";
+        }
+        self->pProtocol->EmitOutputEvent(OutputStdErr, ss.str());
+        self->StartupCallbackHR = hr;
+        return;
+    }
 
     self->Startup(pCordb);
 
@@ -658,8 +676,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     GetWaitpid().SetupTrackingPID(m_processId);
 #endif // FEATURE_PAL
 
-    IfFailRet(
-        m_dbgshim.RegisterForRuntimeStartup(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
+    IfFailRet(m_dbgshim.RegisterForRuntimeStartup(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
 
     // Resume the process so that StartupCallback can run
     IfFailRet(m_dbgshim.ResumeProcess(resumeHandle));
@@ -668,7 +685,10 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
                                       [this] { return m_processAttachedState == ProcessAttachedState::Attached; }))
+    {
+        IfFailRet(StartupCallbackHR);
         return E_FAIL;
+    }
 
     pProtocol->EmitExecEvent(PID{m_processId}, fileExec);
 

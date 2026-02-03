@@ -178,6 +178,7 @@ class ManagedDebugger
     friend class CallbacksQueue;
 
     static VOID StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr);
+    HRESULT StartupCallbackHR;
     HRESULT Startup(IUnknown *punk);
     HRESULT RunIfReady();
     HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs);
