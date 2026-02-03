@@ -21,7 +21,7 @@
 #include "buildinfo.h"
 
 #define STRINGIFY_(v) #v
-#define STRINGIFY(v) STRINGIFY_(v)
+#define STRINGIFY(v) STRINGIFY_(v) // NOLINT(cppcoreguidelines-macro-usage)
 
 namespace dncdbg
 {

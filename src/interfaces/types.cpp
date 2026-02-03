@@ -205,7 +205,7 @@ struct FramesList
 
       private:
 
-        FramesList &frames_list;
+        FramesList &frames_list; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
     };
 
     ScopeGuard get()
