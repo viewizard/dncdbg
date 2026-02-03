@@ -46,7 +46,6 @@ Checks: >
   -misc-use-internal-linkage,
   -misc-non-private-member-variables-in-classes,
   -misc-throw-by-value-catch-by-reference,
-  -misc-header-include-cycle,
   -misc-const-correctness,
   cert-*,
   -cert-str34-c,

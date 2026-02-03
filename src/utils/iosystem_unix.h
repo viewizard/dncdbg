@@ -10,7 +10,7 @@
 #include <sys/select.h>
 #include <tuple>
 
-#include "utils/iosystem.h"
+#include "utils/iosystem_internal.h"
 #include "utils/platform.h"
 
 template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>

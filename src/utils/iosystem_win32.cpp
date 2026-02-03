@@ -3,7 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
-#include "utils/iosystem.h"
+#include "utils/iosystem_internal.h"
+#include "utils/iosystem_win32.h"
 #include "utils/limits.h"
 #include <afunix.h>
 #include <assert.h>
