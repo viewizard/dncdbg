@@ -44,7 +44,7 @@ static void print_help()
 
 static void print_buildinfo()
 {
-    printf(".NET Core debugger %s\n", BuildInfo::version);
+    printf("DNCDbg version %s\n", BuildInfo::version);
 
     printf("\nBuild info:\n"
            "      Build type:  %s\n"
@@ -53,16 +53,16 @@ static void print_buildinfo()
            "      Target arch: %s\n\n",
            BuildInfo::build_type, BuildInfo::date, BuildInfo::time, BuildInfo::os_name, BuildInfo::cpu_arch);
 
-    printf("DNCDbg VCS info:   %s\n", BuildInfo::dncdbg_vcs_info);
-}
-
-static void print_version()
-{
-    printf("NET Core debugger %s (%s, %s)\n\n", BuildInfo::version, BuildInfo::dncdbg_vcs_info, BuildInfo::build_type);
+    printf("DNCDbg VCS info:   %s\n\n", BuildInfo::dncdbg_vcs_info);
     printf("Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
     printf("Copyright (c) 2026 Mikhail Kurinnoi\n");
     printf("Distributed under the MIT License.\n");
     printf("See the LICENSE file in the project root for more information.\n");
+}
+
+static void print_version()
+{
+    printf("DNCDbg version %s\n", BuildInfo::version);
 }
 
 } // namespace dncdbg
