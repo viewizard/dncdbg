@@ -5,26 +5,24 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #ifdef _MSC_VER
 #include <wtypes.h>
 #endif
 
-#include <corerror.h>
-
 namespace dncdbg
 {
 
 #ifdef _MSC_VER
+typedef char16_t WCHAR;
 typedef std::wstring WSTRING;
 #else
+typedef char16_t WCHAR;
 typedef std::u16string WSTRING;
 #endif
 
 std::string to_utf8(const WCHAR *wstr);
 WSTRING to_utf16(const std::string &utf8);
-std::string to_utf8(WCHAR wch);
 
 template <typename CharT, size_t Size> bool starts_with(const CharT *left, const CharT (&right)[Size])
 {

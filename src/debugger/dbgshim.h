@@ -6,6 +6,9 @@
 #pragma once
 
 #include <cor.h>
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <specstrings_undef.h>
+#endif
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>

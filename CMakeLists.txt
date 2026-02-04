@@ -65,7 +65,8 @@ include(cmake/configurepaths.cmake)
 #   remove header, `project`, `cmake_minimum_required`, etc. and add `add_subdirectory(third_party/diagnostics)`
 # - copy and correct `third_party/diagnostics/eng/native/configurepaths.cmake` file to `cmake` folder
 # - correct `third_party/diagnostics/src/CMakeLists.cmake`, remove lines with `SOS` and `tests`
-# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` file (enable `rtti` related options)
+# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` file (enable `rtti` related options),
+#   change CMAKE_C_STANDARD and CMAKE_CXX_STANDARD to 17
 #
 ###
 

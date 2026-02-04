@@ -1,6 +1,7 @@
 ---
 Checks: >
-  clang-diagnostic-*,
+  -clang-diagnostic-*,
+  -clang-diagnostic-deprecated-declarations,
   clang-analyzer-*,
   performance-*,
   portability-*,
@@ -24,6 +25,12 @@ Checks: >
   -cppcoreguidelines-pro-type-member-init,
   -cppcoreguidelines-pro-type-vararg,
   modernize-*,
+  -modernize-type-traits,
+  -modernize-use-nodiscard,
+  -modernize-concat-nested-namespaces,
+  -modernize-use-scoped-lock,
+  -modernize-avoid-bind,
+  -modernize-make-unique,
   -modernize-use-trailing-return-type,
   -modernize-use-using,
   -modernize-raw-string-literal,

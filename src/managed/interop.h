@@ -11,6 +11,9 @@
 
 #include <cor.h>
 #include <cordebug.h>
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <specstrings_undef.h>
+#endif
 
 #include "utils/platform.h"
 
