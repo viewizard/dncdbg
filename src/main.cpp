@@ -57,7 +57,6 @@ static void print_buildinfo()
     printf("Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
     printf("Copyright (c) 2026 Mikhail Kurinnoi\n");
     printf("Distributed under the MIT License.\n");
-    printf("See the LICENSE file in the project root for more information.\n");
 }
 
 static void print_version()
