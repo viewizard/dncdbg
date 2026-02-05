@@ -104,20 +104,20 @@ int
 
     std::string protocolLogFilePath;
 
-    std::unordered_map<std::string, std::function<void(int &i)>> entireArguments{
-        {"--help", [&](int &i) {
+    std::unordered_map<std::string, std::function<void()>> entireArguments{
+        {"--help", [&]() {
             print_help();
             exit(EXIT_SUCCESS);
         }},
-        {"--buildinfo", [&](int &i) {
+        {"--buildinfo", [&]() {
             print_buildinfo();
             exit(EXIT_SUCCESS);
         }},
-        {"--version", [&](int &i) {
+        {"--version", [&]() {
             print_version();
             exit(EXIT_SUCCESS);
         }},
-        {"--interpreter=vscode" , [&](int &i) {
+        {"--interpreter=vscode" , [&]() {
             // VSCode IDE send this option silently to debugger, just ignore it
         }}};
 
@@ -135,7 +135,7 @@ int
         auto args = entireArguments.find(std::string(argv[i]));
         if (args != entireArguments.end())
         {
-            args->second(i);
+            args->second();
         }
         else
         {

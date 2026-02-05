@@ -70,8 +70,8 @@ static void SetFP(CONTEXT *context, std::uintptr_t value)
 #endif
 }
 
-static HRESULT UnwindNativeFrames(ICorDebugThread *pThread, bool firstFrame, CONTEXT *pStartContext,
-                                  CONTEXT *pEndContext, const WalkFramesCallback &cb)
+static HRESULT UnwindNativeFrames(ICorDebugThread *, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
+                                  CONTEXT */*pEndContext*/, const WalkFramesCallback &/*cb*/)
 {
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
     return S_OK;

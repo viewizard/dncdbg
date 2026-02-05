@@ -265,7 +265,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
         namedVariables++;
 
     IfFailRet(m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
-        [&](const std::string &name, const Evaluator::GetValueCallback &) -> HRESULT
+        [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
         {
             namedVariables++;
             return S_OK;
@@ -451,7 +451,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     bool found = false;
 
     if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.iCorValue, pThread, ref.frameId.getLevel(), nullptr, true,
-        [&](ICorDebugType *, bool is_static, const std::string &varName,
+        [&](ICorDebugType *, bool /*is_static*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
             if (varName != name)

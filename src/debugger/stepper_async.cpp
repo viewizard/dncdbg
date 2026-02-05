@@ -163,8 +163,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame that used for get all info needed (function, module, etc);
 // [in] pEvalHelpers - pointer to managed debugger EvalHelpers;
-static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugFrame *pFrame,
-                                                ICorDebugValue *pBuilderValue, EvalHelpers *pEvalHelpers)
+static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, EvalHelpers *pEvalHelpers)
 {
     HRESULT Status;
 
@@ -294,7 +293,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepT
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
             return m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OUT);
 
-        IfFailRet(SetNotificationForWaitCompletion(pThread, pFrame, pBuilderValue, m_sharedEvalHelpers.get()));
+        IfFailRet(SetNotificationForWaitCompletion(pThread, pBuilderValue, m_sharedEvalHelpers.get()));
         IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion());
         // Note, we don't create stepper here, since all we need in case of breakpoint is call Continue() from StepCommand().
         return S_OK;
