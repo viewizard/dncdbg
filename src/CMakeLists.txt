@@ -75,6 +75,16 @@ if (WIN32)
     add_definitions(-DNOMINMAX)
 endif()
 
+# By default, build with case-insensitive file name collision for all OSes.
+# Note, test-suite will count on this build option.
+if (CASE_SENSITIVE_FILENAME_COLLISION)
+    message(STATUS "Added compiled option: CASE_SENSITIVE_FILENAME_COLLISION")
+    add_definitions(-DCASE_SENSITIVE_FILENAME_COLLISION)
+else()
+    message(STATUS "Added compiled option: CASE_INSENSITIVE_FILENAME_COLLISION")
+    add_definitions(-DCASE_INSENSITIVE_FILENAME_COLLISION)
+endif()
+
 # special threatment of buildinfo.cpp -- this file rebuilds every time,
 # whatever it changed or not (because it contains version information and
 # date/time of the build).

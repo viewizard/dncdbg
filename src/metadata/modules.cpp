@@ -695,7 +695,7 @@ HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pMod
 }
 
 HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
                                    /*in*/ const std::string &filename_,
 #else
                                    /*in*/ const std::string &filename,
@@ -704,7 +704,7 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
                                    /*in*/ int sourceLine,
                                    /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
 {
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status;
     std::string filename = filename_;
     IfFailRet(Interop::StringToUpper(filename));

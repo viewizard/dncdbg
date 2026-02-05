@@ -149,8 +149,8 @@ class ModulesSources
     HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);
     HRESULT ResolveRelativeSourceFileName(std::string &filename);
 
-#ifdef _WIN32
-    // on Windows OS, all files names converted to uppercase in containers above, but this vector hold initial full path names
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+    // all files names converted to uppercase in containers above, but this vector hold initial full path names
     std::vector<std::string> m_sourceIndexToInitialFullPath;
 #endif
 };

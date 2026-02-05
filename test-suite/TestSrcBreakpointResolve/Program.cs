@@ -107,12 +107,7 @@ Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp5");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 
-                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-                if (isWindows)
-                    Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
-                else
-                    Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/Program.cs");
-
+                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 int? id_bp6_b = Context.GetBreakpointId(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
@@ -133,12 +128,7 @@ Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp3", false);
 
-                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-                if (isWindows)
-                    Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
-                else
-                    Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/Program.cs");
-
+                Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 

@@ -278,7 +278,7 @@ static std::string GetFileName(const std::string &path)
 HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
     std::string fullPath = to_utf8(document);
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status;
     std::string initialFullPath = fullPath;
     IfFailRet(Interop::StringToUpper(fullPath));
@@ -289,7 +289,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
         fullPathIndex = (unsigned)m_sourceIndexToPath.size();
         m_sourcePathToIndex.emplace(std::make_pair(fullPath, fullPathIndex));
         m_sourceIndexToPath.emplace_back(fullPath);
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
 #endif
         m_sourceNameToFullPathsIndexes[GetFileName(fullPath)].emplace(fullPathIndex);
@@ -315,7 +315,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
     // Usually, modules provide files with unique full paths for sources.
     m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData->fileNum);
     m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData->fileNum);
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData->fileNum);
 #endif
 
@@ -361,7 +361,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
 
     m_sourcesMethodsData.shrink_to_fit();
     m_sourceIndexToPath.shrink_to_fit();
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     m_sourceIndexToInitialFullPath.shrink_to_fit();
 #endif
 
@@ -542,10 +542,10 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
         PVOID data = nullptr;
         int32_t Count = 0;
-#ifndef _WIN32
-        std::string fullName = m_sourceIndexToPath[findIndex->second];
-#else
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         std::string fullName = m_sourceIndexToInitialFullPath[findIndex->second];
+#else
+        std::string fullName = m_sourceIndexToPath[findIndex->second];
 #endif
         if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, (int32_t)Tokens.size(), Tokens.data(),
                                                correctedStartLine, closestNestedToken, Count, fullName, &data)) ||
@@ -575,22 +575,22 @@ HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fu
     if (m_sourceIndexToPath.size() <= index)
         return E_FAIL;
 
-#ifndef _WIN32
-    fullPath = m_sourceIndexToPath[index];
-#else
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     fullPath = m_sourceIndexToInitialFullPath[index];
+#else
+    fullPath = m_sourceIndexToPath[index];
 #endif
 
     return S_OK;
 }
 
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
 HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath_, unsigned &index)
 #else
 HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
 #endif
 {
-#ifdef _WIN32
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status;
     std::string fullPath = fullPath_;
     IfFailRet(Interop::StringToUpper(fullPath));

@@ -53,6 +53,17 @@ static void print_buildinfo()
            "      Target arch: %s\n\n",
            BuildInfo::build_type, BuildInfo::date, BuildInfo::time, BuildInfo::os_name, BuildInfo::cpu_arch);
 
+#if defined(CASE_INSENSITIVE_FILENAME_COLLISION) || defined(CASE_SENSITIVE_FILENAME_COLLISION)
+    printf("Compiled options:\n"
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+           "      CASE_INSENSITIVE_FILENAME_COLLISION\n"
+#endif
+#ifdef CASE_SENSITIVE_FILENAME_COLLISION
+           "      CASE_SENSITIVE_FILENAME_COLLISION\n"
+#endif
+           "\n");
+#endif
+
     printf("DNCDbg VCS info:   %s\n\n", BuildInfo::dncdbg_vcs_info);
     printf("Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
     printf("Copyright (c) 2026 Mikhail Kurinnoi\n");

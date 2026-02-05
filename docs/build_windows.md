@@ -32,6 +32,9 @@ Add your build type (`Release` or `Debug`), for example:
 For build with Address Sanitizer, add the option
 `-DASAN=1`
 
+For build with case-sensitive file name collision, add the option
+`-DCASE_SENSITIVE_FILENAME_COLLISION=1`
+
 To compile and install, use the following command:
 
 ```
