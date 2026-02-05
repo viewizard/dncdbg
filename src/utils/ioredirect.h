@@ -94,10 +94,10 @@ class IORedirectHelper
     void wake_reader();
 
     void worker(); // worker thread function
-    void StartNewWriteRequests(std::unique_lock<Utility::RWLock::Reader> &read_lock, OutStreamBuf *const out_stream,
+    void StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
                                IOSystem::AsyncHandle &out_handle);
-    bool ProcessFinishedWriteRequests(std::unique_lock<Utility::RWLock::Reader> &read_lock,
-                                      OutStreamBuf *const out_stream, IOSystem::AsyncHandle &out_handle);
+    bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+                                      IOSystem::AsyncHandle &out_handle);
     bool ProcessFinishedReadRequests(InStreamBuf *const in_streams[], size_t stream_types_cout,
                                      IOSystem::AsyncHandle async_handles[]);
 
@@ -118,7 +118,7 @@ class IORedirectHelper
 
     // Synchronize access of async_input function and worker thread to
     // stdin's output buffer and two pointers listed above (m_sent and m_unsent).
-    Utility::RWLock m_rwlock;
+    RWLock m_rwlock;
 
     PipePair m_worker_pipe; // pipe to wake worker thread
     PipePair m_input_pipe;  // pipe to wake thread sleeping in async_input

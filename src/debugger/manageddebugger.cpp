@@ -98,7 +98,7 @@ HRESULT ManagedDebugger::CheckDebugProcess()
 
 bool ManagedDebugger::HaveDebugProcess()
 {
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     return SUCCEEDED(CheckDebugProcess());
 }
 
@@ -136,7 +136,7 @@ void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
     std::lock_guard<std::mutex> lock(m_lastStoppedMutex);
     m_lastStoppedThreadId = threadId;
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
 
     m_uniqueBreakpoints->SetLastStoppedIlOffset(m_iCorProcess, m_lastStoppedThreadId);
 }
@@ -303,7 +303,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -339,7 +339,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -371,7 +371,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -382,7 +382,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -542,12 +542,12 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
         return Status;
     }
 
-    std::unique_lock<Utility::RWLock::Writer> lockProcessRWLock(m_debugProcessRWLock.writer);
+    WriteLock w_lock(m_debugProcessRWLock);
 
     m_iCorProcess = iCorProcess.Detach();
     m_iCorDebug = iCorDebug.Detach();
 
-    lockProcessRWLock.unlock();
+    w_lock.unlock();
 
 #ifdef FEATURE_PAL
     GetWaitpid().SetupTrackingPID(m_processId);
@@ -697,7 +697,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
 HRESULT ManagedDebugger::CheckNoProcess()
 {
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
 
     if (!m_iCorProcess)
         return S_OK;
@@ -715,7 +715,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
 {
     do
     {
-        std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+        ReadLock r_lock(m_debugProcessRWLock);
         std::lock_guard<std::mutex> guardAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
@@ -744,7 +744,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 {
     do
     {
-        std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+        ReadLock r_lock(m_debugProcessRWLock);
         std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
@@ -780,7 +780,7 @@ void ManagedDebugger::Cleanup()
     m_sharedVariables->Clear();
     pProtocol->Cleanup();
 
-    std::lock_guard<Utility::RWLock::Writer> guardProcessRWLock(m_debugProcessRWLock.writer);
+    WriteLock w_lock(m_debugProcessRWLock);
 
     assert((m_iCorProcess && m_iCorDebug && m_uniqueManagedCallback && m_sharedCallbacksQueue) ||
            (!m_iCorProcess && !m_iCorDebug && !m_uniqueManagedCallback && !m_sharedCallbacksQueue));
@@ -835,7 +835,7 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1063,7 +1063,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1079,7 +1079,7 @@ HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilt
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1090,7 +1090,7 @@ HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1102,7 +1102,7 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1121,7 +1121,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1133,7 +1133,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
 {
     LogFuncEntry();
 
-    std::lock_guard<Utility::RWLock::Reader> guardProcessRWLock(m_debugProcessRWLock.reader);
+    ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 

@@ -10,15 +10,15 @@
 #include <specstrings_undef.h>
 #endif
 
-#include <map>
-#include <vector>
-
 #include "debugger/dbgshim.h"
 #include "interfaces/types.h"
 #include "utils/ioredirect.h"
 #include "utils/rwlock.h"
 #include "utils/span.h"
 #include "utils/torelease.h"
+#include <condition_variable>
+#include <map>
+#include <vector>
 
 namespace dncdbg
 {
@@ -152,7 +152,7 @@ class ManagedDebugger
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;
 
-    Utility::RWLock m_debugProcessRWLock;
+    RWLock m_debugProcessRWLock;
     ToRelease<ICorDebug> m_iCorDebug;
     ToRelease<ICorDebugProcess> m_iCorProcess;
 

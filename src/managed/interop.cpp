@@ -228,7 +228,7 @@ enum class RetCode : int32_t // NOLINT(performance-enum-size)
     Exception = 2
 };
 
-Utility::RWLock CLRrwlock;
+RWLock CLRrwlock;
 void *hostHandle = nullptr;
 unsigned int domainId = 0;
 
@@ -321,7 +321,7 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
                                   ULONG64 peSize, ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize,
                                   VOID **ppSymbolReaderHandle)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!loadSymbolsForModuleDelegate || !ppSymbolReaderHandle)
         return E_FAIL;
 
@@ -349,7 +349,7 @@ SequencePoint::~SequencePoint() noexcept
 
 void DisposeSymbols(PVOID pSymbolReaderHandle)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!disposeDelegate || !pSymbolReaderHandle)
         return;
 
@@ -360,7 +360,7 @@ void DisposeSymbols(PVOID pSymbolReaderHandle)
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
 void Init(const std::string &coreClrPath)
 {
-    std::unique_lock<Utility::RWLock::Writer> write_lock(CLRrwlock.writer);
+    WriteLock write_lock(CLRrwlock);
 
     // If we have shutdownCoreClr initialized, we already initialized all managed part.
     if (shutdownCoreClr != nullptr)
@@ -479,7 +479,7 @@ void Init(const std::string &coreClrPath)
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
 void Shutdown()
 {
-    std::unique_lock<Utility::RWLock::Writer> write_lock(CLRrwlock.writer);
+    WriteLock write_lock(CLRrwlock);
     if (shutdownCoreClr == nullptr)
         return;
 
@@ -512,7 +512,7 @@ void Shutdown()
 HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
                                    SequencePoint *sequencePoint)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getSequencePointByILOffsetDelegate || !pSymbolReaderHandle || !sequencePoint)
         return E_FAIL;
 
@@ -524,7 +524,7 @@ HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef method
 
 HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, SequencePoint **sequencePoints, int32_t &Count)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getSequencePointsDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
@@ -536,7 +536,7 @@ HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, Se
 HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
                                 ULONG32 &ilNextOffset, bool *noUserCodeFound)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getNextUserCodeILOffsetDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
@@ -553,7 +553,7 @@ HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodTok
 
 HRESULT GetStepRangesFromIP(PVOID pSymbolReaderHandle, ULONG32 ip, mdMethodDef MethodToken, ULONG32 *ilStartOffset, ULONG32 *ilEndOffset)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getStepRangesFromIPDelegate || !pSymbolReaderHandle || !ilStartOffset || !ilEndOffset)
         return E_FAIL;
 
@@ -564,7 +564,7 @@ HRESULT GetStepRangesFromIP(PVOID pSymbolReaderHandle, ULONG32 ip, mdMethodDef M
 HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG localIndex,
                                       WCHAR *localName, ULONG localNameLen, ULONG32 *pIlStart, ULONG32 *pIlEnd)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getLocalVariableNameAndScopeDelegate || !pSymbolReaderHandle || !localName || !pIlStart || !pIlEnd)
         return E_FAIL;
 
@@ -589,7 +589,7 @@ HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef met
 
 HRESULT GetHoistedLocalScopes(PVOID pSymbolReaderHandle, mdMethodDef methodToken, PVOID *data, int32_t &hoistedLocalScopesCount)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getHoistedLocalScopesDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
@@ -600,7 +600,7 @@ HRESULT GetHoistedLocalScopes(PVOID pSymbolReaderHandle, mdMethodDef methodToken
 HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, int32_t secondType, int32_t operationType,
                             int32_t &resultType, PVOID *data, std::string &errorText)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!calculationDelegate)
         return E_FAIL;
 
@@ -621,7 +621,7 @@ HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, in
 HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensNum, PVOID constrTokens,
                                uint32_t normalTokensNum, PVOID normalTokens, PVOID *data)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getModuleMethodsRangesDelegate || !pSymbolReaderHandle || (constrTokensNum && !constrTokens) ||
         (normalTokensNum && !normalTokens) || !data)
         return E_FAIL;
@@ -634,7 +634,7 @@ HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensN
 HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandle, int32_t tokenNum, PVOID Tokens, int32_t sourceLine,
                            int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!resolveBreakPointsDelegate || !pSymbolReaderHandle || !Tokens || !data)
         return E_FAIL;
 
@@ -646,7 +646,7 @@ HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandle, int32_t tokenNum, PVOID To
 HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef methodToken,
                                    std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, ULONG32 *ilOffset)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!getAsyncMethodSteppingInfoDelegate || !pSymbolReaderHandle || !ilOffset)
         return E_FAIL;
 
@@ -674,7 +674,7 @@ HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef method
 
 HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgram, std::string &textOutput)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!generateStackMachineProgramDelegate || !ppStackProgram)
         return E_FAIL;
 
@@ -694,7 +694,7 @@ HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgr
 
 void ReleaseStackMachineProgram(PVOID pStackProgram)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!releaseStackMachineProgramDelegate || !pStackProgram)
         return;
 
@@ -705,7 +705,7 @@ void ReleaseStackMachineProgram(PVOID pStackProgram)
 // Native part must not release Ptr memory, allocated by managed part.
 HRESULT NextStackCommand(PVOID pStackProgram, int32_t &Command, PVOID &Ptr, std::string &textOutput)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!nextStackCommandDelegate || !pStackProgram)
         return E_FAIL;
 
@@ -739,7 +739,7 @@ PVOID AllocString(const std::string &str)
 
 HRESULT StringToUpper(std::string &String)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!stringToUpperDelegate)
         return E_FAIL;
 
@@ -758,7 +758,7 @@ HRESULT StringToUpper(std::string &String)
 
 BSTR SysAllocStringLen(int32_t size)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!sysAllocStringLenDelegate)
         return nullptr;
 
@@ -767,7 +767,7 @@ BSTR SysAllocStringLen(int32_t size)
 
 void SysFreeString(BSTR ptrBSTR)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!sysFreeStringDelegate)
         return;
 
@@ -776,7 +776,7 @@ void SysFreeString(BSTR ptrBSTR)
 
 PVOID CoTaskMemAlloc(int32_t size)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!coTaskMemAllocDelegate)
         return nullptr;
 
@@ -785,7 +785,7 @@ PVOID CoTaskMemAlloc(int32_t size)
 
 void CoTaskMemFree(PVOID ptr)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!coTaskMemFreeDelegate)
         return;
 
@@ -795,7 +795,7 @@ void CoTaskMemFree(PVOID ptr)
 HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
                      std::unordered_set<mdMethodDef> &methodTokens)
 {
-    std::unique_lock<Utility::RWLock::Reader> read_lock(CLRrwlock.reader);
+    ReadLock read_lock(CLRrwlock);
     if (!loadDeltaPdbDelegate || !ppSymbolReaderHandle || pdbPath.empty())
         return E_FAIL;
 

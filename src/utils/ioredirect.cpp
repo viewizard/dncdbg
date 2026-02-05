@@ -6,8 +6,8 @@
 #include "interfaces/types.h"
 #include "utils/limits.h"
 #include "utils/logger.h"
-#include "utils/rwlock.h"
 #include "utils/streams.h"
+#include "utils/utility.h"
 #include <string.h>
 
 namespace dncdbg
@@ -151,7 +151,7 @@ void IORedirectHelper::worker()
 
     LOGI("%s started", __func__);
 
-    std::unique_lock<Utility::RWLock::Reader> read_lock(m_rwlock.reader, std::defer_lock_t{});
+    ReadLock read_lock(m_rwlock, std::defer_lock_t{});
 
     // loop till fatal error or exit request
     while (true)
@@ -217,8 +217,8 @@ void IORedirectHelper::worker()
     }
 }
 
-void IORedirectHelper::StartNewWriteRequests(std::unique_lock<Utility::RWLock::Reader> &read_lock,
-                                             OutStreamBuf *const out_stream, IOSystem::AsyncHandle &out_handle)
+void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+                                             IOSystem::AsyncHandle &out_handle)
 {
     assert(!read_lock);
     read_lock.lock();
@@ -252,8 +252,8 @@ void IORedirectHelper::StartNewWriteRequests(std::unique_lock<Utility::RWLock::R
     }
 }
 
-bool IORedirectHelper::ProcessFinishedWriteRequests(std::unique_lock<Utility::RWLock::Reader> &read_lock,
-                                                    OutStreamBuf *const out_stream, IOSystem::AsyncHandle &out_handle)
+bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+                                                    IOSystem::AsyncHandle &out_handle)
 {
     IOSystem::IOResult result = IOSystem::async_result(out_handle);
     if (result.status == IOSystem::IOResult::Success)
@@ -272,7 +272,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(std::unique_lock<Utility::RW
         read_lock.unlock();
 
         // process situation, when end of buffer reached.
-        if (m_rwlock.writer.try_lock())
+        if (m_rwlock.try_lock())
         {
             bool updated = false;
 
@@ -288,7 +288,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(std::unique_lock<Utility::RW
                 updated = true;
             }
 
-            m_rwlock.writer.unlock();
+            m_rwlock.unlock();
 
             // wake reader to read more data
             if (updated)
@@ -377,7 +377,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
     if (LOGE_IF(!pipe_handle, "%s: control pipe reading error", __func__))
         return AsyncResult::Error;
 
-    std::unique_lock<Utility::RWLock::Reader> read_lock(m_rwlock.reader, std::defer_lock_t{});
+    ReadLock read_lock(m_rwlock, std::defer_lock_t{});
 
     // loop until termination request
     LOGD("async_input: entering in loop");

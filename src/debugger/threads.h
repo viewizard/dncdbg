@@ -35,7 +35,7 @@ class Threads
 
   private:
 
-    Utility::RWLock m_userThreadsRWLock;
+    RWLock m_userThreadsRWLock;
     std::set<ThreadId> m_userThreads;
     ThreadId MainThread;
     std::shared_ptr<Evaluator> m_sharedEvaluator;

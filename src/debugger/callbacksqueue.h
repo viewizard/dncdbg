@@ -6,6 +6,7 @@
 #pragma once
 
 #include "debugger/manageddebugger.h"
+#include <condition_variable>
 #include <functional>
 #include <list>
 #include <thread>
