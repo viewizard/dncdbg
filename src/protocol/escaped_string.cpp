@@ -4,15 +4,15 @@
 
 #include "escaped_string.h"
 #include "assert.h"
-#include "utils/string_view.h"
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 namespace dncdbg
 {
 
 EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
-    const EscapedStringInternal::EscapedStringImpl::Params &params, const Utility::string_view &str, const TempRef &ref, bool isstring)
+    const EscapedStringInternal::EscapedStringImpl::Params &params, const std::string_view &str, const TempRef &ref, bool isstring)
     : m_ref(&ref),
       m_params(params),
       m_input(str),
@@ -26,7 +26,7 @@ EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
 
 // This function performs input string transformation according to specified (via `m_params) rules.
 // Result will be passed to supplied callback function.
-void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void *, const Utility::string_view &))
+void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*func)(void *, const std::string_view &))
 {
     // always have transformed result
     if (m_isresult)
@@ -38,7 +38,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
 
     // perform transformation and compute result size
     size_t size = 0;
-    string_view src = m_input;
+    std::string_view src = m_input;
     while (!src.empty())
     {
         // try to find first forbidden character
@@ -55,7 +55,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
         {
             // find right substitution for forbidden character and output substituting pair of characters
             auto ir = std::find(m_params.forbidden.begin(), m_params.forbidden.end(), *it);
-            string_view subst = m_params.subst[ir - m_params.forbidden.begin()];
+            std::string_view subst = m_params.subst[ir - m_params.forbidden.begin()];
             func(thiz, subst);
             size += subst.size();
             prefix_size++;
@@ -73,7 +73,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
 size_t EscapedStringInternal::EscapedStringImpl::size() noexcept
 {
     if (m_size == UndefinedSize)
-        (*this)(nullptr, [](void *, const string_view &) {});
+        (*this)(nullptr, [](void *, const std::string_view &) {});
 
     return m_size;
 }
@@ -81,7 +81,7 @@ size_t EscapedStringInternal::EscapedStringImpl::size() noexcept
 // function allocates memory and transforms string in all cases,
 // except of case, when transformation isn't required at all and
 // input arguments still not destroyed.
-EscapedStringInternal::EscapedStringImpl::operator Utility::string_view() noexcept
+EscapedStringInternal::EscapedStringImpl::operator std::string_view() noexcept
 {
     if (!m_isresult)
     {
@@ -123,12 +123,12 @@ void EscapedStringInternal::EscapedStringImpl::transform()
     m_result.resize(size(), 0);
     auto it = m_result.begin();
 
-    auto func = [&](const string_view &str) {
+    auto func = [&](const std::string_view &str) {
         m_result.replace(it, it + str.size(), str.begin(), str.end());
         it += str.size();
     };
 
-    (*this)(&func, [](void *fp, const string_view &str) { (*static_cast<decltype(func) *>(fp))(str); });
+    (*this)(&func, [](void *fp, const std::string_view &str) { (*static_cast<decltype(func) *>(fp))(str); });
 
     m_isresult = true;
     m_isstring = true;

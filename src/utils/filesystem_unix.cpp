@@ -8,10 +8,8 @@
 #endif
 #include "utils/filesystem.h"
 #include "utils/limits.h"
-#include "utils/string_view.h"
 #include <array>
 #include <stdlib.h>
-#include <string>
 #include <unistd.h>
 
 namespace dncdbg
@@ -55,7 +53,7 @@ std::string GetExeAbsPath()
 // Function returns path to directory, which should be used for creation of
 // temporary files. Typically this is `/tmp` on Unix and something like
 // `C:\Users\localuser\Appdata\Local\Temp` on Windows.
-Utility::string_view GetTempDir()
+std::string_view GetTempDir()
 {
     auto get_tmpdir = []()
         {

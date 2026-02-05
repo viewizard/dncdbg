@@ -20,6 +20,7 @@
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
 #include <string>
+#include <stdexcept>
 
 namespace dncdbg
 {

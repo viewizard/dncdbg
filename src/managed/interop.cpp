@@ -9,10 +9,6 @@
 
 #include "managed/interop.h"
 
-#include <set>
-#include <string>
-#include <thread>
-
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include <dirent.h>
 #include <stddef.h>
@@ -35,6 +31,11 @@
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
 #include "utils/utf.h"
+#include <set>
+#include <string>
+#include <thread>
+#include <stdexcept>
+#include <cstring>
 
 #ifdef FEATURE_PAL
 // Suppress undefined reference

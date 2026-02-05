@@ -11,7 +11,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "utils/string_view.h"
 #include "utils/torelease.h"
 #include <functional>
 #include <mutex>

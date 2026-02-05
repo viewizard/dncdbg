@@ -4,10 +4,11 @@
 
 #pragma once
 #include "utils/span.h"
-#include "utils/string_view.h"
 #include "utils/utility.h"
 #include <string>
+#include <string_view>
 #include <utility>
+#include <ostream>
 
 namespace dncdbg
 {
@@ -16,7 +17,6 @@ namespace dncdbg
 // contents of this namespace isn't designated for direct use.
 namespace EscapedStringInternal
 {
-using Utility::string_view;
 
 // This class allows to perform some predefined actions in moment of time,
 // when temporary object of type TempReference is destroyed. Typically it might
@@ -74,8 +74,8 @@ struct EscapedStringImpl
     // it's template parameters should be stored in `Params` class.
     struct Params
     {
-        string_view forbidden;                  // characters which must be replaced
-        Utility::span<const string_view> subst; // strings to which `forbidden` characters must be replaced
+        std::string_view forbidden;                  // characters which must be replaced
+        Utility::span<const std::string_view> subst; // strings to which `forbidden` characters must be replaced
         char escape;                            // character, which preceedes each substitution
     };
 
@@ -84,7 +84,7 @@ struct EscapedStringImpl
     // `str` is the source string, in which all `forbidden` characters must be replaced,
     // `isstring` must be set to true only in case, when `str` contains terminating zero
     // (to which `str->end()` points).
-    EscapedStringImpl(const Params &params, const string_view &str, const TempRef &ref, bool isstring);
+    EscapedStringImpl(const Params &params, const std::string_view &str, const TempRef &ref, bool isstring);
 
     ~EscapedStringImpl()
     {
@@ -93,10 +93,10 @@ struct EscapedStringImpl
     }
 
     // see comments in `EscapedString` class below
-    void operator()(void *thiz, void (*func)(void *, const string_view &));
+    void operator()(void *thiz, void (*func)(void *, const std::string_view &));
     size_t size() noexcept;
     explicit operator const std::string &();
-    operator string_view() noexcept;
+    operator std::string_view() noexcept;
     const char *c_str();
 
   private:
@@ -121,7 +121,7 @@ struct EscapedStringImpl
     const TempReference<EscapedStringImpl> *m_ref;
 
     const Params &m_params;    // character substitution rules
-    const string_view m_input; // points to input string
+    const std::string_view m_input; // points to input string
     std::string m_result;      // might contain result string (lazy evaluated)
     size_t m_size;             // size of result stirng (lazy evaluated)
     bool m_isstring;           // true if m_input->end() points to terminating zero
@@ -151,14 +151,13 @@ struct EscapedStringImpl
 //
 template <typename Traits> class EscapedString
 {
-    using string_view = Utility::string_view;
     using EscapedStringImpl = EscapedStringInternal::EscapedStringImpl;
     static EscapedStringImpl::Params params;
 
   public:
     // Construct `EscapedString` from c-strings (via implicit conversion) or string_view.
     // Second parameter must have default value (shouldn't be assigned explicitly).
-    EscapedString(string_view str, const EscapedStringImpl::TempRef &ref = EscapedStringImpl::TempRef())
+    EscapedString(std::string_view str, const EscapedStringImpl::TempRef &ref = EscapedStringImpl::TempRef())
         : impl(params, str, ref, false)
     {
     }
@@ -170,10 +169,10 @@ template <typename Traits> class EscapedString
     // This function allows to avoid memory allocation: functor `func` given as argument
     // will consume parts of result (transformed string) which will be generated on the fly.
     // Functor `func` must accept `string_view` as argument.
-    template <typename Func, typename = decltype(std::declval<Func>()(std::declval<string_view>()))>
+    template <typename Func, typename = decltype(std::declval<Func>()(std::declval<std::string_view>()))>
     void operator()(Func &&func) const
     {
-        impl.operator()(&func, [](void *thiz, const string_view &str) { (*static_cast<Func *>(thiz))(str); });
+        impl.operator()(&func, [](void *thiz, const std::string_view &str) { (*static_cast<Func *>(thiz))(str); });
     }
 
     // Function returns size of transformed string (no actual transformation performed).
@@ -189,9 +188,9 @@ template <typename Traits> class EscapedString
     }
 
     // Function transforms string and allocates memory.
-    operator string_view() const noexcept
+    operator std::string_view() const noexcept
     {
-        return static_cast<string_view>(impl);
+        return static_cast<std::string_view>(impl);
     }
 
     // Function transforms string to allocated memory.
@@ -211,7 +210,7 @@ EscapedStringInternal::EscapedStringImpl::Params EscapedString<Traits>::params =
           static_assert(sizeof(Traits::forbidden_chars) - 1 == Utility::Size(Traits::subst_chars),
                         "forbidden_chars and subst_chars must have same size!");
       }),
-      string_view(Traits::forbidden_chars))},
+      std::string_view(Traits::forbidden_chars))},
     {Traits::subst_chars},
     Traits::escape_char};
 
@@ -219,8 +218,7 @@ EscapedStringInternal::EscapedStringImpl::Params EscapedString<Traits>::params =
 // the supplied `std::ostream` avoiding memory allocations.
 template <typename Traits> std::ostream &operator<<(std::ostream &os, const EscapedString<Traits> &estr)
 {
-    using string_view = Utility::string_view;
-    estr([&](string_view str) -> void { os.write(str.data(), str.size()); });
+    estr([&](std::string_view str) -> void { os.write(str.data(), str.size()); });
     return os;
 }
 

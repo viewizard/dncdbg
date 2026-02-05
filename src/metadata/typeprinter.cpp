@@ -9,9 +9,9 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "utils/string_view.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <string_view>
 
 namespace dncdbg
 {
@@ -434,7 +434,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
             AddGenericArgs(pType, args);
             if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), pMD, name, false, &args)))
             {
-                static const Utility::string_view nullablePattern = "System.Nullable<";
+                static const std::string_view nullablePattern = "System.Nullable<";
                 if (name.rfind(nullablePattern, 0) == 0)
                 {
                     ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";

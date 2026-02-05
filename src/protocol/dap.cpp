@@ -23,9 +23,9 @@
 #include "protocol/escaped_string.h"
 #include "utils/logger.h"
 #include "utils/streams.h"
-#include "utils/string_view.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <string_view>
 
 // for convenience
 using json = nlohmann::json;
@@ -290,7 +290,7 @@ namespace
 struct JSON_escape_rules
 {
     static const char forbidden_chars[];
-    static const Utility::string_view subst_chars[];
+    static const std::string_view subst_chars[];
     constexpr static const char escape_char = '\\';
 };
 
@@ -300,7 +300,7 @@ const char JSON_escape_rules::forbidden_chars[] =
 "\000\001\002\003\004\005\006\007\010\011\012\013\014\015\016\017"
 "\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037";
 
-const Utility::string_view JSON_escape_rules::subst_chars[] = {
+const std::string_view JSON_escape_rules::subst_chars[] = {
     "\\\"", "\\\\",
     "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005", "\\u0006", "\\u0007",
     "\\b", "\\t", "\\n", "\\u000b", "\\f", "\\r", "\\u000e", "\\u000f",
@@ -311,7 +311,7 @@ const Utility::string_view JSON_escape_rules::subst_chars[] = {
 // This function serializes "OutputEvent" to specified output stream and used for two
 // purposes: to compute output size, and to perform the output directly.
 template <typename T1>
-void serialize_output(std::ostream &stream, uint64_t counter, const Utility::string_view &name, T1 &text, Source &source)
+void serialize_output(std::ostream &stream, uint64_t counter, const std::string_view &name, T1 &text, Source &source)
 {
     stream << "{\"seq\":" << counter
            << ", \"event\":\"output\",\"type\":\"event\",\"body\":{\"category\":\"" << name
@@ -330,15 +330,15 @@ void serialize_output(std::ostream &stream, uint64_t counter, const Utility::str
 };
 } // namespace
 
-void DAP::EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId)
+void DAP::EmitOutputEvent(OutputCategory category, const std::string_view &output, DWORD threadId)
 {
     LogFuncEntry();
 
-    static const Utility::string_view categories[] = {"console", "stdout", "stderr"};
+    static const std::string_view categories[] = {"console", "stdout", "stderr"};
 
     // determine "category name"
     assert(category == OutputConsole || category == OutputStdOut || category == OutputStdErr);
-    const Utility::string_view &name = categories[category];
+    const std::string_view &name = categories[category];
 
     EscapedString<JSON_escape_rules> escaped_text(output);
 

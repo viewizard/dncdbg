@@ -13,7 +13,6 @@
 
 #include "interfaces/types.h"
 #include "metadata/modules_sources.h"
-#include "utils/string_view.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <functional>

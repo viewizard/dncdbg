@@ -4,7 +4,8 @@
 
 #pragma once
 #include "utils/platform.h"
-#include "utils/string_view.h"
+#include <string>
+#include <string_view>
 #include <cstddef>
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
@@ -46,7 +47,7 @@ bool SetWorkDir(const std::string &path);
 // Function returns path to directory, which should be used for creation of
 // temporary files. Typically this is `/tmp` on Unix and something like
 // `C:\Users\localuser\Appdata\Local\Temp` on Windows.
-Utility::string_view GetTempDir();
+std::string_view GetTempDir();
 
 // Function checks, if given path contains directory names (strictly speaking,
 // contains path separator) or consists only of a file name. Return value is `true`

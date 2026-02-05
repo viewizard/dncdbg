@@ -14,7 +14,6 @@ namespace dncdbg
 {
 
 #ifdef _MSC_VER
-typedef char16_t WCHAR;
 typedef std::wstring WSTRING;
 #else
 typedef char16_t WCHAR;
