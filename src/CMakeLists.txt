@@ -78,10 +78,10 @@ endif()
 # By default, build with case-insensitive file name collision for all OSes.
 # Note, test-suite will count on this build option.
 if (CASE_SENSITIVE_FILENAME_COLLISION)
-    message(STATUS "Added compiled option: CASE_SENSITIVE_FILENAME_COLLISION")
+    message(STATUS "Added compile option: CASE_SENSITIVE_FILENAME_COLLISION")
     add_definitions(-DCASE_SENSITIVE_FILENAME_COLLISION)
 else()
-    message(STATUS "Added compiled option: CASE_INSENSITIVE_FILENAME_COLLISION")
+    message(STATUS "Added compile option: CASE_INSENSITIVE_FILENAME_COLLISION")
     add_definitions(-DCASE_INSENSITIVE_FILENAME_COLLISION)
 endif()
 
