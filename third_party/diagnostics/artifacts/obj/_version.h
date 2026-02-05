@@ -14,13 +14,13 @@
 #define VER_PRODUCTNAME_STR         ".NET"
 #endif
 #undef VER_PRODUCTVERSION
-#define VER_PRODUCTVERSION          10,0,14,8101
+#define VER_PRODUCTVERSION          9,0,14,10501
 #undef VER_PRODUCTVERSION_STR
-#define VER_PRODUCTVERSION_STR      "10.0.0-dev.26081.1 @Commit: 3272544fa65aa8c6af5285cecceb01ccb4acb029"
+#define VER_PRODUCTVERSION_STR      "9.0.710501 @Commit: d7b455b46332b31fd9ba3a3f3e020387984c511a"
 #undef VER_FILEVERSION
-#define VER_FILEVERSION             10,0,14,8101
+#define VER_FILEVERSION             9,0,14,10501
 #undef VER_FILEVERSION_STR
-#define VER_FILEVERSION_STR         "10,0,14,8101 @Commit: 3272544fa65aa8c6af5285cecceb01ccb4acb029"
+#define VER_FILEVERSION_STR         "9,0,14,10501 @Commit: d7b455b46332b31fd9ba3a3f3e020387984c511a"
 #ifndef VER_LEGALCOPYRIGHT_STR
 #define VER_LEGALCOPYRIGHT_STR      "\xa9 Microsoft Corporation. All rights reserved."
 #endif
