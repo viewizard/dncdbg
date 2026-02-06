@@ -25,7 +25,10 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
         ~scope_guard()
         {
             if (*ppFile_)
-                fclose(*ppFile_);
+            {
+                if (fclose(*ppFile_) == 0)
+                    *ppFile_ = nullptr;
+            }
         }
 
       private:

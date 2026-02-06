@@ -29,9 +29,9 @@ namespace dncdbg
 static void print_help()
 {
 #ifdef _WIN32
-    fprintf(stdout, "Usage: dncdbg.exe [options]\n"
+    static_cast<void>(fprintf(stdout, "Usage: dncdbg.exe [options]\n"
 #else
-    fprintf(stdout, "Usage: dncdbg [options]\n"
+    static_cast<void>(fprintf(stdout, "Usage: dncdbg [options]\n"
 #endif
                     "\n"
                     "Options:\n"
@@ -39,7 +39,7 @@ static void print_help()
                     "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
                     "--log=<path to log file>                 Enable debugger logging to file.\n"
                     "                                         File log by default. File is created in 'current' folder.\n"
-                    "--version                                Displays the current version.\n");
+                    "--version                                Displays the current version.\n"));
 }
 
 static void print_buildinfo()
@@ -89,7 +89,7 @@ static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std
             return;
         }
     }
-    fprintf(stderr, "Error: Unknown option %s\n", argv[i]);
+    static_cast<void>(fprintf(stderr, "Error: Unknown option %s\n", argv[i]));
     exit(EXIT_FAILURE);
 }
 
@@ -166,7 +166,7 @@ int
     }
     catch (const std::exception &e)
     {
-        fprintf(stderr, "%s\n", e.what());
+        static_cast<void>(fprintf(stderr, "%s\n", e.what()));
         exit(EXIT_FAILURE);
     }
 

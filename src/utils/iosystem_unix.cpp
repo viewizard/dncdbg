@@ -57,7 +57,7 @@ struct AsyncRead
             if (errno == EAGAIN)
                 return {Class::IOResult::Pending, 0};
 
-            fprintf(stderr, "select error %i", errno);
+            static_cast<void>(fprintf(stderr, "select error %i", errno));
             throw std::runtime_error("select error");
         }
 
@@ -103,7 +103,7 @@ struct AsyncWrite
             if (errno == EAGAIN)
                 return {Class::IOResult::Pending, 0};
 
-            fprintf(stderr, "select error %i", errno);
+            static_cast<void>(fprintf(stderr, "select error %i", errno));
             throw std::runtime_error("select error");
         }
 
@@ -142,7 +142,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     }
 
     // TODO what to do with this?
-    signal(SIGPIPE, SIG_IGN);
+    static_cast<void>(signal(SIGPIPE, SIG_IGN));
 
     return {fds[0], fds[1]};
 }
@@ -273,7 +273,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 
     if (result < 0)
     {
-        fprintf(stderr, "select error %i", errno);
+        static_cast<void>(fprintf(stderr, "select error %i", errno));
         throw std::runtime_error("select error");
     }
 
@@ -331,13 +331,13 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
         m_orig_fd[n] = ::dup(oldfd[n]);
         if (m_orig_fd[n] == -1)
         {
-            fprintf(stderr, "dup error %i", errno);
+            static_cast<void>(fprintf(stderr, "dup error %i", errno));
             throw std::runtime_error("dup error");
         }
 
         if (::dup2(newfd[n], oldfd[n]) == -1)
         {
-            fprintf(stderr, "dup2 error %i", errno);
+            static_cast<void>(fprintf(stderr, "dup2 error %i", errno));
             throw std::runtime_error("dup2 error");
         }
     }

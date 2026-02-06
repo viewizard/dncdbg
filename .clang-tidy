@@ -51,8 +51,6 @@ Checks: >
   -misc-throw-by-value-catch-by-reference,
   -misc-const-correctness,
   cert-*,
-  -cert-dcl51-cpp,
-  -cert-err33-c,
   -cert-err58-cpp,
   -cert-err09-cpp,
   -cert-err61-cpp,

@@ -26,7 +26,7 @@ DLHandle DLOpen(const std::string &path)
     if (tmpPointer == NULL)
     {
         char *err = ::dlerror();
-        fprintf(stderr, "dlopen() error: %s\n", err);
+        static_cast<void>(fprintf(stderr, "dlopen() error: %s\n", err));
         LOGE("dlopen() error: %s", err);
     }
     return reinterpret_cast<DLHandle>(tmpPointer);
@@ -50,7 +50,7 @@ void *DLSym(DLHandle handle, const std::string_view &name)
     char *err = ::dlerror();
     if (err != NULL)
     {
-        fprintf(stderr, "dlsym() error: %s\n", err);
+        static_cast<void>(fprintf(stderr, "dlsym() error: %s\n", err));
         LOGE("dlsym() error: %s", err);
     }
 
@@ -65,7 +65,7 @@ bool DLClose(DLHandle handle)
     if (ret != 0)
     {
         char *err = ::dlerror();
-        fprintf(stderr, "dlclose() error: %s\n", err);
+        static_cast<void>(fprintf(stderr, "dlclose() error: %s\n", err));
         LOGE("dlclose() error: %s", err);
     }
 

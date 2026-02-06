@@ -102,7 +102,7 @@ FILE *open_log_file()
         return nullptr;
     }
 
-    setvbuf(result, log_buffer, _IOFBF, sizeof(log_buffer));
+    static_cast<void>(setvbuf(result, log_buffer, _IOFBF, sizeof(log_buffer)));
     return result;
 }
 } // namespace
@@ -149,10 +149,10 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     int r = vfprintf(log_file, fmt, ap);
     if (r < 0)
     {
-        fputc('\n', log_file);
+        static_cast<void>(fputc('\n', log_file));
         return DLOG_ERROR_INVALID_PARAMETER;
     }
 
-    fputc('\n', log_file);
+    static_cast<void>(fputc('\n', log_file));
     return fflush(log_file) < 0 ? DLOG_ERROR_NOT_PERMITTED : len + r + 1;
 }
