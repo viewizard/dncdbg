@@ -1143,7 +1143,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
     m_uniqueSteppers->SetStepFiltering(enable);
 }
 
-void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, span<char> text)
+void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)
 {
     pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputStdErr : OutputStdOut, {text.begin(), text.size()});
 }

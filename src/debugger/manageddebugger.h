@@ -24,8 +24,6 @@
 namespace dncdbg
 {
 
-template <typename T> using span = Utility::span<T>;
-
 class DAP;
 class Threads;
 class Steppers;
@@ -169,7 +167,7 @@ class ManagedDebugger
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    void InputCallback(IORedirectHelper::StreamType, span<char> text);
+    void InputCallback(IORedirectHelper::StreamType, Utility::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

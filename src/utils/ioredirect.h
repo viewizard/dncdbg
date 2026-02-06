@@ -27,8 +27,6 @@ class IORedirectHelper
 {
   public:
 
-    template <typename T> using span = Utility::span<T>;
-
     using StreamType = IOSystem::StdFileType;
 
     using PipePair = std::pair<IOSystem::FileHandle, IOSystem::FileHandle>;
@@ -39,7 +37,7 @@ class IORedirectHelper
     // Arguments of the callback functor are following:
     //  * `StreamType` defines the stream: IOSystem::Stdout or IOSystem::Stderr;
     //  * `span<char>` represents portion of the data (text).
-    using InputCallback = std::function<void(StreamType, span<char>)>;
+    using InputCallback = std::function<void(StreamType, Utility::span<char>)>;
 
     // This constant represents default buffers size for input/output.
     // Typically buffer with default size can hold few lines of text.

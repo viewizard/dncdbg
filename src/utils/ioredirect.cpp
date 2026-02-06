@@ -172,7 +172,7 @@ void IORedirectHelper::worker()
             if (avail)
             {
                 LOGD("push %u bytes to callback", int(avail));
-                m_callback(stream_types[n], span<char>(stream->gptr(), avail));
+                m_callback(stream_types[n], Utility::span<char>(stream->gptr(), avail));
                 stream->gbump(int(avail));
                 stream->compactify();
             }
