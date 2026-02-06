@@ -32,11 +32,11 @@ static std::string ConsumeGenericArgs(const std::string &name, std::list<std::st
     {
         numArgs = std::stoul(name.substr(offset + 1));
     }
-    catch (std::invalid_argument e)
+    catch (const std::invalid_argument &e)
     {
         return name;
     }
-    catch (std::out_of_range e)
+    catch (const std::out_of_range &e)
     {
         return name;
     }
