@@ -7,7 +7,6 @@
 
 #ifdef _WIN32
 #include <stringapiset.h>
-#include <string>
 #else
 #include <iconv.h>
 #include <vector>

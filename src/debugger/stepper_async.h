@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
+#include "interfaces/types.h"
 #include "metadata/async_info.h"
 #include "utils/torelease.h"
 #include <mutex>
@@ -35,7 +35,7 @@ class AsyncStepper
           m_asyncStepNotifyDebuggerOfWaitCompletion(nullptr)
     {}
 
-    HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
+    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -85,7 +85,7 @@ class AsyncStepper
     struct asyncStep_t
     {
         ThreadId m_threadId;
-        ManagedDebugger::StepType m_initialStepType;
+        StepType m_initialStepType;
         uint32_t m_resume_offset;
         asyncStepStatus m_stepStatus;
         std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
@@ -93,7 +93,7 @@ class AsyncStepper
 
         asyncStep_t()
             : m_threadId(ThreadId::Invalid),
-              m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
+              m_initialStepType(StepType::STEP_OVER),
               m_resume_offset(0),
               m_stepStatus(asyncStepStatus::yield_offset_breakpoint),
               m_Breakpoint(nullptr),

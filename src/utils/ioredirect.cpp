@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include "interfaces/types.h"
 #include "utils/ioredirect.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"

@@ -7,11 +7,12 @@
 #include <wtypes.h>
 #endif
 
-#include "debugger/breakpoints.h"
+#include "debugger/managedcallback.h"
+#include "debugger/manageddebugger.h"
+#include "debugger/breakpoints.h" // NOLINT(misc-include-cleaner)
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
-#include "debugger/managedcallback.h"
 #include "debugger/threads.h"
 #include "debugger/waitpid.h"
 #include "managed/interop.h"

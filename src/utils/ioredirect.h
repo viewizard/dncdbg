@@ -5,17 +5,18 @@
 #pragma once
 
 #include "interfaces/types.h" // AsyncResult
-#include "utils/span.h"
 #include "utils/iosystem.h"
 #include "utils/platform.h"
 #include "utils/rwlock.h"
+#include "utils/span.h"
 #include "utils/streams.h"
 #include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <thread>
-#include <vector>
+#include <utility>
+#include <tuple>
 
 namespace dncdbg
 {

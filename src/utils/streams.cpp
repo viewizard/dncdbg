@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/streams.h"
+#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include <cassert>
 #include <cstring>
 #include <algorithm>

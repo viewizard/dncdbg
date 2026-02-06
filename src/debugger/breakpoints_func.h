@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
+#include "interfaces/types.h"
 #include "utils/torelease.h"
 #include <functional>
 #include <memory>
@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <utility>
 
 namespace dncdbg
 {

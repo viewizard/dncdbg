@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/manageddebugger.h"
 #include "protocol/dap.h"
+#include "debugger/manageddebugger.h"
 #include "protocol/escaped_string.h"
 #include "utils/logger.h"
 #include "utils/streams.h"
@@ -15,12 +15,10 @@
 #include <iostream>
 #include <map>
 #include <sstream>
-#include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <string_view>
 
 // for convenience
 using json = nlohmann::json;
@@ -692,17 +690,17 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"next", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
-                                                   ManagedDebugger::StepType::STEP_OVER);
+                                                   StepType::STEP_OVER);
             }},
         {"stepIn", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
-                                                   ManagedDebugger::StepType::STEP_IN);
+                                                   StepType::STEP_IN);
             }},
         {"stepOut", [&](const json &arguments, json &/*body*/)
             {
                 return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
-                                                   ManagedDebugger::StepType::STEP_OUT);
+                                                   StepType::STEP_OUT);
             }},
         {"scopes", [&](const json &arguments, json &body)
             {

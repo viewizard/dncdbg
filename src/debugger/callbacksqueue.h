@@ -5,14 +5,24 @@
 
 #pragma once
 
-#include "debugger/manageddebugger.h"
+#include <cor.h>
+#include <cordebug.h>
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <specstrings_undef.h>
+#endif
+
+#include "interfaces/types.h"
+#include "utils/torelease.h"
 #include <condition_variable>
 #include <functional>
 #include <list>
 #include <thread>
+#include <string>
 
 namespace dncdbg
 {
+
+class ManagedDebugger;
 
 // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugcontroller-hasqueuedcallbacks-method
 //

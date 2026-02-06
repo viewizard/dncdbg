@@ -7,8 +7,9 @@
 #include <wtypes.h>
 #endif
 
-#include "debugger/breakpoints.h"
 #include "debugger/callbacksqueue.h"
+#include "debugger/manageddebugger.h"
+#include "debugger/breakpoints.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/steppers.h"
 #include "debugger/threads.h"

@@ -14,9 +14,6 @@
 #include "interfaces/types.h"
 #include "utils/torelease.h"
 #include <functional>
-#include <list>
-#include <mutex>
-#include <unordered_set>
 #include <vector>
 
 namespace dncdbg

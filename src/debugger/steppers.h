@@ -10,28 +10,23 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/stepper_async.h"
-#include "debugger/stepper_simple.h"
+#include "interfaces/types.h"
 #include <memory>
 
 namespace dncdbg
 {
 
+class SimpleStepper;
+class AsyncStepper;
+class EvalHelpers;
+class Modules;
+
 class Steppers
 {
   public:
 
-    Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
-        : m_simpleStepper(new SimpleStepper(sharedModules)),
-          m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
-          m_sharedModules(sharedModules),
-          m_initialStepType(ManagedDebugger::StepType::STEP_OVER),
-          m_justMyCode(true),
-          m_stepFiltering(true),
-          m_filteredPrevStep(false)
-    {}
-
-    HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
+    Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers);
+    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -53,10 +48,10 @@ class Steppers
   private:
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
-    std::unique_ptr<AsyncStepper> m_asyncStepper;
+    std::shared_ptr<AsyncStepper> m_asyncStepper;
     std::shared_ptr<Modules> m_sharedModules;
-    ManagedDebugger::StepType m_initialStepType;
-    Modules::SequencePoint m_StepStartSP;
+    StepType m_initialStepType;
+    SequencePoint m_StepStartSP;
     bool m_justMyCode;
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.

@@ -4,12 +4,26 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/steppers.h"
+#include "debugger/stepper_async.h"
+#include "debugger/stepper_simple.h"
 #include "metadata/attributes.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
+#include "utils/platform.h"
 #include "utils/utf.h"
 #include <unordered_set>
 
 namespace dncdbg
 {
+
+Steppers::Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+    : m_simpleStepper(new SimpleStepper(sharedModules)),
+        m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
+        m_sharedModules(sharedModules),
+        m_initialStepType(StepType::STEP_OVER),
+        m_justMyCode(true),
+        m_stepFiltering(true),
+        m_filteredPrevStep(false)
+{}
 
 // From ECMA-335
 static const std::unordered_set<WSTRING> g_operatorMethodNames
@@ -66,7 +80,7 @@ static const std::unordered_set<WSTRING> g_operatorMethodNames
     W("op_DivisionAssignment")            // /=
 };
 
-HRESULT Steppers::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType)
+HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status;
     m_filteredPrevStep = false;
@@ -169,7 +183,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
     if (m_stepFiltering && methodShouldBeFltered())
     {
-        IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OUT));
+        IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT));
         m_filteredPrevStep = true;
         return S_OK;
     }
@@ -197,7 +211,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // Step completed on same location in source as it was started, this happens when some user code block have several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 ULONG32 ilOffset;
-                Modules::SequencePoint sp;
+                SequencePoint sp;
                 IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
@@ -213,13 +227,13 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         // Current IL offset less than IL offset of next close user code line (for example, step-in into async method)
         else if (reason == CorDebugStepReason::STEP_CALL && ipOffset < ilNextUserCodeOffset)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_OVER));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OVER));
             return S_OK;
         }
         // was return from filtered method
         else if (reason == CorDebugStepReason::STEP_RETURN && filteredPrevStep)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_IN));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
             return S_OK;
         }
     }
@@ -240,7 +254,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
         if (HasAttribute(iMD, typeDef, DebuggerAttribute::StepThrough) || HasAttribute(iMD, methodDef, attrNames))
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, ManagedDebugger::StepType::STEP_IN));
+            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
             // In case step-in will return from filtered method and no user code was called, step-in again.
             m_filteredPrevStep = true;
 

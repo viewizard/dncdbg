@@ -55,13 +55,6 @@ class ManagedDebugger
 {
   public:
 
-    enum class StepType
-    {
-        STEP_IN = 0,
-        STEP_OVER,
-        STEP_OUT
-    };
-
     enum DisconnectAction
     {
         DisconnectDefault, // Attach -> Detach, Launch -> Terminate

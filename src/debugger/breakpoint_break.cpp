@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoint_break.h"
 #include "debugger/threads.h"
-#include "metadata/modules.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "utils/torelease.h"
 
 namespace dncdbg
@@ -105,11 +105,11 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         fullyQualifiedIlOffset.methodToken != m_lastStoppedIlOffset.methodToken)
         return S_FALSE;
 
-    Modules::SequencePoint lastSP;
+    SequencePoint lastSP;
     IfFailRet(m_sharedModules->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
                                                           m_lastStoppedIlOffset.ilOffset, lastSP));
 
-    Modules::SequencePoint curSP;
+    SequencePoint curSP;
     IfFailRet(m_sharedModules->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
                                                           fullyQualifiedIlOffset.ilOffset, curSP));
 

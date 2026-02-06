@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints_func.h"
+#include "debugger/breakpoints.h"
 #include "debugger/breakpointutils.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"

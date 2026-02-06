@@ -3,8 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
-#include "utils/limits.h"
 #include "utils/platform.h"
+#include "utils/limits.h"
 #include <stdlib.h> // char **environ
 #include <windows.h>
 

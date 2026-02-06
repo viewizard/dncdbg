@@ -15,6 +15,7 @@
 #include <arrayholder.h>
 #include <functional>
 #include <sstream>
+#include <utility>
 
 namespace dncdbg
 {

@@ -8,13 +8,12 @@
 // Note: this file should be excluded from build on Tizen -- in this
 // case Tizen's logger function should be linked.
 
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
+#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include <assert.h>
 #include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #ifdef _WIN32

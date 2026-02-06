@@ -9,6 +9,10 @@
 #include "utils/utf.h"
 #include <string>
 
+#ifdef _MSC_VER
+#include <palclr.h>
+#endif
+
 namespace dncdbg
 {
 

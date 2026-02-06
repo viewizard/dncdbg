@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <cstddef> // ptrdiff_t
 #include <mutex>
-#include <tuple>
-#include <vector>
 
 // Important! All "interfaces" code must not depends from other debugger's code.
 

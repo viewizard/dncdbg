@@ -8,7 +8,6 @@
 #include "utils/utility.h"
 #include <string>
 #include <string_view>
-#include <utility>
 #include <ostream>
 
 namespace dncdbg

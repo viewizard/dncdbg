@@ -8,7 +8,6 @@
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
 #else
-#include <palclr.h>
 #include <wtypes.h>
 #endif
 
@@ -202,8 +201,6 @@ class FrameId : public CustomScalarType<FrameId>
 
     ScalarType m_id;
 };
-
-// From https://github.com/Microsoft/vscode-debugadapter-node/blob/master/protocol/src/debugProtocol.ts
 
 struct Thread
 {
@@ -645,6 +642,23 @@ enum class AsyncResult
     Canceled, // function canceled due to debugger interruption
     Error,    // IO error
     Eof       // EOF reached
+};
+
+enum class StepType
+{
+    STEP_IN = 0,
+    STEP_OVER,
+    STEP_OUT
+};
+
+struct SequencePoint
+{
+    int32_t startLine;
+    int32_t startColumn;
+    int32_t endLine;
+    int32_t endColumn;
+    int32_t offset;
+    std::string document;
 };
 
 } // namespace dncdbg

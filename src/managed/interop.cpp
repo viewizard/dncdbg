@@ -16,11 +16,10 @@
 #include <sys/stat.h>
 #elif _WIN32
 #include "utils/limits.h"
-#include <set>
 #include <stddef.h>
 #include <string.h>
-#include <string>
 #include <windows.h>
+#include <palclr.h>
 #endif
 
 #include "utils/logger.h" // NOLINT(misc-include-cleaner)
@@ -29,9 +28,7 @@
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
 #include "utils/utf.h"
-#include <palclr.h>
 #include <set>
-#include <string>
 #include <stdexcept>
 #include <cstring>
 #include <assert.h>

@@ -9,6 +9,7 @@
 #include "debugger/valueprint.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
+#include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
 #include <vector>

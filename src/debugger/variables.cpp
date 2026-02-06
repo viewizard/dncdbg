@@ -3,10 +3,10 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/evalhelpers.h"
+#include "debugger/variables.h"
+#include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h"
-#include "debugger/variables.h"
 #include "debugger/valueprint.h"
 #include "interfaces/types.h"
 #include "metadata/typeprinter.h"

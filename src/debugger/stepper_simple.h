@@ -11,9 +11,9 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
-#include "utils/torelease.h"
+#include "interfaces/types.h"
 #include <mutex>
+#include <memory>
 
 namespace dncdbg
 {
@@ -30,7 +30,7 @@ class SimpleStepper
           m_enabledSimpleStepId(0)
     {}
 
-    HRESULT SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType);
+    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.

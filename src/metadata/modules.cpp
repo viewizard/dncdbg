@@ -301,7 +301,7 @@ HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const s
 }
 
 HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset,
-                                            Modules::SequencePoint &sequencePoint)
+                                            SequencePoint &sequencePoint)
 {
     HRESULT Status;
 
@@ -667,7 +667,7 @@ HRESULT Modules::GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodD
 }
 
 HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ilOffset,
-                                            Modules::SequencePoint &sequencePoint)
+                                            SequencePoint &sequencePoint)
 {
     return GetModuleInfo(modAddress,
         [&](ModuleInfo &mdInfo) -> HRESULT

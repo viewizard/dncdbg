@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
+#include "interfaces/types.h"
 #include "utils/torelease.h"
 #include <functional>
 #include <list>

@@ -7,18 +7,19 @@
 
 #include <string>
 
-#ifdef _MSC_VER
+#ifdef FEATURE_PAL
+#include <pal_mstypes.h>
+#else
 #include <wtypes.h>
 #endif
 
 namespace dncdbg
 {
 
-#ifdef _MSC_VER
-typedef std::wstring WSTRING;
-#else
-typedef char16_t WCHAR;
+#ifdef FEATURE_PAL
 typedef std::u16string WSTRING;
+#else
+typedef std::wstring WSTRING;
 #endif
 
 std::string to_utf8(const WCHAR *wstr);

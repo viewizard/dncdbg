@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+#include <tuple>
 
 namespace dncdbg
 {

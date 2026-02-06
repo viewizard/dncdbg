@@ -11,21 +11,16 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/breakpoint_break.h"
-#include "debugger/breakpoint_entry.h"
-#include "debugger/breakpoints_exception.h"
-#include "debugger/breakpoints_func.h"
-#include "debugger/breakpoints_line.h"
+#include "interfaces/types.h"
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_set>
+#include <vector>
 
 namespace dncdbg
 {
 
 class Evaluator;
-class EvalHelpers;
 class Variables;
 class Modules;
 class BreakBreakpoint;
@@ -71,11 +66,11 @@ class Breakpoints
 
   private:
 
-    std::unique_ptr<BreakBreakpoint> m_uniqueBreakBreakpoint;
-    std::unique_ptr<EntryBreakpoint> m_uniqueEntryBreakpoint;
-    std::unique_ptr<ExceptionBreakpoints> m_uniqueExceptionBreakpoints;
-    std::unique_ptr<FuncBreakpoints> m_uniqueFuncBreakpoints;
-    std::unique_ptr<LineBreakpoints> m_uniqueLineBreakpoints;
+    std::shared_ptr<BreakBreakpoint> m_breakBreakpoint;
+    std::shared_ptr<EntryBreakpoint> m_entryBreakpoint;
+    std::shared_ptr<ExceptionBreakpoints> m_exceptionBreakpoints;
+    std::shared_ptr<FuncBreakpoints> m_funcBreakpoints;
+    std::shared_ptr<LineBreakpoints> m_lineBreakpoints;
 
     std::mutex m_nextBreakpointIdMutex;
     uint32_t m_nextBreakpointId;

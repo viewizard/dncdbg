@@ -16,7 +16,6 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <functional>
-#include <memory>
 #include <mutex>
 #include <unordered_map>
 
@@ -53,16 +52,6 @@ struct ModuleInfo
 class Modules
 {
   public:
-
-    struct SequencePoint
-    {
-        int32_t startLine;
-        int32_t startColumn;
-        int32_t endLine;
-        int32_t endColumn;
-        int32_t offset;
-        std::string document;
-    };
 
     HRESULT ResolveBreakpoint(
         /*in*/ CORDB_ADDRESS modAddress,

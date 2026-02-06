@@ -1335,7 +1335,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         return E_FAIL;
 
     ULONG32 currentIlOffset;
-    Modules::SequencePoint sp;
+    SequencePoint sp;
     // GetFrameILAndSequencePoint() return "success" code only in case it found sequence point
     // for current IP, that mean we stop inside user code.
     // Note, we could have request for not user code, we ignore it and this is OK.

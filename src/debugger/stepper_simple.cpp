@@ -4,14 +4,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/stepper_simple.h"
-#include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 
 namespace dncdbg
 {
 
-HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::StepType stepType)
+HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status;
 
@@ -34,7 +33,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
 
     ThreadId threadId(getThreadId(pThread));
 
-    if (stepType == ManagedDebugger::StepType::STEP_OUT)
+    if (stepType == StepType::STEP_OUT)
     {
         IfFailRet(pStepper->StepOut());
 
@@ -44,7 +43,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
         return S_OK;
     }
 
-    BOOL bStepIn = stepType == ManagedDebugger::StepType::STEP_IN;
+    BOOL bStepIn = stepType == StepType::STEP_IN;
 
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))

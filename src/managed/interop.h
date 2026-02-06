@@ -16,7 +16,6 @@
 #endif
 
 #include "utils/platform.h"
-#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>

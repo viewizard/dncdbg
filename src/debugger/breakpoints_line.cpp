@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints_line.h"
+#include "debugger/breakpoints.h"
 #include "debugger/breakpointutils.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
@@ -43,7 +44,7 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
         return E_FAIL;
 
     ULONG32 ilOffset;
-    Modules::SequencePoint sp;
+    SequencePoint sp;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
 
     unsigned filenameIndex;

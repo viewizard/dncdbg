@@ -7,6 +7,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#include "debugger/manageddebugger.h"
 #include "debugger/breakpoints.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalhelpers.h"
@@ -15,7 +16,6 @@
 #include "debugger/evalwaiter.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
-#include "debugger/manageddebugger.h"
 #include "debugger/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
@@ -25,7 +25,6 @@
 #include "protocol/dap.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
-#include <palclr.h>
 #include <chrono>
 #include <map>
 #include <mutex>
@@ -876,7 +875,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     IfFailRet(pFunc->GetModule(&pModule));
 
     ULONG32 ilOffset;
-    Modules::SequencePoint sp;
+    SequencePoint sp;
     if (SUCCEEDED(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
     {
         stackFrame.source = Source(sp.document);

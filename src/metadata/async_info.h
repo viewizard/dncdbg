@@ -5,8 +5,15 @@
 
 #pragma once
 
-#include "metadata/modules.h"
+#include <cor.h>
+#include <cordebug.h>
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <specstrings_undef.h>
+#endif
+
 #include <memory>
+#include <mutex>
+#include <vector>
 
 namespace dncdbg
 {

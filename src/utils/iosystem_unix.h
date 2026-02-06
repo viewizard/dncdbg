@@ -12,6 +12,7 @@
 #include <new>
 #include <sys/select.h>
 #include <tuple>
+#include <utility>
 
 template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 {
