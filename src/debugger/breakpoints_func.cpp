@@ -5,9 +5,8 @@
 
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpointutils.h"
-#include "metadata/modules.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
-#include <algorithm>
 #include <sstream>
 #include <unordered_set>
 

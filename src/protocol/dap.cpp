@@ -9,7 +9,6 @@
 #include "utils/logger.h"
 #include "utils/streams.h"
 #include "utils/torelease.h"
-#include "utils/utf.h"
 #include <algorithm>
 #include <future>
 #include <iomanip>

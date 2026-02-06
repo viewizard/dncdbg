@@ -6,7 +6,7 @@
 #include "debugger/stepper_simple.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
-#include "metadata/modules.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 
 namespace dncdbg
 {

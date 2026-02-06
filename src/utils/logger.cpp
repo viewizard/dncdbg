@@ -8,7 +8,7 @@
 // Note: this file should be excluded from build on Tizen -- in this
 // case Tizen's logger function should be linked.
 
-#include "utils/limits.h"
+#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include <assert.h>
 #include <mutex>
@@ -23,7 +23,6 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include <sys/syscall.h>
-#include <sys/types.h>
 #include <unistd.h>
 #endif
 

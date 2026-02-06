@@ -9,13 +9,13 @@
 
 #include "debugger/breakpoints.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evalstackmachine.h"
-#include "debugger/evalwaiter.h"
+#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/managedcallback.h"
 #include "debugger/threads.h"
 #include "debugger/waitpid.h"
 #include "managed/interop.h"
-#include "metadata/modules.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "protocol/dap.h"
 #include "utils/utf.h"
 

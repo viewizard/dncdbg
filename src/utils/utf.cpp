@@ -11,7 +11,6 @@
 #else
 #include <iconv.h>
 #include <vector>
-#include <cstdint>
 #endif
 
 namespace dncdbg

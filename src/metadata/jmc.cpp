@@ -4,9 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/jmc.h"
-#include "managed/interop.h"
 #include "metadata/attributes.h"
-#include "utils/platform.h"
 #include "utils/torelease.h"
 #include <iterator>
 #include <string>

@@ -4,11 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/frames.h"
-#include "metadata/typeprinter.h"
-#include "utils/logger.h"
-#include "utils/platform.h"
 #include "utils/torelease.h"
-#include <sstream>
 
 namespace dncdbg
 {

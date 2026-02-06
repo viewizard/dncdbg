@@ -14,8 +14,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #elif _WIN32
 #include "utils/limits.h"
 #include <set>
@@ -25,7 +23,8 @@
 #include <windows.h>
 #endif
 
-#include "metadata/modules.h"
+#include "utils/logger.h" // NOLINT(misc-include-cleaner)
+#include "utils/torelease.h" // NOLINT(misc-include-cleaner)
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
@@ -33,9 +32,9 @@
 #include <palclr.h>
 #include <set>
 #include <string>
-#include <thread>
 #include <stdexcept>
 #include <cstring>
+#include <assert.h>
 
 #ifdef FEATURE_PAL
 // Suppress undefined reference

@@ -4,12 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "managed/interop.h"
-#include "metadata/jmc.h"
 #include "metadata/modules.h"
 #include "metadata/modules_sources.h"
 #include "utils/utf.h"
 #include <algorithm>
-#include <fstream>
 #include <list>
 #include <map>
 #include <memory>

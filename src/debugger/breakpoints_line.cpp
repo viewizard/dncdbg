@@ -7,7 +7,6 @@
 #include "debugger/breakpointutils.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
-#include <algorithm>
 #include <unordered_set>
 
 namespace dncdbg

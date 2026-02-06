@@ -4,11 +4,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/valueprint.h"
-#include "managed/interop.h"
 #include "metadata/attributes.h"
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include "utils/platform.h"
 #include <iomanip>
 #include <map>
 #include <sstream>

@@ -5,7 +5,7 @@
 
 #include "debugger/evaluator.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/evalstackmachine.h"
+#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"

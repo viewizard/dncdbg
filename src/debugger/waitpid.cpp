@@ -9,7 +9,6 @@
 #include "utils/logger.h"
 #include <dlfcn.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 namespace dncdbg

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "utils/platform.h"
 #include <string>
 #include <string_view>
 #include <cstddef>
@@ -12,9 +11,7 @@
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include "utils/limits.h"
 #include "utils/platform.h"
-#include <cstddef>
 #elif _WIN32
-#include <cstddef>
 #include <windows.h>
 #endif
 

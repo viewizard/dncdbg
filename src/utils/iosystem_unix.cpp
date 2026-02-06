@@ -4,7 +4,6 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include "utils/iosystem_unix.h"
-#include "utils/logger.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
@@ -16,7 +15,6 @@
 #include <signal.h>
 #include <stdexcept>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 

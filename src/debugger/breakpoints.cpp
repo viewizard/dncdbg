@@ -10,19 +10,9 @@
 #include "debugger/breakpoints_func.h"
 #include "debugger/breakpoints_line.h"
 #include "debugger/breakpointutils.h"
-#include "managed/interop.h"
 #include "metadata/modules.h"
-#include "metadata/typeprinter.h"
-#include "utils/filesystem.h"
-#include "utils/logger.h"
-#include "utils/utf.h"
 #include <palclr.h>
-#include <algorithm>
-#include <fstream>
-#include <iterator>
 #include <mutex>
-#include <sstream>
-#include <unordered_set>
 
 namespace dncdbg
 {

@@ -43,7 +43,6 @@ Checks: >
   -modernize-use-bool-literals,
   -modernize-loop-convert,
   misc-*,
-  -misc-include-cleaner,
   -misc-use-anonymous-namespace,
   -misc-no-recursion,
   -misc-use-internal-linkage,

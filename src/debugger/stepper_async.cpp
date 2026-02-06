@@ -5,7 +5,7 @@
 
 #include "debugger/stepper_async.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/stepper_simple.h"
+#include "debugger/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/threads.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"

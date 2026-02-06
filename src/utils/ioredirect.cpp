@@ -4,7 +4,7 @@
 
 #include "interfaces/types.h"
 #include "utils/ioredirect.h"
-#include "utils/limits.h"
+#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include "utils/streams.h"
 #include "utils/utility.h"
