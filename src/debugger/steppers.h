@@ -10,16 +10,12 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
+#include "debugger/stepper_async.h"
+#include "debugger/stepper_simple.h"
 #include <memory>
 
 namespace dncdbg
 {
-
-class SimpleStepper;
-class AsyncStepper;
-class Modules;
-class EvalHelpers;
 
 class Steppers
 {

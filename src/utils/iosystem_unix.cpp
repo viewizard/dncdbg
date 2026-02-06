@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include "utils/iosystem_unix.h"
 #include "utils/logger.h"
 #include <algorithm>
 #include <cassert>
@@ -18,8 +19,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include "iosystem_unix.h"
 
 namespace
 {

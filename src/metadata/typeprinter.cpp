@@ -4,13 +4,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/typeprinter.h"
-
+#include "utils/torelease.h"
+#include "utils/utf.h"
 #include <memory>
 #include <sstream>
 #include <unordered_map>
-
-#include "utils/torelease.h"
-#include "utils/utf.h"
 #include <string_view>
 
 namespace dncdbg

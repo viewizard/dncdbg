@@ -9,6 +9,7 @@
 // case Tizen's logger function should be linked.
 
 #include "utils/limits.h"
+#include "utils/logger.h"
 #include <assert.h>
 #include <mutex>
 #include <stdio.h>
@@ -25,8 +26,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-
-#include "utils/logger.h"
 
 namespace
 {

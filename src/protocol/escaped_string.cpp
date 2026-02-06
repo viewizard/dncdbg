@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include "escaped_string.h"
-#include "assert.h"
+#include "protocol/escaped_string.h"
+#include <assert.h>
 #include <algorithm>
 #include <string>
 #include <string_view>

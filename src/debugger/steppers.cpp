@@ -3,8 +3,6 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/stepper_simple.h"
-#include "debugger/stepper_async.h"
 #include "debugger/steppers.h"
 #include "metadata/attributes.h"
 #include "utils/utf.h"

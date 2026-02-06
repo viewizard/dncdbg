@@ -2,17 +2,17 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
+
 #pragma once
 
+#include "interfaces/types.h"
+#include <json/json.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <fstream>
 #include <list>
 #include <mutex>
 #include <string>
-
-#include "interfaces/types.h"
-#include "json/json.hpp"
 #include <string_view>
 
 namespace dncdbg

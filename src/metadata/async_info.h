@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include <memory>
-
 #include "metadata/modules.h"
+#include <memory>
 
 namespace dncdbg
 {

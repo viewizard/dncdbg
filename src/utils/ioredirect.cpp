@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#include "utils/ioredirect.h"
 #include "interfaces/types.h"
+#include "utils/ioredirect.h"
 #include "utils/limits.h"
 #include "utils/logger.h"
 #include "utils/streams.h"

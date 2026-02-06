@@ -4,11 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/attributes.h"
-
+#include "metadata/typeprinter.h"
 #include <algorithm>
 #include <functional>
-
-#include "metadata/typeprinter.h"
 
 namespace dncdbg
 {

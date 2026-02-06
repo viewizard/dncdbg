@@ -7,18 +7,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#include <chrono>
-#include <map>
-#include <mutex>
-#include <sstream>
-#include <vector>
-
-#include "debugger/breakpoint_break.h"
-#include "debugger/breakpoint_entry.h"
 #include "debugger/breakpoints.h"
-#include "debugger/breakpoints_exception.h"
-#include "debugger/breakpoints_func.h"
-#include "debugger/breakpoints_line.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
@@ -27,20 +16,21 @@
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
 #include "debugger/manageddebugger.h"
-#include "debugger/stepper_async.h"
-#include "debugger/stepper_simple.h"
 #include "debugger/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debugger/waitpid.h"
-#include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dap.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
-
-#include "palclr.h"
+#include <palclr.h>
+#include <chrono>
+#include <map>
+#include <mutex>
+#include <sstream>
+#include <vector>
 
 namespace dncdbg
 {

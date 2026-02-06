@@ -4,16 +4,14 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/modules.h"
-
-#include <iomanip>
-#include <sstream>
-#include <vector>
-
 #include "managed/interop.h"
 #include "metadata/jmc.h"
 #include "metadata/typeprinter.h"
 #include "utils/filesystem.h"
 #include "utils/platform.h"
+#include <iomanip>
+#include <sstream>
+#include <vector>
 
 namespace dncdbg
 {

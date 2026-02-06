@@ -4,6 +4,7 @@
 
 #ifdef _WIN32
 #pragma once
+
 #include <assert.h>
 #include <tuple>
 #include <memory>

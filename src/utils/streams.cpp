@@ -3,13 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "utils/limits.h"
+#include "utils/streams.h"
 #include <cassert>
 #include <cstring>
-
 #include <algorithm>
 #include <thread>
-
-#include "utils/streams.h"
 
 namespace dncdbg
 {

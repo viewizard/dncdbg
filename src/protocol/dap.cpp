@@ -3,6 +3,13 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
+#include "debugger/manageddebugger.h"
+#include "protocol/dap.h"
+#include "protocol/escaped_string.h"
+#include "utils/logger.h"
+#include "utils/streams.h"
+#include "utils/torelease.h"
+#include "utils/utf.h"
 #include <algorithm>
 #include <future>
 #include <iomanip>
@@ -14,17 +21,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-// note: order matters, DAP.h should be included before winerror.h
-#include "protocol/dap.h"
-#include "winerror.h"
-
-#include "debugger/manageddebugger.h"
-#include "protocol/escaped_string.h"
-#include "utils/logger.h"
-#include "utils/streams.h"
-#include "utils/torelease.h"
-#include "utils/utf.h"
 #include <string_view>
 
 // for convenience

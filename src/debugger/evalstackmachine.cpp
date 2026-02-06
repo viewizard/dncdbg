@@ -14,7 +14,6 @@
 #include <array>
 #include <arrayholder.h>
 #include <functional>
-#include <iterator>
 #include <sstream>
 
 namespace dncdbg

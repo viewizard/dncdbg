@@ -3,24 +3,15 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include <algorithm>
-#include <cstring>
-#include <regex>
-#include <sstream>
+#include "debugger/evalhelpers.h"
+#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluator.h"
+#include "debugger/variables.h"
+#include "debugger/valueprint.h"
+#include "interfaces/types.h"
+#include "metadata/typeprinter.h"
 #include <unordered_set>
 #include <vector>
-
-#include "debugger/evalhelpers.h"
-#include "debugger/evalstackmachine.h"
-#include "debugger/evaluator.h"
-#include "debugger/frames.h"
-#include "debugger/variables.h"
-#include "interfaces/types.h"
-#include "managed/interop.h"
-#include "metadata/typeprinter.h"
-#include "utils/logger.h"
-#include "utils/utf.h"
-#include "valueprint.h"
 
 namespace dncdbg
 {

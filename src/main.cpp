@@ -3,18 +3,18 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
+#include "buildinfo.h"
+#include "debugger/manageddebugger.h"
+#include "managed/interop.h"
+#include "protocol/dap.h"
+#include "utils/logger.h"
+
 #include <exception>
 #include <string>
 #include "utils/limits.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-
-#include "buildinfo.h"
-#include "debugger/manageddebugger.h"
-#include "managed/interop.h"
-#include "protocol/dap.h"
-#include "utils/logger.h"
 
 #ifdef _WIN32
 #include <fcntl.h>

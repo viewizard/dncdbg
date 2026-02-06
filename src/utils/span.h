@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma once
+
 #include <assert.h>
 #include <iterator>
 #include <new>

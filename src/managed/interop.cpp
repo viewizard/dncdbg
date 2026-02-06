@@ -26,11 +26,11 @@
 #endif
 
 #include "metadata/modules.h"
-#include "palclr.h"
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
 #include "utils/utf.h"
+#include <palclr.h>
 #include <set>
 #include <string>
 #include <thread>

@@ -6,10 +6,10 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
+#include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
-#include "valueprint.h"
 #include <algorithm>
 #include <vector>
 

@@ -8,12 +8,12 @@
 #include "debugger/evalstackmachine.h"
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
+#include "debugger/valueprint.h"
 #include "managed/interop.h"
 #include "metadata/attributes.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
-#include "valueprint.h"
 #include <memory>
 #include <sstream>
 #include <unordered_set>

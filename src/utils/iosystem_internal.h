@@ -3,12 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma once
+
+#include "utils/platform.h"
 #include <chrono>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-
-#include "utils/platform.h"
 
 namespace dncdbg
 {

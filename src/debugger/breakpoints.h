@@ -11,7 +11,11 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/manageddebugger.h"
+#include "debugger/breakpoint_break.h"
+#include "debugger/breakpoint_entry.h"
+#include "debugger/breakpoints_exception.h"
+#include "debugger/breakpoints_func.h"
+#include "debugger/breakpoints_line.h"
 #include <memory>
 #include <mutex>
 #include <string>

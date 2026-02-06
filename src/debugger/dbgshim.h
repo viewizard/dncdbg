@@ -13,7 +13,7 @@
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
 #else
-#include "palclr.h"
+#include <palclr.h>
 #include <wtypes.h>
 #endif
 

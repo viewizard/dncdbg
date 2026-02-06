@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma once
+
 #include "utils/iosystem.h"
 #include <cstddef>
 #include <cstdint>

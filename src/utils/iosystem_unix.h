@@ -4,14 +4,14 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #pragma once
+
+#include "utils/iosystem_internal.h"
+#include "utils/platform.h"
 #include <cassert>
 #include <cstdlib>
 #include <new>
 #include <sys/select.h>
 #include <tuple>
-
-#include "utils/iosystem_internal.h"
-#include "utils/platform.h"
 
 template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 {

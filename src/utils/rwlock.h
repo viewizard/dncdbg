@@ -2,6 +2,7 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma once
+
 #include <mutex>
 #include <shared_mutex>
 

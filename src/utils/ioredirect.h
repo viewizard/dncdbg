@@ -3,20 +3,19 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma once
+
+#include "interfaces/types.h" // AsyncResult
+#include "utils/span.h"
+#include "utils/iosystem.h"
+#include "utils/platform.h"
+#include "utils/rwlock.h"
+#include "utils/streams.h"
 #include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
-
-#include "interfaces/types.h" // AsyncResult
-
-#include "span.h"
-#include "utils/iosystem.h"
-#include "utils/platform.h"
-#include "utils/rwlock.h"
-#include "utils/streams.h"
 
 namespace dncdbg
 {

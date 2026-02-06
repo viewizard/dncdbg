@@ -34,7 +34,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
 
     ThreadId threadId(getThreadId(pThread));
 
-    if (stepType == ManagedDebugger::STEP_OUT)
+    if (stepType == ManagedDebugger::StepType::STEP_OUT)
     {
         IfFailRet(pStepper->StepOut());
 
@@ -44,7 +44,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, ManagedDebugger::Step
         return S_OK;
     }
 
-    BOOL bStepIn = stepType == ManagedDebugger::STEP_IN;
+    BOOL bStepIn = stepType == ManagedDebugger::StepType::STEP_IN;
 
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))

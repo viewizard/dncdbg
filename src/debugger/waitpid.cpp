@@ -3,15 +3,14 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/waitpid.h"
-
 #ifdef FEATURE_PAL
+
+#include "debugger/waitpid.h"
+#include "utils/logger.h"
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#include "utils/logger.h"
 
 namespace dncdbg
 {

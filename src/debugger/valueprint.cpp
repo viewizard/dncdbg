@@ -3,22 +3,19 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "valueprint.h"
-
+#include "debugger/valueprint.h"
+#include "managed/interop.h"
+#include "metadata/attributes.h"
+#include "metadata/typeprinter.h"
+#include "utils/torelease.h"
+#include "utils/utf.h"
 #include <iomanip>
 #include <map>
 #include <sstream>
 #include <string.h>
 #include <type_traits>
 #include <vector>
-
 #include <arrayholder.h>
-
-#include "managed/interop.h"
-#include "metadata/attributes.h"
-#include "metadata/typeprinter.h"
-#include "utils/torelease.h"
-#include "utils/utf.h"
 
 namespace dncdbg
 {

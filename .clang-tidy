@@ -71,5 +71,7 @@ Checks: >
   -bugprone-reserved-identifier,
   -bugprone-use-after-move,
   -bugprone-implicit-widening-of-multiplication-result
+CheckOptions:
+  misc-include-cleaner.MissingIncludes: 'false'
 WarningsAsErrors: "*"
 ...
