@@ -64,7 +64,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     ULONG numFields = 0;
     HCORENUM hEnum = NULL;
     mdFieldDef fieldDef;
-    ToRelease<ICorDebugValue> pRefValue_t__builder;
+    ToRelease<ICorDebugValue> pRefValue_t_builder;
     while (SUCCEEDED(pMD_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
@@ -80,15 +80,15 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
 
         ToRelease<ICorDebugObjectValue> pObjValue_this;
         if (SUCCEEDED(pValue_this->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue_this)))
-            pObjValue_this->GetFieldValue(pClass_this, fieldDef, &pRefValue_t__builder);
+            pObjValue_this->GetFieldValue(pClass_this, fieldDef, &pRefValue_t_builder);
 
         break;
     }
     pMD_this->CloseEnum(hEnum);
 
-    if (pRefValue_t__builder == nullptr)
+    if (pRefValue_t_builder == nullptr)
         return E_FAIL;
-    IfFailRet(DereferenceAndUnboxValue(pRefValue_t__builder, ppValue_builder, nullptr));
+    IfFailRet(DereferenceAndUnboxValue(pRefValue_t_builder, ppValue_builder, nullptr));
 
     return S_OK;
 }

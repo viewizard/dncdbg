@@ -443,7 +443,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
 
     ToRelease<ICorDebugGenericValue> pGenericValue2;
     IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue2));
-    T2 value2 = (T2)value1;
+    T2 value2 = (T2)value1; // NOLINT(cert-str34-c)
     return pGenericValue2->SetValue(&value2);
 }
 
