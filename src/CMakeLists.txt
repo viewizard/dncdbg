@@ -37,7 +37,6 @@ set(dncdbg_SRC
     debugger/threads.cpp
     debugger/valueprint.cpp
     debugger/variables.cpp
-    debugger/waitpid.cpp
     interfaces/types.cpp
     managed/interop.cpp
     metadata/attributes.cpp
@@ -63,6 +62,7 @@ set(dncdbg_SRC
     utils/platform_unix.cpp
     utils/platform_win32.cpp
     utils/streams.cpp
+    utils/waitpid.cpp
     )
 
 # clang-tidy for dncdbg build only

@@ -14,10 +14,10 @@
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/threads.h"
-#include "debugger/waitpid.h"
 #include "managed/interop.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "protocol/dap.h"
+#include "utils/waitpid.h"
 #include "utils/utf.h"
 
 namespace dncdbg

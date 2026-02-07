@@ -19,10 +19,10 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
-#include "debugger/waitpid.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dap.h"
+#include "utils/waitpid.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <chrono>

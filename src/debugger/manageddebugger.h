@@ -11,9 +11,9 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/dbgshim.h"
 #include "interfaces/types.h"
 #include "utils/ioredirect.h"
+#include "utils/dbgshim.h"
 #include "utils/rwlock.h"
 #include "utils/span.h"
 #include "utils/torelease.h"

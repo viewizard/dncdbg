@@ -5,7 +5,7 @@
 
 #ifdef FEATURE_PAL
 
-#include "debugger/waitpid.h"
+#include "utils/waitpid.h"
 #include "utils/logger.h"
 #include <dlfcn.h>
 #include <stdlib.h>
