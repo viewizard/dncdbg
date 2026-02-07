@@ -35,7 +35,6 @@ Checks: >
   misc-*,
   -misc-use-anonymous-namespace,
   -misc-no-recursion,
-  -misc-use-internal-linkage,
   -misc-non-private-member-variables-in-classes,
   -misc-throw-by-value-catch-by-reference,
   cert-*,

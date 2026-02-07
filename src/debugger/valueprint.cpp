@@ -423,7 +423,7 @@ static inline uint32_t Lo_32(uint64_t v)
     return static_cast<uint32_t>(v);
 }
 
-bool uint96_is_zero(const uint32_t *v)
+static bool uint96_is_zero(const uint32_t *v)
 {
     return v[0] == 0 && v[1] == 0 && v[2] == 0;
 }
@@ -599,7 +599,7 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-void EscapeString(std::string &s, char q = '\"')
+static void EscapeString(std::string &s, char q = '\"')
 {
     for (std::size_t i = 0; i < s.size(); ++i)
     {

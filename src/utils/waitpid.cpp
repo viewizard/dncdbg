@@ -60,7 +60,7 @@ void waitpid_t::SetExitCode(pid_t PID, int Code)
     exitCode = Code;
 }
 
-waitpid_t waitpid;
+static waitpid_t waitpid;
 
 } // namespace hook
 

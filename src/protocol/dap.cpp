@@ -54,13 +54,13 @@ const std::unordered_set<std::string> g_debuggerSetupCommandSet{
     "attach", "setFunctionBreakpoints"};
 } // unnamed namespace
 
-void to_json(json &j, const Source &s)
+static void to_json(json &j, const Source &s)
 {
     j = json{{"name", s.name},
              {"path", s.path}};
 }
 
-void to_json(json &j, const Breakpoint &b) {
+static void to_json(json &j, const Breakpoint &b) {
     j = json{{"id",       b.id},
              {"line",     b.line},
              {"verified", b.verified}};
@@ -74,7 +74,7 @@ void to_json(json &j, const Breakpoint &b) {
     }
 }
 
-void to_json(json &j, const StackFrame &f) {
+static void to_json(json &j, const StackFrame &f) {
     j = json{{"id",        int(f.id)},
              {"name",      f.methodName},
              {"line",      f.line},
@@ -86,14 +86,14 @@ void to_json(json &j, const StackFrame &f) {
         j["source"] = f.source;
 }
 
-void to_json(json &j, const Thread &t)
+static void to_json(json &j, const Thread &t)
 {
     j = json{{"id", int(t.id)},
              {"name", t.name}};
           // {"running", t.running}
 }
 
-void to_json(json &j, const Scope &s)
+static void to_json(json &j, const Scope &s)
 {
     j = json{{"name", s.name},
              {"variablesReference", s.variablesReference},
@@ -106,7 +106,7 @@ void to_json(json &j, const Scope &s)
     }
 }
 
-void to_json(json &j, const Variable &v)
+static void to_json(json &j, const Variable &v)
 {
     j = json{{"name", v.name},
              {"value", v.value},
