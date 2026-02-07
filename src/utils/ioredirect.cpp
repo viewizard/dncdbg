@@ -119,7 +119,7 @@ void IORedirectHelper::worker()
                                        dynamic_cast<InStreamBuf *>(std::get<stream_types[1]>(m_streams).rdbuf()),
                                        dynamic_cast<InStreamBuf *>(std::get<stream_types[2]>(m_streams).rdbuf())};
 
-    OutStreamBuf *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types[0]>(m_streams).rdbuf());
+    auto *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types[0]>(m_streams).rdbuf());
     if (out_stream == nullptr)
     {
         LOGE("dynamic_cast fail");

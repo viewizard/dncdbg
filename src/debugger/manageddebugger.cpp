@@ -381,7 +381,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 
 VOID ManagedDebugger::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr)
 {
-    ManagedDebugger *self = static_cast<ManagedDebugger *>(parameter);
+    auto *self = static_cast<ManagedDebugger *>(parameter);
 
     if (FAILED(hr))
     {

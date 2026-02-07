@@ -26,7 +26,6 @@ Checks: >
   -modernize-avoid-c-arrays,
   -modernize-pass-by-value,
   -modernize-deprecated-headers,
-  -modernize-use-auto,
   -modernize-return-braced-init-list,
   -modernize-use-bool-literals,
   misc-*,
