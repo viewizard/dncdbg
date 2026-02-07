@@ -49,13 +49,13 @@ class IndexedStorage
     typedef typename std::vector<value_type>::const_iterator iterator;
 
     // Return iterator pointing on first element.
-    iterator begin() const
+    [[nodiscard]] iterator begin() const
     {
         return m_data.begin();
     }
 
     // Return iterator pointing beyond last element.
-    iterator end() const
+    [[nodiscard]] iterator end() const
     {
         return m_data.end();
     }
@@ -67,7 +67,7 @@ class IndexedStorage
     }
 
     // Return number of elements currently stored in container.
-    size_type size() const
+    [[nodiscard]] size_type size() const
     {
         return m_data.size();
     }
@@ -116,7 +116,7 @@ class IndexedStorage
     // This functions find data element which corresponds to supplied `key'
     // and returns iterator pointing to it, or returns iterator pointing
     // to `end()` value of no any element corresponds to supplied `key'.
-    iterator find(key_type key) const
+    [[nodiscard]] iterator find(key_type key) const
     {
         if (m_base > key)
             return end();
@@ -129,7 +129,7 @@ class IndexedStorage
     }
 
     // This function checks if element with corresponding `key' value present in the container.
-    bool contains(key_type key) const
+    [[nodiscard]] bool contains(key_type key) const
     {
         return find(key) != end();
     }
@@ -145,7 +145,7 @@ class IndexedStorage
                             [&](const value_type &other) { return other.second == val; });
     }
 
-    key_type next_id() const
+    [[nodiscard]] key_type next_id() const
     {
         key_type data_size = key_type(m_data.size());
 
