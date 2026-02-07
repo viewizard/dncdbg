@@ -12,10 +12,7 @@
 #include <string_view>
 #include <vector>
 
-namespace dncdbg
-{
-
-namespace TypePrinter
+namespace dncdbg::TypePrinter
 {
 
 static std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &args)
@@ -886,6 +883,4 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
     return S_OK;
 }
 
-} // namespace TypePrinter
-
-} // namespace dncdbg
+} // namespace dncdbg::TypePrinter

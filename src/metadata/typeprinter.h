@@ -14,10 +14,7 @@
 #include <list>
 #include <string>
 
-namespace dncdbg
-{
-
-namespace TypePrinter
+namespace dncdbg::TypePrinter
 {
 
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::string &mdName,
@@ -36,6 +33,4 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
 std::string RenameToSystem(const std::string &typeName);
 std::string RenameToCSharp(const std::string &typeName);
 
-} // namespace TypePrinter
-
-} // namespace dncdbg
+} // namespace dncdbg::TypePrinter

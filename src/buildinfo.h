@@ -4,10 +4,7 @@
 
 #pragma once
 
-namespace dncdbg
-{
-
-namespace BuildInfo
+namespace dncdbg::BuildInfo
 {
 
 extern const char version[];    // version for displaying
@@ -21,6 +18,4 @@ extern const char cpu_arch[];  // CPU architecture name for which project was bu
 extern const char date[];
 extern const char time[];      // Date and time of the build.
 
-} // namespace BuildInfo
-
-} // namespace dncdbg
+} // namespace dncdbg::BuildInfo

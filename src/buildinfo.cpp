@@ -23,10 +23,7 @@
 #define STRINGIFY_(v) #v
 #define STRINGIFY(v) STRINGIFY_(v) // NOLINT(cppcoreguidelines-macro-usage)
 
-namespace dncdbg
-{
-
-namespace BuildInfo
+namespace dncdbg::BuildInfo
 {
 
 const char version[] = "0.0.1";
@@ -40,6 +37,4 @@ const char cpu_arch[] = STRINGIFY(CPU_ARCH);
 const char date[]     = __DATE__;
 const char time[]     = __TIME__;
 
-} // namespace BuildInfo
-
-} // namespace dncdbg
+} // namespace dncdbg::BuildInfo

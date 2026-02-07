@@ -20,10 +20,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace dncdbg
-{
-
-namespace Interop
+namespace dncdbg::Interop
 {
 // 0xfeefee is a magic number for "#line hidden" directive.
 // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/preprocessor-directives/preprocessor-line
@@ -122,6 +119,5 @@ BSTR SysAllocStringLen(int32_t size);
 void SysFreeString(BSTR ptrBSTR);
 PVOID CoTaskMemAlloc(int32_t size);
 void CoTaskMemFree(PVOID ptr);
-} // namespace Interop
 
-} // namespace dncdbg
+} // namespace dncdbg::Interop

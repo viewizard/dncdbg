@@ -8,10 +8,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
 
-namespace dncdbg
-{
-
-namespace EvalUtils
+namespace dncdbg::EvalUtils
 {
 
 std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName)
@@ -302,6 +299,4 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     return S_OK;
 }
 
-} // namespace EvalUtils
-
-} // namespace dncdbg
+} // namespace dncdbg::EvalUtils

@@ -8,10 +8,7 @@
 #include "metadata/attributes.h"
 #include "utils/torelease.h"
 
-namespace dncdbg
-{
-
-namespace BreakpointUtils
+namespace dncdbg::BreakpointUtils
 {
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2)
@@ -129,6 +126,4 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     return S_FALSE; // don't skip breakpoint
 }
 
-} // namespace BreakpointUtils
-
-} // namespace dncdbg
+} // namespace dncdbg::BreakpointUtils

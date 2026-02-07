@@ -43,10 +43,7 @@ static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags,
 }
 #endif
 
-namespace dncdbg
-{
-
-namespace Interop
+namespace dncdbg::Interop
 {
 
 namespace // unnamed namespace
@@ -817,6 +814,4 @@ HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
     return S_OK;
 }
 
-} // namespace Interop
-
-} // namespace dncdbg
+} // namespace dncdbg::Interop
