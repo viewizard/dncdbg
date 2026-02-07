@@ -27,8 +27,8 @@ static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numC
     int numInstance = 0;
     // No thread and FrameLevel{0} here, since we need only count children.
     if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, nullptr, false,
-               [&numStatic, &numInstance](ICorDebugType *, bool is_static, const std::string &,
-                                          const Evaluator::GetValueCallback &, Evaluator::SetterData *)
+               [&](ICorDebugType *, bool is_static, const std::string &,
+                   const Evaluator::GetValueCallback &, Evaluator::SetterData *)
                 {
                     if (is_static)
                         numStatic++;
@@ -99,7 +99,7 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
             if (is_static)
                 hasStaticMembers = true;
 
-            bool addMember = fetchOnlyStatic ? is_static : !is_static;
+            const bool addMember = fetchOnlyStatic ? is_static : !is_static;
             if (!addMember)
                 return S_OK;
 
@@ -129,7 +129,7 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
 HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter,
                                 int start, int count, std::vector<Variable> &variables)
 {
-    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     auto it = m_references.find(variablesReference);
     if (it == m_references.end())
@@ -161,7 +161,7 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
 HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
 {
-    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     if (m_references.size() == std::numeric_limits<uint32_t>::max())
         return E_FAIL;
@@ -212,7 +212,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
     if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
         [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
-            ++currentIndex;
+            ++currentIndex; // NOLINT(bugprone-inc-dec-in-conditions)
 
             if (currentIndex < start)
                 return S_OK;
@@ -241,7 +241,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
 
 HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes)
 {
-    ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.getThread();
     if (!threadId)
         return E_FAIL;
 
@@ -264,7 +264,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 
     if (namedVariables > 0)
     {
-        std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+        const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
         if (m_references.size() == std::numeric_limits<uint32_t>::max())
             return E_FAIL;
@@ -314,7 +314,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
     {
         Variable var(ref.evalFlags);
         var.name = it.name;
-        bool isIndex = !it.name.empty() && it.name.at(0) == '[';
+        const bool isIndex = !it.name.empty() && it.name.at(0) == '[';
         if (var.name.find('(') == std::string::npos) // expression evaluator does not support typecasts
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
         IfFailRet(FillValueAndType(it, var));
@@ -324,7 +324,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
 
     if (ref.valueKind == ValueIsVariable && hasStaticMembers)
     {
-        bool staticsInRange = start < ref.namedVariables && (count == 0 || start + count >= ref.namedVariables);
+        const bool staticsInRange = start < ref.namedVariables && (count == 0 || start + count >= ref.namedVariables);
         if (staticsInRange)
         {
             ToRelease<ICorDebugValue2> pValue2;
@@ -349,7 +349,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
 HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
                             Variable &variable, std::string &output)
 {
-    ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.getThread();
     if (!threadId)
         return E_FAIL;
 
@@ -358,7 +358,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     IfFailRet(pProcess->GetThread(int(threadId), &pThread));
 
     ToRelease<ICorDebugValue> pResultValue;
-    FrameLevel frameLevel = frameId.getLevel();
+    const FrameLevel frameLevel = frameId.getLevel();
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, variable.evalFlags, expression,
                                                            &pResultValue, output, &variable.editable));
 
@@ -372,7 +372,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
                                uint32_t ref, std::string &output)
 {
-    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     auto it = m_references.find(ref);
     if (it == m_references.end())
@@ -475,7 +475,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
 HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
                                  int evalFlags, const std::string &value, std::string &output)
 {
-    ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.getThread();
     if (!threadId)
         return E_FAIL;
 

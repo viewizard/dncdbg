@@ -10,7 +10,7 @@ namespace dncdbg
 // Function returns only file name part of the full path.
 std::string GetBasename(const std::string &path)
 {
-    size_t i = path.find_last_of(FileSystem::PathSeparatorSymbols);
+    const size_t i = path.find_last_of(FileSystem::PathSeparatorSymbols);
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
@@ -19,7 +19,7 @@ std::string GetBasename(const std::string &path)
 // if argument is not the file name, but the path which includes directory names.
 bool IsFullPath(const std::string &path)
 {
-    size_t pos = path.find_last_of(FileSystem::PathSeparatorSymbols);
+    const size_t pos = path.find_last_of(FileSystem::PathSeparatorSymbols);
     return pos != std::string::npos;
 }
 

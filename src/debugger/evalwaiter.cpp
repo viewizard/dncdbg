@@ -11,7 +11,7 @@ namespace dncdbg
 
 void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
-    std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
     if (!pThread)
     {
         m_evalResult.reset(nullptr);
@@ -37,13 +37,13 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
 
 bool EvalWaiter::IsEvalRunning()
 {
-    std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
     return !!m_evalResult;
 }
 
 void EvalWaiter::CancelEvalRunning()
 {
-    std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
 
     if (!m_evalResult)
         return;
@@ -71,7 +71,7 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
     DWORD threadId = 0;
     pThread->GetID(&threadId);
 
-    std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
     assert(!m_evalResult); // We can have only 1 eval, and previous must be completed.
     m_evalResult = std::make_unique<evalResult_t>(threadId, pEval, std::move(p));
 
@@ -93,7 +93,7 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
 
 ICorDebugEval *EvalWaiter::FindEvalForThread(ICorDebugThread *pThread)
 {
-    std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
 
     DWORD threadId = 0;
     if (FAILED(pThread->GetID(&threadId)) || !m_evalResult)
@@ -106,7 +106,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                                    const WaitEvalResultCallback &cbSetupEval)
 {
     // Important! Evaluation should be proceed only for 1 thread.
-    std::scoped_lock<std::mutex> lock(m_waitEvalResultMutex);
+    const std::scoped_lock<std::mutex> lock(m_waitEvalResultMutex);
 
     // During evaluation could be implicitly executing user code, that could provoke callback calls like - breakpoints, exceptions, etc.
     // Make sure, that all managed callbacks ignore standard logic during evaluation and don't pause/interrupt managed code execution.

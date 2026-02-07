@@ -146,7 +146,7 @@ struct LogFuncEntry
 #else
 #define __CROSS_FUNCTION__ __func__
 #endif
-#define LogFuncEntry() DLogInternal::LogFuncEntry _func_entry_(__CROSS_FUNCTION__)
+#define LogFuncEntry() const DLogInternal::LogFuncEntry _func_entry_(__CROSS_FUNCTION__)
 #else
 #define LogFuncEntry() do {} while(0)
 #endif

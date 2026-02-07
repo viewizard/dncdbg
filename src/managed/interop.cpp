@@ -72,7 +72,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
     for (size_t extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
     {
         const char *ext = tpaExtensions[extIndex];
-        int extLength = strlen(ext);
+        const int extLength = strlen(ext);
 
         struct dirent *entry;
 
@@ -108,16 +108,16 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                 continue;
             }
 
-            std::string filename(entry->d_name);
+            const std::string filename(entry->d_name);
 
             // Check if the extension matches the one we are looking for
-            int extPos = filename.length() - extLength;
+            const int extPos = filename.length() - extLength;
             if ((extPos <= 0) || (filename.compare(extPos, extLength, ext) != 0))
             {
                 continue;
             }
 
-            std::string filenameWithoutExt(filename.substr(0, extPos));
+            const std::string filenameWithoutExt(filename.substr(0, extPos));
 
             // Make sure if we have an assembly with multiple extensions present,
             // we insert only one version of it.
@@ -314,7 +314,7 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
                                   ULONG64 peSize, ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize,
                                   VOID **ppSymbolReaderHandle)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!loadSymbolsForModuleDelegate || !ppSymbolReaderHandle)
         return E_FAIL;
 
@@ -342,7 +342,7 @@ SequencePoint::~SequencePoint() noexcept
 
 void DisposeSymbols(PVOID pSymbolReaderHandle)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!disposeDelegate || !pSymbolReaderHandle)
         return;
 
@@ -353,13 +353,13 @@ void DisposeSymbols(PVOID pSymbolReaderHandle)
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
 void Init(const std::string &coreClrPath)
 {
-    WriteLock write_lock(CLRrwlock);
+    const WriteLock write_lock(CLRrwlock);
 
     // If we have shutdownCoreClr initialized, we already initialized all managed part.
     if (shutdownCoreClr != nullptr)
         return;
 
-    std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_CHAR_A));
+    const std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_CHAR_A));
 
     HRESULT Status;
 
@@ -387,15 +387,15 @@ void Init(const std::string &coreClrPath)
         "AppDomainCompatSwitch"
     };
 
-    std::string exe = GetExeAbsPath();
+    const std::string exe = GetExeAbsPath();
     if (exe.empty())
         throw std::runtime_error("Unable to detect exe path");
 
-    std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_CHAR_A);
+    const std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_CHAR_A);
     if (dirSepIndex == std::string::npos)
         throw std::runtime_error("Can't find directory separator in string returned by GetExeAbsPath");
 
-    std::string exeDir = exe.substr(0, dirSepIndex);
+    const std::string exeDir = exe.substr(0, dirSepIndex);
 
     const char *propertyValues[] = {tpaList.c_str(),                         // TRUSTED_PLATFORM_ASSEMBLIES
                                     exeDir.c_str(),                          // APP_PATHS
@@ -417,7 +417,7 @@ void Init(const std::string &coreClrPath)
     if (shutdownCoreClr == nullptr)
         throw std::runtime_error("coreclr_shutdown not found");
 
-    bool allDelegatesCreated = 
+    const bool allDelegatesCreated = 
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadSymbolsForModule", (void **)&loadSymbolsForModuleDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "Dispose", (void **)&disposeDelegate)) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetLocalVariableNameAndScope", (void **)&getLocalVariableNameAndScopeDelegate)) &&
@@ -443,27 +443,27 @@ void Init(const std::string &coreClrPath)
     if (!allDelegatesCreated)
         throw std::runtime_error("createDelegate failed with status: " + std::to_string(Status));
 
-    bool allDelegatesInited = loadSymbolsForModuleDelegate &&
-                              disposeDelegate &&
-                              getLocalVariableNameAndScopeDelegate &&
-                              getHoistedLocalScopesDelegate &&
-                              getSequencePointByILOffsetDelegate &&
-                              getSequencePointsDelegate &&
-                              getNextUserCodeILOffsetDelegate &&
-                              getStepRangesFromIPDelegate &&
-                              getModuleMethodsRangesDelegate &&
-                              resolveBreakPointsDelegate &&
-                              getAsyncMethodSteppingInfoDelegate &&
-                              loadDeltaPdbDelegate &&
-                              generateStackMachineProgramDelegate &&
-                              releaseStackMachineProgramDelegate &&
-                              nextStackCommandDelegate &&
-                              stringToUpperDelegate &&
-                              coTaskMemAllocDelegate &&
-                              coTaskMemFreeDelegate &&
-                              sysAllocStringLenDelegate &&
-                              sysFreeStringDelegate &&
-                              calculationDelegate;
+    const bool allDelegatesInited = loadSymbolsForModuleDelegate &&
+                                    disposeDelegate &&
+                                    getLocalVariableNameAndScopeDelegate &&
+                                    getHoistedLocalScopesDelegate &&
+                                    getSequencePointByILOffsetDelegate &&
+                                    getSequencePointsDelegate &&
+                                    getNextUserCodeILOffsetDelegate &&
+                                    getStepRangesFromIPDelegate &&
+                                    getModuleMethodsRangesDelegate &&
+                                    resolveBreakPointsDelegate &&
+                                    getAsyncMethodSteppingInfoDelegate &&
+                                    loadDeltaPdbDelegate &&
+                                    generateStackMachineProgramDelegate &&
+                                    releaseStackMachineProgramDelegate &&
+                                    nextStackCommandDelegate &&
+                                    stringToUpperDelegate &&
+                                    coTaskMemAllocDelegate &&
+                                    coTaskMemFreeDelegate &&
+                                    sysAllocStringLenDelegate &&
+                                    sysFreeStringDelegate &&
+                                    calculationDelegate;
 
     if (!allDelegatesInited)
         throw std::runtime_error("Some delegates nulled");
@@ -472,7 +472,7 @@ void Init(const std::string &coreClrPath)
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
 void Shutdown()
 {
-    WriteLock write_lock(CLRrwlock);
+    const WriteLock write_lock(CLRrwlock);
     if (shutdownCoreClr == nullptr)
         return;
 
@@ -505,23 +505,24 @@ void Shutdown()
 HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
                                    SequencePoint *sequencePoint)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getSequencePointByILOffsetDelegate || !pSymbolReaderHandle || !sequencePoint)
         return E_FAIL;
 
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, methodToken, ilOffset, sequencePoint);
+    const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, methodToken,
+                                                               ilOffset, sequencePoint);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
 HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, SequencePoint **sequencePoints, int32_t &Count)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getSequencePointsDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
-    RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, (PVOID *)sequencePoints, &Count);
+    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, (PVOID *)sequencePoints, &Count);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
@@ -529,14 +530,15 @@ HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, Se
 HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
                                 ULONG32 &ilNextOffset, bool *noUserCodeFound)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getNextUserCodeILOffsetDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
     int32_t NoUserCodeFound = 0;
 
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    RetCode retCode = getNextUserCodeILOffsetDelegate(pSymbolReaderHandle, methodToken, ilOffset, &ilNextOffset, &NoUserCodeFound);
+    const RetCode retCode = getNextUserCodeILOffsetDelegate(pSymbolReaderHandle, methodToken, ilOffset,
+                                                            &ilNextOffset, &NoUserCodeFound);
 
     if (noUserCodeFound)
         *noUserCodeFound = NoUserCodeFound == 1;
@@ -546,11 +548,12 @@ HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodTok
 
 HRESULT GetStepRangesFromIP(PVOID pSymbolReaderHandle, ULONG32 ip, mdMethodDef MethodToken, ULONG32 *ilStartOffset, ULONG32 *ilEndOffset)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getStepRangesFromIPDelegate || !pSymbolReaderHandle || !ilStartOffset || !ilEndOffset)
         return E_FAIL;
 
-    RetCode retCode = getStepRangesFromIPDelegate(pSymbolReaderHandle, ip, MethodToken, ilStartOffset, ilEndOffset);
+    const RetCode retCode = getStepRangesFromIPDelegate(pSymbolReaderHandle, ip, MethodToken,
+                                                        ilStartOffset, ilEndOffset);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
@@ -565,7 +568,8 @@ HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef met
     if (SysStringLen(wszLocalName) == 0)
         return E_OUTOFMEMORY;
 
-    RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, methodToken, localIndex, &wszLocalName, pIlStart, pIlEnd);
+    const RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, methodToken, localIndex,
+                                                                 &wszLocalName, pIlStart, pIlEnd);
     read_lock.unlock();
 
     if (retCode != RetCode::OK)
@@ -582,11 +586,11 @@ HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef met
 
 HRESULT GetHoistedLocalScopes(PVOID pSymbolReaderHandle, mdMethodDef methodToken, PVOID *data, int32_t &hoistedLocalScopesCount)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getHoistedLocalScopesDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
-    RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, methodToken, data, &hoistedLocalScopesCount);
+    const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, methodToken, data, &hoistedLocalScopesCount);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
@@ -598,7 +602,8 @@ HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, in
         return E_FAIL;
 
     BSTR werrorText;
-    RetCode retCode = calculationDelegate(firstOp, firstType, secondOp, secondType, operationType, &resultType, data, &werrorText);
+    const RetCode retCode = calculationDelegate(firstOp, firstType, secondOp, secondType, operationType,
+                                                &resultType, data, &werrorText);
     read_lock.unlock();
 
     if (retCode != RetCode::OK)
@@ -614,25 +619,25 @@ HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, in
 HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensNum, PVOID constrTokens,
                                uint32_t normalTokensNum, PVOID normalTokens, PVOID *data)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!getModuleMethodsRangesDelegate || !pSymbolReaderHandle || (constrTokensNum && !constrTokens) ||
         (normalTokensNum && !normalTokens) || !data)
         return E_FAIL;
 
-    RetCode retCode = getModuleMethodsRangesDelegate(pSymbolReaderHandle, constrTokensNum, constrTokens,
-                                                     normalTokensNum, normalTokens, data);
+    const RetCode retCode = getModuleMethodsRangesDelegate(pSymbolReaderHandle, constrTokensNum, constrTokens,
+                                                           normalTokensNum, normalTokens, data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
 HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandle, int32_t tokenNum, PVOID Tokens, int32_t sourceLine,
                            int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!resolveBreakPointsDelegate || !pSymbolReaderHandle || !Tokens || !data)
         return E_FAIL;
 
-    RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
-                                                 to_utf16(sourcePath).c_str(), data);
+    const RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
+                                                       to_utf16(sourcePath).c_str(), data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
@@ -646,8 +651,8 @@ HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef method
     AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
     int32_t asyncInfoCount = 0;
 
-    RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, (PVOID *)&allocatedAsyncInfo,
-                                                         &asyncInfoCount, ilOffset);
+    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, (PVOID *)&allocatedAsyncInfo,
+                                                               &asyncInfoCount, ilOffset);
     read_lock.unlock();
 
     if (retCode != RetCode::OK)
@@ -673,7 +678,7 @@ HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgr
 
     textOutput = "";
     BSTR wTextOutput = nullptr;
-    HRESULT Status = generateStackMachineProgramDelegate(to_utf16(expr).c_str(), ppStackProgram, &wTextOutput);
+    const HRESULT Status = generateStackMachineProgramDelegate(to_utf16(expr).c_str(), ppStackProgram, &wTextOutput);
     read_lock.unlock();
 
     if (wTextOutput)
@@ -687,7 +692,7 @@ HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgr
 
 void ReleaseStackMachineProgram(PVOID pStackProgram)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!releaseStackMachineProgramDelegate || !pStackProgram)
         return;
 
@@ -704,7 +709,7 @@ HRESULT NextStackCommand(PVOID pStackProgram, int32_t &Command, PVOID &Ptr, std:
 
     textOutput = "";
     BSTR wTextOutput = nullptr;
-    HRESULT Status = nextStackCommandDelegate(pStackProgram, &Command, &Ptr, &wTextOutput);
+    const HRESULT Status = nextStackCommandDelegate(pStackProgram, &Command, &Ptr, &wTextOutput);
     read_lock.unlock();
 
     if (wTextOutput)
@@ -737,7 +742,7 @@ HRESULT StringToUpper(std::string &String)
         return E_FAIL;
 
     BSTR wString;
-    RetCode retCode = stringToUpperDelegate(to_utf16(String).c_str(), &wString);
+    const RetCode retCode = stringToUpperDelegate(to_utf16(String).c_str(), &wString);
     read_lock.unlock();
 
     if (retCode != RetCode::OK || !wString)
@@ -751,7 +756,7 @@ HRESULT StringToUpper(std::string &String)
 
 BSTR SysAllocStringLen(int32_t size)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!sysAllocStringLenDelegate)
         return nullptr;
 
@@ -760,7 +765,7 @@ BSTR SysAllocStringLen(int32_t size)
 
 void SysFreeString(BSTR ptrBSTR)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!sysFreeStringDelegate)
         return;
 
@@ -769,7 +774,7 @@ void SysFreeString(BSTR ptrBSTR)
 
 PVOID CoTaskMemAlloc(int32_t size)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!coTaskMemAllocDelegate)
         return nullptr;
 
@@ -778,7 +783,7 @@ PVOID CoTaskMemAlloc(int32_t size)
 
 void CoTaskMemFree(PVOID ptr)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!coTaskMemFreeDelegate)
         return;
 
@@ -788,7 +793,7 @@ void CoTaskMemFree(PVOID ptr)
 HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
                      std::unordered_set<mdMethodDef> &methodTokens)
 {
-    ReadLock read_lock(CLRrwlock);
+    const ReadLock read_lock(CLRrwlock);
     if (!loadDeltaPdbDelegate || !ppSymbolReaderHandle || pdbPath.empty())
         return E_FAIL;
 

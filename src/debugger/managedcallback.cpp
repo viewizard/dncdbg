@@ -27,7 +27,7 @@ ULONG ManagedCallback::GetRefCount()
 {
     LogFuncEntry();
 
-    std::scoped_lock<std::mutex> lock(m_refCountMutex);
+    const std::scoped_lock<std::mutex> lock(m_refCountMutex);
     return m_refCount;
 }
 
@@ -67,7 +67,7 @@ ULONG STDMETHODCALLTYPE ManagedCallback::AddRef()
 {
     LogFuncEntry();
 
-    std::scoped_lock<std::mutex> lock(m_refCountMutex);
+    const std::scoped_lock<std::mutex> lock(m_refCountMutex);
     return ++m_refCount;
 }
 
@@ -75,7 +75,7 @@ ULONG STDMETHODCALLTYPE ManagedCallback::Release()
 {
     LogFuncEntry();
 
-    std::scoped_lock<std::mutex> lock(m_refCountMutex);
+    const std::scoped_lock<std::mutex> lock(m_refCountMutex);
 
     assert(m_refCount > 0);
 
@@ -219,7 +219,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
         LOGW("Thread was created by user code during evaluation with implicit user code execution.");
 
-    ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(getThreadId(pThread));
     m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartAttach);
 
     m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadStarted, threadId));
@@ -230,7 +230,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 {
     LogFuncEntry();
 
-    ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(getThreadId(pThread));
     m_debugger.m_sharedThreads->Remove(threadId);
 
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, nullptr);

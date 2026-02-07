@@ -14,7 +14,7 @@ namespace dncdbg
 
 // This constant represents default buffers size for input/output.
 // Typically buffer with default size can hold few lines of text.
-const size_t IORedirectHelper::DefaultBufferSize = 2 * LINE_MAX;
+const size_t IORedirectHelper::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
 
 namespace
 {
@@ -141,7 +141,7 @@ void IORedirectHelper::worker()
             LOGI("IORedirectHelper::worker: terminated");
         };
 
-    std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
+    const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
 
     // issue read request for control pipe
     char dummybuf;
@@ -167,7 +167,7 @@ void IORedirectHelper::worker()
                 continue;
 
             // process data already existing in the buffer
-            size_t avail = stream->egptr() - stream->gptr();
+            const size_t avail = stream->egptr() - stream->gptr();
             if (avail)
             {
                 LOGD("push %u bytes to callback", int(avail));
@@ -179,7 +179,7 @@ void IORedirectHelper::worker()
             // request to read more data
             if (!async_handles[n])
             {
-                size_t free_size = stream->endp() - stream->egptr();
+                const size_t free_size = stream->endp() - stream->egptr();
                 LOGD("requesting %u bytes to read", int(free_size));
                 async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
 
@@ -193,7 +193,7 @@ void IORedirectHelper::worker()
         LOGD("%s: wake", __func__);
 
         // check if termination requested
-        IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
+        const IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
         if (result.status != IOSystem::IOResult::Pending)
         {
             if (LOGE_IF(result.status != IOSystem::IOResult::Success, "control pipe read error"))
@@ -225,7 +225,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
     assert(out_stream->pbase() <= m_sent && m_sent <= m_unsent && m_unsent <= out_stream->pptr() &&
            out_stream->pptr() <= out_stream->epptr());
 
-    size_t bytes = out_stream->pptr() - m_unsent;
+    const size_t bytes = out_stream->pptr() - m_unsent;
     if (bytes)
     {
         LOGD("have %u bytes unsent", int(bytes));
@@ -254,7 +254,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
 bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
                                                     IOSystem::AsyncHandle &out_handle)
 {
-    IOSystem::IOResult result = IOSystem::async_result(out_handle);
+    const IOSystem::IOResult result = IOSystem::async_result(out_handle);
     if (result.status == IOSystem::IOResult::Success)
     {
         // update buffer
@@ -276,7 +276,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
             bool updated = false;
 
             // can move tail to beginning of the buffer
-            size_t bytes = out_stream->pptr() - m_unsent; // num of unsent bytes
+            const size_t bytes = out_stream->pptr() - m_unsent; // num of unsent bytes
             if (m_unsent == m_sent && bytes == 0)
             {
                 memmove(out_stream->pbase(), m_unsent, bytes);
@@ -313,7 +313,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(InStreamBuf *const in_streams
         if (stream == nullptr)
             continue;
 
-        IOSystem::IOResult result = IOSystem::async_result(async_handles[n]);
+        const IOSystem::IOResult result = IOSystem::async_result(async_handles[n]);
         if (result.status == IOSystem::IOResult::Success)
         {
             // update buffer
@@ -368,7 +368,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
             LOGD("async_input: canceled");
     };
 
-    std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
+    const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
 
     // issue read request for control pipe
     char dummybuf;
@@ -390,7 +390,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
             assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
 
             // free bytes in output buffer
-            size_t avail = out->epptr() - out->pptr();
+            const size_t avail = out->epptr() - out->pptr();
             if (avail)
             {
                 LOGD("requesting %u bytes to read", int(avail));

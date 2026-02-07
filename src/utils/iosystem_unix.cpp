@@ -156,7 +156,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     socklen_t clilen;
     struct sockaddr_in serv_addr, cli_addr;
 
-    int sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
+    const int sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0)
     {
         perror("can't create socket");
@@ -218,7 +218,7 @@ Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 // Function perform reading from the file: it may read up to `count' bytes to `buf'.
 Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
 {
-    ssize_t rsize = ::read(fh.fd, buf, count);
+    const ssize_t rsize = ::read(fh.fd, buf, count);
     if (rsize < 0)
         return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
     else
@@ -228,7 +228,7 @@ Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
 // Function perform writing to the file: it may write up to `count' byte from `buf'.
 Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count)
 {
-    ssize_t wsize = ::write(fh.fd, buf, count);
+    const ssize_t wsize = ::write(fh.fd, buf, count);
     if (wsize < 0)
         return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
     else
@@ -261,7 +261,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
     }
 
     struct timeval tv;
-    std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
+    const std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
     tv.tv_sec = us.count() / 1000000, tv.tv_usec = us.count() % 1000000;
 
     int result;

@@ -17,10 +17,10 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     ToRelease<ICorDebugStepper> pStepper;
     IfFailRet(pThread->CreateStepper(&pStepper));
 
-    CorDebugIntercept mask = (CorDebugIntercept)(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+    const CorDebugIntercept mask = (CorDebugIntercept)(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
     IfFailRet(pStepper->SetInterceptMask(mask));
 
-    CorDebugUnmappedStop stopMask = STOP_NONE;
+    const CorDebugUnmappedStop stopMask = STOP_NONE;
     IfFailRet(pStepper->SetUnmappedStopMask(stopMask));
 
     ToRelease<ICorDebugStepper2> pStepper2;
@@ -31,19 +31,19 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.
     IfFailRet(pStepper2->SetJMC(TRUE));
 
-    ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(getThreadId(pThread));
 
     if (stepType == StepType::STEP_OUT)
     {
         IfFailRet(pStepper->StepOut());
 
-        std::scoped_lock<std::mutex> lock(m_stepMutex);
+        const std::scoped_lock<std::mutex> lock(m_stepMutex);
         m_enabledSimpleStepId = int(threadId);
 
         return S_OK;
     }
 
-    BOOL bStepIn = stepType == StepType::STEP_IN;
+    const BOOL bStepIn = stepType == StepType::STEP_IN;
 
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))
@@ -55,7 +55,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(pStepper->Step(bStepIn));
     }
 
-    std::scoped_lock<std::mutex> lock(m_stepMutex);
+    const std::scoped_lock<std::mutex> lock(m_stepMutex);
     m_enabledSimpleStepId = int(threadId);
 
     return S_OK;
@@ -63,11 +63,11 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
 HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(getThreadId(pThread));
 
     auto stepForcedIgnoreBP = [&]() {
         {
-            std::scoped_lock<std::mutex> lock(m_stepMutex);
+            const std::scoped_lock<std::mutex> lock(m_stepMutex);
             if (m_enabledSimpleStepId != int(threadId))
             {
                 return false;

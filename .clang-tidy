@@ -40,16 +40,13 @@ Checks: >
   -misc-use-internal-linkage,
   -misc-non-private-member-variables-in-classes,
   -misc-throw-by-value-catch-by-reference,
-  -misc-const-correctness,
   cert-*,
   -cert-err58-cpp,
   bugprone-*,
   -bugprone-assignment-in-if-condition,
-  -bugprone-inc-dec-in-conditions,
-  -bugprone-signed-char-misuse,
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
-  -bugprone-implicit-widening-of-multiplication-result
+  -bugprone-macro-parentheses
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
 WarningsAsErrors: "*"

@@ -137,7 +137,7 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, con
 
     IfFailRet(pMD->FindTypeDefByName(typeName, mdTypeDefNil, &typeDef));
 
-    mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
+    const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
 
     if (methodDef == mdMethodDefNil)
         return E_FAIL;
@@ -221,7 +221,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
 
 HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
 {
-    std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
+    const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
     HRESULT Status;
     ToRelease<ICorDebugType2> iCorType2;
@@ -255,7 +255,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
 
 HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
 {
-    std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
+    const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
     HRESULT Status;
     ToRelease<ICorDebugType2> iCorType2;
@@ -344,7 +344,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 
     if (et == ELEMENT_TYPE_CLASS)
     {
-        std::scoped_lock<std::mutex> lock(m_pSuppressFinalizeMutex);
+        const std::scoped_lock<std::mutex> lock(m_pSuppressFinalizeMutex);
 
         if (!m_pSuppressFinalize)
         {

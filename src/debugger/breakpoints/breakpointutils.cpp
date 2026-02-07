@@ -63,7 +63,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
     HRESULT Status;
     DWORD threadId = 0;
     IfFailRet(pThread->GetID(&threadId));
-    FrameId frameId(ThreadId{threadId}, FrameLevel{0});
+    const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
 
     ToRelease<ICorDebugProcess> iCorProcess;
     IfFailRet(pThread->GetProcess(&iCorProcess));

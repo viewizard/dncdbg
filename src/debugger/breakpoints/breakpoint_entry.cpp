@@ -41,7 +41,7 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     };
 
     FILE *pFile = nullptr;
-    scope_guard file(&pFile);
+    const scope_guard file(&pFile);
 
 #ifdef _WIN32
     if (_wfopen_s(&pFile, to_utf16(path).c_str(), L"rb") != 0)
@@ -97,7 +97,7 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
         if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
             corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
         {
-            ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
+            const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
             if (offset > (ULONG)lLONG_MAX)
                 return mdMethodDefNil;
 
@@ -190,7 +190,7 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
 
 HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    std::scoped_lock<std::mutex> lock(m_entryMutex);
+    const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || m_iCorFuncBreakpoint)
         return S_FALSE;
@@ -236,7 +236,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
 HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
-    std::scoped_lock<std::mutex> lock(m_entryMutex);
+    const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || !m_iCorFuncBreakpoint)
         return S_FALSE; // S_FALSE - no error, but not affect on callback
@@ -255,7 +255,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 
 void EntryBreakpoint::Delete()
 {
-    std::scoped_lock<std::mutex> lock(m_entryMutex);
+    const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_iCorFuncBreakpoint)
         return;

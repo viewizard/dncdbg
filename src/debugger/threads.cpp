@@ -14,13 +14,13 @@ namespace dncdbg
 ThreadId getThreadId(ICorDebugThread *pThread)
 {
     DWORD threadId = 0; // invalid value for Win32
-    HRESULT res = pThread->GetID(&threadId);
+    const HRESULT res = pThread->GetID(&threadId);
     return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
 }
 
 void Threads::Add(const ThreadId &threadId, bool processAttached)
 {
-    WriteLock w_lock(m_userThreadsRWLock);
+    const WriteLock w_lock(m_userThreadsRWLock);
 
     m_userThreads.emplace(threadId);
     // First added user thread during start is Main thread for sure.
@@ -30,7 +30,7 @@ void Threads::Add(const ThreadId &threadId, bool processAttached)
 
 void Threads::Remove(const ThreadId &threadId)
 {
-    WriteLock w_lock(m_userThreadsRWLock);
+    const WriteLock w_lock(m_userThreadsRWLock);
 
     auto it = m_userThreads.find(threadId);
     if (it == m_userThreads.end())
@@ -83,7 +83,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
 // Caller should guarantee, that pProcess is not null.
 HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thread> &threads)
 {
-    ReadLock r_lock(m_userThreadsRWLock);
+    const ReadLock r_lock(m_userThreadsRWLock);
 
     HRESULT Status;
     BOOL procRunning = FALSE;
@@ -101,7 +101,7 @@ HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thr
 
 HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
 {
-    ReadLock r_lock(m_userThreadsRWLock);
+    const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
     for (auto &userThread : m_userThreads)

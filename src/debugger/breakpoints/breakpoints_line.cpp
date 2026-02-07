@@ -114,7 +114,7 @@ static HRESULT EnableOneICorBreakpointForLine(std::list<LineBreakpoints::Managed
 
         for (const auto &iCorFuncBreakpoint : (*it).iCorFuncBreakpoints)
         {
-            HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
+            const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
             Status = FAILED(ret) ? ret : Status;
         }
         needEnable = FALSE;
@@ -224,7 +224,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
 
 HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
 {
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     for (auto &initialBreakpoints : m_lineBreakpointMapping)
     {
@@ -268,7 +268,7 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints,
                                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedLineBreakpointMapping &initialBreakpoint)
@@ -346,7 +346,7 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string&
 
     for (const auto &sb : lineBreakpoints)
     {
-        int line = sb.line;
+        const int line = sb.line;
         Breakpoint breakpoint;
 
         auto b = breakpointsInSourceMap.find(line);

@@ -74,7 +74,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
         }
     }
     ss << ")";
-    std::string params = ss.str();
+    const std::string params = ss.str();
 
     // Note, since IsEnableByCondition() during eval execution could neutered frame, all frame-related calculation
     // must be done before enter into this cycles.
@@ -120,7 +120,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
 
 HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
 {
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     for (auto &funcBreakpoints : m_funcBreakpoints)
     {
@@ -141,7 +141,7 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
                                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     // Remove old breakpoints
     std::unordered_set<std::string> funcBreakpointFuncs;

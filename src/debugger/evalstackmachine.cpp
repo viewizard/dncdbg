@@ -115,7 +115,7 @@ void ReplaceAllSubstring(std::string &str, const std::string &from, const std::s
 void ReplaceInternalNames(std::string &expression, bool restore = false)
 {
     // TODO more internal names should be added: $thread, ... (see internal variables supported by MSVS C# debugger)
-    static std::vector<std::pair<std::string, std::string>> internalNamesMap{
+    const static std::vector<std::pair<std::string, std::string>> internalNamesMap{
         {"$exception", "__INTERNAL_NCDB_EXCEPTION_VARIABLE"}};
 
     for (auto &entry : internalNamesMap)
@@ -154,7 +154,7 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
 
     ULONG32 cbSize;
     IfFailRet((*ppValue)->GetSize(&cbSize));
-    std::unique_ptr<BYTE[]> valueData(new (std::nothrow) BYTE[cbSize]);
+    const std::unique_ptr<BYTE[]> valueData(new (std::nothrow) BYTE[cbSize]);
     if (valueData == nullptr)
         return E_OUTOFMEMORY;
     memset(valueData.get(), 0, cbSize * sizeof(BYTE));
@@ -234,7 +234,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     {
     case ELEMENT_TYPE_I1:
     {
-        int8_t tmp = *(int8_t *)&(indexValue[0]);
+        const int8_t tmp = *(int8_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32((uint8_t)tmp);
@@ -247,7 +247,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     }
     case ELEMENT_TYPE_I2:
     {
-        int16_t tmp = *(int16_t *)&(indexValue[0]);
+        const int16_t tmp = *(int16_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32((uint16_t)tmp);
@@ -260,7 +260,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     }
     case ELEMENT_TYPE_I4:
     {
-        int32_t tmp = *(int32_t *)&(indexValue[0]);
+        const int32_t tmp = *(int32_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32(tmp);
@@ -273,7 +273,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     }
     case ELEMENT_TYPE_I8:
     {
-        int64_t tmp = *(int64_t *)&(indexValue[0]);
+        const int64_t tmp = *(int64_t *)&(indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
         index = ULONG32(tmp);
@@ -444,7 +444,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
 
     ToRelease<ICorDebugGenericValue> pGenericValue2;
     IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue2));
-    T2 value2 = (T2)value1; // NOLINT(cert-str34-c)
+    T2 value2 = (T2)value1; // NOLINT(cert-str34-c,bugprone-signed-char-misuse)
     return pGenericValue2->SetValue(&value2);
 }
 
@@ -690,7 +690,7 @@ HRESULT GetValueByOperandDataType(PVOID valueData, BasicTypes valueType, ICorDeb
 {
     if (valueType == BasicTypes::TypeString)
     {
-        std::string String = to_utf8((WCHAR *)valueData);
+        const std::string String = to_utf8((WCHAR *)valueData);
         return ed.pEvalHelpers->CreateString(ed.pThread, String, ppValue);
     }
 
@@ -998,7 +998,7 @@ HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
 HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
     HRESULT Status;
-    int32_t Int = ((FormatFIS *)pArguments)->Int;
+    const int32_t Int = ((FormatFIS *)pArguments)->Int;
     std::string String = to_utf8(((FormatFIS *)pArguments)->wString);
     std::vector<ToRelease<ICorDebugType>> genericValues;
     std::string generics = ">";
@@ -1035,7 +1035,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std:
 
 HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = ((FormatFI *)pArguments)->Int;
 
     if (Int < 0)
         return E_INVALIDARG;
@@ -1056,12 +1056,12 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     assert(evalStack.front().identifiers.size() > 0); // We must have at least method name (identifier).
 
     // TODO local defined function (compiler will create such function with name like `<Calc1>g__Calc2|0_0`)
-    std::string funcNameGenerics = evalStack.front().identifiers.back();
+    const std::string funcNameGenerics = evalStack.front().identifiers.back();
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
     std::vector<std::string> methodGenericStrings = EvalUtils::ParseGenericParams(funcNameGenerics, funcName);
-    size_t pos = funcName.find('`');
+    const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
         funcName.resize(pos);
 
@@ -1177,8 +1177,8 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     if (iCorResultType)
         iCorType = iCorResultType.Detach();
 
-    size_t typeArgsCount = evalStack.front().genericTypeCache.size();
-    ULONG32 realArgsCount = Int + (isInstance ? 1 : 0);
+    const size_t typeArgsCount = evalStack.front().genericTypeCache.size();
+    const ULONG32 realArgsCount = Int + (isInstance ? 1 : 0);
     std::vector<ICorDebugType *> iCorTypeArgs;
     std::vector<ICorDebugValue *> iCorValueArgs;
     iCorValueArgs.reserve(realArgsCount);
@@ -1237,14 +1237,13 @@ HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID
 
 HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = ((FormatFI *)pArguments)->Int;
     HRESULT Status;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
 
     for (int32_t i = Int - 1; i >= 0; i--)
     {
-        ToRelease<ICorDebugValue> iCorValue;
         IfFailRet(GetFrontStackEntryValue(&indexvalues[i], nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
@@ -1293,8 +1292,8 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
                 std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
                 {
-                    std::string name = "get_Item";
-                    std::size_t found = methodName.rfind(name);
+                    const std::string name = "get_Item";
+                    const std::size_t found = methodName.rfind(name);
                     if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                         found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                         return S_OK; // Return with success to continue walk.
@@ -1333,14 +1332,13 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
 
 HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = ((FormatFI *)pArguments)->Int;
     HRESULT Status;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
 
     for (int32_t i = Int - 1; i >= 0; i--)
     {
-        ToRelease<ICorDebugValue> iCorValue;
         IfFailRet(GetFrontStackEntryValue(&indexvalues[i], nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
@@ -1400,8 +1398,8 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
                 std::vector<Evaluator::ArgElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
                 {
-                    std::string name = "get_Item";
-                    std::size_t found = methodName.rfind(name);
+                    const std::string name = "get_Item";
+                    const std::size_t found = methodName.rfind(name);
                     if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                         found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                         return S_OK; // Return with success to continue walk.
@@ -1440,7 +1438,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
 
 HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
 {
-    int32_t Int = ((FormatFIP *)pArguments)->Int;
+    const int32_t Int = ((FormatFIP *)pArguments)->Int;
     PVOID Ptr = ((FormatFIP *)pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
@@ -1503,8 +1501,8 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
     };
 
     // TODO uint32_t Flags = ((FormatFI*)pArguments)->Flags;
-    int32_t Int = ((FormatFI *)pArguments)->Int;
-    std::string String;
+    const int32_t Int = ((FormatFI *)pArguments)->Int;
+    const std::string String;
 
     evalStack.emplace_front();
 
@@ -1569,7 +1567,7 @@ HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID
 
     std::string identifier = std::move(evalStack.front().identifiers[0]);
     std::vector<ToRelease<ICorDebugType>> iCorDebugTypes;
-    size_t genericsCount = evalStack.front().genericTypeCache.size();
+    const size_t genericsCount = evalStack.front().genericTypeCache.size();
     if (genericsCount > 0)
     {
         iCorDebugTypes = std::move(evalStack.front().genericTypeCache);

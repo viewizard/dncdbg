@@ -80,7 +80,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
 
 void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken> &excludeTokens)
 {
-    for (mdToken token : excludeTokens)
+    for (const mdToken token : excludeTokens)
     {
         if (TypeFromToken(token) == mdtMethodDef)
         {
@@ -126,7 +126,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
-    for (mdMethodDef methodToken : methodTokens)
+    for (const mdMethodDef methodToken : methodTokens)
     {
         // Note, in case of method we need check class attributes first, since class also could have it.
         ToRelease<ICorDebugFunction> pFunction;

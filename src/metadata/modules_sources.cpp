@@ -88,7 +88,7 @@ void AddMethodData(/*in,out*/ std::map<size_t,
     auto find = methodData[nestedLevel].find(entry);
     if (find != methodData[nestedLevel].end())
     {
-        method_data_t key(find->methodDef, entry.startLine, entry.endLine, entry.startColumn, entry.endColumn);
+        const method_data_t key(find->methodDef, entry.startLine, entry.endLine, entry.startColumn, entry.endColumn);
         auto find_multi = multiMethodBpData.find(key);
         if (find_multi == multiMethodBpData.end())
             multiMethodBpData.emplace(std::make_pair(key, std::vector<mdMethodDef>{entry.methodDef}));
@@ -119,7 +119,7 @@ void AddMethodData(/*in,out*/ std::map<size_t,
 
         if ((*it).NestedInto(entry))
         {
-            method_data_t tmp = *it;
+            const method_data_t tmp = *it;
             it = methodData[nestedLevel].erase(it);
             AddMethodData(methodData, multiMethodBpData, tmp, nestedLevel + 1);
         }
@@ -267,7 +267,7 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
 
 static std::string GetFileName(const std::string &path)
 {
-    std::size_t i = path.find_last_of("/\\");
+    const std::size_t i = path.find_last_of("/\\");
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
@@ -277,7 +277,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
     std::string fullPath = to_utf8(document);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status;
-    std::string initialFullPath = fullPath;
+    const std::string initialFullPath = fullPath;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
     auto findPathIndex = m_sourcePathToIndex.find(fullPath);
@@ -301,7 +301,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
                                                       PVOID pSymbolReaderHandle)
 {
-    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     HRESULT Status;
     std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> inputData;
@@ -380,7 +380,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
     std::size_t i;
     while ((i = result.find_first_of("/\\")) != std::string::npos)
     {
-        std::string pathElement = result.substr(0, i);
+        const std::string pathElement = result.substr(0, i);
         if (pathElement == "..")
         {
             if (!pathDirs.empty())
@@ -469,7 +469,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
                                           /*in*/ int sourceLine,
                                           /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
 {
-    std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
+    const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
     HRESULT Status;
     auto findIndex = m_sourcePathToIndex.find(filename);
@@ -540,9 +540,9 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         PVOID data = nullptr;
         int32_t Count = 0;
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        std::string fullName = m_sourceIndexToInitialFullPath[findIndex->second];
+        const std::string fullName = m_sourceIndexToInitialFullPath[findIndex->second];
 #else
-        std::string fullName = m_sourceIndexToPath[findIndex->second];
+        const std::string fullName = m_sourceIndexToPath[findIndex->second];
 #endif
         if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, (int32_t)Tokens.size(), Tokens.data(),
                                                correctedStartLine, closestNestedToken, Count, fullName, &data)) ||
@@ -550,7 +550,8 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         {
             continue;
         }
-        std::unique_ptr<resolved_input_bp_t, resolved_input_bp_t_deleter> inputData((resolved_input_bp_t *)data);
+
+        const std::unique_ptr<resolved_input_bp_t, resolved_input_bp_t_deleter> inputData((resolved_input_bp_t *)data);
 
         for (int32_t i = 0; i < Count; i++)
         {
@@ -567,7 +568,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
 HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
 {
-    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     if (m_sourceIndexToPath.size() <= index)
         return E_FAIL;
@@ -593,7 +594,7 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, un
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
 
-    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     auto findIndex = m_sourcePathToIndex.find(fullPath);
     if (findIndex == m_sourcePathToIndex.end())

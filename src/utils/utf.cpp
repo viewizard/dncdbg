@@ -23,11 +23,11 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
         return std::u16string();
 
     size_t in_bytes = utf8_str.size();
-    char *in_buf = const_cast<char *>(utf8_str.c_str());
+    char *in_buf = const_cast<char *>(utf8_str.c_str()); // NOLINT(misc-const-correctness)
     size_t out_bytes = in_bytes * 2 + 2; // worst case UTF-16 is twice the size of UTF-8 in bytes
     std::vector<char> out_buf(out_bytes);
-    char *out_ptr = out_buf.data();
-    size_t original_out_bytes = out_bytes;
+    char *out_ptr = out_buf.data(); // NOLINT(misc-const-correctness)
+    const size_t original_out_bytes = out_bytes;
 
     if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == (size_t)-1)
     {
@@ -37,7 +37,7 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
 
     iconv_close(conv);
 
-    size_t u16_len = (original_out_bytes - out_bytes) / sizeof(char16_t);
+    const size_t u16_len = (original_out_bytes - out_bytes) / sizeof(char16_t);
     return std::u16string(reinterpret_cast<char16_t *>(out_buf.data()), u16_len);
 }
 
@@ -48,11 +48,11 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
         return std::string();
 
     size_t in_bytes = utf16_str.size() * sizeof(char16_t);
-    char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str()));
+    char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str())); // NOLINT(misc-const-correctness)
     size_t out_bytes = in_bytes * 2 + 2; // worst case UTF-8 is twice the size of UTF-16 in bytes
     std::vector<char> out_buf(out_bytes);
-    char *out_ptr = out_buf.data();
-    size_t original_out_bytes = out_bytes;
+    char *out_ptr = out_buf.data(); // NOLINT(misc-const-correctness)
+    const size_t original_out_bytes = out_bytes;
 
     if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == (size_t)-1)
     {
@@ -62,7 +62,7 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
 
     iconv_close(conv);
 
-    size_t u8_len = (original_out_bytes - out_bytes) / sizeof(char);
+    const size_t u8_len = (original_out_bytes - out_bytes) / sizeof(char);
     return std::string(reinterpret_cast<char *>(out_buf.data()), u8_len);
 }
 #endif // #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))

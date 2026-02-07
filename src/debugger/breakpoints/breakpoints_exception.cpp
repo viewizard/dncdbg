@@ -48,7 +48,7 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
 HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                                       std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     // Remove old breakpoints
     std::vector<std::unordered_set<std::string>> expBreakpoints((size_t)ExceptionBreakpointFilter::Size);
@@ -73,7 +73,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
     // Export exception breakpoints
     for (const auto &expb : exceptionBreakpoints)
     {
-        std::string expHash(CalculateExceptionBreakpointHash(expb));
+        const std::string expHash(CalculateExceptionBreakpointHash(expb));
 
         Breakpoint breakpoint;
 
@@ -92,7 +92,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
         }
         else
         {
-            ManagedExceptionBreakpoint &bp = b->second;
+            const ManagedExceptionBreakpoint &bp = b->second;
             bp.ToBreakpoint(breakpoint);
         }
 
@@ -108,7 +108,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
 bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory)
 {
     assert(excCategory != ExceptionCategory::ANY); // caller must know category: CLR = Exception() callback, MDA = MDANotification() callback
-    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     for (auto &expb : m_exceptionBreakpoints[(size_t)filterId])
     {
@@ -119,8 +119,8 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
         if (expb.second.condition.empty())
             return true;
 
-        bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.end() ?
-                                    expb.second.negativeCondition : !expb.second.negativeCondition;
+        const bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.end() ?
+                                          expb.second.negativeCondition : !expb.second.negativeCondition;
         if (isCoveredByCondition)
             return true;
     }
@@ -263,7 +263,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 
-    std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
+    const std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
 
     auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
     if (findBreakMode == m_threadsExceptionBreakMode.end() || findBreakMode->second == ExceptionBreakMode::NEVER)
@@ -356,7 +356,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         excType = "<unknown exception>";
     }
 
-    std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
+    const std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
 
     switch (eventType)
     {

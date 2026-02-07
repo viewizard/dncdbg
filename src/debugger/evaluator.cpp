@@ -575,7 +575,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         if (Status == S_FALSE)
             continue;
 
-        bool is_static = (methodAttr & mdStatic);
+        const bool is_static = (methodAttr & mdStatic);
 
         auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
         {
@@ -800,11 +800,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (IsSynthesizedLocalName(mdName, nameLen))
                 return S_OK;
 
-            bool is_static = (fieldAttr & fdStatic);
+            const bool is_static = (fieldAttr & fdStatic);
             if (isNull && !is_static)
                 return S_OK;
 
-            std::string name = to_utf8(mdName);
+            const std::string name = to_utf8(mdName);
 
             auto getValue = [&](ICorDebugValue **ppResultValue, int) -> HRESULT
             {
@@ -913,7 +913,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (debuggerBrowsableState_Never)
                 return S_OK;
 
-            std::string name = to_utf8(propertyName);
+            const std::string name = to_utf8(propertyName);
 
             auto getValue = [&](ICorDebugValue **ppResultValue, int evalFlags) -> HRESULT {
                 if (!pThread)
@@ -980,7 +980,7 @@ static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodN
     WCHAR name[mdNameLen];
     ULONG nameLen;
     IfFailRet(pMD->GetTypeDefProps(typeDef, name, _countof(name), &nameLen, NULL, NULL));
-    WSTRING typeName(name);
+    const WSTRING typeName(name);
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
     //  Parse the generated name. Returns true for names of the form
@@ -1075,7 +1075,7 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
                 return S_OK;
             };
 
-            GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
             if (generatedNameKind == GeneratedNameKind::ThisProxyField)
             {
                 IfFailRet(getValue(ppResultValue));
@@ -1180,7 +1180,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
 {
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameConstants.cs#L11
     const WSTRING suffixSeparator(W("__"));
-    WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
+    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
     if (suffixSeparatorOffset == WSTRING::npos)
         return E_FAIL;
 
@@ -1217,7 +1217,7 @@ static HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalNa
     else
         return E_FAIL;
 
-    WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
+    const WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
     if (closeBracketOffset == WSTRING::npos)
         return E_FAIL;
 
@@ -1278,7 +1278,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
             return S_OK;
         };
 
-        GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
+        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
         if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
@@ -1434,7 +1434,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
         // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
         // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
-        int idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+        const int idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
         WCHAR wParamName[mdNameLen] = W("\0");
         ULONG paramNameLen = 0;
         mdParamDef paramDef;
@@ -1525,7 +1525,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         if (identifiers[i].empty())
             return E_FAIL;
 
-        ToRelease<ICorDebugValue> pClassValue(pResultValue.Detach());
+        const ToRelease<ICorDebugValue> pClassValue(pResultValue.Detach());
 
         WalkMembers(pClassValue, pThread, frameLevel, nullptr, !!resultSetterData,
                     [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
@@ -1566,7 +1566,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
     int nextClassIdentifier = 0;
-    int identifiersNum = (int)identifiers.size() - 1;
+    const int identifiersNum = (int)identifiers.size() - 1;
     std::vector<std::string> fieldName{identifiers.back()};
     std::vector<std::string> fullpath;
 
@@ -1817,7 +1817,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                     continue;
                 if (!HasAttribute(pMD, mdMethod, attributeName))
                     continue;
-                std::string fullName = to_utf8(szFuncName);
+                const std::string fullName = to_utf8(szFuncName);
                 if (fullName != methodName)
                     continue;
                 ULONG cParams; // Count of signature parameters.

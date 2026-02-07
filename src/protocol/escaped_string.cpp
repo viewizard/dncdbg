@@ -53,7 +53,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
         {
             // find right substitution for forbidden character and output substituting pair of characters
             auto ir = std::find(m_params.forbidden.begin(), m_params.forbidden.end(), *it);
-            std::string_view subst = m_params.subst[ir - m_params.forbidden.begin()];
+            const std::string_view subst = m_params.subst[ir - m_params.forbidden.begin()];
             func(thiz, subst);
             size += subst.size();
             prefix_size++;

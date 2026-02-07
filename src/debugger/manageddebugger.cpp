@@ -58,7 +58,7 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
     while (pEnv[counter] != nullptr)
     {
         const std::string env = pEnv[counter];
-        size_t pos = env.find_first_of('=');
+        const size_t pos = env.find_first_of('=');
         if (pos != std::string::npos && pos != 0)
             outMap.emplace(env.substr(0, pos), env.substr(pos + 1));
 
@@ -87,7 +87,7 @@ HRESULT ManagedDebugger::CheckDebugProcess()
 
 bool ManagedDebugger::HaveDebugProcess()
 {
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     return SUCCEEDED(CheckDebugProcess());
 }
 
@@ -122,10 +122,10 @@ void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
 
 void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
 {
-    std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
+    const std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
     m_lastStoppedThreadId = threadId;
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
 
     m_uniqueBreakpoints->SetLastStoppedIlOffset(m_iCorProcess, m_lastStoppedThreadId);
 }
@@ -139,7 +139,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 {
     LogFuncEntry();
 
-    std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
+    const std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
     return m_lastStoppedThreadId;
 }
 
@@ -279,7 +279,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
 
     if (!terminate)
     {
-        HRESULT Status = DetachFromProcess();
+        const HRESULT Status = DetachFromProcess();
         if (SUCCEEDED(Status))
             pProtocol->EmitTerminatedEvent();
 
@@ -293,7 +293,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -329,7 +329,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -361,7 +361,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -372,7 +372,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -467,7 +467,7 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
             return hr;
 
         // Sleep and retry enumerating the runtimes
-        USleep(100 * 1000);
+        USleep(static_cast<unsigned long>(100 * 1000));
         numTries++;
 
         // if (m_canceled)
@@ -553,7 +553,7 @@ static std::string EscapeShellArg(const std::string &arg)
     for (std::string::size_type i = 0; i < s.size(); ++i)
     {
         std::string::size_type count = 0;
-        char c = s.at(i);
+        const char c = s.at(i);
         switch (c)
         {
         case '\"':
@@ -689,7 +689,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
 HRESULT ManagedDebugger::CheckNoProcess()
 {
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
 
     if (!m_iCorProcess)
         return S_OK;
@@ -707,8 +707,8 @@ HRESULT ManagedDebugger::DetachFromProcess()
 {
     do
     {
-        ReadLock r_lock(m_debugProcessRWLock);
-        std::scoped_lock<std::mutex> guardAttachedMutex(m_processAttachedMutex);
+        const ReadLock r_lock(m_debugProcessRWLock);
+        const std::scoped_lock<std::mutex> guardAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
 
@@ -736,7 +736,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 {
     do
     {
-        ReadLock r_lock(m_debugProcessRWLock);
+        const ReadLock r_lock(m_debugProcessRWLock);
         std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
@@ -772,7 +772,7 @@ void ManagedDebugger::Cleanup()
     m_sharedVariables->Clear();
     pProtocol->Cleanup();
 
-    WriteLock w_lock(m_debugProcessRWLock);
+    const WriteLock w_lock(m_debugProcessRWLock);
 
     assert((m_iCorProcess && m_iCorDebug && m_uniqueManagedCallback && m_sharedCallbacksQueue) ||
            (!m_iCorProcess && !m_iCorDebug && !m_uniqueManagedCallback && !m_sharedCallbacksQueue));
@@ -827,7 +827,7 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -849,7 +849,7 @@ HRESULT ManagedDebugger::SetLineBreakpoints(const std::string &filename,
 {
     LogFuncEntry();
 
-    bool haveProcess = HaveDebugProcess();
+    const bool haveProcess = HaveDebugProcess();
     return m_uniqueBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints);
 }
 
@@ -858,7 +858,7 @@ HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &f
 {
     LogFuncEntry();
 
-    bool haveProcess = HaveDebugProcess();
+    const bool haveProcess = HaveDebugProcess();
     return m_uniqueBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
 }
 
@@ -960,7 +960,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     // Sometimes Coreclr may return the empty stack frame in exception info
     // for some unknown reason. In that case the 2nd attempt is usually successful.
     // If even the 3rd attempt failed, there is almost no chances to get data successfuly.
-    int tries = 3;
+    const int tries = 3;
     for (int tryCount = 0; tryCount < tries; tryCount++)
     {
         if (SUCCEEDED(GetExceptionInfo(threadId, exceptionInfo)))
@@ -968,7 +968,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             std::stringstream ss(exceptionInfo.details.stackTrace);
             int countOfNewFrames = 0;
             int currentFrame = -1;
-            size_t sizeofStackFrame = stackFrames.size();
+            const size_t sizeofStackFrame = stackFrames.size();
 
             // The stackTrace strings from ExceptionInfo usually looks like:
             // at Program.Func2(string[] strvect) in /home/user/work/vscode_test/utils.cs:line 122
@@ -979,7 +979,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             {
                 std::string line;
                 std::getline(ss, line, '\n');
-                size_t lastcolon = line.find_last_of(':');
+                const size_t lastcolon = line.find_last_of(':');
                 if (lastcolon == std::string::npos)
                     continue;
 
@@ -1022,8 +1022,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                     continue;
 
                 // look for the line number after the last colon
-                size_t beginlinenum = line.find_first_of("0123456789", lastcolon);
-                size_t endlinenum = line.find_first_not_of("0123456789", beginlinenum);
+                const size_t beginlinenum = line.find_first_of("0123456789", lastcolon);
+                const size_t endlinenum = line.find_first_not_of("0123456789", beginlinenum);
                 if (beginlinenum == std::string::npos)
                     continue;
 
@@ -1031,7 +1031,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 if (currentFrame < (int)startFrame || (maxFrames != 0 && currentFrame >= (int)startFrame + (int)maxFrames))
                     continue;
 
-                int l{std::stoi(line.substr(beginlinenum, endlinenum))};
+                const int l{std::stoi(line.substr(beginlinenum, endlinenum))};
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, line.substr(beginname, endname - beginname));
                 stackFrames.back().source = Source(line.substr(beginpath, lastcolon - beginpath));
                 stackFrames.back().line = stackFrames.back().endLine = l;
@@ -1055,7 +1055,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1071,7 +1071,7 @@ HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilt
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1082,7 +1082,7 @@ HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1094,7 +1094,7 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1113,7 +1113,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 
@@ -1125,7 +1125,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
 {
     LogFuncEntry();
 
-    ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status;
     IfFailRet(CheckDebugProcess());
 

@@ -88,7 +88,7 @@ HRESULT Breakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<Func
     return m_funcBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
-            std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
+            const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
             return m_nextBreakpointId++;
         });
 }
@@ -100,7 +100,7 @@ HRESULT Breakpoints::SetLineBreakpoints(bool haveProcess, const std::string &fil
     return m_lineBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
-            std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
+            const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
             return m_nextBreakpointId++;
         });
 }
@@ -110,7 +110,7 @@ HRESULT Breakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoi
     return m_exceptionBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
-            std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
+            const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
             return m_nextBreakpointId++;
         });
 }

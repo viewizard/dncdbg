@@ -15,7 +15,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
 {
     std::vector<std::string> result;
 
-    std::size_t start = identifier.find('<');
+    const std::size_t start = identifier.find('<');
     if (start == std::string::npos)
     {
         typeName = identifier;
@@ -29,7 +29,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
 
     for (std::size_t i = start; i < identifier.size(); i++)
     {
-        char c = identifier.at(i);
+        const char c = identifier.at(i);
         switch (c)
         {
         case ',':
@@ -118,7 +118,7 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
     {
         std::string name;
         ParseGenericParams(identifiers[j], name);
-        mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
+        const mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
         if (classToken == mdTypeDefNil)
             break;
         typeToken = classToken;
@@ -149,7 +149,7 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *
 
         for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
         {
-            ToRelease<ICorDebugType> pElementType(std::move(pType));
+            const ToRelease<ICorDebugType> pElementType(std::move(pType));
             IfFailRet(pAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, *irank,
                                                          pElementType,
                                                          &pType)); // NOLINT(clang-analyzer-cplusplus.Move,bugprone-use-after-move)
@@ -167,7 +167,7 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
 
     result.emplace_back();
 
-    for (char c : expression)
+    for (const char c : expression)
     {
         switch (c)
         {
@@ -261,7 +261,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (ppType)
     {
-        std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
+        const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> types;
         IfFailRet(ResolveParameters(params, pThread, pModules, types));
 
@@ -284,8 +284,8 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         std::string eTypeName;
         IfFailRet(TypePrinter::NameForToken(tkExtends, pMD, eTypeName, true, nullptr));
 
-        bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
-        CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
+        const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
+        const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
         ToRelease<ICorDebugType> pType;
         IfFailRet(pClass2->GetParameterizedType(et, static_cast<uint32_t>(types.size()), (ICorDebugType **)types.data(),

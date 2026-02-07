@@ -29,7 +29,7 @@ void waitpid_t::init() noexcept
 
 pid_t waitpid_t::operator()(pid_t pid, int *status, int options)
 {
-    std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
     if (!original)
     {
         init();
@@ -39,20 +39,20 @@ pid_t waitpid_t::operator()(pid_t pid, int *status, int options)
 
 void waitpid_t::SetupTrackingPID(pid_t PID)
 {
-    std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
     trackPID = PID;
     exitCode = 0; // same behaviour as CoreCLR have, by default exit code is 0
 }
 
 int waitpid_t::GetExitCode()
 {
-    std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
     return exitCode;
 }
 
 void waitpid_t::SetExitCode(pid_t PID, int Code)
 {
-    std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
     if (trackPID == notConfigured || PID != trackPID)
     {
         return;
@@ -72,7 +72,7 @@ hook::waitpid_t &GetWaitpid()
 // Note, we guaranty `waitpid()` hook works only during debuggee process execution, it aimed to work only for PAL's `waitpid()` calls interception.
 extern "C" pid_t waitpid(pid_t pid, int *status, int options)
 {
-    pid_t pidWaitRetval = dncdbg::hook::waitpid(pid, status, options);
+    const pid_t pidWaitRetval = dncdbg::hook::waitpid(pid, status, options);
 
     // same logic as PAL have, see PROCGetProcessStatus() and CPalSynchronizationManager::HasProcessExited()
     if (pidWaitRetval == pid)

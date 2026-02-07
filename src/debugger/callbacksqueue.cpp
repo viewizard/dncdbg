@@ -27,7 +27,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
         return false;
 
     bool atEntry = false;
-    ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(getThreadId(pThread));
     StoppedEvent event(StopBreakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
@@ -62,8 +62,8 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
         return false;
 
-    ThreadId threadId(getThreadId(pThread));
-    StoppedEvent event(StopStep, threadId);
+    const ThreadId threadId(getThreadId(pThread));
+    const StoppedEvent event(StopStep, threadId);
 
     m_debugger.SetLastStoppedThread(pThread);
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -80,10 +80,9 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
-    ThreadId threadId(getThreadId(pThread));
-    StackFrame stackFrame;
+    const ThreadId threadId(getThreadId(pThread));
 
-    StoppedEvent event(StopPause, threadId);
+    const StoppedEvent event(StopPause, threadId);
     m_debugger.pProtocol->EmitStoppedEvent(event);
     return true;
 }
@@ -91,8 +90,8 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               ExceptionCallbackType eventType, const std::string &excModule)
 {
-    ThreadId threadId(getThreadId(pThread));
-    StoppedEvent event(StopException, threadId);
+    const ThreadId threadId(getThreadId(pThread));
+    const StoppedEvent event(StopException, threadId);
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
@@ -178,7 +177,7 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
         return S_OK;
     }
 
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     callback();
     assert(!m_callbacksQueue.empty());
@@ -204,7 +203,7 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
         return S_OK;
     }
 
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     ToRelease<ICorDebugProcess> iCorProcess;
     if (m_callbacksQueue.empty() ||
@@ -232,7 +231,7 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
         return S_OK;
     }
 
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     if (m_callbacksQueue.empty() || (pProcess && HasQueuedCallbacks(pProcess)))
     {
@@ -249,13 +248,13 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
 
 bool CallbacksQueue::IsRunning()
 {
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
     return !m_stopEventInProcess;
 }
 
 HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
 {
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     assert(m_stopEventInProcess);
     m_stopEventInProcess = false;
@@ -286,7 +285,7 @@ static HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess
 // Analog of "pProcess->Stop(0)" call that also care about callbacks.
 HRESULT CallbacksQueue::Stop(ICorDebugProcess *pProcess)
 {
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
     // DO NOT reset steppers here, this is "pProcess->Stop(0)" like call, that care about callbacks.
     return InternalStop(pProcess, m_stopEventInProcess);
 }
@@ -298,7 +297,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     if (!lastStoppedThread)
         return E_INVALIDARG;
 
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     // Note, in case Stop() failed, no stop event will be emitted, don't set m_stopEventInProcess to "true" in this case.
     HRESULT Status;

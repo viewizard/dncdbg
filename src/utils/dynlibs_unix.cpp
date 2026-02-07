@@ -25,7 +25,7 @@ DLHandle DLOpen(const std::string &path)
     void *tmpPointer = ::dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOW);
     if (tmpPointer == NULL)
     {
-        char *err = ::dlerror();
+        const char *err = ::dlerror();
         static_cast<void>(fprintf(stderr, "dlopen() error: %s\n", err));
         LOGE("dlopen() error: %s", err);
     }
@@ -45,9 +45,9 @@ void *DLSym(DLHandle handle, const std::string_view &name)
 
     ::dlerror(); // Clear any existing error
 
-    void *tmpPointer = ::dlsym(handle, str);
+    void *tmpPointer = ::dlsym(handle, str); // NOLINT(misc-const-correctness)
 
-    char *err = ::dlerror();
+    const char *err = ::dlerror();
     if (err != NULL)
     {
         static_cast<void>(fprintf(stderr, "dlsym() error: %s\n", err));
@@ -61,10 +61,10 @@ void *DLSym(DLHandle handle, const std::string_view &name)
 // In case of error this function returns `false'.
 bool DLClose(DLHandle handle)
 {
-    int ret = ::dlclose(handle);
+    const int ret = ::dlclose(handle);
     if (ret != 0)
     {
-        char *err = ::dlerror();
+        const char *err = ::dlerror();
         static_cast<void>(fprintf(stderr, "dlclose() error: %s\n", err));
         LOGE("dlclose() error: %s", err);
     }

@@ -13,9 +13,9 @@ namespace dncdbg
 {
 
 // These constant define default size of the buffer, which typically can hold few lines of the text.
-const size_t InStreamBuf::DefaultBufferSize = 2 * LINE_MAX;
-const size_t OutStreamBuf::DefaultBufferSize = 2 * LINE_MAX;
-const size_t StreamBuf::DefaultBufferSize = 2 * LINE_MAX;
+const size_t InStreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
+const size_t OutStreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
+const size_t StreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
 
 namespace
 {
@@ -54,7 +54,7 @@ void InStreamBuf::compactify()
 {
     assert(egptr() >= gptr());
     assert(egptr() >= eback());
-    size_t free = endp() - egptr();
+    const size_t free = endp() - egptr();
 
     // if some relatively small portion of unread data occupies tail of the
     // buffer -- move it to the beginning of the buffer to allow reading more
@@ -76,7 +76,7 @@ int InStreamBuf::underflow()
 {
     compactify();
 
-    size_t free = endp() - egptr();
+    const size_t free = endp() - egptr();
     if (free < min_read_size() && in_avail() > 0)
         return traits_type::to_int_type(*gptr());
 
@@ -151,7 +151,7 @@ int OutStreamBuf::overflow(int c)
     // move unwritten part to the beginning of the buffer
     // left == 0 for blocking streams
     assert(res.size > 0);
-    size_t left = size - res.size;
+    const size_t left = size - res.size;
     memmove(pbase(), pbase() + res.size, left);
     setp(pbase(), epptr());
     pbump(int(left));
@@ -164,12 +164,12 @@ int OutStreamBuf::sync()
     while (true)
     {
         // try to write data
-        size_t size = pptr() - pbase();
+        const size_t size = pptr() - pbase();
         if (size == 0)
             break;
 
         using IOResult = IOSystem::IOResult;
-        IOResult res = IOSystem::write(file_handle, pbase(), size);
+        const IOResult res = IOSystem::write(file_handle, pbase(), size);
         if (res.status == IOResult::Error)
             return -1;
 

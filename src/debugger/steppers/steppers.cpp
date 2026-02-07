@@ -188,7 +188,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         return S_OK;
     }
 
-    bool filteredPrevStep = m_filteredPrevStep;
+    const bool filteredPrevStep = m_filteredPrevStep;
     m_filteredPrevStep = false;
 
     // Same behaviour as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).

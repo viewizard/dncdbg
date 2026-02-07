@@ -43,7 +43,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
         return E_FAIL;
     DWORD methodAttr = 0;
     IfFailRet(pMD_this->GetMethodProps(methodDef, NULL, NULL, 0, NULL, &methodAttr, NULL, NULL, NULL, NULL));
-    bool thisParam = (methodAttr & mdStatic) == 0;
+    const bool thisParam = (methodAttr & mdStatic) == 0;
     if (!thisParam)
         return E_FAIL;
     // At this point, first param will be always 'this'.
@@ -218,7 +218,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     IfFailRet(pEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &pNewBoolean));
     ULONG32 cbSize;
     IfFailRet(pNewBoolean->GetSize(&cbSize));
-    std::unique_ptr<BYTE[]> rgbValue(new (std::nothrow) BYTE[cbSize]);
+    const std::unique_ptr<BYTE[]> rgbValue(new (std::nothrow) BYTE[cbSize]);
     if (rgbValue == nullptr)
         return E_OUTOFMEMORY;
     memset(rgbValue.get(), 0, cbSize * sizeof(BYTE));
@@ -300,7 +300,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return S_OK;
     }
 
-    AsyncInfo::AwaitInfo *awaitInfo = nullptr;
+    AsyncInfo::AwaitInfo *awaitInfo = nullptr; // NOLINT(misc-const-correctness)
     if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, &awaitInfo))
     {
         // We have step inside async function with await, setup breakpoint at closest await's yield_offset.
@@ -308,7 +308,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         // 1. Step finished successful - await code not reached.
         // 2. Breakpoint was reached - step reached await block, so, we must switch to async step logic instead.
 
-        std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
+        const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
 
         m_asyncStep = std::make_unique<asyncStep_t>();
         m_asyncStep->m_threadId = getThreadId(pThread);
@@ -380,7 +380,7 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
     IfFailRet(pCode->CreateBreakpoint(0, &iCorFuncBreakpoint));
     IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
 
-    std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
+    const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
     m_asyncStepNotifyDebuggerOfWaitCompletion = std::make_unique<asyncBreakpoint_t>();
     m_asyncStepNotifyDebuggerOfWaitCompletion->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
     m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress = modAddress;
@@ -413,7 +413,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return S_FALSE;
     }
 
-    std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
+    const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
 
     if (!m_asyncStep)
     {

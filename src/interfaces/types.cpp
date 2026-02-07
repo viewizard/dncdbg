@@ -96,7 +96,7 @@ class IndexedStorage
     // true, if new element was added.
     std::pair<iterator, bool> insert(const value_type &val)
     {
-        iterator it = do_insert(val);
+        const iterator it = do_insert(val);
         if (it != m_data.end())
             return {it, false};
         m_data.push_back(value_type(next_id(), val));
@@ -106,7 +106,7 @@ class IndexedStorage
     // This function do the same as previous, but avoid copying of `val'.
     std::pair<iterator, bool> insert(mapped_type &&val)
     {
-        iterator it = do_insert(val);
+        const iterator it = do_insert(val);
         if (it != m_data.end())
             return {it, false};
         m_data.push_back(value_type(next_id(), std::move(val)));
@@ -121,7 +121,7 @@ class IndexedStorage
         if (m_base > key)
             return end();
 
-        key_type index = key - m_base;
+        const key_type index = key - m_base;
         if (index >= m_data.size() || m_data[index].first != key)
             return end();
 
@@ -147,7 +147,7 @@ class IndexedStorage
 
     [[nodiscard]] key_type next_id() const
     {
-        key_type data_size = key_type(m_data.size());
+        const key_type data_size = key_type(m_data.size());
 
         if (m_base > Max - data_size)
             // calculate (m_base + data_size - Max) without result overflow and underflow for unsigned "Key" type
@@ -266,7 +266,7 @@ FrameLevel FrameId::getLevel() const noexcept
 
 static std::string GetFileName(const std::string &path)
 {
-    std::size_t i = path.find_last_of("/\\");
+    const std::size_t i = path.find_last_of("/\\");
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 

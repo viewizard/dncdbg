@@ -20,7 +20,7 @@ static std::string ConsumeGenericArgs(const std::string &name, std::list<std::st
     if (args.empty())
         return name;
 
-    std::size_t offset = name.find_last_not_of("0123456789");
+    const std::size_t offset = name.find_last_not_of("0123456789");
 
     if (offset == std::string::npos || offset == name.size() - 1 || name.at(offset) != '`')
         return name;
@@ -158,7 +158,7 @@ static HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std
     ULONG refNameSize;
     IfFailRet(pImport->GetTypeRefProps(tkTypeRef, NULL, NULL, 0, &refNameSize));
 
-    std::unique_ptr<WCHAR[]> refName(new WCHAR[refNameSize + 1]);
+    const std::unique_ptr<WCHAR[]> refName(new WCHAR[refNameSize + 1]);
     IfFailRet(pImport->GetTypeRefProps(tkTypeRef, NULL, refName.get(), refNameSize, NULL));
 
     mdName = to_utf8(refName.get());
@@ -642,7 +642,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
         std::string subAppendix;
         typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
         std::string newAppendix;
-        unsigned rank = CorSigUncompressData(typePtr);
+        const unsigned rank = CorSigUncompressData(typePtr);
         // <TODO> what is the syntax for the rank 0 case? </TODO>
         if (rank == 0)
         {
@@ -653,13 +653,13 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
             std::vector<int> lowerBounds(rank, 0);
             std::vector<int> sizes(rank, 0);
 
-            unsigned numSizes = CorSigUncompressData(typePtr);
+            const unsigned numSizes = CorSigUncompressData(typePtr);
             assert(numSizes <= rank);
             unsigned i;
             for (i = 0; i < numSizes; i++)
                 sizes[i] = CorSigUncompressData(typePtr);
 
-            unsigned numLowBounds = CorSigUncompressData(typePtr);
+            const unsigned numLowBounds = CorSigUncompressData(typePtr);
             assert(numLowBounds <= rank);
             for (i = 0; i < numLowBounds; i++)
                 typePtr += CorSigUncompressSignedInt(typePtr, &lowerBounds[i]);

@@ -158,7 +158,7 @@ static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string
 
     auto functor = [&](const std::string &fullName, mdMethodDef &mdMethod) -> bool
         {
-            std::vector<std::string> splitFullName = split_on_tokens(fullName, '.');
+            const std::vector<std::string> splitFullName = split_on_tokens(fullName, '.');
 
             // If we've found the target function
             if (IsTargetFunction(splitFullName, splitName))
@@ -175,7 +175,7 @@ static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string
 
 void Modules::CleanupAllModules()
 {
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.clear();
 }
 
@@ -212,7 +212,7 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
 
 static std::string GetFileName(const std::string &path)
 {
-    std::size_t i = path.find_last_of("/\\");
+    const std::size_t i = path.find_last_of("/\\");
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
@@ -235,7 +235,7 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
 
 HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
 {
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     auto info_pair = m_modulesInfo.find(modAddress);
     return (info_pair == m_modulesInfo.end()) ? E_FAIL : cb(info_pair->second);
 }
@@ -254,14 +254,14 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
 HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked,
                                             const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
 {
-    bool isFullPath = IsFullPath(module);
+    const bool isFullPath = IsFullPath(module);
     HRESULT Status;
 
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
-        ModuleInfo &mdInfo = info_pair.second;
+        const ModuleInfo &mdInfo = info_pair.second;
         ICorDebugModule *pModule = mdInfo.m_iCorModule.GetPtr();
 
         if (!module.empty())
@@ -560,7 +560,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 
     pModule->AddRef();
     ModuleInfo mdInfo{pSymbolReaderHandle, pModule};
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
 
     return S_OK;
@@ -610,13 +610,13 @@ HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef met
 
 HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule)
 {
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
-        ModuleInfo &mdInfo = info_pair.second;
+        const ModuleInfo &mdInfo = info_pair.second;
 
-        std::string path = GetModuleFileName(mdInfo.m_iCorModule);
+        const std::string path = GetModuleFileName(mdInfo.m_iCorModule);
 
         if (GetFileName(path) == name)
         {
@@ -682,11 +682,11 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
 HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
     HRESULT Status;
-    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
-        ModuleInfo &mdInfo = info_pair.second;
+        const ModuleInfo &mdInfo = info_pair.second;
         IfFailRet(cb(mdInfo.m_iCorModule));
     }
     return S_OK;
@@ -709,7 +709,7 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
 #endif
 
     // Note, in all code we use m_modulesInfoMutex > m_sourcesInfoMutex lock sequence.
-    std::scoped_lock<std::mutex> lockModulesInfo(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lockModulesInfo(m_modulesInfoMutex);
     return m_modulesSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
 }
 

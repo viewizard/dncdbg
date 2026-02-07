@@ -166,11 +166,11 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     };
 
     // Enum could have explicitly specified any integral numeric type. enumValue type same as enumUnderlyingType.
-    ULONG64 curValue = getValue(enumValue);
+    const ULONG64 curValue = getValue(enumValue);
 
     // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
     // that "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
-    bool foundFlagsAttr = HasAttribute(pMD, currentTypeDef, "System.FlagsAttribute..ctor");
+    const bool foundFlagsAttr = HasAttribute(pMD, currentTypeDef, "System.FlagsAttribute..ctor");
 
     ULONG64 remainingValue = curValue;
     std::map<ULONG64, std::string> OrderedFlags;
@@ -185,11 +185,11 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
         if (SUCCEEDED(pMD->GetFieldProps(fieldDef, NULL, mdName, mdNameLen, &nameLen, &fieldAttr, NULL, NULL, NULL,
                                          &pRawValue, &rawValueLength)))
         {
-            DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
+            const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
                 continue;
 
-            ULONG64 currentConstValue = getValue(pRawValue);
+            const ULONG64 currentConstValue = getValue(pRawValue);
             if (currentConstValue == curValue)
             {
                 pMD->CloseEnum(fEnum);
@@ -374,7 +374,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
             IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
             IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, &pFieldVal));
 
-            std::string name = to_utf8(mdName /*, nameLen*/);
+            const std::string name = to_utf8(mdName /*, nameLen*/);
 
             if (name == "hi" || name == "_hi32")
             {
@@ -433,7 +433,7 @@ static void udivrem96(uint32_t *divident, uint32_t divisor, uint32_t &remainder)
     remainder = 0;
     for (int i = 2; i >= 0; i--)
     {
-        uint64_t partial_dividend = Make_64(remainder, divident[i]);
+        const uint64_t partial_dividend = Make_64(remainder, divident[i]);
         if (partial_dividend == 0)
         {
             divident[i] = 0;
@@ -480,10 +480,10 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
     static const unsigned int ScaleShift = 16;
     static const unsigned int SignMask = 1ul << 31;
 
-    unsigned int scale = (flags & ScaleMask) >> ScaleShift;
-    bool is_negative = flags & SignMask;
+    const unsigned int scale = (flags & ScaleMask) >> ScaleShift;
+    const bool is_negative = flags & SignMask;
 
-    size_t len = output.length();
+    const size_t len = output.length();
 
     if (len > scale)
     {
@@ -604,7 +604,7 @@ void EscapeString(std::string &s, char q = '\"')
     for (std::size_t i = 0; i < s.size(); ++i)
     {
         int count = 0;
-        char c = s.at(i);
+        const char c = s.at(i);
         switch (c)
         {
         case '\'':

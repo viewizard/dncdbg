@@ -313,7 +313,7 @@ void serialize_output(std::ostream &stream, uint64_t counter, const std::string_
     if (!source.IsNull())
     {
         // "source":{"name":"Program.cs","path":"/path/Program.cs"}
-        EscapedString<JSON_escape_rules> escaped_source_path(source.path);
+        const EscapedString<JSON_escape_rules> escaped_source_path(source.path);
         stream << ",\"source\":{\"name\":\"" << source.name << "\",\"path\":\"" << escaped_source_path << "\"}";
     }
 
@@ -335,7 +335,7 @@ void DAP::EmitOutputEvent(OutputCategory category, const std::string_view &outpu
 
     EscapedString<JSON_escape_rules> escaped_text(output);
 
-    std::scoped_lock<std::mutex> lock(m_outMutex);
+    const std::scoped_lock<std::mutex> lock(m_outMutex);
 
     Source source;
     int totalFrames = 0;
@@ -425,8 +425,8 @@ static void AddCapabilitiesTo(json &capabilities)
     json excFilters = json::array();
     for (const auto &entry : g_DAPFilters)
     {
-        json filter{{"filter", entry.first},
-                    {"label",entry.first}};
+        const json filter{{"filter", entry.first},
+                          {"label",entry.first}};
         excFilters.push_back(filter);
     }
     capabilities["exceptionBreakpointFilters"] = excFilters;
@@ -463,7 +463,7 @@ void DAP::EmitMessage(nlohmann::json &message, std::string &output)
 
 void DAP::EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message)
 {
-    std::scoped_lock<std::mutex> lock(m_outMutex);
+    const std::scoped_lock<std::mutex> lock(m_outMutex);
     std::string output;
     EmitMessage(message, output);
     Log(message_prefix, output);
@@ -493,7 +493,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"setExceptionBreakpoints", [&](const json &arguments, json &/*body*/)
             {
-                std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
+                const std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
                 std::vector<std::map<std::string, std::string>> filterOptions =
                     arguments.value("filterOptions", std::vector<std::map<std::string, std::string>>());
 
@@ -542,8 +542,8 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                     std::replace(findCondition->second.begin(), findCondition->second.end(), ',', ' ');
                     std::stringstream ss(findCondition->second);
-                    std::istream_iterator<std::string> begin(ss);
-                    std::istream_iterator<std::string> end;
+                    const std::istream_iterator<std::string> begin(ss);
+                    const std::istream_iterator<std::string> end;
                     exceptionBreakpoints.back().condition = std::unordered_set<std::string>(begin, end);
                 }
 
@@ -563,7 +563,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"exceptionInfo", [&](const json &arguments, json &body)
             {
                 HRESULT Status;
-                ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{int(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
                 IfFailRet(sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
 
@@ -612,10 +612,10 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 if (!fileExec.empty())
                     return sharedDebugger->Launch(fileExec, execArgs, env, cwd, arguments.value("stopAtEntry", false));
 
-                std::string program = arguments.at("program").get<std::string>();
+                const std::string program = arguments.at("program").get<std::string>();
                 std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
 
-                std::string dllSuffix = ".dll";
+                const std::string dllSuffix = ".dll";
                 if (program.size() >= dllSuffix.size() &&
                     program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
                 {
@@ -662,7 +662,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 HRESULT Status;
 
                 int totalFrames = 0;
-                ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{int(arguments.at("threadId"))};
 
                 std::vector<StackFrame> stackFrames;
                 IfFailRet(sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
@@ -677,13 +677,13 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 body["allThreadsContinued"] = true;
 
-                ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{int(arguments.at("threadId"))};
                 body["threadId"] = int(threadId);
                 return sharedDebugger->Continue(threadId);
             }},
         {"pause", [&](const json &arguments, json &body)
             {
-                ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{int(arguments.at("threadId"))};
                 body["threadId"] = int(threadId);
                 return sharedDebugger->Pause(threadId);
             }},
@@ -706,7 +706,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 HRESULT Status;
                 std::vector<Scope> scopes;
-                FrameId frameId{int(arguments.at("frameId"))};
+                const FrameId frameId{int(arguments.at("frameId"))};
                 IfFailRet(sharedDebugger->GetScopes(frameId, scopes));
 
                 body["scopes"] = scopes;
@@ -716,7 +716,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"variables", [&](const json &arguments, json &body)
             {
                 HRESULT Status;
-                std::string filterName = arguments.value("filter", "");
+                const std::string filterName = arguments.value("filter", "");
                 VariablesFilter filter = VariablesBoth;
                 if (filterName == "named")
                     filter = VariablesNamed;
@@ -735,13 +735,13 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"evaluate", [&](const json &arguments, json &body)
             {
                 HRESULT Status;
-                std::string expression = arguments.at("expression");
-                FrameId frameId([&]()
+                const std::string expression = arguments.at("expression");
+                const FrameId frameId([&]()
                     {
                         auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.end())
                         {
-                            ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -781,14 +781,14 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"setExpression", [&](const json &arguments, json &body)
             {
                 HRESULT Status;
-                std::string expression = arguments.at("expression");
-                std::string value = arguments.at("value");
-                FrameId frameId([&]()
+                const std::string expression = arguments.at("expression");
+                const std::string value = arguments.at("value");
+                const FrameId frameId([&]()
                     {
                         auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.end())
                         {
-                            ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -835,9 +835,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 HRESULT Status;
 
-                std::string name = arguments.at("name");
-                std::string value = arguments.at("value");
-                int ref = arguments.at("variablesReference");
+                const std::string name = arguments.at("name");
+                const std::string value = arguments.at("value");
+                const int ref = arguments.at("variablesReference");
 
                 std::string output;
                 Status = sharedDebugger->SetVariable(name, value, ref, output);
@@ -873,7 +873,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     i = name.find('(');
                     if (i != std::string::npos)
                     {
-                        std::size_t closeBrace = name.find(')');
+                        const std::size_t closeBrace = name.find(')');
 
                         params = std::string(name, i, closeBrace - i + 1);
                         name.erase(i, closeBrace);
@@ -1023,7 +1023,7 @@ void DAP::CommandsWorker()
         // we use max default timeout (15000), one timeout for all requests.
 
         // TODO add timeout configuration feature
-        std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
+        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
         if (timeoutStatus == std::future_status::timeout)
         {
             body["message"] = "Command execution timed out.";
@@ -1089,12 +1089,12 @@ void DAP::CommandLoop()
 
     while (!m_exit)
     {
-        std::string requestText = ReadData(cin);
+        const std::string requestText = ReadData(cin);
         if (requestText.empty())
         {
             CommandQueueEntry queueEntry;
             queueEntry.command = "ncdbg_disconnect";
-            std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
+            const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
             m_commandsQueue.clear();
             m_commandsQueue.emplace_back(std::move(queueEntry));
             m_commandsCV.notify_one(); // notify_one with lock
@@ -1102,7 +1102,7 @@ void DAP::CommandLoop()
         }
 
         {
-            std::scoped_lock<std::mutex> lock(m_outMutex);
+            const std::scoped_lock<std::mutex> lock(m_outMutex);
             Log(LOG_COMMAND, requestText);
         }
 
@@ -1143,7 +1143,7 @@ void DAP::CommandLoop()
                 EmitCapabilitiesEvent();
             else if (g_cancelCommandQueueSet.find(queueEntry.command) != g_cancelCommandQueueSet.end())
             {
-                std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
+                const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
                 m_sharedDebugger->CancelEvalRunning();
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
@@ -1183,7 +1183,7 @@ void DAP::CommandLoop()
             }
 
             std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
-            bool isCommandNeedSync = g_syncCommandExecutionSet.find(queueEntry.command) != g_syncCommandExecutionSet.end();
+            const bool isCommandNeedSync = g_syncCommandExecutionSet.find(queueEntry.command) != g_syncCommandExecutionSet.end();
             m_commandsQueue.emplace_back(std::move(queueEntry));
             m_commandsCV.notify_one(); // notify_one with lock
 

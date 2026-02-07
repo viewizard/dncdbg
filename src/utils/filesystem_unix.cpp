@@ -20,7 +20,7 @@ std::string get_exe_path()
 {
     static const char self_link[] = "/proc/self/exe";
     char buffer[PATH_MAX];
-    ssize_t r = readlink(self_link, buffer, PATH_MAX);
+    const ssize_t r = readlink(self_link, buffer, PATH_MAX);
     return std::string(buffer, r < 0 ? 0 : r);
 }
 #elif defined(__APPLE__)

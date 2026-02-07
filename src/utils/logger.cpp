@@ -59,9 +59,9 @@ int clock_gettime(int tsrc, struct timespec *ts)
 unsigned get_tid()
 {
 #ifndef _WIN32
-    static thread_local unsigned thread_id = syscall(SYS_gettid);
+    const static thread_local unsigned thread_id = syscall(SYS_gettid);
 #else
-    static thread_local unsigned thread_id = unsigned(GetCurrentThreadId());
+    const static thread_local unsigned thread_id = unsigned(GetCurrentThreadId());
 #endif
 
     return thread_id;
@@ -71,9 +71,9 @@ unsigned get_tid()
 int get_pid()
 {
 #ifndef _WIN32
-    static unsigned process_id = ::getpid();
+    const static unsigned process_id = ::getpid();
 #else
-    static unsigned process_id = unsigned(GetCurrentProcessId());
+    const static unsigned process_id = unsigned(GetCurrentProcessId());
 #endif
 
     return process_id;
@@ -128,7 +128,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
     static std::mutex mutex;
-    std::scoped_lock<std::mutex> lock(mutex);
+    const std::scoped_lock<std::mutex> lock(mutex);
 
     if (prio == DLOG_DEFAULT)
         prio = DLOG_INFO;
@@ -141,10 +141,10 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     if (log_file == NULL || ferror(log_file))
         return DLOG_ERROR_NOT_PERMITTED;
 
-    int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff), int(ts.tv_nsec / 1000000),
-                      level, tag, get_pid(), get_tid());
+    const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),
+                            int(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
 
-    int r = vfprintf(log_file, fmt, ap);
+    const int r = vfprintf(log_file, fmt, ap);
     if (r < 0)
     {
         static_cast<void>(fputc('\n', log_file));
