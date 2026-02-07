@@ -555,7 +555,6 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 {
     mdToken tk;
     int typ;
-    std::string tmp;
     int n;
 
     auto getGetNameWithAppendix = [&](const char *str) -> std::string

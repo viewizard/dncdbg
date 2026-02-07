@@ -112,7 +112,7 @@ struct LogFuncEntry
         (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
         dlog_print(prio, tag, "%.*s: %.*s(%.*s) > " fmt, \
             int(sizeof(__FILE__) - DLogInternal::path_len(__FILE__)), &__FILE__[DLogInternal::path_len(__FILE__)], \
-            int(DLogInternal::funcname_len(__func__)), __func__, \
+            int(DLogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
             int(sizeof(LOG_S_(__LINE))), LOG_S_(__LINE__), \
             ##__VA_ARGS__))
 

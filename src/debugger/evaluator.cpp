@@ -147,8 +147,7 @@ HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::str
 
         nextClassIdentifier = 0;
         ToRelease<ICorDebugType> pType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule,
-                                       &pType))) // NOLINT(clang-analyzer-cplusplus.Move)
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
             break;
 
         if (nextClassIdentifier == (int)fullpath.size())
@@ -1586,8 +1585,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         for (int i = 0; i < identifiersNum; i++)
             fullpath.push_back(identifiers[i]);
 
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule,
-                                       &pType))) // NOLINT(clang-analyzer-cplusplus.Move)
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
             break;
 
         if (nextClassIdentifier < (int)fullpath.size())

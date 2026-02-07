@@ -45,14 +45,11 @@ Checks: >
   cert-*,
   -cert-err58-cpp,
   bugprone-*,
-  -bugprone-unused-local-non-trivial-variable,
   -bugprone-assignment-in-if-condition,
   -bugprone-inc-dec-in-conditions,
   -bugprone-signed-char-misuse,
-  -bugprone-lambda-function-name,
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
-  -bugprone-use-after-move,
   -bugprone-implicit-widening-of-multiplication-result
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'

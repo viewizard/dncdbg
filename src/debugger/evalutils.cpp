@@ -152,7 +152,7 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *
             ToRelease<ICorDebugType> pElementType(std::move(pType));
             IfFailRet(pAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, *irank,
                                                          pElementType,
-                                                         &pType)); // NOLINT(clang-analyzer-cplusplus.Move)
+                                                         &pType)); // NOLINT(clang-analyzer-cplusplus.Move,bugprone-use-after-move)
         }
     }
 
