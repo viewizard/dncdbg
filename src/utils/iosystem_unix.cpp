@@ -308,7 +308,7 @@ Class::IOResult Class::close(const FileHandle &fh)
 // This function returns triplet of currently selected standard files.
 dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
-    static const IOSystem::FileHandle handles[std::tuple_size<IOSystem::StdFiles>::value] = {
+    static const IOSystem::FileHandle handles[std::tuple_size_v<IOSystem::StdFiles>] = {
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
     return {handles[0], handles[1], handles[2]};
 }
@@ -317,7 +317,7 @@ dncdbg::IOSystem::StdFiles Class::get_std_files()
 // Substitution exists only during life time of StsIOSwap instance.
 Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 {
-    const static unsigned NFD = std::tuple_size<StdFiles>::value;
+    const static unsigned NFD = std::tuple_size_v<StdFiles>;
     static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
 
     const int newfd[NFD] = {std::get<StdFileType::Stdin>(files).handle.fd,
@@ -346,7 +346,7 @@ Class::StdIOSwap::~StdIOSwap()
     if (!m_valid)
         return;
 
-    const static unsigned NFD = std::tuple_size<StdFiles>::value;
+    const static unsigned NFD = std::tuple_size_v<StdFiles>;
     static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
     for (unsigned n = 0; n < NFD; n++)
     {

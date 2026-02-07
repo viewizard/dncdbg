@@ -233,7 +233,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     return S_OK;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral_v<T>>>
 static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
 {
     HRESULT Status;

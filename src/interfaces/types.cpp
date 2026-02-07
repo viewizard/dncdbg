@@ -24,7 +24,7 @@ namespace dncdbg
 // to `clear()' (it uses cyclically increased number, which wraps around
 // after reaching `Max' value).
 template <typename Key, typename T, Key Max = std::numeric_limits<Key>::max(),
-          class = typename std::enable_if<std::is_unsigned<Key>::value>::type>
+          class = typename std::enable_if_t<std::is_unsigned_v<Key>>>
 class IndexedStorage
 {
   public:
