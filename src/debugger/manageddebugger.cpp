@@ -566,6 +566,8 @@ static std::string EscapeShellArg(const std::string &arg)
             s.insert(i, count, '\\');
             s[i + count] = '\\';
             break;
+        default:
+            break;
         }
         i += count;
     }

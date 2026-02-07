@@ -656,6 +656,8 @@ void EscapeString(std::string &s, char q = '\"')
             s.insert(i, count, '\\');
             s[i + count] = 'v';
             break;
+        default:
+            break;
         }
         i += count;
     }
