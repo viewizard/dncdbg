@@ -50,7 +50,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
         if (SUCCEEDED(pProcess->GetThread(int(userThread), &pThread)) &&
             SUCCEEDED(pThread->GetObject(&iCorThreadObject)))
         {
-            HRESULT Status;
+            HRESULT Status = S_OK;
             m_sharedEvaluator->WalkMembers(iCorThreadObject, nullptr, FrameLevel{0}, nullptr, false,
                 [&](ICorDebugType *, bool, const std::string &memberName,
                     const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
@@ -85,7 +85,7 @@ HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thr
 {
     const ReadLock r_lock(m_userThreadsRWLock);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     BOOL procRunning = FALSE;
     IfFailRet(pProcess->IsRunning(&procRunning));
 

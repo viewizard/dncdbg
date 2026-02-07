@@ -123,10 +123,10 @@ std::string RenameToCSharp(const std::string &typeName)
 // Caller should guard against exception
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::string &mdName, std::list<std::string> *args)
 {
-    HRESULT Status;
-    DWORD flags;
+    HRESULT Status = S_OK;
+    DWORD flags = 0;
     WCHAR name[mdNameLen];
-    ULONG nameLen;
+    ULONG nameLen = 0;
 
     IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name, _countof(name), &nameLen, &flags, NULL));
     mdName = to_utf8(name /*, nameLen*/);
@@ -139,7 +139,7 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
         return S_OK;
     }
 
-    mdTypeDef tkEnclosingClass;
+    mdTypeDef tkEnclosingClass = mdTypeDefNil;
     IfFailRet(pImport->GetNestedClassProps(tkTypeDef, &tkEnclosingClass));
 
     std::string enclosingName;
@@ -154,8 +154,8 @@ static HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std
 {
     // Note, instead of GetTypeDefProps(), GetTypeRefProps() return fully-qualified name.
     // CoreCLR use dynamic allocated or size fixed buffers up to 16kb for GetTypeRefProps().
-    HRESULT Status;
-    ULONG refNameSize;
+    HRESULT Status = S_OK;
+    ULONG refNameSize = 0;
     IfFailRet(pImport->GetTypeRefProps(tkTypeRef, NULL, NULL, 0, &refNameSize));
 
     const std::unique_ptr<WCHAR[]> refName(new WCHAR[refNameSize + 1]);
@@ -174,7 +174,7 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pImport, std::string &md
         return E_FAIL;
     }
 
-    HRESULT hr;
+    HRESULT hr = S_OK;
     if (TypeFromToken(mb) == mdtTypeDef)
     {
         hr = NameForTypeDef(mb, pImport, mdName, args);
@@ -214,7 +214,7 @@ static HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args
 
 static HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugILFrame2> pILFrame2;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, (LPVOID *)&pILFrame2));
@@ -240,7 +240,7 @@ static HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &ar
 
 HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pType->GetClass(&pClass));
     ToRelease<ICorDebugModule> pModule;
@@ -249,7 +249,7 @@ HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
-    mdToken tk;
+    mdToken tk = mdTokenNil;
     IfFailRet(pClass->GetToken(&tk));
     std::list<std::string> args;
     AddGenericArgs(pType, args);
@@ -258,7 +258,7 @@ HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
 
 HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
     ToRelease<ICorDebugType> iCorType;
@@ -289,8 +289,8 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     }
     else if (TypeFromToken(mb) == mdtFieldDef)
     {
-        mdTypeDef mdClass;
-        ULONG size;
+        mdTypeDef mdClass = mdTypeDefNil;
+        ULONG size = 0;
         hr = pImport->GetMemberProps(mb, &mdClass, name, _countof(name), &size, NULL,
                                      NULL, NULL, NULL, NULL, NULL, NULL, NULL);
         if (SUCCEEDED(hr))
@@ -305,8 +305,8 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     }
     else if (TypeFromToken(mb) == mdtMethodDef)
     {
-        mdTypeDef mdClass;
-        ULONG size;
+        mdTypeDef mdClass = mdTypeDefNil;
+        ULONG size = 0;
         hr = pImport->GetMethodProps(mb, &mdClass, name, _countof(name), &size, NULL, NULL, NULL, NULL, NULL);
         if (SUCCEEDED(hr))
         {
@@ -320,8 +320,8 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     }
     else if (TypeFromToken(mb) == mdtMemberRef)
     {
-        mdTypeDef mdClass;
-        ULONG size;
+        mdTypeDef mdClass = mdTypeDefNil;
+        ULONG size = 0;
         hr = pImport->GetMemberRefProps(mb, &mdClass, name, _countof(name), &size, NULL, NULL);
         if (SUCCEEDED(hr))
         {
@@ -378,7 +378,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
 
     HRESULT Status = S_OK;
 
-    CorElementType corElemType;
+    CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(pType->GetType(&corElemType));
 
     switch (corElemType)
@@ -413,7 +413,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         // Defaults in case we fail...
         elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
 
-        mdTypeDef typeDef;
+        mdTypeDef typeDef = mdTypeDefNil;
         ToRelease<ICorDebugClass> pClass;
         if (SUCCEEDED(pType->GetClass(&pClass)) && SUCCEEDED(pClass->GetToken(&typeDef)))
         {
@@ -553,9 +553,9 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
 static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::string> &args,
                                       IMetaDataImport *pImport, std::string &out, std::string &appendix)
 {
-    mdToken tk;
-    int typ;
-    int n;
+    mdToken tk = mdTokenNil;
+    int typ = 0;
+    int n = 0;
 
     auto getGetNameWithAppendix = [&](const char *str) -> std::string
     {
@@ -655,13 +655,12 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 
             const unsigned numSizes = CorSigUncompressData(typePtr);
             assert(numSizes <= rank);
-            unsigned i;
-            for (i = 0; i < numSizes; i++)
+            for (unsigned i = 0; i < numSizes; i++)
                 sizes[i] = CorSigUncompressData(typePtr);
 
             const unsigned numLowBounds = CorSigUncompressData(typePtr);
             assert(numLowBounds <= rank);
-            for (i = 0; i < numLowBounds; i++)
+            for (unsigned i = 0; i < numLowBounds; i++)
                 typePtr += CorSigUncompressSignedInt(typePtr, &lowerBounds[i]);
 
             newAppendix += '[';
@@ -669,7 +668,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
                 newAppendix += "..";
             else
             {
-                for (i = 0; i < rank; i++)
+                for (unsigned i = 0; i < rank; i++)
                 {
                     // if (sizes[i] != 0 || lowerBounds[i] != 0)
                     // {
@@ -715,7 +714,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
     case ELEMENT_TYPE_GENERICINST:
     {
         // typePtr = NameForTypeSig(typePtr, args, pImport, out, appendix);
-        CorElementType underlyingType;
+        CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
         typePtr += CorSigUncompressElementType(typePtr, &underlyingType);
         typePtr += CorSigUncompressToken(typePtr, &tk);
 
@@ -785,7 +784,7 @@ void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *enclosingType, IMeta
 
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string elementType;
     std::string arrayType;
     IfFailRet(GetTypeOfValue(pType, elementType, arrayType));
@@ -795,14 +794,14 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
 
 HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::string &methodName)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugFunction> pFunction;
     IfFailRet(pFrame->GetFunction(&pFunction));
 
     ToRelease<ICorDebugClass> pClass;
     ToRelease<ICorDebugModule> pModule;
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetClass(&pClass));
     IfFailRet(pFunction->GetModule(&pModule));
     IfFailRet(pFunction->GetToken(&methodDef));
@@ -813,16 +812,16 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&typeDef));
 
-    mdTypeDef memTypeDef;
-    ULONG nameLen;
-    DWORD flags;
-    PCCOR_SIGNATURE pbSigBlob;
-    ULONG ulSigBlob;
-    ULONG ulCodeRVA;
-    ULONG ulImplFlags;
+    mdTypeDef memTypeDef = mdTypeDefNil;
+    ULONG nameLen = 0;
+    DWORD flags = 0;
+    PCCOR_SIGNATURE pbSigBlob = nullptr;
+    ULONG ulSigBlob = 0;
+    ULONG ulCodeRVA = 0;
+    ULONG ulImplFlags = 0;
 
     WCHAR szFunctionName[mdNameLen] = {0};
 
@@ -836,8 +835,8 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
 
     ULONG methodGenericsCount = 0;
     HCORENUM hEnum = NULL;
-    mdGenericParam gp;
-    ULONG fetched;
+    mdGenericParam gp = mdGenericParamNil;
+    ULONG fetched = 0;
     while (SUCCEEDED(pMD2->EnumGenericParams(&hEnum, methodDef, &gp, 1, &fetched)) && fetched == 1)
     {
         methodGenericsCount++;
@@ -867,7 +866,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
 
 HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     std::string typeName;
     std::string methodName;

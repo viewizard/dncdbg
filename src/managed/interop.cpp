@@ -74,7 +74,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
         const char *ext = tpaExtensions[extIndex];
         const int extLength = strlen(ext);
 
-        struct dirent *entry;
+        struct dirent *entry = nullptr;
 
         // For all entries in the directory
         while ((entry = readdir(dir)) != nullptr)
@@ -361,7 +361,7 @@ void Init(const std::string &coreClrPath)
 
     const std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_CHAR_A));
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     UnsetCoreCLREnv();
 
@@ -477,7 +477,7 @@ void Shutdown()
         return;
 
     // "Warm up Roslyn" thread still could be running at this point, let `coreclr_shutdown` care about this.
-    HRESULT Status;
+    HRESULT Status = S_OK;
     if (FAILED(Status = shutdownCoreClr(hostHandle, domainId)))
         LOGE("coreclr_shutdown failed - status: 0x%08x", Status);
 
@@ -601,7 +601,7 @@ HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, in
     if (!calculationDelegate)
         return E_FAIL;
 
-    BSTR werrorText;
+    BSTR werrorText = nullptr;
     const RetCode retCode = calculationDelegate(firstOp, firstType, secondOp, secondType, operationType,
                                                 &resultType, data, &werrorText);
     read_lock.unlock();
@@ -741,7 +741,7 @@ HRESULT StringToUpper(std::string &String)
     if (!stringToUpperDelegate)
         return E_FAIL;
 
-    BSTR wString;
+    BSTR wString = nullptr;
     const RetCode retCode = stringToUpperDelegate(to_utf16(String).c_str(), &wString);
     read_lock.unlock();
 

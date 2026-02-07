@@ -562,6 +562,7 @@ struct FuncBreakpoint
 // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebugexceptioncallbacktype-enumeration
 enum class ExceptionCallbackType
 {
+    UNKNOWN = 0,
     FIRST_CHANCE,
     USER_FIRST_CHANCE,
     CATCH_HANDLER_FOUND,

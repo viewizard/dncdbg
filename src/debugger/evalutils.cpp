@@ -86,7 +86,7 @@ static mdTypeDef GetTypeTokenForName(IMetaDataImport *pMD, mdTypeDef tkEnclosing
 static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string> &identifiers,
                                 int &nextIdentifier, mdTypeDef &typeToken)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
@@ -130,7 +130,7 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
 
 HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *pModules, ICorDebugType **ppType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = ParseType(typeName, ranks);
     if (classIdentifiers.size() == 1)
@@ -216,10 +216,10 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
 static HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, Modules *pModules,
                                  std::vector<ToRelease<ICorDebugType>> &types)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     for (auto &p : params)
     {
-        ICorDebugType *tmpType;
+        ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
         IfFailRet(EvalUtils::GetType(p, pThread, pModules, &tmpType));
         types.emplace_back(tmpType);
     }
@@ -229,7 +229,7 @@ static HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDeb
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  Modules *pModules, ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     if (pModule)
         pModule->AddRef();
@@ -276,9 +276,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         ToRelease<IMetaDataImport> pMD;
         IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
-        DWORD flags;
-        ULONG nameLen;
-        mdToken tkExtends;
+        DWORD flags = 0;
+        ULONG nameLen = 0;
+        mdToken tkExtends = mdTokenNil;
         IfFailRet(pMD->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
 
         std::string eTypeName;

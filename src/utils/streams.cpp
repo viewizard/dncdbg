@@ -132,7 +132,7 @@ int OutStreamBuf::overflow(int c)
 
     using IOResult = IOSystem::IOResult;
 
-    size_t size;
+    size_t size = 0;
     IOResult res;
     while (true)
     {

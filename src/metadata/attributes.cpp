@@ -16,7 +16,7 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::funct
     bool found = false;
     ULONG numAttributes = 0;
     HCORENUM fEnum = NULL;
-    mdCustomAttribute attr;
+    mdCustomAttribute attr = 0;
     while (SUCCEEDED(pMD->EnumCustomAttributes(&fEnum, tok, 0, &attr, 1, &numAttributes)) && numAttributes != 0)
     {
         std::string mdName;

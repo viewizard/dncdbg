@@ -37,7 +37,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     if (m_funcBreakpoints.empty())
         return S_FALSE; // Stopped at break, but no breakpoints.
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
 
@@ -61,7 +61,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
         for (ULONG i = 0; i < cParams; ++i)
         {
             ToRelease<ICorDebugValue> pValue;
-            ULONG cArgsFetched;
+            ULONG cArgsFetched = 0;
             if (FAILED(pParamEnum->Next(1, &pValue, &cArgsFetched)))
                 continue;
 
@@ -213,7 +213,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
 HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedFBP &fbpResolved)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     for (auto &entry : fbpResolved)
     {
@@ -243,7 +243,7 @@ HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedF
 
 HRESULT FuncBreakpoints::ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
     IfFailRet(m_sharedModules->ResolveFuncBreakpointInAny(
@@ -259,7 +259,7 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp)
 
 HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, ManagedFuncBreakpoint &fbp)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
     IfFailRet(m_sharedModules->ResolveFuncBreakpointInModule(

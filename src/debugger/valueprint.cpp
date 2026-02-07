@@ -93,7 +93,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, nullptr));
 
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     ToRelease<ICorDebugClass> pClass;
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
@@ -113,8 +113,8 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     //We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar)
     ULONG numFields = 0;
     HCORENUM fEnum = NULL;
-    mdFieldDef fieldDef;
-    CorElementType enumUnderlyingType = ELEMENT_TYPE_END;
+    mdFieldDef fieldDef = mdFieldDefNil;
+    CorElementType enumUnderlyingType = ELEMENT_TYPE_MAX;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
@@ -236,7 +236,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
 template <typename T, typename = typename std::enable_if_t<std::is_integral_v<T>>>
 static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
     ToRelease<ICorDebugValue> pValue;
@@ -245,12 +245,12 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     if (isNull)
         return E_FAIL;
 
-    ULONG32 cbSize;
+    ULONG32 cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     if (cbSize != sizeof(value))
         return E_FAIL;
 
-    CorElementType corElemType;
+    CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(pValue->GetType(&corElemType));
 
     switch (corElemType)
@@ -334,7 +334,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
 {
     HRESULT Status = S_OK;
 
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     ToRelease<ICorDebugClass> pClass;
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
@@ -356,7 +356,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
 
     ULONG numFields = 0;
     HCORENUM fEnum = NULL;
-    mdFieldDef fieldDef;
+    mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
@@ -383,7 +383,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
             }
             else if (name == "_lo64")
             {
-                unsigned long long lo64;
+                unsigned long long lo64 = 0;
                 IfFailRet(GetIntegralValue(pFieldVal, lo64));
                 mid = lo64 >> 32;
                 lo = lo64 & ((1ULL << 32) - 1);
@@ -463,7 +463,7 @@ static std::string uint96_to_string(uint32_t *v)
     std::string result;
     do
     {
-        uint32_t rem;
+        uint32_t rem = 0;
         udivrem96(v, 10, rem);
         result.insert(0, 1, digits[rem]);
     } while (!uint96_is_zero(v));
@@ -504,10 +504,10 @@ static HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    unsigned int hi;
-    unsigned int mid;
-    unsigned int lo;
-    unsigned int flags;
+    unsigned int hi = 0;
+    unsigned int mid = 0;
+    unsigned int lo = 0;
+    unsigned int flags = 0;
 
     IfFailRet(GetDecimalFields(pValue, hi, mid, lo, flags));
 
@@ -523,14 +523,14 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     ToRelease<ICorDebugArrayValue> pArrayValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayValue));
 
-    ULONG32 nRank;
+    ULONG32 nRank = 0;
     IfFailRet(pArrayValue->GetRank(&nRank));
     if (nRank < 1)
     {
         return E_UNEXPECTED;
     }
 
-    ULONG32 cElements;
+    ULONG32 cElements = 0;
     IfFailRet(pArrayValue->GetCount(&cElements));
 
     std::ostringstream ss;
@@ -580,18 +580,18 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugStringValue> pStringValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, (LPVOID *)&pStringValue));
 
-    ULONG32 cchValue;
+    ULONG32 cchValue = 0;
     IfFailRet(pStringValue->GetLength(&cchValue));
     cchValue++; // Allocate one more for null terminator
 
     ArrayHolder<WCHAR> str = new WCHAR[cchValue];
 
-    ULONG32 cchValueReturned;
+    ULONG32 cchValueReturned = 0;
     IfFailRet(pStringValue->GetString(cchValue, &cchValueReturned, str));
 
     output = to_utf8(str);
@@ -665,7 +665,7 @@ void EscapeString(std::string &s, char q = '\"')
 
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> pValue2;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
     ToRelease<ICorDebugType> pType;
@@ -677,7 +677,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(pType->GetClass(&pClass));
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
@@ -691,7 +691,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
 
     ULONG numFields = 0;
     HCORENUM hEnum = NULL;
-    mdFieldDef fieldDef;
+    mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
@@ -714,12 +714,12 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
 
 HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> pValueValue;
     ToRelease<ICorDebugValue> pHasValueValue;
     IfFailRet(GetNullableValue(pValue, &pValueValue, &pHasValueValue));
 
-    ULONG32 cbSize;
+    ULONG32 cbSize = 0;
     IfFailRet(pHasValueValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)
@@ -746,7 +746,7 @@ HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
 
 HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
     ToRelease<ICorDebugValue> pValue;
@@ -758,7 +758,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         return S_OK;
     }
 
-    ULONG32 cbSize;
+    ULONG32 cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)
@@ -768,7 +768,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
-    CorElementType corElemType;
+    CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(pValue->GetType(&corElemType));
     if (corElemType == ELEMENT_TYPE_STRING)
     {

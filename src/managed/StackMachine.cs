@@ -471,6 +471,7 @@ public partial class Evaluation
 
     public class StackMachineProgram
     {
+        public static readonly int ProgramInProgress = 0;
         public static readonly int ProgramFinished = -1;
         public static readonly int BeforeFirstCommand = -2;
         public int CurrentPosition = BeforeFirstCommand;
@@ -864,7 +865,7 @@ public partial class Evaluation
     {
         Debug.Assert(StackProgram != IntPtr.Zero);
 
-        Command = 0;
+        Command = StackMachineProgram.ProgramInProgress;
         Arguments = IntPtr.Zero;
         textOutput = IntPtr.Zero;
 

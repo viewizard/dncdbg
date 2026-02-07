@@ -161,8 +161,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
     // should stop debuggee process by dirrect `Pause()` call. From another side, callback queue have bunch of asynchronous
     // added entries and, for example, `CreateThread()` could be called after this callback and broke our debugger logic.
     ToRelease<ICorDebugAppDomainEnum> domains;
-    ICorDebugAppDomain *pAppDomain;
-    ULONG domainsFetched;
+    ICorDebugAppDomain *pAppDomain = nullptr;
+    ULONG domainsFetched = 0;
     if (SUCCEEDED(pProcess->EnumerateAppDomains(&domains)))
     {
         // At this point we have only one domain for sure.
@@ -421,7 +421,7 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
         return S_OK;
     }
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(pFrame->GetFunction(&pFunc));
 
@@ -434,7 +434,7 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
 
     WCHAR mdName[mdNameLen];
-    ULONG nameLen;
+    ULONG nameLen = 0;
     IfFailRet(pMDImport->GetScopeProps(mdName, _countof(mdName), &nameLen, nullptr));
     excModule = to_utf8(mdName);
 
@@ -466,7 +466,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
     LogFuncEntry();
     return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         // pFrame could be neutered in case of evaluation during brake, do all stuff with pFrame in callback itself.
-        ExceptionCallbackType eventType;
+        ExceptionCallbackType eventType = ExceptionCallbackType::UNKNOWN;
         std::string excModule;
         switch (dwEventType)
         {

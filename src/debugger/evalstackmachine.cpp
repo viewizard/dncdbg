@@ -129,7 +129,7 @@ void ReplaceInternalNames(std::string &expression, bool restore = false)
 
 HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, CorElementType type, PVOID ptr)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugEval> iCorEval;
     IfFailRet(pThread->CreateEval(&iCorEval));
     IfFailRet(iCorEval->CreateValue(type, nullptr, ppValue));
@@ -144,7 +144,7 @@ HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue,
 
 HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, bool setToTrue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugEval> iCorEval;
     IfFailRet(pThread->CreateEval(&iCorEval));
     IfFailRet(iCorEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, ppValue));
@@ -152,7 +152,7 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
     if (!setToTrue)
         return S_OK;
 
-    ULONG32 cbSize;
+    ULONG32 cbSize = 0;
     IfFailRet((*ppValue)->GetSize(&cbSize));
     const std::unique_ptr<BYTE[]> valueData(new (std::nothrow) BYTE[cbSize]);
     if (valueData == nullptr)
@@ -170,7 +170,7 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
 
 HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugEval> iCorEval;
     IfFailRet(pThread->CreateEval(&iCorEval));
     // ICorDebugEval::CreateValue
@@ -183,7 +183,7 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
 HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
                         ICorDebugValue **ppValue, PVOID ptr)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     // Create value (without calling a constructor)
     IfFailRet(pEvalWaiter->WaitEvalResult(pThread, ppValue, [&](ICorDebugEval *pEval) -> HRESULT {
         // Note, this code execution protected by EvalWaiter mutex.
@@ -206,7 +206,7 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
 
 HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
     ToRelease<ICorDebugValue> pValue;
@@ -215,7 +215,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     if (isNull)
         return E_INVALIDARG;
 
-    ULONG32 cbSize;
+    ULONG32 cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     ArrayHolder<BYTE> indexValue = new (std::nothrow) BYTE[cbSize];
     if (indexValue == nullptr)
@@ -227,7 +227,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
     IfFailRet(pGenericValue->GetValue((LPVOID) & (indexValue[0])));
 
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(pValue->GetType(&elemType));
 
     switch (elemType)
@@ -295,7 +295,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData,
                                 std::list<EvalStackEntry> &evalStack, EvalData &ed, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     Evaluator::SetterData *inputPropertyData = nullptr;
     if (evalStack.front().editable)
         inputPropertyData = evalStack.front().setterData.get();
@@ -323,7 +323,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
 HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStackEntry> &evalStack, EvalData &ed,
                                std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorValue;
     if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().iCorValue, nullptr,
                                                            evalStack.front().identifiers, &iCorValue, nullptr, ppResultType, ed.evalFlags)) &&
@@ -350,7 +350,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
 
 HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElementType &elemType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(pTypeValue->GetType(&elemType));
     if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
     {
@@ -365,9 +365,9 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElement
 
 HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue **pResultValue, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string typeName;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> iCorFunc;
@@ -392,9 +392,9 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
                          const std::string &typeRetName, ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string typeName;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pTypeValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> iCorFunc;
@@ -420,9 +420,9 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
                          ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string typeRetName;
-    CorElementType elemRetType;
+    CorElementType elemRetType = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pTypeRetValue, typeRetName, elemRetType));
 
     return CallCastOperator(opName, pValue, elemRetType, typeRetName, pTypeValue, pResultValue, ed);
@@ -431,7 +431,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICor
 template <typename T1, typename T2>
 HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, bool testRange)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugGenericValue> pGenericValue1;
     IfFailRet(pValue1->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue1));
     T1 value1 = 0;
@@ -514,11 +514,11 @@ ImplicitCastMap_t InitImplicitCastLiteralMap()
 
 HRESULT GetRealValueWithType(ICorDebugValue *pValue, ICorDebugValue **ppResultValue, CorElementType *pElemType = nullptr)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     // Dereference and unbox value, since we need real value.
     ToRelease<ICorDebugValue> iCorRealValue;
     IfFailRet(DereferenceAndUnboxValue(pValue, &iCorRealValue));
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(iCorRealValue->GetType(&elemType));
     // Note, in case of class (string is class), we must use reference instead.
     if (elemType == ELEMENT_TYPE_STRING || elemType == ELEMENT_TYPE_CLASS)
@@ -543,7 +543,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
     if (elemTypeSrc != elemTypeDst)
         return E_INVALIDARG;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     // Change address.
     if (elemTypeDst == ELEMENT_TYPE_STRING || elemTypeDst == ELEMENT_TYPE_CLASS)
     {
@@ -552,7 +552,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
         ToRelease<ICorDebugReferenceValue> pRefOld;
         IfFailRet(pDstValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pRefOld));
 
-        CORDB_ADDRESS addr;
+        CORDB_ADDRESS addr = 0;
         IfFailRet(pRefNew->GetValue(&addr));
         return pRefOld->SetValue(addr);
     }
@@ -564,7 +564,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
         elemTypeDst == ELEMENT_TYPE_U8 || elemTypeDst == ELEMENT_TYPE_R4 || elemTypeDst == ELEMENT_TYPE_R8 ||
         elemTypeDst == ELEMENT_TYPE_VALUETYPE)
     {
-        ULONG32 cbSize;
+        ULONG32 cbSize = 0;
         IfFailRet(pSrcValue->GetSize(&cbSize));
         ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
         if (elemValue == nullptr)
@@ -586,18 +586,18 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
 
 HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool srcLiteral, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     // Value with type was provided by caller, result must be implicitly cast to this type.
     // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/conversions#implicit-numeric-conversions
     // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types#integer-literals
 
     ToRelease<ICorDebugValue> iCorRealValue1;
-    CorElementType elemType1;
+    CorElementType elemType1 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(pSrcValue, &iCorRealValue1, &elemType1));
 
     ToRelease<ICorDebugValue> iCorRealValue2;
-    CorElementType elemType2;
+    CorElementType elemType2 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(pDstValue, &iCorRealValue2, &elemType2));
 
     bool haveSameType = true;
@@ -650,7 +650,7 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
 
 HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemType, PVOID &resultData, int32_t &resultType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     if (elemType == ELEMENT_TYPE_STRING)
     {
@@ -712,18 +712,18 @@ HRESULT GetValueByOperandDataType(PVOID valueData, BasicTypes valueType, ICorDeb
 HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pType1Value,
                            ICorDebugValue *pType2Value, ICorDebugValue **pResultValue, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string typeName1;
-    CorElementType elemType1;
+    CorElementType elemType1 = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pType1Value, typeName1, elemType1));
     std::string typeName2;
-    CorElementType elemType2;
+    CorElementType elemType2 = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pType2Value, typeName2, elemType2));
     // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading
     // A unary operator has one input parameter. A binary operator has two input parameters. In each case,
     // at least one parameter must have type T or T? where T is the type that contains the operator declaration.
     std::string typeName;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetArgData(pValue, typeName, elemType));
     if ((elemType != elemType1 || typeName != typeName1) && (elemType != elemType2 || typeName != typeName2))
         return E_INVALIDARG;
@@ -811,19 +811,19 @@ bool SupportedByCalculationDelegateType(CorElementType elemType)
 
 HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorValue2;
     IfFailRet(GetFrontStackEntryValue(&iCorValue2, nullptr, evalStack, ed, output));
     evalStack.pop_front();
     ToRelease<ICorDebugValue> iCorRealValue2;
-    CorElementType elemType2;
+    CorElementType elemType2 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorValue2, &iCorRealValue2, &elemType2));
 
     ToRelease<ICorDebugValue> iCorValue1;
     IfFailRet(GetFrontStackEntryValue(&iCorValue1, nullptr, evalStack, ed, output));
     evalStack.front().ResetEntry();
     ToRelease<ICorDebugValue> iCorRealValue1;
-    CorElementType elemType1;
+    CorElementType elemType1 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorValue1, &iCorRealValue1, &elemType1));
 
     if (elemType1 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_VALUETYPE ||
@@ -862,7 +862,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
             return S_OK;
 
         std::string typeRetName;
-        CorElementType elemRetType;
+        CorElementType elemRetType = ELEMENT_TYPE_MAX;
         ToRelease<ICorDebugValue> iCorResultValue;
         // Try to implicitly cast struct/class object into build-in type supported by CalculationDelegate().
         if (SupportedByCalculationDelegateType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
@@ -927,12 +927,12 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
 
 HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorValue;
     IfFailRet(GetFrontStackEntryValue(&iCorValue, nullptr, evalStack, ed, output));
     evalStack.front().ResetEntry(EvalStackEntry::ResetLiteralStatus::No);
     ToRelease<ICorDebugValue> iCorRealValue;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorValue, &iCorRealValue, &elemType));
 
     if (elemType == ELEMENT_TYPE_VALUETYPE || elemType == ELEMENT_TYPE_CLASS)
@@ -997,7 +997,7 @@ HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
 
 HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     const int32_t Int = ((FormatFIS *)pArguments)->Int;
     std::string String = to_utf8(((FormatFIS *)pArguments)->wString);
     std::vector<ToRelease<ICorDebugType>> genericValues;
@@ -1040,7 +1040,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     if (Int < 0)
         return E_INVALIDARG;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     bool idsEmpty = false;
     bool isInstance = true;
     std::vector<ToRelease<ICorDebugValue>> iCorArgs(Int);
@@ -1096,14 +1096,14 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     }
     else
     {
-        CorElementType elemType;
+        CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(iCorValue->GetType(&elemType));
 
         // Boxing built-in element type into value type in order to call methods.
         auto entry = ed.corElementToValueClassMap.find(elemType);
         if (entry != ed.corElementToValueClassMap.end())
         {
-            ULONG32 cbSize;
+            ULONG32 cbSize = 0;
             IfFailRet(iCorValue->GetSize(&cbSize));
             ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
             if (elemValue == nullptr)
@@ -1200,7 +1200,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     ToRelease<ICorDebugTypeEnum> pTypeEnum;
     if (SUCCEEDED(iCorType->EnumerateTypeParameters(&pTypeEnum)))
     {
-        ICorDebugType *curType;
+        ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
         ULONG fetched = 0;
         while (SUCCEEDED(pTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
@@ -1238,7 +1238,7 @@ HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID
 HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
     const int32_t Int = ((FormatFI *)pArguments)->Int;
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
 
@@ -1255,7 +1255,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
     IfFailRet(GetFrontStackEntryValue(&iCorObjectValue, &setterData, evalStack, ed, output));
 
     ToRelease<ICorDebugValue> iCorRealValue;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorObjectValue, &iCorRealValue, &elemType));
     std::vector<ULONG32> indexes;
 
@@ -1333,7 +1333,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
 HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
     const int32_t Int = ((FormatFI *)pArguments)->Int;
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
 
@@ -1361,7 +1361,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
     }
 
     ToRelease<ICorDebugValue> iCorRealValue;
-    CorElementType elemType;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorObjectValue, &iCorRealValue, &elemType));
     std::vector<ULONG32> indexes;
 
@@ -1532,7 +1532,7 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pA
     if (evalStack.front().preventBinding)
         return S_OK;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorValue;
     std::unique_ptr<Evaluator::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(&iCorValue, &setterData, evalStack, ed, output));
@@ -1772,14 +1772,14 @@ HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID 
 HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
 {
     assert(evalStack.size() > 0);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     uint32_t size = 0;
     PVOID szPtr = &size;
 
     if (evalStack.front().iCorValue)
     {
         //  predefined type
-        CorElementType elType;
+        CorElementType elType = ELEMENT_TYPE_MAX;
         IfFailRet(evalStack.front().iCorValue->GetType(&elType));
         if (elType == ELEMENT_TYPE_CLASS)
         {
@@ -1800,7 +1800,7 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgument
         IfFailRet(GetFrontStackEntryType(&iCorType, evalStack, ed, output));
         if (iCorType)
         {
-            CorElementType elType;
+            CorElementType elType = ELEMENT_TYPE_MAX;
             IfFailRet(iCorType->GetType(&elType));
             if (elType == ELEMENT_TYPE_VALUETYPE)
             {
@@ -1835,10 +1835,10 @@ HRESULT TypeOfExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArgu
 
 HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorRealValueRightOp;
     ToRelease<ICorDebugValue> iCorRightOpValue;
-    CorElementType elemTypeRightOp;
+    CorElementType elemTypeRightOp = ELEMENT_TYPE_MAX;
     IfFailRet(GetFrontStackEntryValue(&iCorRightOpValue, nullptr, evalStack, ed, output));
     IfFailRet(GetRealValueWithType(iCorRightOpValue, &iCorRealValueRightOp, &elemTypeRightOp));
     auto rightOperand = std::move(evalStack.front());
@@ -1846,7 +1846,7 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgume
 
     ToRelease<ICorDebugValue> iCorRealValueLeftOp;
     ToRelease<ICorDebugValue> iCorLeftOpValue;
-    CorElementType elemTypeLeftOp;
+    CorElementType elemTypeLeftOp = ELEMENT_TYPE_MAX;
     IfFailRet(GetFrontStackEntryValue(&iCorLeftOpValue, nullptr, evalStack, ed, output));
     IfFailRet(GetRealValueWithType(iCorLeftOpValue, &iCorRealValueLeftOp, &elemTypeLeftOp));
     std::string typeNameLeft;
@@ -1953,13 +1953,14 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, i
     std::string fixed_expression = expression;
     ReplaceInternalNames(fixed_expression);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     PVOID pStackProgram = nullptr;
     IfFailRet(Interop::GenerateStackMachineProgram(fixed_expression, &pStackProgram, output));
 
+    static constexpr int32_t ProgramInProgress = 0;
     static constexpr int32_t ProgramFinished = -1;
-    int32_t Command;
-    PVOID pArguments;
+    int32_t Command = ProgramInProgress;
+    PVOID pArguments = nullptr;
 
     m_evalData.pThread = pThread;
     m_evalData.frameLevel = frameLevel;
@@ -2011,7 +2012,7 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
                                              std::string &output, bool *editable,
                                              std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
     IfFailRet(Run(pThread, frameLevel, evalFlags, expression, evalStack, output));
 
@@ -2033,7 +2034,7 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
 HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags,
                                                ICorDebugValue *pValue, const std::string &expression, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
     IfFailRet(Run(pThread, frameLevel, evalFlags, expression, evalStack, output));
 
@@ -2047,7 +2048,7 @@ HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLe
 
 HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;

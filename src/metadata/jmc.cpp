@@ -35,11 +35,11 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
 {
     ULONG numMethods = 0;
     HCORENUM fEnum = NULL;
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
-        mdTypeDef memTypeDef;
-        ULONG nameLen;
+        mdTypeDef memTypeDef = mdTypeDefNil;
+        ULONG nameLen = 0;
         WCHAR szFunctionName[mdNameLen] = {0};
 
         if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
@@ -56,7 +56,7 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
 
 static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken> &excludeTokens)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
@@ -65,7 +65,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
 
     ULONG numTypedefs = 0;
     HCORENUM fEnum = NULL;
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         if (HasAttribute(pMD, typeDef, typeAttrNames))
@@ -107,7 +107,7 @@ void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken>
 
 HRESULT DisableJMCByAttributes(ICorDebugModule *pModule)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::vector<mdToken> excludeTokens;
     IfFailRet(GetNonJMCClassesAndMethods(pModule, excludeTokens));
 
@@ -117,7 +117,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule)
 
 HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_set<mdMethodDef> &methodTokens)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::vector<mdToken> excludeTokens;
     std::unordered_set<mdToken> excludeTypeTokens;
 
@@ -133,7 +133,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         IfFailRet(pModule->GetFunctionFromToken(methodToken, &pFunction));
         ToRelease<ICorDebugClass> pClass;
         IfFailRet(pFunction->GetClass(&pClass));
-        mdToken typeToken;
+        mdToken typeToken = mdTokenNil;
         IfFailRet(pClass->GetToken(&typeToken));
 
         // In case class have "not user code" related attribute, no reason set JMC to false for each method, set it to class will be enough.

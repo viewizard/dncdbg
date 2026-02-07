@@ -213,26 +213,26 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
                                    std::unique_ptr<module_methods_data_t,
                                    module_methods_data_t_deleter> &inputData)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     // Note, we need 2 arrays of tokens - for normal methods and constructors (.ctor/.cctor, that could have segmented code).
     std::vector<int32_t> constrTokens;
     std::vector<int32_t> normalTokens;
 
     ULONG numTypedefs = 0;
     HCORENUM hEnum = NULL;
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     while (SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         ULONG numMethods = 0;
         HCORENUM fEnum = NULL;
-        mdMethodDef methodDef;
+        mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
             if (methodTokens && methodTokens->find(methodDef) == methodTokens->end())
                 continue;
 
             WCHAR funcName[mdNameLen];
-            ULONG funcNameLen;
+            ULONG funcNameLen = 0;
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName, _countof(funcName), &funcNameLen,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
@@ -276,7 +276,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
     std::string fullPath = to_utf8(document);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status;
+    HRESULT Status = S_OK;
     const std::string initialFullPath = fullPath;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
@@ -303,7 +303,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> inputData;
     IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, nullptr, inputData));
     if (inputData == nullptr)
@@ -316,12 +316,12 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
     m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData->fileNum);
 #endif
 
-    CORDB_ADDRESS modAddress;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     for (int i = 0; i < inputData->fileNum; i++)
     {
-        unsigned fullPathIndex;
+        unsigned fullPathIndex = 0;
         IfFailRet(GetFullPathIndex(inputData->moduleMethodsData[i].document, fullPathIndex));
 
         m_sourcesMethodsData[fullPathIndex].emplace_back(FileMethodsData{});
@@ -377,7 +377,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
 
     // Care about all "./" and "../" first.
     std::list<std::string> pathDirs;
-    std::size_t i;
+    std::size_t i = 0;
     while ((i = result.find_first_of("/\\")) != std::string::npos)
     {
         const std::string pathElement = result.substr(0, i);
@@ -471,7 +471,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 {
     const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     auto findIndex = m_sourcePathToIndex.find(filename);
     if (findIndex == m_sourcePathToIndex.end())
     {
@@ -519,7 +519,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
         std::vector<mdMethodDef> Tokens;
         int32_t correctedStartLine = sourceLine;
-        mdMethodDef closestNestedToken = 0;
+        mdMethodDef closestNestedToken = mdMethodDefNil;
         if (!GetMethodTokensByLineNumber(sourceData.methodsData, sourceData.multiMethodsData, correctedStartLine,
                                          Tokens, closestNestedToken))
             continue;
@@ -532,7 +532,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
             return E_FAIL;
         }
 
-        ModuleInfo *pmdInfo; // Note, pmdInfo must be covered by m_modulesInfoMutex.
+        ModuleInfo *pmdInfo = nullptr; // Note, pmdInfo must be covered by m_modulesInfoMutex.
         IfFailRet(pModules->GetModuleInfo(sourceData.modAddress, &pmdInfo)); // we must have it, since we loaded data from it
         if (pmdInfo->m_symbolReaderHandle == nullptr)
             continue;
@@ -589,7 +589,7 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, un
 #endif
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string fullPath = fullPath_;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif

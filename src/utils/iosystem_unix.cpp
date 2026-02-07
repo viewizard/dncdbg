@@ -152,8 +152,8 @@ Class::FileHandle Class::listen_socket(unsigned port)
 {
     assert(port > 0 && port < 65536);
 
-    int newsockfd;
-    socklen_t clilen;
+    int newsockfd = 0;
+    socklen_t clilen = 0;
     struct sockaddr_in serv_addr, cli_addr;
 
     const int sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -264,7 +264,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
     const std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
     tv.tv_sec = us.count() / 1000000, tv.tv_usec = us.count() % 1000000;
 
-    int result;
+    int result = 0;
     do
         result = ::select(maxfd + 1, &read_set, &write_set, &except_set, &tv);
     while (result < 0 && errno == EINTR);

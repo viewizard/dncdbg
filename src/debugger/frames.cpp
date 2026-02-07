@@ -76,7 +76,7 @@ static HRESULT UnwindNativeFrames(ICorDebugThread *, bool /*firstFrame*/, CONTEX
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
 HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread3> iCorThread3;
     IfFailRet(pThread->QueryInterface(IID_ICorDebugThread3, (LPVOID *)&iCorThread3));
@@ -87,7 +87,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     CONTEXT ctxUnmanagedChain;
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;
-    ULONG32 contextSize;
+    ULONG32 contextSize = 0;
     memset((void *)(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
     memset((void *)&currentCtx, 0, sizeof(CONTEXT));
 
@@ -162,8 +162,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             ToRelease<ICorDebugILFrame> pILFrame;
             IfFailRet(iCorFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
-            ULONG32 nOffset;
-            CorDebugMappingResult mappingResult;
+            ULONG32 nOffset = 0;
+            CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
             IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
             if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
                 continue;

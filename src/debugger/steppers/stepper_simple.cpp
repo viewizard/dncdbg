@@ -12,7 +12,7 @@ namespace dncdbg
 
 HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugStepper> pStepper;
     IfFailRet(pThread->CreateStepper(&pStepper));
@@ -43,7 +43,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return S_OK;
     }
 
-    const BOOL bStepIn = stepType == StepType::STEP_IN;
+    const BOOL bStepIn = (stepType == StepType::STEP_IN) ? TRUE : FALSE;
 
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))
@@ -78,11 +78,11 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
         if (FAILED(pAppDomain->EnumerateSteppers(&steppers)))
             return false;
 
-        ICorDebugStepper *curStepper;
-        ULONG steppersFetched;
+        ICorDebugStepper *curStepper = nullptr;
+        ULONG steppersFetched = 0;
         while (SUCCEEDED(steppers->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
         {
-            BOOL pbActive;
+            BOOL pbActive = TRUE;
             ToRelease<ICorDebugStepper> pStepper(curStepper);
             if (SUCCEEDED(pStepper->IsActive(&pbActive)) && pbActive)
                 return false;
@@ -109,21 +109,21 @@ HRESULT SimpleStepper::ManagedCallbackStepComplete()
 
 HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugAppDomainEnum> domains;
     IfFailRet(pProcess->EnumerateAppDomains(&domains));
 
-    ICorDebugAppDomain *curDomain;
-    ULONG domainsFetched;
+    ICorDebugAppDomain *curDomain = nullptr;
+    ULONG domainsFetched = 0;
     while (SUCCEEDED(domains->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
     {
         ToRelease<ICorDebugAppDomain> pDomain(curDomain);
         ToRelease<ICorDebugStepperEnum> steppers;
         IfFailRet(pDomain->EnumerateSteppers(&steppers));
 
-        ICorDebugStepper *curStepper;
-        ULONG steppersFetched;
+        ICorDebugStepper *curStepper = nullptr;
+        ULONG steppersFetched = 0;
         while (SUCCEEDED(steppers->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
         {
             ToRelease<ICorDebugStepper> pStepper(curStepper);

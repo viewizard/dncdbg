@@ -57,12 +57,12 @@ void Breakpoints::DeleteAll()
 
 HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugAppDomainEnum> domains;
     IfFailRet(pProcess->EnumerateAppDomains(&domains));
 
-    ICorDebugAppDomain *curDomain;
-    ULONG domainsFetched;
+    ICorDebugAppDomain *curDomain = nullptr;
+    ULONG domainsFetched = 0;
     while (SUCCEEDED(domains->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
     {
         ToRelease<ICorDebugAppDomain> pDomain(curDomain);
@@ -70,8 +70,8 @@ HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
         if (FAILED(pDomain->EnumerateBreakpoints(&breakpoints)))
             continue;
 
-        ICorDebugBreakpoint *curBreakpoint;
-        ULONG breakpointsFetched;
+        ICorDebugBreakpoint *curBreakpoint = nullptr;
+        ULONG breakpointsFetched = 0;
         while (SUCCEEDED(breakpoints->Next(1, &curBreakpoint, &breakpointsFetched)) && breakpointsFetched == 1)
         {
             ToRelease<ICorDebugBreakpoint> pBreakpoint(curBreakpoint);
@@ -130,7 +130,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
     //     S_OK - callback should be interrupted without event emit
     //     S_FALSE - callback should not be interrupted and emit stop event
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     atEntry = false;
     if (SUCCEEDED(Status = m_entryBreakpoint->CheckBreakpointHit(pBreakpoint)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
@@ -144,7 +144,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
     ToRelease<ICorDebugFrame> iCorFrame;
     ToRelease<ICorDebugFunction> iCorFunction;
     ToRelease<ICorDebugFunction2> iCorFunction2;
-    BOOL JMCStatus;
+    BOOL JMCStatus = FALSE;
     if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr &&
         SUCCEEDED(iCorFrame->GetFunction(&iCorFunction)) &&
         SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2)) &&

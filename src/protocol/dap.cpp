@@ -547,7 +547,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     exceptionBreakpoints.back().condition = std::unordered_set<std::string>(begin, end);
                 }
 
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
@@ -562,7 +562,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"exceptionInfo", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 const ThreadId threadId{int(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
                 IfFailRet(sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
@@ -575,7 +575,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"setBreakpoints", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
 
                 std::vector<LineBreakpoint> lineBreakpoints;
                 for (auto &b : arguments.at("breakpoints"))
@@ -630,7 +630,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"threads", [&](const json &/*arguments*/, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 std::vector<Thread> threads;
                 IfFailRet(sharedDebugger->GetThreads(threads));
 
@@ -641,7 +641,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"disconnect", [&](const json &arguments, json &/*body*/)
             {
                 auto terminateArgIter = arguments.find("terminateDebuggee");
-                ManagedDebugger::DisconnectAction action;
+                ManagedDebugger::DisconnectAction action = ManagedDebugger::DisconnectDefault;
                 if (terminateArgIter == arguments.end())
                     action = ManagedDebugger::DisconnectAction::DisconnectDefault;
                 else
@@ -659,7 +659,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"stackTrace", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
 
                 int totalFrames = 0;
                 const ThreadId threadId{int(arguments.at("threadId"))};
@@ -704,7 +704,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"scopes", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
                 const FrameId frameId{int(arguments.at("frameId"))};
                 IfFailRet(sharedDebugger->GetScopes(frameId, scopes));
@@ -715,7 +715,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"variables", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 const std::string filterName = arguments.value("filter", "");
                 VariablesFilter filter = VariablesBoth;
                 if (filterName == "named")
@@ -734,7 +734,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"evaluate", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 const std::string expression = arguments.at("expression");
                 const FrameId frameId([&]()
                     {
@@ -780,7 +780,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"setExpression", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
                 const FrameId frameId([&]()
@@ -819,7 +819,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"attach", [&](const json &arguments, json &/*body*/)
             {
-                int processId;
+                int processId = 0;
 
                 const json &processIdArg = arguments.at("processId");
                 if (processIdArg.is_string())
@@ -833,7 +833,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"setVariable", [&](const json &arguments, json &body)
             {
-                HRESULT Status;
+                HRESULT Status = S_OK;
 
                 const std::string name = arguments.at("name");
                 const std::string value = arguments.at("value");
@@ -954,7 +954,7 @@ static std::string ReadData(std::istream &cin)
             if (content_len >= 0)
                 LOGW("protocol violation: duplicate '%s'", line.c_str());
 
-            char *p;
+            char *p = nullptr; // NOLINT(misc-const-correctness)
             errno = 0;
             content_len = strtoul(&line[CONTENT_LENGTH.size()], &p, 10);
             if (errno == ERANGE || !(*p == 0 || isspace(*p)))
@@ -1007,7 +1007,7 @@ void DAP::CommandsWorker()
             {
                 return HandleCommandJSON(m_sharedDebugger, m_fileExec, m_execArgs, c.command, c.arguments, body);
             });
-        HRESULT Status;
+        HRESULT Status = S_OK;
         // Note, CommandsWorker() loop should never hangs, but even in case some command execution is timed out,
         // this could be not critical issue. Let IDE decide.
 

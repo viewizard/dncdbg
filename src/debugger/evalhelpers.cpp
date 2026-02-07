@@ -36,7 +36,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution protected by EvalWaiter mutex.
-            HRESULT Status;
+            HRESULT Status = S_OK;
             IfFailRet(pEval->NewString(value16t.c_str()));
             return S_OK;
         });
@@ -70,7 +70,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         ToRelease<ICorDebugTypeEnum> pTypeEnum;
         if (SUCCEEDED(ppArgsType[i]->EnumerateTypeParameters(&pTypeEnum)))
         {
-            ICorDebugType *curType;
+            ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
             ULONG fetched = 0;
             while (SUCCEEDED(pTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
             {
@@ -83,7 +83,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution protected by EvalWaiter mutex.
-            HRESULT Status;
+            HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> pEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
             IfFailRet(pEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(typeParams.size()),
@@ -106,7 +106,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution protected by EvalWaiter mutex.
-            HRESULT Status;
+            HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> pEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
             IfFailRet(pEval2->CallParameterizedFunction(pFunc, typeCount, ppTypes, valueCount, ppValues));
@@ -126,7 +126,7 @@ static HRESULT GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WCHAR *m
 
 static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, const WCHAR *methodName, ICorDebugFunction **ppFunction)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
@@ -148,7 +148,7 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, con
 HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WCHAR className[],
                                         const WCHAR methodName[], ICorDebugFunction **ppFunction)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(m_sharedModules->GetModuleWithName(moduleName, &pModule));
     IfFailRet(FindFunction(pModule, className, methodName, ppFunction));
@@ -157,11 +157,11 @@ HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WCH
 
 static bool TypeHaveStaticMembers(ICorDebugType *pType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pType->GetClass(&pClass));
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&typeDef));
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
@@ -172,7 +172,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
 
     ULONG numFields = 0;
     HCORENUM hEnum = NULL;
-    mdFieldDef fieldDef;
+    mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
@@ -190,12 +190,12 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
     }
     pMD->CloseEnum(hEnum);
 
-    mdProperty propertyDef;
+    mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = NULL;
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
-        mdMethodDef mdGetter;
+        mdMethodDef mdGetter = mdMethodDefNil;
         if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
                                          nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
         {
@@ -223,7 +223,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
 {
     const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugType2> iCorType2;
     IfFailRet(pType->QueryInterface(IID_ICorDebugType2, (LPVOID *)&iCorType2));
 
@@ -257,7 +257,7 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
 {
     const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugType2> iCorType2;
     IfFailRet(pType->QueryInterface(IID_ICorDebugType2, (LPVOID *)&iCorType2));
 
@@ -275,9 +275,9 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     ToRelease<ICorDebugHandleValue> iCorHandleValue;
     IfFailRet(pTypeObject->QueryInterface(IID_ICorDebugHandleValue, (LPVOID *)&iCorHandleValue));
 
-    CorDebugHandleType handleType;
+    CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
     if (FAILED(iCorHandleValue->GetHandleType(&handleType)) ||
-        handleType != HANDLE_STRONG)
+        handleType != CorDebugHandleType::HANDLE_STRONG)
         return E_FAIL;
 
     if (m_typeObjectCache.size() == m_typeObjectCacheSize)
@@ -298,9 +298,9 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
 HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
                                                       ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
-    CorElementType et;
+    CorElementType et = ELEMENT_TYPE_MAX;
     IfFailRet(pType->GetType(&et));
 
     if (et != ELEMENT_TYPE_CLASS && et != ELEMENT_TYPE_VALUETYPE)
@@ -319,7 +319,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     ToRelease<ICorDebugTypeEnum> pTypeEnum;
     if (SUCCEEDED(pType->EnumerateTypeParameters(&pTypeEnum)))
     {
-        ICorDebugType *curType;
+        ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
         ULONG fetched = 0;
         while (SUCCEEDED(pTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
@@ -379,7 +379,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         return S_FALSE;
 
     CorSigUncompressCallingConv(pSignatureBlob);
-    CorElementType underlyingType;
+    CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
     CorSigUncompressElementType(pSignatureBlob, &underlyingType);
 
     ToRelease<IUnknown> pMDUnknown;
@@ -399,7 +399,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         case ELEMENT_TYPE_CLASS:
         {
             // Get token and create null reference
-            mdTypeDef tk;
+            mdTypeDef tk = mdTypeDefNil;
             CorSigUncompressElementType(pSignatureBlob);
             CorSigUncompressToken(pSignatureBlob, &tk);
 
@@ -470,7 +470,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         case ELEMENT_TYPE_VALUETYPE:
         {
             // Get type token
-            mdTypeDef tk;
+            mdTypeDef tk = mdTypeDefNil;
             CorSigUncompressElementType(pSignatureBlob);
             CorSigUncompressToken(pSignatureBlob, &tk);
 

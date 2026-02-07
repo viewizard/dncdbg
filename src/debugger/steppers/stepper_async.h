@@ -64,9 +64,9 @@ class AsyncStepper
     struct asyncBreakpoint_t
     {
         ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        CORDB_ADDRESS modAddress;
-        mdMethodDef methodToken;
-        ULONG32 ilOffset;
+        CORDB_ADDRESS modAddress = 0;
+        mdMethodDef methodToken = mdMethodDefNil;
+        ULONG32 ilOffset = 0;
 
         asyncBreakpoint_t()
             : iCorFuncBreakpoint(nullptr),

@@ -82,7 +82,7 @@ static const std::unordered_set<WSTRING> g_operatorMethodNames
 
 HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     m_filteredPrevStep = false;
     m_initialStepType = stepType;
 
@@ -95,7 +95,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 ilOffset;
+    ULONG32 ilOffset = 0;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
@@ -107,7 +107,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
 HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     // Check async stepping related breakpoints first, since user can't setup breakpoints to await block yield or resume offsets manually,
     // so, async stepping related breakpoints not a part of any user breakpoints related data (that will be checked in separate thread. see code below).
     IfFailRet(m_asyncStepper->ManagedCallbackBreakpoint(pThread));
@@ -119,7 +119,7 @@ HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICor
 
 HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugFrame> iCorFrame;
     IfFailRet(pThread->GetActiveFrame(&iCorFrame));
@@ -128,11 +128,11 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
     ToRelease<ICorDebugFunction> iCorFunction;
     IfFailRet(iCorFrame->GetFunction(&iCorFunction));
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(iCorFunction->GetToken(&methodDef));
     ToRelease<ICorDebugClass> iCorClass;
     IfFailRet(iCorFunction->GetClass(&iCorClass));
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(iCorClass->GetToken(&typeDef));
     ToRelease<ICorDebugModule> iCorModule;
     IfFailRet(iCorFunction->GetModule(&iCorModule));
@@ -148,7 +148,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         if (reason != CorDebugStepReason::STEP_CALL)
             return false;
 
-        ULONG nameLen;
+        ULONG nameLen = 0;
         WCHAR szFunctionName[mdNameLen] = {0};
         if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName, _countof(szFunctionName), &nameLen,
                                           nullptr, nullptr, nullptr, nullptr, nullptr)))
@@ -157,13 +157,13 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 return true;
         }
 
-        mdProperty propertyDef;
+        mdProperty propertyDef = mdPropertyNil;
         ULONG numProperties = 0;
         HCORENUM propEnum = NULL;
         while (SUCCEEDED(iMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
         {
-            mdMethodDef mdSetter;
-            mdMethodDef mdGetter;
+            mdMethodDef mdSetter = mdMethodDefNil;
+            mdMethodDef mdGetter = mdMethodDefNil;
             if (SUCCEEDED(iMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
                                                 nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
             {
@@ -210,7 +210,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             {
                 // Step completed on same location in source as it was started, this happens when some user code block have several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
-                ULONG32 ilOffset;
+                ULONG32 ilOffset = 0;
                 SequencePoint sp;
                 IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
@@ -271,14 +271,14 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
 HRESULT Steppers::DisableAllSteppers(ICorDebugProcess *pProcess)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(m_simpleStepper->DisableAllSteppers(pProcess));
     return m_asyncStepper->DisableAllSteppers();
 }
 
 HRESULT Steppers::DisableAllSteppers(ICorDebugAppDomain *pAppDomain)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess> iCorProcess;
     IfFailRet(pAppDomain->GetProcess(&iCorProcess));
     return DisableAllSteppers(iCorProcess);

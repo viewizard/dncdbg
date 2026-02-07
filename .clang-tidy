@@ -5,7 +5,6 @@ Checks: >
   portability-*,
   cppcoreguidelines-*,
   -cppcoreguidelines-use-enum-class,
-  -cppcoreguidelines-init-variables,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-avoid-c-arrays,

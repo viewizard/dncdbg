@@ -63,7 +63,7 @@ class LineBreakpoints
     {
         uint32_t id;
         std::string module;
-        CORDB_ADDRESS modAddress;
+        CORDB_ADDRESS modAddress = 0;
         int linenum;
         int endLine;
         ULONG32 hitCount;

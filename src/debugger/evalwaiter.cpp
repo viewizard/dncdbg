@@ -111,7 +111,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     // During evaluation could be implicitly executing user code, that could provoke callback calls like - breakpoints, exceptions, etc.
     // Make sure, that all managed callbacks ignore standard logic during evaluation and don't pause/interrupt managed code execution.
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess> iCorProcess;
     IfFailRet(pThread->GetProcess(&iCorProcess));
     if (!iCorProcess)
@@ -258,7 +258,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     if (pEval == nullptr)
         return S_OK;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugEval2> iCorEval2;
     if (FAILED(Status = pEval->Abort()) &&
         (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)) ||
@@ -274,7 +274,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 
 HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
@@ -296,7 +296,7 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
 
 HRESULT EvalWaiter::SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess3> pProcess3;
     IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, (LPVOID *)&pProcess3));
     return pProcess3->SetEnableCustomNotification(m_iCorCrossThreadDependencyNotification, fEnable);

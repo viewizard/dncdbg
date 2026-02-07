@@ -144,7 +144,7 @@ void IORedirectHelper::worker()
     const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
 
     // issue read request for control pipe
-    char dummybuf;
+    char dummybuf = 0;
     pipe_handle = IOSystem::async_read(m_worker_pipe.first, &dummybuf, 1);
     assert(pipe_handle);
 
@@ -371,7 +371,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
     const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
 
     // issue read request for control pipe
-    char dummybuf;
+    char dummybuf = 0;
     pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
     if (LOGE_IF(!pipe_handle, "%s: control pipe reading error", __func__))
         return AsyncResult::Error;

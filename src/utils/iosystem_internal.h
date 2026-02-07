@@ -32,7 +32,7 @@ template <typename Traits> struct IOSystemImpl
         };
 
         Status status; // operation result
-        size_t size;   // amount of written/read data in bytes
+        size_t size = 0;   // amount of written/read data in bytes
     };
 
     // Handle of asynchronous operation, for which result can be requested via call to

@@ -50,7 +50,7 @@ static bool IsTargetFunction(const std::vector<std::string> &fullName, const std
 
 static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMDImport;
 
@@ -72,8 +72,8 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
 
         while (SUCCEEDED(pMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
         {
-            mdTypeDef memTypeDef;
-            ULONG nameLen;
+            mdTypeDef memTypeDef = mdTypeDefNil;
+            ULONG nameLen = 0;
             WCHAR szFuncName[mdNameLen] = {0};
 
             Status = pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName, _countof(szFuncName), &nameLen,
@@ -87,15 +87,15 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, (LPVOID *)&pMDImport2));
 
             HCORENUM fGenEnum = NULL;
-            mdGenericParam gp;
-            ULONG fetched;
+            mdGenericParam gp = mdGenericParamNil;
+            ULONG fetched = 0;
             std::string genParams("");
 
             while (SUCCEEDED(pMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
             {
-                mdMethodDef memMethodDef;
+                mdMethodDef memMethodDef = mdMethodDefNil;
                 WCHAR szGenName[mdNameLen] = {0};
-                ULONG genNameLen;
+                ULONG genNameLen = 0;
 
                 Status = pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr, szGenName,
                                                           _countof(szGenName), &genNameLen);
@@ -218,8 +218,8 @@ static std::string GetFileName(const std::string &path)
 
 HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, bool isFullPath)
 {
-    HRESULT Status;
-    ULONG32 len;
+    HRESULT Status = S_OK;
+    ULONG32 len = 0;
     WCHAR szModuleName[mdNameLen] = {0};
     std::string modName;
 
@@ -255,7 +255,7 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &mod
                                             const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
 {
     const bool isFullPath = IsFullPath(module);
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
@@ -286,7 +286,7 @@ HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const s
                                                bool &module_checked, std::string &funcname,
                                                const ResolveFuncBreakpointCallback &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     if (!module.empty())
     {
@@ -303,9 +303,9 @@ HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const s
 HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset,
                                             SequencePoint &sequencePoint)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
-    mdMethodDef methodToken;
+    mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
     ToRelease<ICorDebugFunction> pFunc;
@@ -317,7 +317,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilO
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
-    CorDebugMappingResult mappingResult;
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
         return E_FAIL;
@@ -325,7 +325,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilO
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    CORDB_ADDRESS modAddress;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
@@ -339,9 +339,9 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilO
 HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG32 &ilOffset, ULONG32 &ilNextOffset,
                                                    bool *noUserCodeFound)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
-    mdMethodDef methodToken;
+    mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
     ToRelease<ICorDebugFunction> pFunc;
@@ -353,7 +353,7 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
-    CorDebugMappingResult mappingResult;
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
         return E_FAIL;
@@ -366,13 +366,13 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG
 
 HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
         return E_FAIL;
 
-    mdMethodDef methodToken;
+    mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
     ToRelease<ICorDebugFunction> pFunc;
@@ -387,18 +387,18 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
-    ULONG32 nOffset;
-    CorDebugMappingResult mappingResult;
+    ULONG32 nOffset = 0;
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
         return E_FAIL;
 
-    CORDB_ADDRESS modAddress;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    ULONG32 ilStartOffset;
-    ULONG32 ilEndOffset;
+    ULONG32 ilStartOffset = 0;
+    ULONG32 ilEndOffset = 0;
 
     IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
@@ -423,7 +423,7 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
 
 HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMDImport;
@@ -495,7 +495,7 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, VOID **ppSymbolReaderHandle
 
 HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     module.path = GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
@@ -555,7 +555,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 
     IfFailRet(GetModuleId(pModule, module.id));
 
-    CORDB_ADDRESS baseAddress;
+    CORDB_ADDRESS baseAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&baseAddress));
 
     pModule->AddRef();
@@ -569,9 +569,9 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
                                             WSTRING &localName, ULONG32 *pIlStart, ULONG32 *pIlEnd)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
-    CORDB_ADDRESS modAddress;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     WCHAR wLocalName[mdNameLen] = W("\0");
@@ -594,8 +594,8 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
 HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, PVOID *data,
                                        int32_t &hoistedLocalScopesCount)
 {
-    HRESULT Status;
-    CORDB_ADDRESS modAddress;
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetModuleInfo(modAddress,
@@ -631,8 +631,8 @@ HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **pp
 HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG32 ilOffset,
                                                  ULONG32 &ilNextOffset, bool *noUserCodeFound)
 {
-    HRESULT Status;
-    CORDB_ADDRESS modAddress;
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetModuleInfo(modAddress,
@@ -681,7 +681,7 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
 
 HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
@@ -703,7 +703,7 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
                                    /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string filename = filename_;
     IfFailRet(Interop::StringToUpper(filename));
 #endif

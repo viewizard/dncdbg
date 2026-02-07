@@ -85,7 +85,7 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
                                         bool &hasStaticMembers, int childStart, int childEnd, int evalFlags)
 {
     hasStaticMembers = false;
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     DWORD threadId = 0;
     IfFailRet(pThread->GetID(&threadId));
@@ -137,7 +137,7 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
     VariableReference &ref = it->second;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> pThread;
     IfFailRet(pProcess->GetThread(int(ref.frameId.getThread()), &pThread));
@@ -188,7 +188,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         var.name = "$exception";
         var.evaluateName = var.name;
 
-        HRESULT Status;
+        HRESULT Status = S_OK;
         IfFailRet(PrintValue(pExceptionValue, var.value));
         IfFailRet(TypePrinter::GetTypeOfValue(pExceptionValue, var.type));
 
@@ -200,7 +200,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
 
 HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count, std::vector<Variable> &variables)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     int currentIndex = -1;
     Variable var;
     if (SUCCEEDED(GetExceptionVariable(frameId, pThread, var)))
@@ -245,7 +245,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
     if (!threadId)
         return E_FAIL;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
     IfFailRet(pProcess->GetThread(int(threadId), &pThread));
     int namedVariables = 0;
@@ -300,7 +300,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
     if (!ref.iCorValue)
         return S_OK;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::vector<VariableMember> members;
     bool hasStaticMembers = false;
 
@@ -353,7 +353,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     if (!threadId)
         return E_FAIL;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
     IfFailRet(pProcess->GetThread(int(threadId), &pThread));
 
@@ -379,7 +379,7 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
         return E_FAIL;
 
     VariableReference &varRef = it->second;
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> pThread;
     IfFailRet(pProcess->GetThread(int(varRef.frameId.getThread()), &pThread));
@@ -399,7 +399,7 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
 HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                                     const std::string &value, std::string &output)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     bool found = false;
 
     if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, ref.frameId.getLevel(),
@@ -438,7 +438,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     if (!ref.iCorValue)
         return S_OK;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     bool found = false;
 
     if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.iCorValue, pThread, ref.frameId.getLevel(), nullptr, true,
@@ -479,7 +479,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     if (!threadId)
         return E_FAIL;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
     IfFailRet(pProcess->GetThread(int(threadId), &pThread));
 

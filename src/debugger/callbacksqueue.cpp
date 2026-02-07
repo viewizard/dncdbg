@@ -276,7 +276,7 @@ static HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess
     if (stopEventInProcess)
         return S_FALSE; // Already stopped.
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(pProcess->Stop(0));
     stopEventInProcess = true;
     return S_OK;
@@ -300,7 +300,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     // Note, in case Stop() failed, no stop event will be emitted, don't set m_stopEventInProcess to "true" in this case.
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(InternalStop(pProcess, m_stopEventInProcess));
     if (Status == S_FALSE) // Already stopped.
         return S_OK;

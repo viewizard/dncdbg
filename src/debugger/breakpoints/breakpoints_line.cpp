@@ -34,7 +34,7 @@ void LineBreakpoints::DeleteAll()
 HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                                             std::vector<BreakpointEvent> &bpChangeEvents)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
 
@@ -43,11 +43,11 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 ilOffset;
+    ULONG32 ilOffset = 0;
     SequencePoint sp;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
 
-    unsigned filenameIndex;
+    unsigned filenameIndex = 0;
     IfFailRet(m_sharedModules->GetIndexBySourceFullPath(sp.document, filenameIndex));
 
     auto breakpoints = m_lineResolvedBreakpoints.find(filenameIndex);
@@ -63,7 +63,7 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     if (bList.empty())
         return S_FALSE; // Stopped at break, but no breakpoints.
 
-    mdMethodDef methodToken;
+    mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
     // Same logic as provide vsdbg - only one breakpoint is active for one line, find first active in the list.
@@ -132,7 +132,7 @@ static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule
     if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
         return E_INVALIDARG;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
 
     if (!bp.module.empty() && pModule)
@@ -172,7 +172,7 @@ static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule
 static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp, const std::string &bp_fullname,
                                       bool justMyCode, const std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     CORDB_ADDRESS modAddressTrack = 0;
     bp.iCorFuncBreakpoints.reserve(resolvedPoints.size());
@@ -302,7 +302,7 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string&
             return S_OK;
         };
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     if (lineBreakpoints.empty())
     {
         auto it = m_lineBreakpointMapping.find(filename);

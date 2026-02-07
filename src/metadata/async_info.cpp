@@ -31,7 +31,7 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
             if (mdInfo.m_symbolReaderHandle == nullptr)
                 return E_FAIL;
 
-            HRESULT Status;
+            HRESULT Status = S_OK;
             std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
             IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo,
                                                           &asyncMethodSteppingInfo.lastIlOffset));

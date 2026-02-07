@@ -134,32 +134,32 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     // Note, number in "<Main>d__0" class name could be different.
     // Note, `Namespace.ClassName` could be different (see `-main` compiler option).
     // Note, `Namespace.ClassName.<Main>d__0` type have enclosing class as method `Namespace.ClassName.<Main>()` class.
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ULONG numTypedefs = 0;
     HCORENUM hEnum = NULL;
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
     while(SUCCEEDED(pMD->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
     {
-        mdTypeDef mdEnclosingClass;
+        mdTypeDef mdEnclosingClass = mdTypeDefNil;
         if (FAILED(pMD->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
             continue;
 
-        DWORD flags;
+        DWORD flags = 0;
         WCHAR className[mdNameLen];
-        ULONG classNameLen;
+        ULONG classNameLen = 0;
         IfFailRet(pMD->GetTypeDefProps(typeDef, className, _countof(className), &classNameLen, &flags, NULL));
         if (!starts_with(className, W("<Main>d__")))
             continue;
 
         ULONG numMethods = 0;
         HCORENUM fEnum = NULL;
-        mdMethodDef methodDef;
+        mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            mdTypeDef memTypeDef;
+            mdTypeDef memTypeDef = mdTypeDefNil;
             WCHAR funcName[mdNameLen];
-            ULONG funcNameLen;
+            ULONG funcNameLen = 0;
             if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, funcName, _countof(funcName), &funcNameLen,
                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
@@ -195,7 +195,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     if (!m_stopAtEntry || m_iCorFuncBreakpoint)
         return S_FALSE;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     mdMethodDef entryPointToken = GetEntryPointTokenFromFile(GetModuleFileName(pModule));
     // Note, by some reason, in CoreCLR 6.0 System.Private.CoreLib.dll have Token "0" as entry point RVA.
     if (entryPointToken == mdMethodDefNil ||
@@ -205,9 +205,9 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     ULONG32 entryPointOffset = 0;
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
-    mdTypeDef mdMainClass;
+    mdTypeDef mdMainClass = mdTypeDefNil;
     WCHAR funcName[mdNameLen];
-    ULONG funcNameLen;
+    ULONG funcNameLen = 0;
     // If we can't setup entry point correctly for async method, leave it "as is".
     if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown)) &&
         SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD)) &&
@@ -241,7 +241,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
     if (!m_stopAtEntry || !m_iCorFuncBreakpoint)
         return S_FALSE; // S_FALSE - no error, but not affect on callback
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
     IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, m_iCorFuncBreakpoint));

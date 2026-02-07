@@ -188,7 +188,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     details.evaluateName = "$exception";
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorInnerExceptionValue;
     const bool escape = false;
     m_sharedEvaluator->WalkMembers(
@@ -254,7 +254,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
 HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorExceptionValue;
     IfFailRet(pThread->GetCurrentException(&iCorExceptionValue));
     if (iCorExceptionValue == nullptr)
@@ -341,7 +341,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
 */
 HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 
@@ -460,7 +460,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
 HRESULT ExceptionBreakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 

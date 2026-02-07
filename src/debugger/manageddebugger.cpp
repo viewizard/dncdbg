@@ -246,7 +246,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
 {
     LogFuncEntry();
 
-    bool terminate;
+    bool terminate = false;
     switch (action)
     {
     case DisconnectDefault:
@@ -294,7 +294,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     if (m_sharedEvalWaiter->IsEvalRunning())
@@ -330,7 +330,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     if (m_sharedEvalWaiter->IsEvalRunning())
@@ -362,7 +362,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedCallbacksQueue->Pause(m_iCorProcess, lastStoppedThread);
@@ -373,7 +373,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedThreads->GetThreadsWithState(m_iCorProcess, threads);
@@ -427,7 +427,7 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
                              DWORD *pdwArrayLength, int tryCount)
 {
     int numTries = 0;
-    HRESULT hr;
+    HRESULT hr = S_OK;
 
     while (numTries < tryCount)
     {
@@ -484,9 +484,9 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
 
 static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
 {
-    HANDLE *pHandleArray;
-    LPWSTR *pStringArray;
-    DWORD dwArrayLength;
+    HANDLE *pHandleArray = nullptr;
+    LPWSTR *pStringArray = nullptr;
+    DWORD dwArrayLength = 0;
     const int tryCount = timeoutSec * 10; // 100ms interval between attempts
     if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
         dwArrayLength == 0)
@@ -501,7 +501,7 @@ static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
 
 HRESULT ManagedDebugger::Startup(IUnknown *punk)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     ToRelease<ICorDebug> iCorDebug;
     IfFailRet(punk->QueryInterface(IID_ICorDebug, (void **)&iCorDebug));
@@ -626,7 +626,7 @@ static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string>
 
 HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
 
@@ -721,7 +721,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
 
         DisableAllBreakpointsAndSteppers();
 
-        HRESULT Status;
+        HRESULT Status = S_OK;
         if (FAILED(Status = m_iCorProcess->Detach()))
             LOGE("Process detach failed: 0x%08x", Status);
 
@@ -750,7 +750,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 
         DisableAllBreakpointsAndSteppers();
 
-        HRESULT Status;
+        HRESULT Status = S_OK;
         if (SUCCEEDED(Status = m_iCorProcess->Terminate(0)))
         {
             m_processAttachedCV.wait(lockAttachedMutex, [this] { return m_processAttachedState == ProcessAttachedState::Unattached; });
@@ -795,7 +795,7 @@ void ManagedDebugger::Cleanup()
 
 HRESULT ManagedDebugger::AttachToProcess()
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
 
@@ -804,7 +804,7 @@ HRESULT ManagedDebugger::AttachToProcess()
         return E_INVALIDARG; // Unable to find libcoreclr.so
 
     WCHAR pBuffer[100];
-    DWORD dwLength;
+    DWORD dwLength = 0;
     IfFailRet(m_dbgshim.CreateVersionStringFromModule(
         m_processId, reinterpret_cast<LPCWSTR>(to_utf16(m_clrPath).c_str()), pBuffer, _countof(pBuffer), &dwLength));
 
@@ -828,7 +828,7 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> iCorThread;
@@ -865,7 +865,7 @@ HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &f
 HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level,
                                           StackFrame &stackFrame)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     stackFrame = StackFrame(threadId, level, "");
     if (FAILED(TypePrinter::GetMethodName(pFrame, stackFrame.methodName)))
@@ -877,7 +877,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    ULONG32 ilOffset;
+    ULONG32 ilOffset = 0;
     SequencePoint sp;
     if (SUCCEEDED(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
     {
@@ -898,7 +898,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 {
     LogFuncEntry();
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     int currentFrame = -1;
 
     // CoreCLR native frame + at least one user's native frame
@@ -1056,7 +1056,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> pThread;
@@ -1072,7 +1072,7 @@ HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilt
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->GetVariables(m_iCorProcess, variablesReference, filter, start, count, variables);
@@ -1083,7 +1083,7 @@ HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->GetScopes(m_iCorProcess, frameId, scopes);
@@ -1095,7 +1095,7 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->Evaluate(m_iCorProcess, frameId, expression, variable, output);
@@ -1114,7 +1114,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->SetVariable(m_iCorProcess, name, value, ref, output);
@@ -1126,7 +1126,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     LogFuncEntry();
 
     const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status;
+    HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     return m_sharedVariables->SetExpression(m_iCorProcess, frameId, expression, evalFlags, value, output);

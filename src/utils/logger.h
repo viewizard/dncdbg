@@ -162,7 +162,7 @@ struct LogFuncEntry
 //
 // Usage example:
 //
-//    HRESULT Status;
+//    HRESULT Status = S_OK;
 //    if (LOGD_IF(FAILED(Status = ApiCall(x, y)), "x = %d, y = %d", x, y))
 //      return E_FAIL;
 //

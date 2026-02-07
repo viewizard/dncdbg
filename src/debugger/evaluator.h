@@ -29,11 +29,11 @@ class Evaluator
 
     struct ArgElementType
     {
-        CorElementType corType;
+        CorElementType corType = ELEMENT_TYPE_MAX;
         std::string typeName;
 
         ArgElementType()
-            : corType(ELEMENT_TYPE_END)
+            : corType(ELEMENT_TYPE_MAX)
         {}
 
         ArgElementType(CorElementType t, std::string n)

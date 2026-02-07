@@ -97,7 +97,7 @@ Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string 
 
 HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     if (indexes.empty())
         return E_FAIL;
@@ -113,7 +113,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> 
     ToRelease<ICorDebugArrayValue> pArrayVal;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayVal));
 
-    ULONG32 nRank;
+    ULONG32 nRank = 0;
     IfFailRet(pArrayVal->GetRank(&nRank));
 
     if (indexes.size() != nRank)
@@ -125,7 +125,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> 
 HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
                                         std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
@@ -201,7 +201,7 @@ static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, con
     HRESULT Status = S_OK;
     ULONG numFields = 0;
     HCORENUM hEnum = NULL;
-    mdFieldDef fieldDef;
+    mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         Status = cb(fieldDef);
@@ -215,7 +215,7 @@ static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, con
 static HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
-    mdProperty propertyDef;
+    mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = NULL;
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
@@ -335,9 +335,9 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
                                 std::vector<Evaluator::ArgElementType> &typeGenerics,
                                 std::vector<Evaluator::ArgElementType> &methodGenerics, bool addCorTypeName = false)
 {
-    HRESULT Status;
-    ULONG corType;
-    mdToken tk;
+    HRESULT Status = S_OK;
+    ULONG corType = 0;
+    mdToken tk = mdTokenNil;
     *ppSig += CorSigUncompressData(*ppSig, &corType);
     argElementType.corType = (CorElementType)corType;
     ULONG argNum = 0;
@@ -387,16 +387,16 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
         if (rank == 0)
             break;
         // any size of dimension specified?
-        ULONG sizeDim;
-        ULONG ulTemp;
+        ULONG sizeDim = 0;
+        ULONG ulTemp = 0;
         *ppSig += CorSigUncompressData(*ppSig, &sizeDim);
         while (sizeDim--)
         {
             *ppSig += CorSigUncompressData(*ppSig, &ulTemp);
         }
         // any lower bound specified?
-        ULONG lowerBound;
-        int iTemp;
+        ULONG lowerBound = 0;
+        int iTemp = 0;
         *ppSig += CorSigUncompressData(*ppSig, &lowerBound);
         while (lowerBound--)
         {
@@ -431,8 +431,9 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
         break;
 
     case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
-        ULONG number;
-        mdToken token;
+    {
+        ULONG number = 0;
+        mdToken token = mdTokenNil;
         *ppSig += CorSigUncompressData(*ppSig, &corType);
         if (corType != ELEMENT_TYPE_CLASS && corType != ELEMENT_TYPE_VALUETYPE)
             return S_FALSE;
@@ -447,6 +448,7 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
                 return Status;
         }
         break;
+    }
 
         // TODO
     case ELEMENT_TYPE_U: // "nuint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
@@ -469,7 +471,7 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
 
 HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
     IfFailRet(pInputTypeValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
     ToRelease<ICorDebugType> iCorType;
@@ -487,12 +489,12 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
                                std::vector<Evaluator::ArgElementType> &methodGenerics,
                                const Evaluator::WalkMethodsCallback &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pInputType->GetClass(&pClass));
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
@@ -520,12 +522,12 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
     ULONG numMethods = 0;
     HCORENUM fEnum = NULL;
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     while (SUCCEEDED(pMD->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
 
-        mdTypeDef memTypeDef;
-        ULONG nameLen;
+        mdTypeDef memTypeDef = mdTypeDefNil;
+        ULONG nameLen = 0;
         WCHAR szFunctionName[mdNameLen] = {0};
         DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = NULL;
@@ -533,10 +535,10 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
                                        &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
             continue;
-        ULONG gParams; // Count of signature generics
-        ULONG cParams; // Count of signature parameters.
-        ULONG elementSize;
-        ULONG convFlags;
+        ULONG gParams = 0; // Count of signature generics
+        ULONG cParams = 0; // Count of signature parameters.
+        ULONG elementSize = 0;
+        ULONG convFlags = 0;
 
         // 1. calling convention for MethodDefSig:
         // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
@@ -609,7 +611,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     if (!pThread)
         return E_FAIL;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::string className;
     TypePrinter::GetTypeOfValue(iCorPrevValue, className);
     if (className.back() == '?') // System.Nullable<T>
@@ -641,7 +643,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 
     iCorPrevValue->AddRef();
     ToRelease<ICorDebugValue> iCorValue(iCorPrevValue.GetPtr());
-    CorElementType corType;
+    CorElementType corType = ELEMENT_TYPE_MAX;
     IfFailRet(iCorValue->GetType(&corType));
 
     if (corType == ELEMENT_TYPE_STRING)
@@ -650,7 +652,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
         iCorValue.Free();
         IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, evalFlags, value, &iCorValue, output));
 
-        CorElementType elemType;
+        CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(iCorValue->GetType(&elemType));
         if (elemType != ELEMENT_TYPE_STRING)
             return E_INVALIDARG;
@@ -696,7 +698,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     else if (!pValue.GetPtr())
         return E_FAIL;
 
-    CorElementType inputCorType;
+    CorElementType inputCorType = ELEMENT_TYPE_MAX;
     IfFailRet(pInputValue->GetType(&inputCorType));
     if (inputCorType == ELEMENT_TYPE_PTR)
     {
@@ -713,10 +715,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     ToRelease<ICorDebugArrayValue> pArrayValue;
     if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayValue)))
     {
-        ULONG32 nRank;
+        ULONG32 nRank = 0;
         IfFailRet(pArrayValue->GetRank(&nRank));
 
-        ULONG32 cElements;
+        ULONG32 cElements = 0;
         IfFailRet(pArrayValue->GetCount(&cElements));
 
         std::vector<ULONG32> dims(nRank, 0);
@@ -766,7 +768,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     if (className.back() == '?') // System.Nullable<T>, don't provide class member list.
         return S_OK;
 
-    CorElementType corElemType;
+    CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(pType->GetType(&corElemType));
     if (corElemType == ELEMENT_TYPE_STRING)
         return S_OK;
@@ -775,7 +777,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     IfFailRet(pType->GetClass(&pClass));
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
@@ -846,13 +848,13 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     }));
     IfFailRet(ForEachProperties(pMD, currentTypeDef, [&](mdProperty propertyDef) -> HRESULT
     {
-        mdTypeDef propertyClass;
+        mdTypeDef propertyClass = mdTypeDefNil;
 
         ULONG propertyNameLen = 0;
         UVCP_CONSTANT pDefaultValue;
         ULONG cchDefaultValue;
-        mdMethodDef mdGetter;
-        mdMethodDef mdSetter;
+        mdMethodDef mdGetter = mdMethodDefNil;
+        mdMethodDef mdSetter = mdMethodDefNil;
         WCHAR propertyName[mdNameLen] = W("\0");
         if (SUCCEEDED(pMD->GetPropertyProps(propertyDef, &propertyClass, propertyName, _countof(propertyName),
                                             &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
@@ -881,7 +883,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
             ULONG numAttributes = 0;
             HCORENUM hEnum = NULL;
-            mdCustomAttribute attr;
+            mdCustomAttribute attr = 0;
             while (SUCCEEDED(pMD->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
                    numAttributes != 0)
             {
@@ -976,9 +978,9 @@ enum class GeneratedCodeKind : std::uint8_t
 
 static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     WCHAR name[mdNameLen];
-    ULONG nameLen;
+    ULONG nameLen = 0;
     IfFailRet(pMD->GetTypeDefProps(typeDef, name, _countof(name), &nameLen, NULL, NULL));
     const WSTRING typeName(name);
 
@@ -1042,7 +1044,7 @@ static GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName
 
 static HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppClass, mdTypeDef &typeDef)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
     ToRelease<ICorDebugType> iCorType;
@@ -1055,7 +1057,7 @@ static HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass 
 static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, mdTypeDef typeDef,
                                        ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     BOOL isNull = FALSE;
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
@@ -1086,7 +1088,7 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
                 ToRelease<ICorDebugValue> iCorDisplayClassValue;
                 IfFailRet(getValue(&iCorDisplayClassValue));
                 ToRelease<ICorDebugClass> iCorDisplayClass;
-                mdTypeDef displayClassTypeDef;
+                mdTypeDef displayClassTypeDef = mdTypeDefNil;
                 IfFailRet(GetClassAndTypeDefByValue(iCorDisplayClassValue, &iCorDisplayClass, displayClassTypeDef));
                 IfFailRet(FindThisProxyFieldValue(pMD, iCorDisplayClass, displayClassTypeDef, iCorDisplayClassValue, ppResultValue));
                 if (ppResultValue)
@@ -1102,7 +1104,7 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
 // Note, this method return Class name, not Type name (will not provide generic initialization types if any).
 HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(GetFrameAt(pThread, frameLevel, &pFrame));
     if (pFrame == nullptr)
@@ -1119,17 +1121,17 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
 
     DWORD methodAttr = 0;
     WCHAR szMethod[mdNameLen];
-    ULONG szMethodLen;
+    ULONG szMethodLen = 0;
     IfFailRet(pMD->GetMethodProps(methodDef, NULL, szMethod, _countof(szMethod), &szMethodLen, &methodAttr, NULL, NULL, NULL, NULL));
 
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pFunction->GetClass(&pClass));
-    mdTypeDef typeDef;
+    mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&typeDef));
     // We are inside method of this class, if typeDef is not TypeDef token - something definitely going wrong.
     if (TypeFromToken(typeDef) != mdtTypeDef)
@@ -1140,7 +1142,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     if (!haveThis)
         return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
 
-    GeneratedCodeKind generatedCodeKind;
+    GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     IfFailRet(GetGeneratedCodeKind(pMD, szMethod, typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
         return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
@@ -1158,14 +1160,14 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     // Find first user code enclosing class, since compiler add async/lambda as nested class.
     do
     {
-        ULONG nameLen;
+        ULONG nameLen = 0;
         WCHAR mdName[mdNameLen];
         IfFailRet(pMD->GetTypeDefProps(typeDef, mdName, _countof(mdName), &nameLen, NULL, NULL));
 
         if (!IsSynthesizedLocalName(mdName, nameLen))
             break;
 
-        mdTypeDef enclosingClass;
+        mdTypeDef enclosingClass = mdTypeDefNil;
         if (SUCCEEDED(Status = pMD->GetNestedClassProps(typeDef, &enclosingClass)))
             typeDef = enclosingClass;
         else
@@ -1209,7 +1211,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
 // https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
 static HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
 {
-    WSTRING::size_type nameStartOffset;
+    WSTRING::size_type nameStartOffset = 0;
     if (mdName.length() > 1 && starts_with(mdName.data(), W("<")))
         nameStartOffset = 1;
     else if (mdName.length() > 4 && starts_with(mdName.data(), W("CS$<")))
@@ -1230,7 +1232,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
                                         Modules *pModules, ICorDebugModule *pModule,
                                         Evaluator::WalkStackVarsCallback cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     BOOL isNull = FALSE;
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
@@ -1238,7 +1240,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
         return S_OK;
 
     ToRelease<ICorDebugClass> pClass;
-    mdTypeDef currentTypeDef;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(GetClassAndTypeDefByValue(pValue, &pClass, currentTypeDef));
 
     struct hoisted_local_scope_t
@@ -1328,13 +1330,13 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(GetFrameAt(pThread, frameLevel, &pFrame));
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 currentIlOffset;
+    ULONG32 currentIlOffset = 0;
     SequencePoint sp;
     // GetFrameILAndSequencePoint() return "success" code only in case it found sequence point
     // for current IP, that mean we stop inside user code.
@@ -1356,7 +1358,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
-    mdMethodDef methodDef;
+    mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
 
     ToRelease<ICorDebugILFrame> pILFrame;
@@ -1381,7 +1383,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     DWORD methodAttr = 0;
     WCHAR szMethod[mdNameLen];
-    ULONG szMethodLen;
+    ULONG szMethodLen = 0;
     IfFailRet(pMD->GetMethodProps(methodDef, NULL, szMethod, _countof(szMethod), &szMethodLen, &methodAttr, NULL, NULL,
                                   NULL, NULL));
 
@@ -1392,7 +1394,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     {
         ToRelease<ICorDebugClass> pClass;
         IfFailRet(pFunction->GetClass(&pClass));
-        mdTypeDef typeDef;
+        mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(pClass->GetToken(&typeDef));
         IfFailRet(GetGeneratedCodeKind(pMD, szMethod, typeDef, generatedCodeKind));
         IfFailRet(pILFrame->GetArgument(0, &currentThis));
@@ -1437,7 +1439,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         const int idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
         WCHAR wParamName[mdNameLen] = W("\0");
         ULONG paramNameLen = 0;
-        mdParamDef paramDef;
+        mdParamDef paramDef = mdParamDefNil;
         if (FAILED(pMD->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
             FAILED(pMD->GetParamProps(paramDef, NULL, NULL, wParamName, mdNameLen, &paramNameLen, NULL, NULL, NULL, NULL)))
             continue;
@@ -1463,8 +1465,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     for (ULONG i = 0; i < cLocals; i++)
     {
         WSTRING wLocalName;
-        ULONG32 ilStart;
-        ULONG32 ilEnd;
+        ULONG32 ilStart = 0;
+        ULONG32 ilEnd = 0;
         if (FAILED(m_sharedModules->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)))
             continue;
 
@@ -1512,7 +1514,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                                 int nextIdentifier, ICorDebugValue **ppResult,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     // Note, in case of (nextIdentifier == identifiers.size()) result is pValue itself, so, we ok here.
     if (nextIdentifier > (int)identifiers.size())
@@ -1561,7 +1563,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
                                          ICorDebugValue **ppResult,
                                          std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
@@ -1640,7 +1642,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                             resultSetterData, evalFlags);
     }
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     int nextIdentifier = 0;
     ToRelease<ICorDebugValue> pResolvedValue;
     ToRelease<ICorDebugValue> pThisValue;
@@ -1717,7 +1719,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return S_OK;
     }
 
-    Evaluator::ValueKind valueKind;
+    Evaluator::ValueKind valueKind = Evaluator::ValueIsVariable;
     if (pResolvedValue)
     {
         nextIdentifier++;
@@ -1762,7 +1764,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                           ICorDebugFunction **ppCorFunc)
 {
     static const char *attributeName = "System.Runtime.CompilerServices.ExtensionAttribute..ctor";
-    HRESULT Status;
+    HRESULT Status = S_OK;
     std::vector<Evaluator::ArgElementType> typeGenerics;
     ToRelease<ICorDebugTypeEnum> paramTypes;
 
@@ -1806,8 +1808,8 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
 
             while (SUCCEEDED(pMD->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
             {
-                mdTypeDef memTypeDef;
-                ULONG nameLen;
+                mdTypeDef memTypeDef = mdTypeDefNil;
+                ULONG nameLen = 0;
                 WCHAR szFuncName[mdNameLen] = {0};
                 PCCOR_SIGNATURE pSig = NULL;
                 ULONG cbSig = 0;
@@ -1820,10 +1822,10 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 const std::string fullName = to_utf8(szFuncName);
                 if (fullName != methodName)
                     continue;
-                ULONG cParams; // Count of signature parameters.
-                ULONG gParams; // count of generic parameters;
-                ULONG elementSize;
-                ULONG convFlags;
+                ULONG cParams = 0; // Count of signature parameters.
+                ULONG gParams = 0; // count of generic parameters;
+                ULONG elementSize = 0;
+                ULONG convFlags = 0;
 
                 // 1. calling convention for MethodDefSig:
                 // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
@@ -1855,7 +1857,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 }
 
                 std::string typeName;
-                CorElementType ty;
+                CorElementType ty = ELEMENT_TYPE_MAX;
 
                 if (FAILED(pType->GetType(&ty)))
                     continue;
@@ -1875,7 +1877,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                         if (FAILED(iCorClass->GetModule(&iCorModule)))
                             continue;
 
-                        mdTypeDef metaTypeDef;
+                        mdTypeDef metaTypeDef = mdTypeDefNil;
                         if (FAILED(iCorClass->GetToken(&metaTypeDef)))
                             continue;
 
@@ -1888,15 +1890,15 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             continue;
 
                         HCORENUM ifEnum = NULL;
-                        mdInterfaceImpl ifaceImpl;
+                        mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
                         ULONG pcImpls = 0;
                         while (SUCCEEDED(pMDI->EnumInterfaceImpls(&ifEnum, metaTypeDef, &ifaceImpl, 1, &pcImpls)) &&
                                pcImpls != 0)
                         {
-                            mdTypeDef tkClass;
-                            mdToken tkIface;
+                            mdTypeDef tkClass = mdTypeDefNil;
+                            mdToken tkIface = mdTokenNil;
                             PCCOR_SIGNATURE pSig = NULL;
-                            ULONG pcbSig;
+                            ULONG pcbSig = 0;
                             Evaluator::ArgElementType ifaceElementType;
                             if (FAILED(pMDI->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
                                 continue;

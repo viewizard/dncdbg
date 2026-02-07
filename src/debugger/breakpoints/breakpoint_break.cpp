@@ -13,13 +13,13 @@ namespace dncdbg
 
 HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
         return E_FAIL;
 
-    mdMethodDef methodToken;
+    mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
     ToRelease<ICorDebugFunction> pFunc;
@@ -28,14 +28,14 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    CORDB_ADDRESS modAddress;
+    CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
 
-    ULONG32 ilOffset;
-    CorDebugMappingResult mappingResult;
+    ULONG32 ilOffset = 0;
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
@@ -64,7 +64,7 @@ void BreakBreakpoint::SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const T
 
 HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> iCorFrame;
     IfFailRet(pThread->GetActiveFrame(&iCorFrame));
 
@@ -75,7 +75,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         IfFailRet(iCorFrame->GetFunction(&iCorFunction));
         ToRelease<ICorDebugFunction2> iCorFunction2;
         IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2));
-        BOOL JMCStatus;
+        BOOL JMCStatus = FALSE;
         IfFailRet(iCorFunction2->GetJMCStatus(&JMCStatus));
 
         if (JMCStatus == FALSE)

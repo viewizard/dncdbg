@@ -243,7 +243,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
         return {};
     }
 
-    BOOL enable = 1;
+    BOOL enable = TRUE;
     if (::setsockopt(sockFd, SOL_SOCKET, SO_REUSEADDR, (const char *)&enable, sizeof(BOOL)) == SOCKET_ERROR)
     {
         ::closesocket(sockFd);
@@ -280,7 +280,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 // Function enables or disables inheritance of file handle for child processes.
 Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 {
-    DWORD flags;
+    DWORD flags = 0;
     if (!GetHandleInformation(fh.handle, &flags))
         return {IOResult::Error};
 

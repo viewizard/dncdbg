@@ -13,13 +13,13 @@ namespace dncdbg::BreakpointUtils
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     if (!pBreakpoint1 || !pBreakpoint2)
         return E_FAIL;
 
-    ULONG32 nOffset1;
-    ULONG32 nOffset2;
+    ULONG32 nOffset1 = 0;
+    ULONG32 nOffset2 = 0;
     IfFailRet(pBreakpoint1->GetOffset(&nOffset1));
     IfFailRet(pBreakpoint2->GetOffset(&nOffset2));
 
@@ -31,8 +31,8 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
     IfFailRet(pBreakpoint1->GetFunction(&pFunction1));
     IfFailRet(pBreakpoint2->GetFunction(&pFunction2));
 
-    mdMethodDef methodDef1;
-    mdMethodDef methodDef2;
+    mdMethodDef methodDef1 = mdMethodDefNil;
+    mdMethodDef methodDef2 = mdMethodDefNil;
     IfFailRet(pFunction1->GetToken(&methodDef1));
     IfFailRet(pFunction2->GetToken(&methodDef2));
 
@@ -44,9 +44,9 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
     IfFailRet(pFunction1->GetModule(&pModule1));
     IfFailRet(pFunction2->GetModule(&pModule2));
 
-    CORDB_ADDRESS modAddress1;
+    CORDB_ADDRESS modAddress1 = 0;
     IfFailRet(pModule1->GetBaseAddress(&modAddress1));
-    CORDB_ADDRESS modAddress2;
+    CORDB_ADDRESS modAddress2 = 0;
     IfFailRet(pModule2->GetBaseAddress(&modAddress2));
 
     if (modAddress1 != modAddress2)
@@ -60,7 +60,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
     if (condition.empty())
         return S_OK;
 
-    HRESULT Status;
+    HRESULT Status = S_OK;
     DWORD threadId = 0;
     IfFailRet(pThread->GetID(&threadId));
     const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
@@ -92,7 +92,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
 
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode)
 {
-    HRESULT Status;
+    HRESULT Status = S_OK;
 
     // Skip breakpoints outside of code with loaded PDB (see JMC setup during module load).
     ToRelease<ICorDebugFunction> iCorFunction;
