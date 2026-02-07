@@ -206,7 +206,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
                 if ((currentConstValue == remainingValue) ||
                     ((currentConstValue != 0) && ((currentConstValue & remainingValue) == currentConstValue)))
                 {
-                    OrderedFlags.emplace(std::make_pair(currentConstValue, to_utf8(mdName)));
+                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName));
                     remainingValue &= ~currentConstValue;
                 }
             }

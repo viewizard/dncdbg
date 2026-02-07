@@ -175,7 +175,7 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
     variable.variablesReference = (uint32_t)m_references.size() + 1;
     pValue->AddRef();
     VariableReference variableReference(variable, frameId, pValue, valueKind);
-    m_references.emplace(std::make_pair(variable.variablesReference, std::move(variableReference)));
+    m_references.emplace(variable.variablesReference, std::move(variableReference));
 
     return S_OK;
 }
@@ -271,7 +271,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 
         variablesReference = (uint32_t)m_references.size() + 1;
         VariableReference scopeReference(variablesReference, frameId, namedVariables);
-        m_references.emplace(std::make_pair(variablesReference, std::move(scopeReference)));
+        m_references.emplace(variablesReference, std::move(scopeReference));
     }
 
     scopes.emplace_back(variablesReference, "Locals", namedVariables);

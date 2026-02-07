@@ -74,13 +74,13 @@ void AddMethodData(/*in,out*/ std::map<size_t,
     // if we here, we need at least one nested level for sure
     if (methodData.empty())
     {
-        methodData.emplace(std::make_pair(0, std::set<method_data_t>{entry}));
+        methodData.emplace(0, std::set<method_data_t>{entry});
         return;
     }
     assert(nestedLevel <= methodData.size()); // could be increased only at 1 per recursive call
     if (nestedLevel == methodData.size())
     {
-        methodData.emplace(std::make_pair(nestedLevel, std::set<method_data_t>{entry}));
+        methodData.emplace(nestedLevel, std::set<method_data_t>{entry});
         return;
     }
 
@@ -91,7 +91,7 @@ void AddMethodData(/*in,out*/ std::map<size_t,
         const method_data_t key(find->methodDef, entry.startLine, entry.endLine, entry.startColumn, entry.endColumn);
         auto find_multi = multiMethodBpData.find(key);
         if (find_multi == multiMethodBpData.end())
-            multiMethodBpData.emplace(std::make_pair(key, std::vector<mdMethodDef>{entry.methodDef}));
+            multiMethodBpData.emplace(key, std::vector<mdMethodDef>{entry.methodDef});
         else
             find_multi->second.emplace_back(entry.methodDef);
 
@@ -284,13 +284,13 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
     if (findPathIndex == m_sourcePathToIndex.end())
     {
         fullPathIndex = (unsigned)m_sourceIndexToPath.size();
-        m_sourcePathToIndex.emplace(std::make_pair(fullPath, fullPathIndex));
+        m_sourcePathToIndex.emplace(fullPath, fullPathIndex);
         m_sourceIndexToPath.emplace_back(fullPath);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
 #endif
         m_sourceNameToFullPathsIndexes[GetFileName(fullPath)].emplace(fullPathIndex);
-        m_sourcesMethodsData.emplace_back(std::vector<FileMethodsData>{});
+        m_sourcesMethodsData.emplace_back();
     }
     else
         fullPathIndex = findPathIndex->second;
@@ -557,9 +557,9 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         {
             pmdInfo->m_iCorModule->AddRef();
 
-            resolvedPoints.emplace_back(resolved_bp_t(inputData.get()[i].startLine, inputData.get()[i].endLine,
-                                                      inputData.get()[i].ilOffset, inputData.get()[i].methodToken,
-                                                      pmdInfo->m_iCorModule.GetPtr()));
+            resolvedPoints.emplace_back(inputData.get()[i].startLine, inputData.get()[i].endLine,
+                                        inputData.get()[i].ilOffset, inputData.get()[i].methodToken,
+                                        pmdInfo->m_iCorModule.GetPtr());
         }
     }
 

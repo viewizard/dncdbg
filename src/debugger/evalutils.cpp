@@ -25,7 +25,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
     int paramDepth = 0;
     bool inArray = false;
 
-    result.push_back("");
+    result.emplace_back("");
 
     for (std::size_t i = start; i < identifier.size(); i++)
     {
@@ -35,7 +35,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
         case ',':
             if (paramDepth == 1 && !inArray)
             {
-                result.push_back("");
+                result.emplace_back("");
                 continue;
             }
             break;

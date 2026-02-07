@@ -141,11 +141,11 @@ static std::vector<std::string> split_on_tokens(const std::string &str, const ch
         pos = str.find(delim, prev);
         if (pos == std::string::npos)
         {
-            res.push_back(std::string(str, prev));
+            res.emplace_back(str, prev);
             break;
         }
 
-        res.push_back(std::string(str, prev, pos - prev));
+        res.emplace_back(str, prev, pos - prev);
         prev = pos + 1;
     }
 
