@@ -43,7 +43,7 @@ struct AsyncRead
         FD_ZERO(&set);
         FD_SET(fd, &set);
         struct timeval tv = {0, 0};
-        ssize_t result = ::select(fd + 1, &set, NULL, &set, &tv);
+        ssize_t result = ::select(fd + 1, &set, nullptr, &set, &tv);
         if (result == 0)
             return {Class::IOResult::Pending, 0};
 
@@ -89,7 +89,7 @@ struct AsyncWrite
         FD_ZERO(&set);
         FD_SET(fd, &set);
         struct timeval tv = {0, 0};
-        ssize_t result = select(fd + 1, NULL, &set, NULL, &tv);
+        ssize_t result = select(fd + 1, nullptr, &set, nullptr, &tv);
         if (result == 0)
             return {Class::IOResult::Pending, 0};
 

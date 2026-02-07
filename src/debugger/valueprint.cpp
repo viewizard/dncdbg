@@ -112,16 +112,16 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     //First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant
     //We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar)
     ULONG numFields = 0;
-    HCORENUM fEnum = NULL;
+    HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     CorElementType enumUnderlyingType = ELEMENT_TYPE_MAX;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
-        PCCOR_SIGNATURE pSignatureBlob = NULL;
+        PCCOR_SIGNATURE pSignatureBlob = nullptr;
         ULONG sigBlobLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, NULL, NULL, 0, NULL, &fieldAttr, &pSignatureBlob, &sigBlobLength,
-                                         NULL, NULL, NULL)))
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                         &pSignatureBlob, &sigBlobLength, nullptr, nullptr, nullptr)))
         {
             if ((fieldAttr & fdStatic) == 0)
             {
@@ -174,16 +174,16 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
 
     ULONG64 remainingValue = curValue;
     std::map<ULONG64, std::string> OrderedFlags;
-    fEnum = NULL;
+    fEnum = nullptr;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
         WCHAR mdName[mdNameLen];
-        UVCP_CONSTANT pRawValue = NULL;
+        UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, NULL, mdName, mdNameLen, &nameLen, &fieldAttr, NULL, NULL, NULL,
-                                         &pRawValue, &rawValueLength)))
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, mdNameLen, &nameLen, &fieldAttr,
+                                         nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
         {
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
@@ -355,14 +355,15 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
     bool has_flags = false;
 
     ULONG numFields = 0;
-    HCORENUM fEnum = NULL;
+    HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
         WCHAR mdName[mdNameLen] = {0};
-        if(SUCCEEDED(pMD->GetFieldProps(fieldDef, NULL, mdName, mdNameLen, &nameLen, &fieldAttr, NULL, NULL, NULL, NULL, NULL)))
+        if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, mdNameLen, &nameLen, &fieldAttr,
+                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (fieldAttr & fdLiteral)
                 continue;
@@ -690,14 +691,14 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(unboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
 
     ULONG numFields = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         WCHAR mdName[mdNameLen] = {0};
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen, NULL, NULL, NULL, NULL,
-                                         NULL, NULL)))
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
             if (str_equal(mdName, W("value")))

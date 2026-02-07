@@ -35,8 +35,8 @@ class Win32Exception : public std::runtime_error
     {
         int len = prefix ? snprintf(msg.buf, sizeof(msg.buf), "%s: ", prefix) : 0;
 
-        if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
-                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), msg.buf + len, sizeof(msg.buf) - len, NULL))
+        if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error,
+                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), msg.buf + len, sizeof(msg.buf) - len, nullptr))
         {
             return msg.buf;
         }
@@ -146,7 +146,7 @@ static Initializer initializer;
             throw Win32Exception("ioctlsocket(FIONBIO)", err);
         }
 
-        SOCKET newsock = ::accept(serv, NULL, NULL);
+        SOCKET newsock = ::accept(serv, nullptr, nullptr);
         if (newsock == INVALID_SOCKET)
         {
             auto err = WSAGetLastError();
@@ -178,7 +178,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
-    saAttr.lpSecurityDescriptor = NULL;
+    saAttr.lpSecurityDescriptor = nullptr;
 
     HANDLE reading_fd, writing_fd;
 
@@ -200,7 +200,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
 
     writing_fd = CreateFileA(pipe_name, GENERIC_WRITE,
                              0, // no sharing
-                             &saAttr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
+                             &saAttr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr);
 
     if (writing_fd == INVALID_HANDLE_VALUE)
     {
@@ -328,7 +328,7 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
     result.handle = fh.handle;
     result.overlapped.reset(new OVERLAPPED);
     memset(result.overlapped.get(), 0, sizeof(OVERLAPPED));
-    result.overlapped->hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    result.overlapped->hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (result.overlapped->hEvent == INVALID_HANDLE_VALUE)
         return {};
 
@@ -377,7 +377,7 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
     result.handle = fh.handle;
     result.overlapped.reset(new OVERLAPPED);
     memset(result.overlapped.get(), 0, sizeof(OVERLAPPED));
-    result.overlapped->hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    result.overlapped->hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (result.overlapped->hEvent == INVALID_HANDLE_VALUE)
         return {};
 
@@ -502,7 +502,7 @@ Class::IOResult Class::close(const FileHandle &fh)
 
 // Function allows non-blocking IO on files, it is similar with select(2) system call on Unix.
 // Arguments includes: pointers to three sets of file handles (for reading, for writing, and for
-// exceptions), and timeout value, in milliseconds. Any pointer might have NULL value if some set
+// exceptions), and timeout value, in milliseconds. Any pointer might have nullptr value if some set
 // isn't specified.
 // Function returns -1 on error, 0 on timeout or number of ready to read/write file handles.
 // If function returns value greater than zero, at least one of the sets, passed in arguments,

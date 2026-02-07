@@ -42,7 +42,8 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     if (cParams == 0)
         return E_FAIL;
     DWORD methodAttr = 0;
-    IfFailRet(pMD_this->GetMethodProps(methodDef, NULL, NULL, 0, NULL, &methodAttr, NULL, NULL, NULL, NULL));
+    IfFailRet(pMD_this->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr, &methodAttr,
+                                       nullptr, nullptr, nullptr, nullptr));
     const bool thisParam = (methodAttr & mdStatic) == 0;
     if (!thisParam)
         return E_FAIL;
@@ -63,7 +64,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     IfFailRet(pClass_this->GetToken(&typeDef_this));
 
     ULONG numFields = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     ToRelease<ICorDebugValue> pRefValue_t_builder;
     while (SUCCEEDED(pMD_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
@@ -126,7 +127,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
-    HCORENUM propEnum = NULL;
+    HCORENUM propEnum = nullptr;
     mdMethodDef mdObjectIdForDebuggerGetter = mdMethodDefNil;
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
@@ -186,7 +187,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     ULONG numMethods = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
     mdMethodDef setNotifDef = mdMethodDefNil;
     while (SUCCEEDED(pMD->EnumMethods(&hEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)

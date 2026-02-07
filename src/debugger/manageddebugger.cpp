@@ -443,7 +443,7 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
         if (SUCCEEDED(hr))
         {
             // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
-            if (*ppHandleArray != NULL && *pdwArrayLength > 0)
+            if (*ppHandleArray != nullptr && *pdwArrayLength > 0)
             {
 
                 // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
@@ -456,8 +456,8 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
                 // Clean up memory allocated in EnumerateCLRs since this path it succeeded
                 dbgshim.CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
 
-                *ppHandleArray = NULL;
-                *ppStringArray = NULL;
+                *ppHandleArray = nullptr;
+                *ppStringArray = nullptr;
                 *pdwArrayLength = 0;
             }
         }
@@ -639,7 +639,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
     m_clrPath.clear();
 
-    HANDLE resumeHandle = 0; // Fake thread handle for the process resume
+    HANDLE resumeHandle = nullptr; // Fake thread handle for the process resume
 
     std::vector<char> outEnv;
     PrepareSystemEnvironmentArg(m_env, outEnv);
@@ -655,8 +655,8 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
             IfFailRet(m_dbgshim.CreateProcessForLaunch(
                 reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
                 TRUE, // Suspend process
-                outEnv.empty() ? NULL : &outEnv[0],
-                m_cwd.empty() ? NULL : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
+                outEnv.empty() ? nullptr : &outEnv[0],
+                m_cwd.empty() ? nullptr : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
                 &m_processId, &resumeHandle));
             return Status;
         });

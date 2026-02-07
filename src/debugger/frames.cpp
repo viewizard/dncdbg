@@ -121,7 +121,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         // At this point (Status == S_OK).
         // Accordingly to CoreCLR sources, S_OK could be with nulled iCorFrame, that must be skipped.
         // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition represents)
-        if (iCorFrame == NULL)
+        if (iCorFrame == nullptr)
             continue;
 
         // If we get a RuntimeUnwindableFrame, then the stackwalker is also stopped at a native

@@ -117,7 +117,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
 static HRESULT GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WCHAR *methodName)
 {
     ULONG numMethods = 0;
-    HCORENUM mEnum = NULL;
+    HCORENUM mEnum = nullptr;
     mdMethodDef methodDef = mdTypeDefNil;
     pMD->EnumMethodsWithName(&mEnum, cl, methodName, &methodDef, 1, &numMethods);
     pMD->CloseEnum(mEnum);
@@ -171,7 +171,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     ULONG numFields = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
@@ -192,7 +192,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
-    HCORENUM propEnum = NULL;
+    HCORENUM propEnum = nullptr;
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         mdMethodDef mdGetter = mdMethodDefNil;
@@ -203,7 +203,8 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
         }
 
         DWORD getterAttr = 0;
-        if (FAILED(pMD->GetMethodProps(mdGetter, NULL, NULL, 0, NULL, &getterAttr, NULL, NULL, NULL, NULL)))
+        if (FAILED(pMD->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                       nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }

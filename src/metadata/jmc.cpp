@@ -34,7 +34,7 @@ static std::vector<std::string> methodAttrNames{DebuggerAttribute::NonUserCode, 
 static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
     ULONG numMethods = 0;
-    HCORENUM fEnum = NULL;
+    HCORENUM fEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
     while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
@@ -64,7 +64,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
 
     ULONG numTypedefs = 0;
-    HCORENUM fEnum = NULL;
+    HCORENUM fEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {

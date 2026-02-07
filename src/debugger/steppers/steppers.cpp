@@ -159,7 +159,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
         mdProperty propertyDef = mdPropertyNil;
         ULONG numProperties = 0;
-        HCORENUM propEnum = NULL;
+        HCORENUM propEnum = nullptr;
         while (SUCCEEDED(iMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
         {
             mdMethodDef mdSetter = mdMethodDefNil;

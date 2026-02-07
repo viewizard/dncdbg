@@ -219,12 +219,12 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
     std::vector<int32_t> normalTokens;
 
     ULONG numTypedefs = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     while (SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         ULONG numMethods = 0;
-        HCORENUM fEnum = NULL;
+        HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {

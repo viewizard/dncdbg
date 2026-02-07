@@ -204,7 +204,7 @@ void UnsetCoreCLREnv()
 // Returns the length of a BSTR.
 UINT SysStringLen(BSTR bstrString)
 {
-    if (bstrString == NULL)
+    if (bstrString == nullptr)
         return 0;
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     return (unsigned int)((((DWORD FAR *)bstrString)[-1]) / sizeof(OLECHAR));
@@ -300,7 +300,7 @@ constexpr char UtilsClassName[] = "DNCDbg.Utils";
 // Returns the number of bytes read.
 int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
 {
-    if (address == 0 || buffer == 0 || cb == 0)
+    if (address == 0 || buffer == nullptr || cb == 0)
         return 0;
 
     std::memcpy(buffer, (const void *)address, cb); // NOLINT(performance-no-int-to-ptr)
@@ -328,7 +328,7 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
     *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, (int)peSize, inMemoryPdbAddress,
                                                          (int)inMemoryPdbSize, ReadMemoryForSymbols);
 
-    if (*ppSymbolReaderHandle == 0)
+    if (*ppSymbolReaderHandle == nullptr)
         return E_FAIL;
 
     return S_OK;
@@ -812,7 +812,7 @@ HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
     if (pMethodTokens)
         CoTaskMemFree(pMethodTokens);
 
-    if (*ppSymbolReaderHandle == 0)
+    if (*ppSymbolReaderHandle == nullptr)
         return E_FAIL;
 
     return S_OK;

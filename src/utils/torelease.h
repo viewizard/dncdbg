@@ -48,7 +48,7 @@ template <class T> class ToRelease
 
     T *operator->() const
     {
-        assert(m_ptr != 0); // accessing NULL pointer
+        assert(m_ptr != 0); // accessing nullptr pointer
         return m_ptr;
     }
 

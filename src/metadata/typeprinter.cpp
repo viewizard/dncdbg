@@ -128,7 +128,7 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
     WCHAR name[mdNameLen];
     ULONG nameLen = 0;
 
-    IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name, _countof(name), &nameLen, &flags, NULL));
+    IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name, _countof(name), &nameLen, &flags, nullptr));
     mdName = to_utf8(name /*, nameLen*/);
 
     if (!IsTdNested(flags))
@@ -156,10 +156,10 @@ static HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std
     // CoreCLR use dynamic allocated or size fixed buffers up to 16kb for GetTypeRefProps().
     HRESULT Status = S_OK;
     ULONG refNameSize = 0;
-    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, NULL, NULL, 0, &refNameSize));
+    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
 
     const std::unique_ptr<WCHAR[]> refName(new WCHAR[refNameSize + 1]);
-    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, NULL, refName.get(), refNameSize, NULL));
+    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, refName.get(), refNameSize, nullptr));
 
     mdName = to_utf8(refName.get());
 
@@ -291,8 +291,8 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberProps(mb, &mdClass, name, _countof(name), &size, NULL,
-                                     NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        hr = pImport->GetMemberProps(mb, &mdClass, name, _countof(name), &size, nullptr, nullptr,
+                                     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (mdClass != mdTypeDefNil && bClassName)
@@ -307,7 +307,8 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMethodProps(mb, &mdClass, name, _countof(name), &size, NULL, NULL, NULL, NULL, NULL);
+        hr = pImport->GetMethodProps(mb, &mdClass, name, _countof(name), &size,
+                                     nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (mdClass != mdTypeDefNil && bClassName)
@@ -322,7 +323,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberRefProps(mb, &mdClass, name, _countof(name), &size, NULL, NULL);
+        hr = pImport->GetMemberRefProps(mb, &mdClass, name, _countof(name), &size, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
@@ -708,7 +709,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 
     case ELEMENT_TYPE_FNPTR:
         out = "method ";
-        out += "METHOD"; // was: typePtr = PrettyPrintSignature(typePtr, 0x7FFF, "*", out, pIMDI, NULL);
+        out += "METHOD"; // was: typePtr = PrettyPrintSignature(typePtr, 0x7FFF, "*", out, pIMDI, nullptr);
         break;
 
     case ELEMENT_TYPE_GENERICINST:
@@ -834,7 +835,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     std::string funcName = to_utf8(szFunctionName /*, nameLen*/);
 
     ULONG methodGenericsCount = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdGenericParam gp = mdGenericParamNil;
     ULONG fetched = 0;
     while (SUCCEEDED(pMD2->EnumGenericParams(&hEnum, methodDef, &gp, 1, &fetched)) && fetched == 1)

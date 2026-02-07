@@ -19,8 +19,8 @@ void USleep(unsigned long usec)
 
     ft.QuadPart = -(10 * (long)usec); // Convert to 100 nanosecond interval, negative value indicates relative time
 
-    timer = CreateWaitableTimer(NULL, TRUE, NULL);
-    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    timer = CreateWaitableTimer(nullptr, TRUE, nullptr);
+    SetWaitableTimer(timer, &ft, 0, nullptr, nullptr, 0);
     WaitForSingleObject(timer, INFINITE);
     CloseHandle(timer);
 }

@@ -658,7 +658,7 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
         ToRelease<ICorDebugValue> iCorValue;
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &iCorValue, &isNull));
-        resultData = 0;
+        resultData = nullptr;
         if (!isNull)
         {
             std::string String;
@@ -902,7 +902,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
     int64_t valueDataHolder2 = 0;
     PVOID valueData2 = &valueDataHolder2;
     int32_t valueType2 = 0;
-    PVOID resultData = NULL;
+    PVOID resultData = nullptr;
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue1, elemType1, valueData1, valueType1)) &&
         SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue2, elemType2, valueData2, valueType2)) &&
@@ -965,7 +965,7 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
     int32_t valueType1 = 0;
     // Note, we need fake second operand for delegate.
     int64_t fakeValueData2 = 0;
-    PVOID resultData = NULL;
+    PVOID resultData = nullptr;
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue, elemType, valueData1, valueType1)) &&
         SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, &fakeValueData2, (int32_t)BasicTypes::TypeInt64,
@@ -2056,12 +2056,12 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
 
     mdTypeDef typeDef = mdTypeDefNil;
     static const WCHAR strTypeDefDecimal[] = W("System.Decimal");
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefDecimal, (mdToken)NULL, &typeDef));
+    IfFailRet(pMD->FindTypeDefByName(strTypeDefDecimal, mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorDecimalClass));
 
     typeDef = mdTypeDefNil;
     static const WCHAR strTypeDefVoid[] = W("System.Void");
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefVoid, (mdToken)NULL, &typeDef));
+    IfFailRet(pMD->FindTypeDefByName(strTypeDefVoid, mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorVoidClass));
 
     static const std::vector<std::pair<CorElementType, const WCHAR *>> corElementToValueNameMap{
@@ -2082,7 +2082,7 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     for (auto &entry : corElementToValueNameMap)
     {
         typeDef = mdTypeDefNil;
-        IfFailRet(pMD->FindTypeDefByName(entry.second, (mdToken)NULL, &typeDef));
+        IfFailRet(pMD->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
         IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.corElementToValueClassMap[entry.first]));
     }
 

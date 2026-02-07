@@ -19,11 +19,11 @@ namespace dncdbg
 
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).
-// In case of error function returns NULL.
+// In case of error function returns nullptr.
 DLHandle DLOpen(const std::string &path)
 {
     void *tmpPointer = ::dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOW);
-    if (tmpPointer == NULL)
+    if (tmpPointer == nullptr)
     {
         const char *err = ::dlerror();
         static_cast<void>(fprintf(stderr, "dlopen() error: %s\n", err));
@@ -33,7 +33,7 @@ DLHandle DLOpen(const std::string &path)
 }
 
 // This function resolves symbol address within library specified by handle,
-// and returns it's address, in case of error function returns NULL.
+// and returns it's address, in case of error function returns nullptr.
 void *DLSym(DLHandle handle, const std::string_view &name)
 {
     char str[LINE_MAX];
@@ -48,7 +48,7 @@ void *DLSym(DLHandle handle, const std::string_view &name)
     void *tmpPointer = ::dlsym(handle, str); // NOLINT(misc-const-correctness)
 
     const char *err = ::dlerror();
-    if (err != NULL)
+    if (err != nullptr)
     {
         static_cast<void>(fprintf(stderr, "dlsym() error: %s\n", err));
         LOGE("dlsym() error: %s", err);

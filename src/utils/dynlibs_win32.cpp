@@ -12,14 +12,14 @@ namespace dncdbg
 
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).
-// In case of error function returns NULL.
+// In case of error function returns nullptr.
 DLHandle DLOpen(const std::string &path)
 {
-    return reinterpret_cast<DLHandle>(::LoadLibraryExA(path.c_str(), NULL, 0));
+    return reinterpret_cast<DLHandle>(::LoadLibraryExA(path.c_str(), nullptr, 0));
 }
 
 // This function resolves symbol address within library specified by handle,
-// and returns it's address, in case of error function returns NULL.
+// and returns it's address, in case of error function returns nullptr.
 void *DLSym(DLHandle handle, const std::string_view &name)
 {
     char str[LINE_MAX];

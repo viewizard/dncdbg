@@ -24,7 +24,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
-  -modernize-use-nullptr,
   -modernize-pass-by-value,
   -modernize-deprecated-headers,
   -modernize-use-auto,

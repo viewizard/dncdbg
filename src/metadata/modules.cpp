@@ -58,7 +58,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
 
     ULONG typesCnt = 0;
-    HCORENUM fTypeEnum = NULL;
+    HCORENUM fTypeEnum = nullptr;
     mdTypeDef mdType = mdTypeDefNil;
 
     while (SUCCEEDED(pMDImport->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
@@ -66,7 +66,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
         std::string typeName;
         IfFailRet(TypePrinter::NameForToken(mdType, pMDImport, typeName, false, nullptr));
 
-        HCORENUM fFuncEnum = NULL;
+        HCORENUM fFuncEnum = nullptr;
         mdMethodDef mdMethod = mdMethodDefNil;
         ULONG methodsCnt = 0;
 
@@ -86,7 +86,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
 
             IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, (LPVOID *)&pMDImport2));
 
-            HCORENUM fGenEnum = NULL;
+            HCORENUM fGenEnum = nullptr;
             mdGenericParam gp = mdGenericParamNil;
             ULONG fetched = 0;
             std::string genParams("");

@@ -120,7 +120,7 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     // Note, `Namespace.ClassName.<Main>d__0` type have enclosing class as method `Namespace.ClassName.<Main>()` class.
     HRESULT Status = S_OK;
     ULONG numTypedefs = 0;
-    HCORENUM hEnum = NULL;
+    HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
     while(SUCCEEDED(pMD->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
@@ -132,12 +132,12 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
         DWORD flags = 0;
         WCHAR className[mdNameLen];
         ULONG classNameLen = 0;
-        IfFailRet(pMD->GetTypeDefProps(typeDef, className, _countof(className), &classNameLen, &flags, NULL));
+        IfFailRet(pMD->GetTypeDefProps(typeDef, className, _countof(className), &classNameLen, &flags, nullptr));
         if (!starts_with(className, W("<Main>d__")))
             continue;
 
         ULONG numMethods = 0;
-        HCORENUM fEnum = NULL;
+        HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {

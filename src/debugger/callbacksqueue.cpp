@@ -165,7 +165,7 @@ void CallbacksQueue::CallbacksWorker()
 bool CallbacksQueue::HasQueuedCallbacks(ICorDebugProcess *pProcess)
 {
     BOOL bQueued = FALSE;
-    pProcess->HasQueuedCallbacks(NULL, &bQueued);
+    pProcess->HasQueuedCallbacks(nullptr, &bQueued);
     return bQueued == TRUE;
 }
 

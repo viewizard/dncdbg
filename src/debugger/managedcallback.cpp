@@ -55,7 +55,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, VOID **pp
     }
     else
     {
-        *ppInterface = NULL;
+        *ppInterface = nullptr;
         return E_NOINTERFACE;
     }
 

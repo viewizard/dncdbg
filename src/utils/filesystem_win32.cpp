@@ -15,7 +15,7 @@ std::string GetExeAbsPath()
 {
     const size_t MAX_LONGPATH = 1024;
     char hostPath[MAX_LONGPATH + 1];
-    static const std::string result(hostPath, ::GetModuleFileNameA(NULL, hostPath, MAX_LONGPATH));
+    static const std::string result(hostPath, ::GetModuleFileNameA(nullptr, hostPath, MAX_LONGPATH));
     return result;
 }
 

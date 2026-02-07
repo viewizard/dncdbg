@@ -138,7 +138,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
         level = "DIWEF"[prio - DLOG_DEBUG];
 
     static FILE *log_file = open_log_file();
-    if (log_file == NULL || ferror(log_file))
+    if (log_file == nullptr || ferror(log_file))
         return DLOG_ERROR_NOT_PERMITTED;
 
     const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),
