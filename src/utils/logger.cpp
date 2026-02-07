@@ -10,11 +10,11 @@
 
 #include "utils/logger.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
-#include <assert.h>
+#include <cassert>
 #include <mutex>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
 #ifdef _WIN32
 #include <windows.h>

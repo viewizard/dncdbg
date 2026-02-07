@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <map>
 #include <sstream>
-#include <string.h>
+#include <cstring>
 #include <type_traits>
 #include <vector>
 #include <arrayholder.h>

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "protocol/escaped_string.h"
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 
 namespace dncdbg

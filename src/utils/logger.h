@@ -11,11 +11,11 @@
 #pragma once
 
 #include <stdarg.h>
-#include <stddef.h>
-#include <string.h>
+#include <cstddef>
+#include <cstring>
 
 #ifdef _MSC_VER
-#include <stdio.h>
+#include <cstdio>
 #endif
 
 #ifndef __cplusplus

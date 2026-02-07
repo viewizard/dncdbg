@@ -11,13 +11,10 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include <dirent.h>
-#include <stddef.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/stat.h>
 #elif _WIN32
 #include "utils/limits.h"
-#include <stddef.h>
-#include <string.h>
 #include <windows.h>
 #include <palclr.h>
 #endif
@@ -28,10 +25,11 @@
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
 #include "utils/utf.h"
+#include <cstddef>
 #include <set>
 #include <stdexcept>
 #include <cstring>
-#include <assert.h>
+#include <cassert>
 
 #ifdef FEATURE_PAL
 // Suppress undefined reference

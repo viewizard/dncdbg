@@ -7,13 +7,13 @@
 #include "utils/iosystem_win32.h"
 #include "utils/limits.h"
 #include <afunix.h>
-#include <assert.h>
+#include <cassert>
 #include <atomic>
 #include <fcntl.h>
 #include <io.h>
 #include <new>
 #include <stdexcept>
-#include <string.h>
+#include <cstring>
 #include <ws2tcpip.h>
 
 // short alias for full class name

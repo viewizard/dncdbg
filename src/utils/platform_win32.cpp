@@ -5,7 +5,7 @@
 #ifdef _WIN32
 #include "utils/platform.h"
 #include "utils/limits.h"
-#include <stdlib.h> // char **environ
+#include <cstdlib> // char **environ
 #include <windows.h>
 
 namespace dncdbg

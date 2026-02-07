@@ -9,10 +9,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <signal.h>
+#include <csignal>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>

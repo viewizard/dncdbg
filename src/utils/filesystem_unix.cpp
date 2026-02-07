@@ -7,7 +7,7 @@
 #include <mach-o/dyld.h>
 #endif
 #include "utils/filesystem.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 
 namespace dncdbg

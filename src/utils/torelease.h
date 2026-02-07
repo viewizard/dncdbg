@@ -8,7 +8,7 @@
 #pragma once
 
 #include "utils/logger.h"
-#include <assert.h>
+#include <cassert>
 
 namespace dncdbg
 {

@@ -7,7 +7,7 @@
 #include "utils/logger.h"
 #include "utils/streams.h"
 #include "utils/utility.h"
-#include <string.h>
+#include <cstring>
 
 namespace dncdbg
 {

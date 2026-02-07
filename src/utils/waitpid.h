@@ -8,7 +8,7 @@
 #ifdef FEATURE_PAL
 
 #include <mutex>
-#include <signal.h>
+#include <csignal>
 
 namespace dncdbg
 {

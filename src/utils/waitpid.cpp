@@ -8,7 +8,7 @@
 #include "utils/waitpid.h"
 #include "utils/logger.h"
 #include <dlfcn.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/wait.h>
 
 namespace dncdbg
