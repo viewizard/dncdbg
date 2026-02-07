@@ -107,12 +107,12 @@ static HRESULT EnableOneICorBreakpointForLine(std::list<LineBreakpoints::Managed
     // Same logic as provide vsdbg - only one breakpoint is active for one line.
     BOOL needEnable = TRUE;
     HRESULT Status = S_OK;
-    for (auto it = bList.begin(); it != bList.end(); ++it)
+    for (auto &it : bList)
     {
-        if ((*it).iCorFuncBreakpoints.empty())
+        if (it.iCorFuncBreakpoints.empty())
             continue;
 
-        for (const auto &iCorFuncBreakpoint : (*it).iCorFuncBreakpoints)
+        for (const auto &iCorFuncBreakpoint : it.iCorFuncBreakpoints)
         {
             const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
             Status = FAILED(ret) ? ret : Status;

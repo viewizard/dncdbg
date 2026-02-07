@@ -1060,7 +1060,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
-    std::vector<std::string> methodGenericStrings = EvalUtils::ParseGenericParams(funcNameGenerics, funcName);
+    const std::vector<std::string> methodGenericStrings = EvalUtils::ParseGenericParams(funcNameGenerics, funcName);
     const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
         funcName.resize(pos);
@@ -1139,9 +1139,9 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
 
     std::vector<Evaluator::ArgElementType> methodGenerics;
     methodGenerics.reserve(methodGenericStrings.size());
-    for (ULONG32 i = 0; i < methodGenericStrings.size(); i++)
+    for (const auto &methodGenericString : methodGenericStrings)
     {
-        methodGenerics.emplace_back(ed.pEvaluator->GetElementTypeByTypeName(methodGenericStrings[i]));
+        methodGenerics.emplace_back(ed.pEvaluator->GetElementTypeByTypeName(methodGenericString));
     }
 
     ToRelease<ICorDebugFunction> iCorFunc;

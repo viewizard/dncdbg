@@ -69,9 +69,8 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
     // Walk the directory for each extension separately so that we first get files with .ni.dll extension,
     // then files with .dll extension, etc.
-    for (size_t extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
+    for (auto ext : tpaExtensions)
     {
-        const char *ext = tpaExtensions[extIndex];
         const int extLength = strlen(ext);
 
         struct dirent *entry = nullptr;

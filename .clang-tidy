@@ -30,7 +30,6 @@ Checks: >
   -modernize-use-auto,
   -modernize-return-braced-init-list,
   -modernize-use-bool-literals,
-  -modernize-loop-convert,
   misc-*,
   -misc-use-anonymous-namespace,
   -misc-no-recursion,
