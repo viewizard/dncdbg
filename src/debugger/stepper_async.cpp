@@ -308,7 +308,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         // 1. Step finished successful - await code not reached.
         // 2. Breakpoint was reached - step reached await block, so, we must switch to async step logic instead.
 
-        const std::lock_guard<std::mutex> lock_async(m_asyncStepMutex);
+        std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
 
         m_asyncStep = std::make_unique<asyncStep_t>();
         m_asyncStep->m_threadId = getThreadId(pThread);
@@ -380,7 +380,7 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
     IfFailRet(pCode->CreateBreakpoint(0, &iCorFuncBreakpoint));
     IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
 
-    const std::lock_guard<std::mutex> lock_async(m_asyncStepMutex);
+    std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
     m_asyncStepNotifyDebuggerOfWaitCompletion = std::make_unique<asyncBreakpoint_t>();
     m_asyncStepNotifyDebuggerOfWaitCompletion->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
     m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress = modAddress;
@@ -413,7 +413,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return S_FALSE;
     }
 
-    const std::lock_guard<std::mutex> lock_async(m_asyncStepMutex);
+    std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
 
     if (!m_asyncStep)
     {

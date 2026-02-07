@@ -224,7 +224,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
 
 HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
 {
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
+    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     for (auto &initialBreakpoints : m_lineBreakpointMapping)
     {
@@ -268,7 +268,7 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints,
                                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    std::lock_guard<std::mutex> lock(m_breakpointsMutex);
+    std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedLineBreakpointMapping &initialBreakpoint)

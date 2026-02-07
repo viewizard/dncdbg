@@ -37,7 +37,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     {
         IfFailRet(pStepper->StepOut());
 
-        std::lock_guard<std::mutex> lock(m_stepMutex);
+        std::scoped_lock<std::mutex> lock(m_stepMutex);
         m_enabledSimpleStepId = int(threadId);
 
         return S_OK;
@@ -55,7 +55,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(pStepper->Step(bStepIn));
     }
 
-    std::lock_guard<std::mutex> lock(m_stepMutex);
+    std::scoped_lock<std::mutex> lock(m_stepMutex);
     m_enabledSimpleStepId = int(threadId);
 
     return S_OK;
@@ -67,7 +67,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
 
     auto stepForcedIgnoreBP = [&]() {
         {
-            std::lock_guard<std::mutex> lock(m_stepMutex);
+            std::scoped_lock<std::mutex> lock(m_stepMutex);
             if (m_enabledSimpleStepId != int(threadId))
             {
                 return false;

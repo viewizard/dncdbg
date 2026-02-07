@@ -190,7 +190,7 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
 
 HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    std::lock_guard<std::mutex> lock(m_entryMutex);
+    std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || m_iCorFuncBreakpoint)
         return S_FALSE;
@@ -236,7 +236,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
 HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
-    std::lock_guard<std::mutex> lock(m_entryMutex);
+    std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || !m_iCorFuncBreakpoint)
         return S_FALSE; // S_FALSE - no error, but not affect on callback
@@ -255,7 +255,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 
 void EntryBreakpoint::Delete()
 {
-    std::lock_guard<std::mutex> lock(m_entryMutex);
+    std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_iCorFuncBreakpoint)
         return;

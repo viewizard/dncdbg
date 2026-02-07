@@ -128,7 +128,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
     static std::mutex mutex;
-    std::lock_guard<std::mutex> lock(mutex);
+    std::scoped_lock<std::mutex> lock(mutex);
 
     if (prio == DLOG_DEFAULT)
         prio = DLOG_INFO;

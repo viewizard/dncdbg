@@ -27,7 +27,7 @@ ULONG ManagedCallback::GetRefCount()
 {
     LogFuncEntry();
 
-    std::lock_guard<std::mutex> lock(m_refCountMutex);
+    std::scoped_lock<std::mutex> lock(m_refCountMutex);
     return m_refCount;
 }
 
@@ -67,7 +67,7 @@ ULONG STDMETHODCALLTYPE ManagedCallback::AddRef()
 {
     LogFuncEntry();
 
-    std::lock_guard<std::mutex> lock(m_refCountMutex);
+    std::scoped_lock<std::mutex> lock(m_refCountMutex);
     return ++m_refCount;
 }
 
@@ -75,7 +75,7 @@ ULONG STDMETHODCALLTYPE ManagedCallback::Release()
 {
     LogFuncEntry();
 
-    std::lock_guard<std::mutex> lock(m_refCountMutex);
+    std::scoped_lock<std::mutex> lock(m_refCountMutex);
 
     assert(m_refCount > 0);
 

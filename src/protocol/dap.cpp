@@ -335,7 +335,7 @@ void DAP::EmitOutputEvent(OutputCategory category, const std::string_view &outpu
 
     EscapedString<JSON_escape_rules> escaped_text(output);
 
-    std::lock_guard<std::mutex> lock(m_outMutex);
+    std::scoped_lock<std::mutex> lock(m_outMutex);
 
     Source source;
     int totalFrames = 0;
@@ -463,7 +463,7 @@ void DAP::EmitMessage(nlohmann::json &message, std::string &output)
 
 void DAP::EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message)
 {
-    std::lock_guard<std::mutex> lock(m_outMutex);
+    std::scoped_lock<std::mutex> lock(m_outMutex);
     std::string output;
     EmitMessage(message, output);
     Log(message_prefix, output);
@@ -1094,7 +1094,7 @@ void DAP::CommandLoop()
         {
             CommandQueueEntry queueEntry;
             queueEntry.command = "ncdbg_disconnect";
-            std::lock_guard<std::mutex> guardCommandsMutex(m_commandsMutex);
+            std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
             m_commandsQueue.clear();
             m_commandsQueue.emplace_back(std::move(queueEntry));
             m_commandsCV.notify_one(); // notify_one with lock
@@ -1102,7 +1102,7 @@ void DAP::CommandLoop()
         }
 
         {
-            std::lock_guard<std::mutex> lock(m_outMutex);
+            std::scoped_lock<std::mutex> lock(m_outMutex);
             Log(LOG_COMMAND, requestText);
         }
 
@@ -1143,7 +1143,7 @@ void DAP::CommandLoop()
                 EmitCapabilitiesEvent();
             else if (g_cancelCommandQueueSet.find(queueEntry.command) != g_cancelCommandQueueSet.end())
             {
-                std::lock_guard<std::mutex> guardCommandsMutex(m_commandsMutex);
+                std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
                 m_sharedDebugger->CancelEvalRunning();
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)

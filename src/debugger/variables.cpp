@@ -129,7 +129,7 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
 HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter,
                                 int start, int count, std::vector<Variable> &variables)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_referencesMutex);
+    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     auto it = m_references.find(variablesReference);
     if (it == m_references.end())
@@ -161,7 +161,7 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
 HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_referencesMutex);
+    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     if (m_references.size() == std::numeric_limits<uint32_t>::max())
         return E_FAIL;
@@ -264,7 +264,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 
     if (namedVariables > 0)
     {
-        std::lock_guard<std::recursive_mutex> lock(m_referencesMutex);
+        std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
         if (m_references.size() == std::numeric_limits<uint32_t>::max())
             return E_FAIL;
@@ -372,7 +372,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
                                uint32_t ref, std::string &output)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_referencesMutex);
+    std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     auto it = m_references.find(ref);
     if (it == m_references.end())

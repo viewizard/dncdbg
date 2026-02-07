@@ -301,7 +301,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
                                                       PVOID pSymbolReaderHandle)
 {
-    std::lock_guard<std::mutex> lock(m_sourcesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     HRESULT Status;
     std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> inputData;
@@ -469,7 +469,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
                                           /*in*/ int sourceLine,
                                           /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
 {
-    std::lock_guard<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
+    std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
     HRESULT Status;
     auto findIndex = m_sourcePathToIndex.find(filename);
@@ -567,7 +567,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
 HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
 {
-    std::lock_guard<std::mutex> lock(m_sourcesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     if (m_sourceIndexToPath.size() <= index)
         return E_FAIL;
@@ -593,7 +593,7 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, un
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
 
-    std::lock_guard<std::mutex> lock(m_sourcesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     auto findIndex = m_sourcePathToIndex.find(fullPath);
     if (findIndex == m_sourcePathToIndex.end())

@@ -221,7 +221,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
 
 HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
 {
-    std::lock_guard<std::mutex> lock(m_typeObjectCacheMutex);
+    std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
     HRESULT Status;
     ToRelease<ICorDebugType2> iCorType2;
@@ -255,7 +255,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
 
 HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
 {
-    std::lock_guard<std::mutex> lock(m_typeObjectCacheMutex);
+    std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
     HRESULT Status;
     ToRelease<ICorDebugType2> iCorType2;
@@ -344,7 +344,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 
     if (et == ELEMENT_TYPE_CLASS)
     {
-        std::lock_guard<std::mutex> lock(m_pSuppressFinalizeMutex);
+        std::scoped_lock<std::mutex> lock(m_pSuppressFinalizeMutex);
 
         if (!m_pSuppressFinalize)
         {

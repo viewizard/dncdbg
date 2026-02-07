@@ -175,7 +175,7 @@ static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string
 
 void Modules::CleanupAllModules()
 {
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.clear();
 }
 
@@ -235,7 +235,7 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
 
 HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
 {
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     auto info_pair = m_modulesInfo.find(modAddress);
     return (info_pair == m_modulesInfo.end()) ? E_FAIL : cb(info_pair->second);
 }
@@ -257,7 +257,7 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &mod
     bool isFullPath = IsFullPath(module);
     HRESULT Status;
 
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
@@ -560,7 +560,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 
     pModule->AddRef();
     ModuleInfo mdInfo{pSymbolReaderHandle, pModule};
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
     m_modulesInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
 
     return S_OK;
@@ -610,7 +610,7 @@ HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef met
 
 HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule)
 {
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
@@ -682,7 +682,7 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
 HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
     HRESULT Status;
-    std::lock_guard<std::mutex> lock(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
@@ -709,7 +709,7 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
 #endif
 
     // Note, in all code we use m_modulesInfoMutex > m_sourcesInfoMutex lock sequence.
-    std::lock_guard<std::mutex> lockModulesInfo(m_modulesInfoMutex);
+    std::scoped_lock<std::mutex> lockModulesInfo(m_modulesInfoMutex);
     return m_modulesSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
 }
 

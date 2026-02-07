@@ -122,7 +122,7 @@ void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
 
 void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
 {
-    std::lock_guard<std::mutex> lock(m_lastStoppedMutex);
+    std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
     m_lastStoppedThreadId = threadId;
 
     ReadLock r_lock(m_debugProcessRWLock);
@@ -139,7 +139,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 {
     LogFuncEntry();
 
-    std::lock_guard<std::mutex> lock(m_lastStoppedMutex);
+    std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
     return m_lastStoppedThreadId;
 }
 
@@ -706,7 +706,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
     do
     {
         ReadLock r_lock(m_debugProcessRWLock);
-        std::lock_guard<std::mutex> guardAttachedMutex(m_processAttachedMutex);
+        std::scoped_lock<std::mutex> guardAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
 
