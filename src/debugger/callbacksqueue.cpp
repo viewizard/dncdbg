@@ -9,9 +9,9 @@
 
 #include "debugger/callbacksqueue.h"
 #include "debugger/manageddebugger.h"
-#include "debugger/breakpoints.h" // NOLINT(misc-include-cleaner)
+#include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
-#include "debugger/steppers.h"
+#include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "protocol/dap.h"
 #include <algorithm>

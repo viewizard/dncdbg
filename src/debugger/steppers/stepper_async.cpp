@@ -3,9 +3,9 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/stepper_async.h"
+#include "debugger/steppers/stepper_async.h"
+#include "debugger/steppers/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalhelpers.h"
-#include "debugger/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/threads.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"

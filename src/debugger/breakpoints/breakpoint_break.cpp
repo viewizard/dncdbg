@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoint_break.h"
+#include "debugger/breakpoints/breakpoint_break.h"
 #include "debugger/threads.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "utils/torelease.h"

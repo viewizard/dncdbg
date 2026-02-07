@@ -8,7 +8,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/manageddebugger.h"
-#include "debugger/breakpoints.h"
+#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
@@ -16,7 +16,7 @@
 #include "debugger/evalwaiter.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
-#include "debugger/steppers.h"
+#include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debugger/waitpid.h"

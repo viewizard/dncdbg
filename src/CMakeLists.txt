@@ -15,13 +15,16 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(dncdbg_SRC
-    debugger/breakpoint_break.cpp
-    debugger/breakpoint_entry.cpp
-    debugger/breakpoints_exception.cpp
-    debugger/breakpoints_func.cpp
-    debugger/breakpoints_line.cpp
-    debugger/breakpoints.cpp
-    debugger/breakpointutils.cpp
+    debugger/breakpoints/breakpoint_break.cpp
+    debugger/breakpoints/breakpoint_entry.cpp
+    debugger/breakpoints/breakpoints_exception.cpp
+    debugger/breakpoints/breakpoints_func.cpp
+    debugger/breakpoints/breakpoints_line.cpp
+    debugger/breakpoints/breakpoints.cpp
+    debugger/breakpoints/breakpointutils.cpp
+    debugger/steppers/stepper_async.cpp
+    debugger/steppers/stepper_simple.cpp
+    debugger/steppers/steppers.cpp
     debugger/callbacksqueue.cpp
     debugger/evalhelpers.cpp
     debugger/evalstackmachine.cpp
@@ -32,9 +35,6 @@ set(dncdbg_SRC
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp
     debugger/threads.cpp
-    debugger/stepper_async.cpp
-    debugger/stepper_simple.cpp
-    debugger/steppers.cpp
     debugger/valueprint.cpp
     debugger/variables.cpp
     debugger/waitpid.cpp

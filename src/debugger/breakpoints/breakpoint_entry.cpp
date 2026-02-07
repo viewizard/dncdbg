@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoint_entry.h"
-#include "debugger/breakpointutils.h"
+#include "debugger/breakpoints/breakpoint_entry.h"
+#include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
 #include "utils/utf.h"
 #include <string>

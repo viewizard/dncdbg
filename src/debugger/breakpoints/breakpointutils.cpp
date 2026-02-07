@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpointutils.h"
+#include "debugger/breakpoints/breakpointutils.h"
 #include "debugger/variables.h"
 #include "metadata/attributes.h"
 #include "utils/torelease.h"

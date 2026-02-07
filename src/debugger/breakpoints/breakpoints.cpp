@@ -3,13 +3,13 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints.h"
-#include "debugger/breakpoint_break.h"
-#include "debugger/breakpoint_entry.h"
-#include "debugger/breakpoints_exception.h"
-#include "debugger/breakpoints_func.h"
-#include "debugger/breakpoints_line.h"
-#include "debugger/breakpointutils.h"
+#include "debugger/breakpoints/breakpoints.h"
+#include "debugger/breakpoints/breakpoint_break.h"
+#include "debugger/breakpoints/breakpoint_entry.h"
+#include "debugger/breakpoints/breakpoints_exception.h"
+#include "debugger/breakpoints/breakpoints_func.h"
+#include "debugger/breakpoints/breakpoints_line.h"
+#include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
 #include <mutex>
 

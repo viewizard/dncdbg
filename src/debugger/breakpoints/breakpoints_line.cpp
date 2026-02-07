@@ -3,9 +3,9 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints_line.h"
-#include "debugger/breakpoints.h"
-#include "debugger/breakpointutils.h"
+#include "debugger/breakpoints/breakpoints_line.h"
+#include "debugger/breakpoints/breakpoints.h"
+#include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
 #include <unordered_set>

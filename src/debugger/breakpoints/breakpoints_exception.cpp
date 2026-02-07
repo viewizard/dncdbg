@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints_exception.h"
+#include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"

@@ -3,9 +3,9 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/steppers.h"
-#include "debugger/stepper_async.h"
-#include "debugger/stepper_simple.h"
+#include "debugger/steppers/steppers.h"
+#include "debugger/steppers/stepper_async.h"
+#include "debugger/steppers/stepper_simple.h"
 #include "metadata/attributes.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "utils/platform.h"

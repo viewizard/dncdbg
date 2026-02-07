@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/stepper_simple.h"
+#include "debugger/steppers/stepper_simple.h"
 #include "debugger/threads.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 

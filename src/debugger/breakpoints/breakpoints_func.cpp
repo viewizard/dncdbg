@@ -3,9 +3,9 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints_func.h"
-#include "debugger/breakpoints.h"
-#include "debugger/breakpointutils.h"
+#include "debugger/breakpoints/breakpoints_func.h"
+#include "debugger/breakpoints/breakpoints.h"
+#include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
 #include <sstream>
