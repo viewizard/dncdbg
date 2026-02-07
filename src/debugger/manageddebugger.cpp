@@ -164,10 +164,11 @@ ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
       m_stepFiltering(true),
       m_unregisterToken(nullptr),
       m_processId(0),
-      m_ioredirect(
-        { IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe() },
-        std::bind(&ManagedDebugger::InputCallback, this, std::placeholders::_1, std::placeholders::_2)
-      ),
+      m_ioredirect({IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe()},
+            [this](auto &&PH1, auto &&PH2)
+            {
+                InputCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+            }),
       StartupCallbackHR(S_OK)
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
