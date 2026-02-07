@@ -73,7 +73,7 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
 
     std::lock_guard<std::mutex> lock(m_evalResultMutex);
     assert(!m_evalResult); // We can have only 1 eval, and previous must be completed.
-    m_evalResult.reset(new evalResult_t{threadId, pEval, std::move(p)});
+    m_evalResult = std::make_unique<evalResult_t>(threadId, pEval, std::move(p));
 
     // We don't have easy way to abort setuped eval in case of some error in debugger API,
     // try setup eval only if all is OK right before we run process.

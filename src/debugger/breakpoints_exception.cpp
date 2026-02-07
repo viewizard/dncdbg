@@ -245,7 +245,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     if (iCorInnerExceptionValue != nullptr)
     {
-        details.innerException.reset(new ExceptionDetails);
+        details.innerException = std::make_unique<ExceptionDetails>();
         GetExceptionDetails(pThread, iCorInnerExceptionValue, *details.innerException.get());
     }
 

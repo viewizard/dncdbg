@@ -1541,7 +1541,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
                             IfFailRet(getValue(&pResultValue, evalFlags));
                             if (setterData && resultSetterData)
-                                (*resultSetterData).reset(new Evaluator::SetterData(*setterData));
+                                (*resultSetterData) = std::make_unique<Evaluator::SetterData>(*setterData);
 
                             return E_ABORT; // Fast exit from cycle with result.
                         });
@@ -1632,7 +1632,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         pInputValue->AddRef();
         *ppResultValue = pInputValue;
         if (inputSetterData && resultSetterData)
-            (*resultSetterData).reset(new Evaluator::SetterData(*inputSetterData));
+            (*resultSetterData) = std::make_unique<Evaluator::SetterData>(*inputSetterData);
         return S_OK;
     }
     else if (pInputValue)

@@ -310,13 +310,13 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
         const std::lock_guard<std::mutex> lock_async(m_asyncStepMutex);
 
-        m_asyncStep.reset(new asyncStep_t());
+        m_asyncStep = std::make_unique<asyncStep_t>();
         m_asyncStep->m_threadId = getThreadId(pThread);
         m_asyncStep->m_initialStepType = stepType;
         m_asyncStep->m_resume_offset = awaitInfo->resume_offset;
         m_asyncStep->m_stepStatus = asyncStepStatus::yield_offset_breakpoint;
 
-        m_asyncStep->m_Breakpoint.reset(new asyncBreakpoint_t());
+        m_asyncStep->m_Breakpoint = std::make_unique<asyncBreakpoint_t>();
         m_asyncStep->m_Breakpoint->modAddress = modAddress;
         m_asyncStep->m_Breakpoint->methodToken = methodToken;
         m_asyncStep->m_Breakpoint->ilOffset = awaitInfo->yield_offset;
@@ -381,7 +381,7 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
     IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
 
     const std::lock_guard<std::mutex> lock_async(m_asyncStepMutex);
-    m_asyncStepNotifyDebuggerOfWaitCompletion.reset(new asyncBreakpoint_t());
+    m_asyncStepNotifyDebuggerOfWaitCompletion = std::make_unique<asyncBreakpoint_t>();
     m_asyncStepNotifyDebuggerOfWaitCompletion->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
     m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress = modAddress;
     m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken = methodDef;
