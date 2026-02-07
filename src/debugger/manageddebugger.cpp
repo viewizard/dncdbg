@@ -511,7 +511,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     if (m_clrPath.empty())
         m_clrPath = GetCLRPath(m_dbgshim, m_processId);
 
-    m_sharedCallbacksQueue.reset(new CallbacksQueue(*this));
+    m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(*this);
     m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
     Status = iCorDebug->SetManagedHandler(m_uniqueManagedCallback.get());
     if (FAILED(Status))

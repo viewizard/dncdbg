@@ -30,7 +30,6 @@ Checks: >
   -modernize-use-nullptr,
   -modernize-pass-by-value,
   -modernize-deprecated-headers,
-  -modernize-make-shared,
   -modernize-use-auto,
   -modernize-return-braced-init-list,
   -modernize-use-bool-literals,

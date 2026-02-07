@@ -162,7 +162,7 @@ int
     std::shared_ptr<ManagedDebugger> debugger;
     try
     {
-        debugger.reset(new ManagedDebugger(&protocol));
+        debugger = std::make_shared<ManagedDebugger>(&protocol);
     }
     catch (const std::exception &e)
     {
