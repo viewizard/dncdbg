@@ -608,9 +608,6 @@ void EscapeString(std::string &s, char q = '\"')
         switch (c)
         {
         case '\'':
-            count = c != q ? 0 : 1;
-            s.insert(i, count, '\\');
-            break;
         case '\"':
             count = c != q ? 0 : 1;
             s.insert(i, count, '\\');

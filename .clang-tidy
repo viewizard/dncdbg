@@ -48,7 +48,6 @@ Checks: >
   bugprone-*,
   -bugprone-unused-local-non-trivial-variable,
   -bugprone-assignment-in-if-condition,
-  -bugprone-branch-clone,
   -bugprone-switch-missing-default-case,
   -bugprone-inc-dec-in-conditions,
   -bugprone-signed-char-misuse,
