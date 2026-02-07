@@ -481,7 +481,7 @@ void DAP::EmitEvent(const std::string &name, const nlohmann::json &body)
 static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
                              const std::string &command, const json &arguments, json &body)
 {
-    typedef std::function<HRESULT(const json &arguments, json &body)> CommandCallback;
+    using CommandCallback = std::function<HRESULT(const json &arguments, json &body)>;
     static std::unordered_map<std::string, CommandCallback> commands{
         {"initialize", [&](const json &/*arguments*/, json &body)
             {

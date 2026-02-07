@@ -448,8 +448,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
     return pGenericValue2->SetValue(&value2);
 }
 
-typedef std::array<std::array<std::function<HRESULT(ICorDebugValue *, ICorDebugValue *, bool)>, ELEMENT_TYPE_MAX>, ELEMENT_TYPE_MAX>
-    ImplicitCastMap_t;
+using ImplicitCastMap_t = std::array<std::array<std::function<HRESULT(ICorDebugValue *, ICorDebugValue *, bool)>, ELEMENT_TYPE_MAX>, ELEMENT_TYPE_MAX>;
 
 ImplicitCastMap_t InitImplicitCastMap()
 {

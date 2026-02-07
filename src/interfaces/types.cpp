@@ -30,23 +30,23 @@ class IndexedStorage
   public:
 
     // Data type used as the key.
-    typedef Key key_type;
+    using key_type = Key;
 
     // Data type stored in container.
-    typedef T mapped_type;
+    using mapped_type = T;
 
     // Data type, which combines key with element stored in container.
-    typedef std::pair<key_type, mapped_type> value_type;
+    using value_type = std::pair<key_type, mapped_type>;
 
     // These definitions needed for standard library algoithms.
-    typedef size_t size_type;
-    typedef ptrdiff_t difference_type;
-    typedef const value_type &reference;
-    typedef const value_type *pointer;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using reference = value_type &;
+    using pointer = value_type *;
 
     // This class implemens at lest input-iterator
     // which allows to iterate over all elements stored in container.
-    typedef typename std::vector<value_type>::const_iterator iterator;
+    using iterator = typename std::vector<value_type>::const_iterator;
 
     // Return iterator pointing on first element.
     [[nodiscard]] iterator begin() const
@@ -182,7 +182,7 @@ namespace
 
 struct FramesList
 {
-    typedef IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel>> ListType;
+    using ListType = IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel>>;
 
     struct ScopeGuard
     {
@@ -218,7 +218,7 @@ struct FramesList
 
 // This singleton holds list of frames accessible by index value,
 // this list expires every time when program continues execution.
-typedef Singleton<FramesList> KnownFrames;
+using KnownFrames = Singleton<FramesList>;
 
 } // namespace
 

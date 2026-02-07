@@ -193,8 +193,9 @@ static std::string IndiciesToStr(const std::vector<ULONG32> &ind, const std::vec
     }
     return ss.str();
 }
-typedef std::function<HRESULT(mdFieldDef)> WalkFieldsCallback;
-typedef std::function<HRESULT(mdProperty)> WalkPropertiesCallback;
+
+using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
+using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
 static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {

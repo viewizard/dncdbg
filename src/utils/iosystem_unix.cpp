@@ -21,7 +21,7 @@
 namespace
 {
 // short alias for full class name
-typedef dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag> Class;
+using Class = dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>;
 
 struct AsyncRead
 {

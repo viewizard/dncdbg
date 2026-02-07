@@ -24,7 +24,6 @@ Checks: >
   -cppcoreguidelines-pro-type-vararg,
   modernize-*,
   -modernize-use-trailing-return-type,
-  -modernize-use-using,
   -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
   -modernize-use-emplace,
