@@ -35,7 +35,8 @@ char *get_streams_pptr(std::tuple<OutStream, InStream, InStream> &m_streams)
 
 IORedirectHelper::IORedirectHelper(
     const Pipes &pipes,            // three pair of pipes which represent stdin/stdout/sterr files
-    const InputCallback &callback, // callback functor, which is called when some data became available
+    const InputCallback &callback, // NOLINT(modernize-pass-by-value)
+                                   // callback functor, which is called when some data became available
     size_t input_bufsize,          // input buffer size (for stdou/stderr streams)
     size_t output_bufsize          // output buffer size (for stdin stream)
     )

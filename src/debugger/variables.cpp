@@ -56,9 +56,9 @@ struct VariableMember
     std::string name;
     std::string ownerType;
     ToRelease<ICorDebugValue> value;
-    VariableMember(const std::string &name, const std::string& ownerType, ICorDebugValue *pValue)
+    VariableMember(const std::string &name, std::string &ownerType, ICorDebugValue *pValue) // NOLINT(modernize-pass-by-value)
         : name(name),
-          ownerType(ownerType),
+          ownerType(std::move(ownerType)),
           value(pValue)
     {
     }

@@ -265,7 +265,7 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
     return S_OK;
 }
 
-HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string& filename, const std::vector<LineBreakpoint> &lineBreakpoints,
+HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
                                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
