@@ -93,7 +93,7 @@ FILE *open_log_file()
     if (!strcmp("stderr", env))
         return stderr;
 
-    FILE *result = fopen(env, "a");
+    FILE *result = fopen(env, "a"); // NOLINT(cppcoreguidelines-owning-memory)
     if (!result)
     {
         perror(env);

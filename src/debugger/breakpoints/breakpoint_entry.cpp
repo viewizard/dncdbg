@@ -18,103 +18,87 @@ namespace dncdbg
 
 static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 {
-    class scope_guard
-    {
-      public:
-
-        scope_guard(FILE **ppFile)
-            : ppFile_(ppFile)
-        {
-        }
-        ~scope_guard()
-        {
-            if (*ppFile_)
-            {
-                if (fclose(*ppFile_) == 0)
-                    *ppFile_ = nullptr;
-            }
-        }
-
-      private:
-
-        FILE **ppFile_;
-    };
-
     FILE *pFile = nullptr;
-    const scope_guard file(&pFile);
 
 #ifdef _WIN32
     if (_wfopen_s(&pFile, to_utf16(path).c_str(), L"rb") != 0)
         return mdMethodDefNil;
 #else
-    pFile = fopen(path.c_str(), "rb");
+    pFile = fopen(path.c_str(), "rb"); // NOLINT(cppcoreguidelines-owning-memory)
 #endif // _WIN32
 
     if (!pFile)
         return mdMethodDefNil;
 
-    IMAGE_DOS_HEADER dosHeader;
-    IMAGE_NT_HEADERS32 ntHeaders;
-
-    if (fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1)
-        return mdMethodDefNil;
-    if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
-        return mdMethodDefNil;
-    if (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1)
-        return mdMethodDefNil;
-
-    ULONG corRVA = 0;
-    if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
+    auto getEntryPointToken = [&]() -> mdMethodDef
     {
-        corRVA = VAL32(ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
-    }
-    else
-    {
-        IMAGE_NT_HEADERS64 ntHeaders64;
+        IMAGE_DOS_HEADER dosHeader;
+        IMAGE_NT_HEADERS32 ntHeaders;
+
+        if (fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1)
+            return mdMethodDefNil;
         if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
             return mdMethodDefNil;
-        if (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1)
-            return mdMethodDefNil;
-        corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
-    }
-
-    constexpr LONG lLONG_MAX = 2147483647;
-    LONG pos = VAL32(dosHeader.e_lfanew);
-    if (pos < 0 || size_t(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
-        return mdMethodDefNil;
-    pos += sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader);
-
-    if (fseek(pFile, pos, SEEK_SET) != 0)
-        return mdMethodDefNil;
-
-    for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
-    {
-        IMAGE_SECTION_HEADER sectionHeader;
-
-        if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1)
+        if (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1)
             return mdMethodDefNil;
 
-        if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
-            corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
+        ULONG corRVA = 0;
+        if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
         {
-            const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
-            if (offset > (ULONG)lLONG_MAX)
-                return mdMethodDefNil;
-
-            IMAGE_COR20_HEADER corHeader;
-            if (fseek(pFile, offset, SEEK_SET) != 0)
-                return mdMethodDefNil;
-            if (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1)
-                return mdMethodDefNil;
-
-            if (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT)
-                return mdMethodDefNil;
-
-            return VAL32(corHeader.EntryPointToken);
+            corRVA = VAL32(ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
         }
-    }
+        else
+        {
+            IMAGE_NT_HEADERS64 ntHeaders64;
+            if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
+                return mdMethodDefNil;
+            if (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1)
+                return mdMethodDefNil;
+            corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
+        }
 
-    return mdMethodDefNil;
+        constexpr LONG lLONG_MAX = 2147483647;
+        LONG pos = VAL32(dosHeader.e_lfanew);
+        if (pos < 0 || size_t(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
+            return mdMethodDefNil;
+        pos += sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader);
+
+        if (fseek(pFile, pos, SEEK_SET) != 0)
+            return mdMethodDefNil;
+
+        for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
+        {
+            IMAGE_SECTION_HEADER sectionHeader;
+
+            if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1)
+                return mdMethodDefNil;
+
+            if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
+                corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
+            {
+                const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
+                if (offset > (ULONG)lLONG_MAX)
+                    return mdMethodDefNil;
+
+                IMAGE_COR20_HEADER corHeader;
+                if (fseek(pFile, offset, SEEK_SET) != 0)
+                    return mdMethodDefNil;
+                if (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1)
+                    return mdMethodDefNil;
+
+                if (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT)
+                    return mdMethodDefNil;
+
+                return VAL32(corHeader.EntryPointToken);
+            }
+        }
+        return mdMethodDefNil;
+    };
+
+    const mdMethodDef res = getEntryPointToken();
+    static_cast<void>(fclose(pFile)); // NOLINT(cppcoreguidelines-owning-memory)
+
+    return res;
 }
 
 // Try to setup proper entry breakpoint method token and IL offset for async Main method.
