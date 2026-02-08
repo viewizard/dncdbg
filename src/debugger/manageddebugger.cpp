@@ -726,7 +726,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
             LOGE("Process detach failed: 0x%08x", Status);
 
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    } while (0);
+    } while (false);
 
     Cleanup();
     return S_OK;
@@ -759,7 +759,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 
         LOGE("Process terminate failed: 0x%08x", Status);
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    } while (0);
+    } while (false);
 
     Cleanup();
     return S_OK;

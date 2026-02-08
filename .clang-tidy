@@ -25,7 +25,6 @@ Checks: >
   -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
   -modernize-return-braced-init-list,
-  -modernize-use-bool-literals,
   misc-*,
   -misc-use-anonymous-namespace,
   -misc-no-recursion,

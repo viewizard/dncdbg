@@ -1175,7 +1175,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
             typeDef = enclosingClass;
         else
             return Status;
-    } while (1);
+    } while (true);
 
     return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
 }

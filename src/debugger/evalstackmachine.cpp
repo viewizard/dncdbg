@@ -1972,7 +1972,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, i
             Command == ProgramFinished ||
             FAILED(Status = CommandImplementation[Command](evalStack, pArguments, output, m_evalData)))
             break;
-    } while (1);
+    } while (true);
 
     switch (Status)
     {
