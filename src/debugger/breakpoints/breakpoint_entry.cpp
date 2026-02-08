@@ -89,7 +89,7 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
                 if (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT)
                     return mdMethodDefNil;
 
-                return VAL32(corHeader.EntryPointToken);
+                return VAL32(corHeader.EntryPointToken); // NOLINT(cppcoreguidelines-pro-type-union-access)
             }
         }
         return mdMethodDefNil;
