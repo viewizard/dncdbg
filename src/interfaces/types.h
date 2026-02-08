@@ -67,7 +67,7 @@ class PID : public CustomScalarType<PID>
 {
   public:
 
-    typedef DWORD ScalarType;
+    using ScalarType = DWORD;
 
     explicit PID(ScalarType n) : m_pid{int(n)}
     {
@@ -87,7 +87,7 @@ class ThreadId : public CustomScalarType<ThreadId>
 {
   public:
 
-    typedef int ScalarType;
+    using ScalarType = int;
 
     // This is for cases, when ThreadId isn't initialized/unknown.
     static const ThreadId Invalid;
@@ -139,7 +139,7 @@ class FrameLevel : public CustomScalarType<FrameLevel>
 {
   public:
 
-    typedef int ScalarType;
+    using ScalarType = int;
 
     static const int MaxFrameLevel = SHRT_MAX;
 
@@ -173,7 +173,7 @@ class FrameId : public CustomScalarType<FrameId>
 {
   public:
 
-    typedef int ScalarType;
+    using ScalarType = int;
 
     const static int32_t MaxFrameId = INT32_MAX;
 

@@ -17,9 +17,9 @@ namespace dncdbg
 {
 
 #ifdef FEATURE_PAL
-typedef std::u16string WSTRING;
+using WSTRING = std::u16string;
 #else
-typedef std::wstring WSTRING;
+using WSTRING = std::wstring;
 #endif
 
 std::string to_utf8(const WCHAR *wstr);

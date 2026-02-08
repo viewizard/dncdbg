@@ -253,7 +253,7 @@ template <typename Traits> struct IOSystemImpl
     };
 
     // Data type contaning file handles for all standard files.
-    typedef std::tuple<const FileHandle &, const FileHandle &, const FileHandle &> StdFiles;
+    using StdFiles = std::tuple<const FileHandle &, const FileHandle &, const FileHandle &>;
 
     // This function returns triplet of currently selected standard files.
     static StdFiles get_std_files()
@@ -290,5 +290,5 @@ const typename IOSystemImpl<Traits>::AsyncHandleIterator::Operations
 namespace dncdbg
 {
 // IOSystem class represents IOSystemImpl<T> for current platform.
-typedef IOSystemImpl<IOSystemTraits<PlatformTag>> IOSystem;
+using IOSystem = IOSystemImpl<IOSystemTraits<PlatformTag>>;
 } // namespace dncdbg

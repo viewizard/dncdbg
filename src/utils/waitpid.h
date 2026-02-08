@@ -29,7 +29,7 @@ class waitpid_t
 
   private:
 
-    typedef pid_t (*Signature)(pid_t pid, int *status, int options);
+    using Signature = pid_t (*)(pid_t pid, int *status, int options);
     Signature original = nullptr;
     static constexpr pid_t notConfigured = -1;
     pid_t trackPID = notConfigured;

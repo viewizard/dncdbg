@@ -27,16 +27,16 @@ template <typename T> class span
 
   public:
 
-    typedef T element_type;
-    typedef typename std::remove_cv<T>::type value_type;
-    typedef T *pointer;
-    typedef const T *const_pointer;
-    typedef T &reference;
-    typedef const T &const_reference;
-    typedef pointer iterator;
-    typedef const_pointer const_iterator;
-    typedef std::reverse_iterator<iterator> reverse_iterator;
-    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+    using element_type = T;
+    using value_type = typename std::remove_cv<T>::type;
+    using pointer = T *;
+    using const_pointer = const T *;
+    using reference = T &;
+    using const_reference = const T &;
+    using iterator = pointer;
+    using const_iterator = const_pointer;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     // Constructs an empty span whose data() == nullptr and size() == 0.
     span() noexcept : _first(nullptr), _beyond_last(nullptr)

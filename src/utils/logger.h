@@ -29,7 +29,7 @@
 #endif
 
 // Log levels as defined in Tizen.
-typedef enum
+enum log_priority
 {
     DLOG_UNKNOWN = 0,
     DLOG_DEFAULT,
@@ -38,7 +38,7 @@ typedef enum
     DLOG_WARN,
     DLOG_ERROR,
     DLOG_FATAL
-} log_priority;
+};
 
 // Main Tizen's log function:
 // this function writes log message with given priority and tag...

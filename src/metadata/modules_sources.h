@@ -22,7 +22,7 @@
 namespace dncdbg
 {
 
-typedef std::function<HRESULT(ICorDebugModule *, mdMethodDef &)> ResolveFuncBreakpointCallback;
+using ResolveFuncBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
 
 struct method_data_t
 {

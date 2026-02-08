@@ -65,7 +65,7 @@ class Modules
 
     HRESULT GetModuleWithName(const std::string &name, ICorDebugModule **ppModule);
 
-    typedef std::function<HRESULT(ModuleInfo &)> ModuleInfoCallback;
+    using ModuleInfoCallback = std::function<HRESULT(ModuleInfo &)>;
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb);
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo);
 

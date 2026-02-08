@@ -22,7 +22,7 @@ class EvalWaiter
 {
   public:
 
-    typedef std::function<HRESULT(ICorDebugEval *)> WaitEvalResultCallback;
+    using WaitEvalResultCallback = std::function<HRESULT(ICorDebugEval *)>;
 
     EvalWaiter()
         : m_evalCanceled(false), m_evalCrossThreadDependency(false)

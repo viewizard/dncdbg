@@ -12,7 +12,7 @@ namespace dncdbg
 struct DLHandleRef;
 
 // Opaque type representing loaded dynamic library handle.
-typedef DLHandleRef *DLHandle;
+using DLHandle = DLHandleRef *;
 
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).

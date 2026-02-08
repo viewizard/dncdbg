@@ -160,7 +160,7 @@ class IndexedStorage
 // This is helper class which simplifies implementation of singleton classes.
 //
 // Usage example:
-//   1) define dictinct type of singleton: typedef Singleton<YourType> YourSingleton;
+//   1) define dictinct type of singleton: using YourSingleton = Singleton<YourType>;
 //   2) to access your singleton use expression: YourSingleton::instance().operations...
 //
 template <typename T> struct Singleton

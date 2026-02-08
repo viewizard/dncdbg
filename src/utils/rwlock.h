@@ -9,8 +9,8 @@
 namespace dncdbg
 {
 
-typedef std::shared_mutex RWLock;
-typedef std::unique_lock<RWLock> WriteLock;
-typedef std::shared_lock<RWLock> ReadLock;
+using RWLock = std::shared_mutex;
+using WriteLock = std::unique_lock<RWLock>;
+using ReadLock = std::shared_lock<RWLock>;
 
 } // namespace dncdbg

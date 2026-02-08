@@ -112,7 +112,7 @@ class FuncBreakpoints
     std::mutex m_breakpointsMutex;
     std::unordered_map<std::string, ManagedFuncBreakpoint> m_funcBreakpoints;
 
-    typedef std::vector<std::pair<ICorDebugModule *, mdMethodDef>> ResolvedFBP;
+    using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
     HRESULT AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedFBP &fbpResolved);
     HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, ManagedFuncBreakpoint &fbp);
     HRESULT ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp);

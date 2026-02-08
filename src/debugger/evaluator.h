@@ -54,7 +54,7 @@ class Evaluator
         }
     };
 
-    typedef ArgElementType ReturnElementType;
+    using ReturnElementType = ArgElementType;
 
     struct SetterData
     {
@@ -88,11 +88,11 @@ class Evaluator
         }
     };
 
-    typedef std::function<HRESULT(ICorDebugValue **, int)> GetValueCallback;
-    typedef std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)> WalkMembersCallback;
-    typedef std::function<HRESULT(const std::string &, const GetValueCallback &)> WalkStackVarsCallback;
-    typedef std::function<HRESULT(ICorDebugFunction **)> GetFunctionCallback;
-    typedef std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)> WalkMethodsCallback;
+    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, int)>;
+    using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)>;
+    using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
+    using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
+    using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)>;
 
     Evaluator(std::shared_ptr<Modules> &sharedModules,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,

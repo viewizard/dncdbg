@@ -19,7 +19,7 @@
 // short alias for full class name
 namespace
 {
-typedef dncdbg::IOSystemTraits<dncdbg::Win32PlatformTag> Class;
+using Class = dncdbg::IOSystemTraits<dncdbg::Win32PlatformTag>;
 }
 
 namespace
