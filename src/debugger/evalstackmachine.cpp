@@ -54,7 +54,7 @@ struct FormatFIP
 };
 
 // Keep in sync with BasicTypes enum in Evaluation.cs
-enum class BasicTypes : std::uint8_t
+enum class BasicTypes : uint8_t
 {
     TypeBoolean = 1,
     TypeByte,
@@ -72,7 +72,7 @@ enum class BasicTypes : std::uint8_t
 };
 
 // Keep in sync with OperationType enum in Evaluation.cs
-enum class OperationType : std::uint8_t
+enum class OperationType : uint8_t
 {
     AddExpression = 1,
     SubtractExpression,

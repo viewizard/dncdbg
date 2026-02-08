@@ -970,7 +970,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-enum class GeneratedCodeKind : std::uint8_t
+enum class GeneratedCodeKind : uint8_t
 {
     Normal,
     Async,
@@ -1011,7 +1011,7 @@ static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodN
     return S_OK;
 }
 
-enum class GeneratedNameKind : std::uint8_t
+enum class GeneratedNameKind : uint8_t
 {
     None,
     ThisProxyField,

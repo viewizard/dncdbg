@@ -9,45 +9,45 @@
 namespace dncdbg
 {
 
-static std::uintptr_t GetSP(CONTEXT *context)
+static uintptr_t GetSP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_)
-    return (std::uintptr_t)context->Rsp;
+    return (uintptr_t)context->Rsp;
 #elif defined(_TARGET_X86_)
-    return (std::uintptr_t)context->Esp;
+    return (uintptr_t)context->Esp;
 #elif defined(_TARGET_ARM_)
-    return (std::uintptr_t)context->Sp;
+    return (uintptr_t)context->Sp;
 #elif defined(_TARGET_ARM64_)
-    return (std::uintptr_t)context->Sp;
+    return (uintptr_t)context->Sp;
 #elif defined(_TARGET_RISCV64_)
-    return (std::uintptr_t)context->Sp;
+    return (uintptr_t)context->Sp;
 #elif defined(_TARGET_LOONGARCH64_)
-    return (std::uintptr_t)context->Sp;
+    return (uintptr_t)context->Sp;
 #else
 #error "Unsupported platform"
 #endif
 }
 
-static std::uintptr_t GetFP(CONTEXT *context)
+static uintptr_t GetFP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_)
-    return (std::uintptr_t)context->Rbp;
+    return (uintptr_t)context->Rbp;
 #elif defined(_TARGET_X86_)
-    return (std::uintptr_t)context->Ebp;
+    return (uintptr_t)context->Ebp;
 #elif defined(_TARGET_ARM_)
-    return (std::uintptr_t)context->R11;
+    return (uintptr_t)context->R11;
 #elif defined(_TARGET_ARM64_)
-    return (std::uintptr_t)context->Fp;
+    return (uintptr_t)context->Fp;
 #elif defined(_TARGET_RISCV64_)
-    return (std::uintptr_t)context->Fp;
+    return (uintptr_t)context->Fp;
 #elif defined(_TARGET_LOONGARCH64_)
-    return (std::uintptr_t)context->Fp;
+    return (uintptr_t)context->Fp;
 #else
 #error "Unsupported platform"
 #endif
 }
 
-static void SetFP(CONTEXT *context, std::uintptr_t value)
+static void SetFP(CONTEXT *context, uintptr_t value)
 {
 #if defined(_TARGET_AMD64_)
     context->Rbp = value;

@@ -248,8 +248,8 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
     }
     pMDImport->CloseEnum(hEnum);
 
-    if (sizeof(std::size_t) > sizeof(std::uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max() ||
-                                                        normalTokens.size() > std::numeric_limits<uint32_t>::max()))
+    if (sizeof(std::size_t) > sizeof(uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max() ||
+                                                   normalTokens.size() > std::numeric_limits<uint32_t>::max()))
     {
         LOGE("Too big token arrays.");
         return E_FAIL;
