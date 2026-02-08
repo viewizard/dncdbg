@@ -490,7 +490,7 @@ static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
     const int tryCount = timeoutSec * 10; // 100ms interval between attempts
     if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
         dwArrayLength == 0)
-        return std::string();
+        return {};
 
     std::string result = to_utf8(pStringArray[0]);
 

@@ -180,7 +180,7 @@ static std::string IndiciesToStr(const std::vector<ULONG32> &ind, const std::vec
 {
     const size_t ind_size = ind.size();
     if (ind_size < 1 || base.size() != ind_size)
-        return std::string();
+        return {};
 
     std::ostringstream ss;
     const char *sep = "";

@@ -185,7 +185,7 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
     ULONG32 name_len = 0;
 
     if (FAILED(pModule->GetName(_countof(name), &name_len, name)))
-        return std::string();
+        return {};
 
     std::string moduleName = to_utf8(name /*, name_len*/);
 
@@ -198,12 +198,12 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
 
     ToRelease<ICorDebugProcess> pProcess;
     if (FAILED(pModule->GetProcess(&pProcess)))
-        return std::string();
+        return {};
 
     DWORD pid = 0;
 
     if (FAILED(pProcess->GetID(&pid)))
-        return std::string();
+        return {};
 
     std::ostringstream ss;
     ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());

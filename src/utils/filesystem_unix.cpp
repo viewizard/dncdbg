@@ -21,7 +21,7 @@ std::string get_exe_path()
     static const char self_link[] = "/proc/self/exe";
     char buffer[PATH_MAX];
     const ssize_t r = readlink(self_link, buffer, PATH_MAX);
-    return std::string(buffer, r < 0 ? 0 : r);
+    return {buffer, r < 0 ? 0 : r};
 }
 #elif defined(__APPLE__)
 std::string get_exe_path()
@@ -36,7 +36,7 @@ std::string get_exe_path()
         if (_NSGetExecutablePath(pResizedPath, &lenActualPath) == 0)
             return pResizedPath;
     }
-    return std::string();
+    return {};
 }
 #endif
 } // namespace

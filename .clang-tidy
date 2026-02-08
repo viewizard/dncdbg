@@ -24,7 +24,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
-  -modernize-return-braced-init-list,
   misc-*,
   -misc-use-anonymous-namespace,
   -misc-no-recursion,
