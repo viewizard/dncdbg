@@ -143,9 +143,9 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
     IfFailRet(pProcess->GetThread(int(ref.frameId.getThread()), &pThread));
 
     // Named and Indexed variables are in the same index (internally), Named variables go first
-    if (filter == VariablesNamed && (start + count > ref.namedVariables || count == 0))
+    if (filter == VariablesFilter::Named && (start + count > ref.namedVariables || count == 0))
         count = ref.namedVariables - start;
-    if (filter == VariablesIndexed)
+    if (filter == VariablesFilter::Indexed)
         start += ref.namedVariables;
 
     if (ref.IsScope())
@@ -167,7 +167,7 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
         return E_FAIL;
 
     int numChild = 0;
-    GetNumChild(m_sharedEvaluator.get(), pValue, numChild, valueKind == ValueIsClass);
+    GetNumChild(m_sharedEvaluator.get(), pValue, numChild, valueKind == ValueKind::Class);
     if (numChild == 0)
         return S_OK;
 
@@ -192,7 +192,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         IfFailRet(PrintValue(pExceptionValue, var.value));
         IfFailRet(TypePrinter::GetTypeOfValue(pExceptionValue, var.type));
 
-        return AddVariableReference(var, frameId, pExceptionValue, ValueIsVariable);
+        return AddVariableReference(var, frameId, pExceptionValue, ValueKind::Variable);
     }
 
     return E_FAIL;
@@ -227,7 +227,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             IfFailRet(TypePrinter::GetTypeOfValue(iCorValue, var.type));
             IfFailRet(PrintValue(iCorValue, var.value));
 
-            IfFailRet(AddVariableReference(var, frameId, iCorValue, ValueIsVariable));
+            IfFailRet(AddVariableReference(var, frameId, iCorValue, ValueKind::Variable));
             variables.push_back(var);
             return S_OK;
         })) &&
@@ -305,7 +305,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
     bool hasStaticMembers = false;
 
     IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), ref.iCorValue, pThread, ref.frameId.getLevel(),
-                                       members, ref.valueKind == ValueIsClass, hasStaticMembers, start,
+                                       members, ref.valueKind == ValueKind::Class, hasStaticMembers, start,
                                        count == 0 ? INT_MAX : start + count, ref.evalFlags));
 
     FixupInheritedFieldNames(members);
@@ -318,11 +318,11 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
         if (var.name.find('(') == std::string::npos) // expression evaluator does not support typecasts
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
         IfFailRet(FillValueAndType(it, var));
-        IfFailRet(AddVariableReference(var, ref.frameId, it.value, ValueIsVariable));
+        IfFailRet(AddVariableReference(var, ref.frameId, it.value, ValueKind::Variable));
         variables.push_back(var);
     }
 
-    if (ref.valueKind == ValueIsVariable && hasStaticMembers)
+    if (ref.valueKind == ValueKind::Variable && hasStaticMembers)
     {
         const bool staticsInRange = start < ref.namedVariables && (count == 0 || start + count >= ref.namedVariables);
         if (staticsInRange)
@@ -338,7 +338,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
             var.name = "Static members";
             IfFailRet(TypePrinter::GetTypeOfValue(ref.iCorValue, var.evaluateName)); // do not expose type for this fake variable
 
-            IfFailRet(AddVariableReference(var, ref.frameId, ref.iCorValue, ValueIsClass));
+            IfFailRet(AddVariableReference(var, ref.frameId, ref.iCorValue, ValueKind::Class));
             variables.push_back(var);
         }
     }
@@ -366,7 +366,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     IfFailRet(TypePrinter::GetTypeOfValue(pResultValue, variable.type));
     IfFailRet(PrintValue(pResultValue, variable.value));
 
-    return AddVariableReference(variable, frameId, pResultValue, ValueIsVariable);
+    return AddVariableReference(variable, frameId, pResultValue, ValueKind::Variable);
 }
 
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,

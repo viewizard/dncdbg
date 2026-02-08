@@ -43,24 +43,23 @@ enum class ProcessAttachedState
     Unattached
 };
 
-enum StartMethod
+enum class StartMethod
 {
-    StartNone,
-    StartLaunch,
-    StartAttach
-    // StartAttachForSuspendedLaunch
+    None,
+    Launch,
+    Attach
+};
+
+enum class DisconnectAction
+{
+    Default, // Attach -> Detach, Launch -> Terminate
+    Terminate,
+    Detach
 };
 
 class ManagedDebugger
 {
   public:
-
-    enum DisconnectAction
-    {
-        DisconnectDefault, // Attach -> Detach, Launch -> Terminate
-        DisconnectTerminate,
-        DisconnectDetach
-    };
 
     ManagedDebugger(DAP *pProtocol);
     ~ManagedDebugger();
@@ -82,7 +81,7 @@ class ManagedDebugger
                    const std::map<std::string, std::string> &env, const std::string &cwd, bool stopAtEntry = false);
     HRESULT ConfigurationDone();
 
-    HRESULT Disconnect(DisconnectAction action = DisconnectDefault);
+    HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);
 
     ThreadId GetLastStoppedThreadId();
     HRESULT Continue(ThreadId threadId);

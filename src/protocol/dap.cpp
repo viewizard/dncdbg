@@ -166,19 +166,19 @@ void DAP::EmitStoppedEvent(const StoppedEvent &event)
 
     switch (event.reason)
     {
-    case StopStep:
+    case StoppedEventReason::Step:
         body["reason"] = "step";
         break;
-    case StopBreakpoint:
+    case StoppedEventReason::Breakpoint:
         body["reason"] = "breakpoint";
         break;
-    case StopException:
+    case StoppedEventReason::Exception:
         body["reason"] = "exception";
         break;
-    case StopPause:
+    case StoppedEventReason::Pause:
         body["reason"] = "pause";
         break;
-    case StopEntry:
+    case StoppedEventReason::Entry:
         body["reason"] = "entry";
         break;
     }
@@ -220,10 +220,10 @@ void DAP::EmitThreadEvent(const ThreadEvent &event)
 
     switch (event.reason)
     {
-    case ThreadStarted:
+    case ThreadEventReason::Started:
         body["reason"] = "started";
         break;
-    case ThreadExited:
+    case ThreadEventReason::Exited:
         body["reason"] = "exited";
         break;
     default:
@@ -242,13 +242,13 @@ void DAP::EmitModuleEvent(const ModuleEvent &event)
 
     switch (event.reason)
     {
-    case ModuleNew:
+    case ModuleEventReason::New:
         body["reason"] = "new";
         break;
-    case ModuleChanged:
+    case ModuleEventReason::Changed:
         body["reason"] = "changed";
         break;
-    case ModuleRemoved:
+    case ModuleEventReason::Removed:
         body["reason"] = "removed";
         break;
     }
@@ -258,17 +258,17 @@ void DAP::EmitModuleEvent(const ModuleEvent &event)
     module["name"] = event.module.name;
     module["path"] = event.module.path;
 
-    if (event.reason != ModuleRemoved)
+    if (event.reason != ModuleEventReason::Removed)
     {
         switch (event.module.symbolStatus)
         {
-        case SymbolsSkipped:
+        case SymbolStatus::Skipped:
             module["symbolStatus"] = "Skipped loading symbols.";
             break;
-        case SymbolsLoaded:
+        case SymbolStatus::Loaded:
             module["symbolStatus"] = "Symbols loaded.";
             break;
-        case SymbolsNotFound:
+        case SymbolStatus::NotFound:
             module["symbolStatus"] = "Symbols not found.";
             break;
         }
@@ -327,11 +327,21 @@ void DAP::EmitOutputEvent(OutputCategory category, const std::string_view &outpu
 {
     LogFuncEntry();
 
-    static const std::string_view categories[] = {"console", "stdout", "stderr"};
-
-    // determine "category name"
-    assert(category == OutputConsole || category == OutputStdOut || category == OutputStdErr);
-    const std::string_view &name = categories[category];
+    auto getCategoryName = [&]() -> std::string_view
+    {
+        assert(category == OutputCategory::Console || category == OutputCategory::StdOut || category == OutputCategory::StdErr);
+        switch (category)
+        {
+        case OutputCategory::StdOut:
+            return "stdout";
+        case OutputCategory::StdErr:
+            return "stderr";
+        case OutputCategory::Console:
+        default:
+            return "console";
+        }
+    };
+    const std::string_view &name = getCategoryName();
 
     EscapedString<JSON_escape_rules> escaped_text(output);
 
@@ -375,13 +385,13 @@ void DAP::EmitBreakpointEvent(const BreakpointEvent &event)
 
     switch (event.reason)
     {
-    case BreakpointNew:
+    case BreakpointEventReason::New:
         body["reason"] = "new";
         break;
-    case BreakpointChanged:
+    case BreakpointEventReason::Changed:
         body["reason"] = "changed";
         break;
-    case BreakpointRemoved:
+    case BreakpointEventReason::Removed:
         body["reason"] = "removed";
         break;
     }
@@ -641,12 +651,12 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"disconnect", [&](const json &arguments, json &/*body*/)
             {
                 auto terminateArgIter = arguments.find("terminateDebuggee");
-                ManagedDebugger::DisconnectAction action = ManagedDebugger::DisconnectDefault;
+                DisconnectAction action = DisconnectAction::Default;
                 if (terminateArgIter == arguments.end())
-                    action = ManagedDebugger::DisconnectAction::DisconnectDefault;
+                    action = DisconnectAction::Default;
                 else
-                    action = terminateArgIter.value().get<bool>() ? ManagedDebugger::DisconnectAction::DisconnectTerminate
-                                                                  : ManagedDebugger::DisconnectAction::DisconnectDetach;
+                    action = terminateArgIter.value().get<bool>() ? DisconnectAction::Terminate
+                                                                  : DisconnectAction::Detach;
 
                 sharedDebugger->Disconnect(action);
 
@@ -654,7 +664,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"terminate", [&](const json &/*arguments*/, json &/*body*/)
             {
-                sharedDebugger->Disconnect(ManagedDebugger::DisconnectAction::DisconnectTerminate);
+                sharedDebugger->Disconnect(DisconnectAction::Terminate);
                 return S_OK;
             }},
         {"stackTrace", [&](const json &arguments, json &body)
@@ -717,11 +727,11 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 HRESULT Status = S_OK;
                 const std::string filterName = arguments.value("filter", "");
-                VariablesFilter filter = VariablesBoth;
+                VariablesFilter filter = VariablesFilter::Both;
                 if (filterName == "named")
-                    filter = VariablesNamed;
+                    filter = VariablesFilter::Named;
                 else if (filterName == "indexed")
-                    filter = VariablesIndexed;
+                    filter = VariablesFilter::Indexed;
 
                 std::vector<Variable> variables;
                 IfFailRet(sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,

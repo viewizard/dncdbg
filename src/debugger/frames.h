@@ -17,12 +17,12 @@
 namespace dncdbg
 {
 
-enum FrameType
+enum class FrameType
 {
-    FrameUnknown,
-    FrameCLRNative,
-    FrameCLRInternal,
-    FrameCLRManaged
+    Unknown,
+    CLRNative,
+    CLRInternal,
+    CLRManaged
 };
 
 typedef std::function<HRESULT(FrameType, ICorDebugFrame *)> WalkFramesCallback;

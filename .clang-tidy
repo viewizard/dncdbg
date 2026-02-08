@@ -4,7 +4,6 @@ Checks: >
   performance-*,
   portability-*,
   cppcoreguidelines-*,
-  -cppcoreguidelines-use-enum-class,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-avoid-c-arrays,

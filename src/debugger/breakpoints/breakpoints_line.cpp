@@ -92,7 +92,7 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
                 b.ToBreakpoint(breakpoint, sp.document);
                 breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
                                      b.condition + "'. The error returned was '" + output + "'.";
-                bpChangeEvents.emplace_back(BreakpointChanged, breakpoint);
+                bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 
             return S_OK;
@@ -252,7 +252,7 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 
             Breakpoint breakpoint;
             bp.ToBreakpoint(breakpoint, resolved_fullname);
-            events.emplace_back(BreakpointChanged, breakpoint);
+            events.emplace_back(BreakpointEventReason::Changed, breakpoint);
 
             initialBreakpoint.resolved_fullname_index = resolved_fullname_index;
             initialBreakpoint.resolved_linenum = bp.linenum;

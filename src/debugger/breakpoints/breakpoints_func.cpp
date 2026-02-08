@@ -108,7 +108,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
                 fbp.ToBreakpoint(breakpoint);
                 breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
                                      fbp.condition + "'. The error returned was '" + output + "'.";
-                bpChangeEvents.emplace_back(BreakpointChanged, breakpoint);
+                bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 
             return S_OK;
@@ -132,7 +132,7 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 
         Breakpoint breakpoint;
         fb.ToBreakpoint(breakpoint);
-        events.emplace_back(BreakpointChanged, breakpoint);
+        events.emplace_back(BreakpointEventReason::Changed, breakpoint);
     }
 
     return S_OK;

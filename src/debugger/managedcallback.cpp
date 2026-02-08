@@ -220,9 +220,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
         LOGW("Thread was created by user code during evaluation with implicit user code execution.");
 
     const ThreadId threadId(getThreadId(pThread));
-    m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartAttach);
+    m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadStarted, threadId));
+    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -239,7 +239,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
     m_debugger.m_uniqueBreakpoints->ManagedCallbackExitThread(pThread);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadExited, threadId));
+    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -252,11 +252,11 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     m_debugger.m_sharedModules->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), outputText);
     if (!outputText.empty())
     {
-        m_debugger.pProtocol->EmitOutputEvent(OutputStdErr, outputText);
+        m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdErr, outputText);
     }
-    m_debugger.pProtocol->EmitModuleEvent(ModuleEvent(ModuleNew, module));
+    m_debugger.pProtocol->EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
-    if (module.symbolStatus == SymbolsLoaded)
+    if (module.symbolStatus == SymbolStatus::Loaded)
     {
         std::vector<BreakpointEvent> events;
         m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
@@ -313,7 +313,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
 
     DWORD threadId = 0;
     pThread->GetID(&threadId);
-    m_debugger.pProtocol->EmitOutputEvent(OutputStdOut, to_utf8(pMessage), threadId);
+    m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdOut, to_utf8(pMessage), threadId);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

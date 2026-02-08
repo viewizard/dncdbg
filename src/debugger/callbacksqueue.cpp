@@ -28,7 +28,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
     bool atEntry = false;
     const ThreadId threadId(getThreadId(pThread));
-    StoppedEvent event(StopBreakpoint, threadId);
+    StoppedEvent event(StoppedEventReason::Breakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, bpChangeEvents, atEntry))
@@ -38,7 +38,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     if (atEntry)
-        event.reason = StopEntry;
+        event.reason = StoppedEventReason::Entry;
 
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
@@ -49,7 +49,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
             ss << changeEvent.breakpoint.funcname << "()\n";
         else
             ss << changeEvent.breakpoint.source.path << ":" << changeEvent.breakpoint.line << "\n";
-        m_debugger.pProtocol->EmitOutputEvent(OutputStdErr, ss.str());
+        m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdErr, ss.str());
         m_debugger.pProtocol->EmitBreakpointEvent(changeEvent);
     }
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -63,7 +63,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
         return false;
 
     const ThreadId threadId(getThreadId(pThread));
-    const StoppedEvent event(StopStep, threadId);
+    const StoppedEvent event(StoppedEventReason::Step, threadId);
 
     m_debugger.SetLastStoppedThread(pThread);
     m_debugger.pProtocol->EmitStoppedEvent(event);
@@ -82,7 +82,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     m_debugger.SetLastStoppedThread(pThread);
     const ThreadId threadId(getThreadId(pThread));
 
-    const StoppedEvent event(StopPause, threadId);
+    const StoppedEvent event(StoppedEventReason::Pause, threadId);
     m_debugger.pProtocol->EmitStoppedEvent(event);
     return true;
 }
@@ -91,7 +91,7 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
                                               ExceptionCallbackType eventType, const std::string &excModule)
 {
     const ThreadId threadId(getThreadId(pThread));
-    const StoppedEvent event(StopException, threadId);
+    const StoppedEvent event(StoppedEventReason::Exception, threadId);
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
@@ -317,7 +317,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     {
         // DAP event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);
-        m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StopPause, lastStoppedThread));
+        m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, lastStoppedThread));
         return S_OK;
     }
 

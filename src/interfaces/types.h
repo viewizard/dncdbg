@@ -334,11 +334,11 @@ struct Breakpoint
     }
 };
 
-enum SymbolStatus
+enum class SymbolStatus
 {
-    SymbolsSkipped, // "Skipped loading symbols."
-    SymbolsLoaded,  // "Symbols loaded."
-    SymbolsNotFound
+    Skipped, // "Skipped loading symbols."
+    Loaded,  // "Symbols loaded."
+    NotFound
 };
 
 struct Module
@@ -350,35 +350,28 @@ struct Module
     // bool isUserCode;
     SymbolStatus symbolStatus;
 
-    Module() : symbolStatus(SymbolsSkipped)
+    Module() : symbolStatus(SymbolStatus::Skipped)
     {
     }
 };
 
-enum BreakpointReason
+enum class StoppedEventReason
 {
-    BreakpointChanged,
-    BreakpointNew,
-    BreakpointRemoved
-};
-
-enum StopReason
-{
-    StopStep,
-    StopBreakpoint,
-    StopException,
-    StopPause,
-    StopEntry
+    Step,
+    Breakpoint,
+    Exception,
+    Pause,
+    Entry
 };
 
 struct StoppedEvent
 {
-    StopReason reason;
+    StoppedEventReason reason;
     ThreadId threadId;
     std::string text;
     bool allThreadsStopped;
 
-    StoppedEvent(StopReason reason, ThreadId threadId = ThreadId::Invalid)
+    StoppedEvent(StoppedEventReason reason, ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true)
@@ -386,12 +379,19 @@ struct StoppedEvent
     }
 };
 
+enum class BreakpointEventReason
+{
+    Changed,
+    New,
+    Removed
+};
+
 struct BreakpointEvent
 {
-    BreakpointReason reason;
+    BreakpointEventReason reason;
     Breakpoint breakpoint;
 
-    BreakpointEvent(const BreakpointReason &reason, const Breakpoint &breakpoint)
+    BreakpointEvent(const BreakpointEventReason &reason, const Breakpoint &breakpoint)
         : reason(reason),
           breakpoint(breakpoint)
     {
@@ -407,43 +407,43 @@ struct ExitedEvent
     }
 };
 
-enum ThreadReason
+enum class ThreadEventReason
 {
-    ThreadStarted,
-    ThreadExited
+    Started,
+    Exited
 };
 
 struct ThreadEvent
 {
-    ThreadReason reason;
+    ThreadEventReason reason;
     ThreadId threadId;
 
-    ThreadEvent(ThreadReason reason_, ThreadId id_)
+    ThreadEvent(ThreadEventReason reason_, ThreadId id_)
         : reason(reason_),
           threadId(id_)
     {
     }
 };
 
-enum OutputCategory
+enum class OutputCategory
 {
-    OutputConsole,
-    OutputStdOut,
-    OutputStdErr
+    Console,
+    StdOut,
+    StdErr
 };
 
-enum ModuleReason
+enum class ModuleEventReason
 {
-    ModuleNew,
-    ModuleChanged,
-    ModuleRemoved
+    New,
+    Changed,
+    Removed
 };
 
 struct ModuleEvent
 {
-    ModuleReason reason;
+    ModuleEventReason reason;
     Module module;
-    ModuleEvent(ModuleReason reason, const Module &module)
+    ModuleEvent(ModuleEventReason reason, const Module &module)
         : reason(reason),
           module(module)
     {
@@ -483,8 +483,8 @@ struct VariablePresentationHint
     std::string visibility;
 };
 
-// https://docs.microsoft.com/en-us/visualstudio/extensibility/debugger/reference/evalflags
-enum enum_EVALFLAGS
+// https://learn.microsoft.com/en-us/visualstudio/extensibility/debugger/reference/evalflags?view=visualstudio&tabs=cpp
+enum enum_EVALFLAGS : DWORD
 {
     EVAL_RETURNVALUE = 0x0002,
     EVAL_NOSIDEEFFECTS = 0x0004,
@@ -520,11 +520,11 @@ struct Variable
     }
 };
 
-enum VariablesFilter
+enum class VariablesFilter
 {
-    VariablesNamed,
-    VariablesIndexed,
-    VariablesBoth
+    Named,
+    Indexed,
+    Both
 };
 
 struct LineBreakpoint
@@ -660,6 +660,13 @@ struct SequencePoint
     int32_t endColumn;
     int32_t offset;
     std::string document;
+};
+
+enum class ValueKind
+{
+    Scope,
+    Class,
+    Variable
 };
 
 } // namespace dncdbg

@@ -61,13 +61,6 @@ class Variables
 
   private:
 
-    enum ValueKind
-    {
-        ValueIsScope,
-        ValueIsClass,
-        ValueIsVariable
-    };
-
     struct VariableReference
     {
         uint32_t variablesReference; // key
@@ -97,14 +90,14 @@ class Variables
               namedVariables(namedVariables),
               indexedVariables(0),
               evalFlags(0), // unused in this case, not involved into GetScopes routine
-              valueKind(ValueIsScope),
+              valueKind(ValueKind::Scope),
               iCorValue(nullptr),
               frameId(frameId)
         {}
 
         bool IsScope() const
         {
-            return valueKind == ValueIsScope;
+            return valueKind == ValueKind::Scope;
         }
 
         VariableReference(VariableReference &&that) = default;

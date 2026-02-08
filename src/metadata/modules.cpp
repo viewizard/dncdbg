@@ -502,9 +502,9 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 
     PVOID pSymbolReaderHandle = nullptr;
     LoadSymbols(pModule, &pSymbolReaderHandle);
-    module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolsLoaded : SymbolsNotFound;
+    module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
-    if (module.symbolStatus == SymbolsLoaded)
+    if (module.symbolStatus == SymbolStatus::Loaded)
     {
         ToRelease<ICorDebugModule2> pModule2;
         if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, (LPVOID *)&pModule2)))

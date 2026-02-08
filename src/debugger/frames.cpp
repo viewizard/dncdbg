@@ -168,14 +168,14 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
                 continue;
 
-            IfFailRet(cb(FrameCLRManaged, iCorFrame));
+            IfFailRet(cb(FrameType::CLRManaged, iCorFrame));
             continue;
         }
 
         ToRelease<ICorDebugNativeFrame> iCorNativeFrame;
         if (FAILED(iCorFrame->QueryInterface(IID_ICorDebugNativeFrame, (LPVOID *)&iCorNativeFrame)))
         {
-            IfFailRet(cb(FrameUnknown, iCorFrame));
+            IfFailRet(cb(FrameType::Unknown, iCorFrame));
             continue;
         }
         // If the first frame is CoreCLR native frame then we might be in a call to unmanaged code.
@@ -185,7 +185,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         {
             IfFailRet(UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb));
         }
-        IfFailRet(cb(FrameCLRNative, nullptr));
+        IfFailRet(cb(FrameType::CLRNative, nullptr));
     }
 
     // We may have native frames at the end of the stack
@@ -218,7 +218,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
         else if (currentFrame > int(level))
             return E_FAIL;
 
-        if (currentFrame != int(level) || frameType != FrameCLRManaged)
+        if (currentFrame != int(level) || frameType != FrameType::CLRManaged)
             return S_OK;
 
         pFrame->AddRef();

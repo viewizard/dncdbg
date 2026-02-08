@@ -94,13 +94,6 @@ class Evaluator
     typedef std::function<HRESULT(ICorDebugFunction **)> GetFunctionCallback;
     typedef std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)> WalkMethodsCallback;
 
-    enum ValueKind
-    {
-        ValueIsScope,
-        ValueIsClass,
-        ValueIsVariable
-    };
-
     Evaluator(std::shared_ptr<Modules> &sharedModules,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
               std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
@@ -130,7 +123,7 @@ class Evaluator
                                  std::vector<std::string> &identifiers, ICorDebugType **ppResultType);
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                         Evaluator::ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
+                         ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
                          int evalFlags);
 

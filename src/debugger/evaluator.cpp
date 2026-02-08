@@ -869,9 +869,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (isNull && !is_static)
                 return S_OK;
 
-            // https://github.sec.samsung.net/dotnet/coreclr/blob/9df87a133b0f29f4932f38b7307c87d09ab80d5d/src/System.Private.CoreLib/shared/System/Diagnostics/DebuggerBrowsableAttribute.cs#L17
+            // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
             // Since we check only first byte, no reason store it as int (default enum type in c#)
-            enum DebuggerBrowsableState : char
+            enum DebuggerBrowsableState : char // NOLINT(cppcoreguidelines-use-enum-class)
             {
                 Never = 0,
                 Expanded = 1,
@@ -1514,7 +1514,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 }
 
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                Evaluator::ValueKind valueKind, std::vector<std::string> &identifiers,
+                                ValueKind valueKind, std::vector<std::string> &identifiers,
                                 int nextIdentifier, ICorDebugValue **ppResult,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags)
 {
@@ -1537,9 +1537,9 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
                         const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData)
                         {
-                            if (is_static && valueKind == Evaluator::ValueIsVariable)
+                            if (is_static && valueKind == ValueKind::Variable)
                                 return S_OK;
-                            if (!is_static && valueKind == Evaluator::ValueIsClass)
+                            if (!is_static && valueKind == ValueKind::Class)
                                 return S_OK;
 
                             if (memberName != identifiers[i])
@@ -1555,7 +1555,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         if (!pResultValue)
             return E_FAIL;
 
-        valueKind = Evaluator::ValueIsVariable; // we can only follow through instance fields
+        valueKind = ValueKind::Variable; // we can only follow through instance fields
     }
 
     *ppResult = pResultValue.Detach();
@@ -1606,7 +1606,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             ToRelease<ICorDebugValue> pTypeObject;
             if (S_OK == m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, pType, &pTypeObject))
             {
-                if (SUCCEEDED(FollowFields(pThread, frameLevel, pTypeObject, Evaluator::ValueIsClass, staticName, 0,
+                if (SUCCEEDED(FollowFields(pThread, frameLevel, pTypeObject, ValueKind::Class, staticName, 0,
                                            ppResult, resultSetterData, evalFlags)))
                     return S_OK;
             }
@@ -1617,8 +1617,8 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         ToRelease<ICorDebugValue> pTypeObject;
         IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, pType, &pTypeObject));
         if (Status == S_OK && // type have static members (S_FALSE if type don't have static members)
-            SUCCEEDED(FollowFields(pThread, frameLevel, pTypeObject, Evaluator::ValueIsClass, fieldName, 0, ppResult,
-                                   resultSetterData, evalFlags)))
+            SUCCEEDED(FollowFields(pThread, frameLevel, pTypeObject, ValueKind::Class, fieldName,
+                                   0, ppResult, resultSetterData, evalFlags)))
             return S_OK;
 
         trim = true;
@@ -1642,7 +1642,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     }
     else if (pInputValue)
     {
-        return FollowFields(pThread, frameLevel, pInputValue, Evaluator::ValueIsVariable, identifiers, 0, ppResultValue,
+        return FollowFields(pThread, frameLevel, pInputValue, ValueKind::Variable, identifiers, 0, ppResultValue,
                             resultSetterData, evalFlags);
     }
 
@@ -1692,7 +1692,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         if (identifiers[nextIdentifier] == "this")
             nextIdentifier++; // skip first identifier with "this" (we have it in pThisValue), check rest
 
-        if (SUCCEEDED(FollowFields(pThread, frameLevel, pThisValue, Evaluator::ValueIsVariable, identifiers,
+        if (SUCCEEDED(FollowFields(pThread, frameLevel, pThisValue, ValueKind::Variable, identifiers,
                                    nextIdentifier, &pResolvedValue, resultSetterData, evalFlags)))
         {
             *ppResultValue = pResolvedValue.Detach();
@@ -1723,7 +1723,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return S_OK;
     }
 
-    Evaluator::ValueKind valueKind = Evaluator::ValueIsVariable;
+    ValueKind valueKind = ValueKind::Variable;
     if (pResolvedValue)
     {
         nextIdentifier++;
@@ -1732,7 +1732,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             *ppResultValue = pResolvedValue.Detach();
             return S_OK;
         }
-        valueKind = Evaluator::ValueIsVariable;
+        valueKind = ValueKind::Variable;
     }
     else
     {
@@ -1752,7 +1752,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             nextIdentifier == (int)identifiers.size()) // pResolvedValue is temporary object for members exploration, can't be result
             return E_INVALIDARG;
 
-        valueKind = Evaluator::ValueIsClass;
+        valueKind = ValueKind::Class;
     }
 
     ToRelease<ICorDebugValue> iCorResultValue;

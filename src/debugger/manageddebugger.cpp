@@ -146,7 +146,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
     : m_processAttachedState(ProcessAttachedState::Unattached),
       m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_startMethod(StartNone),
+      m_startMethod(StartMethod::None),
       m_isConfigurationDone(false),
       pProtocol(pProtocol_),
       m_sharedThreads(new Threads),
@@ -185,7 +185,7 @@ HRESULT ManagedDebugger::Initialize()
     LogFuncEntry();
 
     // TODO: Report capabilities and check client support
-    m_startMethod = StartNone;
+    m_startMethod = StartMethod::None;
     return S_OK;
 }
 
@@ -193,14 +193,14 @@ HRESULT ManagedDebugger::RunIfReady()
 {
     FrameId::invalidate();
 
-    if (m_startMethod == StartNone || !m_isConfigurationDone)
+    if (m_startMethod == StartMethod::None || !m_isConfigurationDone)
         return S_OK;
 
     switch (m_startMethod)
     {
-    case StartLaunch:
+    case StartMethod::Launch:
         return RunProcess(m_execPath, m_execArgs);
-    case StartAttach:
+    case StartMethod::Attach:
         return AttachToProcess();
     default:
         return E_FAIL;
@@ -214,7 +214,7 @@ HRESULT ManagedDebugger::Attach(int pid)
 {
     LogFuncEntry();
 
-    m_startMethod = StartAttach;
+    m_startMethod = StartMethod::Attach;
     m_processId = pid;
     return RunIfReady();
 }
@@ -224,7 +224,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
 {
     LogFuncEntry();
 
-    m_startMethod = StartLaunch;
+    m_startMethod = StartMethod::Launch;
     m_execPath = fileExec;
     m_execArgs = execArgs;
     m_cwd = cwd;
@@ -249,24 +249,24 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
     bool terminate = false;
     switch (action)
     {
-    case DisconnectDefault:
+    case DisconnectAction::Default:
         switch (m_startMethod)
         {
-        case StartLaunch:
+        case StartMethod::Launch:
             terminate = true;
             break;
-        case StartAttach:
+        case StartMethod::Attach:
             terminate = false;
             break;
         default:
             return E_FAIL;
         }
         break;
-    case DisconnectTerminate:
+    case DisconnectAction::Terminate:
         terminate = true;
         break;
-    case DisconnectDetach:
-        if (m_startMethod != StartAttach)
+    case DisconnectAction::Detach:
+        if (m_startMethod != StartMethod::Attach)
         {
             LOGE("Can't detach debugger form child process.\n");
             return E_INVALIDARG;
@@ -395,7 +395,7 @@ VOID ManagedDebugger::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT
         {
             ss << " mscordbi or mscordaccore libs is not the same version as the target CoreCLR.";
         }
-        self->pProtocol->EmitOutputEvent(OutputStdErr, ss.str());
+        self->pProtocol->EmitOutputEvent(OutputCategory::StdErr, ss.str());
         self->StartupCallbackHR = hr;
         return;
     }
@@ -916,13 +916,13 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 
             switch (frameType)
             {
-            case FrameUnknown:
+            case FrameType::Unknown:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, "?");
                 break;
-            case FrameCLRNative:
+            case FrameType::CLRNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
                 break;
-            case FrameCLRInternal:
+            case FrameType::CLRInternal:
             {
                 ToRelease<ICorDebugInternalFrame> pInternalFrame;
                 IfFailRet(pFrame->QueryInterface(IID_ICorDebugInternalFrame, (LPVOID *)&pInternalFrame));
@@ -934,7 +934,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
             }
             break;
-            case FrameCLRManaged:
+            case FrameType::CLRManaged:
             {
                 StackFrame stackFrame;
                 GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
@@ -1147,7 +1147,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 
 void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)
 {
-    pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputStdErr : OutputStdOut, {text.begin(), text.size()});
+    pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()});
 }
 
 } // namespace dncdbg
