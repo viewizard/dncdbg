@@ -82,7 +82,7 @@ static HRESULT FillValueAndType(VariableMember &member, Variable &var)
 
 static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
                                         FrameLevel frameLevel, std::vector<VariableMember> &members, bool fetchOnlyStatic,
-                                        bool &hasStaticMembers, int childStart, int childEnd, int evalFlags)
+                                        bool &hasStaticMembers, int childStart, int childEnd, uint32_t evalFlags)
 {
     hasStaticMembers = false;
     HRESULT Status = S_OK;
@@ -473,7 +473,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
 }
 
 HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
-                                 int evalFlags, const std::string &value, std::string &output)
+                                 uint32_t evalFlags, const std::string &value, std::string &output)
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)

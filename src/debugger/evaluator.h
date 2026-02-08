@@ -105,7 +105,7 @@ class Evaluator
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
-                               ICorDebugType **ppResultType, int evalFlags);
+                               ICorDebugType **ppResultType, uint32_t evalFlags);
 
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                         ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb);
@@ -125,18 +125,18 @@ class Evaluator
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                          ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
-                         int evalFlags);
+                         uint32_t evalFlags);
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
                                   std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
-                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags);
+                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags);
 
     HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                         std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
-                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
+                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value, uint32_t evalFlags,
                      std::string &output);
 
     ArgElementType GetElementTypeByTypeName(const std::string &typeName);

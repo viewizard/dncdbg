@@ -38,11 +38,11 @@ class EvalHelpers
 
     HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                          ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
-                         ICorDebugValue **ppEvalResult, int evalFlags);
+                         ICorDebugValue **ppEvalResult, uint32_t evalFlags);
 
     HRESULT EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                                 ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
-                                ICorDebugValue **ppEvalResult, int evalFlags);
+                                ICorDebugValue **ppEvalResult, uint32_t evalFlags);
 
     HRESULT GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugModule *pModule,
                             PCCOR_SIGNATURE pSignatureBlob, ULONG sigBlobLength, UVCP_CONSTANT pRawValue,

@@ -1892,7 +1892,7 @@ HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*
 
 } // unnamed namespace
 
-HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags,
+HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
                               const std::string &expression, std::list<EvalStackEntry> &evalStack, std::string &output)
 {
     static const std::vector<std::function<HRESULT(std::list<EvalStackEntry> &, PVOID, std::string &, EvalData &)>> CommandImplementation = {
@@ -2009,7 +2009,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, i
     return Status;
 }
 
-HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags,
+HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
                                              const std::string &expression, ICorDebugValue **ppResultValue,
                                              std::string &output, bool *editable,
                                              std::unique_ptr<Evaluator::SetterData> *resultSetterData)
@@ -2033,7 +2033,7 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     return S_OK;
 }
 
-HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, int evalFlags,
+HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
                                                ICorDebugValue *pValue, const std::string &expression, std::string &output)
 {
     HRESULT Status = S_OK;

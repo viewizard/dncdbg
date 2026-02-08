@@ -1120,7 +1120,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
     return m_sharedVariables->SetVariable(m_iCorProcess, name, value, ref, output);
 }
 
-HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression, int evalFlags,
+HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression, uint32_t evalFlags,
                                        const std::string &value, std::string &output)
 {
     LogFuncEntry();

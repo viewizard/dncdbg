@@ -605,7 +605,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 }
 
 HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
-                            const GetValueCallback *getValue, SetterData *setterData, const std::string &value, int evalFlags,
+                            const GetValueCallback *getValue, SetterData *setterData, const std::string &value, uint32_t evalFlags,
                             std::string &output)
 {
     if (!pThread)
@@ -918,7 +918,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
             const std::string name = to_utf8(propertyName);
 
-            auto getValue = [&](ICorDebugValue **ppResultValue, int evalFlags) -> HRESULT {
+            auto getValue = [&](ICorDebugValue **ppResultValue, uint32_t evalFlags) -> HRESULT {
                 if (!pThread)
                     return E_FAIL;
 
@@ -1516,7 +1516,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                 ValueKind valueKind, std::vector<std::string> &identifiers,
                                 int nextIdentifier, ICorDebugValue **ppResult,
-                                std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags)
+                                std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags)
 {
     HRESULT Status = S_OK;
 
@@ -1565,7 +1565,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel,
                                          const std::string &methodClass, std::vector<std::string> &identifiers,
                                          ICorDebugValue **ppResult,
-                                         std::unique_ptr<Evaluator::SetterData> *resultSetterData, int evalFlags)
+                                         std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags)
 {
     HRESULT Status = S_OK;
 
@@ -1630,7 +1630,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
                                       SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                       ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
-                                      ICorDebugType **ppResultType, int evalFlags)
+                                      ICorDebugType **ppResultType, uint32_t evalFlags)
 {
     if (pInputValue && identifiers.empty())
     {

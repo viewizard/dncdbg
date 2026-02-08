@@ -53,7 +53,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // [in] evalFlags - evaluation flags.
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                                   ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
-                                  ICorDebugValue **ppEvalResult, int evalFlags)
+                                  ICorDebugValue **ppEvalResult, uint32_t evalFlags)
 {
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
@@ -92,24 +92,24 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         });
 }
 
-HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppTypes,
-                                         ULONG32 typeCount, ICorDebugValue **ppValues, ULONG32 valueCount,
-                                         ICorDebugValue **ppResult, int flags)
+HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
+                                         ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
+                                         ICorDebugValue **ppEvalResult, uint32_t evalFlags)
 {
-    assert((!ppTypes && typeCount == 0) || (ppTypes && typeCount > 0));
-    assert((!ppValues && valueCount == 0) || (ppValues && valueCount > 0));
+    assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
+    assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
-    if (flags & EVAL_NOFUNCEVAL)
+    if (evalFlags & EVAL_NOFUNCEVAL)
         return S_OK;
 
-    return m_sharedEvalWaiter->WaitEvalResult(pThread, ppResult,
+    return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> pEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
-            IfFailRet(pEval2->CallParameterizedFunction(pFunc, typeCount, ppTypes, valueCount, ppValues));
+            IfFailRet(pEval2->CallParameterizedFunction(pFunc, ArgsTypeCount, ppArgsType, ArgsValueCount, ppArgsValue));
             return S_OK;
         });
 }

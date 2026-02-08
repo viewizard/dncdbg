@@ -484,7 +484,7 @@ struct VariablePresentationHint
 };
 
 // https://learn.microsoft.com/en-us/visualstudio/extensibility/debugger/reference/evalflags?view=visualstudio&tabs=cpp
-enum enum_EVALFLAGS : DWORD
+enum enum_EVALFLAGS : uint32_t
 {
     EVAL_RETURNVALUE = 0x0002,
     EVAL_NOSIDEEFFECTS = 0x0004,
@@ -495,7 +495,7 @@ enum enum_EVALFLAGS : DWORD
     EVAL_NOEVENTS = 0x1000
 };
 
-#define defaultEvalFlags 0
+constexpr uint32_t defaultEvalFlags = 0;
 
 struct Variable
 {
@@ -507,10 +507,10 @@ struct Variable
     uint32_t variablesReference;
     int namedVariables;
     int indexedVariables;
-    int evalFlags;
+    uint32_t evalFlags;
     bool editable;
 
-    Variable(int flags = defaultEvalFlags)
+    Variable(uint32_t flags = defaultEvalFlags)
         : variablesReference(0),
           namedVariables(0),
           indexedVariables(0),
