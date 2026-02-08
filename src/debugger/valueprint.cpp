@@ -29,7 +29,7 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
         *pIsNull = FALSE;
 
     ToRelease<ICorDebugReferenceValue> pReferenceValue;
-    Status = pValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue);
+    Status = pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue));
     if (SUCCEEDED(Status))
     {
         BOOL isNull = FALSE;
@@ -51,7 +51,7 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
     }
 
     ToRelease<ICorDebugBoxValue> pBoxedValue;
-    Status = pValue->QueryInterface(IID_ICorDebugBoxValue, (LPVOID *)&pBoxedValue);
+    Status = pValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&pBoxedValue));
     if (SUCCEEDED(Status))
     {
         ToRelease<ICorDebugObjectValue> pUnboxedValue;
@@ -74,7 +74,7 @@ static bool IsEnum(ICorDebugValue *pInputValue)
     ToRelease<ICorDebugType> pType;
     ToRelease<ICorDebugType> pBaseType;
 
-    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2)))
+    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))))
         return false;
     if (FAILED(pValue2->GetExactType(&pType)))
         return false;
@@ -98,7 +98,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
     ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     IfFailRet(pValue2->GetExactType(&pType));
     IfFailRet(pType->GetClass(&pClass));
     IfFailRet(pClass->GetModule(&pModule));
@@ -107,7 +107,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     //First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant
     //We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar)
@@ -133,35 +133,35 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     }
     pMD->CloseEnum(fEnum);
 
-    auto getValue = [&enumUnderlyingType](const void *data)
+    auto getValue = [&enumUnderlyingType](const void *data) -> ULONG64
     {
         switch (enumUnderlyingType)
         {
         case ELEMENT_TYPE_CHAR:
         case ELEMENT_TYPE_I1:
-            return (ULONG64)(*((CHAR *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const int8_t *>(data));
         case ELEMENT_TYPE_U1:
-            return (ULONG64)(*((BYTE *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const uint8_t *>(data));
         case ELEMENT_TYPE_I2:
-            return (ULONG64)(*((SHORT *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const int16_t *>(data));
         case ELEMENT_TYPE_U2:
-            return (ULONG64)(*((USHORT *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const uint16_t *>(data));
         case ELEMENT_TYPE_I4:
-            return (ULONG64)(*((INT32 *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const int32_t *>(data));
         case ELEMENT_TYPE_U4:
-            return (ULONG64)(*((UINT32 *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const uint32_t *>(data));
         case ELEMENT_TYPE_I8:
-            return (ULONG64)(*((LONG *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const int64_t *>(data));
         case ELEMENT_TYPE_U8:
-            return (ULONG64)(*((ULONG *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const uint64_t *>(data));
         case ELEMENT_TYPE_I:
-            return (ULONG64)(*((int *)data));
+            return static_cast<ULONG64>(*reinterpret_cast<const int32_t *>(data));
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
         // Technically U and the floating-point ones are options in the CLI, but not in the CLS or C#, so these are NYI
         default:
-            return (ULONG64)0;
+            return 0;
         }
     };
 
@@ -319,7 +319,7 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     }
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     IfFailRet(pGenericValue->GetValue(&value));
     return S_OK;
 }
@@ -339,7 +339,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
     ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     IfFailRet(pValue2->GetExactType(&pType));
     IfFailRet(pType->GetClass(&pClass));
     IfFailRet(pClass->GetModule(&pModule));
@@ -347,7 +347,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     bool has_hi = false;
     bool has_mid = false;
@@ -372,7 +372,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
 
             ToRelease<ICorDebugValue> pFieldVal;
             ToRelease<ICorDebugObjectValue> pObjValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
+            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
             IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, &pFieldVal));
 
             const std::string name = to_utf8(mdName /*, nameLen*/);
@@ -522,7 +522,7 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugArrayValue> pArrayValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayValue)));
 
     ULONG32 nRank = 0;
     IfFailRet(pArrayValue->GetRank(&nRank));
@@ -543,7 +543,7 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     ToRelease<ICorDebugType> pFirstParameter;
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
-    if (SUCCEEDED(pArrayValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2)) &&
+    if (SUCCEEDED(pArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))) &&
         SUCCEEDED(pValue2->GetExactType(&pType)))
     {
         if (SUCCEEDED(pType->GetFirstTypeParameter(&pFirstParameter)))
@@ -584,7 +584,7 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugStringValue> pStringValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, (LPVOID *)&pStringValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&pStringValue)));
 
     ULONG32 cchValue = 0;
     IfFailRet(pStringValue->GetLength(&cchValue));
@@ -668,7 +668,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
     if (!pType)
@@ -683,12 +683,12 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     ToRelease<ICorDebugObjectValue> pObjValue;
     ToRelease<ICorDebugValue> unboxedResultValue;
     IfFailRet(DereferenceAndUnboxValue(pValue, &unboxedResultValue));
-    IfFailRet(unboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
+    IfFailRet(unboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
@@ -730,7 +730,7 @@ HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
     memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pHasValueValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
     // pHasValueValue is ELEMENT_TYPE_BOOLEAN
     if (rgbValue[0] != 0)
@@ -796,7 +796,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     }
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
 
     if (IsEnum(pValue))
@@ -820,7 +820,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     {
         CORDB_ADDRESS addr = 0;
         ToRelease<ICorDebugReferenceValue> pReferenceValue;
-        if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue)))
+        if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue))))
             pReferenceValue->GetValue(&addr);
         ss << "<function pointer 0x" << std::hex << addr << ">";
     }
@@ -860,7 +860,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     case ELEMENT_TYPE_CHAR:
     {
-        WCHAR wstr[] = {*(WCHAR *)&(rgbValue[0]) , 0};
+        WCHAR wstr[] = {*reinterpret_cast<WCHAR *>(&rgbValue[0]) , '\0'};
         std::string printableVal = to_utf8(wstr);
         if (!escape)
         {
@@ -873,51 +873,45 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     break;
 
     case ELEMENT_TYPE_I1:
-        ss << (int)*(char *)&(rgbValue[0]);
+        ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(&rgbValue[0]));
         break;
 
     case ELEMENT_TYPE_U1:
-        ss << (unsigned int)*(unsigned char *)&(rgbValue[0]);
+        ss << static_cast<uint32_t>(*reinterpret_cast<uint8_t *>(&rgbValue[0]));
         break;
 
     case ELEMENT_TYPE_I2:
-        ss << *(short *)&(rgbValue[0]);
+        ss << *reinterpret_cast<int16_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_U2:
-        ss << *(unsigned short *)&(rgbValue[0]);
+        ss << *reinterpret_cast<uint16_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_I:
-        ss << *(int *)&(rgbValue[0]);
+    case ELEMENT_TYPE_I4:
+        ss << *reinterpret_cast<int32_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_U:
-        ss << *(unsigned int *)&(rgbValue[0]);
-        break;
-
-    case ELEMENT_TYPE_I4:
-        ss << *(int *)&(rgbValue[0]);
-        break;
-
     case ELEMENT_TYPE_U4:
-        ss << *(unsigned int *)&(rgbValue[0]);
+        ss << *reinterpret_cast<uint32_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_I8:
-        ss << *(__int64 *)&(rgbValue[0]);
+        ss << *reinterpret_cast<int64_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_U8:
-        ss << *(unsigned __int64 *)&(rgbValue[0]);
+        ss << *reinterpret_cast<uint64_t *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_R4:
-        ss << std::setprecision(8) << *(float *)&(rgbValue[0]);
+        ss << std::setprecision(8) << *reinterpret_cast<float *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_R8:
-        ss << std::setprecision(16) << *(double *)&(rgbValue[0]);
+        ss << std::setprecision(16) << *reinterpret_cast<double *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_OBJECT:

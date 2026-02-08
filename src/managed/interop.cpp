@@ -200,12 +200,12 @@ void UnsetCoreCLREnv()
 }
 
 // Returns the length of a BSTR.
-UINT SysStringLen(BSTR bstrString)
+uint32_t SysStringLen(BSTR bstrString)
 {
     if (bstrString == nullptr)
         return 0;
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    return (unsigned int)((((DWORD FAR *)bstrString)[-1]) / sizeof(OLECHAR));
+    return static_cast<uint32_t>((reinterpret_cast<uint32_t *>(bstrString)[-1]) / sizeof(WCHAR));
 #elif _WIN32
     return ::SysStringLen(bstrString);
 #endif
@@ -231,7 +231,7 @@ unsigned int domainId = 0;
 
 #define CORECLR_HOSTING_API(function, ...) \
     extern "C" int CORECLR_CALLING_CONVENTION function(__VA_ARGS__); \
-    typedef int (CORECLR_CALLING_CONVENTION *function##_ptr)(__VA_ARGS__)
+    using function##_ptr = int (CORECLR_CALLING_CONVENTION *)(__VA_ARGS__)
 
 CORECLR_HOSTING_API(coreclr_shutdown, void *hostHandle, unsigned int domainId);
 CORECLR_HOSTING_API(coreclr_initialize, const char *exePath, const char *appDomainFriendlyName, int propertyCount,
@@ -256,7 +256,6 @@ using GetStepRangesFromIPDelegate = RetCode (*)(PVOID, int32_t, mdMethodDef, uin
 using GetModuleMethodsRangesDelegate = RetCode (*)(PVOID, uint32_t, PVOID, uint32_t, PVOID, PVOID *);
 using ResolveBreakPointsDelegate = RetCode (*)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t *, const WCHAR *, PVOID *);
 using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(PVOID, mdMethodDef, PVOID *, int32_t *, uint32_t *);
-using LoadDeltaPdbDelegate = PVOID (*)(const WCHAR *, PVOID *, int32_t *);
 using CalculationDelegate = RetCode (*)(PVOID, int32_t, PVOID, int32_t, int32_t, int32_t *, PVOID *, BSTR *);
 using GenerateStackMachineProgramDelegate = int (*)(const WCHAR *, PVOID *, BSTR *);
 using ReleaseStackMachineProgramDelegate = void (*)(PVOID);
@@ -278,7 +277,6 @@ GetStepRangesFromIPDelegate getStepRangesFromIPDelegate = nullptr;
 GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate = nullptr;
 ResolveBreakPointsDelegate resolveBreakPointsDelegate = nullptr;
 GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate = nullptr;
-LoadDeltaPdbDelegate loadDeltaPdbDelegate = nullptr;
 GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate = nullptr;
 ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate = nullptr;
 NextStackCommandDelegate nextStackCommandDelegate = nullptr;
@@ -301,7 +299,7 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
     if (address == 0 || buffer == nullptr || cb == 0)
         return 0;
 
-    std::memcpy(buffer, (const void *)address, cb); // NOLINT(performance-no-int-to-ptr)
+    std::memcpy(buffer, reinterpret_cast<const void *>(address), cb); // NOLINT(performance-no-int-to-ptr)
     return cb;
 }
 
@@ -369,7 +367,7 @@ void Init(const std::string &coreClrPath)
     if (coreclrLib == nullptr)
         throw std::invalid_argument("Failed to load coreclr path=" + coreClrPath);
 
-    coreclr_initialize_ptr initializeCoreCLR = (coreclr_initialize_ptr)DLSym(coreclrLib, "coreclr_initialize");
+    coreclr_initialize_ptr initializeCoreCLR = reinterpret_cast<coreclr_initialize_ptr>(DLSym(coreclrLib, "coreclr_initialize"));
     if (initializeCoreCLR == nullptr)
         throw std::invalid_argument("coreclr_initialize not found in lib, CoreCLR path=" + coreClrPath);
 
@@ -406,36 +404,35 @@ void Init(const std::string &coreClrPath)
     if (FAILED(Status))
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));
 
-    coreclr_create_delegate_ptr createDelegate = (coreclr_create_delegate_ptr)DLSym(coreclrLib, "coreclr_create_delegate");
+    coreclr_create_delegate_ptr createDelegate = reinterpret_cast<coreclr_create_delegate_ptr>(DLSym(coreclrLib, "coreclr_create_delegate"));
     if (createDelegate == nullptr)
         throw std::runtime_error("coreclr_create_delegate not found");
 
-    shutdownCoreClr = (coreclr_shutdown_ptr)DLSym(coreclrLib, "coreclr_shutdown");
+    shutdownCoreClr = reinterpret_cast<coreclr_shutdown_ptr>(DLSym(coreclrLib, "coreclr_shutdown"));
     if (shutdownCoreClr == nullptr)
         throw std::runtime_error("coreclr_shutdown not found");
 
     const bool allDelegatesCreated = 
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadSymbolsForModule", (void **)&loadSymbolsForModuleDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "Dispose", (void **)&disposeDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetLocalVariableNameAndScope", (void **)&getLocalVariableNameAndScopeDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetHoistedLocalScopes", (void **)&getHoistedLocalScopesDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePointByILOffset", (void **)&getSequencePointByILOffsetDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePoints", (void **)&getSequencePointsDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetNextUserCodeILOffset", (void **)&getNextUserCodeILOffsetDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetStepRangesFromIP", (void **)&getStepRangesFromIPDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetModuleMethodsRanges", (void **)&getModuleMethodsRangesDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "ResolveBreakPoints", (void **)&resolveBreakPointsDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetAsyncMethodSteppingInfo", (void **)&getAsyncMethodSteppingInfoDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadDeltaPdb", (void **)&loadDeltaPdbDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "CalculationDelegate", (void **)&calculationDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "GenerateStackMachineProgram", (void **)&generateStackMachineProgramDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "ReleaseStackMachineProgram", (void **)&releaseStackMachineProgramDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "NextStackCommand", (void **)&nextStackCommandDelegate)) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "StringToUpper", (void **)&stringToUpperDelegate));
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemAlloc", (void **)&coTaskMemAllocDelegate));
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemFree", (void **)&coTaskMemFreeDelegate));
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysAllocStringLen", (void **)&sysAllocStringLenDelegate));
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysFreeString", (void **)&sysFreeStringDelegate));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetHoistedLocalScopes", reinterpret_cast<void **>(&getHoistedLocalScopesDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePoints", reinterpret_cast<void **>(&getSequencePointsDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "CalculationDelegate", reinterpret_cast<void **>(&calculationDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate)));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemAlloc", reinterpret_cast<void **>(&coTaskMemAllocDelegate)));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate)));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate)));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
 
     if (!allDelegatesCreated)
         throw std::runtime_error("createDelegate failed with status: " + std::to_string(Status));
@@ -451,7 +448,6 @@ void Init(const std::string &coreClrPath)
                                     getModuleMethodsRangesDelegate &&
                                     resolveBreakPointsDelegate &&
                                     getAsyncMethodSteppingInfoDelegate &&
-                                    loadDeltaPdbDelegate &&
                                     generateStackMachineProgramDelegate &&
                                     releaseStackMachineProgramDelegate &&
                                     nextStackCommandDelegate &&
@@ -490,7 +486,6 @@ void Shutdown()
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     getAsyncMethodSteppingInfoDelegate = nullptr;
-    loadDeltaPdbDelegate = nullptr;
     stringToUpperDelegate = nullptr;
     coTaskMemAllocDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
@@ -519,7 +514,7 @@ HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef methodToken, Se
     if (!getSequencePointsDelegate || !pSymbolReaderHandle)
         return E_FAIL;
 
-    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, (PVOID *)sequencePoints, &Count);
+    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, reinterpret_cast<void **>(sequencePoints), &Count);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
@@ -648,7 +643,7 @@ HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef method
     AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
     int32_t asyncInfoCount = 0;
 
-    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, (PVOID *)&allocatedAsyncInfo,
+    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, reinterpret_cast<void **>(&allocatedAsyncInfo),
                                                                &asyncInfoCount, ilOffset);
     read_lock.unlock();
 
@@ -757,7 +752,7 @@ BSTR SysAllocStringLen(int32_t size)
     if (!sysAllocStringLenDelegate)
         return nullptr;
 
-    return (BSTR)sysAllocStringLenDelegate(size);
+    return reinterpret_cast<BSTR>(sysAllocStringLenDelegate(size));
 }
 
 void SysFreeString(BSTR ptrBSTR)
@@ -785,35 +780,6 @@ void CoTaskMemFree(PVOID ptr)
         return;
 
     coTaskMemFreeDelegate(ptr);
-}
-
-HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle,
-                     std::unordered_set<mdMethodDef> &methodTokens)
-{
-    const ReadLock read_lock(CLRrwlock);
-    if (!loadDeltaPdbDelegate || !ppSymbolReaderHandle || pdbPath.empty())
-        return E_FAIL;
-
-    PVOID pMethodTokens = nullptr;
-    int32_t tokensCount = 0;
-
-    *ppSymbolReaderHandle = loadDeltaPdbDelegate(to_utf16(pdbPath).c_str(), &pMethodTokens, &tokensCount);
-
-    if (tokensCount > 0 && pMethodTokens)
-    {
-        for (int i = 0; i < tokensCount; i++)
-        {
-            methodTokens.insert(((mdMethodDef *)pMethodTokens)[i]);
-        }
-    }
-
-    if (pMethodTokens)
-        CoTaskMemFree(pMethodTokens);
-
-    if (*ppSymbolReaderHandle == nullptr)
-        return E_FAIL;
-
-    return S_OK;
 }
 
 } // namespace dncdbg::Interop

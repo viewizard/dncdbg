@@ -194,7 +194,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     ULONG funcNameLen = 0;
     // If we can't setup entry point correctly for async method, leave it "as is".
     if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown)) &&
-        SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD)) &&
+        SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD))) &&
         SUCCEEDED(pMD->GetMethodProps(entryPointToken, &mdMainClass, funcName, _countof(funcName), &funcNameLen,
                                       nullptr, nullptr, nullptr, nullptr, nullptr)) &&
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
@@ -227,7 +227,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, (LPVOID *)&pFunctionBreakpoint));
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&pFunctionBreakpoint)));
     IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, m_iCorFuncBreakpoint));
     if (Status == S_FALSE)
         return S_FALSE;

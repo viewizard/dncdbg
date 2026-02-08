@@ -85,9 +85,9 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             // Note, this code execution protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> pEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
             IfFailRet(pEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(typeParams.size()),
-                                                        (ICorDebugType **)typeParams.data(), ArgsValueCount, ppArgsValue));
+                                                        reinterpret_cast<ICorDebugType **>(typeParams.data()), ArgsValueCount, ppArgsValue));
             return S_OK;
         });
 }
@@ -108,7 +108,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
             // Note, this code execution protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> pEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
             IfFailRet(pEval2->CallParameterizedFunction(pFunc, typeCount, ppTypes, valueCount, ppValues));
             return S_OK;
         });
@@ -131,7 +131,7 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, con
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdTypeDef typeDef = mdTypeDefNil;
 
@@ -168,7 +168,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
@@ -226,7 +226,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugType2> iCorType2;
-    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, (LPVOID *)&iCorType2));
+    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&iCorType2)));
 
     COR_TYPEID typeID;
     IfFailRet(iCorType2->GetTypeID(&typeID));
@@ -248,7 +248,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
         // We don't check handle's status here, since we store only strong handles.
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebughandletype-enumeration
         // The handle is strong, which prevents an object from being reclaimed by garbage collection.
-        return m_typeObjectCache.front().typeObject->QueryInterface(IID_ICorDebugValue, (LPVOID *)ppTypeObjectResult);
+        return m_typeObjectCache.front().typeObject->QueryInterface(IID_ICorDebugValue, reinterpret_cast<void **>(ppTypeObjectResult));
     }
 
     return S_OK;
@@ -260,7 +260,7 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugType2> iCorType2;
-    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, (LPVOID *)&iCorType2));
+    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&iCorType2)));
 
     COR_TYPEID typeID;
     IfFailRet(iCorType2->GetTypeID(&typeID));
@@ -274,7 +274,7 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
         return S_OK;
 
     ToRelease<ICorDebugHandleValue> iCorHandleValue;
-    IfFailRet(pTypeObject->QueryInterface(IID_ICorDebugHandleValue, (LPVOID *)&iCorHandleValue));
+    IfFailRet(pTypeObject->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&iCorHandleValue)));
 
     CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
     if (FAILED(iCorHandleValue->GetHandleType(&handleType)) ||
@@ -337,9 +337,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
         {
             // Note, this code execution protected by EvalWaiter mutex.
             ToRelease<ICorDebugEval2> pEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
             IfFailRet(pEval2->NewParameterizedObjectNoConstructor(pClass, static_cast<uint32_t>(typeParams.size()),
-                                                                  (ICorDebugType **)typeParams.data()));
+                                                                  reinterpret_cast<ICorDebugType **>(typeParams.data())));
             return S_OK;
         }));
 
@@ -386,7 +386,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     switch (underlyingType)
     {
@@ -424,7 +424,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             ToRelease<ICorDebugAppDomain> pAppDomain;
             IfFailRet(pThread->GetAppDomain(&pAppDomain));
             ToRelease<ICorDebugAppDomain2> pAppDomain2;
-            IfFailRet(pAppDomain->QueryInterface(IID_ICorDebugAppDomain2, (LPVOID *) &pAppDomain2));
+            IfFailRet(pAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&pAppDomain2)));
 
             // We can not directly create null value of specific array type.
             // Instead, we create one element array with element type set to our specific array type.
@@ -438,7 +438,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
                 {
                     // Note, this code execution protected by EvalWaiter mutex.
                     ToRelease<ICorDebugEval2> pEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *) &pEval2));
+                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
                     IfFailRet(pEval2->NewParameterizedArray(pElementType, 1, &dims, &bounds));
                     return S_OK;
                 }));
@@ -448,7 +448,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             IfFailRet(DereferenceAndUnboxValue(pTmpArrayValue, &pUnboxedResult, &isNull));
 
             ToRelease<ICorDebugArrayValue> pArray;
-            IfFailRet(pUnboxedResult->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *) &pArray));
+            IfFailRet(pUnboxedResult->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArray)));
             IfFailRet(pArray->GetElementAtPosition(0, ppLiteralValue));
             break;
         }
@@ -464,7 +464,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             ToRelease<ICorDebugEval> pEval;
             IfFailRet(pThread->CreateEval(&pEval));
             ToRelease<ICorDebugEval2> pEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *) &pEval2));
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
             IfFailRet(pEval2->CreateValueForType(pValueType, ppLiteralValue));
             break;
         }
@@ -485,7 +485,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
                 {
                     // Note, this code execution protected by EvalWaiter mutex.
                     ToRelease<ICorDebugEval2> pEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *) &pEval2));
+                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
                     IfFailRet(pEval2->NewParameterizedObjectNoConstructor(pValueClass, 0, nullptr));
                     return S_OK;
                 }));
@@ -496,8 +496,8 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             IfFailRet(DereferenceAndUnboxValue(pValue, &pEditableValue, &isNull));
 
             ToRelease<ICorDebugGenericValue> pGenericValue;
-            IfFailRet(pEditableValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *) &pGenericValue));
-            IfFailRet(pGenericValue->SetValue((LPVOID)pRawValue));
+            IfFailRet(pEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
+            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue)));
             *ppLiteralValue = pValue.Detach();
             break;
         }
@@ -508,8 +508,8 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
                 {
                     // Note, this code execution protected by EvalWaiter mutex.
                     ToRelease<ICorDebugEval2> pEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *) &pEval2));
-                    IfFailRet(pEval2->NewStringWithLength((LPCWSTR)pRawValue, rawValueLength));
+                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
+                    IfFailRet(pEval2->NewStringWithLength(reinterpret_cast<const WCHAR *>(pRawValue), rawValueLength));
                     return S_OK;
                 }));
 
@@ -533,8 +533,8 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             ToRelease<ICorDebugValue> pValue;
             IfFailRet(pEval->CreateValue(underlyingType, nullptr, &pValue));
             ToRelease<ICorDebugGenericValue> pGenericValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *) &pGenericValue));
-            IfFailRet(pGenericValue->SetValue((LPVOID)pRawValue));
+            IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
+            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue)));
             *ppLiteralValue = pValue.Detach();
             break;
         }

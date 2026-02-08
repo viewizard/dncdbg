@@ -139,7 +139,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     ToRelease<IUnknown> iUnknown;
     IfFailRet(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &iUnknown));
     ToRelease<IMetaDataImport> iMD;
-    IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&iMD));
+    IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&iMD)));
 
     auto methodShouldBeFltered = [&]() -> bool
     {

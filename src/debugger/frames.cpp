@@ -79,7 +79,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread3> iCorThread3;
-    IfFailRet(pThread->QueryInterface(IID_ICorDebugThread3, (LPVOID *)&iCorThread3));
+    IfFailRet(pThread->QueryInterface(IID_ICorDebugThread3, reinterpret_cast<void **>(&iCorThread3)));
     ToRelease<ICorDebugStackWalk> iCorStackWalk;
     IfFailRet(iCorThread3->CreateStackWalk(&iCorStackWalk));
 
@@ -113,7 +113,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         {
             // We've hit a native frame, we need to store the CONTEXT
             memset((void *)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
-            IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, (BYTE *)&ctxUnmanagedChain));
+            IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&ctxUnmanagedChain)));
             ctxUnmanagedChainValid = true;
             continue;
         }
@@ -130,19 +130,19 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         // to unwind, but it has to do inspection on its own. It can call
         // ICorDebugStackWalk::GetContext() to retrieve the context of the native stack frame.
         ToRelease<ICorDebugRuntimeUnwindableFrame> iCorRuntimeUnwindableFrame;
-        if (SUCCEEDED(iCorFrame->QueryInterface(IID_ICorDebugRuntimeUnwindableFrame, (LPVOID *)&iCorRuntimeUnwindableFrame)))
+        if (SUCCEEDED(iCorFrame->QueryInterface(IID_ICorDebugRuntimeUnwindableFrame, reinterpret_cast<void **>(&iCorRuntimeUnwindableFrame))))
             continue;
 
         // We need to store the CONTEXT when we're at a managed frame.
         memset((void *)&currentCtx, 0, sizeof(CONTEXT));
-        IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, (BYTE *) &currentCtx));
+        IfFailRet(iCorStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&currentCtx)));
         // Note, we don't change top managed frame FP in case we don't have SP (for example, registers context related issue)
         // or CoreCLR was able to restore it. This case could happens only with "managed" top frame (`GetFrame()` return `S_OK`),
         // where real top frame is native (for example, optimized managed code with inlined pinvoke or CoreCLR native frame).
         if (level == 0 && GetSP(&currentCtx) != 0 && GetFP(&currentCtx) == 0)
         {
             SetFP(&currentCtx, GetSP(&currentCtx));
-            IfFailRet(iCorStackWalk->SetContext(SET_CONTEXT_FLAG_UNWIND_FRAME, sizeof(CONTEXT), (BYTE *)&currentCtx));
+            IfFailRet(iCorStackWalk->SetContext(SET_CONTEXT_FLAG_UNWIND_FRAME, sizeof(CONTEXT), reinterpret_cast<uint8_t *>(&currentCtx)));
         }
 
         // Check if we have native frames to unwind
@@ -160,7 +160,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         if (SUCCEEDED(iCorFrame->GetFunction(&iCorFunction)))
         {
             ToRelease<ICorDebugILFrame> pILFrame;
-            IfFailRet(iCorFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+            IfFailRet(iCorFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
             ULONG32 nOffset = 0;
             CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
@@ -173,7 +173,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         }
 
         ToRelease<ICorDebugNativeFrame> iCorNativeFrame;
-        if (FAILED(iCorFrame->QueryInterface(IID_ICorDebugNativeFrame, (LPVOID *)&iCorNativeFrame)))
+        if (FAILED(iCorFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&iCorNativeFrame))))
         {
             IfFailRet(cb(FrameType::Unknown, iCorFrame));
             continue;

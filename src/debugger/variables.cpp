@@ -328,7 +328,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
         if (staticsInRange)
         {
             ToRelease<ICorDebugValue2> pValue2;
-            IfFailRet(ref.iCorValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+            IfFailRet(ref.iCorValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
             ToRelease<ICorDebugType> pType;
             IfFailRet(pValue2->GetExactType(&pType));
             // Note, this call could return S_FALSE without ICorDebugValue creation in case type don't have static members.

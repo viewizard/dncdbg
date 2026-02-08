@@ -50,7 +50,7 @@ void EvalWaiter::CancelEvalRunning()
 
     ToRelease<ICorDebugEval2> iCorEval2;
     if (SUCCEEDED(m_evalResult->pEval->Abort()) ||
-        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)) &&
+        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))) &&
          SUCCEEDED(iCorEval2->RudeAbort())))
         m_evalCanceled = true;
 }
@@ -186,7 +186,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 if (FAILED(iCorEval->Abort()))
                 {
                     ToRelease<ICorDebugEval2> iCorEval2;
-                    if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)))
+                    if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))))
                         iCorEval2->RudeAbort();
                 }
 
@@ -261,7 +261,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     HRESULT Status = S_OK;
     ToRelease<ICorDebugEval2> iCorEval2;
     if (FAILED(Status = pEval->Abort()) &&
-        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&iCorEval2)) ||
+        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))) ||
          FAILED(Status = iCorEval2->RudeAbort())))
     {
         LOGE("Can't abort evaluation in custom notification callback, %0x", Status);
@@ -278,7 +278,7 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     // in order to make code simple and clear, we don't check enclosing classes with recursion here
     // since we know behaviour for sure, just find "System.Diagnostics.Debugger" first
@@ -298,7 +298,7 @@ HRESULT EvalWaiter::SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess3> pProcess3;
-    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, (LPVOID *)&pProcess3));
+    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, reinterpret_cast<void **>(&pProcess3)));
     return pProcess3->SetEnableCustomNotification(m_iCorCrossThreadDependencyNotification, fEnable);
 }
 

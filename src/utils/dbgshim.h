@@ -28,17 +28,25 @@ namespace dncdbg
 // Based on coreclr/src/dlls/dbgshim/dbgshim.h
 struct dbgshim_t
 {
-    typedef VOID (*PSTARTUP_CALLBACK)(IUnknown *pCordb, PVOID parameter, HRESULT hr);
-    HRESULT (*CreateProcessForLaunch)(LPWSTR lpCommandLine, BOOL bSuspendProcess, LPVOID lpEnvironment,
-                                      LPCWSTR lpCurrentDirectory, PDWORD pProcessId, HANDLE *pResumeHandle);
-    HRESULT (*ResumeProcess)(HANDLE hResumeHandle);
-    HRESULT (*CloseResumeHandle)(HANDLE hResumeHandle);
-    HRESULT (*RegisterForRuntimeStartup)(DWORD dwProcessId, PSTARTUP_CALLBACK pfnCallback, PVOID parameter, PVOID *ppUnregisterToken);
-    HRESULT (*UnregisterForRuntimeStartup)(PVOID pUnregisterToken);
-    HRESULT (*EnumerateCLRs)(DWORD debuggeePID, HANDLE **ppHandleArrayOut, LPWSTR **ppStringArrayOut, DWORD *pdwArrayLengthOut);
-    HRESULT (*CloseCLREnumeration)(HANDLE *pHandleArray, LPWSTR *pStringArray, DWORD dwArrayLength);
-    HRESULT (*CreateVersionStringFromModule)(DWORD pidDebuggee, LPCWSTR szModuleName, LPWSTR pBuffer, DWORD cchBuffer, DWORD *pdwLength);
-    HRESULT (*CreateDebuggingInterfaceFromVersionEx)(int iDebuggerVersion, LPCWSTR szDebuggeeVersion, IUnknown **ppCordb);
+    using PSTARTUP_CALLBACK = VOID (*)(IUnknown *, PVOID, HRESULT);
+    using CreateProcessForLaunch_t = HRESULT (*)(LPWSTR, BOOL, LPVOID, LPCWSTR, PDWORD, HANDLE *);
+    using ResumeProcess_t = HRESULT (*)(HANDLE);
+    using CloseResumeHandle_t = HRESULT (*)(HANDLE);
+    using RegisterForRuntimeStartup_t = HRESULT (*)(DWORD, PSTARTUP_CALLBACK, PVOID, PVOID *);
+    using UnregisterForRuntimeStartup_t = HRESULT (*)(PVOID);
+    using EnumerateCLRs_t = HRESULT (*)(DWORD, HANDLE **, LPWSTR **, DWORD *);
+    using CloseCLREnumeration_t = HRESULT (*)(HANDLE *, LPWSTR *, DWORD );
+    using CreateVersionStringFromModule_t = HRESULT (*)(DWORD, LPCWSTR, LPWSTR, DWORD, DWORD *);
+    using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, LPCWSTR, IUnknown **);
+    CreateProcessForLaunch_t CreateProcessForLaunch;
+    ResumeProcess_t ResumeProcess;
+    CloseResumeHandle_t CloseResumeHandle;
+    RegisterForRuntimeStartup_t RegisterForRuntimeStartup;
+    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup;
+    EnumerateCLRs_t EnumerateCLRs;
+    CloseCLREnumeration_t CloseCLREnumeration;
+    CreateVersionStringFromModule_t CreateVersionStringFromModule;
+    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx;
 
     dbgshim_t()
         : CreateProcessForLaunch(nullptr),
@@ -73,15 +81,15 @@ struct dbgshim_t
         if (!m_module)
             throw std::invalid_argument("Unable to load " + libName);
 
-        *((void **)&CreateProcessForLaunch) = DLSym(m_module, "CreateProcessForLaunch");
-        *((void **)&ResumeProcess) = DLSym(m_module, "ResumeProcess");
-        *((void **)&CloseResumeHandle) = DLSym(m_module, "CloseResumeHandle");
-        *((void **)&RegisterForRuntimeStartup) = DLSym(m_module, "RegisterForRuntimeStartup");
-        *((void **)&UnregisterForRuntimeStartup) = DLSym(m_module, "UnregisterForRuntimeStartup");
-        *((void **)&EnumerateCLRs) = DLSym(m_module, "EnumerateCLRs");
-        *((void **)&CloseCLREnumeration) = DLSym(m_module, "CloseCLREnumeration");
-        *((void **)&CreateVersionStringFromModule) = DLSym(m_module, "CreateVersionStringFromModule");
-        *((void **)&CreateDebuggingInterfaceFromVersionEx) = DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx");
+        CreateProcessForLaunch = reinterpret_cast<CreateProcessForLaunch_t>(DLSym(m_module, "CreateProcessForLaunch"));
+        ResumeProcess = reinterpret_cast<ResumeProcess_t>(DLSym(m_module, "ResumeProcess"));
+        CloseResumeHandle = reinterpret_cast<CloseResumeHandle_t>(DLSym(m_module, "CloseResumeHandle"));
+        RegisterForRuntimeStartup = reinterpret_cast<RegisterForRuntimeStartup_t>(DLSym(m_module, "RegisterForRuntimeStartup"));
+        UnregisterForRuntimeStartup = reinterpret_cast<UnregisterForRuntimeStartup_t>(DLSym(m_module, "UnregisterForRuntimeStartup"));
+        EnumerateCLRs = reinterpret_cast<EnumerateCLRs_t>(DLSym(m_module, "EnumerateCLRs"));
+        CloseCLREnumeration = reinterpret_cast<CloseCLREnumeration_t>(DLSym(m_module, "CloseCLREnumeration"));
+        CreateVersionStringFromModule = reinterpret_cast<CreateVersionStringFromModule_t>(DLSym(m_module, "CreateVersionStringFromModule"));
+        CreateDebuggingInterfaceFromVersionEx = reinterpret_cast<CreateDebuggingInterfaceFromVersionEx_t>(DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx"));
 
         bool dlsym_ok = CreateProcessForLaunch &&
                         ResumeProcess &&

@@ -147,7 +147,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
     BOOL JMCStatus = FALSE;
     if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr &&
         SUCCEEDED(iCorFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2)) &&
+        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
         SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) &&
         JMCStatus == FALSE)
     {

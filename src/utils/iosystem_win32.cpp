@@ -266,7 +266,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     ::listen(sockFd, 1);
 
     clilen = sizeof(cli_addr);
-    newsockfd = ::accept(sockFd, (struct sockaddr *)&cli_addr, &clilen);
+    newsockfd = ::accept(sockFd, reinterpret_cast<sockaddr *>(&cli_addr), &clilen);
     ::closesocket(sockFd);
     if (newsockfd == INVALID_SOCKET)
     {
@@ -359,7 +359,7 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
         }
     }
 
-    if (!ReadFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
+    if (!ReadFile(fh.handle, buf, static_cast<DWORD>(count), nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
             return {};
@@ -381,7 +381,7 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
     if (result.overlapped->hEvent == INVALID_HANDLE_VALUE)
         return {};
 
-    if (!WriteFile(fh.handle, buf, (DWORD)count, nullptr, result.overlapped.get()))
+    if (!WriteFile(fh.handle, buf, static_cast<DWORD>(count), nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
             return {};
@@ -420,7 +420,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
     }
 
     assert(n == count);
-    DWORD result = WaitForMultipleObjects(count, events, FALSE, DWORD(timeout.count()));
+    DWORD result = WaitForMultipleObjects(count, events, FALSE, static_cast<DWORD>(timeout.count()));
     return result != WAIT_FAILED && result != WAIT_TIMEOUT;
 }
 
@@ -495,7 +495,7 @@ Class::IOResult Class::close(const FileHandle &fh)
 {
     assert(fh);
     if (fh.type == FileHandle::Socket)
-        return {::closesocket((SOCKET)fh.handle) == 0 ? IOResult::Success : IOResult::Error};
+        return {::closesocket(reinterpret_cast<SOCKET>(fh.handle)) == 0 ? IOResult::Success : IOResult::Error};
     else
         return {::CloseHandle(fh.handle) ? IOResult::Success : IOResult::Error};
 }

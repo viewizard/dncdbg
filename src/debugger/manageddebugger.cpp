@@ -415,7 +415,7 @@ static bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
     for (DWORD i = 0; i < arrayLength; i++)
     {
         HANDLE h = handleArray[i];
-        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr)
+        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
         {
             return false;
         }
@@ -504,7 +504,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebug> iCorDebug;
-    IfFailRet(punk->QueryInterface(IID_ICorDebug, (void **)&iCorDebug));
+    IfFailRet(punk->QueryInterface(IID_ICorDebug, reinterpret_cast<void **>(&iCorDebug)));
 
     IfFailRet(iCorDebug->Initialize());
 
@@ -925,7 +925,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             case FrameType::CLRInternal:
             {
                 ToRelease<ICorDebugInternalFrame> pInternalFrame;
-                IfFailRet(pFrame->QueryInterface(IID_ICorDebugInternalFrame, (LPVOID *)&pInternalFrame));
+                IfFailRet(pFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&pInternalFrame)));
                 CorDebugInternalFrameType corFrameType;
                 IfFailRet(pInternalFrame->GetFrameType(&corFrameType));
                 std::string name = "[";

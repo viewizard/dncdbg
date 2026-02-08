@@ -176,7 +176,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(port);
 
-    if (::bind(sockFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    if (::bind(sockFd, reinterpret_cast<sockaddr *>(&serv_addr), sizeof(serv_addr)) < 0)
     {
         ::close(sockFd);
         perror("can't bind to specified port");
@@ -186,7 +186,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     ::listen(sockFd, 1);
 
     clilen = sizeof(cli_addr);
-    newsockfd = ::accept(sockFd, (struct sockaddr *)&cli_addr, &clilen);
+    newsockfd = ::accept(sockFd, reinterpret_cast<sockaddr *>(&cli_addr), &clilen);
     ::close(sockFd);
     if (newsockfd < 0)
     {

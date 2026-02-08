@@ -261,7 +261,7 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
     if (data == nullptr)
         return S_OK;
 
-    inputData.reset((module_methods_data_t *)data);
+    inputData.reset(static_cast<module_methods_data_t *>(data));
     return S_OK;
 }
 
@@ -551,7 +551,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
             continue;
         }
 
-        const std::unique_ptr<resolved_input_bp_t, resolved_input_bp_t_deleter> inputData((resolved_input_bp_t *)data);
+        const std::unique_ptr<resolved_input_bp_t, resolved_input_bp_t_deleter> inputData(static_cast<resolved_input_bp_t *>(data));
 
         for (int32_t i = 0; i < Count; i++)
         {

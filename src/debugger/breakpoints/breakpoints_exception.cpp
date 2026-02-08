@@ -204,7 +204,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
                 BOOL isNull = TRUE;
                 ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-                if (SUCCEEDED(iCorResultValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&iCorReferenceValue)) &&
+                if (SUCCEEDED(iCorResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&iCorReferenceValue))) &&
                     SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == FALSE)
                 {
                     PrintValue(iCorResultValue, result, escape);
@@ -229,7 +229,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getValue(&iCorInnerExceptionValue, defaultEvalFlags));
                 BOOL isNull = FALSE;
                 ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-                if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&iCorReferenceValue)) &&
+                if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&iCorReferenceValue))) &&
                     SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == TRUE)
                 {
                     iCorInnerExceptionValue.Free();

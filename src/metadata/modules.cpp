@@ -55,7 +55,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
     ToRelease<IMetaDataImport> pMDImport;
 
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
     ULONG typesCnt = 0;
     HCORENUM fTypeEnum = nullptr;
@@ -84,7 +84,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             // Get generic types
             ToRelease<IMetaDataImport2> pMDImport2;
 
-            IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, (LPVOID *)&pMDImport2));
+            IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&pMDImport2)));
 
             HCORENUM fGenEnum = nullptr;
             mdGenericParam gp = mdGenericParamNil;
@@ -315,7 +315,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilO
     IfFailRet(pFunc->GetILCode(&pCode));
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
@@ -351,7 +351,7 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG
     IfFailRet(pFunc->GetILCode(&pCode));
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
@@ -385,7 +385,7 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     IfFailRet(pFunc->GetModule(&pModule));
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
     ULONG32 nOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
@@ -428,7 +428,7 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
     GUID mvid;
 
@@ -474,7 +474,7 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, VOID **ppSymbolReaderHandle
         IfFailRet(pModule->GetProcess(&process));
 
         peBuf.resize(peSize);
-        peBufAddress = (ULONG64)&peBuf[0];
+        peBufAddress = reinterpret_cast<uint64_t>(&peBuf[0]);
         SIZE_T read = 0;
         IfFailRet(process->ReadMemory(peAddress, peSize, &peBuf[0], &read));
         if (read != peSize)
@@ -507,7 +507,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
         ToRelease<ICorDebugModule2> pModule2;
-        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, (LPVOID *)&pModule2)))
+        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&pModule2))))
         {
             if (!needJMC)
                 pModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
@@ -546,7 +546,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
         ToRelease<IUnknown> pMDUnknown;
         ToRelease<IMetaDataImport> pMDImport;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
+        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
         if (FAILED(m_modulesSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
             LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "

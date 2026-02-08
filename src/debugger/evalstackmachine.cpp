@@ -138,7 +138,7 @@ HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue,
         return S_OK;
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
-    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&iCorGenValue));
+    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
     return iCorGenValue->SetValue(ptr);
 }
 
@@ -160,7 +160,7 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
     memset(valueData.get(), 0, cbSize * sizeof(BYTE));
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
-    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&iCorGenValue));
+    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
 
     IfFailRet(iCorGenValue->GetValue((LPVOID) & (valueData[0])));
     valueData[0] = 1; // TRUE
@@ -188,7 +188,7 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     IfFailRet(pEvalWaiter->WaitEvalResult(pThread, ppValue, [&](ICorDebugEval *pEval) -> HRESULT {
         // Note, this code execution protected by EvalWaiter mutex.
         ToRelease<ICorDebugEval2> pEval2;
-        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, (LPVOID *)&pEval2));
+        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
         IfFailRet(pEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
         return S_OK;
     }));
@@ -200,12 +200,14 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     IfFailRet(DereferenceAndUnboxValue(*ppValue, &pEditableValue, nullptr));
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pEditableValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     return pGenericValue->SetValue(ptr);
 }
 
 HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
 {
+    // `ULONG32 &index` - ICorDebugArrayValue::GetElement expect ULONG32 indices
+
     HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
@@ -224,7 +226,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     memset(indexValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     IfFailRet(pGenericValue->GetValue((LPVOID) & (indexValue[0])));
 
     CorElementType elemType = ELEMENT_TYPE_MAX;
@@ -234,54 +236,54 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     {
     case ELEMENT_TYPE_I1:
     {
-        const int8_t tmp = *(int8_t *)&(indexValue[0]);
+        const int8_t tmp = *reinterpret_cast<int8_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = ULONG32((uint8_t)tmp);
+        index = static_cast<ULONG32>(static_cast<uint8_t>(tmp));
         break;
     }
     case ELEMENT_TYPE_U1:
     {
-        index = ULONG32(*(uint8_t *)&(indexValue[0]));
+        index = static_cast<ULONG32>(*reinterpret_cast<uint8_t *>(&indexValue[0]));
         break;
     }
     case ELEMENT_TYPE_I2:
     {
-        const int16_t tmp = *(int16_t *)&(indexValue[0]);
+        const int16_t tmp = *reinterpret_cast<int16_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = ULONG32((uint16_t)tmp);
+        index = static_cast<ULONG32>(static_cast<uint16_t>(tmp));
         break;
     }
     case ELEMENT_TYPE_U2:
     {
-        index = ULONG32(*(uint16_t *)&(indexValue[0]));
+        index = static_cast<ULONG32>(*reinterpret_cast<uint16_t *>(&indexValue[0]));
         break;
     }
     case ELEMENT_TYPE_I4:
     {
-        const int32_t tmp = *(int32_t *)&(indexValue[0]);
+        const int32_t tmp = *reinterpret_cast<int32_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = ULONG32(tmp);
+        index = static_cast<ULONG32>(tmp);
         break;
     }
     case ELEMENT_TYPE_U4:
     {
-        index = ULONG32(*(uint32_t *)&(indexValue[0]));
+        index = *reinterpret_cast<uint32_t *>(&indexValue[0]);
         break;
     }
     case ELEMENT_TYPE_I8:
     {
-        const int64_t tmp = *(int64_t *)&(indexValue[0]);
+        const int64_t tmp = *reinterpret_cast<int64_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = ULONG32(tmp);
+        index = static_cast<ULONG32>(tmp);
         break;
     }
     case ELEMENT_TYPE_U8:
     {
-        index = ULONG32(*(uint64_t *)&(indexValue[0]));
+        index = static_cast<ULONG32>(*reinterpret_cast<uint64_t *>(&indexValue[0]));
         break;
     }
     default:
@@ -355,7 +357,7 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElement
     if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
     {
         ToRelease<ICorDebugValue2> iCorTypeValue2;
-        IfFailRet(pTypeValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorTypeValue2));
+        IfFailRet(pTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorTypeValue2)));
         ToRelease<ICorDebugType> iCorType;
         IfFailRet(iCorTypeValue2->GetExactType(&iCorType));
         IfFailRet(TypePrinter::NameForTypeByType(iCorType, typeName));
@@ -433,7 +435,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugGenericValue> pGenericValue1;
-    IfFailRet(pValue1->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue1));
+    IfFailRet(pValue1->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue1)));
     T1 value1 = 0;
     IfFailRet(pGenericValue1->GetValue(&value1));
 
@@ -443,7 +445,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
         return E_INVALIDARG;
 
     ToRelease<ICorDebugGenericValue> pGenericValue2;
-    IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue2));
+    IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue2)));
     T2 value2 = (T2)value1; // NOLINT(cert-str34-c,bugprone-signed-char-misuse)
     return pGenericValue2->SetValue(&value2);
 }
@@ -548,9 +550,9 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
     if (elemTypeDst == ELEMENT_TYPE_STRING || elemTypeDst == ELEMENT_TYPE_CLASS)
     {
         ToRelease<ICorDebugReferenceValue> pRefNew;
-        IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pRefNew));
+        IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pRefNew)));
         ToRelease<ICorDebugReferenceValue> pRefOld;
-        IfFailRet(pDstValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pRefOld));
+        IfFailRet(pDstValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pRefOld)));
 
         CORDB_ADDRESS addr = 0;
         IfFailRet(pRefNew->GetValue(&addr));
@@ -573,11 +575,11 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
         memset(elemValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
         ToRelease<ICorDebugGenericValue> pGenericValue;
-        IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+        IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
         IfFailRet(pGenericValue->GetValue((LPVOID) & (elemValue[0])));
 
         pGenericValue.Free();
-        IfFailRet(pDstValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+        IfFailRet(pDstValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
         return pGenericValue->SetValue(elemValue.GetPtr());
     }
 
@@ -682,7 +684,7 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
     resultType = (int32_t)findType->second;
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&iCorGenValue));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
     return iCorGenValue->GetValue(resultData);
 }
 
@@ -690,7 +692,7 @@ HRESULT GetValueByOperandDataType(PVOID valueData, BasicTypes valueType, ICorDeb
 {
     if (valueType == BasicTypes::TypeString)
     {
-        const std::string String = to_utf8((WCHAR *)valueData);
+        const std::string String = to_utf8(static_cast<WCHAR *>(valueData));
         return ed.pEvalHelpers->CreateString(ed.pThread, String, ppValue);
     }
 
@@ -911,16 +913,16 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
         if (resultType == (int32_t)BasicTypes::TypeString)
-            Interop::SysFreeString((BSTR)resultData);
+            Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
         else
             Interop::CoTaskMemFree(resultData);
     }
 
     if (valueType1 == (int32_t)BasicTypes::TypeString && valueData1)
-        Interop::SysFreeString((BSTR)valueData1);
+        Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
     if (valueType2 == (int32_t)BasicTypes::TypeString && valueData2)
-        Interop::SysFreeString((BSTR)valueData2);
+        Interop::SysFreeString(reinterpret_cast<BSTR>(valueData2));
 
     return Status;
 }
@@ -973,20 +975,20 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
         if (resultType == (int32_t)BasicTypes::TypeString)
-            Interop::SysFreeString((BSTR)resultData);
+            Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
         else
             Interop::CoTaskMemFree(resultData);
     }
 
     if (valueType1 == (int32_t)BasicTypes::TypeString && valueData1)
-        Interop::SysFreeString((BSTR)valueData1);
+        Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
     return Status;
 }
 
 HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &/*ed*/)
 {
-    std::string String = to_utf8(((FormatFS *)pArguments)->wString);
+    std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
     ReplaceInternalNames(String, true);
 
     evalStack.emplace_front();
@@ -998,8 +1000,8 @@ HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
 HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
-    const int32_t Int = ((FormatFIS *)pArguments)->Int;
-    std::string String = to_utf8(((FormatFIS *)pArguments)->wString);
+    const int32_t Int = static_cast<FormatFIS *>(pArguments)->Int;
+    std::string String = to_utf8(static_cast<FormatFIS *>(pArguments)->wString);
     std::vector<ToRelease<ICorDebugType>> genericValues;
     std::string generics = ">";
     genericValues.reserve(Int);
@@ -1012,7 +1014,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std:
         Status = GetFrontStackEntryValue(&icdv, nullptr, evalStack, ed, output);
         if (Status == S_OK)
         {
-            IfFailRet(icdv->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&icdv2));
+            IfFailRet(icdv->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&icdv2)));
             IfFailRet(icdv2->GetExactType(&icdt));
         }
         else
@@ -1035,7 +1037,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std:
 
 HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    const int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
 
     if (Int < 0)
         return E_INVALIDARG;
@@ -1112,7 +1114,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
             memset(elemValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
             ToRelease<ICorDebugGenericValue> pGenericValue;
-            IfFailRet(iCorValue->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+            IfFailRet(iCorValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
             IfFailRet(pGenericValue->GetValue((LPVOID) & (elemValue[0])));
 
             iCorValue.Free();
@@ -1120,7 +1122,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
         }
 
         ToRelease<ICorDebugValue2> iCorValue2;
-        IfFailRet(iCorValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+        IfFailRet(iCorValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
         IfFailRet(iCorValue2->GetExactType(&iCorType));
     }
 
@@ -1230,14 +1232,14 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
 
 HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatFI*)pArguments)->Flags;
-    // TODO int32_t Int = ((FormatFI*)pArguments)->Int;
+    // TODO uint32_t Flags = static_cast<FormatFI *>(pArguments)->Flags;
+    // TODO int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     return E_NOTIMPL;
 }
 
 HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    const int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
@@ -1320,7 +1322,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
         }
 
         ToRelease<ICorDebugValue2> iCorValue2;
-        IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+        IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugValue2,reinterpret_cast<void **>(&iCorValue2)));
         ToRelease<ICorDebugType> iCorType;
         IfFailRet(iCorValue2->GetExactType(&iCorType));
 
@@ -1332,7 +1334,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
 
 HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
 {
-    const int32_t Int = ((FormatFI *)pArguments)->Int;
+    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> indexvalues(Int);
@@ -1350,7 +1352,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
     IfFailRet(GetFrontStackEntryValue(&iCorObjectValue, &setterData, evalStack, ed, output));
 
     ToRelease<ICorDebugReferenceValue> pReferenceValue;
-    IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue));
+    IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue)));
     BOOL isNull = FALSE;
     IfFailRet(pReferenceValue->IsNull(&isNull));
 
@@ -1426,7 +1428,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
         }
 
         ToRelease<ICorDebugValue2> iCorValue2;
-        IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+        IfFailRet(iCorObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
         ToRelease<ICorDebugType> iCorType;
         IfFailRet(iCorValue2->GetExactType(&iCorType));
 
@@ -1438,8 +1440,8 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
 
 HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
 {
-    const int32_t Int = ((FormatFIP *)pArguments)->Int;
-    PVOID Ptr = ((FormatFIP *)pArguments)->Ptr;
+    const int32_t Int = static_cast<FormatFIP *>(pArguments)->Int;
+    PVOID Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
     static const CorElementType BasicTypesAlias[]{
@@ -1465,7 +1467,7 @@ HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
 
 HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
 {
-    std::string String = to_utf8(((FormatFS *)pArguments)->wString);
+    std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
     ReplaceInternalNames(String, true);
     evalStack.emplace_front();
     evalStack.front().literal = true;
@@ -1474,7 +1476,7 @@ HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
 
 HRESULT CharacterLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
 {
-    PVOID Ptr = ((FormatFIP *)pArguments)->Ptr;
+    PVOID Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().iCorValue, ELEMENT_TYPE_CHAR, Ptr);
@@ -1500,8 +1502,8 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
         ELEMENT_TYPE_U8         // ULong
     };
 
-    // TODO uint32_t Flags = ((FormatFI*)pArguments)->Flags;
-    const int32_t Int = ((FormatFI *)pArguments)->Int;
+    // TODO uint32_t Flags = static_cast<FormatFI *>(pArguments)->Flags;
+    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     const std::string String;
 
     evalStack.emplace_front();
@@ -1516,7 +1518,7 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
 
 HRESULT AliasQualifiedName(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1541,7 +1543,7 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pA
     evalStack.front().setterData = std::move(setterData);
 
     ToRelease<ICorDebugReferenceValue> pReferenceValue;
-    IfFailRet(evalStack.front().iCorValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pReferenceValue));
+    IfFailRet(evalStack.front().iCorValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue)));
     BOOL isNull = FALSE;
     IfFailRet(pReferenceValue->IsNull(&isNull));
 
@@ -1555,7 +1557,7 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pA
 
 HRESULT ConditionalExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1592,19 +1594,19 @@ HRESULT QualifiedName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, st
 
 HRESULT PointerMemberAccessExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
 HRESULT CastExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
 HRESULT AsExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1700,7 +1702,7 @@ HRESULT LessThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, PVOID /*
 
 HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1747,25 +1749,25 @@ HRESULT NullLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArg
 
 HRESULT PreIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
 HRESULT PostIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
 HRESULT PreDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
 HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1829,7 +1831,7 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgument
 
 HRESULT TypeOfExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
-    // TODO uint32_t Flags = ((FormatF*)pArguments)->Flags;
+    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
@@ -1860,7 +1862,7 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgume
          typeNameLeft == typeNameRigth))
     {
         ToRelease<ICorDebugReferenceValue> pRefValue;
-        IfFailRet(iCorLeftOpValue->QueryInterface(IID_ICorDebugReferenceValue, (LPVOID *)&pRefValue));
+        IfFailRet(iCorLeftOpValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pRefValue)));
         BOOL isNull = FALSE;
         IfFailRet(pRefValue->IsNull(&isNull));
 
@@ -2052,7 +2054,7 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     static const WCHAR strTypeDefDecimal[] = W("System.Decimal");

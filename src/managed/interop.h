@@ -107,7 +107,6 @@ HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandles, int32_t tokenNum, PVOID T
                            int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data);
 HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef methodToken,
                                    std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, ULONG32 *ilOffset);
-HRESULT LoadDeltaPdb(const std::string &pdbPath, VOID **ppSymbolReaderHandle, std::unordered_set<mdMethodDef> &methodTokens);
 HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, int32_t secondType, int32_t operationType,
                             int32_t &resultType, PVOID *data, std::string &errorText);
 HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgram, std::string &textOutput);

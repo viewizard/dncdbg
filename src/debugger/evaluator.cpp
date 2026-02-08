@@ -111,7 +111,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> 
         return E_FAIL;
 
     ToRelease<ICorDebugArrayValue> pArrayVal;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayVal));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayVal)));
 
     ULONG32 nRank = 0;
     IfFailRet(pArrayVal->GetRank(&nRank));
@@ -473,7 +473,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethod
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
-    IfFailRet(pInputTypeValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+    IfFailRet(pInputTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
     ToRelease<ICorDebugType> iCorType;
     IfFailRet(iCorValue2->GetExactType(&iCorType));
     std::vector<Evaluator::ArgElementType> methodGenerics;
@@ -499,7 +499,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     std::vector<Evaluator::ArgElementType> typeGenerics;
     ToRelease<ICorDebugTypeEnum> paramTypes;
@@ -713,7 +713,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     }
 
     ToRelease<ICorDebugArrayValue> pArrayValue;
-    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugArrayValue, (LPVOID *)&pArrayValue)))
+    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayValue))))
     {
         ULONG32 nRank = 0;
         IfFailRet(pArrayValue->GetRank(&nRank));
@@ -746,7 +746,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     }
 
     ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     ToRelease<ICorDebugType> pType;
     if (pTypeCast == nullptr)
     {
@@ -782,7 +782,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
     IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
@@ -835,7 +835,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     pValue.Free();
                     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
                     ToRelease<ICorDebugObjectValue> pObjValue;
-                    IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
+                    IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
                     IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
                 }
 
@@ -905,7 +905,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
                     // 2 bytes - alignment
                     // We check only one byte (first data byte), no reason check 4 bytes in our case.
-                    && pcbSize > 2 && ((char const *)ppBlob)[2] == DebuggerBrowsableState::Never)
+                    && pcbSize > 2 && (static_cast<char const *>(ppBlob)[2] == DebuggerBrowsableState::Never))
                 {
                     debuggerBrowsableState_Never = true;
                     break;
@@ -1047,7 +1047,7 @@ static HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass 
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
     ToRelease<ICorDebugType> iCorType;
     IfFailRet(iCorValue2->GetExactType(&iCorType));
     IfFailRet(iCorType->GetClass(ppClass));
@@ -1074,7 +1074,7 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
             auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
             {
                 ToRelease<ICorDebugObjectValue> pObjValue;
-                IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
+                IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
                 IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
                 return S_OK;
             };
@@ -1121,7 +1121,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
@@ -1151,7 +1151,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
         return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
     ToRelease<ICorDebugValue> currentThis;
     IfFailRet(pILFrame->GetArgument(0, &currentThis));
 
@@ -1278,7 +1278,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
             pValue.Free();
             IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
             ToRelease<ICorDebugObjectValue> pObjValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue));
+            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
             IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
             return S_OK;
         };
@@ -1298,7 +1298,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
                 PVOID data = nullptr;
                 if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) &&
                     data)
-                    hoistedLocalScopes.reset((hoisted_local_scope_t *)data);
+                    hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
                 else
                     hoistedLocalScopesCount = 0;
             }
@@ -1359,13 +1359,13 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
     ToRelease<ICorDebugValueEnum> pLocalsEnum;
     IfFailRet(pILFrame->EnumerateLocalVariables(&pLocalsEnum));
@@ -1454,7 +1454,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 IfFailRet(GetFrameAt(pThread, frameLevel, &pFrame));
                 if (pFrame == nullptr)
                     return E_FAIL;
-                IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+                IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
             }
             return pILFrame->GetArgument(i, ppResultValue);
         };
@@ -1484,7 +1484,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 IfFailRet(GetFrameAt(pThread, frameLevel, &pFrame));
                 if (pFrame == nullptr)
                     return E_FAIL;
-                IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+                IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
             }
             return pILFrame->GetLocalVariable(i, ppResultValue);
         };
@@ -1797,7 +1797,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
         ToRelease<IUnknown> pMDUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
         ToRelease<IMetaDataImport> pMD;
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
         while (SUCCEEDED(pMD->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
         {
@@ -1890,7 +1890,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             continue;
 
                         ToRelease<IMetaDataImport> pMDI;
-                        if (FAILED(pMDUnk->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDI)))
+                        if (FAILED(pMDUnk->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDI))))
                             continue;
 
                         HCORENUM ifEnum = nullptr;

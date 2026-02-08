@@ -261,64 +261,6 @@ public class SymbolReader
     }
 
     /// <summary>
-    /// Load delta PDB file.
-    /// </summary>
-    /// <param name="isFileLayout">Delta PDB file path</param>
-    /// <returns>Symbol reader handle or zero if error</returns>
-    internal static IntPtr LoadDeltaPdb([MarshalAs(UnmanagedType.LPWStr)] string pdbPath, out IntPtr data,
-                                        out int count)
-    {
-        data = IntPtr.Zero;
-        count = 0;
-
-        try
-        {
-            var pdbStream = TryOpenFile(pdbPath);
-            if (pdbStream == null)
-                return IntPtr.Zero;
-
-            var provider = MetadataReaderProvider.FromPortablePdbStream(pdbStream);
-            var reader = provider.GetMetadataReader();
-
-            OpenedReader openedReader = new OpenedReader(provider, reader);
-            if (openedReader == null)
-                return IntPtr.Zero;
-
-            var list = new List<int>();
-            foreach (var handle in reader.GetEditAndContinueMapEntries())
-            {
-                if (handle.Kind == HandleKind.MethodDebugInformation)
-                {
-                    var methodToken =
-                        MetadataTokens.GetToken(((MethodDebugInformationHandle)handle).ToDefinitionHandle());
-                    list.Add(methodToken);
-                }
-            }
-            if (list.Count > 0)
-            {
-                var methodsArray = list.ToArray();
-
-                data = Marshal.AllocCoTaskMem(list.Count * 4);
-                IntPtr dataPtr = data;
-                foreach (var p in list)
-                {
-                    Marshal.WriteInt32(dataPtr, p);
-                    dataPtr = dataPtr + 4;
-                }
-                count = list.Count;
-            }
-
-            GCHandle gch = GCHandle.Alloc(openedReader);
-            return GCHandle.ToIntPtr(gch);
-        }
-        catch
-        {
-        }
-
-        return IntPtr.Zero;
-    }
-
-    /// <summary>
     /// Cleanup and dispose of symbol reader handle
     /// </summary>
     /// <param name="symbolReaderHandle">symbol reader handle returned by LoadSymbolsForModule</param>

@@ -30,11 +30,11 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     ToRelease<IUnknown> pMDUnknown_this;
     IfFailRet(pModule_this->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown_this));
     ToRelease<IMetaDataImport> pMD_this;
-    IfFailRet(pMDUnknown_this->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD_this));
+    IfFailRet(pMDUnknown_this->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD_this)));
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
     ToRelease<ICorDebugValueEnum> pParamEnum;
     IfFailRet(pILFrame->EnumerateArguments(&pParamEnum));
     ULONG cParams = 0;
@@ -55,7 +55,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     ToRelease<ICorDebugValue> pValue_this;
     IfFailRet(DereferenceAndUnboxValue(pRefValue_this, &pValue_this, nullptr));
     ToRelease<ICorDebugValue2> pValue2_this;
-    IfFailRet(pValue_this->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2_this));
+    IfFailRet(pValue_this->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2_this)));
     ToRelease<ICorDebugType> pType_this;
     IfFailRet(pValue2_this->GetExactType(&pType_this));
     ToRelease<ICorDebugClass> pClass_this;
@@ -81,7 +81,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
             continue;
 
         ToRelease<ICorDebugObjectValue> pObjValue_this;
-        if (SUCCEEDED(pValue_this->QueryInterface(IID_ICorDebugObjectValue, (LPVOID *)&pObjValue_this)))
+        if (SUCCEEDED(pValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue_this))))
             pObjValue_this->GetFieldValue(pClass_this, fieldDef, &pRefValue_t_builder);
 
         break;
@@ -110,7 +110,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
 
     // Find 'ObjectIdForDebugger' property.
     ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
     ToRelease<ICorDebugClass> pClass;
@@ -123,7 +123,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
@@ -171,7 +171,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
 
     // Find SetNotificationForWaitCompletion() method.
     ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pBuilderValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&pValue2));
+    IfFailRet(pBuilderValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
     ToRelease<ICorDebugClass> pClass;
@@ -184,7 +184,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     ULONG numMethods = 0;
     HCORENUM hEnum = nullptr;
@@ -224,7 +224,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
         return E_OUTOFMEMORY;
     memset(rgbValue.get(), 0, cbSize * sizeof(BYTE));
     ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pNewBoolean->QueryInterface(IID_ICorDebugGenericValue, (LPVOID *)&pGenericValue));
+    IfFailRet(pNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
     IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
     rgbValue[0] = 1; // TRUE
     IfFailRet(pGenericValue->SetValue((LPVOID) &(rgbValue[0])));
@@ -264,7 +264,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return S_FALSE; // setup simple stepper
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *)&pILFrame));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
     ULONG32 ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
@@ -449,7 +449,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
     ToRelease<ICorDebugILFrame> pILFrame;
     ULONG32 ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    if (FAILED(pFrame->QueryInterface(IID_ICorDebugILFrame, (LPVOID *) &pILFrame)) ||
+    if (FAILED(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame))) ||
         FAILED(pILFrame->GetIP(&ipOffset, &mappingResult)) ||
         mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
@@ -499,7 +499,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
         ToRelease<ICorDebugValue> iCorValue;
         if (FAILED(GetAsyncIdReference(pThread, pFrame, m_sharedEvalHelpers.get(), &iCorValue)) ||
-            FAILED(iCorValue->QueryInterface(IID_ICorDebugHandleValue, (LPVOID *)&m_asyncStep->m_iCorHandleValueAsyncId)) ||
+            FAILED(iCorValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_iCorHandleValueAsyncId))) ||
             FAILED(m_asyncStep->m_iCorHandleValueAsyncId->GetHandleType(&handleType)) ||
             handleType != CorDebugHandleType::HANDLE_STRONG) // Note, we need only strong handle here, that will not invalidated on continue-break.
         {

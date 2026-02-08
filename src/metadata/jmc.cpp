@@ -61,7 +61,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     ULONG numTypedefs = 0;
     HCORENUM fEnum = nullptr;
@@ -87,7 +87,7 @@ static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<m
             ToRelease<ICorDebugFunction> pFunction;
             ToRelease<ICorDebugFunction2> pFunction2;
             if (FAILED(pModule->GetFunctionFromToken(token, &pFunction)) ||
-                FAILED(pFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&pFunction2)))
+                FAILED(pFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&pFunction2))))
                 continue;
 
             pFunction2->SetJMCStatus(FALSE);
@@ -97,7 +97,7 @@ static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<m
             ToRelease<ICorDebugClass> pClass;
             ToRelease<ICorDebugClass2> pClass2;
             if (FAILED(pModule->GetClassFromToken(token, &pClass)) ||
-                FAILED(pClass->QueryInterface(IID_ICorDebugClass2, (LPVOID *)&pClass2)))
+                FAILED(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2))))
                 continue;
 
             pClass2->SetJMCStatus(FALSE);
@@ -124,7 +124,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     for (const mdMethodDef methodToken : methodTokens)
     {

@@ -217,7 +217,7 @@ static HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &ar
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugILFrame2> pILFrame2;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, (LPVOID *)&pILFrame2));
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, reinterpret_cast<void **>(&pILFrame2)));
 
     ToRelease<ICorDebugTypeEnum> pTypeEnum;
 
@@ -248,7 +248,7 @@ HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
     ToRelease<IUnknown> pMDUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
     mdToken tk = mdTokenNil;
     IfFailRet(pClass->GetToken(&tk));
     std::list<std::string> args;
@@ -260,7 +260,7 @@ HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> iCorValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, (LPVOID *)&iCorValue2));
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
     ToRelease<ICorDebugType> iCorType;
     IfFailRet(iCorValue2->GetExactType(&iCorType));
     return NameForTypeByType(iCorType, mdName);
@@ -361,7 +361,7 @@ HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
 {
     ToRelease<ICorDebugType> pType;
     ToRelease<ICorDebugValue2> pValue2;
-    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, (void **)&pValue2)) &&
+    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&pValue2)))) &&
         SUCCEEDED(pValue2->GetExactType(&pType)))
         return GetTypeOfValue(pType, output);
     else
@@ -424,7 +424,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
             ToRelease<IUnknown> pMDUnknown;
             ToRelease<IMetaDataImport> pMD;
             IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-            IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+            IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
             std::string name;
             std::list<std::string> args;
@@ -811,7 +811,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     ToRelease<IMetaDataImport> pMD;
 
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&typeDef));
@@ -827,7 +827,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     WCHAR szFunctionName[mdNameLen] = {0};
 
     ToRelease<IMetaDataImport2> pMD2;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, (LPVOID *)&pMD2));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&pMD2)));
 
     IfFailRet(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen, &flags,
                                   &pbSigBlob, &ulSigBlob, &ulCodeRVA, &ulImplFlags));

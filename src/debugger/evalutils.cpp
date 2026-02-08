@@ -91,7 +91,7 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     std::string currentTypeName;
 
@@ -145,7 +145,7 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *
         ToRelease<ICorDebugAppDomain2> pAppDomain2;
         ToRelease<ICorDebugAppDomain> pAppDomain;
         IfFailRet(pThread->GetAppDomain(&pAppDomain));
-        IfFailRet(pAppDomain->QueryInterface(IID_ICorDebugAppDomain2, (LPVOID *)&pAppDomain2));
+        IfFailRet(pAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&pAppDomain2)));
 
         for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
         {
@@ -269,12 +269,12 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         IfFailRet(pTypeModule->GetClassFromToken(typeToken, &pClass));
 
         ToRelease<ICorDebugClass2> pClass2;
-        IfFailRet(pClass->QueryInterface(IID_ICorDebugClass2, (LPVOID *)&pClass2));
+        IfFailRet(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2)));
 
         ToRelease<IUnknown> pMDUnknown;
         IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
         ToRelease<IMetaDataImport> pMD;
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMD));
+        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
         DWORD flags = 0;
         ULONG nameLen = 0;
@@ -288,8 +288,8 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
         ToRelease<ICorDebugType> pType;
-        IfFailRet(pClass2->GetParameterizedType(et, static_cast<uint32_t>(types.size()), (ICorDebugType **)types.data(),
-                                                &pType));
+        IfFailRet(pClass2->GetParameterizedType(et, static_cast<uint32_t>(types.size()),
+                                                reinterpret_cast<ICorDebugType **>(types.data()), &pType));
 
         *ppType = pType.Detach();
     }

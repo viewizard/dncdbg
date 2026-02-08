@@ -431,7 +431,7 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, (LPVOID *)&pMDImport));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
     WCHAR mdName[mdNameLen];
     ULONG nameLen = 0;
@@ -450,7 +450,7 @@ static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame 
     ToRelease<ICorDebugFunction> iCorFunction;
     ToRelease<ICorDebugFunction2> iCorFunction2;
     if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, (LPVOID *)&iCorFunction2)) &&
+        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
         SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
     {
         return ExceptionCallbackType::USER_CATCH_HANDLER_FOUND;
