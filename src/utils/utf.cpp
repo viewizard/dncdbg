@@ -23,7 +23,7 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
         return {};
 
     size_t in_bytes = utf8_str.size();
-    char *in_buf = const_cast<char *>(utf8_str.c_str()); // NOLINT(misc-const-correctness)
+    char *in_buf = const_cast<char *>(utf8_str.c_str()); // NOLINT(misc-const-correctness,cppcoreguidelines-pro-type-const-cast)
     size_t out_bytes = in_bytes * 2 + 2; // worst case UTF-16 is twice the size of UTF-8 in bytes
     std::vector<char> out_buf(out_bytes);
     char *out_ptr = out_buf.data(); // NOLINT(misc-const-correctness)
@@ -48,7 +48,7 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
         return {};
 
     size_t in_bytes = utf16_str.size() * sizeof(char16_t);
-    char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str())); // NOLINT(misc-const-correctness)
+    char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str())); // NOLINT(misc-const-correctness,cppcoreguidelines-pro-type-const-cast)
     size_t out_bytes = in_bytes * 2 + 2; // worst case UTF-8 is twice the size of UTF-16 in bytes
     std::vector<char> out_buf(out_bytes);
     char *out_ptr = out_buf.data(); // NOLINT(misc-const-correctness)

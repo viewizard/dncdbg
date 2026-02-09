@@ -653,7 +653,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
     Status = m_ioredirect.exec([&]() -> HRESULT {
             IfFailRet(m_dbgshim.CreateProcessForLaunch(
-                reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())),
+                reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : &outEnv[0],
                 m_cwd.empty() ? nullptr : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),

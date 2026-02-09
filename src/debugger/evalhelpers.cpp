@@ -497,7 +497,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
 
             ToRelease<ICorDebugGenericValue> pGenericValue;
             IfFailRet(pEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue)));
+            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
             *ppLiteralValue = pValue.Detach();
             break;
         }
@@ -534,7 +534,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             IfFailRet(pEval->CreateValue(underlyingType, nullptr, &pValue));
             ToRelease<ICorDebugGenericValue> pGenericValue;
             IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue)));
+            IfFailRet(pGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
             *ppLiteralValue = pValue.Detach();
             break;
         }
