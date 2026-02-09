@@ -577,7 +577,7 @@ static std::string EscapeShellArg(const std::string &arg)
 
 static bool IsDirExists(const char *const path)
 {
-    struct stat info;
+    struct stat info{};
 
     if (stat(path, &info) != 0)
         return false;

@@ -234,7 +234,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 
     SOCKET newsockfd;
     int clilen;
-    struct sockaddr_in serv_addr, cli_addr;
+    struct sockaddr_in serv_addr{}, cli_addr{};
 
     SOCKET sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd == INVALID_SOCKET)

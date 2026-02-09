@@ -92,7 +92,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                 fullFilename += FileSystem::PathSeparator;
                 fullFilename.append(entry->d_name);
 
-                struct stat sb;
+                struct stat sb{};
                 if (stat(fullFilename.c_str(), &sb) == -1)
                     continue;
 

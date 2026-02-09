@@ -154,7 +154,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 
     int newsockfd = 0;
     socklen_t clilen = 0;
-    struct sockaddr_in serv_addr, cli_addr;
+    struct sockaddr_in serv_addr{}, cli_addr{};
 
     const int sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0)
@@ -260,7 +260,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
             maxfd = std::max(it->handle.poll(&read_set, &write_set, &except_set), maxfd);
     }
 
-    struct timeval tv;
+    struct timeval tv{};
     const std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
     tv.tv_sec = us.count() / 1000000, tv.tv_usec = us.count() % 1000000;
 
@@ -315,7 +315,7 @@ dncdbg::IOSystem::StdFiles Class::get_std_files()
 
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
 // Substitution exists only during life time of StsIOSwap instance.
-Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
+Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cppcoreguidelines-pro-type-member-init)
 {
     const static unsigned NFD = std::tuple_size_v<StdFiles>;
     static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
