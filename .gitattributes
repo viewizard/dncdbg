@@ -1,3 +1,5 @@
+*.h linguist-language=C++
+
 docs/** linguist-documentation
 third_party/** linguist-vendored
 test-suite/** linguist-vendored
