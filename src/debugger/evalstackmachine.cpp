@@ -154,18 +154,17 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
 
     ULONG32 cbSize = 0;
     IfFailRet((*ppValue)->GetSize(&cbSize));
-    const std::unique_ptr<BYTE[]> valueData(new (std::nothrow) BYTE[cbSize]);
-    if (valueData == nullptr)
+    std::vector<BYTE> valueData(cbSize, 0);
+    if (valueData.data() == nullptr)
         return E_OUTOFMEMORY;
-    memset(valueData.get(), 0, cbSize * sizeof(BYTE));
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
     IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
 
-    IfFailRet(iCorGenValue->GetValue((LPVOID) & (valueData[0])));
+    IfFailRet(iCorGenValue->GetValue(static_cast<void *>(&valueData[0])));
     valueData[0] = 1; // TRUE
 
-    return iCorGenValue->SetValue((LPVOID) & (valueData[0]));
+    return iCorGenValue->SetValue(static_cast<void *>(&valueData[0]));
 }
 
 HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
@@ -227,7 +226,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue((LPVOID) & (indexValue[0])));
+    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&indexValue[0])));
 
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(pValue->GetType(&elemType));
@@ -576,7 +575,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
 
         ToRelease<ICorDebugGenericValue> pGenericValue;
         IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-        IfFailRet(pGenericValue->GetValue((LPVOID) & (elemValue[0])));
+        IfFailRet(pGenericValue->GetValue(static_cast<void *>(&elemValue[0])));
 
         pGenericValue.Free();
         IfFailRet(pDstValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
@@ -747,8 +746,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         if (!iCorFunc)
             return E_INVALIDARG;
 
-        ICorDebugValue *ppArgsValue[] = {pType1Value, pType2Value};
-        return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, ppArgsValue, 2, pResultValue, ed.evalFlags);
+        std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
+        return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue, ed.evalFlags);
     };
 
     // Try execute operator for exact same type as provided values.
@@ -1115,7 +1114,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
 
             ToRelease<ICorDebugGenericValue> pGenericValue;
             IfFailRet(iCorValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-            IfFailRet(pGenericValue->GetValue((LPVOID) & (elemValue[0])));
+            IfFailRet(pGenericValue->GetValue(static_cast<void *>(&elemValue[0])));
 
             iCorValue.Free();
             IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, entry->second, &iCorValue, elemValue.GetPtr()));
@@ -1444,18 +1443,22 @@ HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
     PVOID Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
-    static const CorElementType BasicTypesAlias[]{
+    static constexpr std::array<CorElementType, 15> BasicTypesAlias{
         ELEMENT_TYPE_MAX,       // Boolean - TrueLiteralExpression or FalseLiteralExpression
         ELEMENT_TYPE_MAX,       // Byte - no literal suffix for byte
         ELEMENT_TYPE_MAX,       // Char - CharacterLiteralExpression
         ELEMENT_TYPE_VALUETYPE, // Decimal
-        ELEMENT_TYPE_R8,        ELEMENT_TYPE_R4, ELEMENT_TYPE_I4, ELEMENT_TYPE_I8,
+        ELEMENT_TYPE_R8,
+        ELEMENT_TYPE_R4,
+        ELEMENT_TYPE_I4,
+        ELEMENT_TYPE_I8,
         ELEMENT_TYPE_MAX, // Object
         ELEMENT_TYPE_MAX, // SByte - no literal suffix for sbyte
         ELEMENT_TYPE_MAX, // Short - no literal suffix for short
         ELEMENT_TYPE_MAX, // String - StringLiteralExpression
         ELEMENT_TYPE_MAX, // UShort - no literal suffix for ushort
-        ELEMENT_TYPE_U4,        ELEMENT_TYPE_U8};
+        ELEMENT_TYPE_U4,
+        ELEMENT_TYPE_U8};
 
     evalStack.emplace_front();
     evalStack.front().literal = true;
@@ -1484,7 +1487,7 @@ HRESULT CharacterLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID p
 
 HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
 {
-    static const CorElementType BasicTypesAlias[]{
+    static constexpr std::array<CorElementType, 15> BasicTypesAlias{
         ELEMENT_TYPE_BOOLEAN,   // Boolean
         ELEMENT_TYPE_U1,        // Byte
         ELEMENT_TYPE_CHAR,      // Char
@@ -2057,13 +2060,13 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
 
     mdTypeDef typeDef = mdTypeDefNil;
-    static const WCHAR strTypeDefDecimal[] = W("System.Decimal");
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefDecimal, mdTypeDefNil, &typeDef));
+    static const WSTRING strTypeDefDecimal{W("System.Decimal")};
+    IfFailRet(pMD->FindTypeDefByName(strTypeDefDecimal.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorDecimalClass));
 
     typeDef = mdTypeDefNil;
-    static const WCHAR strTypeDefVoid[] = W("System.Void");
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefVoid, mdTypeDefNil, &typeDef));
+    static const WSTRING strTypeDefVoid{W("System.Void")};
+    IfFailRet(pMD->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorVoidClass));
 
     static const std::vector<std::pair<CorElementType, const WCHAR *>> corElementToValueNameMap{

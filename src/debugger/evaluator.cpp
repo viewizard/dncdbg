@@ -14,6 +14,7 @@
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
+#include <array>
 #include <memory>
 #include <sstream>
 #include <unordered_set>
@@ -1164,10 +1165,10 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     do
     {
         ULONG nameLen = 0;
-        WCHAR mdName[mdNameLen];
-        IfFailRet(pMD->GetTypeDefProps(typeDef, mdName, _countof(mdName), &nameLen, nullptr, nullptr));
+        std::array<WCHAR, mdNameLen> mdName{};
+        IfFailRet(pMD->GetTypeDefProps(typeDef, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr));
 
-        if (!IsSynthesizedLocalName(mdName, nameLen))
+        if (!IsSynthesizedLocalName(mdName.data(), nameLen))
             break;
 
         mdTypeDef enclosingClass = mdTypeDefNil;

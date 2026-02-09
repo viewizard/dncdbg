@@ -119,6 +119,6 @@ template <class T> class ToRelease
 #define _countof(x) (sizeof(x) / sizeof(x[0]))
 #endif
 
-const int mdNameLen = 2048;
+constexpr uint32_t mdNameLen = 2048;
 
 } // namespace dncdbg

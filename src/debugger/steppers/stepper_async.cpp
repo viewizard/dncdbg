@@ -225,9 +225,9 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     memset(rgbValue.get(), 0, cbSize * sizeof(BYTE));
     ToRelease<ICorDebugGenericValue> pGenericValue;
     IfFailRet(pNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
+    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
     rgbValue[0] = 1; // TRUE
-    IfFailRet(pGenericValue->SetValue((LPVOID) &(rgbValue[0])));
+    IfFailRet(pGenericValue->SetValue(static_cast<void *>(&rgbValue[0])));
 
     // Call this.<>t__builder.SetNotificationForWaitCompletion(TRUE).
     ToRelease<ICorDebugFunction> pFunc;

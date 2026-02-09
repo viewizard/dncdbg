@@ -19,6 +19,7 @@
 #include "protocol/dap.h"
 #include "utils/waitpid.h"
 #include "utils/utf.h"
+#include <array>
 
 namespace dncdbg
 {
@@ -433,10 +434,10 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
-    WCHAR mdName[mdNameLen];
+    std::array<WCHAR, mdNameLen> mdName{};
     ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetScopeProps(mdName, _countof(mdName), &nameLen, nullptr));
-    excModule = to_utf8(mdName);
+    IfFailRet(pMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
+    excModule = to_utf8(mdName.data());
 
     return S_OK;
 }

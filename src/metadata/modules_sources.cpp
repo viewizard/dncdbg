@@ -7,6 +7,7 @@
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "utils/utf.h"
+#include <array>
 #include <algorithm>
 #include <list>
 #include <map>
@@ -232,15 +233,15 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
             if (methodTokens && methodTokens->find(methodDef) == methodTokens->end())
                 continue;
 
-            WCHAR funcName[mdNameLen];
+            std::array<WCHAR, mdNameLen> funcName{};
             ULONG funcNameLen = 0;
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName, _countof(funcName), &funcNameLen,
+            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), mdNameLen, &funcNameLen,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
-            if (str_equal(funcName, W(".ctor")) || str_equal(funcName, W(".cctor")))
+            if (str_equal(funcName.data(), W(".ctor")) || str_equal(funcName.data(), W(".cctor")))
                 constrTokens.emplace_back(methodDef);
             else
                 normalTokens.emplace_back(methodDef);

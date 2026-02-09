@@ -6,6 +6,7 @@
 #include "utils/dynlibs.h"
 #include "utils/limits.h"
 #include <windows.h>
+#include <array>
 
 namespace dncdbg
 {
@@ -22,13 +23,13 @@ DLHandle DLOpen(const std::string &path)
 // and returns it's address, in case of error function returns nullptr.
 void *DLSym(DLHandle handle, const std::string_view &name)
 {
-    char str[LINE_MAX];
-    if (name.size() >= sizeof(str))
+    std::array<char, LINE_MAX> str{};
+    if (name.size() >= str.size())
         return {};
 
-    name.copy(str, name.size());
+    name.copy(str.data(), name.size());
     str[name.size()] = 0;
-    return ::GetProcAddress((HMODULE)handle, str);
+    return ::GetProcAddress((HMODULE)handle, str.data());
 }
 
 // This function unloads previously loadded library, specified by handle.

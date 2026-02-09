@@ -13,6 +13,7 @@
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include <dlfcn.h>
+#include <array>
 
 namespace dncdbg
 {
@@ -36,16 +37,16 @@ DLHandle DLOpen(const std::string &path)
 // and returns it's address, in case of error function returns nullptr.
 void *DLSym(DLHandle handle, const std::string_view &name)
 {
-    char str[LINE_MAX];
-    if (name.size() >= sizeof(str))
+    std::array<char, LINE_MAX> str{};
+    if (name.size() >= str.size())
         return {};
 
-    name.copy(str, name.size());
+    name.copy(str.data(), name.size());
     str[name.size()] = 0;
 
     ::dlerror(); // Clear any existing error
 
-    void *tmpPointer = ::dlsym(handle, str); // NOLINT(misc-const-correctness)
+    void *tmpPointer = ::dlsym(handle, str.data()); // NOLINT(misc-const-correctness)
 
     const char *err = ::dlerror();
     if (err != nullptr)

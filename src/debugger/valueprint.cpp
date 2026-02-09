@@ -9,6 +9,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include "utils/platform.h"
+#include <array>
 #include <iomanip>
 #include <map>
 #include <sstream>
@@ -179,10 +180,10 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
-        WCHAR mdName[mdNameLen];
+        std::array<WCHAR, mdNameLen> mdName{};
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, mdNameLen, &nameLen, &fieldAttr,
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
                                          nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
         {
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
@@ -193,7 +194,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
             if (currentConstValue == curValue)
             {
                 pMD->CloseEnum(fEnum);
-                output = to_utf8(mdName);
+                output = to_utf8(mdName.data());
 
                 return S_OK;
             }
@@ -206,7 +207,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
                 if ((currentConstValue == remainingValue) ||
                     ((currentConstValue != 0) && ((currentConstValue & remainingValue) == currentConstValue)))
                 {
-                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName));
+                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.data()));
                     remainingValue &= ~currentConstValue;
                 }
             }
@@ -731,7 +732,7 @@ HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
     IfFailRet(pHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
+    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
     // pHasValueValue is ELEMENT_TYPE_BOOLEAN
     if (rgbValue[0] != 0)
     {
@@ -797,7 +798,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     ToRelease<ICorDebugGenericValue> pGenericValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue((LPVOID) &(rgbValue[0])));
+    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
 
     if (IsEnum(pValue))
     {

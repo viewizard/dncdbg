@@ -282,18 +282,18 @@ namespace
 // Rules to escape characters in strings, in JSON.
 struct JSON_escape_rules
 {
-    static const char forbidden_chars[];
-    static const std::string_view subst_chars[];
+    static const char forbidden_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+    static const std::string_view subst_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
     constexpr static const char escape_char = '\\';
 };
 
 // Allocate static memory for strings declared above.
-const char JSON_escape_rules::forbidden_chars[] =
+const char JSON_escape_rules::forbidden_chars[] = // NOLINT(cppcoreguidelines-avoid-c-arrays)
 "\"\\"
 "\000\001\002\003\004\005\006\007\010\011\012\013\014\015\016\017"
 "\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037";
 
-const std::string_view JSON_escape_rules::subst_chars[] = {
+const std::string_view JSON_escape_rules::subst_chars[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
     "\\\"", "\\\\",
     "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005", "\\u0006", "\\u0007",
     "\\b", "\\t", "\\n", "\\u000b", "\\f", "\\r", "\\u000e", "\\u000f",

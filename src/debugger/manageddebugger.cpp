@@ -25,6 +25,7 @@
 #include "utils/waitpid.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
+#include <array>
 #include <chrono>
 #include <map>
 #include <mutex>
@@ -803,14 +804,15 @@ HRESULT ManagedDebugger::AttachToProcess()
     if (m_clrPath.empty())
         return E_INVALIDARG; // Unable to find libcoreclr.so
 
-    WCHAR pBuffer[100];
+    constexpr uint32_t bufSize = 100;
+    std::array<WCHAR, bufSize> pBuffer{};
     DWORD dwLength = 0;
     IfFailRet(m_dbgshim.CreateVersionStringFromModule(
-        m_processId, reinterpret_cast<LPCWSTR>(to_utf16(m_clrPath).c_str()), pBuffer, _countof(pBuffer), &dwLength));
+        m_processId, reinterpret_cast<LPCWSTR>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
 
     ToRelease<IUnknown> pCordb;
 
-    IfFailRet(m_dbgshim.CreateDebuggingInterfaceFromVersionEx(CorDebugVersion_4_0, pBuffer, &pCordb));
+    IfFailRet(m_dbgshim.CreateDebuggingInterfaceFromVersionEx(CorDebugVersion_4_0, pBuffer.data(), &pCordb));
 
     m_unregisterToken = nullptr;
     IfFailRet(Startup(pCordb));
