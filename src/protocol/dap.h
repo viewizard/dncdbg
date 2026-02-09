@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "interfaces/types.h"
+#include "types/types.h"
 #include <json/json.hpp>
 #include <atomic>
 #include <condition_variable>

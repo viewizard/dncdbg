@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "interfaces/types.h"
+#include "types/types.h"
 #include "metadata/async_info.h"
 #include "utils/torelease.h"
 #include <mutex>

@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "interfaces/types.h"
+#include "types/types.h"
 #include <functional>
 
 namespace dncdbg

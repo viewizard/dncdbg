@@ -8,7 +8,7 @@
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
-#include "interfaces/types.h"
+#include "types/types.h"
 #include "metadata/typeprinter.h"
 #include <unordered_set>
 #include <vector>

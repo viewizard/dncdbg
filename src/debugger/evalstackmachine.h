@@ -12,7 +12,7 @@
 #endif
 
 #include "debugger/evaluator.h"
-#include "interfaces/types.h"
+#include "types/types.h"
 #include "utils/torelease.h"
 #include <list>
 #include <memory>

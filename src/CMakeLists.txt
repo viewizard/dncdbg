@@ -37,7 +37,7 @@ set(dncdbg_SRC
     debugger/threads.cpp
     debugger/valueprint.cpp
     debugger/variables.cpp
-    interfaces/types.cpp
+    types/types.cpp
     managed/interop.cpp
     metadata/attributes.cpp
     metadata/async_info.cpp

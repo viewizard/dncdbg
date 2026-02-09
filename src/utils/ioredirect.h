@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "interfaces/types.h" // AsyncResult
+#include "types/types.h" // AsyncResult
 #include "utils/iosystem.h"
 #include "utils/platform.h"
 #include "utils/rwlock.h"

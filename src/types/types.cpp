@@ -3,12 +3,12 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "interfaces/types.h"
+#include "types/types.h"
 #include <algorithm>
 #include <cstddef> // ptrdiff_t
 #include <mutex>
 
-// Important! All "interfaces" code must not depends from other debugger's code.
+// Important! All "types" code must not depends from other debugger's code.
 
 namespace dncdbg
 {
