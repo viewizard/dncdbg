@@ -201,6 +201,11 @@ struct FramesList
             return &frames_list.list;
         }
 
+        ScopeGuard(ScopeGuard &&) = delete;
+        ScopeGuard(const ScopeGuard &) = delete;
+        ScopeGuard &operator=(ScopeGuard &&) = delete;
+        ScopeGuard &operator=(const ScopeGuard &) = delete;
+
       private:
 
         FramesList &frames_list; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)

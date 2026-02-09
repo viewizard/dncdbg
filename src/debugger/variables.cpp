@@ -62,8 +62,12 @@ struct VariableMember
           value(pValue)
     {
     }
+
     VariableMember(VariableMember &&that) = default;
     VariableMember(const VariableMember &that) = delete;
+    VariableMember &operator=(VariableMember &&) = delete;
+    VariableMember &operator=(const VariableMember &) = delete;
+    ~VariableMember() = default;
 };
 
 static HRESULT FillValueAndType(VariableMember &member, Variable &var)

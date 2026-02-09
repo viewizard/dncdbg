@@ -29,6 +29,7 @@ struct file_methods_data_t
     file_methods_data_t &operator=(const file_methods_data_t &) = delete;
     file_methods_data_t(file_methods_data_t &&) = delete;
     file_methods_data_t &operator=(file_methods_data_t &&) = delete;
+    ~file_methods_data_t() = default;
 };
 
 struct module_methods_data_t
@@ -41,6 +42,7 @@ struct module_methods_data_t
     module_methods_data_t &operator=(const module_methods_data_t &) = delete;
     module_methods_data_t(module_methods_data_t &&) = delete;
     module_methods_data_t &operator=(module_methods_data_t &&) = delete;
+    ~module_methods_data_t() = default;
 };
 
 struct module_methods_data_t_deleter
@@ -210,8 +212,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
 
 static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolReaderHandle,
                                    std::unordered_set<mdMethodDef> *methodTokens,
-                                   std::unique_ptr<module_methods_data_t,
-                                   module_methods_data_t_deleter> &inputData)
+                                   std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> &inputData)
 {
     HRESULT Status = S_OK;
     // Note, we need 2 arrays of tokens - for normal methods and constructors (.ctor/.cctor, that could have segmented code).
