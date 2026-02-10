@@ -59,10 +59,10 @@ int clock_gettime(int tsrc, struct timespec *ts)
 // Function returns thread identifier.
 unsigned get_tid()
 {
-#ifndef _WIN32
-    const static thread_local unsigned thread_id = syscall(SYS_gettid);
-#else
+#ifdef _WIN32
     const static thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
+#else
+    const static thread_local unsigned thread_id = syscall(SYS_gettid);
 #endif
 
     return thread_id;
@@ -71,10 +71,10 @@ unsigned get_tid()
 // Function returns process identifier.
 int get_pid()
 {
-#ifndef _WIN32
-    const static unsigned process_id = ::getpid();
-#else
+#ifdef _WIN32
     const static unsigned process_id = static_cast<unsigned>(GetCurrentProcessId());
+#else
+    const static unsigned process_id = ::getpid();
 #endif
 
     return process_id;
