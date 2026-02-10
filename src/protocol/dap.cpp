@@ -75,7 +75,7 @@ static void to_json(json &j, const Breakpoint &b) {
 }
 
 static void to_json(json &j, const StackFrame &f) {
-    j = json{{"id",        int(f.id)},
+    j = json{{"id",        static_cast<int>(f.id)},
              {"name",      f.methodName},
              {"line",      f.line},
              {"column",    f.column},
@@ -88,7 +88,7 @@ static void to_json(json &j, const StackFrame &f) {
 
 static void to_json(json &j, const Thread &t)
 {
-    j = json{{"id", int(t.id)},
+    j = json{{"id", static_cast<int>(t.id)},
              {"name", t.name}};
           // {"running", t.running}
 }
@@ -138,7 +138,7 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
         // Note, DAP have "innerException" field as array, but in real we don't have array with inner
         // exceptions here, since exception object have only one exeption object reference in InnerException field.
         json arr = json::array();
-        arr.push_back(FormJsonForExceptionDetails(*details.innerException.get()));
+        arr.push_back(FormJsonForExceptionDetails(*details.innerException));
         result["innerException"] = arr;
     }
 
@@ -152,7 +152,7 @@ void DAP::EmitContinuedEvent(ThreadId threadId)
     json body;
 
     if (threadId)
-        body["threadId"] = int(threadId);
+        body["threadId"] = static_cast<int>(threadId);
 
     body["allThreadsContinued"] = true;
     EmitEvent("continued", body);
@@ -188,7 +188,7 @@ void DAP::EmitStoppedEvent(const StoppedEvent &event)
     if (!event.text.empty())
         body["text"] = event.text;
 
-    body["threadId"] = int(event.threadId);
+    body["threadId"] = static_cast<int>(event.threadId);
     body["allThreadsStopped"] = event.allThreadsStopped;
 
     // vsdbg shows additional info, but it is not a part of the protocol
@@ -230,7 +230,7 @@ void DAP::EmitThreadEvent(const ThreadEvent &event)
         return;
     }
 
-    body["threadId"] = int(event.threadId);
+    body["threadId"] = static_cast<int>(event.threadId);
 
     EmitEvent("thread", body);
 }
@@ -573,7 +573,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
         {"exceptionInfo", [&](const json &arguments, json &body)
             {
                 HRESULT Status = S_OK;
-                const ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
                 IfFailRet(sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
 
@@ -672,11 +672,11 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 HRESULT Status = S_OK;
 
                 int totalFrames = 0;
-                const ThreadId threadId{int(arguments.at("threadId"))};
+                const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
 
                 std::vector<StackFrame> stackFrames;
                 IfFailRet(sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
-                                                        unsigned(arguments.value("levels", 0)), stackFrames, totalFrames));
+                                                        static_cast<unsigned>(arguments.value("levels", 0)), stackFrames, totalFrames));
 
                 body["stackFrames"] = stackFrames;
                 body["totalFrames"] = totalFrames;
@@ -687,36 +687,36 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             {
                 body["allThreadsContinued"] = true;
 
-                const ThreadId threadId{int(arguments.at("threadId"))};
-                body["threadId"] = int(threadId);
+                const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
+                body["threadId"] = static_cast<int>(threadId);
                 return sharedDebugger->Continue(threadId);
             }},
         {"pause", [&](const json &arguments, json &body)
             {
-                const ThreadId threadId{int(arguments.at("threadId"))};
-                body["threadId"] = int(threadId);
+                const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
+                body["threadId"] = static_cast<int>(threadId);
                 return sharedDebugger->Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
+                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_OVER);
             }},
         {"stepIn", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
+                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_IN);
             }},
         {"stepOut", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{int(arguments.at("threadId"))},
+                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_OUT);
             }},
         {"scopes", [&](const json &arguments, json &body)
             {
                 HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
-                const FrameId frameId{int(arguments.at("frameId"))};
+                const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
                 IfFailRet(sharedDebugger->GetScopes(frameId, scopes));
 
                 body["scopes"] = scopes;
@@ -756,7 +756,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         }
                         else
                         {
-                            return FrameId{int(frameIdIter.value())};
+                            return FrameId{static_cast<int>(frameIdIter.value())};
                         }
                     }());
 
@@ -803,7 +803,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         }
                         else
                         {
-                            return FrameId{int(frameIdIter.value())};
+                            return FrameId{static_cast<int>(frameIdIter.value())};
                         }
                     }());
 
@@ -868,8 +868,8 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 std::vector<FuncBreakpoint> funcBreakpoints;
                 for (auto &b : arguments.at("breakpoints"))
                 {
-                    std::string module("");
-                    std::string params("");
+                    std::string module;
+                    std::string params;
                     std::string name = b.at("name");
 
                     std::size_t i = name.find('!');

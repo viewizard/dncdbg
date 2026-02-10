@@ -144,7 +144,7 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(int(ref.frameId.getThread()), &pThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &pThread));
 
     // Named and Indexed variables are in the same index (internally), Named variables go first
     if (filter == VariablesFilter::Named && (start + count > ref.namedVariables || count == 0))
@@ -176,7 +176,7 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
         return S_OK;
 
     variable.namedVariables = numChild;
-    variable.variablesReference = (uint32_t)m_references.size() + 1;
+    variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
     pValue->AddRef();
     VariableReference variableReference(variable, frameId, pValue, valueKind);
     m_references.emplace(variable.variablesReference, std::move(variableReference));
@@ -251,7 +251,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(int(threadId), &pThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
     int namedVariables = 0;
     uint32_t variablesReference = 0;
 
@@ -273,7 +273,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
         if (m_references.size() == std::numeric_limits<uint32_t>::max())
             return E_FAIL;
 
-        variablesReference = (uint32_t)m_references.size() + 1;
+        variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
         VariableReference scopeReference(variablesReference, frameId, namedVariables);
         m_references.emplace(variablesReference, std::move(scopeReference));
     }
@@ -359,7 +359,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(int(threadId), &pThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
 
     ToRelease<ICorDebugValue> pResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
@@ -386,7 +386,7 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(int(varRef.frameId.getThread()), &pThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(varRef.frameId.getThread()), &pThread));
 
     if (varRef.IsScope())
     {
@@ -485,7 +485,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(int(threadId), &pThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
 
     ToRelease<ICorDebugValue> iCorValue;
     bool editable = false;
@@ -493,7 +493,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameId.getLevel(), evalFlags, expression,
                                                            &iCorValue, output, &editable, &setterData));
     if (!editable ||
-        (editable && setterData.get() && !setterData.get()->setterFunction)) // property, that don't have setter
+        (editable && setterData.get() && !setterData->setterFunction)) // property, that don't have setter
     {
         output = "'" + expression + "' cannot be assigned to";
         return E_INVALIDARG;

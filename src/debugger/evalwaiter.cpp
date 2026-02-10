@@ -208,13 +208,13 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             }
 
             auto evalResult = f.get();
-            IfFailRet(evalResult.get()->Status);
+            IfFailRet(evalResult->Status);
 
             if (!ppEvalResult)
                 return S_OK;
 
-            *ppEvalResult = evalResult.get()->iCorEval.Detach();
-            return evalResult.get()->Status;
+            *ppEvalResult = evalResult->iCorEval.Detach();
+            return evalResult->Status;
         }
         catch (const std::future_error &)
         {

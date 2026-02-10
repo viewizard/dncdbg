@@ -312,7 +312,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     }
 
     ToRelease<ICorDebugThread> pThread;
-    IfFailRet(m_iCorProcess->GetThread(int(threadId), &pThread));
+    IfFailRet(m_iCorProcess->GetThread(static_cast<int>(threadId), &pThread));
     IfFailRet(m_uniqueSteppers->SetupStep(pThread, stepType));
 
     m_sharedVariables->Clear();
@@ -834,7 +834,7 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> iCorThread;
-    IfFailRet(m_iCorProcess->GetThread(int(threadId), &iCorThread));
+    IfFailRet(m_iCorProcess->GetThread(static_cast<int>(threadId), &iCorThread));
     return m_uniqueBreakpoints->GetExceptionInfo(iCorThread, exceptionInfo);
 }
 
@@ -911,9 +911,9 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         {
             currentFrame++;
 
-            if (currentFrame < int(startFrame))
+            if (currentFrame < static_cast<int>(startFrame))
                 return S_OK;
-            if (maxFrames != 0 && currentFrame >= int(startFrame) + int(maxFrames))
+            if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
                 return S_OK;
 
             switch (frameType)
@@ -1030,7 +1030,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                     continue;
 
                 currentFrame++;
-                if (currentFrame < (int)startFrame || (maxFrames != 0 && currentFrame >= (int)startFrame + (int)maxFrames))
+                if (currentFrame < static_cast<int>(startFrame) || (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
                     continue;
 
                 const int l{std::stoi(line.substr(beginlinenum, endlinenum))};
@@ -1062,7 +1062,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> pThread;
-    if (SUCCEEDED(Status = m_iCorProcess->GetThread(int(threadId), &pThread)))
+    if (SUCCEEDED(Status = m_iCorProcess->GetThread(static_cast<int>(threadId), &pThread)))
         return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames);
 
     return Status;

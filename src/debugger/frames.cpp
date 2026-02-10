@@ -12,17 +12,17 @@ namespace dncdbg
 static uintptr_t GetSP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_)
-    return (uintptr_t)context->Rsp;
+    return context->Rsp;
 #elif defined(_TARGET_X86_)
-    return (uintptr_t)context->Esp;
+    return context->Esp;
 #elif defined(_TARGET_ARM_)
-    return (uintptr_t)context->Sp;
+    return context->Sp;
 #elif defined(_TARGET_ARM64_)
-    return (uintptr_t)context->Sp;
+    return context->Sp;
 #elif defined(_TARGET_RISCV64_)
-    return (uintptr_t)context->Sp;
+    return context->Sp;
 #elif defined(_TARGET_LOONGARCH64_)
-    return (uintptr_t)context->Sp;
+    return context->Sp;
 #else
 #error "Unsupported platform"
 #endif
@@ -31,17 +31,17 @@ static uintptr_t GetSP(CONTEXT *context)
 static uintptr_t GetFP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_)
-    return (uintptr_t)context->Rbp;
+    return context->Rbp;
 #elif defined(_TARGET_X86_)
-    return (uintptr_t)context->Ebp;
+    return context->Ebp;
 #elif defined(_TARGET_ARM_)
-    return (uintptr_t)context->R11;
+    return context->R11;
 #elif defined(_TARGET_ARM64_)
-    return (uintptr_t)context->Fp;
+    return context->Fp;
 #elif defined(_TARGET_RISCV64_)
-    return (uintptr_t)context->Fp;
+    return context->Fp;
 #elif defined(_TARGET_LOONGARCH64_)
-    return (uintptr_t)context->Fp;
+    return context->Fp;
 #else
 #error "Unsupported platform"
 #endif
@@ -205,7 +205,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame)
 {
     // Try get 0 (current active) frame in fast way, if possible.
-    if (int(level) == 0 && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
+    if (static_cast<int>(level) == 0 && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
         return S_OK;
 
     int currentFrame = -1;
@@ -213,12 +213,12 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
     WalkFrames(pThread, [&](FrameType frameType, ICorDebugFrame *pFrame) {
         currentFrame++;
 
-        if (currentFrame < int(level))
+        if (currentFrame < static_cast<int>(level))
             return S_OK;
-        else if (currentFrame > int(level))
+        else if (currentFrame > static_cast<int>(level))
             return E_FAIL;
 
-        if (currentFrame != int(level) || frameType != FrameType::CLRManaged)
+        if (currentFrame != static_cast<int>(level) || frameType != FrameType::CLRManaged)
             return S_OK;
 
         pFrame->AddRef();

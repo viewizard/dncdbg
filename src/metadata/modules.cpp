@@ -89,7 +89,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             HCORENUM fGenEnum = nullptr;
             mdGenericParam gp = mdGenericParamNil;
             ULONG fetched = 0;
-            std::string genParams("");
+            std::string genParams;
 
             while (SUCCEEDED(pMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
             {

@@ -58,7 +58,7 @@ void BreakBreakpoint::SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const T
         return;
 
     ToRelease<ICorDebugThread> pThread;
-    if (SUCCEEDED(pProcess->GetThread(int(lastStoppedThreadId), &pThread)))
+    if (SUCCEEDED(pProcess->GetThread(static_cast<int>(lastStoppedThreadId), &pThread)))
         GetFullyQualifiedIlOffset(pThread, m_lastStoppedIlOffset);
 }
 

@@ -258,8 +258,8 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
     }
 
     PVOID data = nullptr;
-    IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, (uint32_t)constrTokens.size(), constrTokens.data(),
-                                              (uint32_t)normalTokens.size(), normalTokens.data(), &data));
+    IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, static_cast<uint32_t>(constrTokens.size()), constrTokens.data(),
+                                              static_cast<uint32_t>(normalTokens.size()), normalTokens.data(), &data));
     if (data == nullptr)
         return S_OK;
 
@@ -285,7 +285,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
     auto findPathIndex = m_sourcePathToIndex.find(fullPath);
     if (findPathIndex == m_sourcePathToIndex.end())
     {
-        fullPathIndex = (unsigned)m_sourceIndexToPath.size();
+        fullPathIndex = static_cast<unsigned>(m_sourceIndexToPath.size());
         m_sourcePathToIndex.emplace(fullPath, fullPathIndex);
         m_sourceIndexToPath.emplace_back(fullPath);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
@@ -528,7 +528,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         // correctedStartLine - in case line not belong any methods, if possible, will be "moved" to first line of
         // method below sourceLine.
 
-        if ((int32_t)Tokens.size() > std::numeric_limits<int32_t>::max())
+        if (static_cast<int32_t>(Tokens.size()) > std::numeric_limits<int32_t>::max())
         {
             LOGE("Too big token arrays.");
             return E_FAIL;
@@ -546,7 +546,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 #else
         const std::string fullName = m_sourceIndexToPath[findIndex->second];
 #endif
-        if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, (int32_t)Tokens.size(), Tokens.data(),
+        if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
                                                correctedStartLine, closestNestedToken, Count, fullName, &data)) ||
             data == nullptr)
         {

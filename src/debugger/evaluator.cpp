@@ -151,7 +151,7 @@ HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::str
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
             break;
 
-        if (nextClassIdentifier == (int)fullpath.size())
+        if (nextClassIdentifier == static_cast<int>(fullpath.size()))
         {
             *ppResultType = pType.Detach();
             return S_OK;
@@ -1202,7 +1202,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
         if (wChar < W('0') || wChar > W('9'))
             return E_FAIL;
 
-        slotIndex = slotIndex * 10 + (int32_t)(wChar - W('0'));
+        slotIndex = slotIndex * 10 + static_cast<int32_t>(wChar - W('0'));
     }
 
     if (slotIndex < 1) // Slot index start from 1.
@@ -1522,12 +1522,12 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     HRESULT Status = S_OK;
 
     // Note, in case of (nextIdentifier == identifiers.size()) result is pValue itself, so, we ok here.
-    if (nextIdentifier > (int)identifiers.size())
+    if (nextIdentifier > static_cast<int>(identifiers.size()))
         return E_FAIL;
 
     pValue->AddRef();
     ToRelease<ICorDebugValue> pResultValue(pValue);
-    for (int i = nextIdentifier; i < (int)identifiers.size(); i++)
+    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         if (identifiers[i].empty())
             return E_FAIL;
@@ -1573,7 +1573,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
     int nextClassIdentifier = 0;
-    const int identifiersNum = (int)identifiers.size() - 1;
+    const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
     std::vector<std::string> fullpath;
 
@@ -1595,11 +1595,11 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
             break;
 
-        if (nextClassIdentifier < (int)fullpath.size())
+        if (nextClassIdentifier < static_cast<int>(fullpath.size()))
         {
             // try to check non-static fields inside a static member
             std::vector<std::string> staticName;
-            for (int i = nextClassIdentifier; i < (int)fullpath.size(); i++)
+            for (int i = nextClassIdentifier; i < static_cast<int>(fullpath.size()); i++)
             {
                 staticName.emplace_back(fullpath[i]);
             }
@@ -1728,7 +1728,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     if (pResolvedValue)
     {
         nextIdentifier++;
-        if (nextIdentifier == (int)identifiers.size())
+        if (nextIdentifier == static_cast<int>(identifiers.size()))
         {
             *ppResultValue = pResolvedValue.Detach();
             return S_OK;
@@ -1743,14 +1743,14 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
-        if (ppResultType && nextIdentifier == (int)identifiers.size())
+        if (ppResultType && nextIdentifier == static_cast<int>(identifiers.size()))
         {
             *ppResultType = pType.Detach();
             return S_OK;
         }
 
         if (Status == S_FALSE || // type don't have static members, nothing explore here
-            nextIdentifier == (int)identifiers.size()) // pResolvedValue is temporary object for members exploration, can't be result
+            nextIdentifier == static_cast<int>(identifiers.size())) // pResolvedValue is temporary object for members exploration, can't be result
             return E_INVALIDARG;
 
         valueKind = ValueKind::Class;

@@ -698,7 +698,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 
     case ELEMENT_TYPE_VAR:
         n = CorSigUncompressData(typePtr);
-        out = n < int(args.size()) ? args.at(n) : "!" + std::to_string(n);
+        out = n < static_cast<int>(args.size()) ? args.at(n) : "!" + std::to_string(n);
         break;
 
     case ELEMENT_TYPE_MVAR:

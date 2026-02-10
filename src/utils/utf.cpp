@@ -73,7 +73,7 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
     iconv_close(conv);
 
     const size_t u8_len = (original_out_bytes - out_bytes) / sizeof(char);
-    return {reinterpret_cast<char *>(out_buf.data()), u8_len};
+    return {out_buf.data(), u8_len};
 }
 #endif // #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 

@@ -14,7 +14,6 @@ EscapedStringInternal::EscapedStringImpl::EscapedStringImpl(
     : m_ref(&ref),
       m_params(params),
       m_input(str),
-      m_result(),
       m_size(UndefinedSize),
       m_isstring(isstring),
       m_isresult(false)

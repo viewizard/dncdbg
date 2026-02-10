@@ -878,7 +878,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         break;
 
     case ELEMENT_TYPE_U1:
-        ss << static_cast<uint32_t>(*reinterpret_cast<uint8_t *>(&rgbValue[0]));
+        ss << static_cast<uint32_t>(rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_I2:

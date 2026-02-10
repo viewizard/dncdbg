@@ -322,8 +322,8 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
         szModuleName = wModulePath.c_str();
     }
 
-    *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, (int)peSize, inMemoryPdbAddress,
-                                                         (int)inMemoryPdbSize, ReadMemoryForSymbols);
+    *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, static_cast<int>(peSize), inMemoryPdbAddress,
+                                                         static_cast<int>(inMemoryPdbSize), ReadMemoryForSymbols);
 
     if (*ppSymbolReaderHandle == nullptr)
         return E_FAIL;
@@ -722,7 +722,7 @@ PVOID AllocString(const std::string &str)
         return nullptr;
 
     auto wstr = to_utf16(str);
-    BSTR bstr = Interop::SysAllocStringLen((int32_t)wstr.size());
+    BSTR bstr = Interop::SysAllocStringLen(static_cast<int32_t>(wstr.size()));
     if (SysStringLen(bstr) == 0)
         return nullptr;
 

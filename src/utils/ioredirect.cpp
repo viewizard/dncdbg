@@ -172,9 +172,9 @@ void IORedirectHelper::worker()
             const size_t avail = stream->egptr() - stream->gptr();
             if (avail)
             {
-                LOGD("push %u bytes to callback", int(avail));
+                LOGD("push %u bytes to callback", static_cast<int>(avail));
                 m_callback(stream_types[n], Utility::span<char>(stream->gptr(), avail));
-                stream->gbump(int(avail));
+                stream->gbump(static_cast<int>(avail));
                 stream->compactify();
             }
 
@@ -182,7 +182,7 @@ void IORedirectHelper::worker()
             if (!async_handles[n])
             {
                 const size_t free_size = stream->endp() - stream->egptr();
-                LOGD("requesting %u bytes to read", int(free_size));
+                LOGD("requesting %u bytes to read", static_cast<int>(free_size));
                 async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
 
                 if (LOGE_IF(!async_handles[n], "can't issue async read request!"))
@@ -230,7 +230,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
     const size_t bytes = out_stream->pptr() - m_unsent;
     if (bytes)
     {
-        LOGD("have %u bytes unsent", int(bytes));
+        LOGD("have %u bytes unsent", static_cast<int>(bytes));
         out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
 
         if (LOGE_IF(!out_handle, "can't issue async write request!"))
@@ -246,7 +246,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
         if (m_eof)
         {
             LOGD("closing writing end of stdin's pipe");
-            auto forgetme = std::move(dynamic_cast<OutStream &>(std::get<IOSystem::Stdin>(m_streams)));
+            auto forgetme = std::move(std::get<IOSystem::Stdin>(m_streams));
         }
 
         read_lock.unlock();
@@ -264,7 +264,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
         assert(out_stream->pbase() <= m_sent && m_sent <= m_unsent && m_unsent <= out_stream->pptr() &&
                out_stream->pptr() <= out_stream->epptr());
 
-        LOGD("sent %u bytes", int(result.size));
+        LOGD("sent %u bytes", static_cast<int>(result.size));
         assert(result.size <= size_t(m_unsent - m_sent));
         m_sent += result.size;
 
@@ -284,7 +284,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
                 memmove(out_stream->pbase(), m_unsent, bytes);
                 m_sent = m_unsent = out_stream->pbase();
                 out_stream->clear();
-                out_stream->pbump(int(bytes));
+                out_stream->pbump(static_cast<int>(bytes));
 
                 updated = true;
             }
@@ -319,7 +319,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(std::array<InStreamBuf *const
         if (result.status == IOSystem::IOResult::Success)
         {
             // update buffer
-            LOGD("read %u bytes", int(result.size));
+            LOGD("read %u bytes", static_cast<int>(result.size));
             assert(result.size <= size_t(stream->endp() - stream->gptr()));
             stream->setegptr(stream->egptr() + result.size);
 
@@ -395,7 +395,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
             const size_t avail = out->epptr() - out->pptr();
             if (avail)
             {
-                LOGD("requesting %u bytes to read", int(avail));
+                LOGD("requesting %u bytes to read", static_cast<int>(avail));
                 input_handle = IOSystem::async_read(in.get_file_handle(), out->pptr(), avail);
 
                 if (LOGE_IF(!input_handle, "can't issue read request for real stdin"))
@@ -443,9 +443,9 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
                 assert(read_lock);
                 assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
 
-                LOGD("read %u bytes from stdin", int(result.size));
+                LOGD("read %u bytes from stdin", static_cast<int>(result.size));
                 assert(result.size <= size_t(out->epptr() - out->pptr()));
-                out->pbump(int(result.size));
+                out->pbump(static_cast<int>(result.size));
 
                 read_lock.unlock();
                 wake_worker(); // worker must be waked after modifying `out` buffer

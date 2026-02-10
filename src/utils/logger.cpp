@@ -62,7 +62,7 @@ unsigned get_tid()
 #ifndef _WIN32
     const static thread_local unsigned thread_id = syscall(SYS_gettid);
 #else
-    const static thread_local unsigned thread_id = unsigned(GetCurrentThreadId());
+    const static thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
 #endif
 
     return thread_id;
@@ -74,7 +74,7 @@ int get_pid()
 #ifndef _WIN32
     const static unsigned process_id = ::getpid();
 #else
-    const static unsigned process_id = unsigned(GetCurrentProcessId());
+    const static unsigned process_id = static_cast<unsigned>(GetCurrentProcessId());
 #endif
 
     return process_id;
@@ -143,7 +143,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
         return DLOG_ERROR_NOT_PERMITTED;
 
     const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),
-                            int(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
+                            static_cast<int>(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
 
     const int r = vfprintf(log_file, fmt, ap);
     if (r < 0)

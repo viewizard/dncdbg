@@ -243,7 +243,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     }
     case ELEMENT_TYPE_U1:
     {
-        index = static_cast<ULONG32>(*reinterpret_cast<uint8_t *>(&indexValue[0]));
+        index = static_cast<ULONG32>(indexValue[0]);
         break;
     }
     case ELEMENT_TYPE_I2:
@@ -655,7 +655,7 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
 
     if (elemType == ELEMENT_TYPE_STRING)
     {
-        resultType = (int32_t)BasicTypes::TypeString;
+        resultType = static_cast<int32_t>(BasicTypes::TypeString);
         ToRelease<ICorDebugValue> iCorValue;
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &iCorValue, &isNull));
@@ -680,7 +680,7 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
     auto findType = basicTypesMap.find(elemType);
     if (findType == basicTypesMap.end())
         return E_FAIL;
-    resultType = (int32_t)findType->second;
+    resultType = static_cast<int32_t>(findType->second);
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
@@ -907,20 +907,20 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue1, elemType1, valueData1, valueType1)) &&
         SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue2, elemType2, valueData2, valueType2)) &&
-        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, valueData2, valueType2, (int32_t)opType,
-                                                        resultType, &resultData, output)))
+        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, valueData2, valueType2,
+                                                        static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
-        if (resultType == (int32_t)BasicTypes::TypeString)
+        if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
             Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
         else
             Interop::CoTaskMemFree(resultData);
     }
 
-    if (valueType1 == (int32_t)BasicTypes::TypeString && valueData1)
+    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && valueData1)
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
-    if (valueType2 == (int32_t)BasicTypes::TypeString && valueData2)
+    if (valueType2 == static_cast<int32_t>(BasicTypes::TypeString) && valueData2)
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData2));
 
     return Status;
@@ -969,17 +969,17 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
     PVOID resultData = nullptr;
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue, elemType, valueData1, valueType1)) &&
-        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, &fakeValueData2, (int32_t)BasicTypes::TypeInt64,
-                                                        (int32_t)opType, resultType, &resultData, output)))
+        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, &fakeValueData2, static_cast<int32_t>(BasicTypes::TypeInt64),
+                                                        static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
-        if (resultType == (int32_t)BasicTypes::TypeString)
+        if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
             Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
         else
             Interop::CoTaskMemFree(resultData);
     }
 
-    if (valueType1 == (int32_t)BasicTypes::TypeString && valueData1)
+    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && valueData1)
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
     return Status;
@@ -2027,8 +2027,8 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     IfFailRet(GetFrontStackEntryValue(ppResultValue, &setterData, evalStack, m_evalData, output));
 
     if (editable)
-        *editable = setterData.get() && !setterData.get()->setterFunction ? false /*property don't have setter*/
-                                                                          : evalStack.front().editable;
+        *editable = setterData.get() && !setterData->setterFunction ? false /*property don't have setter*/
+                                                                    : evalStack.front().editable;
 
     if (resultSetterData)
         *resultSetterData = std::move(setterData);

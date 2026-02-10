@@ -154,7 +154,7 @@ int OutStreamBuf::overflow(int c)
     const size_t left = size - res.size;
     memmove(pbase(), pbase() + res.size, left);
     setp(pbase(), epptr());
-    pbump(int(left));
+    pbump(static_cast<int>(left));
     return traits_type::not_eof(c);
 }
 
@@ -177,7 +177,7 @@ int OutStreamBuf::sync()
             break; // all data written
 
         setp(pbase() + res.size, epptr());
-        pbump(int(size - res.size));
+        pbump(static_cast<int>(size - res.size));
 
         std::this_thread::yield(); // for non-blocking streams
     }

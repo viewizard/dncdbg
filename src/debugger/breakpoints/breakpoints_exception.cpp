@@ -32,7 +32,7 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
 {
     std::ostringstream ss;
 
-    ss << (int)expb.categoryHint;
+    ss << static_cast<int>(expb.categoryHint);
 
     if (expb.negativeCondition)
         ss << "!";
@@ -246,7 +246,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
     if (iCorInnerExceptionValue != nullptr)
     {
         details.innerException = std::make_unique<ExceptionDetails>();
-        GetExceptionDetails(pThread, iCorInnerExceptionValue, *details.innerException.get());
+        GetExceptionDetails(pThread, iCorInnerExceptionValue, *details.innerException);
     }
 
     return S_OK;

@@ -111,9 +111,9 @@ struct LogFuncEntry
 #define LOG_(prio, tag, fmt, ...) \
         (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
         dlog_print(prio, tag, "%.*s: %.*s(%.*s) > " fmt, \
-            int(sizeof(__FILE__) - DLogInternal::path_len(__FILE__)), &__FILE__[DLogInternal::path_len(__FILE__)], \
-            int(DLogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
-            int(sizeof(LOG_S_(__LINE))), LOG_S_(__LINE__), \
+            static_cast<int>(sizeof(__FILE__) - DLogInternal::path_len(__FILE__)), &__FILE__[DLogInternal::path_len(__FILE__)], \
+            static_cast<int>(DLogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
+            static_cast<int>(sizeof(LOG_S_(__LINE))), LOG_S_(__LINE__), \
             ##__VA_ARGS__))
 
 // These macros intendent to send a main log message using the current LOG_TAG.
@@ -153,7 +153,7 @@ struct LogFuncEntry
 
 // Macros for internal usage.
 #define LOG_IF_(prio, tag, expr, fmt, ...)  (!(expr) ? true : \
-        LOG_(prio, tag, "expression '%.*s' failed: " fmt, int(sizeof(#expr)), #expr, ##__VA_ARGS__), false)
+        LOG_(prio, tag, "expression '%.*s' failed: " fmt, static_cast<int>(sizeof(#expr)), #expr, ##__VA_ARGS__), false)
 
 // Macros which is absent in dlog.h, added for Pavel Orekhov.
 // This macros allows to call some function and if function returns negative (false) result,

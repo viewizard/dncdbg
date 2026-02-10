@@ -147,7 +147,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
     std::unordered_set<std::string> funcBreakpointFuncs;
     for (const auto &fb : funcBreakpoints)
     {
-        std::string fullFuncName("");
+        std::string fullFuncName;
         if (!fb.module.empty())
         {
             fullFuncName = fb.module + "!";
@@ -171,7 +171,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
     for (const auto &fb : funcBreakpoints)
     {
-        std::string fullFuncName("");
+        std::string fullFuncName;
 
         if (!fb.module.empty())
             fullFuncName = fb.module + "!";

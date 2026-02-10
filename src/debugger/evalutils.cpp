@@ -79,7 +79,7 @@ static std::vector<std::string> GatherParameters(const std::vector<std::string> 
 static mdTypeDef GetTypeTokenForName(IMetaDataImport *pMD, mdTypeDef tkEnclosingClass, const std::string &name)
 {
     mdTypeDef typeToken = mdTypeDefNil;
-    pMD->FindTypeDefByName(reinterpret_cast<LPCWSTR>(to_utf16(name).c_str()), tkEnclosingClass, &typeToken);
+    pMD->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
     return typeToken;
 }
 
@@ -96,7 +96,7 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
     std::string currentTypeName;
 
     // Search for type in module
-    for (int i = nextIdentifier; i < (int)identifiers.size(); i++)
+    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         std::string name;
         ParseGenericParams(identifiers[i], name);
@@ -114,7 +114,7 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
         return E_FAIL;
 
     // Resolve nested class
-    for (int j = nextIdentifier; j < (int)identifiers.size(); j++)
+    for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
     {
         std::string name;
         ParseGenericParams(identifiers[j], name);

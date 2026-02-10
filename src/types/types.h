@@ -69,7 +69,7 @@ class PID : public CustomScalarType<PID>
 
     using ScalarType = DWORD;
 
-    explicit PID(ScalarType n) : m_pid{int(n)}
+    explicit PID(ScalarType n) : m_pid{static_cast<int>(n)}
     {
     }
     explicit operator ScalarType() const
@@ -104,7 +104,7 @@ class ThreadId : public CustomScalarType<ThreadId>
         assert(threadId != InvalidValue && threadId != AllThreadsValue);
     }
 
-    explicit ThreadId(DWORD threadId) : ThreadId(int(threadId))
+    explicit ThreadId(DWORD threadId) : ThreadId(static_cast<int>(threadId))
     {
     }
 
@@ -147,10 +147,10 @@ class FrameLevel : public CustomScalarType<FrameLevel>
     {
     }
 
-    explicit FrameLevel(unsigned n) : m_level{(assert(int(n) <= MaxFrameLevel), int(n))}
+    explicit FrameLevel(unsigned n) : m_level{(assert(static_cast<int>(n) <= MaxFrameLevel), static_cast<int>(n))}
     {
     }
-    explicit FrameLevel(int n) : FrameLevel(unsigned(n))
+    explicit FrameLevel(int n) : FrameLevel(static_cast<unsigned>(n))
     {
     }
 

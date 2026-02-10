@@ -47,7 +47,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
     {
         ToRelease<ICorDebugThread> pThread;
         ToRelease<ICorDebugValue> iCorThreadObject;
-        if (SUCCEEDED(pProcess->GetThread(int(userThread), &pThread)) &&
+        if (SUCCEEDED(pProcess->GetThread(static_cast<int>(userThread), &pThread)) &&
             SUCCEEDED(pThread->GetObject(&iCorThreadObject)))
         {
             HRESULT Status = S_OK;

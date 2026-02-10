@@ -9,7 +9,7 @@
 #include "utils/platform.h"
 #include <unistd.h>
 
-extern char **environ;
+//extern char **environ; // unistd.h should have this line
 
 namespace dncdbg
 {
