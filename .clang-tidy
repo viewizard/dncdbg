@@ -16,7 +16,6 @@ Checks: >
   -cppcoreguidelines-pro-type-vararg,
   modernize-*,
   -modernize-use-trailing-return-type,
-  -modernize-raw-string-literal,
   -modernize-avoid-c-arrays,
   misc-*,
   -misc-use-anonymous-namespace,

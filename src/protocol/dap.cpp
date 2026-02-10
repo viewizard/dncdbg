@@ -307,14 +307,14 @@ template <typename T1>
 void serialize_output(std::ostream &stream, uint64_t counter, const std::string_view &name, T1 &text, Source &source)
 {
     stream << "{\"seq\":" << counter
-           << ", \"event\":\"output\",\"type\":\"event\",\"body\":{\"category\":\"" << name
-           << "\",\"output\":\"" << text << "\"";
+           << R"(, "event":"output","type":"event","body":{"category":")" << name
+           << R"(","output":")" << text << "\"";
 
     if (!source.IsNull())
     {
         // "source":{"name":"Program.cs","path":"/path/Program.cs"}
         const EscapedString<JSON_escape_rules> escaped_source_path(source.path);
-        stream << ",\"source\":{\"name\":\"" << source.name << "\",\"path\":\"" << escaped_source_path << "\"}";
+        stream << R"(,"source":{"name":")" << source.name << R"(","path":")" << escaped_source_path << "\"}";
     }
 
     stream << "}}";
