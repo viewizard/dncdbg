@@ -81,7 +81,7 @@ std::string to_utf8(const WCHAR *wstr_)
 {
 #ifdef _WIN32
     WSTRING wstr(wstr_);
-    int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), nullptr, 0, nullptr, nullptr);
+    int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.length()), nullptr, 0, nullptr, nullptr);
     std::string str(count, 0);
     WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], count, nullptr, nullptr);
     return str;
@@ -93,9 +93,9 @@ std::string to_utf8(const WCHAR *wstr_)
 WSTRING to_utf16(const std::string &utf8)
 {
 #ifdef _WIN32
-    int count = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), (int)utf8.length(), nullptr, 0);
+    int count = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.length()), nullptr, 0);
     WSTRING wstr(count, 0);
-    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), (int)utf8.length(), &wstr[0], count);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.length()), &wstr[0], count);
     return wstr;
 #else
     return utf8_to_utf16(utf8);
