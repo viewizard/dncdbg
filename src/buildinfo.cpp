@@ -26,15 +26,15 @@
 namespace dncdbg::BuildInfo
 {
 
-const char version[] = "0.0.1";
-const char build_type[] = STRINGIFY(BUILD_TYPE);
+const std::string_view version = "0.0.1";
+const std::string_view build_type = STRINGIFY(BUILD_TYPE);
 
-const char dncdbg_vcs_info[] = STRINGIFY(DNCDBG_VCS_INFO);
+const std::string_view dncdbg_vcs_info = STRINGIFY(DNCDBG_VCS_INFO);
 
-const char os_name[]  = STRINGIFY(OS_NAME);
-const char cpu_arch[] = STRINGIFY(CPU_ARCH);
+const std::string_view os_name = STRINGIFY(OS_NAME);
+const std::string_view cpu_arch = STRINGIFY(CPU_ARCH);
 
-const char date[]     = __DATE__;
-const char time[]     = __TIME__;
+const std::string_view date = __DATE__;
+const std::string_view time = __TIME__;
 
 } // namespace dncdbg::BuildInfo

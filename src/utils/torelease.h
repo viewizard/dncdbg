@@ -115,10 +115,6 @@ template <class T> class ToRelease
 #define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { LOGE("%s : 0x%08x", #EXPR, Status); return (Status); } } while (0)
 #endif
 
-#ifndef _countof
-#define _countof(x) (sizeof(x) / sizeof(x[0]))
-#endif
-
 constexpr uint32_t mdNameLen = 2048;
 
 } // namespace dncdbg

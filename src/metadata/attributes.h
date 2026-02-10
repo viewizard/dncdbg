@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include <string>
+#include <string_view>
 #include <vector>
 
 namespace dncdbg
@@ -19,12 +19,23 @@ namespace dncdbg
 
 struct DebuggerAttribute
 {
-    static const char NonUserCode[];
-    static const char StepThrough[];
-    static const char Hidden[];
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggernonusercodeattribute
+    // This attribute suppresses the display of these adjunct types and members in the debugger window and
+    // automatically steps through, rather than into, designer provided code.
+    static constexpr std::string_view NonUserCode = "System.Diagnostics.DebuggerNonUserCodeAttribute..ctor";
+    // Check `DebuggerStepThroughAttribute` for method and class.
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerstepthroughattribute
+    // Instructs the debugger to step through the code instead of stepping into the code.
+    static constexpr std::string_view StepThrough = "System.Diagnostics.DebuggerStepThroughAttribute..ctor";
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerhiddenattribute
+    // ... debugger does not stop in a method marked with this attribute and does not allow a breakpoint to be set in the method.
+    // https://docs.microsoft.com/en-us/dotnet/visual-basic/misc/bc40051
+    // System.Diagnostics.DebuggerHiddenAttribute does not affect 'Get' or 'Set' when applied to the Property definition.
+    // Apply the attribute directly to the 'Get' and 'Set' procedures as appropriate.
+    static constexpr std::string_view Hidden = "System.Diagnostics.DebuggerHiddenAttribute..ctor";
 };
 
-bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const char *attrName);
-bool HasAttribute(IMetaDataImport *pMD, mdToken tok, std::vector<std::string> &attrNames);
+bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const std::string_view &attrName);
+bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const std::vector<std::string_view> &attrNames);
 
 } // namespace dncdbg

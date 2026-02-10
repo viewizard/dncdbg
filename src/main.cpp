@@ -29,50 +29,48 @@ namespace dncdbg
 static void print_help()
 {
 #ifdef _WIN32
-    static_cast<void>(fprintf(stdout, "Usage: dncdbg.exe [options]\n"
+    std::cout << "Usage: dncdbg.exe [options]\n"
 #else
-    static_cast<void>(fprintf(stdout, "Usage: dncdbg [options]\n"
+    std::cout << "Usage: dncdbg [options]\n"
 #endif
-                    "\n"
-                    "Options:\n"
-                    "--buildinfo                              Print build info.\n"
-                    "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
-                    "--log=<path to log file>                 Enable debugger logging to file.\n"
-                    "                                         File log by default. File is created in 'current' folder.\n"
-                    "--version                                Displays the current version.\n"));
+              << "\n"
+              << "Options:\n"
+              << "--buildinfo                              Print build info.\n"
+              << "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
+              << "--log=<path to log file>                 Enable debugger logging to file.\n"
+              << "                                         File log by default. File is created in 'current' folder.\n"
+              << "--version                                Displays the current version.\n";
 }
 
 static void print_buildinfo()
 {
-    printf("DNCDbg version %s\n", BuildInfo::version);
-
-    printf("\nBuild info:\n"
-           "      Build type:  %s\n"
-           "      Build date:  %s %s\n"
-           "      Target OS:   %s\n"
-           "      Target arch: %s\n\n",
-           BuildInfo::build_type, BuildInfo::date, BuildInfo::time, BuildInfo::os_name, BuildInfo::cpu_arch);
+    std::cout << "DNCDbg version " << BuildInfo::version << "\n\n"
+              << "Build info:\n"
+              << "      Build type:  " << BuildInfo::build_type << "\n"
+              << "      Build date:  " << BuildInfo::date << " " << BuildInfo::time <<"\n"
+              << "      Target OS:   " << BuildInfo::os_name << "\n"
+              << "      Target arch: " << BuildInfo::cpu_arch << "\n\n"
 
 #if defined(CASE_INSENSITIVE_FILENAME_COLLISION) || defined(CASE_SENSITIVE_FILENAME_COLLISION)
-    printf("Compiled options:\n"
+              << "Compiled options:\n"
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-           "      CASE_INSENSITIVE_FILENAME_COLLISION\n"
+              << "      CASE_INSENSITIVE_FILENAME_COLLISION\n"
 #endif
 #ifdef CASE_SENSITIVE_FILENAME_COLLISION
-           "      CASE_SENSITIVE_FILENAME_COLLISION\n"
+              << "      CASE_SENSITIVE_FILENAME_COLLISION\n"
 #endif
-           "\n");
+              << "\n"
 #endif
 
-    printf("DNCDbg VCS info:   %s\n\n", BuildInfo::dncdbg_vcs_info);
-    printf("Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n");
-    printf("Copyright (c) 2026 Mikhail Kurinnoi\n");
-    printf("Distributed under the MIT License.\n");
+              << "DNCDbg VCS info:   " << BuildInfo::dncdbg_vcs_info << "\n\n"
+              << "Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n"
+              << "Copyright (c) 2026 Mikhail Kurinnoi\n"
+              << "Distributed under the MIT License.\n";
 }
 
 static void print_version()
 {
-    printf("DNCDbg version %s\n", BuildInfo::version);
+    std::cout << "DNCDbg version " << BuildInfo::version << "\n";
 }
 
 } // namespace dncdbg
@@ -123,10 +121,10 @@ int
 
     std::vector<std::pair<std::string, std::function<void(int &i)>>> partialArguments{
         {"--logProtocol=", [&](int &i) {
-            protocolLogFilePath = argv[i] + strlen("--logProtocol=");
+            protocolLogFilePath = argv[i] + strlen("--logProtocol="); // NOLINT(cppcoreguidelines-avoid-c-arrays)
         }},
         {"--log=", [&](int &i) {
-            setenv("LOG_OUTPUT", argv[i] + strlen("--log="), 1);
+            setenv("LOG_OUTPUT", argv[i] + strlen("--log="), 1); // NOLINT(cppcoreguidelines-avoid-c-arrays)
         }}
     };
 

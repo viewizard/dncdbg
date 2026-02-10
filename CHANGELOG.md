@@ -49,3 +49,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed code performance (removed object copying).
 - Fixed header include cycle.
 - Fixed logic bug in TryParseSlotIndex method.
+- Fixed bug corhost related logic (TPA list creation).

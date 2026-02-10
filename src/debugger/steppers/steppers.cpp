@@ -10,6 +10,7 @@
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "utils/platform.h"
 #include "utils/utf.h"
+#include <array>
 #include <unordered_set>
 
 namespace dncdbg
@@ -149,11 +150,11 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             return false;
 
         ULONG nameLen = 0;
-        WCHAR szFunctionName[mdNameLen] = {0};
-        if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName, _countof(szFunctionName), &nameLen,
+        std::array<WCHAR, mdNameLen> szFunctionName{};
+        if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName.data(), mdNameLen, &nameLen,
                                           nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
-            if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.end())
+            if (g_operatorMethodNames.find(szFunctionName.data()) != g_operatorMethodNames.end())
                 return true;
         }
 
@@ -250,7 +251,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // Care about attributes for "JMC disabled" case.
     if (!m_justMyCode)
     {
-        static std::vector<std::string> attrNames{DebuggerAttribute::Hidden, DebuggerAttribute::StepThrough};
+        static const std::vector<std::string_view> attrNames{DebuggerAttribute::Hidden, DebuggerAttribute::StepThrough};
 
         if (HasAttribute(iMD, typeDef, DebuggerAttribute::StepThrough) || HasAttribute(iMD, methodDef, attrNames))
         {

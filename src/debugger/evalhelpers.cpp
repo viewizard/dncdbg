@@ -114,17 +114,17 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
         });
 }
 
-static HRESULT GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WCHAR *methodName)
+static HRESULT GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
 {
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;
     mdMethodDef methodDef = mdTypeDefNil;
-    pMD->EnumMethodsWithName(&mEnum, cl, methodName, &methodDef, 1, &numMethods);
+    pMD->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
     pMD->CloseEnum(mEnum);
     return methodDef;
 }
 
-static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, const WCHAR *methodName, ICorDebugFunction **ppFunction)
+static HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WSTRING &methodName, ICorDebugFunction **ppFunction)
 {
     HRESULT Status = S_OK;
 
@@ -135,7 +135,7 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, con
 
     mdTypeDef typeDef = mdTypeDefNil;
 
-    IfFailRet(pMD->FindTypeDefByName(typeName, mdTypeDefNil, &typeDef));
+    IfFailRet(pMD->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
 
     const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
 
@@ -145,8 +145,8 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WCHAR *typeName, con
     return pModule->GetFunctionFromToken(methodDef, ppFunction);
 }
 
-HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WCHAR className[],
-                                        const WCHAR methodName[], ICorDebugFunction **ppFunction)
+HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WSTRING &className,
+                                        const WSTRING &methodName, ICorDebugFunction **ppFunction)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugModule> pModule;
@@ -349,9 +349,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 
         if (!m_pSuppressFinalize)
         {
-            static const std::string assemblyName = "System.Private.CoreLib.dll";
-            static const WCHAR gcName[] = W("System.GC");
-            static const WCHAR suppressFinalizeMethodName[] = W("SuppressFinalize");
+            static const std::string assemblyName("System.Private.CoreLib.dll");
+            static const WSTRING gcName(W("System.GC"));
+            static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
             IfFailRet(FindMethodInModule(assemblyName, gcName, suppressFinalizeMethodName, &m_pSuppressFinalize));
         }
 

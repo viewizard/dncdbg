@@ -6,30 +6,15 @@
 #include "metadata/jmc.h"
 #include "metadata/attributes.h"
 #include "utils/torelease.h"
+#include <array>
 #include <iterator>
-#include <string>
 #include <vector>
 
 namespace dncdbg
 {
 
-// https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggernonusercodeattribute
-// This attribute suppresses the display of these adjunct types and members in the debugger window and
-// automatically steps through, rather than into, designer provided code.
-const char DebuggerAttribute::NonUserCode[] = "System.Diagnostics.DebuggerNonUserCodeAttribute..ctor";
-// Check `DebuggerStepThroughAttribute` for method and class.
-// https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerstepthroughattribute
-// Instructs the debugger to step through the code instead of stepping into the code.
-const char DebuggerAttribute::StepThrough[] = "System.Diagnostics.DebuggerStepThroughAttribute..ctor";
-// https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerhiddenattribute
-// ... debugger does not stop in a method marked with this attribute and does not allow a breakpoint to be set in the method.
-// https://docs.microsoft.com/en-us/dotnet/visual-basic/misc/bc40051
-// System.Diagnostics.DebuggerHiddenAttribute does not affect 'Get' or 'Set' when applied to the Property definition.
-// Apply the attribute directly to the 'Get' and 'Set' procedures as appropriate.
-const char DebuggerAttribute::Hidden[] = "System.Diagnostics.DebuggerHiddenAttribute..ctor";
-
-static std::vector<std::string> typeAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough};
-static std::vector<std::string> methodAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough, DebuggerAttribute::Hidden};
+static const std::vector<std::string_view> typeAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough};
+static const std::vector<std::string_view> methodAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough, DebuggerAttribute::Hidden};
 
 static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
@@ -40,9 +25,9 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
     {
         mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
-        WCHAR szFunctionName[mdNameLen] = {0};
+        std::array<WCHAR, mdNameLen> szFunctionName{};
 
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
+        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
             continue;
 

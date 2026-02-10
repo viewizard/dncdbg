@@ -4,18 +4,20 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace dncdbg::BuildInfo
 {
 
-extern const char version[];    // version for displaying
-extern const char build_type[]; // build type (same version might have different build types)
+extern const std::string_view version;         // version for displaying
+extern const std::string_view build_type;      // build type (same version might have different build types)
 
-extern const char dncdbg_vcs_info[];      // GIT revision hash for dncdbg itself
+extern const std::string_view dncdbg_vcs_info; // GIT revision hash for dncdbg itself
 
-extern const char os_name[];   // OS name for which project was build.
-extern const char cpu_arch[];  // CPU architecture name for which project was build.
+extern const std::string_view os_name;         // OS name for which project was build.
+extern const std::string_view cpu_arch;        // CPU architecture name for which project was build.
 
-extern const char date[];
-extern const char time[];      // Date and time of the build.
+extern const std::string_view date;
+extern const std::string_view time;            // Date and time of the build.
 
 } // namespace dncdbg::BuildInfo

@@ -19,9 +19,9 @@ namespace dncdbg
 static std::u16string utf8_to_utf16(const std::string &utf8_str)
 {
 #if BIGENDIAN
-    static constexpr char toCode[] = "UTF-16BE";
+    static constexpr char toCode[] = "UTF-16BE"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
 #else
-    static constexpr char toCode[] = "UTF-16LE";
+    static constexpr char toCode[] = "UTF-16LE"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
 #endif
     iconv_t conv = iconv_open(toCode, "UTF-8"); // Open converter from UTF-8 to UTF-16LE
     if (conv == reinterpret_cast<iconv_t>(-1)) // NOLINT(performance-no-int-to-ptr)
@@ -49,9 +49,9 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
 static std::string utf16_to_utf8(const std::u16string &utf16_str)
 {
 #if BIGENDIAN
-    static constexpr char fromCode[] = "UTF-16BE";
+    static constexpr char fromCode[] = "UTF-16BE"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
 #else
-    static constexpr char fromCode[] = "UTF-16LE";
+    static constexpr char fromCode[] = "UTF-16LE"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
 #endif
     iconv_t conv = iconv_open("UTF-8", fromCode); // Open converter from UTF-16LE to UTF-8
     if (conv == reinterpret_cast<iconv_t>(-1)) // NOLINT(performance-no-int-to-ptr)

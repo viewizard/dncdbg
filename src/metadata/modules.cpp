@@ -8,7 +8,7 @@
 #include "metadata/jmc.h"
 #include "metadata/typeprinter.h"
 #include "utils/filesystem.h"
-#include "utils/platform.h"
+#include <array>
 #include <iomanip>
 #include <sstream>
 #include <vector>
@@ -74,9 +74,9 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
         {
             mdTypeDef memTypeDef = mdTypeDefNil;
             ULONG nameLen = 0;
-            WCHAR szFuncName[mdNameLen] = {0};
+            std::array<WCHAR, mdNameLen> szFuncName{};
 
-            Status = pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName, _countof(szFuncName), &nameLen,
+            Status = pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr);
             if (FAILED(Status))
                 continue;
@@ -94,21 +94,21 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             while (SUCCEEDED(pMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
             {
                 mdMethodDef memMethodDef = mdMethodDefNil;
-                WCHAR szGenName[mdNameLen] = {0};
+                std::array<WCHAR, mdNameLen> szGenName{};
                 ULONG genNameLen = 0;
 
-                Status = pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr, szGenName,
-                                                          _countof(szGenName), &genNameLen);
+                Status = pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
+                                                          szGenName.data(), mdNameLen, &genNameLen);
                 if (FAILED(Status))
                     continue;
 
                 // Add comma for each element. The last one will be stripped later.
-                genParams += to_utf8(szGenName) + ",";
+                genParams += to_utf8(szGenName.data()) + ",";
             }
 
             pMDImport2->CloseEnum(fGenEnum);
 
-            std::string fullName = to_utf8(szFuncName);
+            std::string fullName = to_utf8(szFuncName.data());
             if (genParams != "")
             {
                 // Last symbol is comma and it is useless, so remove
@@ -181,13 +181,13 @@ void Modules::CleanupAllModules()
 
 std::string GetModuleFileName(ICorDebugModule *pModule)
 {
-    WCHAR name[mdNameLen];
+    std::array<WCHAR, mdNameLen> name{};
     ULONG32 name_len = 0;
 
-    if (FAILED(pModule->GetName(_countof(name), &name_len, name)))
+    if (FAILED(pModule->GetName(mdNameLen, &name_len, name.data())))
         return {};
 
-    std::string moduleName = to_utf8(name /*, name_len*/);
+    std::string moduleName = to_utf8(name.data());
 
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`
@@ -220,15 +220,15 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
 {
     HRESULT Status = S_OK;
     ULONG32 len = 0;
-    WCHAR szModuleName[mdNameLen] = {0};
+    std::array<WCHAR, mdNameLen> szModuleName{};
     std::string modName;
 
-    IfFailRet(pModule->GetName(_countof(szModuleName), &len, szModuleName));
+    IfFailRet(pModule->GetName(mdNameLen, &len, szModuleName.data()));
 
     if (isFullPath)
-        modName = to_utf8(szModuleName);
+        modName = to_utf8(szModuleName.data());
     else
-        modName = GetBasename(to_utf8(szModuleName));
+        modName = GetBasename(to_utf8(szModuleName.data()));
 
     return modName == Name ? S_OK : S_FALSE;
 }
@@ -574,7 +574,7 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    WCHAR wLocalName[mdNameLen] = W("\0");
+    std::array<WCHAR, mdNameLen> wLocalName{};
 
     IfFailRet(GetModuleInfo(modAddress,
         [&](ModuleInfo &mdInfo) -> HRESULT
@@ -583,10 +583,10 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
                 return E_FAIL;
 
             return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandle, methodToken, localIndex,
-                                                          wLocalName, _countof(wLocalName), pIlStart, pIlEnd);
+                                                          wLocalName.data(), mdNameLen, pIlStart, pIlEnd);
         }));
 
-    localName = wLocalName;
+    localName = wLocalName.data();
 
     return S_OK;
 }

@@ -6,7 +6,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
-#include <memory>
+#include <array>
 #include <sstream>
 #include <unordered_map>
 #include <string_view>
@@ -125,11 +125,11 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
 {
     HRESULT Status = S_OK;
     DWORD flags = 0;
-    WCHAR name[mdNameLen];
+    std::array<WCHAR, mdNameLen> name{};
     ULONG nameLen = 0;
 
-    IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name, _countof(name), &nameLen, &flags, nullptr));
-    mdName = to_utf8(name /*, nameLen*/);
+    IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name.data(), mdNameLen, &nameLen, &flags, nullptr));
+    mdName = to_utf8(name.data());
 
     if (!IsTdNested(flags))
     {
@@ -158,10 +158,10 @@ static HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std
     ULONG refNameSize = 0;
     IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
 
-    const std::unique_ptr<WCHAR[]> refName(new WCHAR[refNameSize + 1]);
-    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, refName.get(), refNameSize, nullptr));
+    std::vector<WCHAR> refName(refNameSize + 1, 0);
+    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, refName.data(), refNameSize, nullptr));
 
-    mdName = to_utf8(refName.get());
+    mdName = to_utf8(refName.data());
 
     return S_OK;
 }
@@ -282,7 +282,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
 
     HRESULT hr = E_FAIL;
 
-    WCHAR name[mdNameLen];
+    std::array<WCHAR, mdNameLen> name{};
     if (TypeFromToken(mb) == mdtTypeDef)
     {
         hr = NameForTypeDef(mb, pImport, mdName, args);
@@ -291,7 +291,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberProps(mb, &mdClass, name, _countof(name), &size, nullptr, nullptr,
+        hr = pImport->GetMemberProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr,
                                      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
@@ -300,14 +300,14 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
                 hr = NameForTypeDef(mdClass, pImport, mdName, args);
                 mdName += ".";
             }
-            mdName += to_utf8(name /*, size*/);
+            mdName += to_utf8(name.data());
         }
     }
     else if (TypeFromToken(mb) == mdtMethodDef)
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMethodProps(mb, &mdClass, name, _countof(name), &size,
+        hr = pImport->GetMethodProps(mb, &mdClass, name.data(), mdNameLen, &size,
                                      nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
@@ -316,14 +316,14 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
                 hr = NameForTypeDef(mdClass, pImport, mdName, args);
                 mdName += ".";
             }
-            mdName += to_utf8(name /*, size*/);
+            mdName += to_utf8(name.data());
         }
     }
     else if (TypeFromToken(mb) == mdtMemberRef)
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberRefProps(mb, &mdClass, name, _countof(name), &size, nullptr, nullptr);
+        hr = pImport->GetMemberRefProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
@@ -337,7 +337,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
                 mdName += ".";
             }
             // TODO TypeSpec
-            mdName += to_utf8(name /*, size*/);
+            mdName += to_utf8(name.data());
         }
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
@@ -824,15 +824,15 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     ULONG ulCodeRVA = 0;
     ULONG ulImplFlags = 0;
 
-    WCHAR szFunctionName[mdNameLen] = {0};
+    std::array<WCHAR, mdNameLen> szFunctionName{};
 
     ToRelease<IMetaDataImport2> pMD2;
     IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&pMD2)));
 
-    IfFailRet(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen, &flags,
+    IfFailRet(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen, &flags,
                                   &pbSigBlob, &ulSigBlob, &ulCodeRVA, &ulImplFlags));
 
-    std::string funcName = to_utf8(szFunctionName /*, nameLen*/);
+    std::string funcName = to_utf8(szFunctionName.data());
 
     ULONG methodGenericsCount = 0;
     HCORENUM hEnum = nullptr;

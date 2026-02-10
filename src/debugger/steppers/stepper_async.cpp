@@ -11,6 +11,8 @@
 #include "metadata/typeprinter.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
+#include <array>
+#include <vector>
 
 namespace dncdbg
 {
@@ -70,14 +72,14 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     while (SUCCEEDED(pMD_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
-        WCHAR mdName[mdNameLen] = {0};
-        if (FAILED(pMD_this->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen, nullptr, nullptr,
+        std::array<WCHAR, mdNameLen> mdName{};
+        if (FAILED(pMD_this->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr,
                                            nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(mdName, W("<>t__builder")))
+        if (!str_equal(mdName.data(), W("<>t__builder")))
             continue;
 
         ToRelease<ICorDebugObjectValue> pObjValue_this;
@@ -132,16 +134,16 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         ULONG propertyNameLen = 0;
-        WCHAR propertyName[mdNameLen] = W("\0");
+        std::array<WCHAR, mdNameLen> propertyName{};
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, propertyName, _countof(propertyName), &propertyNameLen,
+        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
                                          nullptr, 0, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(propertyName, W("ObjectIdForDebugger")))
+        if (!str_equal(propertyName.data(), W("ObjectIdForDebugger")))
             continue;
 
         mdObjectIdForDebuggerGetter = mdGetter;
@@ -194,14 +196,14 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     {
         mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
-        WCHAR szFunctionName[mdNameLen] = {0};
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
+        std::array<WCHAR, mdNameLen> szFunctionName{};
+        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(szFunctionName, W("SetNotificationForWaitCompletion")))
+        if (!str_equal(szFunctionName.data(), W("SetNotificationForWaitCompletion")))
             continue;
 
         setNotifDef = methodDef;
@@ -219,23 +221,20 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     IfFailRet(pEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &pNewBoolean));
     ULONG32 cbSize = 0;
     IfFailRet(pNewBoolean->GetSize(&cbSize));
-    const std::unique_ptr<BYTE[]> rgbValue(new (std::nothrow) BYTE[cbSize]);
-    if (rgbValue == nullptr)
-        return E_OUTOFMEMORY;
-    memset(rgbValue.get(), 0, cbSize * sizeof(BYTE));
+    std::vector<BYTE> rgbValue(cbSize, 0);
     ToRelease<ICorDebugGenericValue> pGenericValue;
     IfFailRet(pNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+    IfFailRet(pGenericValue->GetValue(static_cast<void *>(rgbValue.data())));
     rgbValue[0] = 1; // TRUE
-    IfFailRet(pGenericValue->SetValue(static_cast<void *>(&rgbValue[0])));
+    IfFailRet(pGenericValue->SetValue(static_cast<void *>(rgbValue.data())));
 
     // Call this.<>t__builder.SetNotificationForWaitCompletion(TRUE).
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(pModule->GetFunctionFromToken(setNotifDef, &pFunc));
 
-    ICorDebugValue *ppArgsValue[] = {pBuilderValue, pNewBoolean};
+    std::array <ICorDebugValue *, 2> ppArgsValue{pBuilderValue, pNewBoolean};
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, ppArgsValue, 2, nullptr, defaultEvalFlags));
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, ppArgsValue.data(), 2, nullptr, defaultEvalFlags));
 
     return S_OK;
 }
@@ -361,9 +360,9 @@ HRESULT AsyncStepper::DisableAllSteppers()
 HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
 {
     HRESULT Status = S_OK;
-    static const std::string assemblyName = "System.Private.CoreLib.dll";
-    static const WCHAR className[] = W("System.Threading.Tasks.Task");
-    static const WCHAR methodName[] = W("NotifyDebuggerOfWaitCompletion");
+    static const std::string assemblyName("System.Private.CoreLib.dll");
+    static const WSTRING className(W("System.Threading.Tasks.Task"));
+    static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(m_sharedEvalHelpers->FindMethodInModule(assemblyName, className, methodName, &pFunc));
 

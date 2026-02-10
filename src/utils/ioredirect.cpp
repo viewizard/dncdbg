@@ -7,6 +7,7 @@
 #include "utils/logger.h"
 #include "utils/streams.h"
 #include "utils/utility.h"
+#include <array>
 #include <cstring>
 
 namespace dncdbg
@@ -114,9 +115,9 @@ void IORedirectHelper::wake_reader()
 // to stdout/stderr streams, and call callback functor when data received.
 void IORedirectHelper::worker()
 {
-    static constexpr StreamType stream_types[] = {IOSystem::Stdin, IOSystem::Stdout, IOSystem::Stderr};
+    static constexpr std::array<StreamType, 3> stream_types{IOSystem::Stdin, IOSystem::Stdout, IOSystem::Stderr};
 
-    InStreamBuf *const in_streams[] = {nullptr,
+    std::array<InStreamBuf *const, 3> in_streams{nullptr,
                                        dynamic_cast<InStreamBuf *>(std::get<stream_types[1]>(m_streams).rdbuf()),
                                        dynamic_cast<InStreamBuf *>(std::get<stream_types[2]>(m_streams).rdbuf())};
 
@@ -128,14 +129,14 @@ void IORedirectHelper::worker()
     }
 
     // currently existing asyncchronous io requests
-    IOSystem::AsyncHandle async_handles[Utility::Size(stream_types) + 1];
+    IOSystem::AsyncHandle async_handles[Utility::Size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
     auto &out_handle = async_handles[0];
     auto &pipe_handle = async_handles[Utility::Size(stream_types)];
 
     // at exit: cancel all unfinished io requests
     auto on_exit = [&](void *)
         {
-            for (auto &h : async_handles)
+            for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
                 if (h)
                     IOSystem::async_cancel(h);
 
@@ -305,8 +306,8 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
     return true;
 }
 
-bool IORedirectHelper::ProcessFinishedReadRequests(InStreamBuf *const in_streams[], size_t stream_types_cout,
-                                                   IOSystem::AsyncHandle async_handles[])
+bool IORedirectHelper::ProcessFinishedReadRequests(std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
+                                                   IOSystem::AsyncHandle async_handles[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
 {
     for (size_t n = 0; n < stream_types_cout; n++)
     {
@@ -355,12 +356,12 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
         return AsyncResult::Error;
     }
 
-    IOSystem::AsyncHandle async_handles[2];
+    IOSystem::AsyncHandle async_handles[2]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
     auto &input_handle = async_handles[0];
     auto &pipe_handle = async_handles[1];
 
     auto on_exit = [&](void *) {
-        for (auto &h : async_handles)
+        for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
             if (h)
                 IOSystem::async_cancel(h);
 

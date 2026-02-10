@@ -10,6 +10,7 @@
 
 #include "utils/logger.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
+#include <array>
 #include <cassert>
 #include <mutex>
 #include <cstdio>
@@ -27,7 +28,7 @@
 
 namespace
 {
-char log_buffer[2 * LINE_MAX];
+std::array<char, static_cast<std::size_t>(2 * LINE_MAX)> log_buffer{};
 
 // Implementation clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
 #ifdef _WIN32
@@ -100,7 +101,7 @@ FILE *open_log_file()
         return nullptr;
     }
 
-    static_cast<void>(setvbuf(result, log_buffer, _IOFBF, sizeof(log_buffer)));
+    static_cast<void>(setvbuf(result, log_buffer.data(), _IOFBF, log_buffer.size()));
     return result;
 }
 } // namespace

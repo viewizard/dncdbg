@@ -529,11 +529,11 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
         mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
-        WCHAR szFunctionName[mdNameLen] = {0};
+        std::array<WCHAR, mdNameLen> szFunctionName{};
         DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName, _countof(szFunctionName), &nameLen,
+        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
                                        &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
             continue;
         ULONG gParams = 0; // Count of signature generics
@@ -585,7 +585,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
         };
 
-        Status = cb(is_static, to_utf8(szFunctionName), returnElementType, argElementTypes, getFunction);
+        Status = cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction);
         if (FAILED(Status))
         {
             pInputType->AddRef();
@@ -671,9 +671,9 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     }
     else
     {
-        ICorDebugValue *ppArgsValue[] = {setterData->thisValue, iCorValue};
+        std::array<ICorDebugValue *, 2> ppArgsValue{setterData->thisValue, iCorValue};
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->setterFunction, setterData->propertyType.GetRef(),
-                                                 1, ppArgsValue, 2, nullptr, evalFlags);
+                                                 1, ppArgsValue.data(), 2, nullptr, evalFlags);
     }
 }
 
@@ -787,12 +787,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
-        WCHAR mdName[mdNameLen] = {0};
+        std::array<WCHAR, mdNameLen> mdName{};
         PCCOR_SIGNATURE pSignatureBlob = nullptr;
         ULONG sigBlobLength = 0;
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen, &fieldAttr,
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
                                          &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
         {
             // Prevent access to internal compiler added fields (without visible name).
@@ -800,14 +800,14 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             // More about compiler generated names in Roslyn sources:
             // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
             // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-            if (IsSynthesizedLocalName(mdName, nameLen))
+            if (IsSynthesizedLocalName(mdName.data(), nameLen))
                 return S_OK;
 
             const bool is_static = (fieldAttr & fdStatic);
             if (isNull && !is_static)
                 return S_OK;
 
-            const std::string name = to_utf8(mdName);
+            const std::string name = to_utf8(mdName.data());
 
             auto getValue = [&](ICorDebugValue **ppResultValue, int) -> HRESULT
             {
@@ -856,8 +856,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         ULONG cchDefaultValue;
         mdMethodDef mdGetter = mdMethodDefNil;
         mdMethodDef mdSetter = mdMethodDefNil;
-        WCHAR propertyName[mdNameLen] = W("\0");
-        if (SUCCEEDED(pMD->GetPropertyProps(propertyDef, &propertyClass, propertyName, _countof(propertyName),
+        std::array<WCHAR, mdNameLen> propertyName{};
+        if (SUCCEEDED(pMD->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
                                             &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
                                             &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
         {
@@ -917,7 +917,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (debuggerBrowsableState_Never)
                 return S_OK;
 
-            const std::string name = to_utf8(propertyName);
+            const std::string name = to_utf8(propertyName.data());
 
             auto getValue = [&](ICorDebugValue **ppResultValue, uint32_t evalFlags) -> HRESULT {
                 if (!pThread)
@@ -981,10 +981,10 @@ enum class GeneratedCodeKind : uint8_t
 static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
     HRESULT Status = S_OK;
-    WCHAR name[mdNameLen];
+    std::array<WCHAR, mdNameLen> name{};
     ULONG nameLen = 0;
-    IfFailRet(pMD->GetTypeDefProps(typeDef, name, _countof(name), &nameLen, nullptr, nullptr));
-    const WSTRING typeName(name);
+    IfFailRet(pMD->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
+    const WSTRING typeName(name.data());
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
     //  Parse the generated name. Returns true for names of the form
@@ -1067,9 +1067,9 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
         return E_INVALIDARG;
 
     Status = ForEachFields(pMD, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        WCHAR mdName[mdNameLen] = {0};
+        std::array<WCHAR, mdNameLen> mdName{};
         ULONG nameLen = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen,
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
@@ -1080,7 +1080,7 @@ static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pCl
                 return S_OK;
             };
 
-            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
             if (generatedNameKind == GeneratedNameKind::ThisProxyField)
             {
                 IfFailRet(getValue(ppResultValue));
@@ -1128,9 +1128,9 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     IfFailRet(pFunction->GetToken(&methodDef));
 
     DWORD methodAttr = 0;
-    WCHAR szMethod[mdNameLen];
+    std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod, _countof(szMethod), &szMethodLen,
+    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
                                   &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     ToRelease<ICorDebugClass> pClass;
@@ -1147,7 +1147,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
         return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
-    IfFailRet(GetGeneratedCodeKind(pMD, szMethod, typeDef, generatedCodeKind));
+    IfFailRet(GetGeneratedCodeKind(pMD, szMethod.data(), typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
         return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
 
@@ -1264,14 +1264,14 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
     std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
 
     IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        WCHAR mdName[mdNameLen] = {0};
+        std::array<WCHAR, mdNameLen> mdName{};
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
-        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen,
+        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
                                       &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)))
             return S_OK; // Return with success to continue walk.
 
-        if ((fieldAttr & fdStatic) != 0 || (fieldAttr & fdLiteral) != 0 || usedNames.find(mdName) != usedNames.end())
+        if ((fieldAttr & fdStatic) != 0 || (fieldAttr & fdLiteral) != 0 || usedNames.find(mdName.data()) != usedNames.end())
             return S_OK; // Return with success to continue walk.
 
         auto getValue = [&](ICorDebugValue **ppResultValue, int) -> HRESULT {
@@ -1284,7 +1284,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
             return S_OK;
         };
 
-        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
+        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
         if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
@@ -1307,24 +1307,24 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
             // Check, that hoisted local is in scope.
             // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
             int32_t index;
-            if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
+            if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
                 hoistedLocalScopesCount > index &&
                 (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
                  currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
                 return S_OK; // Return with success to continue walk.
 
             WSTRING wLocalName;
-            if (FAILED(TryParseHoistedLocalName(mdName, wLocalName)))
+            if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
                 return S_OK; // Return with success to continue walk.
 
             IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
             usedNames.insert(wLocalName);
         }
         // Ignore any other compiler generated fields, show only normal fields.
-        else if (!IsSynthesizedLocalName(mdName, nameLen))
+        else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
         {
-            IfFailRet(cb(to_utf8(mdName), getValue));
-            usedNames.insert(mdName);
+            IfFailRet(cb(to_utf8(mdName.data()), getValue));
+            usedNames.insert(mdName.data());
         }
         return S_OK; // Return with success to continue walk.
     }));
@@ -1386,9 +1386,9 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     // 4. async/lambda object fields.
 
     DWORD methodAttr = 0;
-    WCHAR szMethod[mdNameLen];
+    std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod, _countof(szMethod), &szMethodLen,
+    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
                                   &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
@@ -1400,7 +1400,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         IfFailRet(pFunction->GetClass(&pClass));
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(pClass->GetToken(&typeDef));
-        IfFailRet(GetGeneratedCodeKind(pMD, szMethod, typeDef, generatedCodeKind));
+        IfFailRet(GetGeneratedCodeKind(pMD, szMethod.data(), typeDef, generatedCodeKind));
         IfFailRet(pILFrame->GetArgument(0, &currentThis));
 
         ToRelease<ICorDebugValue> userThis;
@@ -1441,11 +1441,11 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
         // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
         const int idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
-        WCHAR wParamName[mdNameLen] = W("\0");
+        std::array<WCHAR, mdNameLen> wParamName{};
         ULONG paramNameLen = 0;
         mdParamDef paramDef = mdParamDefNil;
         if (FAILED(pMD->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-            FAILED(pMD->GetParamProps(paramDef, nullptr, nullptr, wParamName, mdNameLen,
+            FAILED(pMD->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
                                       &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
             continue;
 
@@ -1460,8 +1460,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             return pILFrame->GetArgument(i, ppResultValue);
         };
 
-        IfFailRet(cb(to_utf8(wParamName), getValue));
-        usedNames.insert(wParamName);
+        IfFailRet(cb(to_utf8(wParamName.data()), getValue));
+        usedNames.insert(wParamName.data());
         // Reset pFrame/pILFrame, since it could be neutered at `cb` call, we need track this case.
         pFrame.Free();
         pILFrame.Free();
@@ -1768,7 +1768,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                           std::vector<Evaluator::ArgElementType> &methodGenerics,
                                           ICorDebugFunction **ppCorFunc)
 {
-    static const char *attributeName = "System.Runtime.CompilerServices.ExtensionAttribute..ctor";
+    static constexpr std::string_view attributeName("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
     HRESULT Status = S_OK;
     std::vector<Evaluator::ArgElementType> typeGenerics;
     ToRelease<ICorDebugTypeEnum> paramTypes;
@@ -1815,16 +1815,16 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
             {
                 mdTypeDef memTypeDef = mdTypeDefNil;
                 ULONG nameLen = 0;
-                WCHAR szFuncName[mdNameLen] = {0};
+                std::array<WCHAR, mdNameLen> szFuncName{};
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
 
-                if (FAILED(pMD->GetMethodProps(mdMethod, &memTypeDef, szFuncName, _countof(szFuncName), &nameLen,
+                if (FAILED(pMD->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
                                                nullptr, &pSig, &cbSig, nullptr, nullptr)))
                     continue;
                 if (!HasAttribute(pMD, mdMethod, attributeName))
                     continue;
-                const std::string fullName = to_utf8(szFuncName);
+                const std::string fullName = to_utf8(szFuncName.data());
                 if (fullName != methodName)
                     continue;
                 ULONG cParams = 0; // Count of signature parameters.

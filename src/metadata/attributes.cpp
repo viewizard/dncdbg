@@ -34,7 +34,7 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::funct
     return found;
 }
 
-bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const char *attrName)
+bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const std::string_view &attrName)
 {
     return ForEachAttribute(pMD, tok,
         [&attrName](const std::string &AttrName) -> bool
@@ -43,7 +43,7 @@ bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const char *attrName)
         });
 }
 
-bool HasAttribute(IMetaDataImport *pMD, mdToken tok, std::vector<std::string> &attrNames)
+bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const std::vector<std::string_view> &attrNames)
 {
     return ForEachAttribute(pMD, tok,
         [&attrNames](const std::string &AttrName) -> bool

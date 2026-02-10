@@ -6,6 +6,7 @@
 #include "utils/filesystem.h"
 #include "utils/limits.h"
 #include <windows.h>
+#include <array>
 
 namespace dncdbg
 {
@@ -13,9 +14,9 @@ namespace dncdbg
 // Function returns absolute path to currently running executable.
 std::string GetExeAbsPath()
 {
-    const size_t MAX_LONGPATH = 1024;
-    char hostPath[MAX_LONGPATH + 1];
-    static const std::string result(hostPath, ::GetModuleFileNameA(nullptr, hostPath, MAX_LONGPATH));
+    constexpr size_t MAX_LONGPATH = 1024;
+    std::array<char, MAX_LONGPATH + 1> hostPath{};
+    static const std::string result(hostPath.data(), ::GetModuleFileNameA(nullptr, hostPath.data(), MAX_LONGPATH));
     return result;
 }
 
@@ -24,8 +25,8 @@ std::string GetExeAbsPath()
 // `C:\Users\localuser\Appdata\Local\Temp` on Windows.
 std::string_view GetTempDir()
 {
-    CHAR path[MAX_PATH + 1];
-    static const std::string result(path, GetTempPathA(MAX_PATH, path));
+    std::array<char, MAX_PATH + 1> path{};
+    static const std::string result(path.data(), GetTempPathA(MAX_PATH, path.data()));
     return result;
 }
 

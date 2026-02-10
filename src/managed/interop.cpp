@@ -25,11 +25,13 @@
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
 #include "utils/utf.h"
+#include <array>
+#include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <set>
 #include <stdexcept>
-#include <cstring>
-#include <cassert>
+#include <string_view>
 
 #ifdef FEATURE_PAL
 // Suppress undefined reference
@@ -52,7 +54,7 @@ namespace // unnamed namespace
 void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &tpaList)
 {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    const char *const tpaExtensions[] ={
+    static constexpr std::array<std::string_view, 4> tpaExtensions{
         ".ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         ".dll",
         ".ni.exe",
@@ -67,10 +69,8 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
     // Walk the directory for each extension separately so that we first get files with .ni.dll extension,
     // then files with .dll extension, etc.
-    for (auto ext : tpaExtensions)
+    for (const auto &ext : tpaExtensions)
     {
-        const int extLength = strlen(ext);
-
         struct dirent *entry = nullptr;
 
         // For all entries in the directory
@@ -107,12 +107,13 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
             const std::string filename(entry->d_name);
 
-            // Check if the extension matches the one we are looking for
-            const int extPos = filename.length() - extLength;
-            if ((extPos <= 0) || (filename.compare(extPos, extLength, ext) != 0))
-            {
+            if (ext.length() >= filename.length())
                 continue;
-            }
+
+            // Check if the extension matches the one we are looking for
+            const int extPos = filename.length() - ext.length();
+            if (filename.compare(extPos, ext.length(), ext) != 0)
+                continue;
 
             const std::string filenameWithoutExt(filename.substr(0, extPos));
 
@@ -135,7 +136,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
     closedir(dir);
 #elif _WIN32
-    const char *const tpaExtensions[] = {
+    static constexpr std::array<std::string_view, 4> tpaExtensions{
         "*.ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         "*.dll",
         "*.ni.exe",
@@ -146,14 +147,11 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
     // Walk the directory for each extension separately so that we first get files with .ni.dll extension,
     // then files with .dll extension, etc.
-    for (int extIndex = 0; extIndex < sizeof(tpaExtensions) / sizeof(tpaExtensions[0]); extIndex++)
+    for (const auto &ext : tpaExtensions)
     {
-        const char *ext = tpaExtensions[extIndex];
-        size_t extLength = strlen(ext);
-
         std::string assemblyPath(directory);
         assemblyPath += FileSystem::PathSeparator;
-        assemblyPath.append(tpaExtensions[extIndex]);
+        assemblyPath.append(ext);
 
         WIN32_FIND_DATAA data;
         HANDLE findHandle = FindFirstFileA(assemblyPath.c_str(), &data);
@@ -166,7 +164,10 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                 {
 
                     std::string filename(data.cFileName);
-                    size_t extPos = filename.length() - extLength;
+                    if (ext.length() >= filename.length())
+                        continue;
+
+                    size_t extPos = filename.length() - ext.length();
                     std::string filenameWithoutExt(filename.substr(0, extPos));
 
                     // Make sure if we have an assembly with multiple extensions present,
@@ -287,10 +288,10 @@ SysAllocStringLenDelegate sysAllocStringLenDelegate = nullptr;
 SysFreeStringDelegate sysFreeStringDelegate = nullptr;
 CalculationDelegate calculationDelegate = nullptr;
 
-constexpr char ManagedPartDllName[] = "ManagedPart";
-constexpr char SymbolReaderClassName[] = "DNCDbg.SymbolReader";
-constexpr char EvaluationClassName[] = "DNCDbg.Evaluation";
-constexpr char UtilsClassName[] = "DNCDbg.Utils";
+constexpr char ManagedPartDllName[] = "ManagedPart"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+constexpr char SymbolReaderClassName[] = "DNCDbg.SymbolReader"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+constexpr char EvaluationClassName[] = "DNCDbg.Evaluation"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+constexpr char UtilsClassName[] = "DNCDbg.Utils"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 // Pass to managed helper code to read in-memory PEs/PDBs
 // Returns the number of bytes read.
@@ -374,7 +375,7 @@ void Init(const std::string &coreClrPath)
     std::string tpaList;
     AddFilesFromDirectoryToTpaList(clrDir, tpaList);
 
-    const char *propertyKeys[] = {
+    const char *propertyKeys[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
         "TRUSTED_PLATFORM_ASSEMBLIES",
         "APP_PATHS",
         "APP_NI_PATHS",
@@ -392,11 +393,13 @@ void Init(const std::string &coreClrPath)
 
     const std::string exeDir = exe.substr(0, dirSepIndex);
 
-    const char *propertyValues[] = {tpaList.c_str(),                         // TRUSTED_PLATFORM_ASSEMBLIES
-                                    exeDir.c_str(),                          // APP_PATHS
-                                    exeDir.c_str(),                          // APP_NI_PATHS
-                                    clrDir.c_str(),                          // NATIVE_DLL_SEARCH_DIRECTORIES
-                                    "UseLatestBehaviorWhenTFMNotSpecified"}; // AppDomainCompatSwitch
+    const char *propertyValues[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        tpaList.c_str(),                         // TRUSTED_PLATFORM_ASSEMBLIES
+        exeDir.c_str(),                          // APP_PATHS
+        exeDir.c_str(),                          // APP_NI_PATHS
+        clrDir.c_str(),                          // NATIVE_DLL_SEARCH_DIRECTORIES
+        "UseLatestBehaviorWhenTFMNotSpecified"   // AppDomainCompatSwitch
+    };
 
     Status = initializeCoreCLR(exe.c_str(), "debugger", sizeof(propertyKeys) / sizeof(propertyKeys[0]), propertyKeys,
                                propertyValues, &hostHandle, &domainId);

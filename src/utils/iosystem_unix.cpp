@@ -4,6 +4,7 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include "utils/iosystem_unix.h"
+#include <array>
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
@@ -132,8 +133,8 @@ Class::AsyncHandle::Traits Class::AsyncHandle::TraitsImpl<T>::traits = {
 // (reading and writing pipe ends) or return empty file handles if pipe can't be created.
 std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
 {
-    int fds[2];
-    if (::pipe(fds) < 0)
+    std::array<int, 2> fds{};
+    if (::pipe(fds.data()) < 0)
     {
         perror("pipe");
         return {};
@@ -142,7 +143,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     // TODO what to do with this?
     static_cast<void>(signal(SIGPIPE, SIG_IGN));
 
-    return {fds[0], fds[1]};
+    return {fds.data()[0], fds.data()[1]};
 }
 
 // Function creates listening TCP socket on given port, waits, accepts single
@@ -308,32 +309,32 @@ Class::IOResult Class::close(const FileHandle &fh)
 // This function returns triplet of currently selected standard files.
 dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
-    static const IOSystem::FileHandle handles[std::tuple_size_v<IOSystem::StdFiles>] = {
+    static const std::array<IOSystem::FileHandle, std::tuple_size_v<IOSystem::StdFiles>> handles{ 
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
-    return {handles[0], handles[1], handles[2]};
+    return {handles.data()[0], handles.data()[1], handles.data()[2]};
 }
 
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
 // Substitution exists only during life time of StsIOSwap instance.
 Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cppcoreguidelines-pro-type-member-init)
 {
-    const static unsigned NFD = std::tuple_size_v<StdFiles>;
-    static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
+    static constexpr unsigned NFD = std::tuple_size_v<StdFiles>;
+    static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
 
-    const int newfd[NFD] = {std::get<StdFileType::Stdin>(files).handle.fd,
-                            std::get<StdFileType::Stdout>(files).handle.fd,
-                            std::get<StdFileType::Stderr>(files).handle.fd};
+    const std::array<int, NFD> newfd{std::get<StdFileType::Stdin>(files).handle.fd,
+                                     std::get<StdFileType::Stdout>(files).handle.fd,
+                                     std::get<StdFileType::Stderr>(files).handle.fd};
 
     for (unsigned n = 0; n < NFD; n++)
     {
-        m_orig_fd[n] = ::dup(oldfd[n]);
+        m_orig_fd[n] = ::dup(oldfd.data()[n]);
         if (m_orig_fd[n] == -1)
         {
             static_cast<void>(fprintf(stderr, "dup error %i", errno));
             throw std::runtime_error("dup error");
         }
 
-        if (::dup2(newfd[n], oldfd[n]) == -1)
+        if (::dup2(newfd[n], oldfd.data()[n]) == -1)
         {
             static_cast<void>(fprintf(stderr, "dup2 error %i", errno));
             throw std::runtime_error("dup2 error");
@@ -346,8 +347,8 @@ Class::StdIOSwap::~StdIOSwap()
     if (!m_valid)
         return;
 
-    const static unsigned NFD = std::tuple_size_v<StdFiles>;
-    static const int oldfd[NFD] = {StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
+    static constexpr unsigned NFD = std::tuple_size_v<StdFiles>;
+    static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
     for (unsigned n = 0; n < NFD; n++)
     {
         if (::dup2(m_orig_fd[n], oldfd[n]) == -1)

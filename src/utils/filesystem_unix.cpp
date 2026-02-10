@@ -7,6 +7,8 @@
 #include <mach-o/dyld.h>
 #endif
 #include "utils/filesystem.h"
+#include <array>
+#include <string>
 #include <cstdlib>
 #include <unistd.h>
 
@@ -18,10 +20,10 @@ namespace
 #ifdef __linux__
 std::string get_exe_path()
 {
-    static const char self_link[] = "/proc/self/exe";
-    char buffer[PATH_MAX];
-    const ssize_t r = readlink(self_link, buffer, PATH_MAX);
-    return {buffer, r < 0 ? 0 : r};
+    static const std::string self_link("/proc/self/exe");
+    std::array<char, PATH_MAX> buffer{};
+    const ssize_t r = readlink(self_link.c_str(), buffer.data(), PATH_MAX);
+    return {buffer.data(), r < 0 ? 0 : r};
 }
 #elif defined(__APPLE__)
 std::string get_exe_path()

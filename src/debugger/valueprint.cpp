@@ -362,8 +362,8 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
-        WCHAR mdName[mdNameLen] = {0};
-        if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, mdNameLen, &nameLen, &fieldAttr,
+        std::array<WCHAR, mdNameLen> mdName{};
+        if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (fieldAttr & fdLiteral)
@@ -376,7 +376,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
             IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
             IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, &pFieldVal));
 
-            const std::string name = to_utf8(mdName /*, nameLen*/);
+            const std::string name = to_utf8(mdName.data());
 
             if (name == "hi" || name == "_hi32")
             {
@@ -425,12 +425,12 @@ static inline uint32_t Lo_32(uint64_t v)
     return static_cast<uint32_t>(v);
 }
 
-static bool uint96_is_zero(const uint32_t *v)
+static bool uint96_is_zero(const std::array<uint32_t, 3> &v)
 {
     return v[0] == 0 && v[1] == 0 && v[2] == 0;
 }
 
-static void udivrem96(uint32_t *divident, uint32_t divisor, uint32_t &remainder)
+static void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &remainder)
 {
     remainder = 0;
     for (int i = 2; i >= 0; i--)
@@ -454,12 +454,12 @@ static void udivrem96(uint32_t *divident, uint32_t divisor, uint32_t &remainder)
         else
         {
             divident[i] = Lo_32(partial_dividend / divisor);
-            remainder = Lo_32(partial_dividend - ((uint64_t)divident[i] * divisor));
+            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(divident[i]) * divisor));
         }
     }
 }
 
-static std::string uint96_to_string(uint32_t *v)
+static std::string uint96_to_string(std::array<uint32_t, 3> &v)
 {
     static const char *digits = "0123456789";
     std::string result;
@@ -474,7 +474,7 @@ static std::string uint96_to_string(uint32_t *v)
 
 static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, unsigned int flags, std::string &output)
 {
-    uint32_t v[3] = {lo, mid, hi};
+    std::array<uint32_t, 3> v{lo, mid, hi};
 
     output = uint96_to_string(v);
 
@@ -697,16 +697,16 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
-        WCHAR mdName[mdNameLen] = {0};
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName, _countof(mdName), &nameLen,
+        std::array<WCHAR, mdNameLen> mdName{};
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
-            if (str_equal(mdName, W("value")))
+            if (str_equal(mdName.data(), W("value")))
                 IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppValueValue));
 
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
-            if (str_equal(mdName, W("hasValue")))
+            if (str_equal(mdName.data(), W("hasValue")))
                 IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppHasValueValue));
         }
     }
@@ -861,15 +861,15 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     case ELEMENT_TYPE_CHAR:
     {
-        WCHAR wstr[] = {*reinterpret_cast<WCHAR *>(&rgbValue[0]) , '\0'};
-        std::string printableVal = to_utf8(wstr);
+        const WSTRING wstr{*reinterpret_cast<WCHAR *>(&rgbValue[0]) , '\0'};
+        std::string printableVal = to_utf8(wstr.c_str());
         if (!escape)
         {
             output = printableVal;
             return S_OK;
         }
         EscapeString(printableVal, '\'');
-        ss << (unsigned int)wstr[0] << " '" << printableVal << "'";
+        ss << static_cast<unsigned int>(wstr.c_str()[0]) << " '" << printableVal << "'";
     }
     break;
 

@@ -5,6 +5,7 @@
 
 #include "debugger/evalwaiter.h"
 #include "utils/platform.h"
+#include "utils/utf.h"
 
 namespace dncdbg
 {
@@ -283,12 +284,12 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     // in order to make code simple and clear, we don't check enclosing classes with recursion here
     // since we know behaviour for sure, just find "System.Diagnostics.Debugger" first
     mdTypeDef typeDefParent = mdTypeDefNil;
-    static const WCHAR strParentTypeDef[] = W("System.Diagnostics.Debugger");
-    IfFailRet(pMD->FindTypeDefByName(strParentTypeDef, mdTypeDefNil, &typeDefParent));
+    static const WSTRING strParentTypeDef(W("System.Diagnostics.Debugger"));
+    IfFailRet(pMD->FindTypeDefByName(strParentTypeDef.c_str(), mdTypeDefNil, &typeDefParent));
 
     mdTypeDef typeDef = mdTypeDefNil;
-    static const WCHAR strTypeDef[] = W("CrossThreadDependencyNotification");
-    IfFailRet(pMD->FindTypeDefByName(strTypeDef, typeDefParent, &typeDef));
+    static const WSTRING strTypeDef(W("CrossThreadDependencyNotification"));
+    IfFailRet(pMD->FindTypeDefByName(strTypeDef.c_str(), typeDefParent, &typeDef));
 
     m_iCorCrossThreadDependencyNotification.Free(); // allow re-setup if need
     return pModule->GetClassFromToken(typeDef, &m_iCorCrossThreadDependencyNotification);

@@ -12,6 +12,7 @@
 #endif
 
 #include "utils/torelease.h"
+#include "utils/utf.h"
 #include <list>
 #include <memory>
 #include <mutex>
@@ -50,7 +51,7 @@ class EvalHelpers
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    HRESULT FindMethodInModule(const std::string &moduleName, const WCHAR className[], const WCHAR methodName[],
+    HRESULT FindMethodInModule(const std::string &moduleName, const WSTRING &className, const WSTRING &methodName,
                                ICorDebugFunction **ppFunction);
 
     void Cleanup();
