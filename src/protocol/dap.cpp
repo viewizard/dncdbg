@@ -407,7 +407,7 @@ void DAP::EmitInitializedEvent()
     EmitEvent("initialized", json::object());
 }
 
-void DAP::EmitExecEvent(PID pid, const std::string &argv0)
+void DAP::EmitProcessEvent(PID pid, const std::string &argv0)
 {
     json body;
 

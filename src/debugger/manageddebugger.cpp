@@ -683,7 +683,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         return E_FAIL;
     }
 
-    pProtocol->EmitExecEvent(PID{m_processId}, fileExec);
+    pProtocol->EmitProcessEvent(PID{m_processId}, fileExec);
 
     return S_OK;
 }

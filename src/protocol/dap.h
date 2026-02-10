@@ -43,7 +43,7 @@ class DAP
         m_execArgs = args;
     }
 
-    void EmitExecEvent(PID, const std::string &argv0);
+    void EmitProcessEvent(PID, const std::string &argv0);
     void EmitStoppedEvent(const StoppedEvent &event);
     void EmitExitedEvent(const ExitedEvent &event);
     void EmitTerminatedEvent();
