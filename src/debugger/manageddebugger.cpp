@@ -804,7 +804,7 @@ HRESULT ManagedDebugger::AttachToProcess()
     if (m_clrPath.empty())
         return E_INVALIDARG; // Unable to find libcoreclr.so
 
-    constexpr uint32_t bufSize = 100;
+    static constexpr uint32_t bufSize = 100;
     std::array<WCHAR, bufSize> pBuffer{};
     DWORD dwLength = 0;
     IfFailRet(m_dbgshim.CreateVersionStringFromModule(

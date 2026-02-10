@@ -284,7 +284,7 @@ struct JSON_escape_rules
 {
     static const char forbidden_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
     static const std::string_view subst_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-    constexpr static const char escape_char = '\\';
+    static constexpr char escape_char = '\\';
 };
 
 // Allocate static memory for strings declared above.

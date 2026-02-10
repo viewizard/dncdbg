@@ -173,7 +173,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
         return {FileHandle(), FileHandle()};
 #endif
 
-    static const size_t PipeSize = 32 * LINE_MAX;
+    static constexpr size_t PipeSize = 32 * LINE_MAX;
 
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);

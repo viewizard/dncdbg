@@ -107,7 +107,7 @@ struct EscapedStringImpl
     // in form of data (on call of any getter function, except of operator()).
     void transform();
 
-    static const size_t UndefinedSize = size_t(0) - 1;
+    static constexpr size_t UndefinedSize = size_t(0) - 1;
 
     // This TempReference structure was passed as arument to EscapedString class
     // constructor and continue to exist until end of full expression (till ';').

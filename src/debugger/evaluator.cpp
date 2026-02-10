@@ -484,8 +484,8 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethod
 }
 
 // https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
-static const ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
-static const ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
+static constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
+static constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                                std::vector<Evaluator::ArgElementType> &methodGenerics,
                                const Evaluator::WalkMethodsCallback &cb)

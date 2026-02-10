@@ -495,8 +495,8 @@ class CountingStreamBuf : public std::streambuf
 
   private:
 
-    static const size_t BufSize = 256;
-    static const size_t OverflowChars = 1;
+    static constexpr size_t BufSize = 256;
+    static constexpr size_t OverflowChars = 1;
     char buf[BufSize];
     uintmax_t count;
 };

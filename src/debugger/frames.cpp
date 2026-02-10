@@ -83,7 +83,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     ToRelease<ICorDebugStackWalk> iCorStackWalk;
     IfFailRet(iCorThread3->CreateStackWalk(&iCorStackWalk));
 
-    static const ULONG32 ctxFlags = (ULONG32)CONTEXT_CONTROL | (ULONG32)CONTEXT_INTEGER;
+    static constexpr ULONG32 ctxFlags = (ULONG32)CONTEXT_CONTROL | (ULONG32)CONTEXT_INTEGER;
     CONTEXT ctxUnmanagedChain;
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;
@@ -96,7 +96,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     // https://learn.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugthread3-getactiveinternalframes-method
 
     int level = -1;
-    static const bool firstFrame = true;
+    static constexpr bool firstFrame = true;
 
     for (Status = S_OK; ; Status = iCorStackWalk->Next())
     {

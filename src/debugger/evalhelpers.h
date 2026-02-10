@@ -75,7 +75,7 @@ class EvalHelpers
     // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugheapvalue2-createhandle-method
     // Note, we also use handles (results of eval) in var refs during brake (cleared at 'Continue').
     // Warning! Since we use `std::prev(m_typeObjectCache.end())` without any check in code, make sure cache size is `2` or bigger.
-    static const size_t m_typeObjectCacheSize = 100;
+    static constexpr size_t m_typeObjectCacheSize = 100;
     // The idea of cache is not hold all type objects, but prevent numerous times same type objects creation during eval.
     // At access, element moved to front of list, new element also add to front. In this way, not used elements displaced from cache.
     std::list<type_object_t> m_typeObjectCache;

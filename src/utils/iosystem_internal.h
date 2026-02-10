@@ -116,7 +116,7 @@ template <typename Traits> struct IOSystemImpl
             static const Operations ops;
         };
 
-        constexpr static const size_t MaxIteratorSize = sizeof(void *) * 2;
+        static constexpr size_t MaxIteratorSize = sizeof(void *) * 2;
 
         const Operations &ops;
 
