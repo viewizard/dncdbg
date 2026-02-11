@@ -28,7 +28,7 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
     // always have transformed result
     if (m_isresult)
     {
-        func(thiz, {&m_result[0], m_result.size()});
+        func(thiz, {m_result.data(), m_result.size()});
         return;
     }
 
@@ -93,7 +93,7 @@ EscapedStringInternal::EscapedStringImpl::operator std::string_view() noexcept
 
         transform();
     }
-    return {&m_result[0], m_result.size()};
+    return {m_result.data(), m_result.size()};
 }
 
 // function allocates memory and transforms string.

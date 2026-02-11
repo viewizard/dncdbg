@@ -474,9 +474,9 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle
         IfFailRet(pModule->GetProcess(&process));
 
         peBuf.resize(peSize);
-        peBufAddress = reinterpret_cast<uint64_t>(&peBuf[0]);
+        peBufAddress = reinterpret_cast<uint64_t>(peBuf.data());
         SIZE_T read = 0;
-        IfFailRet(process->ReadMemory(peAddress, peSize, &peBuf[0], &read));
+        IfFailRet(process->ReadMemory(peAddress, peSize, peBuf.data(), &read));
         if (read != peSize)
             return E_FAIL;
     }

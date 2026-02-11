@@ -161,10 +161,10 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
     ToRelease<ICorDebugGenericValue> iCorGenValue;
     IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
 
-    IfFailRet(iCorGenValue->GetValue(static_cast<void *>(&valueData[0])));
+    IfFailRet(iCorGenValue->GetValue(static_cast<void *>(valueData.data())));
     valueData[0] = 1; // TRUE
 
-    return iCorGenValue->SetValue(static_cast<void *>(&valueData[0]));
+    return iCorGenValue->SetValue(static_cast<void *>(valueData.data()));
 }
 
 HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)

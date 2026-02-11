@@ -32,7 +32,6 @@ Checks: >
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
-  -readability-container-data-pointer,
   -readability-magic-numbers,
   -readability-duplicate-include,
   -readability-qualified-auto,

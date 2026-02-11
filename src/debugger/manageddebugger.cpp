@@ -656,7 +656,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
             IfFailRet(m_dbgshim.CreateProcessForLaunch(
                 reinterpret_cast<WCHAR *>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
-                outEnv.empty() ? nullptr : &outEnv[0],
+                outEnv.empty() ? nullptr : outEnv.data(),
                 m_cwd.empty() ? nullptr : reinterpret_cast<const WCHAR *>(to_utf16(m_cwd).c_str()),
                 &m_processId, &resumeHandle));
             return Status;

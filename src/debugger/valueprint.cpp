@@ -554,12 +554,12 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     }
 
     std::vector<uint32_t> dims(nRank, 0);
-    pArrayValue->GetDimensions(nRank, &dims[0]);
+    pArrayValue->GetDimensions(nRank, dims.data());
 
     std::vector<uint32_t> base(nRank, 0);
     BOOL hasBaseIndicies = FALSE;
     if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && hasBaseIndicies)
-        IfFailRet(pArrayValue->GetBaseIndicies(nRank, &base[0]));
+        IfFailRet(pArrayValue->GetBaseIndicies(nRank, base.data()));
 
     ss << elementType << "[";
     const char *sep = "";

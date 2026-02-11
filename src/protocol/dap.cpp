@@ -976,7 +976,7 @@ static std::string ReadData(std::istream &cin)
     }
 
     std::string result(content_len, 0);
-    if (!cin.read(&result[0], content_len))
+    if (!cin.read(result.data(), content_len))
     {
         if (cin.eof())
             LOGE("Unexpected EOF!");
