@@ -96,7 +96,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 ilOffset = 0;
+    uint32_t ilOffset = 0;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
@@ -193,8 +193,8 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     m_filteredPrevStep = false;
 
     // Same behaviour as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
-    ULONG32 ipOffset = 0;
-    ULONG32 ilNextUserCodeOffset = 0;
+    uint32_t ipOffset = 0;
+    uint32_t ilNextUserCodeOffset = 0;
     bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call
                                   // could be failed before delegate call.
     if (SUCCEEDED(Status = m_sharedModules->GetFrameILAndNextUserCodeILOffset(iCorFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
@@ -211,7 +211,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             {
                 // Step completed on same location in source as it was started, this happens when some user code block have several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
-                ULONG32 ilOffset = 0;
+                uint32_t ilOffset = 0;
                 SequencePoint sp;
                 IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&

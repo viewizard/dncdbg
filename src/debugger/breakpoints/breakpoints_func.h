@@ -73,7 +73,7 @@ class FuncBreakpoints
         bool module_checked; // in case "module" provided, we need mark that module was checked or not (since function could be not found by name)
         std::string name;
         std::string params;
-        ULONG32 hitCount;
+        uint32_t hitCount;
         std::string condition;
         std::vector<ToRelease<ICorDebugFunctionBreakpoint>> iCorFuncBreakpoints;
 

@@ -49,7 +49,7 @@ class BreakBreakpoint
     {
         CORDB_ADDRESS modAddress = 0;
         mdMethodDef methodToken = mdMethodDefNil;
-        ULONG32 ilOffset = 0;
+        uint32_t ilOffset = 0;
 
         void Reset()
         {

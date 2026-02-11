@@ -52,7 +52,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // [out] ppEvalResult - return value;
 // [in] evalFlags - evaluation flags.
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                  ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
+                                  uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
                                   ICorDebugValue **ppEvalResult, uint32_t evalFlags)
 {
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
@@ -65,7 +65,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     // Reserve memory from the beginning, since typeParams will have ArgsTypeCount or more count of elements for sure.
     typeParams.reserve(ArgsTypeCount);
 
-    for (ULONG32 i = 0; i < ArgsTypeCount; i++)
+    for (uint32_t i = 0; i < ArgsTypeCount; i++)
     {
         ToRelease<ICorDebugTypeEnum> pTypeEnum;
         if (SUCCEEDED(ppArgsType[i]->EnumerateTypeParameters(&pTypeEnum)))
@@ -93,7 +93,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
 }
 
 HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                         ULONG32 ArgsTypeCount, ICorDebugValue **ppArgsValue, ULONG32 ArgsValueCount,
+                                         uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
                                          ICorDebugValue **ppEvalResult, uint32_t evalFlags)
 {
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
@@ -430,8 +430,8 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             // Instead, we create one element array with element type set to our specific array type.
             // Since array elements are initialized to null, we get our null value from the first array item.
 
-            ULONG32 dims = 1;
-            ULONG32 bounds = 0;
+            uint32_t dims = 1;
+            uint32_t bounds = 0;
             ToRelease<ICorDebugValue> pTmpArrayValue;
             IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &pTmpArrayValue,
                 [&](ICorDebugEval *pEval) -> HRESULT

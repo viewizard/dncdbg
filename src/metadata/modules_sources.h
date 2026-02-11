@@ -117,7 +117,7 @@ class ModulesSources
         /*in*/ int sourceLine,
         /*out*/ std::vector<resolved_bp_t> &resolvedPoints);
 
-    HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, PVOID pSymbolReaderHandle);
+    HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, void *pSymbolReaderHandle);
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
     HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
 

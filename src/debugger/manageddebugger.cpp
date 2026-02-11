@@ -380,7 +380,7 @@ HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
     return m_sharedThreads->GetThreadsWithState(m_iCorProcess, threads);
 }
 
-VOID ManagedDebugger::StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr)
+void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr)
 {
     auto *self = static_cast<ManagedDebugger *>(parameter);
 
@@ -654,10 +654,10 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
     Status = m_ioredirect.exec([&]() -> HRESULT {
             IfFailRet(m_dbgshim.CreateProcessForLaunch(
-                reinterpret_cast<LPWSTR>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                reinterpret_cast<WCHAR *>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : &outEnv[0],
-                m_cwd.empty() ? nullptr : reinterpret_cast<LPCWSTR>(to_utf16(m_cwd).c_str()),
+                m_cwd.empty() ? nullptr : reinterpret_cast<const WCHAR *>(to_utf16(m_cwd).c_str()),
                 &m_processId, &resumeHandle));
             return Status;
         });
@@ -808,7 +808,7 @@ HRESULT ManagedDebugger::AttachToProcess()
     std::array<WCHAR, bufSize> pBuffer{};
     DWORD dwLength = 0;
     IfFailRet(m_dbgshim.CreateVersionStringFromModule(
-        m_processId, reinterpret_cast<LPCWSTR>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
+        m_processId, reinterpret_cast<const WCHAR *>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
 
     ToRelease<IUnknown> pCordb;
 
@@ -879,7 +879,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    ULONG32 ilOffset = 0;
+    uint32_t ilOffset = 0;
     SequencePoint sp;
     if (SUCCEEDED(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
     {

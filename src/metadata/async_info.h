@@ -46,8 +46,8 @@ class AsyncInfo
     };
 
     bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
-    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ipOffset, AwaitInfo **awaitInfo);
-    bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 &lastIlOffset);
+    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, AwaitInfo **awaitInfo);
+    bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset);
 
   private:
 
@@ -61,7 +61,7 @@ class AsyncInfo
 
         std::vector<AwaitInfo> awaits;
         // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
-        ULONG32 lastIlOffset = 0;
+        uint32_t lastIlOffset = 0;
 
         AsyncMethodInfo()
           : modAddress(0),

@@ -150,7 +150,7 @@ class ManagedDebugger
     bool m_justMyCode;
     bool m_stepFiltering;
 
-    PVOID m_unregisterToken;
+    void *m_unregisterToken;
     DWORD m_processId;
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
@@ -171,7 +171,7 @@ class ManagedDebugger
     friend class ManagedCallback;
     friend class CallbacksQueue;
 
-    static VOID StartupCallback(IUnknown *pCordb, PVOID parameter, HRESULT hr);
+    static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     HRESULT StartupCallbackHR;
     HRESULT Startup(IUnknown *punk);
     HRESULT RunIfReady();

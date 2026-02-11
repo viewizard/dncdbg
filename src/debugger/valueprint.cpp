@@ -134,29 +134,29 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     }
     pMD->CloseEnum(fEnum);
 
-    auto getValue = [&enumUnderlyingType](const void *data) -> ULONG64
+    auto getValue = [&enumUnderlyingType](const void *data) -> uint64_t
     {
         switch (enumUnderlyingType)
         {
         case ELEMENT_TYPE_CHAR:
         case ELEMENT_TYPE_I1:
-            return static_cast<ULONG64>(*reinterpret_cast<const int8_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const int8_t *>(data));
         case ELEMENT_TYPE_U1:
-            return static_cast<ULONG64>(*reinterpret_cast<const uint8_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const uint8_t *>(data));
         case ELEMENT_TYPE_I2:
-            return static_cast<ULONG64>(*reinterpret_cast<const int16_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const int16_t *>(data));
         case ELEMENT_TYPE_U2:
-            return static_cast<ULONG64>(*reinterpret_cast<const uint16_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const uint16_t *>(data));
         case ELEMENT_TYPE_I4:
-            return static_cast<ULONG64>(*reinterpret_cast<const int32_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const int32_t *>(data));
         case ELEMENT_TYPE_U4:
-            return static_cast<ULONG64>(*reinterpret_cast<const uint32_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const uint32_t *>(data));
         case ELEMENT_TYPE_I8:
-            return static_cast<ULONG64>(*reinterpret_cast<const int64_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const int64_t *>(data));
         case ELEMENT_TYPE_U8:
-            return static_cast<ULONG64>(*reinterpret_cast<const uint64_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const uint64_t *>(data));
         case ELEMENT_TYPE_I:
-            return static_cast<ULONG64>(*reinterpret_cast<const int32_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const int32_t *>(data));
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
@@ -167,14 +167,14 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     };
 
     // Enum could have explicitly specified any integral numeric type. enumValue type same as enumUnderlyingType.
-    const ULONG64 curValue = getValue(enumValue);
+    const uint64_t curValue = getValue(enumValue);
 
     // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
     // that "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
     const bool foundFlagsAttr = HasAttribute(pMD, currentTypeDef, "System.FlagsAttribute..ctor");
 
-    ULONG64 remainingValue = curValue;
-    std::map<ULONG64, std::string> OrderedFlags;
+    uint64_t remainingValue = curValue;
+    std::map<uint64_t, std::string> OrderedFlags;
     fEnum = nullptr;
     while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
@@ -190,7 +190,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
                 continue;
 
-            const ULONG64 currentConstValue = getValue(pRawValue);
+            const uint64_t currentConstValue = getValue(pRawValue);
             if (currentConstValue == curValue)
             {
                 pMD->CloseEnum(fEnum);
@@ -246,7 +246,7 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     if (isNull)
         return E_FAIL;
 
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     if (cbSize != sizeof(value))
         return E_FAIL;
@@ -525,14 +525,14 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     ToRelease<ICorDebugArrayValue> pArrayValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayValue)));
 
-    ULONG32 nRank = 0;
+    uint32_t nRank = 0;
     IfFailRet(pArrayValue->GetRank(&nRank));
     if (nRank < 1)
     {
         return E_UNEXPECTED;
     }
 
-    ULONG32 cElements = 0;
+    uint32_t cElements = 0;
     IfFailRet(pArrayValue->GetCount(&cElements));
 
     std::ostringstream ss;
@@ -553,10 +553,10 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         }
     }
 
-    std::vector<ULONG32> dims(nRank, 0);
+    std::vector<uint32_t> dims(nRank, 0);
     pArrayValue->GetDimensions(nRank, &dims[0]);
 
-    std::vector<ULONG32> base(nRank, 0);
+    std::vector<uint32_t> base(nRank, 0);
     BOOL hasBaseIndicies = FALSE;
     if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && hasBaseIndicies)
         IfFailRet(pArrayValue->GetBaseIndicies(nRank, &base[0]));
@@ -587,13 +587,13 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     ToRelease<ICorDebugStringValue> pStringValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&pStringValue)));
 
-    ULONG32 cchValue = 0;
+    uint32_t cchValue = 0;
     IfFailRet(pStringValue->GetLength(&cchValue));
     cchValue++; // Allocate one more for null terminator
 
     ArrayHolder<WCHAR> str = new WCHAR[cchValue];
 
-    ULONG32 cchValueReturned = 0;
+    uint32_t cchValueReturned = 0;
     IfFailRet(pStringValue->GetString(cchValue, &cchValueReturned, str));
 
     output = to_utf8(str);
@@ -721,7 +721,7 @@ HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
     ToRelease<ICorDebugValue> pHasValueValue;
     IfFailRet(GetNullableValue(pValue, &pValueValue, &pHasValueValue));
 
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet(pHasValueValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)
@@ -760,7 +760,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         return S_OK;
     }
 
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)

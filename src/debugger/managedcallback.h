@@ -34,7 +34,7 @@ class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedC
 
     // IUnknown
 
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, VOID **ppInterface) override;
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppInterface) override;
     ULONG STDMETHODCALLTYPE AddRef() override;
     ULONG STDMETHODCALLTYPE Release() override;
 
@@ -81,13 +81,13 @@ class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedC
 
     HRESULT STDMETHODCALLTYPE FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                                        ICorDebugFunction *pOldFunction, ICorDebugFunction *pNewFunction,
-                                                       ULONG32 oldILOffset) override;
+                                                       uint32_t oldILOffset) override;
     HRESULT STDMETHODCALLTYPE CreateConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId,
                                                WCHAR *pConnName) override;
     HRESULT STDMETHODCALLTYPE ChangeConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId) override;
     HRESULT STDMETHODCALLTYPE DestroyConnection(ICorDebugProcess *pProcess, CONNID dwConnectionId) override;
     HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                        ICorDebugFrame *pFrame, ULONG32 nOffset,
+                                        ICorDebugFrame *pFrame, uint32_t nOffset,
                                         CorDebugExceptionCallbackType dwEventType, DWORD dwFlags) override;
     HRESULT STDMETHODCALLTYPE ExceptionUnwind(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               CorDebugExceptionUnwindCallbackType dwEventType, DWORD dwFlags) override;

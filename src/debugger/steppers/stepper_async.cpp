@@ -219,7 +219,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     IfFailRet(pThread->CreateEval(&pEval));
     ToRelease<ICorDebugValue> pNewBoolean;
     IfFailRet(pEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &pNewBoolean));
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet(pNewBoolean->GetSize(&cbSize));
     std::vector<BYTE> rgbValue(cbSize, 0);
     ToRelease<ICorDebugGenericValue> pGenericValue;
@@ -265,7 +265,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
-    ULONG32 ipOffset = 0;
+    uint32_t ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ipOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
@@ -274,7 +274,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
     // If we are at end of async method with await blocks and doing step-in or step-over,
     // switch to step-out, so whole NotifyDebuggerOfWaitCompletion magic happens.
-    ULONG32 lastIlOffset = 0;
+    uint32_t lastIlOffset = 0;
     if (stepType != StepType::STEP_OUT &&
         m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
         ipOffset >= lastIlOffset)
@@ -446,7 +446,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
     }
 
     ToRelease<ICorDebugILFrame> pILFrame;
-    ULONG32 ipOffset = 0;
+    uint32_t ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     if (FAILED(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame))) ||
         FAILED(pILFrame->GetIP(&ipOffset, &mappingResult)) ||

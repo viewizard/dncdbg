@@ -182,7 +182,7 @@ void Modules::CleanupAllModules()
 std::string GetModuleFileName(ICorDebugModule *pModule)
 {
     std::array<WCHAR, mdNameLen> name{};
-    ULONG32 name_len = 0;
+    uint32_t name_len = 0;
 
     if (FAILED(pModule->GetName(mdNameLen, &name_len, name.data())))
         return {};
@@ -219,7 +219,7 @@ static std::string GetFileName(const std::string &path)
 HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, bool isFullPath)
 {
     HRESULT Status = S_OK;
-    ULONG32 len = 0;
+    uint32_t len = 0;
     std::array<WCHAR, mdNameLen> szModuleName{};
     std::string modName;
 
@@ -300,7 +300,7 @@ HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const s
     return ResolveMethodInModule(pModule, funcname, cb);
 }
 
-HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset,
+HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
                                             SequencePoint &sequencePoint)
 {
     HRESULT Status = S_OK;
@@ -336,7 +336,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilO
     });
 }
 
-HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG32 &ilOffset, ULONG32 &ilNextOffset,
+HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                                    bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
@@ -387,7 +387,7 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
-    ULONG32 nOffset = 0;
+    uint32_t nOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
@@ -397,8 +397,8 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    ULONG32 ilStartOffset = 0;
-    ULONG32 ilEndOffset = 0;
+    uint32_t ilStartOffset = 0;
+    uint32_t ilEndOffset = 0;
 
     IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
@@ -450,7 +450,7 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     return S_OK;
 }
 
-static HRESULT LoadSymbols(ICorDebugModule *pModule, VOID **ppSymbolReaderHandle)
+static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
 {
     HRESULT Status = S_OK;
     BOOL isDynamic = FALSE;
@@ -461,13 +461,13 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, VOID **ppSymbolReaderHandle
     if (isDynamic)
         return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
 
-    ULONG64 peAddress = 0;
-    ULONG32 peSize = 0;
+    uint64_t peAddress = 0;
+    uint32_t peSize = 0;
     IfFailRet(pModule->GetBaseAddress(&peAddress));
     IfFailRet(pModule->GetSize(&peSize));
 
     std::vector<unsigned char> peBuf;
-    ULONG64 peBufAddress = 0;
+    uint64_t peBufAddress = 0;
     if (isInMemory && peAddress != 0 && peSize != 0)
     {
         ToRelease<ICorDebugProcess> process;
@@ -500,7 +500,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     module.path = GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
 
-    PVOID pSymbolReaderHandle = nullptr;
+    void *pSymbolReaderHandle = nullptr;
     LoadSymbols(pModule, &pSymbolReaderHandle);
     module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
@@ -567,7 +567,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
 }
 
 HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
-                                            WSTRING &localName, ULONG32 *pIlStart, ULONG32 *pIlEnd)
+                                            WSTRING &localName, uint32_t *pIlStart, uint32_t *pIlEnd)
 {
     HRESULT Status = S_OK;
 
@@ -591,7 +591,7 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
     return S_OK;
 }
 
-HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, PVOID *data,
+HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
                                        int32_t &hoistedLocalScopesCount)
 {
     HRESULT Status = S_OK;
@@ -628,8 +628,8 @@ HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **pp
     return E_FAIL;
 }
 
-HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG32 ilOffset,
-                                                 ULONG32 &ilNextOffset, bool *noUserCodeFound)
+HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                                 uint32_t &ilNextOffset, bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -646,7 +646,7 @@ HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMet
         });
 }
 
-HRESULT Modules::GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
+HRESULT Modules::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                             SequencePoint *sequencePoint)
 {
     Interop::SequencePoint symSequencePoint;
@@ -666,7 +666,7 @@ HRESULT Modules::GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodD
     return S_OK;
 }
 
-HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ilOffset,
+HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                             SequencePoint &sequencePoint)
 {
     return GetModuleInfo(modAddress,

@@ -96,7 +96,7 @@ Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string 
     return userType;
 }
 
-HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue)
+HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
 {
     HRESULT Status = S_OK;
 
@@ -114,7 +114,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> 
     ToRelease<ICorDebugArrayValue> pArrayVal;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayVal)));
 
-    ULONG32 nRank = 0;
+    uint32_t nRank = 0;
     IfFailRet(pArrayVal->GetRank(&nRank));
 
     if (indexes.size() != nRank)
@@ -163,7 +163,7 @@ HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::str
     return E_FAIL;
 }
 
-static void IncIndicies(std::vector<ULONG32> &ind, const std::vector<ULONG32> &dims)
+static void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
 {
     int i = static_cast<int32_t>(ind.size()) - 1;
 
@@ -177,7 +177,7 @@ static void IncIndicies(std::vector<ULONG32> &ind, const std::vector<ULONG32> &d
     }
 }
 
-static std::string IndiciesToStr(const std::vector<ULONG32> &ind, const std::vector<ULONG32> &base)
+static std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<uint32_t> &base)
 {
     const size_t ind_size = ind.size();
     if (ind_size < 1 || base.size() != ind_size)
@@ -716,23 +716,23 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     ToRelease<ICorDebugArrayValue> pArrayValue;
     if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayValue))))
     {
-        ULONG32 nRank = 0;
+        uint32_t nRank = 0;
         IfFailRet(pArrayValue->GetRank(&nRank));
 
-        ULONG32 cElements = 0;
+        uint32_t cElements = 0;
         IfFailRet(pArrayValue->GetCount(&cElements));
 
-        std::vector<ULONG32> dims(nRank, 0);
+        std::vector<uint32_t> dims(nRank, 0);
         IfFailRet(pArrayValue->GetDimensions(nRank, &dims[0]));
 
-        std::vector<ULONG32> base(nRank, 0);
+        std::vector<uint32_t> base(nRank, 0);
         BOOL hasBaseIndicies = FALSE;
         if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && hasBaseIndicies)
             IfFailRet(pArrayValue->GetBaseIndicies(nRank, &base[0]));
 
-        std::vector<ULONG32> ind(nRank, 0);
+        std::vector<uint32_t> ind(nRank, 0);
 
-        for (ULONG32 i = 0; i < cElements; ++i)
+        for (uint32_t i = 0; i < cElements; ++i)
         {
             auto getValue = [&](ICorDebugValue **ppResultValue, int) -> HRESULT {
                 IfFailRet(pArrayValue->GetElementAtPosition(i, ppResultValue));
@@ -1231,7 +1231,7 @@ static HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalNa
     return S_OK;
 }
 
-static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, ULONG32 currentIlOffset,
+static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                         std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                         Modules *pModules, ICorDebugModule *pModule,
                                         Evaluator::WalkStackVarsCallback cb)
@@ -1296,7 +1296,7 @@ static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pI
         {
             if (hoistedLocalScopesCount == -1)
             {
-                PVOID data = nullptr;
+                void *data = nullptr;
                 if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) &&
                     data)
                     hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
@@ -1340,7 +1340,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 currentIlOffset = 0;
+    uint32_t currentIlOffset = 0;
     SequencePoint sp;
     // GetFrameILAndSequencePoint() return "success" code only in case it found sequence point
     // for current IP, that mean we stop inside user code.
@@ -1470,8 +1470,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     for (ULONG i = 0; i < cLocals; i++)
     {
         WSTRING wLocalName;
-        ULONG32 ilStart = 0;
-        ULONG32 ilEnd = 0;
+        uint32_t ilStart = 0;
+        uint32_t ilEnd = 0;
         if (FAILED(m_sharedModules->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)))
             continue;
 

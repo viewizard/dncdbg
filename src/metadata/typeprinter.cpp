@@ -518,10 +518,10 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         case ELEMENT_TYPE_ARRAY:
         {
             std::ostringstream ss;
-            ULONG32 rank = 0;
+            uint32_t rank = 0;
             pType->GetRank(&rank);
             ss << "[";
-            for (ULONG32 i = 0; i < rank - 1; i++)
+            for (uint32_t i = 0; i < rank - 1; i++)
                 ss << ",";
             ss << "]";
             arrayType = ss.str() + subArrayType;

@@ -66,7 +66,7 @@ class LineBreakpoints
         CORDB_ADDRESS modAddress = 0;
         int linenum;
         int endLine;
-        ULONG32 hitCount;
+        uint32_t hitCount;
         std::string condition;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
         // For example, `MyType obj = new MyType(1);` code will be added to all class constructors).

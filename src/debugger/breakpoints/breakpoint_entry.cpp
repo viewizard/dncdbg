@@ -110,7 +110,7 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 // [out] entryPointToken - corrected method token;
 // [out] entryPointOffset - corrected IL offset on first user code line.
 static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, Modules *pModules,
-                                            mdTypeDef mdMainClass, mdMethodDef &entryPointToken, ULONG32 &entryPointOffset)
+                                            mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
     // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
     // `Namespace.ClassName.Main()`, that create `Namespace.ClassName.<Main>d__0` and start state machine routine.
@@ -165,7 +165,7 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
         return E_FAIL;
 
     // Note, in case of async `MoveNext` method, user code don't start from 0 IL offset.
-    ULONG32 ilNextOffset = 0;
+    uint32_t ilNextOffset = 0;
     IfFailRet(pModules->GetNextUserCodeILOffsetInMethod(pModule, resultToken, 0, ilNextOffset));
 
     entryPointToken = resultToken;
@@ -187,7 +187,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         TypeFromToken(entryPointToken) != mdtMethodDef)
         return S_FALSE;
 
-    ULONG32 entryPointOffset = 0;
+    uint32_t entryPointOffset = 0;
     ToRelease<IUnknown> pMDUnknown;
     ToRelease<IMetaDataImport> pMD;
     mdTypeDef mdMainClass = mdTypeDefNil;

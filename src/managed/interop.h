@@ -90,33 +90,33 @@ void Init(const std::string &coreClrPath);
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
 void Shutdown();
 
-HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, ULONG64 peAddress,
-                                  ULONG64 peSize, ULONG64 inMemoryPdbAddress, ULONG64 inMemoryPdbSize, VOID **ppSymbolReaderHandle);
-void DisposeSymbols(PVOID pSymbolReaderHandle);
-HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef MethodToken, ULONG32 IlOffset, SequencePoint *sequencePoint);
-HRESULT GetSequencePoints(PVOID pSymbolReaderHandle, mdMethodDef MethodToken, SequencePoint **sequencePoints, int32_t &Count);
-HRESULT GetNextUserCodeILOffset(PVOID pSymbolReaderHandle, mdMethodDef MethodToken, ULONG32 IlOffset,
-                                ULONG32 &ilNextOffset, bool *noUserCodeFound);
-HRESULT GetNamedLocalVariableAndScope(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG localIndex,
-                                      WCHAR *localName, ULONG localNameLen, ULONG32 *pIlStart, ULONG32 *pIlEnd);
-HRESULT GetHoistedLocalScopes(PVOID pSymbolReaderHandle, mdMethodDef methodToken, PVOID *data, int32_t &hoistedLocalScopesCount);
-HRESULT GetStepRangesFromIP(PVOID pSymbolReaderHandle, ULONG32 ip, mdMethodDef MethodToken, ULONG32 *ilStartOffset, ULONG32 *ilEndOffset);
-HRESULT GetModuleMethodsRanges(PVOID pSymbolReaderHandle, uint32_t constrTokensNum, PVOID constrTokens,
-                               uint32_t normalTokensNum, PVOID normalTokens, PVOID *data);
-HRESULT ResolveBreakPoints(PVOID pSymbolReaderHandles, int32_t tokenNum, PVOID Tokens, int32_t sourceLine,
-                           int32_t nestedToken, int32_t &Count, const std::string &sourcePath, PVOID *data);
-HRESULT GetAsyncMethodSteppingInfo(PVOID pSymbolReaderHandle, mdMethodDef methodToken,
-                                   std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, ULONG32 *ilOffset);
-HRESULT CalculationDelegate(PVOID firstOp, int32_t firstType, PVOID secondOp, int32_t secondType, int32_t operationType,
-                            int32_t &resultType, PVOID *data, std::string &errorText);
-HRESULT GenerateStackMachineProgram(const std::string &expr, PVOID *ppStackProgram, std::string &textOutput);
-void ReleaseStackMachineProgram(PVOID pStackProgram);
-HRESULT NextStackCommand(PVOID pStackProgram, int32_t &Command, PVOID &Ptr, std::string &textOutput);
-PVOID AllocString(const std::string &str);
+HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
+                                  uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle);
+void DisposeSymbols(void *pSymbolReaderHandle);
+HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
+HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef MethodToken, SequencePoint **sequencePoints, int32_t &Count);
+HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
+                                uint32_t &ilNextOffset, bool *noUserCodeFound);
+HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, ULONG localIndex,
+                                      WCHAR *localName, ULONG localNameLen, uint32_t *pIlStart, uint32_t *pIlEnd);
+HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount);
+HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset);
+HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
+                               uint32_t normalTokensNum, void *normalTokens, void **data);
+HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
+                           int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data);
+HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
+                                   std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset);
+HRESULT CalculationDelegate(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
+                            int32_t &resultType, void **data, std::string &errorText);
+HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput);
+void ReleaseStackMachineProgram(void *pStackProgram);
+HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput);
+void *AllocString(const std::string &str);
 HRESULT StringToUpper(std::string &String);
 BSTR SysAllocStringLen(int32_t size);
 void SysFreeString(BSTR ptrBSTR);
-PVOID CoTaskMemAlloc(int32_t size);
-void CoTaskMemFree(PVOID ptr);
+void *CoTaskMemAlloc(int32_t size);
+void CoTaskMemFree(void *ptr);
 
 } // namespace dncdbg::Interop

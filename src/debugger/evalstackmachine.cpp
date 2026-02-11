@@ -50,7 +50,7 @@ struct FormatFIP
 {
     uint32_t Flags;
     int32_t Int;
-    PVOID Ptr;
+    void *Ptr;
 };
 
 // Keep in sync with BasicTypes enum in Evaluation.cs
@@ -127,7 +127,7 @@ void ReplaceInternalNames(std::string &expression, bool restore = false)
     }
 }
 
-HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, CorElementType type, PVOID ptr)
+HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, CorElementType type, void *ptr)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugEval> iCorEval;
@@ -152,7 +152,7 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
     if (!setToTrue)
         return S_OK;
 
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet((*ppValue)->GetSize(&cbSize));
     std::vector<BYTE> valueData(cbSize, 0);
     if (valueData.data() == nullptr)
@@ -180,7 +180,7 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
 }
 
 HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
-                        ICorDebugValue **ppValue, PVOID ptr)
+                        ICorDebugValue **ppValue, void *ptr)
 {
     HRESULT Status = S_OK;
     // Create value (without calling a constructor)
@@ -203,9 +203,9 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     return pGenericValue->SetValue(ptr);
 }
 
-HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
+HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
 {
-    // `ULONG32 &index` - ICorDebugArrayValue::GetElement expect ULONG32 indices
+    // `uint32_t &index` - ICorDebugArrayValue::GetElement expect uint32_t indices
 
     HRESULT Status = S_OK;
 
@@ -216,7 +216,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
     if (isNull)
         return E_INVALIDARG;
 
-    ULONG32 cbSize = 0;
+    uint32_t cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     ArrayHolder<BYTE> indexValue = new (std::nothrow) BYTE[cbSize];
     if (indexValue == nullptr)
@@ -238,12 +238,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
         const int8_t tmp = *reinterpret_cast<int8_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = static_cast<ULONG32>(static_cast<uint8_t>(tmp));
+        index = static_cast<uint32_t>(static_cast<uint8_t>(tmp));
         break;
     }
     case ELEMENT_TYPE_U1:
     {
-        index = static_cast<ULONG32>(indexValue[0]);
+        index = static_cast<uint32_t>(indexValue[0]);
         break;
     }
     case ELEMENT_TYPE_I2:
@@ -251,12 +251,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
         const int16_t tmp = *reinterpret_cast<int16_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = static_cast<ULONG32>(static_cast<uint16_t>(tmp));
+        index = static_cast<uint32_t>(static_cast<uint16_t>(tmp));
         break;
     }
     case ELEMENT_TYPE_U2:
     {
-        index = static_cast<ULONG32>(*reinterpret_cast<uint16_t *>(&indexValue[0]));
+        index = static_cast<uint32_t>(*reinterpret_cast<uint16_t *>(&indexValue[0]));
         break;
     }
     case ELEMENT_TYPE_I4:
@@ -264,7 +264,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
         const int32_t tmp = *reinterpret_cast<int32_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = static_cast<ULONG32>(tmp);
+        index = static_cast<uint32_t>(tmp);
         break;
     }
     case ELEMENT_TYPE_U4:
@@ -277,12 +277,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, ULONG32 &index)
         const int64_t tmp = *reinterpret_cast<int64_t *>(&indexValue[0]);
         if (tmp < 0)
             return E_INVALIDARG;
-        index = static_cast<ULONG32>(tmp);
+        index = static_cast<uint32_t>(tmp);
         break;
     }
     case ELEMENT_TYPE_U8:
     {
-        index = static_cast<ULONG32>(*reinterpret_cast<uint64_t *>(&indexValue[0]));
+        index = static_cast<uint32_t>(*reinterpret_cast<uint64_t *>(&indexValue[0]));
         break;
     }
     default:
@@ -565,7 +565,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
         elemTypeDst == ELEMENT_TYPE_U8 || elemTypeDst == ELEMENT_TYPE_R4 || elemTypeDst == ELEMENT_TYPE_R8 ||
         elemTypeDst == ELEMENT_TYPE_VALUETYPE)
     {
-        ULONG32 cbSize = 0;
+        uint32_t cbSize = 0;
         IfFailRet(pSrcValue->GetSize(&cbSize));
         ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
         if (elemValue == nullptr)
@@ -649,7 +649,7 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
     return E_INVALIDARG;
 }
 
-HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemType, PVOID &resultData, int32_t &resultType)
+HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemType, void **resultData, int32_t &resultType)
 {
     HRESULT Status = S_OK;
 
@@ -659,12 +659,12 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
         ToRelease<ICorDebugValue> iCorValue;
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &iCorValue, &isNull));
-        resultData = nullptr;
+        *resultData = nullptr;
         if (!isNull)
         {
             std::string String;
             IfFailRet(PrintStringValue(iCorValue, String));
-            resultData = Interop::AllocString(String);
+            *resultData = Interop::AllocString(String);
         }
         return S_OK;
     }
@@ -684,10 +684,10 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&iCorGenValue)));
-    return iCorGenValue->GetValue(resultData);
+    return iCorGenValue->GetValue(*resultData);
 }
 
-HRESULT GetValueByOperandDataType(PVOID valueData, BasicTypes valueType, ICorDebugValue **ppValue, EvalData &ed)
+HRESULT GetValueByOperandDataType(void *valueData, BasicTypes valueType, ICorDebugValue **ppValue, EvalData &ed)
 {
     if (valueType == BasicTypes::TypeString)
     {
@@ -898,15 +898,15 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
         return E_INVALIDARG;
 
     int64_t valueDataHolder1 = 0;
-    PVOID valueData1 = &valueDataHolder1;
+    void *valueData1 = &valueDataHolder1;
     int32_t valueType1 = 0;
     int64_t valueDataHolder2 = 0;
-    PVOID valueData2 = &valueDataHolder2;
+    void *valueData2 = &valueDataHolder2;
     int32_t valueType2 = 0;
-    PVOID resultData = nullptr;
+    void *resultData = nullptr;
     int32_t resultType = 0;
-    if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue1, elemType1, valueData1, valueType1)) &&
-        SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue2, elemType2, valueData2, valueType2)) &&
+    if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue1, elemType1, &valueData1, valueType1)) &&
+        SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue2, elemType2, &valueData2, valueType2)) &&
         SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, valueData2, valueType2,
                                                         static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
@@ -962,13 +962,13 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
         return E_INVALIDARG;
 
     int64_t valueDataHolder1 = 0;
-    PVOID valueData1 = &valueDataHolder1;
+    void *valueData1 = &valueDataHolder1;
     int32_t valueType1 = 0;
     // Note, we need fake second operand for delegate.
     int64_t fakeValueData2 = 0;
-    PVOID resultData = nullptr;
+    void *resultData = nullptr;
     int32_t resultType = 0;
-    if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue, elemType, valueData1, valueType1)) &&
+    if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue, elemType, &valueData1, valueType1)) &&
         SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, &fakeValueData2, static_cast<int32_t>(BasicTypes::TypeInt64),
                                                         static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
@@ -985,7 +985,7 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
     return Status;
 }
 
-HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &/*ed*/)
 {
     std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
     ReplaceInternalNames(String, true);
@@ -996,7 +996,7 @@ HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
     return S_OK;
 }
 
-HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
+HRESULT GenericName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     const int32_t Int = static_cast<FormatFIS *>(pArguments)->Int;
@@ -1034,7 +1034,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std:
     return S_OK;
 }
 
-HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
+HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
 {
     const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
 
@@ -1104,7 +1104,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
         auto entry = ed.corElementToValueClassMap.find(elemType);
         if (entry != ed.corElementToValueClassMap.end())
         {
-            ULONG32 cbSize = 0;
+            uint32_t cbSize = 0;
             IfFailRet(iCorValue->GetSize(&cbSize));
             ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
             if (elemValue == nullptr)
@@ -1179,7 +1179,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
         iCorType = iCorResultType.Detach();
 
     const size_t typeArgsCount = evalStack.front().genericTypeCache.size();
-    const ULONG32 realArgsCount = Int + (isInstance ? 1 : 0);
+    const uint32_t realArgsCount = Int + (isInstance ? 1 : 0);
     std::vector<ICorDebugType *> iCorTypeArgs;
     std::vector<ICorDebugValue *> iCorValueArgs;
     iCorValueArgs.reserve(realArgsCount);
@@ -1217,8 +1217,8 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
 
     evalStack.front().ResetEntry();
     Status = ed.pEvalHelpers->EvalGenericFunction(
-        ed.pThread, iCorFunc, iCorTypeArgs.data(), (ULONG32)iCorTypeArgs.size(), iCorValueArgs.data(),
-        (ULONG32)iCorValueArgs.size(), &evalStack.front().iCorValue, ed.evalFlags);
+        ed.pThread, iCorFunc, iCorTypeArgs.data(), static_cast<uint32_t>(iCorTypeArgs.size()), iCorValueArgs.data(),
+        static_cast<uint32_t>(iCorValueArgs.size()), &evalStack.front().iCorValue, ed.evalFlags);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is
     // void.
@@ -1229,14 +1229,14 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, PVOID pArgume
     return Status;
 }
 
-HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatFI *>(pArguments)->Flags;
     // TODO int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     return E_NOTIMPL;
 }
 
-HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
+HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
 {
     const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     HRESULT Status = S_OK;
@@ -1258,13 +1258,13 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
     ToRelease<ICorDebugValue> iCorRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorObjectValue, &iCorRealValue, &elemType));
-    std::vector<ULONG32> indexes;
+    std::vector<uint32_t> indexes;
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         for (int32_t i = Int - 1; i >= 0; i--)
         {
-            ULONG32 result_index = 0;
+            uint32_t result_index = 0;
             // TODO implicitly convert iCorValue to int, if type not int
             // at this moment GetElementIndex() work with integer types only
             IfFailRet(GetElementIndex(indexvalues[i], result_index));
@@ -1331,7 +1331,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
     return Status;
 }
 
-HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
+HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
 {
     const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
     HRESULT Status = S_OK;
@@ -1364,13 +1364,13 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
     ToRelease<ICorDebugValue> iCorRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(iCorObjectValue, &iCorRealValue, &elemType));
-    std::vector<ULONG32> indexes;
+    std::vector<uint32_t> indexes;
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         for (int32_t i = Int - 1; i >= 0; i--)
         {
-            ULONG32 result_index = 0;
+            uint32_t result_index = 0;
             // TODO implicitly convert iCorValue to int, if type not int
             // at this moment GetElementIndex() work with integer types only
             IfFailRet(GetElementIndex(indexvalues[i], result_index));
@@ -1437,10 +1437,10 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
     return Status;
 }
 
-HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
 {
     const int32_t Int = static_cast<FormatFIP *>(pArguments)->Int;
-    PVOID Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
+    void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
     static constexpr std::array<CorElementType, 15> BasicTypesAlias{
@@ -1468,7 +1468,7 @@ HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pAr
         return CreatePrimitiveValue(ed.pThread, &evalStack.front().iCorValue, BasicTypesAlias[Int], Ptr);
 }
 
-HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
 {
     std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
     ReplaceInternalNames(String, true);
@@ -1477,15 +1477,15 @@ HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArg
     return ed.pEvalHelpers->CreateString(ed.pThread, String, &evalStack.front().iCorValue);
 }
 
-HRESULT CharacterLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT CharacterLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
 {
-    PVOID Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
+    void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().iCorValue, ELEMENT_TYPE_CHAR, Ptr);
 }
 
-HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
 {
     static constexpr std::array<CorElementType, 15> BasicTypesAlias{
         ELEMENT_TYPE_BOOLEAN,   // Boolean
@@ -1519,13 +1519,13 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, PVOID pArguments, s
         return CreatePrimitiveValue(ed.pThread, &evalStack.front().iCorValue, BasicTypesAlias[Int], nullptr);
 }
 
-HRESULT AliasQualifiedName(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT AliasQualifiedName(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     assert(evalStack.size() > 1);
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
@@ -1558,13 +1558,13 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pA
     return S_OK;
 }
 
-HRESULT ConditionalExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ConditionalExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     assert(evalStack.size() > 1);
     assert(!evalStack.front().iCorValue);              // Should be unresolved identifier only front element.
@@ -1590,196 +1590,196 @@ HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, PVOID
     return S_OK;
 }
 
-HRESULT QualifiedName(std::list<EvalStackEntry> &evalStack, PVOID pArguments, std::string &output, EvalData &ed)
+HRESULT QualifiedName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
 {
     return SimpleMemberAccessExpression(evalStack, pArguments, output, ed);
 }
 
-HRESULT PointerMemberAccessExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PointerMemberAccessExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT CastExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT CastExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT AsExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT AsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT AddExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT AddExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::AddExpression, evalStack, output, ed);
 }
 
-HRESULT MultiplyExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT MultiplyExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::MultiplyExpression, evalStack, output, ed);
 }
 
-HRESULT SubtractExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT SubtractExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::SubtractExpression, evalStack, output, ed);
 }
 
-HRESULT DivideExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT DivideExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::DivideExpression, evalStack, output, ed);
 }
 
-HRESULT ModuloExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT ModuloExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::ModuloExpression, evalStack, output, ed);
 }
 
-HRESULT LeftShiftExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LeftShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::LeftShiftExpression, evalStack, output, ed);
 }
 
-HRESULT RightShiftExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT RightShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::RightShiftExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseAndExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::BitwiseAndExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseOrExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::BitwiseOrExpression, evalStack, output, ed);
 }
 
-HRESULT ExclusiveOrExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT ExclusiveOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalAndExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::LogicalAndExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalOrExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::LogicalOrExpression, evalStack, output, ed);
 }
 
-HRESULT EqualsExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT EqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::EqualsExpression, evalStack, output, ed);
 }
 
-HRESULT NotEqualsExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT NotEqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::NotEqualsExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT GreaterThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::GreaterThanExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LessThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::LessThanExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT GreaterThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LessThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateTwoOparands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT UnaryPlusExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT UnaryPlusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateOneOparand(OperationType::UnaryPlusExpression, evalStack, output, ed);
 }
 
-HRESULT UnaryMinusExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT UnaryMinusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateOneOparand(OperationType::UnaryMinusExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalNotExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateOneOparand(OperationType::LogicalNotExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseNotExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     return CalculateOneOparand(OperationType::BitwiseNotExpression, evalStack, output, ed);
 }
 
-HRESULT TrueLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT TrueLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().iCorValue, true);
 }
 
-HRESULT FalseLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT FalseLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().iCorValue, false);
 }
 
-HRESULT NullLiteralExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT NullLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateNullValue(ed.pThread, &evalStack.front().iCorValue);
 }
 
-HRESULT PreIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PreIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT PostIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PostIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT PreDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PreDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     assert(evalStack.size() > 0);
     HRESULT Status = S_OK;
     uint32_t size = 0;
-    PVOID szPtr = &size;
+    void *szPtr = &size;
 
     if (evalStack.front().iCorValue)
     {
@@ -1832,13 +1832,13 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgument
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().iCorValue, ELEMENT_TYPE_U4, szPtr);
 }
 
-HRESULT TypeOfExpression(std::list<EvalStackEntry> &/*evalStack*/, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT TypeOfExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
     return E_NOTIMPL;
 }
 
-HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &output, EvalData &ed)
+HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorRealValueRightOp;
@@ -1885,7 +1885,7 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArgume
     return E_INVALIDARG;
 }
 
-HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     evalStack.emplace_front();
     evalStack.front().identifiers.emplace_back("this");
@@ -1898,7 +1898,7 @@ HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, PVOID /*pArguments*
 HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
                               const std::string &expression, std::list<EvalStackEntry> &evalStack, std::string &output)
 {
-    static const std::vector<std::function<HRESULT(std::list<EvalStackEntry> &, PVOID, std::string &, EvalData &)>> CommandImplementation = {
+    static const std::vector<std::function<HRESULT(std::list<EvalStackEntry> &, void *, std::string &, EvalData &)>> CommandImplementation = {
         IdentifierName,
         GenericName,
         InvocationExpression,
@@ -1959,13 +1959,13 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, u
     ReplaceInternalNames(fixed_expression);
 
     HRESULT Status = S_OK;
-    PVOID pStackProgram = nullptr;
+    void *pStackProgram = nullptr;
     IfFailRet(Interop::GenerateStackMachineProgram(fixed_expression, &pStackProgram, output));
 
     static constexpr int32_t ProgramInProgress = 0;
     static constexpr int32_t ProgramFinished = -1;
     int32_t Command = ProgramInProgress;
-    PVOID pArguments = nullptr;
+    void *pArguments = nullptr;
 
     m_evalData.pThread = pThread;
     m_evalData.frameLevel = frameLevel;
@@ -1973,7 +1973,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, u
 
     do
     {
-        if (FAILED(Status = Interop::NextStackCommand(pStackProgram, Command, pArguments, output)) ||
+        if (FAILED(Status = Interop::NextStackCommand(pStackProgram, Command, &pArguments, output)) ||
             Command == ProgramFinished ||
             FAILED(Status = CommandImplementation[Command](evalStack, pArguments, output, m_evalData)))
             break;

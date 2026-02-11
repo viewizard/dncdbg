@@ -131,7 +131,7 @@ class Evaluator
                                   std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
                                   std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags);
 
-    HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<ULONG32> &indexes, ICorDebugValue **ppResultValue);
+    HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                         std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);

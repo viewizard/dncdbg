@@ -28,16 +28,16 @@ namespace dncdbg
 // Based on coreclr/src/dlls/dbgshim/dbgshim.h
 struct dbgshim_t
 {
-    using PSTARTUP_CALLBACK = VOID (*)(IUnknown *, PVOID, HRESULT);
-    using CreateProcessForLaunch_t = HRESULT (*)(LPWSTR, BOOL, LPVOID, LPCWSTR, PDWORD, HANDLE *);
+    using PSTARTUP_CALLBACK = void (*)(IUnknown *, void *, HRESULT);
+    using CreateProcessForLaunch_t = HRESULT (*)(WCHAR *, BOOL, void *, const WCHAR *, DWORD *, HANDLE *);
     using ResumeProcess_t = HRESULT (*)(HANDLE);
     using CloseResumeHandle_t = HRESULT (*)(HANDLE);
-    using RegisterForRuntimeStartup_t = HRESULT (*)(DWORD, PSTARTUP_CALLBACK, PVOID, PVOID *);
-    using UnregisterForRuntimeStartup_t = HRESULT (*)(PVOID);
+    using RegisterForRuntimeStartup_t = HRESULT (*)(DWORD, PSTARTUP_CALLBACK, void *, void **);
+    using UnregisterForRuntimeStartup_t = HRESULT (*)(void *);
     using EnumerateCLRs_t = HRESULT (*)(DWORD, HANDLE **, LPWSTR **, DWORD *);
     using CloseCLREnumeration_t = HRESULT (*)(HANDLE *, LPWSTR *, DWORD );
-    using CreateVersionStringFromModule_t = HRESULT (*)(DWORD, LPCWSTR, LPWSTR, DWORD, DWORD *);
-    using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, LPCWSTR, IUnknown **);
+    using CreateVersionStringFromModule_t = HRESULT (*)(DWORD, const WCHAR *, WCHAR *, DWORD, DWORD *);
+    using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, const WCHAR *, IUnknown **);
     CreateProcessForLaunch_t CreateProcessForLaunch;
     ResumeProcess_t ResumeProcess;
     CloseResumeHandle_t CloseResumeHandle;

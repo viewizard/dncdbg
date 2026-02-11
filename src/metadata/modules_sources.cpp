@@ -211,7 +211,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
 
 } // unnamed namespace
 
-static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolReaderHandle,
+static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
                                    std::unordered_set<mdMethodDef> *methodTokens,
                                    std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> &inputData)
 {
@@ -257,7 +257,7 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, PVOID pSymbolRead
         return E_FAIL;
     }
 
-    PVOID data = nullptr;
+    void *data = nullptr;
     IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, static_cast<uint32_t>(constrTokens.size()), constrTokens.data(),
                                               static_cast<uint32_t>(normalTokens.size()), normalTokens.data(), &data));
     if (data == nullptr)
@@ -301,7 +301,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 }
 
 HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
-                                                      PVOID pSymbolReaderHandle)
+                                                      void *pSymbolReaderHandle)
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
@@ -539,7 +539,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         if (pmdInfo->m_symbolReaderHandle == nullptr)
             continue;
 
-        PVOID data = nullptr;
+        void *data = nullptr;
         int32_t Count = 0;
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         const std::string fullName = m_sourceIndexToInitialFullPath[findIndex->second];

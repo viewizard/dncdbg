@@ -34,7 +34,7 @@ ULONG ManagedCallback::GetRefCount()
 
 // IUnknown
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, VOID **ppInterface)
+HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, void **ppInterface)
 {
     LogFuncEntry();
 
@@ -388,7 +388,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapOpportunity(ICorDebugApp
                                                                     ICorDebugThread *,
                                                                     ICorDebugFunction */*pOldFunction*/,
                                                                     ICorDebugFunction */*pNewFunction*/,
-                                                                    ULONG32 /*oldILOffset*/)
+                                                                    uint32_t /*oldILOffset*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -461,7 +461,7 @@ static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame 
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                     ICorDebugFrame *pFrame, ULONG32 /*nOffset*/,
+                                                     ICorDebugFrame *pFrame, uint32_t /*nOffset*/,
                                                      CorDebugExceptionCallbackType dwEventType, DWORD /*dwFlags*/)
 {
     LogFuncEntry();

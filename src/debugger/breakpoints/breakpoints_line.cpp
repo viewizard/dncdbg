@@ -43,7 +43,7 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     if (pFrame == nullptr)
         return E_FAIL;
 
-    ULONG32 ilOffset = 0;
+    uint32_t ilOffset = 0;
     SequencePoint sp;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
 

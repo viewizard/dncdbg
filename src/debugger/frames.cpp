@@ -83,11 +83,11 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     ToRelease<ICorDebugStackWalk> iCorStackWalk;
     IfFailRet(iCorThread3->CreateStackWalk(&iCorStackWalk));
 
-    static constexpr ULONG32 ctxFlags = (ULONG32)CONTEXT_CONTROL | (ULONG32)CONTEXT_INTEGER;
+    static constexpr uint32_t ctxFlags = static_cast<uint32_t>(CONTEXT_CONTROL) | static_cast<uint32_t>(CONTEXT_INTEGER);
     CONTEXT ctxUnmanagedChain;
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;
-    ULONG32 contextSize = 0;
+    uint32_t contextSize = 0;
     memset((void *)(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
     memset((void *)&currentCtx, 0, sizeof(CONTEXT));
 
@@ -162,7 +162,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             ToRelease<ICorDebugILFrame> pILFrame;
             IfFailRet(iCorFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
 
-            ULONG32 nOffset = 0;
+            uint32_t nOffset = 0;
             CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
             IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
             if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)

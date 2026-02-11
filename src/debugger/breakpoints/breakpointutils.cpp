@@ -18,8 +18,8 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
     if (!pBreakpoint1 || !pBreakpoint2)
         return E_FAIL;
 
-    ULONG32 nOffset1 = 0;
-    ULONG32 nOffset2 = 0;
+    uint32_t nOffset1 = 0;
+    uint32_t nOffset2 = 0;
     IfFailRet(pBreakpoint1->GetOffset(&nOffset1));
     IfFailRet(pBreakpoint2->GetOffset(&nOffset2));
 

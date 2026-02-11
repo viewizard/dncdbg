@@ -63,7 +63,7 @@ bool AsyncInfo::IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 // [in] methodToken - method token (from module with address modAddress).
 // [in] ipOffset - IL offset;
 // [out] awaitInfo - result, next await info.
-bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ipOffset, AwaitInfo **awaitInfo)
+bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, AwaitInfo **awaitInfo)
 {
     const std::scoped_lock<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
@@ -94,7 +94,7 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 // [in] modAddress - module address;
 // [in] methodToken - method token (from module with address modAddress).
 // [out] lastIlOffset - result, IL offset for last user code line in async method.
-bool AsyncInfo::FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 &lastIlOffset)
+bool AsyncInfo::FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset)
 {
     const std::scoped_lock<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 

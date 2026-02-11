@@ -224,7 +224,7 @@ HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedF
         ToRelease<ICorDebugFunction> pFunc;
         IfFailRet(entry.first->GetFunctionFromToken(entry.second, &pFunc));
 
-        ULONG32 ilNextOffset = 0;
+        uint32_t ilNextOffset = 0;
         if (FAILED(m_sharedModules->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
             return S_OK;
 

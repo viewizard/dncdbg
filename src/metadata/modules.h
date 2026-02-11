@@ -28,10 +28,10 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
 
 struct ModuleInfo
 {
-    PVOID m_symbolReaderHandle = nullptr;
+    void *m_symbolReaderHandle = nullptr;
     ToRelease<ICorDebugModule> m_iCorModule;
 
-    ModuleInfo(PVOID Handle, ICorDebugModule *Module)
+    ModuleInfo(void *Handle, ICorDebugModule *Module)
       : m_symbolReaderHandle(Handle),
         m_iCorModule(Module)
     {
@@ -69,9 +69,9 @@ class Modules
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb);
     HRESULT GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo);
 
-    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, ULONG32 &ilOffset, SequencePoint &sequencePoint);
+    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, SequencePoint &sequencePoint);
 
-    HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, ULONG32 &ilOffset, ULONG32 &ilNextOffset,
+    HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                               bool *noUserCodeFound);
 
     HRESULT ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked, const std::string &funcname,
@@ -87,15 +87,15 @@ class Modules
     void CleanupAllModules();
 
     HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
-                                       WSTRING &localName, ULONG32 *pIlStart, ULONG32 *pIlEnd);
+                                       WSTRING &localName, uint32_t *pIlStart, uint32_t *pIlEnd);
 
-    HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, PVOID *data,
+    HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
                                   int32_t &hoistedLocalScopesCount);
 
-    HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG32 ilOffset,
-                                            ULONG32 &ilNextOffset, bool *noUserCodeFound = nullptr);
+    HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                            uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);
 
-    HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, ULONG32 ilOffset,
+    HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                        SequencePoint &sequencePoint);
 
     HRESULT ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
@@ -108,7 +108,7 @@ class Modules
     // Note, m_modulesSources have its own mutex for private data state sync.
     ModulesSources m_modulesSources;
 
-    HRESULT GetSequencePointByILOffset(PVOID pSymbolReaderHandle, mdMethodDef methodToken, ULONG32 ilOffset,
+    HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                        SequencePoint *sequencePoint);
 };
 
