@@ -109,7 +109,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             pMDImport2->CloseEnum(fGenEnum);
 
             std::string fullName = to_utf8(szFuncName.data());
-            if (genParams != "")
+            if (!genParams.empty())
             {
                 // Last symbol is comma and it is useless, so remove
                 genParams.pop_back();

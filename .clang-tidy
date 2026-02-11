@@ -36,7 +36,6 @@ Checks: >
   -readability-magic-numbers,
   -readability-duplicate-include,
   -readability-qualified-auto,
-  -readability-container-size-empty,
   -readability-isolate-declaration,
   -readability-else-after-return,
   -readability-math-missing-parentheses,

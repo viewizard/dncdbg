@@ -1054,7 +1054,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     if (evalStack.front().preventBinding)
         return S_OK;
 
-    assert(evalStack.front().identifiers.size() > 0); // We must have at least method name (identifier).
+    assert(!evalStack.front().identifiers.empty()); // We must have at least method name (identifier).
 
     // TODO local defined function (compiler will create such function with name like `<Calc1>g__Calc2|0_0`)
     const std::string funcNameGenerics = evalStack.front().identifiers.back();
@@ -1776,7 +1776,7 @@ HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void *
 
 HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    assert(evalStack.size() > 0);
+    assert(!evalStack.empty());
     HRESULT Status = S_OK;
     uint32_t size = 0;
     void *szPtr = &size;
