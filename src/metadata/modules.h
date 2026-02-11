@@ -77,8 +77,8 @@ class Modules
     HRESULT ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked, const std::string &funcname,
                                        const ResolveFuncBreakpointCallback &cb);
 
-    HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module, bool &module_checked,
-                                          std::string &funcname, const ResolveFuncBreakpointCallback &cb);
+    static HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module, bool &module_checked,
+                                                 std::string &funcname, const ResolveFuncBreakpointCallback &cb);
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 
@@ -108,8 +108,8 @@ class Modules
     // Note, m_modulesSources have its own mutex for private data state sync.
     ModulesSources m_modulesSources;
 
-    HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                       SequencePoint *sequencePoint);
+    static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                              SequencePoint *sequencePoint);
 };
 
 } // namespace dncdbg

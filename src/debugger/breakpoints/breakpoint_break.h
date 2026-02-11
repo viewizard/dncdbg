@@ -61,7 +61,7 @@ class BreakBreakpoint
 
     FullyQualifiedIlOffset_t m_lastStoppedIlOffset;
 
-    HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset);
+    static HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset);
 };
 
 } // namespace dncdbg

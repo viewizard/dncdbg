@@ -40,7 +40,6 @@ Checks: >
   -readability-else-after-return,
   -readability-math-missing-parentheses,
   -readability-named-parameter,
-  -readability-convert-member-functions-to-static,
   -readability-uppercase-literal-suffix,
   -readability-inconsistent-declaration-parameter-name,
   -readability-make-member-function-const,

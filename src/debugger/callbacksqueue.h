@@ -121,7 +121,7 @@ class CallbacksQueue
     bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
     bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule);
     bool CallbacksWorkerCreateProcess();
-    bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
+    static bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
 };
 
 } // namespace dncdbg

@@ -42,7 +42,7 @@ class Evaluator
             typeName = n;
         }
 
-        bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
+        static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
         bool areEqual(const ArgElementType &arg);
         inline bool operator==(const ArgElementType &arg)
         {
@@ -112,7 +112,7 @@ class Evaluator
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
-    HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &thisParam);
+    static HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &thisParam);
 
     HRESULT LookupExtensionMethods(ICorDebugType *pType, const std::string &methodName,
                                    std::vector<Evaluator::ArgElementType> &methodArgs,
@@ -131,7 +131,7 @@ class Evaluator
                                   std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
                                   std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags);
 
-    HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
+    static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                         std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
@@ -139,7 +139,7 @@ class Evaluator
                      const GetValueCallback *getValue, SetterData *setterData, const std::string &value, uint32_t evalFlags,
                      std::string &output);
 
-    ArgElementType GetElementTypeByTypeName(const std::string &typeName);
+    static ArgElementType GetElementTypeByTypeName(const std::string &typeName);
 
   private:
 

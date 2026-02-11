@@ -39,7 +39,7 @@ class Breakpoints
     void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
     void SetStopAtEntry(bool enable);
     void DeleteAll();
-    HRESULT DisableAll(ICorDebugProcess *pProcess);
+    static HRESULT DisableAll(ICorDebugProcess *pProcess);
 
     HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
                                std::vector<Breakpoint> &breakpoints);

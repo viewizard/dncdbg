@@ -1142,7 +1142,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     methodGenerics.reserve(methodGenericStrings.size());
     for (const auto &methodGenericString : methodGenericStrings)
     {
-        methodGenerics.emplace_back(ed.pEvaluator->GetElementTypeByTypeName(methodGenericString));
+        methodGenerics.emplace_back(dncdbg::Evaluator::GetElementTypeByTypeName(methodGenericString));
     }
 
     ToRelease<ICorDebugFunction> iCorFunc;
@@ -1273,7 +1273,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         evalStack.front().iCorValue.Free();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = ed.pEvaluator->GetElement(iCorObjectValue, indexes, &evalStack.front().iCorValue);
+        Status = dncdbg::Evaluator::GetElement(iCorObjectValue, indexes, &evalStack.front().iCorValue);
     }
     else
     {
@@ -1379,7 +1379,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         evalStack.front().iCorValue.Free();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = ed.pEvaluator->GetElement(iCorObjectValue, indexes, &evalStack.front().iCorValue);
+        Status = dncdbg::Evaluator::GetElement(iCorObjectValue, indexes, &evalStack.front().iCorValue);
     }
     else
     {
