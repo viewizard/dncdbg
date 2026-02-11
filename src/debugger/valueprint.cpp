@@ -478,9 +478,9 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
 
     output = uint96_to_string(v);
 
-    static constexpr unsigned int ScaleMask = 0x00FF0000ul;
+    static constexpr unsigned int ScaleMask = 0x00FF0000UL;
     static constexpr unsigned int ScaleShift = 16;
-    static constexpr unsigned int SignMask = 1ul << 31;
+    static constexpr unsigned int SignMask = 1UL << 31;
 
     const unsigned int scale = (flags & ScaleMask) >> ScaleShift;
     const bool is_negative = flags & SignMask;
