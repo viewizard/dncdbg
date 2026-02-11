@@ -27,11 +27,17 @@ void EscapedStringInternal::EscapedStringImpl::operator()(void *thiz, void (*fun
 {
     // always have transformed result
     if (m_isresult)
-        return func(thiz, {&m_result[0], m_result.size()});
+    {
+        func(thiz, {&m_result[0], m_result.size()});
+        return;
+    }
 
     // case, when no conversion needed
     if (m_size == m_input.size())
-        return func(thiz, m_input);
+    {
+        func(thiz, m_input);
+        return;
+    }
 
     // perform transformation and compute result size
     size_t size = 0;

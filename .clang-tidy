@@ -27,8 +27,30 @@ Checks: >
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
-  readability-redundant-*,
-  readability-string-compare
+  readability-*,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-container-data-pointer,
+  -readability-magic-numbers,
+  -readability-duplicate-include,
+  -readability-qualified-auto,
+  -readability-container-size-empty,
+  -readability-isolate-declaration,
+  -readability-else-after-return,
+  -readability-math-missing-parentheses,
+  -readability-simplify-boolean-expr,
+  -readability-named-parameter,
+  -readability-convert-member-functions-to-static,
+  -readability-uppercase-literal-suffix,
+  -readability-inconsistent-declaration-parameter-name,
+  -readability-make-member-function-const,
+  -readability-use-concise-preprocessor-directives,
+  -readability-static-definition-in-anonymous-namespace,
+  -readability-suspicious-call-argument,
+  -readability-simplify-subscript-expr,
+  -readability-non-const-parameter
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
 WarningsAsErrors: "*"
