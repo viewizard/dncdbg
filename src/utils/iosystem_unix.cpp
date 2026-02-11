@@ -143,7 +143,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     // TODO what to do with this?
     static_cast<void>(signal(SIGPIPE, SIG_IGN));
 
-    return {fds.data()[0], fds.data()[1]};
+    return {fds[0], fds[1]};
 }
 
 // Function creates listening TCP socket on given port, waits, accepts single
@@ -311,7 +311,7 @@ dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
     static const std::array<IOSystem::FileHandle, std::tuple_size_v<IOSystem::StdFiles>> handles{ 
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
-    return {handles.data()[0], handles.data()[1], handles.data()[2]};
+    return {handles[0], handles[1], handles[2]};
 }
 
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
@@ -327,14 +327,14 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cpp
 
     for (unsigned n = 0; n < NFD; n++)
     {
-        m_orig_fd[n] = ::dup(oldfd.data()[n]);
+        m_orig_fd[n] = ::dup(oldfd[n]);
         if (m_orig_fd[n] == -1)
         {
             static_cast<void>(fprintf(stderr, "dup error %i", errno));
             throw std::runtime_error("dup error");
         }
 
-        if (::dup2(newfd[n], oldfd.data()[n]) == -1)
+        if (::dup2(newfd[n], oldfd[n]) == -1)
         {
             static_cast<void>(fprintf(stderr, "dup2 error %i", errno));
             throw std::runtime_error("dup2 error");

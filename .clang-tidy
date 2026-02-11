@@ -44,7 +44,6 @@ Checks: >
   -readability-use-concise-preprocessor-directives,
   -readability-static-definition-in-anonymous-namespace,
   -readability-suspicious-call-argument,
-  -readability-simplify-subscript-expr,
   -readability-non-const-parameter
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
