@@ -39,7 +39,6 @@ Checks: >
   -readability-isolate-declaration,
   -readability-else-after-return,
   -readability-math-missing-parentheses,
-  -readability-simplify-boolean-expr,
   -readability-named-parameter,
   -readability-convert-member-functions-to-static,
   -readability-uppercase-literal-suffix,

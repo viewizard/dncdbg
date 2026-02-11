@@ -967,7 +967,7 @@ static std::string ReadData(std::istream &cin)
             char *p = nullptr; // NOLINT(misc-const-correctness)
             errno = 0;
             content_len = strtoul(&line[CONTENT_LENGTH.size()], &p, 10);
-            if (errno == ERANGE || !(*p == 0 || isspace(*p)))
+            if (errno == ERANGE || (*p != 0 && !isspace(*p)))
             {
                 LOGE("protocol violation: '%s'", line.c_str());
                 return {};
