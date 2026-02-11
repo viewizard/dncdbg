@@ -43,7 +43,7 @@ class Evaluator
         }
 
         static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
-        bool areEqual(const ArgElementType &arg);
+        bool areEqual(const ArgElementType &arg) const;
         inline bool operator==(const ArgElementType &arg)
         {
             return areEqual(arg);

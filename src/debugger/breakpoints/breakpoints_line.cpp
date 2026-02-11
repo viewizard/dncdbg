@@ -13,7 +13,7 @@
 namespace dncdbg
 {
 
-void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname)
+void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();

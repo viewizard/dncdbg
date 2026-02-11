@@ -95,7 +95,7 @@ class LineBreakpoints
             }
         }
 
-        void ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname);
+        void ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const;
 
         ManagedLineBreakpoint(ManagedLineBreakpoint &&that) = default;
         ManagedLineBreakpoint(const ManagedLineBreakpoint &that) = delete;

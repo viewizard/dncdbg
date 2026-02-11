@@ -51,7 +51,7 @@ bool Evaluator::ArgElementType::isAlias(const CorElementType type1, const CorEle
     return false;
 }
 
-bool Evaluator::ArgElementType::areEqual(const ArgElementType &arg)
+bool Evaluator::ArgElementType::areEqual(const ArgElementType &arg) const
 {
     if (corType == arg.corType && typeName == arg.typeName)
         return true;

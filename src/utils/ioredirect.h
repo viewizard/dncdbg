@@ -88,8 +88,8 @@ class IORedirectHelper
 
   private:
 
-    void wake_worker();
-    void wake_reader();
+    void wake_worker() const;
+    void wake_reader() const;
 
     void worker(); // worker thread function
     void StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,

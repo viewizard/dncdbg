@@ -37,7 +37,7 @@ struct AsyncRead
     {
     }
 
-    Class::IOResult operator()()
+    Class::IOResult operator()() const
     {
         // TODO need to optimize code to left only one syscall.
         fd_set set;
@@ -84,7 +84,7 @@ struct AsyncWrite
     {
     }
 
-    Class::IOResult operator()()
+    Class::IOResult operator()() const
     {
         fd_set set;
         FD_ZERO(&set);

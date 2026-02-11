@@ -85,13 +85,13 @@ IORedirectHelper::~IORedirectHelper()
     m_thread.join();
 }
 
-void IORedirectHelper::wake_worker()
+void IORedirectHelper::wake_worker() const
 {
     LOGD("waking worker");
     IOSystem::write(m_worker_pipe.second, "", 1);
 }
 
-void IORedirectHelper::wake_reader()
+void IORedirectHelper::wake_reader() const
 {
     LOGD("waking reader");
     IOSystem::write(m_input_pipe.second, "", 1);
