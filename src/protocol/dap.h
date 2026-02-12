@@ -6,6 +6,7 @@
 #pragma once
 
 #include "types/types.h"
+#include "utils/string_view.h"
 #include <json/json.hpp>
 #include <atomic>
 #include <condition_variable>
@@ -13,7 +14,6 @@
 #include <list>
 #include <mutex>
 #include <string>
-#include <string_view>
 
 namespace dncdbg
 {
@@ -50,7 +50,7 @@ class DAP
     void EmitContinuedEvent(ThreadId threadId);
     void EmitThreadEvent(const ThreadEvent &event);
     void EmitModuleEvent(const ModuleEvent &event);
-    void EmitOutputEvent(OutputCategory category, const std::string_view &output, DWORD threadId = 0);
+    void EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId = 0);
     void EmitBreakpointEvent(const BreakpointEvent &event);
     void Cleanup();
     void CommandLoop();
