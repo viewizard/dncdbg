@@ -771,7 +771,6 @@ void ManagedDebugger::Cleanup()
     m_sharedModules->CleanupAllModules();
     m_sharedEvalHelpers->Cleanup();
     m_sharedVariables->Clear();
-    pProtocol->Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 

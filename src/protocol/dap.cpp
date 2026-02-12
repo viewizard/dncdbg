@@ -3,6 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
+#include "managed/interop.h"
 #include "protocol/dap.h"
 #include "debugger/manageddebugger.h"
 #include "protocol/escaped_string.h"
@@ -10,6 +11,7 @@
 #include "utils/streams.h"
 #include "utils/torelease.h"
 #include <algorithm>
+#include <exception>
 #include <future>
 #include <iomanip>
 #include <iostream>
@@ -321,7 +323,7 @@ void serialize_output(std::ostream &stream, uint64_t counter, const Utility::str
 
     stream.flush();
 };
-} // namespace
+} // unnamed namespace
 
 void DAP::EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId)
 {
@@ -351,6 +353,7 @@ void DAP::EmitOutputEvent(OutputCategory category, const Utility::string_view &o
     int totalFrames = 0;
     std::vector<StackFrame> stackFrames;
     if ((threadId != 0U) &&
+        (m_sharedDebugger != nullptr) &&
         SUCCEEDED(m_sharedDebugger->GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames, totalFrames)))
     {
         // Find first frame with source file data (code with PDB/user code).
@@ -429,7 +432,6 @@ static void AddCapabilitiesTo(json &capabilities)
     capabilities["supportsSetExpression"] = true;
     capabilities["supportsTerminateRequest"] = true;
     capabilities["supportsCancelRequest"] = true;
-
     capabilities["supportsExceptionInfoRequest"] = true;
     capabilities["supportsExceptionFilterOptions"] = true;
     json excFilters = json::array();
@@ -455,10 +457,6 @@ void DAP::EmitCapabilitiesEvent()
     body["capabilities"] = capabilities;
 
     EmitEvent("capabilities", body);
-}
-
-void DAP::Cleanup()
-{
 }
 
 // Caller must care about m_outMutex.
@@ -900,6 +898,11 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 return Status;
             }}};
 
+    if (sharedDebugger == nullptr)
+    {
+        return CORDBG_E_DEBUGGING_DISABLED;
+    }
+
     auto command_it = commands.find(command);
     if (command_it == commands.end())
     {
@@ -1008,7 +1011,8 @@ void DAP::CommandsWorker()
         // Check for ncdbg internal commands.
         if (c.command == "ncdbg_disconnect")
         {
-            m_sharedDebugger->Disconnect();
+            if (m_sharedDebugger != nullptr)
+                m_sharedDebugger->Disconnect();
             break;
         }
 
@@ -1093,6 +1097,7 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 
 void DAP::CommandLoop()
 {
+    CreateManagedDebugger();
     std::thread commandsWorker{&DAP::CommandsWorker, this};
 
     m_exit = false;
@@ -1154,7 +1159,8 @@ void DAP::CommandLoop()
             else if (g_cancelCommandQueueSet.find(queueEntry.command) != g_cancelCommandQueueSet.end())
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
-                m_sharedDebugger->CancelEvalRunning();
+                if (m_sharedDebugger != nullptr)
+                    m_sharedDebugger->CancelEvalRunning();
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
                 {
@@ -1221,6 +1227,7 @@ void DAP::CommandLoop()
     }
 
     commandsWorker.join();
+    Interop::Shutdown();
 }
 
 void DAP::SetupProtocolLogging(const std::string &path)
@@ -1238,6 +1245,20 @@ void DAP::Log(const std::string &prefix, const std::string &text)
         return;
     
     m_protocolLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
+}
+
+void DAP::CreateManagedDebugger()
+{
+    assert(m_sharedDebugger == nullptr);
+    try
+    {
+        m_sharedDebugger = std::make_shared<ManagedDebugger>(this);
+    }
+    catch (const std::exception &e)
+    {
+        const Utility::string_view err(e.what());
+        EmitOutputEvent(OutputCategory::StdErr, err);
+    }
 }
 
 } // namespace dncdbg

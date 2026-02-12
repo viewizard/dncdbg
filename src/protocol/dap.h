@@ -32,10 +32,7 @@ class DAP
           m_seqCounter(1)
     {
     }
-    void SetDebugger(std::shared_ptr<ManagedDebugger> &sharedDebugger)
-    {
-        m_sharedDebugger = sharedDebugger;
-    }
+    void CreateManagedDebugger();
     void SetupProtocolLogging(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {
@@ -52,7 +49,6 @@ class DAP
     void EmitModuleEvent(const ModuleEvent &event);
     void EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId = 0);
     void EmitBreakpointEvent(const BreakpointEvent &event);
-    void Cleanup();
     void CommandLoop();
 
     void EmitInitializedEvent();

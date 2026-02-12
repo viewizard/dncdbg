@@ -4,12 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "buildinfo.h"
-#include "debugger/manageddebugger.h"
-#include "managed/interop.h"
 #include "protocol/dap.h"
 #include "utils/logger.h"
 
-#include <exception>
 #include <string>
 #include <cstdio>
 #include <cstdlib>
@@ -157,19 +154,6 @@ int
         protocol.SetupProtocolLogging(protocolLogFilePath);
     }
 
-    std::shared_ptr<ManagedDebugger> debugger;
-    try
-    {
-        debugger = std::make_shared<ManagedDebugger>(&protocol);
-    }
-    catch (const std::exception &e)
-    {
-        static_cast<void>(fprintf(stderr, "%s\n", e.what()));
-        exit(EXIT_FAILURE);
-    }
-
-    protocol.SetDebugger(debugger);
     protocol.CommandLoop();
-    Interop::Shutdown();
     return EXIT_SUCCESS;
 }
