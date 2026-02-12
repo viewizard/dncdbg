@@ -70,7 +70,7 @@ bool DLClose(DLHandle handle)
         LOGE("dlclose() error: %s", err);
     }
 
-    return ret;
+    return (ret != 0);
 }
 
 } // namespace dncdbg

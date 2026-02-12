@@ -458,7 +458,7 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle
     IfFailRet(pModule->IsDynamic(&isDynamic));
     IfFailRet(pModule->IsInMemory(&isInMemory));
 
-    if (isDynamic)
+    if (isDynamic == TRUE)
         return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
 
     uint64_t peAddress = 0;
@@ -468,7 +468,7 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle
 
     std::vector<unsigned char> peBuf;
     uint64_t peBufAddress = 0;
-    if (isInMemory && peAddress != 0 && peSize != 0)
+    if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
     {
         ToRelease<ICorDebugProcess> process;
         IfFailRet(pModule->GetProcess(&process));

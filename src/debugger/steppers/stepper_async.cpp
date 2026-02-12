@@ -524,7 +524,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         ToRelease<ICorDebugValue> pValue;
         BOOL isNull = FALSE;
         if (SUCCEEDED(GetAsyncIdReference(pThread, pFrame, m_sharedEvalHelpers.get(), &pValueRef)) &&
-            SUCCEEDED(DereferenceAndUnboxValue(pValueRef, &pValue, &isNull)) && !isNull)
+            SUCCEEDED(DereferenceAndUnboxValue(pValueRef, &pValue, &isNull)) && (isNull == FALSE))
             pValue->GetAddress(&currentAsyncId);
         else
             LOGE("Could not calculate current async ID for await block");
@@ -532,9 +532,9 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         CORDB_ADDRESS prevAsyncId = 0;
         ToRelease<ICorDebugValue> pDereferencedValue;
         ToRelease<ICorDebugValue> pValueAsyncId;
-        if (m_asyncStep->m_iCorHandleValueAsyncId && // Note, we could fail with m_iCorHandleValueAsyncId on previous breakpoint by some reason.
+        if ((m_asyncStep->m_iCorHandleValueAsyncId != nullptr) && // Note, we could fail with m_iCorHandleValueAsyncId on previous breakpoint by some reason.
             SUCCEEDED(m_asyncStep->m_iCorHandleValueAsyncId->Dereference(&pDereferencedValue)) &&
-            SUCCEEDED(DereferenceAndUnboxValue(pDereferencedValue, &pValueAsyncId, &isNull)) && !isNull)
+            SUCCEEDED(DereferenceAndUnboxValue(pDereferencedValue, &pValueAsyncId, &isNull)) && (isNull == FALSE))
             pValueAsyncId->GetAddress(&prevAsyncId);
         else
             LOGE("Could not calculate previous async ID for await block");

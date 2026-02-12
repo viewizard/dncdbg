@@ -74,7 +74,7 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
     {
         if (ipOffset <= await.yield_offset)
         {
-            if (awaitInfo)
+            if (awaitInfo != nullptr)
                 *awaitInfo = &await;
             return true;
         }

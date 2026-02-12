@@ -20,7 +20,7 @@ namespace dncdbg
 void EvalHelpers::Cleanup()
 {
     m_pSuppressFinalizeMutex.lock();
-    if (m_pSuppressFinalize)
+    if (m_pSuppressFinalize != nullptr)
         m_pSuppressFinalize.Free();
     m_pSuppressFinalizeMutex.unlock();
 
@@ -58,7 +58,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
-    if (evalFlags & EVAL_NOFUNCEVAL)
+    if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
         return S_OK;
 
     std::vector<ToRelease<ICorDebugType>> typeParams;
@@ -99,7 +99,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
-    if (evalFlags & EVAL_NOFUNCEVAL)
+    if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
         return S_OK;
 
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
@@ -182,7 +182,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
             continue;
         }
 
-        if (fieldAttr & fdStatic)
+        if ((fieldAttr & fdStatic) != 0U)
         {
             pMD->CloseEnum(hEnum);
             return true;
@@ -209,7 +209,7 @@ static bool TypeHaveStaticMembers(ICorDebugType *pType)
             continue;
         }
 
-        if (getterAttr & mdStatic)
+        if ((getterAttr & mdStatic) != 0U)
         {
             pMD->CloseEnum(propEnum);
             return true;
@@ -243,7 +243,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
     if (it != m_typeObjectCache.begin())
         m_typeObjectCache.splice(m_typeObjectCache.begin(), m_typeObjectCache, it);
 
-    if (ppTypeObjectResult)
+    if (ppTypeObjectResult != nullptr)
     {
         // We don't check handle's status here, since we store only strong handles.
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebughandletype-enumeration
@@ -347,7 +347,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     {
         const std::scoped_lock<std::mutex> lock(m_pSuppressFinalizeMutex);
 
-        if (!m_pSuppressFinalize)
+        if (m_pSuppressFinalize == nullptr)
         {
             static const std::string assemblyName("System.Private.CoreLib.dll");
             static const WSTRING gcName(W("System.GC"));
@@ -355,7 +355,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
             IfFailRet(FindMethodInModule(assemblyName, gcName, suppressFinalizeMethodName, &m_pSuppressFinalize));
         }
 
-        if (!m_pSuppressFinalize)
+        if (m_pSuppressFinalize == nullptr)
             return E_FAIL;
 
         // Note, this call must ignore any eval flags.
@@ -364,7 +364,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 
     AddTypeObjectToCache(pType, pTypeObject);
 
-    if (ppTypeObjectResult)
+    if (ppTypeObjectResult != nullptr)
         *ppTypeObjectResult = pTypeObject.Detach();
 
     return S_OK;
@@ -376,7 +376,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
 {
     HRESULT Status = S_OK;
 
-    if (!pRawValue || !pThread)
+    if ((pRawValue == nullptr) || (pThread == nullptr))
         return S_FALSE;
 
     CorSigUncompressCallingConv(pSignatureBlob);

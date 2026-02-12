@@ -55,7 +55,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 
         explicit operator bool() const
         {
-            return !!traits;
+            return (traits != nullptr);
         }
 
         IOResult operator()()

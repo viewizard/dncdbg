@@ -38,19 +38,19 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::QueryInterface(REFIID riid, void **pp
 {
     LogFuncEntry();
 
-    if (riid == IID_ICorDebugManagedCallback)
+    if (riid == IID_ICorDebugManagedCallback) // NOLINT(readability-implicit-bool-conversion)
     {
         *ppInterface = static_cast<ICorDebugManagedCallback *>(this);
     }
-    else if (riid == IID_ICorDebugManagedCallback2)
+    else if (riid == IID_ICorDebugManagedCallback2) // NOLINT(readability-implicit-bool-conversion)
     {
         *ppInterface = static_cast<ICorDebugManagedCallback2 *>(this);
     }
-    else if (riid == IID_ICorDebugManagedCallback3)
+    else if (riid == IID_ICorDebugManagedCallback3) // NOLINT(readability-implicit-bool-conversion)
     {
         *ppInterface = static_cast<ICorDebugManagedCallback3 *>(this);
     }
-    else if (riid == IID_IUnknown)
+    else if (riid == IID_IUnknown) // NOLINT(readability-implicit-bool-conversion)
     {
         *ppInterface = static_cast<IUnknown *>(static_cast<ICorDebugManagedCallback *>(this));
     }

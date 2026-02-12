@@ -15,7 +15,7 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
 {
     HRESULT Status = S_OK;
 
-    if (!pBreakpoint1 || !pBreakpoint2)
+    if ((pBreakpoint1 == nullptr) || (pBreakpoint2 == nullptr))
         return E_FAIL;
 
     uint32_t nOffset1 = 0;

@@ -35,7 +35,7 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
     {
         BOOL isNull = FALSE;
         IfFailRet(pReferenceValue->IsNull(&isNull));
-        if (!isNull)
+        if (isNull == FALSE)
         {
             ToRelease<ICorDebugValue> pDereferencedValue;
             IfFailRet(pReferenceValue->Dereference(&pDereferencedValue));
@@ -216,7 +216,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
     pMD->CloseEnum(fEnum);
 
     // Don't lose data, provide number as-is instead.
-    if (!OrderedFlags.empty() && !remainingValue)
+    if (!OrderedFlags.empty() && (remainingValue == 0U))
     {
         std::ostringstream ss;
         for (const auto &Flag : OrderedFlags)
@@ -243,7 +243,7 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
 
-    if (isNull)
+    if (isNull == TRUE)
         return E_FAIL;
 
     uint32_t cbSize = 0;
@@ -366,9 +366,9 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
         if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
-            if (fieldAttr & fdLiteral)
+            if ((fieldAttr & fdLiteral) != 0U)
                 continue;
-            if (fieldAttr & fdStatic)
+            if ((fieldAttr & fdStatic) != 0U)
                 continue;
 
             ToRelease<ICorDebugValue> pFieldVal;
@@ -483,7 +483,7 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
     static constexpr unsigned int SignMask = 1UL << 31;
 
     const unsigned int scale = (flags & ScaleMask) >> ScaleShift;
-    const bool is_negative = flags & SignMask;
+    const bool is_negative = ((flags & SignMask) != 0U);
 
     const size_t len = output.length();
 
@@ -558,7 +558,7 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 
     std::vector<uint32_t> base(nRank, 0);
     BOOL hasBaseIndicies = FALSE;
-    if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && hasBaseIndicies)
+    if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && (hasBaseIndicies == TRUE))
         IfFailRet(pArrayValue->GetBaseIndicies(nRank, base.data()));
 
     ss << elementType << "[";
@@ -672,7 +672,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
     ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
-    if (!pType)
+    if (pType == nullptr)
         return E_FAIL;
 
     ToRelease<ICorDebugClass> pClass;
@@ -754,7 +754,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
 
-    if (isNull)
+    if (isNull == TRUE)
     {
         output = "null";
         return S_OK;

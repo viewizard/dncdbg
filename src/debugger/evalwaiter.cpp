@@ -13,7 +13,7 @@ namespace dncdbg
 void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
     const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-    if (!pThread)
+    if (pThread == nullptr)
     {
         m_evalResult.reset(nullptr);
         return;
@@ -23,7 +23,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     pThread->GetID(&threadId);
 
     std::unique_ptr<evalResultData_t> ppEvalResult(new evalResultData_t);
-    if (pEval)
+    if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
         (*ppEvalResult).Status = pEval->GetResult(&((*ppEvalResult).iCorEval));
@@ -39,7 +39,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
 bool EvalWaiter::IsEvalRunning()
 {
     const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-    return !!m_evalResult;
+    return (m_evalResult != nullptr);
 }
 
 void EvalWaiter::CancelEvalRunning()
@@ -115,7 +115,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess> iCorProcess;
     IfFailRet(pThread->GetProcess(&iCorProcess));
-    if (!iCorProcess)
+    if (iCorProcess == nullptr)
         return E_FAIL;
     DWORD evalThreadId = 0;
     IfFailRet(pThread->GetID(&evalThreadId));

@@ -301,7 +301,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
     if (ref.IsScope())
         return E_INVALIDARG;
 
-    if (!ref.iCorValue)
+    if (ref.iCorValue == nullptr)
         return S_OK;
 
     HRESULT Status = S_OK;
@@ -439,7 +439,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     if (ref.IsScope())
         return E_INVALIDARG;
 
-    if (!ref.iCorValue)
+    if (ref.iCorValue == nullptr)
         return S_OK;
 
     HRESULT Status = S_OK;
@@ -493,7 +493,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameId.getLevel(), evalFlags, expression,
                                                            &iCorValue, output, &editable, &setterData));
     if (!editable ||
-        (editable && setterData.get() && !setterData->setterFunction)) // property, that don't have setter
+        (editable && (setterData != nullptr) && (setterData->setterFunction == nullptr))) // property, that don't have setter
     {
         output = "'" + expression + "' cannot be assigned to";
         return E_INVALIDARG;

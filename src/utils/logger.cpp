@@ -85,17 +85,17 @@ int get_pid()
 FILE *open_log_file()
 {
     const char *env = getenv("LOG_OUTPUT");
-    if (!env)
+    if (env == nullptr)
         return nullptr; // log disabled
 
-    if (!strcmp("stdout", env))
+    if (strcmp("stdout", env) == 0)
         return stdout;
 
-    if (!strcmp("stderr", env))
+    if (strcmp("stderr", env) == 0)
         return stderr;
 
     FILE *result = fopen(env, "a"); // NOLINT(cppcoreguidelines-owning-memory)
-    if (!result)
+    if (result == nullptr)
     {
         perror(env);
         return nullptr;
@@ -139,7 +139,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
         level = "DIWEF"[prio - DLOG_DEBUG];
 
     static FILE *log_file = open_log_file();
-    if (log_file == nullptr || ferror(log_file))
+    if (log_file == nullptr || (ferror(log_file) != 0))
         return DLOG_ERROR_NOT_PERMITTED;
 
     const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),

@@ -170,7 +170,7 @@ void IORedirectHelper::worker()
 
             // process data already existing in the buffer
             const size_t avail = stream->egptr() - stream->gptr();
-            if (avail)
+            if (avail != 0U)
             {
                 LOGD("push %u bytes to callback", static_cast<int>(avail));
                 m_callback(stream_types[n], Utility::span<char>(stream->gptr(), avail));
@@ -228,7 +228,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
            out_stream->pptr() <= out_stream->epptr());
 
     const size_t bytes = out_stream->pptr() - m_unsent;
-    if (bytes)
+    if (bytes != 0U)
     {
         LOGD("have %u bytes unsent", static_cast<int>(bytes));
         out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
@@ -393,7 +393,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
 
             // free bytes in output buffer
             const size_t avail = out->epptr() - out->pptr();
-            if (avail)
+            if (avail != 0U)
             {
                 LOGD("requesting %u bytes to read", static_cast<int>(avail));
                 input_handle = IOSystem::async_read(in.get_file_handle(), out->pptr(), avail);

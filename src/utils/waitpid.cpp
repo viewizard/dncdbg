@@ -19,7 +19,7 @@ namespace hook
 void waitpid_t::init() noexcept
 {
     auto ret = dlsym(RTLD_NEXT, "waitpid");
-    if (!ret)
+    if (ret == nullptr)
     {
         LOGE("Could not find original function waitpid");
         abort();
@@ -30,7 +30,7 @@ void waitpid_t::init() noexcept
 pid_t waitpid_t::operator()(pid_t pid, int *status, int options)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
-    if (!original)
+    if (original == nullptr)
     {
         init();
     }

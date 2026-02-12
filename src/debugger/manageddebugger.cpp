@@ -73,7 +73,7 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 // Caller must care about m_debugProcessRWLock.
 HRESULT ManagedDebugger::CheckDebugProcess()
 {
-    if (!m_iCorProcess)
+    if (m_iCorProcess == nullptr)
         return E_FAIL;
 
     // We might have case, when process was exited/detached, but m_iCorProcess still not free and hold invalid object.
@@ -403,7 +403,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
 
     self->Startup(pCordb);
 
-    if (self->m_unregisterToken)
+    if (self->m_unregisterToken != nullptr)
     {
         self->m_dbgshim.UnregisterForRuntimeStartup(self->m_unregisterToken);
         self->m_unregisterToken = nullptr;
@@ -583,7 +583,7 @@ static bool IsDirExists(const char *const path)
     if (stat(path, &info) != 0)
         return false;
 
-    if (!(info.st_mode & S_IFDIR))
+    if ((info.st_mode & S_IFDIR) == 0U)
         return false;
 
     return true;
@@ -692,7 +692,7 @@ HRESULT ManagedDebugger::CheckNoProcess()
 {
     const ReadLock r_lock(m_debugProcessRWLock);
 
-    if (!m_iCorProcess)
+    if (m_iCorProcess == nullptr)
         return S_OK;
 
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
@@ -713,7 +713,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
 
-        if (!m_iCorProcess)
+        if (m_iCorProcess == nullptr)
             return E_FAIL;
 
         BOOL procRunning = FALSE;
@@ -742,7 +742,7 @@ HRESULT ManagedDebugger::TerminateProcess()
         if (m_processAttachedState == ProcessAttachedState::Unattached)
             break;
 
-        if (!m_iCorProcess)
+        if (m_iCorProcess == nullptr)
             return E_FAIL;
 
         BOOL procRunning = FALSE;
@@ -778,7 +778,7 @@ void ManagedDebugger::Cleanup()
     assert((m_iCorProcess && m_iCorDebug && m_uniqueManagedCallback && m_sharedCallbacksQueue) ||
            (!m_iCorProcess && !m_iCorDebug && !m_uniqueManagedCallback && !m_sharedCallbacksQueue));
 
-    if (!m_iCorProcess)
+    if (m_iCorProcess == nullptr)
         return;
 
     m_iCorProcess.Free();

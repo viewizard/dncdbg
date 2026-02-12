@@ -135,7 +135,7 @@ static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
 
-    if (!bp.module.empty() && pModule)
+    if (!bp.module.empty() && (pModule != nullptr))
     {
         IfFailRet(IsModuleHaveSameName(pModule, bp.module, IsFullPath(bp.module)));
         if (Status == S_FALSE)
@@ -156,10 +156,10 @@ static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule
                 return E_ABORT; // Fast exit from cycle.
             });
 
-        if (!modAddress)
+        if (modAddress == 0U)
             return E_FAIL;
     }
-    else if (pModule) // Filter data from only one module during resolve, if need.
+    else if (pModule != nullptr) // Filter data from only one module during resolve, if need.
         IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     IfFailRet(pModules->ResolveBreakpoint(modAddress, bp_fullname, bp_fullname_index, bp.linenum, resolvedPoints));
@@ -181,7 +181,7 @@ static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp
         // Note, we might have situation with same source path in different modules.
         // DAP and internal debugger routine don't support this case.
         IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
-        if (modAddress && modAddress != modAddressTrack)
+        if ((modAddress != 0U) && (modAddress != modAddressTrack))
         {
             LOGW("During breakpoint resolve, multiple modules with same source file path was detected.");
             LOGW("File name: %s", bp_fullname.c_str());
@@ -230,7 +230,7 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
     {
         for (auto &initialBreakpoint : initialBreakpoints.second)
         {
-            if (initialBreakpoint.resolved_linenum)
+            if (initialBreakpoint.resolved_linenum != 0)
                 continue;
 
             ManagedLineBreakpoint bp;
@@ -394,7 +394,7 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string 
             ManagedLineBreakpointMapping &initialBreakpoint = *b->second;
             initialBreakpoint.breakpoint.condition = sb.condition;
 
-            if (initialBreakpoint.resolved_linenum)
+            if (initialBreakpoint.resolved_linenum != 0)
             {
                 auto bMap_it = m_lineResolvedBreakpoints.find(initialBreakpoint.resolved_fullname_index);
                 if (bMap_it == m_lineResolvedBreakpoints.end())

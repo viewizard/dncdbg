@@ -134,7 +134,7 @@ HRESULT CreatePrimitiveValue(ICorDebugThread *pThread, ICorDebugValue **ppValue,
     IfFailRet(pThread->CreateEval(&iCorEval));
     IfFailRet(iCorEval->CreateValue(type, nullptr, ppValue));
 
-    if (!ptr)
+    if (ptr == nullptr)
         return S_OK;
 
     ToRelease<ICorDebugGenericValue> iCorGenValue;
@@ -192,7 +192,7 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
         return S_OK;
     }));
 
-    if (!ptr)
+    if (ptr == nullptr)
         return S_OK;
 
     ToRelease<ICorDebugValue> pEditableValue;
@@ -213,7 +213,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     ToRelease<ICorDebugValue> pValue;
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
 
-    if (isNull)
+    if (isNull == TRUE)
         return E_INVALIDARG;
 
     uint32_t cbSize = 0;
@@ -329,7 +329,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().iCorValue, nullptr,
                                                            evalStack.front().identifiers, &iCorValue, nullptr, ppResultType, ed.evalFlags)) &&
          !evalStack.front().identifiers.empty()) ||
-        iCorValue)
+        (iCorValue != nullptr))
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
@@ -338,7 +338,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
                 ss << ".";
             ss << evalStack.front().identifiers[i];
         }
-        if (!iCorValue)
+        if (iCorValue == nullptr)
             output = "error: The type or namespace name '" + ss.str() + "' couldn't be found";
         else
             output = "error: '" + ss.str() + "' is a variable but is used like a type";
@@ -384,7 +384,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 
                 return E_ABORT; // Fast exit from cycle.
             });
-    if (!iCorFunc)
+    if (iCorFunc == nullptr)
         return E_FAIL;
 
     return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pValue, 1, pResultValue, ed.evalFlags);
@@ -412,7 +412,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 
                 return E_ABORT; // Fast exit from cycle.
             });
-    if (!iCorFunc)
+    if (iCorFunc == nullptr)
         return E_FAIL;
 
     return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pTypeValue, 1, pResultValue, ed.evalFlags);
@@ -526,13 +526,13 @@ HRESULT GetRealValueWithType(ICorDebugValue *pValue, ICorDebugValue **ppResultVa
     {
         pValue->AddRef();
         *ppResultValue = pValue;
-        if (pElemType)
+        if (pElemType != nullptr)
             *pElemType = elemType;
     }
     else
     {
         *ppResultValue = iCorRealValue.Detach();
-        if (pElemType)
+        if (pElemType != nullptr)
             *pElemType = elemType;
     }
 
@@ -660,7 +660,7 @@ HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemTyp
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &iCorValue, &isNull));
         *resultData = nullptr;
-        if (!isNull)
+        if (isNull == FALSE)
         {
             std::string String;
             IfFailRet(PrintStringValue(iCorValue, String));
@@ -743,7 +743,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
                 return E_ABORT; // Fast exit from cycle, since we already found iCorFunc.
             });
-        if (!iCorFunc)
+        if (iCorFunc == nullptr)
             return E_INVALIDARG;
 
         std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
@@ -917,10 +917,10 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
             Interop::CoTaskMemFree(resultData);
     }
 
-    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && valueData1)
+    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && (valueData1 != nullptr))
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
-    if (valueType2 == static_cast<int32_t>(BasicTypes::TypeString) && valueData2)
+    if (valueType2 == static_cast<int32_t>(BasicTypes::TypeString) && (valueData2 != nullptr))
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData2));
 
     return Status;
@@ -979,7 +979,7 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
             Interop::CoTaskMemFree(resultData);
     }
 
-    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && valueData1)
+    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && (valueData1 != nullptr))
         Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
 
     return Status;
@@ -1066,7 +1066,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     if (pos != std::string::npos)
         funcName.resize(pos);
 
-    if (!evalStack.front().iCorValue && evalStack.front().identifiers.empty())
+    if ((evalStack.front().iCorValue == nullptr) && evalStack.front().identifiers.empty())
     {
         std::string methodClass;
         idsEmpty = true;
@@ -1091,7 +1091,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
                                                 evalStack.front().identifiers, &iCorValue, nullptr, &iCorType, ed.evalFlags));
 
     bool searchStatic = false;
-    if (iCorType)
+    if (iCorType != nullptr)
     {
         searchStatic = true;
     }
@@ -1167,7 +1167,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
                 return E_ABORT; // Fast exit from cycle.
             });
 
-    if (!iCorFunc)
+    if (iCorFunc == nullptr)
     {
         if (SUCCEEDED(ed.pEvaluator->LookupExtensionMethods(iCorType, funcName, funcArgs, methodGenerics, &iCorFunc)))
             isInstance = true; // Extension methods always require "this" as their first parameter
@@ -1175,7 +1175,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
             return E_FAIL;
     }
 
-    if (iCorResultType)
+    if (iCorResultType != nullptr)
         iCorType = iCorResultType.Detach();
 
     const size_t typeArgsCount = evalStack.front().genericTypeCache.size();
@@ -1307,7 +1307,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
                     IfFailRet(getFunction(&iCorFunc));
                     return E_ABORT; // Fast exit from cycle, since we already found iCorFunc.
                 });
-        if (!iCorFunc)
+        if (iCorFunc == nullptr)
             return E_INVALIDARG;
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> iCorValueArgs;
@@ -1413,7 +1413,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
                     IfFailRet(getFunction(&iCorFunc));
                     return E_ABORT; // Fast exit from cycle, since we already found iCorFunc.
                 });
-        if (!iCorFunc)
+        if (iCorFunc == nullptr)
             return E_INVALIDARG;
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> iCorValueArgs;
@@ -1781,7 +1781,7 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArgument
     uint32_t size = 0;
     void *szPtr = &size;
 
-    if (evalStack.front().iCorValue)
+    if (evalStack.front().iCorValue != nullptr)
     {
         //  predefined type
         CorElementType elType = ELEMENT_TYPE_MAX;
@@ -1803,7 +1803,7 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArgument
         ToRelease<ICorDebugValue> iCorValueRef, iCorValue;
 
         IfFailRet(GetFrontStackEntryType(&iCorType, evalStack, ed, output));
-        if (iCorType)
+        if (iCorType != nullptr)
         {
             CorElementType elType = ELEMENT_TYPE_MAX;
             IfFailRet(iCorType->GetType(&elType));
@@ -2026,11 +2026,11 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     std::unique_ptr<Evaluator::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(ppResultValue, &setterData, evalStack, m_evalData, output));
 
-    if (editable)
-        *editable = setterData.get() && !setterData->setterFunction ? false /*property don't have setter*/
-                                                                    : evalStack.front().editable;
+    if (editable != nullptr)
+        *editable = (setterData != nullptr) && (setterData->setterFunction == nullptr) ? false /*property don't have setter*/
+                                                                                       : evalStack.front().editable;
 
-    if (resultSetterData)
+    if (resultSetterData != nullptr)
         *resultSetterData = std::move(setterData);
 
     return S_OK;

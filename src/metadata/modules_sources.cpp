@@ -50,13 +50,13 @@ struct module_methods_data_t_deleter
 {
     void operator()(module_methods_data_t *p) const
     {
-        if (p->moduleMethodsData)
+        if (p->moduleMethodsData != nullptr)
         {
             for (int32_t i = 0; i < p->fileNum; i++)
             {
-                if (p->moduleMethodsData[i].document)
+                if (p->moduleMethodsData[i].document != nullptr)
                     Interop::SysFreeString(p->moduleMethodsData[i].document);
-                if (p->moduleMethodsData[i].methodsData)
+                if (p->moduleMethodsData[i].methodsData != nullptr)
                     Interop::CoTaskMemFree(p->moduleMethodsData[i].methodsData);
             }
             Interop::CoTaskMemFree(p->moduleMethodsData);
@@ -159,7 +159,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             // void Method() {
             // ... code ...; void Method() {     <- breakpoint at this line
             //  };
-            if (result)
+            if (result != nullptr)
                 closestNestedToken = (*lower).methodDef;
             else
                 result = &(*lower);
@@ -186,7 +186,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
         //  <-- breakpoint at line without code (inside method)
         //     void Method() {...}
         // }
-        else if (result && lineNum <= (*lower).startLine && (*lower).endLine <= result->endLine)
+        else if ((result != nullptr) && lineNum <= (*lower).startLine && (*lower).endLine <= result->endLine)
         {
             closestNestedToken = (*lower).methodDef;
             break;
@@ -195,7 +195,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             break;
     }
 
-    if (result)
+    if (result != nullptr)
     {
         auto find = multiMethodBpData.find(*result);
         if (find != multiMethodBpData.end()) // only constructors segments could be part of multiple methods
@@ -206,7 +206,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
         Tokens.emplace_back(result->methodDef);
     }
 
-    return !!result;
+    return (result != nullptr);
 }
 
 } // unnamed namespace
@@ -230,7 +230,7 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolRead
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            if (methodTokens && methodTokens->find(methodDef) == methodTokens->end())
+            if ((methodTokens != nullptr) && methodTokens->find(methodDef) == methodTokens->end())
                 continue;
 
             std::array<WCHAR, mdNameLen> funcName{};
@@ -516,7 +516,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
     for (const auto &sourceData : m_sourcesMethodsData[findIndex->second])
     {
-        if (modAddress && modAddress != sourceData.modAddress)
+        if ((modAddress != 0U) && modAddress != sourceData.modAddress)
             continue;
 
         std::vector<mdMethodDef> Tokens;

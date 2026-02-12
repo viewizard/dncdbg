@@ -48,7 +48,7 @@ static std::string ConsumeGenericArgs(const std::string &name, std::list<std::st
     ss << name.substr(0, offset);
     ss << "<";
     const char *sep = "";
-    while (numArgs--)
+    while ((numArgs--) != 0U)
     {
         ss << sep;
         sep = ", ";
@@ -133,7 +133,7 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
 
     if (!IsTdNested(flags))
     {
-        if (args)
+        if (args != nullptr)
             mdName = ConsumeGenericArgs(mdName, *args);
 
         return S_OK;
@@ -145,7 +145,7 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
     std::string enclosingName;
     IfFailRet(NameForTypeDef(tkEnclosingClass, pImport, enclosingName, args));
 
-    mdName = enclosingName + "." + (args ? ConsumeGenericArgs(mdName, *args) : mdName);
+    mdName = enclosingName + "." + ((args != nullptr) ? ConsumeGenericArgs(mdName, *args) : mdName);
 
     return S_OK;
 }
@@ -722,7 +722,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
         std::list<std::string> genericArgs;
 
         unsigned numArgs = CorSigUncompressData(typePtr);
-        while (numArgs--)
+        while ((numArgs--) != 0U)
         {
             std::string genType;
             std::string genTypeAppendix;
@@ -746,7 +746,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
     case ELEMENT_TYPE_SENTINEL:
     case ELEMENT_TYPE_END:
         // assert(!"Unknown Type");
-        if (typ)
+        if (typ != 0)
         {
             out = "/* UNKNOWN TYPE (0x%X)*/" + std::to_string(typ);
         }

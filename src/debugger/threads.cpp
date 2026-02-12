@@ -66,7 +66,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
                     BOOL isNull = TRUE;
                     ToRelease<ICorDebugValue> pValue;
                     IfFailRet(DereferenceAndUnboxValue(iCorResultValue, &pValue, &isNull));
-                    if (!isNull)
+                    if (isNull == FALSE)
                         IfFailRet(PrintStringValue(pValue, threadName));
 
                     return E_ABORT; // Fast exit from cycle.

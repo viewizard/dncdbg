@@ -231,13 +231,13 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 {
     HRESULT Status = S_OK;
 
-    if (pModule)
+    if (pModule != nullptr)
         pModule->AddRef();
     ToRelease<ICorDebugModule> pTypeModule(pModule);
 
     mdTypeDef typeToken = mdTypeDefNil;
 
-    if (!pTypeModule)
+    if (pTypeModule == nullptr)
     {
         pModules->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
             if (typeToken != mdTypeDefNil) // already found
@@ -259,7 +259,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     if (typeToken == mdTypeDefNil)
         return E_FAIL;
 
-    if (ppType)
+    if (ppType != nullptr)
     {
         const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> types;
@@ -293,7 +293,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
         *ppType = pType.Detach();
     }
-    if (ppModule)
+    if (ppModule != nullptr)
         *ppModule = pTypeModule.Detach();
 
     return S_OK;

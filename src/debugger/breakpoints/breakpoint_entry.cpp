@@ -28,7 +28,7 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     pFile = fopen(path.c_str(), "rb"); // NOLINT(cppcoreguidelines-owning-memory)
 #endif // _WIN32
 
-    if (!pFile)
+    if (pFile == nullptr)
         return mdMethodDefNil;
 
     auto getEntryPointToken = [&]() -> mdMethodDef
@@ -177,7 +177,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_stopAtEntry || m_iCorFuncBreakpoint)
+    if (!m_stopAtEntry || (m_iCorFuncBreakpoint != nullptr))
         return S_FALSE;
 
     HRESULT Status = S_OK;
@@ -223,7 +223,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_stopAtEntry || !m_iCorFuncBreakpoint)
+    if (!m_stopAtEntry || (m_iCorFuncBreakpoint == nullptr))
         return S_FALSE; // S_FALSE - no error, but not affect on callback
 
     HRESULT Status = S_OK;
@@ -242,7 +242,7 @@ void EntryBreakpoint::Delete()
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_iCorFuncBreakpoint)
+    if (m_iCorFuncBreakpoint == nullptr)
         return;
 
     m_iCorFuncBreakpoint->Activate(FALSE);
