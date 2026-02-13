@@ -438,7 +438,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 // ‘exceptionOptions’ arrays given as arguments.
                 std::vector<ExceptionBreakpoint> exceptionBreakpoints;
 
-                for (auto &entry : filters)
+                for (const auto &entry : filters)
                 {
                     auto findFilter = g_DAPFilters.find(entry);
                     if (findFilter == g_DAPFilters.end())
@@ -512,7 +512,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 HRESULT Status = S_OK;
 
                 std::vector<LineBreakpoint> lineBreakpoints;
-                for (auto &b : arguments.at("breakpoints"))
+                for (const auto &b : arguments.at("breakpoints"))
                     lineBreakpoints.emplace_back(std::string(), b.at("line"), b.value("condition", std::string()));
 
                 std::vector<Breakpoint> breakpoints;
@@ -790,7 +790,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 HRESULT Status = S_OK;
 
                 std::vector<FuncBreakpoint> funcBreakpoints;
-                for (auto &b : arguments.at("breakpoints"))
+                for (const auto &b : arguments.at("breakpoints"))
                 {
                     std::string module;
                     std::string params;

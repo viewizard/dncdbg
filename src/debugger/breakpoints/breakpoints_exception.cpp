@@ -37,7 +37,7 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
     if (expb.negativeCondition)
         ss << "!";
 
-    for (auto &entry : expb.condition)
+    for (const auto &entry : expb.condition)
     {
         ss << ":" << entry << ":";
     }

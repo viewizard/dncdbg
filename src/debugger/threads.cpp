@@ -90,7 +90,7 @@ HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thr
     IfFailRet(pProcess->IsRunning(&procRunning));
 
     threads.reserve(m_userThreads.size());
-    for (auto &userThread : m_userThreads)
+    for (const auto &userThread : m_userThreads)
     {
         // ICorDebugThread::GetUserState not available for running thread.
         threads.emplace_back(userThread, GetThreadName(pProcess, userThread), procRunning == TRUE);
@@ -104,7 +104,7 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
     const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
-    for (auto &userThread : m_userThreads)
+    for (const auto &userThread : m_userThreads)
     {
         threads.emplace_back(userThread);
     }

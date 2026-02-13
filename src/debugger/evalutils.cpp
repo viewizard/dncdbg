@@ -217,7 +217,7 @@ static HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDeb
                                  std::vector<ToRelease<ICorDebugType>> &types)
 {
     HRESULT Status = S_OK;
-    for (auto &p : params)
+    for (const auto &p : params)
     {
         ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
         IfFailRet(EvalUtils::GetType(p, pThread, pModules, &tmpType));

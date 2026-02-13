@@ -18,7 +18,7 @@ namespace hook
 
 void waitpid_t::init() noexcept
 {
-    auto ret = dlsym(RTLD_NEXT, "waitpid");
+    auto *ret = dlsym(RTLD_NEXT, "waitpid");
     if (ret == nullptr)
     {
         LOGE("Could not find original function waitpid");

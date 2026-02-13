@@ -118,7 +118,7 @@ void ReplaceInternalNames(std::string &expression, bool restore = false)
     const static std::vector<std::pair<std::string, std::string>> internalNamesMap{
         {"$exception", "__INTERNAL_NCDB_EXCEPTION_VARIABLE"}};
 
-    for (auto &entry : internalNamesMap)
+    for (const auto &entry : internalNamesMap)
     {
         if (restore)
             ReplaceAllSubstring(expression, entry.second, entry.first);
@@ -2084,7 +2084,7 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
         {ELEMENT_TYPE_R8,       W("System.Double")}
     };
 
-    for (auto &entry : corElementToValueNameMap)
+    for (const auto &entry : corElementToValueNameMap)
     {
         typeDef = mdTypeDefNil;
         IfFailRet(pMD->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
