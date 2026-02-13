@@ -1202,7 +1202,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
         if (wChar < W('0') || wChar > W('9'))
             return E_FAIL;
 
-        slotIndex = slotIndex * 10 + static_cast<int32_t>(wChar - W('0'));
+        slotIndex = (slotIndex * 10) + static_cast<int32_t>(wChar - W('0'));
     }
 
     if (slotIndex < 1) // Slot index start from 1.
