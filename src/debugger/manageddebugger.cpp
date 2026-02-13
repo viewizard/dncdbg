@@ -396,7 +396,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         {
             ss << " mscordbi or mscordaccore libs is not the same version as the target CoreCLR.";
         }
-        self->pProtocol->EmitOutputEvent(OutputCategory::StdErr, ss.str());
+        self->pProtocol->EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         self->StartupCallbackHR = hr;
         return;
     }
@@ -1148,7 +1148,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 
 void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)
 {
-    pProtocol->EmitOutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()});
+    pProtocol->EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()}));
 }
 
 } // namespace dncdbg

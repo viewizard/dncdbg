@@ -253,7 +253,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     m_debugger.m_sharedModules->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), outputText);
     if (!outputText.empty())
     {
-        m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdErr, outputText);
+        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, outputText});
     }
     m_debugger.pProtocol->EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
@@ -312,9 +312,27 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         return S_OK;
     }
 
+    OutputEvent event(OutputCategory::StdOut, to_utf8(pMessage));
+
     DWORD threadId = 0;
     pThread->GetID(&threadId);
-    m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdOut, to_utf8(pMessage), threadId);
+    int totalFrames = 0;
+    std::vector<StackFrame> stackFrames;
+    if ((threadId != 0U) &&
+        SUCCEEDED(m_debugger.GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames, totalFrames)))
+    {
+        // Find first frame with source file data (code with PDB/user code).
+        for (const StackFrame &stackFrame : stackFrames)
+        {
+            if (!stackFrame.source.IsNull())
+            {
+                event.frame = stackFrame;
+                break;
+            }
+        }
+    }
+
+    m_debugger.pProtocol->EmitOutputEvent(event);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

@@ -49,7 +49,8 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
             ss << changeEvent.breakpoint.funcname << "()\n";
         else
             ss << changeEvent.breakpoint.source.path << ":" << changeEvent.breakpoint.line << "\n";
-        m_debugger.pProtocol->EmitOutputEvent(OutputCategory::StdErr, ss.str());
+
+        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         m_debugger.pProtocol->EmitBreakpointEvent(changeEvent);
     }
     m_debugger.pProtocol->EmitStoppedEvent(event);

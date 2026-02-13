@@ -37,7 +37,9 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Removed PAL_STDCPP_COMPAT related code (since it removed from runtime/diagnostics sources now).
 - Removed server mode, removed `server` launch option.
 - Removed launch options `interpreter`, `command`, `run` and `attach`.
+- Removed string_view implementation (switched to std::string_view).
 - Removed rwlock implementation (switched to std::shared_mutex).
+- Removed escaped string code (nlohmann/json have it implemented now).
 
 #### Fixed
 - Fixed extra qualification on Evaluator methods.

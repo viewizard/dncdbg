@@ -45,7 +45,6 @@ set(dncdbg_SRC
     metadata/modules.cpp
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
-    protocol/escaped_string.cpp
     protocol/dap.cpp
     utils/utf.cpp
     main.cpp

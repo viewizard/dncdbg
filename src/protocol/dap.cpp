@@ -6,9 +6,7 @@
 #include "managed/interop.h"
 #include "protocol/dap.h"
 #include "debugger/manageddebugger.h"
-#include "protocol/escaped_string.h"
 #include "utils/logger.h"
-#include "utils/streams.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <exception>
@@ -279,106 +277,34 @@ void DAP::EmitModuleEvent(const ModuleEvent &event)
     EmitEvent("module", body);
 }
 
-namespace
-{
-// Rules to escape characters in strings, in JSON.
-struct JSON_escape_rules
-{
-    static const char forbidden_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-    static const Utility::string_view subst_chars[]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-    static constexpr char escape_char = '\\';
-};
-
-// Allocate static memory for strings declared above.
-const char JSON_escape_rules::forbidden_chars[] = // NOLINT(cppcoreguidelines-avoid-c-arrays)
-"\"\\"
-"\000\001\002\003\004\005\006\007\010\011\012\013\014\015\016\017"
-"\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037";
-
-const Utility::string_view JSON_escape_rules::subst_chars[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
-    "\\\"", "\\\\",
-    "\\u0000", "\\u0001", "\\u0002", "\\u0003", "\\u0004", "\\u0005", "\\u0006", "\\u0007",
-    "\\b", "\\t", "\\n", "\\u000b", "\\f", "\\r", "\\u000e", "\\u000f",
-    "\\u0010", "\\u0011", "\\u0012", "\\u0013", "\\u0014", "\\u0015", "\\u0016", "\\u0017",
-    "\\u0018", "\\u0019", "\\u001a", "\\u001b", "\\u001c", "\\u001d", "\\u001e", "\\u001f"
-};
-
-// This function serializes "OutputEvent" to specified output stream and used for two
-// purposes: to compute output size, and to perform the output directly.
-template <typename T1>
-void serialize_output(std::ostream &stream, uint64_t counter, const Utility::string_view &name, T1 &text, Source &source)
-{
-    stream << "{\"seq\":" << counter
-           << R"(, "event":"output","type":"event","body":{"category":")" << name
-           << R"(","output":")" << text << "\"";
-
-    if (!source.IsNull())
-    {
-        // "source":{"name":"Program.cs","path":"/path/Program.cs"}
-        const EscapedString<JSON_escape_rules> escaped_source_path(source.path);
-        stream << R"(,"source":{"name":")" << source.name << R"(","path":")" << escaped_source_path << "\"}";
-    }
-
-    stream << "}}";
-
-    stream.flush();
-};
-} // unnamed namespace
-
-void DAP::EmitOutputEvent(OutputCategory category, const Utility::string_view &output, DWORD threadId)
+void DAP::EmitOutputEvent(const OutputEvent &event)
 {
     LogFuncEntry();
+    json body;
 
-    auto getCategoryName = [&]() -> Utility::string_view
+    switch(event.category)
     {
-        assert(category == OutputCategory::Console || category == OutputCategory::StdOut || category == OutputCategory::StdErr);
-        switch (category)
-        {
-        case OutputCategory::StdOut:
-            return "stdout";
-        case OutputCategory::StdErr:
-            return "stderr";
         case OutputCategory::Console:
-        default:
-            return "console";
-        }
-    };
-    const Utility::string_view &name = getCategoryName();
-
-    EscapedString<JSON_escape_rules> escaped_text(output);
-
-    const std::scoped_lock<std::mutex> lock(m_outMutex);
-
-    Source source;
-    int totalFrames = 0;
-    std::vector<StackFrame> stackFrames;
-    if ((threadId != 0U) &&
-        (m_sharedDebugger != nullptr) &&
-        SUCCEEDED(m_sharedDebugger->GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames, totalFrames)))
-    {
-        // Find first frame with source file data (code with PDB/user code).
-        for (const StackFrame &stackFrame : stackFrames)
-        {
-            if (!stackFrame.source.IsNull())
-            {
-                source = stackFrame.source;
-                break;
-            }
-        }
+            body["category"] = "console";
+            break;
+        case OutputCategory::StdOut:
+            body["category"] = "stdout";
+            break;
+        case OutputCategory::StdErr:
+            body["category"] = "stderr";
+            break;
     }
 
-    // compute size of headers without text (text could be huge, no reason parse it for size, that we already know)
-    CountingStream count;
-    serialize_output(count, m_seqCounter, name, "", source);
+    if (!event.frame.source.IsNull())
+    {
+        body["source"] = event.frame.source;
+        body["line"] = event.frame.line;
+        body["column"] = event.frame.column;
+    }
 
-    // compute total size of headers + text
-    auto const total_size = count.size() + escaped_text.size();
+    body["output"] = event.output;
 
-    // perform output
-    cout << CONTENT_LENGTH << total_size << TWO_CRLF;
-    serialize_output(cout, m_seqCounter, name, escaped_text, source);
-
-    ++m_seqCounter;
+    EmitEvent("output", body);
 }
 
 void DAP::EmitBreakpointEvent(const BreakpointEvent &event)
@@ -1097,6 +1023,14 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 
 void DAP::CommandLoop()
 {
+#ifdef DEBUG
+    // nlohmann/json have internal dump serializer and care about escaped characters, test it
+    nlohmann::json body;
+    body["test"] = std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n");
+    const std::string expected(R"({"test":"te\u0013st\nte\u0013st\nte\u0013st\nte\u0013st\nte\u0013st234\n"})");
+    assert(body.dump() == expected);
+#endif // DEBUG
+
     CreateManagedDebugger();
     std::thread commandsWorker{&DAP::CommandsWorker, this};
 
@@ -1256,8 +1190,7 @@ void DAP::CreateManagedDebugger()
     }
     catch (const std::exception &e)
     {
-        const Utility::string_view err(e.what());
-        EmitOutputEvent(OutputCategory::StdErr, err);
+        EmitOutputEvent(OutputEvent(OutputCategory::StdErr, e.what()));
     }
 }
 

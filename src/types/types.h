@@ -432,6 +432,20 @@ enum class OutputCategory
     StdErr
 };
 
+struct OutputEvent
+{
+    OutputCategory category;
+    std::string output;
+    StackFrame frame;
+
+    OutputEvent(OutputCategory category_, const std::string &output_)
+        : category(category_),
+          output(output_),
+          frame()
+    {
+    }
+};
+
 enum class ModuleEventReason
 {
     New,
