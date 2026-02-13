@@ -904,21 +904,23 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 
     // CoreCLR native frame + at least one user's native frame
     static const std::string FrameCLRNativeText = "[Native Frames]";
+    // This frame usually indicate some fail during managed unwind
+    static const std::string FrameUnknownText = "[Unknown Frame]";
 
     IfFailRet(WalkFrames(pThread,
-        [&](FrameType frameType, ICorDebugFrame *pFrame)
+        [&](FrameType frameType, ICorDebugFrame *pFrame) -> void
         {
             currentFrame++;
 
             if (currentFrame < static_cast<int>(startFrame))
-                return S_OK;
+                return;
             if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
-                return S_OK;
+                return;
 
             switch (frameType)
             {
             case FrameType::Unknown:
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, "?");
+                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameUnknownText);
                 break;
             case FrameType::CLRNative:
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
@@ -926,25 +928,25 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             case FrameType::CLRInternal:
             {
                 ToRelease<ICorDebugInternalFrame> pInternalFrame;
-                IfFailRet(pFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&pInternalFrame)));
-                CorDebugInternalFrameType corFrameType;
-                IfFailRet(pInternalFrame->GetFrameType(&corFrameType));
+                CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
+                if (SUCCEEDED(pFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&pInternalFrame))))
+                {
+                    pInternalFrame->GetFrameType(&corFrameType);
+                }
                 std::string name = "[";
                 name += GetInternalTypeName(corFrameType);
                 name += "]";
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
+                break;
             }
-            break;
             case FrameType::CLRManaged:
             {
                 StackFrame stackFrame;
                 GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
                 stackFrames.push_back(stackFrame);
+                break;
             }
-            break;
             }
-
-            return S_OK;
         }));
 
     totalFrames = currentFrame + 1;

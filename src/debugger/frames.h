@@ -25,7 +25,7 @@ enum class FrameType
     CLRManaged
 };
 
-using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *)>;
+using WalkFramesCallback = std::function<void(FrameType, ICorDebugFrame *)>;
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
