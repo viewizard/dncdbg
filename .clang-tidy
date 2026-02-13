@@ -33,7 +33,6 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers,
   -readability-duplicate-include,
-  -readability-isolate-declaration,
   -readability-else-after-return,
   -readability-math-missing-parentheses,
   -readability-named-parameter,

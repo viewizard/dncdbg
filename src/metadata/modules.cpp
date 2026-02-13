@@ -134,7 +134,8 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
 static std::vector<std::string> split_on_tokens(const std::string &str, const char delim)
 {
     std::vector<std::string> res;
-    size_t pos = 0, prev = 0;
+    size_t pos = 0;
+    size_t prev = 0;
 
     while (true)
     {

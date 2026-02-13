@@ -1800,7 +1800,8 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArgument
     else
     {
         ToRelease<ICorDebugType> iCorType;
-        ToRelease<ICorDebugValue> iCorValueRef, iCorValue;
+        ToRelease<ICorDebugValue> iCorValue;
+        ToRelease<ICorDebugValue> iCorValueRef;
 
         IfFailRet(GetFrontStackEntryType(&iCorType, evalStack, ed, output));
         if (iCorType != nullptr)

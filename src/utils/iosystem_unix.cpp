@@ -155,7 +155,8 @@ Class::FileHandle Class::listen_socket(unsigned port)
 
     int newsockfd = 0;
     socklen_t clilen = 0;
-    struct sockaddr_in serv_addr{}, cli_addr{};
+    struct sockaddr_in serv_addr{};
+    struct sockaddr_in cli_addr{};
 
     const int sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0)
@@ -249,7 +250,9 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
 bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSystem::AsyncHandleIterator &end,
                        std::chrono::milliseconds timeout)
 {
-    fd_set read_set, write_set, except_set;
+    fd_set read_set;
+    fd_set write_set;
+    fd_set except_set;
     FD_ZERO(&read_set);
     FD_ZERO(&write_set);
     FD_ZERO(&except_set);
