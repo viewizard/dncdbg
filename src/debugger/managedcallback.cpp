@@ -102,7 +102,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Breakpoint(ICorDebugAppDomain *pAppDo
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::StepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                                        ICorDebugStepper *, CorDebugStepReason reason)
+                                                        ICorDebugStepper */*pStepper*/, CorDebugStepReason reason)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
@@ -124,21 +124,21 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Break(ICorDebugAppDomain *pAppDomain,
     });
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *, BOOL /*unhandled*/)
+HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/, BOOL /*unhandled*/)
 {
     // Obsolete callback
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EvalComplete(ICorDebugAppDomain *, ICorDebugThread *pThread, ICorDebugEval *pEval)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EvalComplete(ICorDebugAppDomain */*pAppDomain*/, ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
     LogFuncEntry();
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
     return S_OK; // Eval-related routine - no callbacks queue related code here.
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain *, ICorDebugThread *pThread, ICorDebugEval *pEval)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain */*pAppDomain*/, ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
     LogFuncEntry();
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
@@ -277,19 +277,19 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule */*pModule*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::LoadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::LoadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass */*pClass*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass */*pClass*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -336,32 +336,32 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::LogSwitch(ICorDebugAppDomain *pAppDomain, ICorDebugThread *, LONG /*lLevel*/,
+HRESULT STDMETHODCALLTYPE ManagedCallback::LogSwitch(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/, LONG /*lLevel*/,
                                                      ULONG /*ulReason*/, WCHAR */*pLogSwitchName*/, WCHAR */*pParentName*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::CreateAppDomain(ICorDebugProcess *pProcess, ICorDebugAppDomain *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::CreateAppDomain(ICorDebugProcess *pProcess, ICorDebugAppDomain */*pAppDomain*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::ExitAppDomain(ICorDebugProcess *pProcess, ICorDebugAppDomain *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::ExitAppDomain(ICorDebugProcess *pProcess, ICorDebugAppDomain */*pAppDomain*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::LoadAssembly(ICorDebugAppDomain *pAppDomain, ICorDebugAssembly *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::LoadAssembly(ICorDebugAppDomain *pAppDomain, ICorDebugAssembly */*pAssembly*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadAssembly(ICorDebugAppDomain *pAppDomain, ICorDebugAssembly *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadAssembly(ICorDebugAppDomain *pAppDomain, ICorDebugAssembly */*pAssembly*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -373,28 +373,28 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ControlCTrap(ICorDebugProcess *pProce
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule *,
+HRESULT STDMETHODCALLTYPE ManagedCallback::UpdateModuleSymbols(ICorDebugAppDomain *pAppDomain, ICorDebugModule */*pModule*/,
                                                                IStream */*pSymbolStream*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::EditAndContinueRemap(ICorDebugAppDomain *pAppDomain, ICorDebugThread *,
-                                                                ICorDebugFunction *, BOOL /*fAccurate*/)
+HRESULT STDMETHODCALLTYPE ManagedCallback::EditAndContinueRemap(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/,
+                                                                ICorDebugFunction */*pFunction*/, BOOL /*fAccurate*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::BreakpointSetError(ICorDebugAppDomain *pAppDomain, ICorDebugThread *,
-                                                              ICorDebugBreakpoint *, DWORD /*dwError*/)
+HRESULT STDMETHODCALLTYPE ManagedCallback::BreakpointSetError(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/,
+                                                              ICorDebugBreakpoint */*pBreakpoint*/, DWORD /*dwError*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -402,11 +402,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::BreakpointSetError(ICorDebugAppDomain
 
 // ICorDebugManagedCallback2
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain,
-                                                                    ICorDebugThread *,
+HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapOpportunity(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/,
                                                                     ICorDebugFunction */*pOldFunction*/,
-                                                                    ICorDebugFunction */*pNewFunction*/,
-                                                                    uint32_t /*oldILOffset*/)
+                                                                    ICorDebugFunction */*pNewFunction*/, uint32_t /*oldILOffset*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -512,7 +510,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
     });
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::ExceptionUnwind(ICorDebugAppDomain *pAppDomain, ICorDebugThread *,
+HRESULT STDMETHODCALLTYPE ManagedCallback::ExceptionUnwind(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/,
                                                            CorDebugExceptionUnwindCallbackType /*dwEventType*/,
                                                            DWORD /*dwFlags*/)
 {
@@ -521,14 +519,14 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExceptionUnwind(ICorDebugAppDomain *p
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapComplete(ICorDebugAppDomain *pAppDomain,
-                                                                 ICorDebugThread *, ICorDebugFunction *)
+                                                                 ICorDebugThread */*pThread*/, ICorDebugFunction */*pFunction*/)
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController *, ICorDebugThread *pThread,
-                                                           ICorDebugMDA *)
+HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController */*pController*/, ICorDebugThread *pThread,
+                                                           ICorDebugMDA */*pMDA*/)
 {
     LogFuncEntry();
     ToRelease<ICorDebugProcess> iCorProcess;

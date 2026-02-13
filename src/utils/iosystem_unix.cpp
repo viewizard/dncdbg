@@ -63,7 +63,7 @@ struct AsyncRead
         return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
     }
 
-    int poll(fd_set *read, fd_set *, fd_set *except) const
+    int poll(fd_set *read, fd_set */*unused*/, fd_set *except) const
     {
         FD_SET(fd, read);
         FD_SET(fd, except);
@@ -109,7 +109,7 @@ struct AsyncWrite
         return {Class::IOResult::Success, size_t(result)};
     }
 
-    int poll(fd_set *, fd_set *write, fd_set *) const
+    int poll(fd_set */*unused*/, fd_set *write, fd_set */*unused*/) const
     {
         FD_SET(fd, write);
         return fd;

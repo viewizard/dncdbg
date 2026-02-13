@@ -66,7 +66,7 @@ static void SetFP(CONTEXT *context, uintptr_t value)
 #endif
 }
 
-static void UnwindNativeFrames(ICorDebugThread *, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
+static void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
                                   CONTEXT */*pEndContext*/, const WalkFramesCallback &/*cb*/)
 {
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
