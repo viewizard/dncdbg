@@ -70,7 +70,7 @@ hook::waitpid_t &GetWaitpid()
 }
 
 // Note, we guaranty `waitpid()` hook works only during debuggee process execution, it aimed to work only for PAL's `waitpid()` calls interception.
-extern "C" pid_t waitpid(pid_t pid, int *status, int options)
+extern "C" pid_t waitpid(pid_t pid, int *status, int options) // NOLINT(readability-inconsistent-declaration-parameter-name)
 {
     const pid_t pidWaitRetval = dncdbg::hook::waitpid(pid, status, options);
 
@@ -92,7 +92,7 @@ extern "C" pid_t waitpid(pid_t pid, int *status, int options)
 }
 
 // Note, liblttng-ust may call `wait()` at CoreCLR global/static initialization at dlopen() (debugger managed part related).
-extern "C" pid_t wait(int *status)
+extern "C" pid_t wait(int *status) // NOLINT(readability-inconsistent-declaration-parameter-name)
 {
     return waitpid(-1, status, 0);
 }

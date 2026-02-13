@@ -56,7 +56,7 @@ class IORedirectHelper
     // This function allows to write some data to pipe, which represents stdin stream.
     // Output IS NOT BLOCKING, function returns actual number of written bytes
     // (this number might be less than requested if output buffer is full).
-    AsyncResult async_input(InStream &stream);
+    AsyncResult async_input(InStream &instream);
 
     // This function interrupts thread which is currently executing `async_input`
     // or thread which will call `async_input` next time.

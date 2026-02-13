@@ -344,7 +344,7 @@ void IORedirectHelper::async_cancel()
         wake_reader();
 }
 
-AsyncResult IORedirectHelper::async_input(InStream &in)
+AsyncResult IORedirectHelper::async_input(InStream &instream)
 {
     if (m_eof)
         return AsyncResult::Eof;
@@ -396,7 +396,7 @@ AsyncResult IORedirectHelper::async_input(InStream &in)
             if (avail != 0U)
             {
                 LOGD("requesting %u bytes to read", static_cast<int>(avail));
-                input_handle = IOSystem::async_read(in.get_file_handle(), out->pptr(), avail);
+                input_handle = IOSystem::async_read(instream.get_file_handle(), out->pptr(), avail);
 
                 if (LOGE_IF(!input_handle, "can't issue read request for real stdin"))
                     return AsyncResult::Error;

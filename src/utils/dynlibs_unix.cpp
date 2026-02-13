@@ -35,14 +35,14 @@ DLHandle DLOpen(const std::string &path)
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns nullptr.
-void *DLSym(DLHandle handle, const std::string_view &name)
+void *DLSym(DLHandle handle, const std::string_view &symbol)
 {
     std::array<char, LINE_MAX> str{};
-    if (name.size() >= str.size())
+    if (symbol.size() >= str.size())
         return {};
 
-    name.copy(str.data(), name.size());
-    str[name.size()] = 0;
+    symbol.copy(str.data(), symbol.size());
+    str[symbol.size()] = 0;
 
     ::dlerror(); // Clear any existing error
 
