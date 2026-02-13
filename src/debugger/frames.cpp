@@ -11,7 +11,7 @@ namespace dncdbg
 
 static uintptr_t GetSP(CONTEXT *context)
 {
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rsp;
 #elif defined(_TARGET_X86_)
     return context->Esp;
@@ -30,7 +30,7 @@ static uintptr_t GetSP(CONTEXT *context)
 
 static uintptr_t GetFP(CONTEXT *context)
 {
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rbp;
 #elif defined(_TARGET_X86_)
     return context->Ebp;
@@ -49,7 +49,7 @@ static uintptr_t GetFP(CONTEXT *context)
 
 static void SetFP(CONTEXT *context, uintptr_t value)
 {
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     context->Rbp = value;
 #elif defined(_TARGET_X86_)
     context->Ebp = value;

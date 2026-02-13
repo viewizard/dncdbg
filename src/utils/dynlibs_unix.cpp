@@ -4,7 +4,7 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
-#if defined(__APPLE__)
+#ifdef __APPLE__
 #include <crt_externs.h>
 #include <mach-o/dyld.h>
 #endif
