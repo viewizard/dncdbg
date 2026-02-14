@@ -130,14 +130,14 @@ void IORedirectHelper::worker()
     }
 
     // currently existing asyncchronous io requests
-    IOSystem::AsyncHandle async_handles[Utility::Size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+    IOSystem::AsyncHandle async_handles[Utility::Size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     auto &out_handle = async_handles[0];
     auto &pipe_handle = async_handles[Utility::Size(stream_types)];
 
     // at exit: cancel all unfinished io requests
     auto on_exit = [&](void *)
         {
-            for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
+            for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
             {
                 if (h)
                 {
@@ -330,7 +330,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
 }
 
 bool IORedirectHelper::ProcessFinishedReadRequests(std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
-                                                   IOSystem::AsyncHandle async_handles[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
+                                                   IOSystem::AsyncHandle async_handles[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     for (size_t n = 0; n < stream_types_cout; n++)
     {
@@ -385,12 +385,12 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
         return AsyncResult::Error;
     }
 
-    IOSystem::AsyncHandle async_handles[2]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+    IOSystem::AsyncHandle async_handles[2]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     auto &input_handle = async_handles[0];
     auto &pipe_handle = async_handles[1];
 
     auto on_exit = [&](void *) {
-        for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         {
             if (h)
             {

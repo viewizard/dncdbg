@@ -299,10 +299,10 @@ SysAllocStringLenDelegate sysAllocStringLenDelegate = nullptr;
 SysFreeStringDelegate sysFreeStringDelegate = nullptr;
 CalculationDelegate calculationDelegate = nullptr;
 
-constexpr char ManagedPartDllName[] = "ManagedPart"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-constexpr char SymbolReaderClassName[] = "DNCDbg.SymbolReader"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-constexpr char EvaluationClassName[] = "DNCDbg.Evaluation"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-constexpr char UtilsClassName[] = "DNCDbg.Utils"; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+constexpr char ManagedPartDllName[] = "ManagedPart"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr char SymbolReaderClassName[] = "DNCDbg.SymbolReader"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr char EvaluationClassName[] = "DNCDbg.Evaluation"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr char UtilsClassName[] = "DNCDbg.Utils"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 
 // Pass to managed helper code to read in-memory PEs/PDBs
 // Returns the number of bytes read.
@@ -400,7 +400,7 @@ void Init(const std::string &coreClrPath)
     std::string tpaList;
     AddFilesFromDirectoryToTpaList(clrDir, tpaList);
 
-    const char *propertyKeys[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
+    const char *propertyKeys[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         "TRUSTED_PLATFORM_ASSEMBLIES",
         "APP_PATHS",
         "APP_NI_PATHS",
@@ -422,7 +422,7 @@ void Init(const std::string &coreClrPath)
 
     const std::string exeDir = exe.substr(0, dirSepIndex);
 
-    const char *propertyValues[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays)
+    const char *propertyValues[] = { // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         tpaList.c_str(),                         // TRUSTED_PLATFORM_ASSEMBLIES
         exeDir.c_str(),                          // APP_PATHS
         exeDir.c_str(),                          // APP_NI_PATHS
