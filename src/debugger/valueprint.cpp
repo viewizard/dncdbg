@@ -31,40 +31,49 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
         *pIsNull = FALSE;
     }
 
-    ToRelease<ICorDebugReferenceValue> pReferenceValue;
-    Status = pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue));
-    if (SUCCEEDED(Status))
+    pValue->AddRef();
+    ToRelease<ICorDebugValue> trCurrentValue(pValue);
+
+    while (true)
     {
-        BOOL isNull = FALSE;
-        IfFailRet(pReferenceValue->IsNull(&isNull));
-        if (isNull == FALSE)
+        ToRelease<ICorDebugReferenceValue> trReferenceValue;
+        Status = trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue));
+        if (SUCCEEDED(Status))
         {
-            ToRelease<ICorDebugValue> pDereferencedValue;
-            IfFailRet(pReferenceValue->Dereference(&pDereferencedValue));
-            return DereferenceAndUnboxValue(pDereferencedValue, ppOutputValue, pIsNull);
-        }
-        else
-        {
-            if (pIsNull != nullptr)
+            BOOL isNull = FALSE;
+            IfFailRet(trReferenceValue->IsNull(&isNull));
+            if (isNull == FALSE)
             {
-                *pIsNull = TRUE;
+                ToRelease<ICorDebugValue> trDereferencedValue;
+                IfFailRet(trReferenceValue->Dereference(&trDereferencedValue));
+                trCurrentValue = trDereferencedValue.Detach();
+                continue;
             }
-            pValue->AddRef();
-            *ppOutputValue = pValue;
-            return S_OK;
+            else
+            {
+                if (pIsNull != nullptr)
+                {
+                    *pIsNull = TRUE;
+                }
+                break; // unboxed till null reference
+            }
         }
+
+        ToRelease<ICorDebugBoxValue> trBoxedValue;
+        Status = trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue));
+        if (SUCCEEDED(Status))
+        {
+            ToRelease<ICorDebugObjectValue> trUnboxedValue;
+            IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));
+            trCurrentValue = trUnboxedValue.Detach();
+            continue;
+        }
+
+        break; // unboxed till object
     }
 
-    ToRelease<ICorDebugBoxValue> pBoxedValue;
-    Status = pValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&pBoxedValue));
-    if (SUCCEEDED(Status))
-    {
-        ToRelease<ICorDebugObjectValue> pUnboxedValue;
-        IfFailRet(pBoxedValue->GetObject(&pUnboxedValue));
-        return DereferenceAndUnboxValue(pUnboxedValue, ppOutputValue, pIsNull);
-    }
-    pValue->AddRef();
-    *ppOutputValue = pValue;
+    trCurrentValue->AddRef();
+    *ppOutputValue = trCurrentValue;
     return S_OK;
 }
 

@@ -301,7 +301,6 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     {
         // Re-use last list entry.
         m_typeObjectCache.back().id = typeID;
-        m_typeObjectCache.back().typeObject.Free();
         m_typeObjectCache.back().typeObject = iCorHandleValue.Detach();
         static_assert(m_typeObjectCacheSize >= 2);
         m_typeObjectCache.splice(m_typeObjectCache.begin(), m_typeObjectCache, std::prev(m_typeObjectCache.end()));

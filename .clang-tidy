@@ -21,7 +21,6 @@ Checks: >
   bugprone-*,
   -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
-  -bugprone-macro-parentheses,
   readability-*,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
