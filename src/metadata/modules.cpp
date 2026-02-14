@@ -627,8 +627,8 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     return S_OK;
 }
 
-HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
-                                            WSTRING &localName, uint32_t *pIlStart, uint32_t *pIlEnd)
+HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
+                                            WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {
     HRESULT Status = S_OK;
 

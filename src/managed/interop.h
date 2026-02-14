@@ -97,8 +97,8 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef Method
 HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef MethodToken, SequencePoint **sequencePoints, int32_t &Count);
 HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
                                 uint32_t &ilNextOffset, bool *noUserCodeFound);
-HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, ULONG localIndex,
-                                      WCHAR *localName, ULONG localNameLen, uint32_t *pIlStart, uint32_t *pIlEnd);
+HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
+                                      WCHAR *localName, uint32_t localNameLen, int32_t *pIlStart, int32_t *pIlEnd);
 HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount);
 HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset);
 HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
@@ -107,8 +107,8 @@ HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *T
                            int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data);
 HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
                                    std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset);
-HRESULT CalculationDelegate(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
-                            int32_t &resultType, void **data, std::string &errorText);
+HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
+                    int32_t &resultType, void **data, std::string &errorText);
 HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput);
 void ReleaseStackMachineProgram(void *pStackProgram);
 HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput);

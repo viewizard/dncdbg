@@ -474,7 +474,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
         //    possibleResults.push_back(path);
         auto first1 = result.begin();
         auto last1 = result.end();
-        auto first2 = m_sourceIndexToPath[pathIndex].end() - result.size();
+        auto first2 = std::prev(m_sourceIndexToPath[pathIndex].end(), static_cast<intptr_t>(result.size()));
         auto equal = [&]()
             {
                 for (; first1 != last1; ++first1, ++first2)

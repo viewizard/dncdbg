@@ -834,7 +834,7 @@ public class SymbolReader
         return RetCode.OK;
     }
 
-    internal static RetCode GetStepRangesFromIP(IntPtr symbolReaderHandle, int ip, int methodToken,
+    internal static RetCode GetStepRangesFromIP(IntPtr symbolReaderHandle, uint ip, int methodToken,
                                                 out uint ilStartOffset, out uint ilEndOffset)
     {
         Debug.Assert(symbolReaderHandle != IntPtr.Zero);
@@ -897,7 +897,7 @@ public class SymbolReader
         return RetCode.Fail;
     }
 
-    internal static RetCode GetLocalVariableNameAndScope(IntPtr symbolReaderHandle, int methodToken, int localIndex,
+    internal static RetCode GetLocalVariableNameAndScope(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
                                                          out IntPtr localVarName, out int ilStartOffset, out int ilEndOffset)
     {
         localVarName = IntPtr.Zero;
@@ -922,7 +922,7 @@ public class SymbolReader
         return RetCode.OK;
     }
 
-    internal static bool GetLocalVariableAndScopeByIndex(IntPtr symbolReaderHandle, int methodToken, int localIndex,
+    internal static bool GetLocalVariableAndScopeByIndex(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
                                                          out string localVarName, out int ilStartOffset, out int ilEndOffset)
     {
         Debug.Assert(symbolReaderHandle != IntPtr.Zero);

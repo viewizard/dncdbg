@@ -69,7 +69,7 @@ unsigned get_tid()
 }
 
 // Function returns process identifier.
-int get_pid()
+unsigned get_pid()
 {
 #ifdef _WIN32
     static const unsigned process_id = static_cast<unsigned>(GetCurrentProcessId());

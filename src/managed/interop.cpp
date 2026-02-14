@@ -115,7 +115,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
             }
 
             // Check if the extension matches the one we are looking for
-            const int extPos = filename.length() - ext.length();
+            const size_t extPos = filename.length() - ext.length();
             if (filename.compare(extPos, ext.length(), ext) != 0)
             {
                 continue;
@@ -175,7 +175,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                         continue;
                     }
 
-                    size_t extPos = filename.length() - ext.length();
+                    const size_t extPos = filename.length() - ext.length();
                     std::string filenameWithoutExt(filename.substr(0, extPos));
 
                     // Make sure if we have an assembly with multiple extensions present,
@@ -259,12 +259,12 @@ coreclr_shutdown_ptr shutdownCoreClr = nullptr;
 using ReadMemoryDelegate = int (*)(uint64_t, char *, int32_t);
 using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate);
 using DisposeDelegate = void (*)(void *);
-using GetLocalVariableNameAndScope = RetCode (*)(void *, int32_t, int32_t, BSTR *, uint32_t *, uint32_t *);
-using GetHoistedLocalScopes = RetCode (*)(void *, int32_t, void **, int32_t *);
+using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
+using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
 using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
 using GetSequencePointsDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *);
 using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
-using GetStepRangesFromIPDelegate = RetCode (*)(void *, int32_t, mdMethodDef, uint32_t *, uint32_t *);
+using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
 using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
 using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
 using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
@@ -280,8 +280,8 @@ using SysFreeStringDelegate = void (*)(void *);
 
 LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate = nullptr;
 DisposeDelegate disposeDelegate = nullptr;
-GetLocalVariableNameAndScope getLocalVariableNameAndScopeDelegate = nullptr;
-GetHoistedLocalScopes getHoistedLocalScopesDelegate = nullptr;
+GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate = nullptr;
+GetHoistedLocalScopesDelegate getHoistedLocalScopesDelegate = nullptr;
 GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate = nullptr;
 GetSequencePointsDelegate getSequencePointsDelegate = nullptr;
 GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate = nullptr;
@@ -462,7 +462,7 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "CalculationDelegate", reinterpret_cast<void **>(&calculationDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
@@ -550,7 +550,7 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef method
     }
 
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, methodToken,
+    const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
                                                                ilOffset, sequencePoint);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
@@ -564,7 +564,8 @@ HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef methodToken, Se
         return E_FAIL;
     }
 
-    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, reinterpret_cast<void **>(sequencePoints), &Count);
+    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
+                                                      reinterpret_cast<void **>(sequencePoints), &Count);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
@@ -581,8 +582,8 @@ HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodTok
     int32_t NoUserCodeFound = 0;
 
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    const RetCode retCode = getNextUserCodeILOffsetDelegate(pSymbolReaderHandle, methodToken, ilOffset,
-                                                            &ilNextOffset, &NoUserCodeFound);
+    const RetCode retCode = getNextUserCodeILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
+                                                            ilOffset, &ilNextOffset, &NoUserCodeFound);
 
     if (noUserCodeFound != nullptr)
     {
@@ -601,13 +602,13 @@ HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef 
         return E_FAIL;
 
     }
-    const RetCode retCode = getStepRangesFromIPDelegate(pSymbolReaderHandle, ip, MethodToken,
+    const RetCode retCode = getStepRangesFromIPDelegate(pSymbolReaderHandle, ip, static_cast<int32_t>(MethodToken),
                                                         ilStartOffset, ilEndOffset);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, ULONG localIndex,
-                                      WCHAR *localName, ULONG localNameLen, uint32_t *pIlStart, uint32_t *pIlEnd)
+HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
+                                      WCHAR *localName, uint32_t localNameLen, int32_t *pIlStart, int32_t *pIlEnd)
 {
     ReadLock read_lock(CLRrwlock);
     if ((getLocalVariableNameAndScopeDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
@@ -622,7 +623,7 @@ HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef met
         return E_OUTOFMEMORY;
     }
 
-    const RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, methodToken, localIndex,
+    const RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken), localIndex,
                                                                  &wszLocalName, pIlStart, pIlEnd);
     read_lock.unlock();
 
@@ -646,12 +647,13 @@ HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken
         return E_FAIL;
     }
 
-    const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, methodToken, data, &hoistedLocalScopesCount);
+    const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
+                                                          data, &hoistedLocalScopesCount);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT CalculationDelegate(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
-                            int32_t &resultType, void **data, std::string &errorText)
+HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
+                    int32_t &resultType, void **data, std::string &errorText)
 {
     ReadLock read_lock(CLRrwlock);
     if (calculationDelegate == nullptr)
@@ -715,7 +717,8 @@ HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef method
     AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
     int32_t asyncInfoCount = 0;
 
-    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, methodToken, reinterpret_cast<void **>(&allocatedAsyncInfo),
+    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
+                                                               reinterpret_cast<void **>(&allocatedAsyncInfo),
                                                                &asyncInfoCount, ilOffset);
     read_lock.unlock();
 

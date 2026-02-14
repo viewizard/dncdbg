@@ -238,7 +238,7 @@ using KnownFrames = Singleton<FramesList>;
 } // namespace
 
 FrameId::FrameId(ThreadId thread, FrameLevel level)
-    : m_id(KnownFrames::instance().get()->emplace(thread, level).first->first)
+    : m_id(static_cast<ScalarType>(KnownFrames::instance().get()->emplace(thread, level).first->first))
 {
 }
 

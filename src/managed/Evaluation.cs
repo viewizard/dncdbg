@@ -190,8 +190,8 @@ public partial class Evaluation
         return typesMap[(BasicTypes)type](bytesArray);
     }
 
-    internal static RetCode CalculationDelegate(IntPtr firstOpPtr, int firstType, IntPtr secondOpPtr, int secondType,
-                                                int operation, out int resultType, out IntPtr result, out IntPtr errorText)
+    internal static RetCode Calculation(IntPtr firstOpPtr, int firstType, IntPtr secondOpPtr, int secondType,
+                                        int operation, out int resultType, out IntPtr result, out IntPtr errorText)
     {
         resultType = 0;
         result = IntPtr.Zero;

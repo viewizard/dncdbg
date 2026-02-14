@@ -558,7 +558,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     w_lock.unlock();
 
 #ifdef FEATURE_PAL
-    GetWaitpid().SetupTrackingPID(m_processId);
+    GetWaitpid().SetupTrackingPID(static_cast<pid_t>(m_processId));
 #endif // FEATURE_PAL
 
     return S_OK;
@@ -680,7 +680,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     }
 
 #ifdef FEATURE_PAL
-    GetWaitpid().SetupTrackingPID(m_processId);
+    GetWaitpid().SetupTrackingPID(static_cast<pid_t>(m_processId));
 #endif // FEATURE_PAL
 
     IfFailRet(m_dbgshim.RegisterForRuntimeStartup(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
@@ -1105,7 +1105,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 
             if (countOfNewFrames > 0)
             {
-                stackFrames.erase(stackFrames.begin(), stackFrames.begin() + sizeofStackFrame);
+                stackFrames.erase(stackFrames.begin(), std::next(stackFrames.begin(), static_cast<intptr_t>(sizeofStackFrame)));
                 totalFrames = currentFrame + 1;
                 break;
             }

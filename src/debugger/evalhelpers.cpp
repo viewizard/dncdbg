@@ -120,7 +120,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
         });
 }
 
-static HRESULT GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
+static mdMethodDef GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
 {
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;

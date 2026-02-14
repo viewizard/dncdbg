@@ -890,7 +890,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     });
 }
 
-bool SupportedByCalculationDelegateType(CorElementType elemType)
+bool SupportedByCalculationType(CorElementType elemType)
 {
     static std::unordered_set<CorElementType> supportedElementTypes{
         ELEMENT_TYPE_BOOLEAN, ELEMENT_TYPE_U1, ELEMENT_TYPE_I1,    ELEMENT_TYPE_CHAR, ELEMENT_TYPE_R8,
@@ -960,7 +960,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
         CorElementType elemRetType = ELEMENT_TYPE_MAX;
         ToRelease<ICorDebugValue> iCorResultValue;
         // Try to implicitly cast struct/class object into build-in type supported by CalculationDelegate().
-        if (SupportedByCalculationDelegateType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        if (SupportedByCalculationType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
             SUCCEEDED(GetArgData(iCorRealValue2, typeRetName, elemRetType)) &&
             SUCCEEDED(CallCastOperator("op_Implicit", iCorRealValue1, elemRetType, typeRetName, iCorRealValue1,
                                        &iCorResultValue, ed)))
@@ -969,7 +969,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
             IfFailRet(GetRealValueWithType(iCorResultValue, &iCorRealValue1, &elemType1));
             // goto CalculationDelegate() related routine (see code below this 'if' statement scope)
         }
-        else if (SupportedByCalculationDelegateType(elemType1) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        else if (SupportedByCalculationType(elemType1) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
                  SUCCEEDED(GetArgData(iCorRealValue1, typeRetName, elemRetType)) &&
                  SUCCEEDED(CallCastOperator("op_Implicit", iCorRealValue2, elemRetType, typeRetName, iCorRealValue2, &iCorResultValue, ed)))
         {
@@ -988,7 +988,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
             return E_INVALIDARG;
         }
     }
-    else if (!SupportedByCalculationDelegateType(elemType1) || !SupportedByCalculationDelegateType(elemType2))
+    else if (!SupportedByCalculationType(elemType1) || !SupportedByCalculationType(elemType2))
     {
         return E_INVALIDARG;
     }
@@ -1003,8 +1003,8 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue1, elemType1, &valueData1, valueType1)) &&
         SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue2, elemType2, &valueData2, valueType2)) &&
-        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, valueData2, valueType2,
-                                                        static_cast<int32_t>(opType), resultType, &resultData, output)))
+        SUCCEEDED(Status = Interop::Calculation(valueData1, valueType1, valueData2, valueType2,
+                                                static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
         if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
@@ -1066,7 +1066,7 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
             return E_INVALIDARG;
         }
     }
-    else if (!SupportedByCalculationDelegateType(elemType))
+    else if (!SupportedByCalculationType(elemType))
     {
         return E_INVALIDARG;
     }
@@ -1079,8 +1079,8 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
     void *resultData = nullptr;
     int32_t resultType = 0;
     if (SUCCEEDED(Status = GetOperandDataTypeByValue(iCorRealValue, elemType, &valueData1, valueType1)) &&
-        SUCCEEDED(Status = Interop::CalculationDelegate(valueData1, valueType1, &fakeValueData2, static_cast<int32_t>(BasicTypes::TypeInt64),
-                                                        static_cast<int32_t>(opType), resultType, &resultData, output)))
+        SUCCEEDED(Status = Interop::Calculation(valueData1, valueType1, &fakeValueData2, static_cast<int32_t>(BasicTypes::TypeInt64),
+                                                static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
         Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().iCorValue, ed);
         if (resultType == static_cast<int32_t>(BasicTypes::TypeString))

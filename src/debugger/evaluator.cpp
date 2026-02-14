@@ -1589,7 +1589,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
         // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
         // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
-        const int idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+        const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
         std::array<WCHAR, mdNameLen> wParamName{};
         ULONG paramNameLen = 0;
         mdParamDef paramDef = mdParamDefNil;
@@ -1620,14 +1620,16 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         pILFrame.Free();
     }
 
-    for (ULONG i = 0; i < cLocals; i++)
+    for (uint32_t i = 0; i < cLocals; i++)
     {
         WSTRING wLocalName;
-        uint32_t ilStart = 0;
-        uint32_t ilEnd = 0;
+        int32_t ilStart = 0;
+        int32_t ilEnd = 0;
         if (FAILED(m_sharedModules->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)) ||
-            currentIlOffset < ilStart ||
-            currentIlOffset >= ilEnd)
+            ilStart < 0 ||
+            ilEnd < 0 ||
+            currentIlOffset < static_cast<uint32_t>(ilStart) ||
+            currentIlOffset >= static_cast<uint32_t>(ilEnd))
         {
             continue;
         }

@@ -576,7 +576,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 {
     mdToken tk = mdTokenNil;
     int typ = 0;
-    int n = 0;
+    ULONG n = 0;
 
     auto getGetNameWithAppendix = [&](const char *str) -> std::string
     {
@@ -672,7 +672,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
         else
         {
             std::vector<int> lowerBounds(rank, 0);
-            std::vector<int> sizes(rank, 0);
+            std::vector<ULONG> sizes(rank, 0);
 
             const unsigned numSizes = CorSigUncompressData(typePtr);
             assert(numSizes <= rank);
@@ -726,7 +726,7 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
 
     case ELEMENT_TYPE_VAR:
         n = CorSigUncompressData(typePtr);
-        out = n < static_cast<int>(args.size()) ? args.at(n) : "!" + std::to_string(n);
+        out = n < static_cast<ULONG>(args.size()) ? args.at(n) : "!" + std::to_string(n);
         break;
 
     case ELEMENT_TYPE_MVAR:

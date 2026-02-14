@@ -86,8 +86,8 @@ class Modules
 
     void CleanupAllModules();
 
-    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, ULONG localIndex,
-                                       WSTRING &localName, uint32_t *pIlStart, uint32_t *pIlEnd);
+    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
+                                       WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
 
     HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
                                   int32_t &hoistedLocalScopesCount);
