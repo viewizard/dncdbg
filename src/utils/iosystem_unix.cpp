@@ -37,7 +37,7 @@ struct AsyncRead
     {
     }
 
-    Class::IOResult operator()() const
+    Class::IOResult operator()() const noexcept
     {
         // TODO need to optimize code to left only one syscall.
         fd_set set;
@@ -63,13 +63,13 @@ struct AsyncRead
             }
 
             static_cast<void>(fprintf(stderr, "select error %i", errno));
-            throw std::runtime_error("select error");
+            return {Class::IOResult::Error, size_t(result)};
         }
 
         return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
     }
 
-    int poll(fd_set *read, fd_set */*unused*/, fd_set *except) const
+    int poll(fd_set *read, fd_set */*unused*/, fd_set *except) const noexcept
     {
         FD_SET(fd, read);
         FD_SET(fd, except);
@@ -90,7 +90,7 @@ struct AsyncWrite
     {
     }
 
-    Class::IOResult operator()() const
+    Class::IOResult operator()() const noexcept
     {
         fd_set set;
         FD_ZERO(&set);
@@ -115,13 +115,13 @@ struct AsyncWrite
             }
 
             static_cast<void>(fprintf(stderr, "select error %i", errno));
-            throw std::runtime_error("select error");
+            return {Class::IOResult::Error, size_t(result)};
         }
 
         return {Class::IOResult::Success, size_t(result)};
     }
 
-    int poll(fd_set */*unused*/, fd_set *write, fd_set */*unused*/) const
+    int poll(fd_set */*unused*/, fd_set *write, fd_set */*unused*/) const noexcept
     {
         FD_SET(fd, write);
         return fd;

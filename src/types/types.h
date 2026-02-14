@@ -128,7 +128,7 @@ class ThreadId : public CustomScalarType<ThreadId>
 
     int m_id;
 
-    ThreadId(SpecialValues val)
+    ThreadId(SpecialValues val) noexcept
         : m_id(val)
     {
     }

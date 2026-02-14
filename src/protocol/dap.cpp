@@ -28,9 +28,6 @@ namespace dncdbg
 
 namespace
 {
-std::unordered_map<std::string, ExceptionBreakpointFilter> g_DAPFilters{
-    {"all", ExceptionBreakpointFilter::THROW},
-    {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}};
 
 constexpr std::string_view TWO_CRLF("\r\n\r\n");
 constexpr std::string_view CONTENT_LENGTH("Content-Length: ");
@@ -39,19 +36,59 @@ constexpr std::string_view LOG_COMMAND("-> (C) ");
 constexpr std::string_view LOG_RESPONSE("<- (R) ");
 constexpr std::string_view LOG_EVENT("<- (E) ");
 
+const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters()
+{
+    static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
+        {"all", ExceptionBreakpointFilter::THROW},
+        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
+    };
+    return exceptionFilters;
+}
+
 // Make sure we continue add new commands into queue only after current command execution is finished.
 // Note, configurationDone: prevent deadlock in _dup() call during std::getline() from stdin in main thread.
-const std::unordered_set<std::string> g_syncCommandExecutionSet{"configurationDone", "disconnect", "terminate"};
+const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
+{
+    static const std::unordered_set<std::string> syncCommandExecutionSet{
+        "configurationDone",
+        "disconnect",
+        "terminate"
+    };
+    return syncCommandExecutionSet;
+}
+
 // Commands, that trigger command queue canceling routine.
-const std::unordered_set<std::string> g_cancelCommandQueueSet{"disconnect", "terminate", "continue",
-                                                              "next",       "stepIn",    "stepOut"};
+const std::unordered_set<std::string> &GetCancelCommandQueueSet()
+{
+    static const std::unordered_set<std::string> cancelCommandQueueSet{
+        "disconnect",
+        "terminate",
+        "continue",
+        "next",
+        "stepIn",
+        "stepOut"
+    };
+    return cancelCommandQueueSet;
+}
+
 // Don't cancel commands related to debugger configuration. For example, breakpoint setup could be done in any time
 // (even if process don't attached at all).
-const std::unordered_set<std::string> g_debuggerSetupCommandSet{
-    "initialize", "setExceptionBreakpoints",
-    "configurationDone", "setBreakpoints",
-    "launch", "disconnect", "terminate",
-    "attach", "setFunctionBreakpoints"};
+const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
+{
+    static const std::unordered_set<std::string> debuggerSetupCommandSet{
+        "initialize",
+        "setExceptionBreakpoints",
+        "setFunctionBreakpoints",
+        "setBreakpoints",
+        "configurationDone",
+        "launch",
+        "disconnect",
+        "terminate",
+        "attach"
+    };
+    return debuggerSetupCommandSet;
+}
+
 } // unnamed namespace
 
 static void to_json(json &j, const Source &s)
@@ -373,7 +410,7 @@ static void AddCapabilitiesTo(json &capabilities)
     capabilities["supportsExceptionInfoRequest"] = true;
     capabilities["supportsExceptionFilterOptions"] = true;
     json excFilters = json::array();
-    for (const auto &entry : g_DAPFilters)
+    for (const auto &entry : GetExceptionFilters())
     {
         const json filter{{"filter", entry.first},
                           {"label",entry.first}};
@@ -452,8 +489,8 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 for (const auto &entry : filters)
                 {
-                    auto findFilter = g_DAPFilters.find(entry);
-                    if (findFilter == g_DAPFilters.end())
+                    auto findFilter = GetExceptionFilters().find(entry);
+                    if (findFilter == GetExceptionFilters().end())
                     {
                         return E_INVALIDARG;
                     }
@@ -470,8 +507,8 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         return E_INVALIDARG;
                     }
 
-                    auto findFilter = g_DAPFilters.find(findId->second);
-                    if (findFilter == g_DAPFilters.end())
+                    auto findFilter = GetExceptionFilters().find(findId->second);
+                    if (findFilter == GetExceptionFilters().end())
                     {
                         return E_INVALIDARG;
                     }
@@ -1059,7 +1096,7 @@ void DAP::CommandsWorker()
         EmitMessageWithLog(LOG_RESPONSE, c.response);
 
         // Post command action.
-        if (g_syncCommandExecutionSet.find(c.command) != g_syncCommandExecutionSet.end())
+        if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().end())
         {
             m_commandSyncCV.notify_one();
         }
@@ -1164,7 +1201,7 @@ void DAP::CommandLoop()
             {
                 EmitCapabilitiesEvent();
             }
-            else if (g_cancelCommandQueueSet.find(queueEntry.command) != g_cancelCommandQueueSet.end())
+            else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().end())
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
                 if (m_sharedDebugger != nullptr)
@@ -1174,7 +1211,7 @@ void DAP::CommandLoop()
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
                 {
-                    if (g_debuggerSetupCommandSet.find(iter->command) != g_debuggerSetupCommandSet.end())
+                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().end())
                     {
                         ++iter;
                     }
@@ -1197,7 +1234,7 @@ void DAP::CommandLoop()
                         continue;
                     }
 
-                    if (g_debuggerSetupCommandSet.find(iter->command) != g_debuggerSetupCommandSet.end())
+                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().end())
                     {
                         break;
                     }
@@ -1219,7 +1256,7 @@ void DAP::CommandLoop()
             }
 
             std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
-            const bool isCommandNeedSync = g_syncCommandExecutionSet.find(queueEntry.command) != g_syncCommandExecutionSet.end();
+            const bool isCommandNeedSync = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().end();
             m_commandsQueue.emplace_back(std::move(queueEntry));
             m_commandsCV.notify_one(); // notify_one with lock
 

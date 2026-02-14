@@ -26,61 +26,6 @@ Steppers::Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Eval
         m_filteredPrevStep(false)
 {}
 
-// From ECMA-335
-static const std::unordered_set<WSTRING> g_operatorMethodNames
-{
-// Cast operators
-    W("op_Implicit"),
-    W("op_Explicit"),
-// Unary operators
-    W("op_Decrement"),                    // --
-    W("op_Increment"),                    // ++
-    W("op_UnaryNegation"),                // - (unary)
-    W("op_UnaryPlus"),                    // + (unary)
-    W("op_LogicalNot"),                   // !
-    W("op_True"),                         // Not defined
-    W("op_False"),                        // Not defined
-    W("op_AddressOf"),                    // & (unary)
-    W("op_OnesComplement"),               // ~
-    W("op_PointerDereference"),           // * (unary)
-// Binary operators
-    W("op_Addition"),                     // + (binary)
-    W("op_Subtraction"),                  // - (binary)
-    W("op_Multiply"),                     // * (binary)
-    W("op_Division"),                     // /
-    W("op_Modulus"),                      // %
-    W("op_ExclusiveOr"),                  // ^
-    W("op_BitwiseAnd"),                   // & (binary)
-    W("op_BitwiseOr"),                    // |
-    W("op_LogicalAnd"),                   // &&
-    W("op_LogicalOr"),                    // ||
-    W("op_Assign"),                       // Not defined (= is not the same)
-    W("op_LeftShift"),                    // <<
-    W("op_RightShift"),                   // >>
-    W("op_SignedRightShift"),             // Not defined
-    W("op_UnsignedRightShift"),           // Not defined
-    W("op_Equality"),                     // ==
-    W("op_GreaterThan"),                  // >
-    W("op_LessThan"),                     // <
-    W("op_Inequality"),                   // !=
-    W("op_GreaterThanOrEqual"),           // >=
-    W("op_LessThanOrEqual"),              // <=
-    W("op_UnsignedRightShiftAssignment"), // Not defined
-    W("op_MemberSelection"),              // ->
-    W("op_RightShiftAssignment"),         // >>=
-    W("op_MultiplicationAssignment"),     // *=
-    W("op_PointerToMemberSelection"),     // ->*
-    W("op_SubtractionAssignment"),        // -=
-    W("op_ExclusiveOrAssignment"),        // ^=
-    W("op_LeftShiftAssignment"),          // <<=
-    W("op_ModulusAssignment"),            // %=
-    W("op_AdditionAssignment"),           // +=
-    W("op_BitwiseAndAssignment"),         // &=
-    W("op_BitwiseOrAssignment"),          // |=
-    W("op_Comma"),                        // ,
-    W("op_DivisionAssignment")            // /=
-};
-
 HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status = S_OK;
@@ -126,6 +71,61 @@ HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICor
 
 HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
+    // From ECMA-335
+    static const std::unordered_set<WSTRING> g_operatorMethodNames
+    {
+    // Cast operators
+        W("op_Implicit"),
+        W("op_Explicit"),
+    // Unary operators
+        W("op_Decrement"),                    // --
+        W("op_Increment"),                    // ++
+        W("op_UnaryNegation"),                // - (unary)
+        W("op_UnaryPlus"),                    // + (unary)
+        W("op_LogicalNot"),                   // !
+        W("op_True"),                         // Not defined
+        W("op_False"),                        // Not defined
+        W("op_AddressOf"),                    // & (unary)
+        W("op_OnesComplement"),               // ~
+        W("op_PointerDereference"),           // * (unary)
+    // Binary operators
+        W("op_Addition"),                     // + (binary)
+        W("op_Subtraction"),                  // - (binary)
+        W("op_Multiply"),                     // * (binary)
+        W("op_Division"),                     // /
+        W("op_Modulus"),                      // %
+        W("op_ExclusiveOr"),                  // ^
+        W("op_BitwiseAnd"),                   // & (binary)
+        W("op_BitwiseOr"),                    // |
+        W("op_LogicalAnd"),                   // &&
+        W("op_LogicalOr"),                    // ||
+        W("op_Assign"),                       // Not defined (= is not the same)
+        W("op_LeftShift"),                    // <<
+        W("op_RightShift"),                   // >>
+        W("op_SignedRightShift"),             // Not defined
+        W("op_UnsignedRightShift"),           // Not defined
+        W("op_Equality"),                     // ==
+        W("op_GreaterThan"),                  // >
+        W("op_LessThan"),                     // <
+        W("op_Inequality"),                   // !=
+        W("op_GreaterThanOrEqual"),           // >=
+        W("op_LessThanOrEqual"),              // <=
+        W("op_UnsignedRightShiftAssignment"), // Not defined
+        W("op_MemberSelection"),              // ->
+        W("op_RightShiftAssignment"),         // >>=
+        W("op_MultiplicationAssignment"),     // *=
+        W("op_PointerToMemberSelection"),     // ->*
+        W("op_SubtractionAssignment"),        // -=
+        W("op_ExclusiveOrAssignment"),        // ^=
+        W("op_LeftShiftAssignment"),          // <<=
+        W("op_ModulusAssignment"),            // %=
+        W("op_AdditionAssignment"),           // +=
+        W("op_BitwiseAndAssignment"),         // &=
+        W("op_BitwiseOrAssignment"),          // |=
+        W("op_Comma"),                        // ,
+        W("op_DivisionAssignment")            // /=
+    };
+
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugFrame> iCorFrame;

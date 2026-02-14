@@ -13,8 +13,24 @@
 namespace dncdbg
 {
 
-static const std::vector<std::string_view> typeAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough};
-static const std::vector<std::string_view> methodAttrNames{DebuggerAttribute::NonUserCode, DebuggerAttribute::StepThrough, DebuggerAttribute::Hidden};
+static const std::vector<std::string_view> &GetTypeAttrNames()
+{
+    static const std::vector<std::string_view> typeAttrNames{
+        DebuggerAttribute::NonUserCode,
+        DebuggerAttribute::StepThrough
+    };
+    return typeAttrNames;
+}
+
+static const std::vector<std::string_view> &GetMethodAttrNames()
+{
+    static const std::vector<std::string_view> methodAttrNames{
+        DebuggerAttribute::NonUserCode,
+        DebuggerAttribute::StepThrough,
+        DebuggerAttribute::Hidden
+    };
+    return methodAttrNames;
+}
 
 static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
@@ -33,7 +49,7 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
             continue;
         }
 
-        if (HasAttribute(pMD, methodDef, methodAttrNames))
+        if (HasAttribute(pMD, methodDef, GetMethodAttrNames()))
         {
             excludeMethods.push_back(methodDef);
         }
@@ -57,7 +73,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     mdTypeDef typeDef = mdTypeDefNil;
     while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
-        if (HasAttribute(pMD, typeDef, typeAttrNames))
+        if (HasAttribute(pMD, typeDef, GetTypeAttrNames()))
         {
             excludeTokens.push_back(typeDef);
         }
@@ -134,11 +150,11 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         IfFailRet(pClass->GetToken(&typeToken));
 
         // In case class have "not user code" related attribute, no reason set JMC to false for each method, set it to class will be enough.
-        if (HasAttribute(pMD, typeToken, typeAttrNames))
+        if (HasAttribute(pMD, typeToken, GetTypeAttrNames()))
         {
             excludeTypeTokens.emplace(typeToken);
         }
-        else if (HasAttribute(pMD, methodToken, methodAttrNames))
+        else if (HasAttribute(pMD, methodToken, GetMethodAttrNames()))
         {
             excludeTokens.push_back(methodToken);
         }
