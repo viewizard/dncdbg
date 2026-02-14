@@ -422,10 +422,11 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
             }
             else if (name == "_lo64")
             {
+                static constexpr unsigned int fourBytesShift = 32;
                 unsigned long long lo64 = 0;
                 IfFailRet(GetIntegralValue(pFieldVal, lo64));
-                mid = lo64 >> 32;
-                lo = lo64 & ((1ULL << 32) - 1);
+                mid = lo64 >> fourBytesShift;
+                lo = lo64 & ((1ULL << fourBytesShift) - 1);
                 has_mid = has_lo = true;
             }
             else if (name == "mid")
@@ -452,8 +453,9 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
 
 static inline uint64_t Make_64(uint32_t h, uint32_t l)
 {
+    static constexpr uint32_t fourBytesShift = 32;
     uint64_t v = h;
-    v <<= 32;
+    v <<= fourBytesShift;
     v |= l;
     return v;
 }
@@ -498,12 +500,13 @@ static void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint3
 
 static std::string uint96_to_string(std::array<uint32_t, 3> &v)
 {
-    static const char *digits = "0123456789";
+    static constexpr uint32_t divisor = 10;
+    static constexpr std::array<char, 10> digits{'0','1','2','3','4','5','6','7','8','9'};
     std::string result;
     do
     {
         uint32_t rem = 0;
-        udivrem96(v, 10, rem);
+        udivrem96(v, divisor, rem);
         result.insert(0, 1, digits[rem]);
     } while (!uint96_is_zero(v));
     return result;
@@ -858,6 +861,8 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         return PrintEnumValue(pValue, rgbValue, output);
     }
 
+    static constexpr uint32_t floatPrecision = 8;
+    static constexpr uint32_t doublePrecision = 16;
     std::ostringstream ss;
 
     switch (corElemType)
@@ -963,11 +968,11 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         break;
 
     case ELEMENT_TYPE_R4:
-        ss << std::setprecision(8) << *reinterpret_cast<float *>(&rgbValue[0]);
+        ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_R8:
-        ss << std::setprecision(16) << *reinterpret_cast<double *>(&rgbValue[0]);
+        ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(&rgbValue[0]);
         break;
 
     case ELEMENT_TYPE_OBJECT:

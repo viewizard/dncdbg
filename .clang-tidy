@@ -4,7 +4,6 @@ Checks: >
   performance-*,
   portability-*,
   cppcoreguidelines-*,
-  -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
@@ -28,7 +27,6 @@ Checks: >
   readability-*,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
-  -readability-magic-numbers,
   -readability-duplicate-include,
   -readability-else-after-return,
   -readability-suspicious-call-argument

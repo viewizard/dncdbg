@@ -1310,14 +1310,16 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
         return E_FAIL;
     }
 
+    static constexpr size_t intMaxSizeInChars = 10;
     const WSTRING slotIndexString = mdName.substr(suffixSeparatorOffset + suffixSeparator.size());
     if (slotIndexString.empty() ||
         // Slot index is positive 4 byte int, that mean max is 10 characters (2147483647).
-        slotIndexString.size() > 10)
+        slotIndexString.size() > intMaxSizeInChars)
     {
         return E_FAIL;
     }
 
+    static constexpr int32_t base = 10;
     int32_t slotIndex = 0;
     for (const WCHAR wChar : slotIndexString)
     {
@@ -1326,7 +1328,7 @@ static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
             return E_FAIL;
         }
 
-        slotIndex = (slotIndex * 10) + static_cast<int32_t>(wChar - W('0'));
+        slotIndex = (slotIndex * base) + static_cast<int32_t>(wChar - W('0'));
     }
 
     if (slotIndex < 1) // Slot index start from 1.

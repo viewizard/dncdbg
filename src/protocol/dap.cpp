@@ -947,7 +947,8 @@ static std::string ReadData(std::istream &cin)
 
             char *p = nullptr; // NOLINT(misc-const-correctness)
             errno = 0;
-            content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, 10));
+            static constexpr int base = 10;
+            content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));
             if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
             {
                 LOGE("protocol violation: '%s'", line.c_str());
@@ -1041,9 +1042,10 @@ void DAP::CommandsWorker()
         {
             if (body.find("message") == body.end())
             {
+                static constexpr uint32_t hexNumberWidth = 8;
                 std::ostringstream ss;
                 ss << "Failed command '" << c.command << "' : "
-                   << "0x" << std::setw(8) << std::setfill('0') << std::hex << Status;
+                   << "0x" << std::setw(hexNumberWidth) << std::setfill('0') << std::hex << Status;
                 c.response["message"] = ss.str();
             }
             else

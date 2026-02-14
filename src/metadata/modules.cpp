@@ -479,17 +479,23 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
 
     IfFailRet(pMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
 
+    static constexpr uint32_t widthMvid8 = 8;
+    static constexpr uint32_t widthMvid4 = 4;
+    static constexpr uint32_t widthMvid2 = 2;
+    static constexpr int mvidMask = 0xFF;
     std::ostringstream ss;
     ss << std::hex
-    << std::setfill('0') << std::setw(8) << mvid.Data1 << "-"
-    << std::setfill('0') << std::setw(4) << mvid.Data2 << "-"
-    << std::setfill('0') << std::setw(4) << mvid.Data3 << "-"
-    << std::setfill('0') << std::setw(2) << (static_cast<int>(mvid.Data4[0]) & 0xFF)
-    << std::setfill('0') << std::setw(2) << (static_cast<int>(mvid.Data4[1]) & 0xFF)
+    << std::setfill('0') << std::setw(widthMvid8) << mvid.Data1 << "-"
+    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data2 << "-"
+    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data3 << "-"
+    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[0]) & mvidMask)
+    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[1]) & mvidMask)
     << "-";
-    for (int i = 2; i < 8; i++)
+    static constexpr uint32_t startChar = 2;
+    static constexpr uint32_t endChar = 8;
+    for (int i = startChar; i < endChar; i++)
     {
-        ss << std::setfill('0') << std::setw(2) << (static_cast<int>(mvid.Data4[i]) & 0xFF);
+        ss << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask);
     }
 
     id = ss.str();

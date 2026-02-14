@@ -402,8 +402,9 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
 
     if (FAILED(hr))
     {
+        static constexpr uint32_t hexNumberWidth = 8;
         std::ostringstream ss;
-        ss << "Error: 0x" << std::setw(8) << std::setfill('0') << std::hex << hr;
+        ss << "Error: 0x" << std::setw(hexNumberWidth) << std::setfill('0') << std::hex << hr;
         if (CORDBG_E_DEBUG_COMPONENT_MISSING == hr)
         {
             ss << " component that is necessary for CLR debugging cannot be located.";
@@ -486,7 +487,8 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
         }
 
         // Sleep and retry enumerating the runtimes
-        USleep(static_cast<unsigned long>(100 * 1000));
+        static constexpr unsigned long sleepTime = 100000UL;
+        USleep(sleepTime);
         numTries++;
     }
 

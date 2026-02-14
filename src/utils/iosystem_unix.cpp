@@ -296,7 +296,8 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 
     struct timeval tv{};
     const std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(timeout);
-    tv.tv_sec = us.count() / 1000000, tv.tv_usec = us.count() % 1000000;
+    static constexpr uint32_t divToMs = 1000000;
+    tv.tv_sec = us.count() / divToMs, tv.tv_usec = us.count() % divToMs;
 
     int result = 0;
     do

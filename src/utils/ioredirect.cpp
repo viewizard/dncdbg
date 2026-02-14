@@ -20,7 +20,8 @@ const size_t IORedirectHelper::DefaultBufferSize = static_cast<const size_t>(2 *
 namespace
 {
 // timeout for select() call
-std::chrono::milliseconds WaitForever{INT_MAX / 1000};
+constexpr int32_t divMax = 1000;
+constexpr std::chrono::milliseconds WaitForever{INT_MAX / divMax};
 
 char *get_streams_pptr(std::tuple<OutStream, InStream, InStream> &m_streams)
 {
@@ -451,7 +452,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
 #ifdef _WIN32
         const std::chrono::milliseconds PollPeriod{100};
 #else
-        auto &PollPeriod = WaitForever;
+        const auto &PollPeriod = WaitForever;
 #endif
         if (IOSystem::async_wait(async_handles, &async_handles[Utility::Size(async_handles)], PollPeriod))
         {

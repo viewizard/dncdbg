@@ -183,7 +183,8 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             //
             // TODO add timeout configuration feature (care about VSCode, MSVS with Tizen plugin, standalone usage)
 
-            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(5000));
+            static constexpr uint32_t normalEvalTimeout = 5000; // TODO config
+            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(normalEvalTimeout));
             if (timeoutStatus == std::future_status::timeout)
             {
                 LOGW("Evaluation timed out.");
@@ -212,7 +213,8 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 iCorProcess->Continue(0);
             }
             // Wait for 5 more seconds, give `Abort()` a chance.
-            timeoutStatus = f.wait_for(std::chrono::milliseconds(5000));
+            static constexpr uint32_t abortEvalTimeout = 5000; // TODO config
+            timeoutStatus = f.wait_for(std::chrono::milliseconds(abortEvalTimeout));
             if (timeoutStatus == std::future_status::timeout)
             {
                 // Looks like can't be aborted, this is fatal error for debugger (debuggee have inconsistent state now).
