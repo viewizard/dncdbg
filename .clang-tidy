@@ -34,9 +34,7 @@ Checks: >
   -readability-magic-numbers,
   -readability-duplicate-include,
   -readability-else-after-return,
-  -readability-static-definition-in-anonymous-namespace,
-  -readability-suspicious-call-argument,
-  -readability-non-const-parameter
+  -readability-suspicious-call-argument
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
 WarningsAsErrors: "*"

@@ -201,7 +201,7 @@ void UnsetCoreCLREnv()
 }
 
 // Returns the length of a BSTR.
-uint32_t SysStringLen(BSTR bstrString)
+uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter)
 {
     if (bstrString == nullptr)
         return 0;

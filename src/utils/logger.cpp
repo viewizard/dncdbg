@@ -60,9 +60,9 @@ int clock_gettime(int tsrc, struct timespec *ts)
 unsigned get_tid()
 {
 #ifdef _WIN32
-    const static thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
+    static const thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
 #else
-    const static thread_local unsigned thread_id = syscall(SYS_gettid);
+    static const thread_local unsigned thread_id = syscall(SYS_gettid);
 #endif
 
     return thread_id;
@@ -72,9 +72,9 @@ unsigned get_tid()
 int get_pid()
 {
 #ifdef _WIN32
-    const static unsigned process_id = static_cast<unsigned>(GetCurrentProcessId());
+    static const unsigned process_id = static_cast<unsigned>(GetCurrentProcessId());
 #else
-    const static unsigned process_id = ::getpid();
+    static const unsigned process_id = ::getpid();
 #endif
 
     return process_id;

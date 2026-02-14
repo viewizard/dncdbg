@@ -21,15 +21,15 @@ namespace dncdbg
 namespace FileSystem
 {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-const static size_t PathMax = PATH_MAX;
-const static size_t NameMax = NAME_MAX;
-const static char PathSeparator = '/';
-const static char *PathSeparatorSymbols = "/";
+static constexpr size_t PathMax = PATH_MAX;
+static constexpr size_t NameMax = NAME_MAX;
+static constexpr char PathSeparator = '/';
+static constexpr char PathSeparatorSymbols[] = "/";
 #elif _WIN32
-const static size_t PathMax = MAX_PATH;
-const static size_t NameMax = MAX_PATH - 1; // not include terminal null.
-const static char PathSeparator = '\\';
-const static char *PathSeparatorSymbols = "/\\";
+static constexpr size_t PathMax = MAX_PATH;
+static constexpr size_t NameMax = MAX_PATH - 1; // not include terminal null.
+static constexpr char PathSeparator = '\\';
+static constexpr char PathSeparatorSymbols[] = "/\\";
 #endif
 } // namespace FileSystem
 

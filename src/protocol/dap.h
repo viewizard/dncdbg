@@ -13,6 +13,7 @@
 #include <list>
 #include <mutex>
 #include <string>
+#include <string_view>
 
 namespace dncdbg
 {
@@ -70,10 +71,10 @@ class DAP
     std::vector<std::string> m_execArgs;
 
     void EmitMessage(nlohmann::json &message, std::string &output);
-    void EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message);
+    void EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message);
     void EmitEvent(const std::string &name, const nlohmann::json &body);
 
-    void Log(const std::string &prefix, const std::string &text);
+    void Log(const std::string_view &prefix, const std::string &text);
 
     struct CommandQueueEntry
     {

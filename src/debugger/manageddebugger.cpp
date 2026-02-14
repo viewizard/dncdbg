@@ -46,7 +46,7 @@ extern "C" const IID IID_IUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0x
 
 namespace
 {
-const auto startupWaitTimeout = std::chrono::milliseconds(5000);
+constexpr auto startupWaitTimeout = std::chrono::milliseconds(5000);
 
 int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 {

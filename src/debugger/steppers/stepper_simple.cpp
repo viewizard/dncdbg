@@ -17,7 +17,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     ToRelease<ICorDebugStepper> pStepper;
     IfFailRet(pThread->CreateStepper(&pStepper));
 
-    const auto mask = static_cast<CorDebugIntercept>(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+    constexpr auto mask = static_cast<CorDebugIntercept>(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
     IfFailRet(pStepper->SetInterceptMask(mask));
 
     const CorDebugUnmappedStop stopMask = STOP_NONE;

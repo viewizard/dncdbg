@@ -539,7 +539,7 @@ Class::IOSystem::StdFiles Class::get_std_files()
 // Substitution exists only during life time of StsIOSwap instance.
 Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 {
-    const static unsigned NFD = std::tuple_size_v<StdFiles>;
+    static const unsigned NFD = std::tuple_size_v<StdFiles>;
     static const DWORD std_handles[NFD] = {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
     static const int open_flags[NFD] = {_O_RDONLY | _O_BINARY, _O_BINARY, _O_BINARY};
     const int open_fds[NFD] = {_fileno(stdin), _fileno(stdout), _fileno(stderr)};
@@ -597,7 +597,7 @@ Class::StdIOSwap::~StdIOSwap()
     if (!m_valid)
         return;
 
-    const static unsigned NFD = std::tuple_size_v<StdFiles>;
+    static const unsigned NFD = std::tuple_size_v<StdFiles>;
     static const DWORD std_handles[NFD] = {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
     const int open_fds[NFD] = {_fileno(stdin), _fileno(stdout), _fileno(stderr)};
 

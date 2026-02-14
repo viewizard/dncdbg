@@ -175,7 +175,7 @@ class FrameId : public CustomScalarType<FrameId>
 
     using ScalarType = int;
 
-    const static int32_t MaxFrameId = INT32_MAX;
+    static constexpr int32_t MaxFrameId = INT32_MAX;
 
     FrameId() : m_id(-1)
     {

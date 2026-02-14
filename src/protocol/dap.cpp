@@ -32,12 +32,12 @@ std::unordered_map<std::string, ExceptionBreakpointFilter> g_DAPFilters{
     {"all", ExceptionBreakpointFilter::THROW},
     {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}};
 
-const std::string TWO_CRLF("\r\n\r\n");
-const std::string CONTENT_LENGTH("Content-Length: ");
+constexpr std::string_view TWO_CRLF("\r\n\r\n");
+constexpr std::string_view CONTENT_LENGTH("Content-Length: ");
 
-const std::string LOG_COMMAND("-> (C) ");
-const std::string LOG_RESPONSE("<- (R) ");
-const std::string LOG_EVENT("<- (E) ");
+constexpr std::string_view LOG_COMMAND("-> (C) ");
+constexpr std::string_view LOG_RESPONSE("<- (R) ");
+constexpr std::string_view LOG_EVENT("<- (E) ");
 
 // Make sure we continue add new commands into queue only after current command execution is finished.
 // Note, configurationDone: prevent deadlock in _dup() call during std::getline() from stdin in main thread.
@@ -395,7 +395,7 @@ void DAP::EmitMessage(nlohmann::json &message, std::string &output)
     cout.flush();
 }
 
-void DAP::EmitMessageWithLog(const std::string &message_prefix, nlohmann::json &message)
+void DAP::EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message)
 {
     const std::scoped_lock<std::mutex> lock(m_outMutex);
     std::string output;
@@ -1173,7 +1173,7 @@ void DAP::SetupProtocolLogging(const std::string &path)
 }
 
 // Caller must care about m_outMutex.
-void DAP::Log(const std::string &prefix, const std::string &text)
+void DAP::Log(const std::string_view &prefix, const std::string &text)
 {
     if (!m_protocolLog.is_open())
         return;

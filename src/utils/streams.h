@@ -167,7 +167,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
 
     // This constant defines default size of input buffer, which typically
     // can hold few lines of the text.
-    const static size_t DefaultBufferSize;
+    static const size_t DefaultBufferSize;
 
     // Arguments are following: `fh` -- file descriptor opened for writing,
     // buf_size -- the size of the output buffer.
@@ -260,7 +260,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
 
     // This constant defines default size of input buffer, which typically
     // can hold few lines of the text.
-    const static size_t DefaultBufferSize;
+    static const size_t DefaultBufferSize;
 
     using FileHandle = IOSystem::FileHandle;
 

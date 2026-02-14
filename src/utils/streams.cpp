@@ -19,15 +19,15 @@ const size_t StreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_M
 
 namespace
 {
-const size_t UngetChars = 1;    // number of extra chars in buffer for ungetting
-const size_t OverflowChars = 1; // number of extra chars in buffer for overflow
+constexpr size_t UngetChars = 1;    // number of extra chars in buffer for ungetting
+constexpr size_t OverflowChars = 1; // number of extra chars in buffer for overflow
 
 // minimal buffer sizes for input/output (1 char is minimal buffer size)
-const size_t InputMinBuf = UngetChars + 1;
-const size_t OutputMinBuf = OverflowChars + 1;
+constexpr size_t InputMinBuf = UngetChars + 1;
+constexpr size_t OutputMinBuf = OverflowChars + 1;
 
 // constants for InStreamBuf
-const static size_t MaxMoveSize = sizeof(void *) * 4;
+constexpr size_t MaxMoveSize = sizeof(void *) * 4;
 } // namespace
 
 // Arguments are following: `fh` -- file descriptor opened for reading,
