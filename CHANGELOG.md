@@ -19,7 +19,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Updated package references for managed part.
 - Switched to C++17 standard.
 - Launch option `engineLogging` renamed to `logProtocol`.
-- Managed unwind code will ignore fails on particular frames now and continue unwind.
+- Managed unwinder will ignore fails on particular frames now and continue unwind.
 
 #### Removed
 - Removed debug build support for .NET Core 2.1.
@@ -51,5 +51,5 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed code performance (removed object copying).
 - Fixed header include cycle.
 - Fixed logic bug in TryParseSlotIndex method.
-- Fixed bug corhost related logic (TPA list creation).
+- Fixed bug in corhost related logic (TPA list creation).
 - Fixed some methods `void *&` (`PVOID &`) parameters to `void **`.
