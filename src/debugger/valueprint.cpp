@@ -27,7 +27,9 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
     HRESULT Status = S_OK;
     *ppOutputValue = nullptr;
     if (pIsNull != nullptr)
+    {
         *pIsNull = FALSE;
+    }
 
     ToRelease<ICorDebugReferenceValue> pReferenceValue;
     Status = pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue));
@@ -44,7 +46,9 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
         else
         {
             if (pIsNull != nullptr)
+            {
                 *pIsNull = TRUE;
+            }
             pValue->AddRef();
             *ppOutputValue = pValue;
             return S_OK;
@@ -68,21 +72,23 @@ static bool IsEnum(ICorDebugValue *pInputValue)
 {
     ToRelease<ICorDebugValue> pValue;
     if (FAILED(DereferenceAndUnboxValue(pInputValue, &pValue, nullptr)))
+    {
         return false;
+    }
 
     std::string baseTypeName;
     ToRelease<ICorDebugValue2> pValue2;
     ToRelease<ICorDebugType> pType;
     ToRelease<ICorDebugType> pBaseType;
 
-    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))))
+    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))) ||
+        FAILED(pValue2->GetExactType(&pType)) ||
+        FAILED(pType->GetBase(&pBaseType)) ||
+        pBaseType == nullptr ||
+        FAILED(TypePrinter::GetTypeOfValue(pBaseType, baseTypeName)))
+    {
         return false;
-    if (FAILED(pValue2->GetExactType(&pType)))
-        return false;
-    if (FAILED(pType->GetBase(&pBaseType)) || pBaseType == nullptr)
-        return false;
-    if (FAILED(TypePrinter::GetTypeOfValue(pBaseType, baseTypeName)))
-        return false;
+    }
 
     return baseTypeName == "System.Enum";
 }
@@ -188,7 +194,9 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
         {
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
+            {
                 continue;
+            }
 
             const uint64_t currentConstValue = getValue(pRawValue);
             if (currentConstValue == curValue)
@@ -202,7 +210,9 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
             {
                 // Flag enumerated constant whose value is zero must be excluded from OR-ed expression.
                 if (currentConstValue == 0)
+                {
                     continue;
+                }
 
                 if ((currentConstValue == remainingValue) ||
                     ((currentConstValue != 0) && ((currentConstValue & remainingValue) == currentConstValue)))
@@ -222,14 +232,18 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
         for (const auto &Flag : OrderedFlags)
         {
             if (ss.tellp() > 0)
+            {
                 ss << " | ";
+            }
 
             ss << Flag.second;
         }
         output = ss.str();
     }
     else
+    {
         output = std::to_string(curValue);
+    }
 
     return S_OK;
 }
@@ -244,12 +258,16 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
 
     if (isNull == TRUE)
+    {
         return E_FAIL;
+    }
 
     uint32_t cbSize = 0;
     IfFailRet(pValue->GetSize(&cbSize));
     if (cbSize != sizeof(value))
+    {
         return E_FAIL;
+    }
 
     CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(pValue->GetType(&corElemType));
@@ -259,30 +277,40 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     case ELEMENT_TYPE_I1:
     case ELEMENT_TYPE_U1:
         if (typeid(T) == typeid(char) || typeid(T) == typeid(unsigned char) || typeid(T) == typeid(signed char))
+        {
             break;
+        }
         return E_FAIL;
 
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
         if (typeid(T) == typeid(int) || typeid(T) == typeid(unsigned))
+        {
             break;
+        }
 
         if (sizeof(int) == sizeof(long))
         {
             if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
+            {
                 break;
+            }
         }
         return E_FAIL;
 
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
         if (typeid(T) == typeid(long long) || typeid(T) == typeid(unsigned long long))
+        {
             break;
+        }
 
         if (sizeof(long long) == sizeof(long))
         {
             if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
+            {
                 break;
+            }
         }
 
         return E_FAIL;
@@ -292,24 +320,32 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
         if (sizeof(T) == sizeof(int))
         {
             if (typeid(T) == typeid(int) || typeid(T) == typeid(unsigned))
+            {
                 break;
+            }
 
             if (sizeof(int) == sizeof(long))
             {
                 if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
+                {
                     break;
+                }
             }
         }
 
         if (sizeof(T) == sizeof(long long))
         {
             if (typeid(T) == typeid(long long) || typeid(T) == typeid(unsigned long long))
+            {
                 break;
+            }
 
             if (sizeof(long long) == sizeof(long))
             {
                 if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
+                {
                     break;
+                }
             }
         }
 
@@ -366,10 +402,11 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
         if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
-            if ((fieldAttr & fdLiteral) != 0U)
+            if (((fieldAttr & fdLiteral) != 0U) ||
+                ((fieldAttr & fdStatic) != 0U))
+            {
                 continue;
-            if ((fieldAttr & fdStatic) != 0U)
-                continue;
+            }
 
             ToRelease<ICorDebugValue> pFieldVal;
             ToRelease<ICorDebugObjectValue> pObjValue;
@@ -490,7 +527,9 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
     if (len > scale)
     {
         if (scale != 0)
+        {
             output.insert(len - scale, 1, '.');
+        }
     }
     else
     {
@@ -499,7 +538,9 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
     }
 
     if (is_negative)
+    {
         output.insert(0, 1, '-');
+    }
 }
 
 static HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
@@ -559,7 +600,9 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     std::vector<uint32_t> base(nRank, 0);
     BOOL hasBaseIndicies = FALSE;
     if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && (hasBaseIndicies == TRUE))
+    {
         IfFailRet(pArrayValue->GetBaseIndicies(nRank, base.data()));
+    }
 
     ss << elementType << "[";
     const char *sep = "";
@@ -569,9 +612,13 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         sep = ", ";
 
         if (base[i] > 0)
+        {
             ss << base[i] << ".." << (base[i] + dims[i] - 1);
+        }
         else
+        {
             ss << dims[i];
+        }
     }
     ss << "]" << arrayType;
 
@@ -673,7 +720,9 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
     if (pType == nullptr)
+    {
         return E_FAIL;
+    }
 
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pType->GetClass(&pClass));
@@ -703,11 +752,15 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
         {
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
             if (str_equal(mdName.data(), W("value")))
+            {
                 IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppValueValue));
+            }
 
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
             if (str_equal(mdName.data(), W("hasValue")))
+            {
                 IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppHasValueValue));
+            }
         }
     }
 
@@ -822,7 +875,9 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         CORDB_ADDRESS addr = 0;
         ToRelease<ICorDebugReferenceValue> pReferenceValue;
         if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue))))
+        {
             pReferenceValue->GetValue(&addr);
+        }
         ss << "<function pointer 0x" << std::hex << addr << ">";
     }
     break;

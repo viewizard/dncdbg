@@ -29,19 +29,21 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 #endif // _WIN32
 
     if (pFile == nullptr)
+    {
         return mdMethodDefNil;
+    }
 
     auto getEntryPointToken = [&]() -> mdMethodDef
     {
         IMAGE_DOS_HEADER dosHeader;
         IMAGE_NT_HEADERS32 ntHeaders;
 
-        if (fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1)
+        if ((fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1) ||
+            (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) ||
+            (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1))
+        {
             return mdMethodDefNil;
-        if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
-            return mdMethodDefNil;
-        if (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1)
-            return mdMethodDefNil;
+        }
 
         ULONG corRVA = 0;
         if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
@@ -51,44 +53,49 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
         else
         {
             IMAGE_NT_HEADERS64 ntHeaders64;
-            if (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0)
+            if ((fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) ||
+                (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1))
+            {
                 return mdMethodDefNil;
-            if (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1)
-                return mdMethodDefNil;
+            }
             corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
         }
 
         constexpr LONG lLONG_MAX = 2147483647;
         LONG pos = VAL32(dosHeader.e_lfanew);
         if (pos < 0 || size_t(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
+        {
             return mdMethodDefNil;
+        }
         pos += sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader);
 
         if (fseek(pFile, pos, SEEK_SET) != 0)
+        {
             return mdMethodDefNil;
+        }
 
         for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
         {
             IMAGE_SECTION_HEADER sectionHeader;
 
             if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1)
+            {
                 return mdMethodDefNil;
+            }
 
             if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
                 corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
             {
-                const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
-                if (offset > (ULONG)lLONG_MAX)
-                    return mdMethodDefNil;
-
                 IMAGE_COR20_HEADER corHeader;
-                if (fseek(pFile, offset, SEEK_SET) != 0)
-                    return mdMethodDefNil;
-                if (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1)
-                    return mdMethodDefNil;
+                const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
+                if ((offset > static_cast<ULONG>(lLONG_MAX)) ||
+                    (fseek(pFile, offset, SEEK_SET) != 0) ||
+                    (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1) ||
 
-                if (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT)
+                    (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT))
+                {
                     return mdMethodDefNil;
+                }
 
                 return VAL32(corHeader.EntryPointToken); // NOLINT(cppcoreguidelines-pro-type-union-access)
             }
@@ -128,14 +135,18 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     {
         mdTypeDef mdEnclosingClass = mdTypeDefNil;
         if (FAILED(pMD->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
+        {
             continue;
+        }
 
         DWORD flags = 0;
         std::array<WCHAR, mdNameLen> className{};
         ULONG classNameLen = 0;
         IfFailRet(pMD->GetTypeDefProps(typeDef, className.data(), mdNameLen, &classNameLen, &flags, nullptr));
         if (!starts_with(className.data(), W("<Main>d__")))
+        {
             continue;
+        }
 
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
@@ -162,7 +173,9 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     pMD->CloseEnum(hEnum);
 
     if (resultToken == mdMethodDefNil)
+    {
         return E_FAIL;
+    }
 
     // Note, in case of async `MoveNext` method, user code don't start from 0 IL offset.
     uint32_t ilNextOffset = 0;
@@ -178,14 +191,18 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || (m_iCorFuncBreakpoint != nullptr))
+    {
         return S_FALSE;
+    }
 
     HRESULT Status = S_OK;
     mdMethodDef entryPointToken = GetEntryPointTokenFromFile(GetModuleFileName(pModule));
     // Note, by some reason, in CoreCLR 6.0 System.Private.CoreLib.dll have Token "0" as entry point RVA.
     if (entryPointToken == mdMethodDefNil ||
         TypeFromToken(entryPointToken) != mdtMethodDef)
+    {
         return S_FALSE;
+    }
 
     uint32_t entryPointOffset = 0;
     ToRelease<IUnknown> pMDUnknown;
@@ -224,14 +241,18 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (!m_stopAtEntry || (m_iCorFuncBreakpoint == nullptr))
+    {
         return S_FALSE; // S_FALSE - no error, but not affect on callback
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&pFunctionBreakpoint)));
     IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, m_iCorFuncBreakpoint));
     if (Status == S_FALSE)
+    {
         return S_FALSE;
+    }
 
     m_iCorFuncBreakpoint->Activate(FALSE);
     m_iCorFuncBreakpoint.Free();
@@ -243,7 +264,9 @@ void EntryBreakpoint::Delete()
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
     if (m_iCorFuncBreakpoint == nullptr)
+    {
         return;
+    }
 
     m_iCorFuncBreakpoint->Activate(FALSE);
     m_iCorFuncBreakpoint.Free();

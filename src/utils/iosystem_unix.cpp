@@ -46,15 +46,21 @@ struct AsyncRead
         struct timeval tv = {0, 0};
         ssize_t result = ::select(fd + 1, &set, nullptr, &set, &tv);
         if (result == 0)
+        {
             return {Class::IOResult::Pending, 0};
+        }
 
         if (result >= 0)
+        {
             result = read(fd, buffer, size);
+        }
 
         if (result < 0)
         {
             if (errno == EAGAIN)
+            {
                 return {Class::IOResult::Pending, 0};
+            }
 
             static_cast<void>(fprintf(stderr, "select error %i", errno));
             throw std::runtime_error("select error");
@@ -92,15 +98,21 @@ struct AsyncWrite
         struct timeval tv = {0, 0};
         ssize_t result = select(fd + 1, nullptr, &set, nullptr, &tv);
         if (result == 0)
+        {
             return {Class::IOResult::Pending, 0};
+        }
 
         if (result >= 0)
+        {
             result = write(fd, buffer, size);
+        }
 
         if (result < 0)
         {
             if (errno == EAGAIN)
+            {
                 return {Class::IOResult::Pending, 0};
+            }
 
             static_cast<void>(fprintf(stderr, "select error %i", errno));
             throw std::runtime_error("select error");
@@ -204,15 +216,23 @@ Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 {
     int flags = fcntl(fh.fd, F_GETFD);
     if (flags < 0)
+    {
         return {IOResult::Error, 0};
+    }
 
     if (inherit)
+    {
         flags &= ~FD_CLOEXEC;
+    }
     else
+    {
         flags |= FD_CLOEXEC;
+    }
 
     if (fcntl(fh.fd, F_SETFD, flags) < 0)
+    {
         return {IOResult::Error, 0};
+    }
 
     return {IOResult::Success, 0};
 }
@@ -222,9 +242,13 @@ Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
 {
     const ssize_t rsize = ::read(fh.fd, buf, count);
     if (rsize < 0)
+    {
         return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
+    }
     else
+    {
         return {(rsize == 0 ? IOResult::Eof : IOResult::Success), size_t(rsize)};
+    }
 }
 
 // Function perform writing to the file: it may write up to `count' byte from `buf'.
@@ -232,9 +256,13 @@ Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count
 {
     const ssize_t wsize = ::write(fh.fd, buf, count);
     if (wsize < 0)
+    {
         return {(errno == EAGAIN ? IOResult::Pending : IOResult::Error), 0};
+    }
     else
+    {
         return {IOResult::Success, size_t(wsize)};
+    }
 }
 
 Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t count)
@@ -261,7 +289,9 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
     for (IOSystem::AsyncHandleIterator it = begin; it != end; ++it)
     {
         if (*it)
+        {
             maxfd = std::max(it->handle.poll(&read_set, &write_set, &except_set), maxfd);
+        }
     }
 
     struct timeval tv{};
@@ -270,8 +300,9 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 
     int result = 0;
     do
+    {
         result = ::select(maxfd + 1, &read_set, &write_set, &except_set, &tv);
-    while (result < 0 && errno == EINTR);
+    } while (result < 0 && errno == EINTR);
 
     if (result < 0)
     {
@@ -285,7 +316,9 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 Class::IOResult Class::async_cancel(Class::AsyncHandle &handle)
 {
     if (!handle)
+    {
         return {Class::IOResult::Error, 0};
+    }
 
     handle = {};
     return {Class::IOResult::Success, 0};
@@ -294,11 +327,15 @@ Class::IOResult Class::async_cancel(Class::AsyncHandle &handle)
 Class::IOResult Class::async_result(Class::AsyncHandle &handle)
 {
     if (!handle)
+    {
         return {Class::IOResult::Error, 0};
+    }
 
     auto result = handle();
     if (result.status != Class::IOResult::Pending)
+    {
         handle = {};
+    }
 
     return result;
 }
@@ -348,7 +385,9 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cpp
 Class::StdIOSwap::~StdIOSwap()
 {
     if (!m_valid)
+    {
         return;
+    }
 
     static constexpr unsigned NFD = std::tuple_size_v<StdFiles>;
     static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};

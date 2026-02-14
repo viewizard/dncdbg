@@ -18,12 +18,16 @@ namespace dncdbg::TypePrinter
 static std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &args)
 {
     if (args.empty())
+    {
         return name;
+    }
 
     const std::size_t offset = name.find_last_not_of("0123456789");
 
     if (offset == std::string::npos || offset == name.size() - 1 || name.at(offset) != '`')
+    {
         return name;
+    }
 
     unsigned long numArgs = 0;
     try
@@ -134,7 +138,9 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
     if (!IsTdNested(flags))
     {
         if (args != nullptr)
+        {
             mdName = ConsumeGenericArgs(mdName, *args);
+        }
 
         return S_OK;
     }
@@ -363,9 +369,13 @@ HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
     ToRelease<ICorDebugValue2> pValue2;
     if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&pValue2)))) &&
         SUCCEEDED(pValue2->GetExactType(&pType)))
+    {
         return GetTypeOfValue(pType, output);
+    }
     else
+    {
         output = "<unknown>";
+    }
 
     return S_OK;
 }
@@ -375,7 +385,9 @@ HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType)
 {
     if (pType == nullptr)
+    {
         return E_INVALIDARG;
+    }
 
     HRESULT Status = S_OK;
 
@@ -437,7 +449,9 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
                     ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
                 }
                 else
+                {
                     ss << name;
+                }
             }
         }
         elementType = ss.str();
@@ -504,9 +518,13 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         std::string subArrayType;
         ToRelease<ICorDebugType> pFirstParameter;
         if (SUCCEEDED(pType->GetFirstTypeParameter(&pFirstParameter)))
+        {
             GetTypeOfValue(pFirstParameter, subElementType, subArrayType);
+        }
         else
+        {
             subElementType = "<unknown>";
+        }
 
         elementType = subElementType;
 
@@ -522,7 +540,9 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
             pType->GetRank(&rank);
             ss << "[";
             for (uint32_t i = 0; i < rank - 1; i++)
+            {
                 ss << ",";
+            }
             ss << "]";
             arrayType = ss.str() + subArrayType;
         }
@@ -657,16 +677,22 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
             const unsigned numSizes = CorSigUncompressData(typePtr);
             assert(numSizes <= rank);
             for (unsigned i = 0; i < numSizes; i++)
+            {
                 sizes[i] = CorSigUncompressData(typePtr);
+            }
 
             const unsigned numLowBounds = CorSigUncompressData(typePtr);
             assert(numLowBounds <= rank);
             for (unsigned i = 0; i < numLowBounds; i++)
+            {
                 typePtr += CorSigUncompressSignedInt(typePtr, &lowerBounds[i]);
+            }
 
             newAppendix += '[';
             if (rank == 1 && numSizes == 0 && numLowBounds == 0)
+            {
                 newAppendix += "..";
+            }
             else
             {
                 for (unsigned i = 0; i < rank; i++)
@@ -687,7 +713,9 @@ static PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector
                     //     }
                     // }
                     if (i < rank - 1)
+                    {
                         newAppendix += ',';
+                    }
                 }
             }
             newAppendix += ']';
@@ -857,7 +885,9 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     if (memTypeDef != mdTypeDefNil)
     {
         if (FAILED(NameForTypeDef(memTypeDef, pMD, typeName, &args)))
+        {
             typeName = "";
+        }
     }
 
     methodName = ConsumeGenericArgs(funcName, args);
@@ -875,7 +905,9 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
     std::ostringstream ss;
     IfFailRet(GetTypeAndMethod(pFrame, typeName, methodName));
     if (!typeName.empty())
+    {
         ss << typeName << ".";
+    }
     ss << methodName << "()";
 
     output = ss.str();

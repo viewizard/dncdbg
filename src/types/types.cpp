@@ -98,7 +98,9 @@ class IndexedStorage
     {
         const auto it = do_insert(val);
         if (it != m_data.end())
+        {
             return {it, false};
+        }
         m_data.push_back(value_type(next_id(), val));
         return {--m_data.end(), true};
     }
@@ -108,7 +110,9 @@ class IndexedStorage
     {
         const auto it = do_insert(val);
         if (it != m_data.end())
+        {
             return {it, false};
+        }
         m_data.push_back(value_type(next_id(), std::move(val)));
         return {--m_data.end(), true};
     }
@@ -119,11 +123,15 @@ class IndexedStorage
     [[nodiscard]] iterator find(key_type key) const
     {
         if (m_base > key)
+        {
             return end();
+        }
 
         const key_type index = key - m_base;
         if (index >= m_data.size() || m_data[index].first != key)
+        {
             return end();
+        }
 
         return begin() + index;
     }
@@ -150,8 +158,10 @@ class IndexedStorage
         const auto data_size = static_cast<key_type>(m_data.size());
 
         if (m_base > Max - data_size)
+        {
             // calculate (m_base + data_size - Max) without result overflow and underflow for unsigned "Key" type
             return Max - (Max - m_base) - (Max - data_size);
+        }
 
         return m_base + data_size;
     }

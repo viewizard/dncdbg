@@ -99,16 +99,19 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 
     for (Status = S_OK; ; Status = iCorStackWalk->Next())
     {
-        if (Status == CORDBG_S_AT_END_OF_STACK)
+        if (Status == CORDBG_S_AT_END_OF_STACK ||
+            FAILED(Status))
+        {
             break;
-        if (FAILED(Status))
-            break;
+        }
 
         level++;
 
         ToRelease<ICorDebugFrame> iCorFrame;
         if (FAILED(Status = iCorStackWalk->GetFrame(&iCorFrame)))
+        {
             continue;
+        }
         if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
         {
             // We've hit a native frame, we need to store the CONTEXT
@@ -125,7 +128,9 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         // Accordingly to CoreCLR sources, S_OK could be with nulled iCorFrame, that must be skipped.
         // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition represents)
         if (iCorFrame == nullptr)
+        {
             continue;
+        }
 
         // If we get a RuntimeUnwindableFrame, then the stackwalker is also stopped at a native
         // stack frame, but it's a native stack frame which requires special unwinding help from
@@ -134,7 +139,9 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         // ICorDebugStackWalk::GetContext() to retrieve the context of the native stack frame.
         ToRelease<ICorDebugRuntimeUnwindableFrame> iCorRuntimeUnwindableFrame;
         if (SUCCEEDED(iCorFrame->QueryInterface(IID_ICorDebugRuntimeUnwindableFrame, reinterpret_cast<void **>(&iCorRuntimeUnwindableFrame))))
+        {
             continue;
+        }
 
         // We need to store the CONTEXT when we're at a managed frame.
         memset((void *)&currentCtx, 0, sizeof(CONTEXT));
@@ -171,7 +178,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             if (SUCCEEDED(iCorFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame))) &&
                 SUCCEEDED(pILFrame->GetIP(&nOffset, &mappingResult)))
             {
-                if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
+                if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+                    mappingResult == MAPPING_NO_INFO)
                 {
                     cb(FrameType::Unknown, iCorFrame);
                     continue;
@@ -206,7 +214,9 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     if (ctxUnmanagedChainValid)
     {
         if (level == 0) // in case this is first and last frame - unwind all
+        {
             UnwindNativeFrames(pThread, firstFrame, nullptr, nullptr, cb);
+        }
         else
         {
             UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, nullptr, cb);
@@ -220,7 +230,9 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 {
     // Try get 0 (current active) frame in fast way, if possible.
     if (static_cast<int>(level) == 0 && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
+    {
         return S_OK;
+    }
 
     int currentFrame = -1;
 
@@ -228,12 +240,14 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
         currentFrame++;
 
         if (currentFrame < static_cast<int>(level))
+        {
             return S_OK;
-        else if (currentFrame > static_cast<int>(level))
+        }
+        else if (currentFrame > static_cast<int>(level) ||
+                 frameType != FrameType::CLRManaged)
+        {
             return E_FAIL;
-
-        if (currentFrame != static_cast<int>(level) || frameType != FrameType::CLRManaged)
-            return S_OK;
+        }
 
         pFrame->AddRef();
         *ppFrame = pFrame;

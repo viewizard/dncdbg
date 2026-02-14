@@ -25,7 +25,9 @@ void Threads::Add(const ThreadId &threadId, bool processAttached)
     m_userThreads.emplace(threadId);
     // First added user thread during start is Main thread for sure.
     if (!processAttached && !MainThread)
+    {
         MainThread = threadId;
+    }
 }
 
 void Threads::Remove(const ThreadId &threadId)
@@ -34,7 +36,9 @@ void Threads::Remove(const ThreadId &threadId)
 
     auto it = m_userThreads.find(threadId);
     if (it == m_userThreads.end())
+    {
         return;
+    }
 
     m_userThreads.erase(it);
 }
@@ -58,7 +62,9 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
                     // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
                     // this thread can be in not consistent state for evaluation or thread could break in optimized code.
                     if (memberName != "_name")
+                    {
                         return S_OK;
+                    }
 
                     ToRelease<ICorDebugValue> iCorResultValue;
                     IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
@@ -67,7 +73,9 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
                     ToRelease<ICorDebugValue> pValue;
                     IfFailRet(DereferenceAndUnboxValue(iCorResultValue, &pValue, &isNull));
                     if (isNull == FALSE)
+                    {
                         IfFailRet(PrintStringValue(pValue, threadName));
+                    }
 
                     return E_ABORT; // Fast exit from cycle.
                 });
@@ -75,7 +83,9 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
     }
 
     if (MainThread && MainThread == userThread && threadName == "<No name>")
+    {
         return "Main Thread";
+    }
 
     return threadName;
 }

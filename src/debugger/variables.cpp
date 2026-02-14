@@ -21,7 +21,9 @@ static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numC
     numChild = 0;
 
     if (pValue == nullptr)
+    {
         return;
+    }
 
     int numStatic = 0;
     int numInstance = 0;
@@ -31,9 +33,13 @@ static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numC
                    const Evaluator::GetValueCallback &, Evaluator::SetterData *)
                 {
                     if (is_static)
+                    {
                         numStatic++;
+                    }
                     else
+                    {
                         numInstance++;
+                    }
                     return S_OK;
                 })))
     {
@@ -101,26 +107,35 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
         {
             if (is_static)
+            {
                 hasStaticMembers = true;
+            }
 
             const bool addMember = fetchOnlyStatic ? is_static : !is_static;
             if (!addMember)
+            {
                 return S_OK;
+            }
 
             ++currentIndex;
-            if (currentIndex < childStart)
+            if (currentIndex < childStart ||
+                currentIndex >= childEnd)
+            {
                 return S_OK;
-            if (currentIndex >= childEnd)
-                return S_OK;
+            }
 
             // Note, in this case error is not fatal, but if protocol side need cancel command execution, stop walk and return error to caller.
             ToRelease<ICorDebugValue> iCorResultValue;
             if (getValue(&iCorResultValue, evalFlags) == COR_E_OPERATIONCANCELED)
+            {
                 return COR_E_OPERATIONCANCELED;
+            }
 
             std::string className;
             if (pType)
+            {
                 IfFailRet(TypePrinter::GetTypeOfValue(pType, className));
+            }
 
             members.emplace_back(name, className, iCorResultValue.Detach());
             return S_OK;
@@ -137,7 +152,9 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
     auto it = m_references.find(variablesReference);
     if (it == m_references.end())
+    {
         return E_FAIL;
+    }
 
     VariableReference &ref = it->second;
 
@@ -148,9 +165,13 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
     // Named and Indexed variables are in the same index (internally), Named variables go first
     if (filter == VariablesFilter::Named && (start + count > ref.namedVariables || count == 0))
+    {
         count = ref.namedVariables - start;
+    }
     if (filter == VariablesFilter::Indexed)
+    {
         start += ref.namedVariables;
+    }
 
     if (ref.IsScope())
     {
@@ -168,12 +189,16 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
     if (m_references.size() == std::numeric_limits<uint32_t>::max())
+    {
         return E_FAIL;
+    }
 
     int numChild = 0;
     GetNumChild(m_sharedEvaluator.get(), pValue, numChild, valueKind == ValueKind::Class);
     if (numChild == 0)
+    {
         return S_OK;
+    }
 
     variable.namedVariables = numChild;
     variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
@@ -219,9 +244,13 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             ++currentIndex; // NOLINT(bugprone-inc-dec-in-conditions)
 
             if (currentIndex < start)
+            {
                 return S_OK;
+            }
             if (count != 0 && currentIndex >= start + count)
+            {
                 return E_ABORT; // Fast exit from cycle.
+            }
 
             Variable var;
             var.name = name;
@@ -247,7 +276,9 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)
+    {
         return E_FAIL;
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
@@ -257,7 +288,9 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
 
     ToRelease<ICorDebugValue> pExceptionValue;
     if (SUCCEEDED(pThread->GetCurrentException(&pExceptionValue)) && pExceptionValue != nullptr)
+    {
         namedVariables++;
+    }
 
     IfFailRet(m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
         [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
@@ -271,7 +304,9 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
         const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
         if (m_references.size() == std::numeric_limits<uint32_t>::max())
+        {
             return E_FAIL;
+        }
 
         variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
         VariableReference scopeReference(variablesReference, frameId, namedVariables);
@@ -299,10 +334,14 @@ static void FixupInheritedFieldNames(std::vector<VariableMember> &members)
 HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread, int start, int count, std::vector<Variable> &variables)
 {
     if (ref.IsScope())
+    {
         return E_INVALIDARG;
+    }
 
     if (ref.iCorValue == nullptr)
+    {
         return S_OK;
+    }
 
     HRESULT Status = S_OK;
     std::vector<VariableMember> members;
@@ -320,7 +359,9 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
         var.name = it.name;
         const bool isIndex = !it.name.empty() && it.name.at(0) == '[';
         if (var.name.find('(') == std::string::npos) // expression evaluator does not support typecasts
+        {
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
+        }
         IfFailRet(FillValueAndType(it, var));
         IfFailRet(AddVariableReference(var, ref.frameId, it.value, ValueKind::Variable));
         variables.push_back(var);
@@ -355,7 +396,9 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)
+    {
         return E_FAIL;
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;
@@ -380,7 +423,9 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
 
     auto it = m_references.find(ref);
     if (it == m_references.end())
+    {
         return E_FAIL;
+    }
 
     VariableReference &varRef = it->second;
     HRESULT Status = S_OK;
@@ -410,7 +455,9 @@ HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pTh
         [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
             if (varName != name)
+            {
                 return S_OK;
+            }
 
             ToRelease<ICorDebugValue> iCorValue;
             IfFailRet(getValue(&iCorValue, ref.evalFlags));
@@ -437,10 +484,14 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
                             const std::string &value, std::string &output)
 {
     if (ref.IsScope())
+    {
         return E_INVALIDARG;
+    }
 
     if (ref.iCorValue == nullptr)
+    {
         return S_OK;
+    }
 
     HRESULT Status = S_OK;
     bool found = false;
@@ -450,10 +501,14 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
             if (varName != name)
+            {
                 return S_OK;
+            }
 
             if (setterData && !setterData->setterFunction)
+            {
                 return E_FAIL;
+            }
 
             ToRelease<ICorDebugValue> iCorValue;
             IfFailRet(getValue(&iCorValue, ref.evalFlags));
@@ -481,7 +536,9 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)
+    {
         return E_FAIL;
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> pThread;

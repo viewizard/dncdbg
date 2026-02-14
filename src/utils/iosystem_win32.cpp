@@ -69,7 +69,9 @@ struct Initializer
         WSADATA wsa;
         int wsa_error = WSAStartup(MAKEWORD(2, 2), &wsa);
         if (wsa_error != 0)
+        {
             throw Win32Exception("WSAStartup failed", wsa_error);
+        }
     }
 
     ~Initializer()
@@ -87,7 +89,9 @@ static Initializer initializer;
 
         SOCKET serv = ::socket(domain, type, protocol);
         if (serv == INVALID_SOCKET)
+        {
             throw Win32Exception("can't create socket", WSAGetLastError());
+        }
 
         // TODO
         char name[] = "dncdbg";
@@ -170,7 +174,9 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
 #if 0
     SOCKET sv[2];
     if (wsa_socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0)
+    {
         return {FileHandle(), FileHandle()};
+    }
 #endif
 
     static constexpr size_t PipeSize = 32 * LINE_MAX;
@@ -283,15 +289,23 @@ Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 {
     DWORD flags = 0;
     if (!GetHandleInformation(fh.handle, &flags))
+    {
         return {IOResult::Error};
+    }
 
     if (inherit)
+    {
         flags |= HANDLE_FLAG_INHERIT;
+    }
     else
+    {
         flags &= ~HANDLE_FLAG_INHERIT;
+    }
 
     if (!SetHandleInformation(fh.handle, HANDLE_FLAG_INHERIT, flags))
+    {
         return {IOResult::Error};
+    }
 
     return {IOResult::Success};
 }
@@ -302,9 +316,13 @@ Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
     DWORD dwRead = 0;
     OVERLAPPED ov = {};
     if (!ReadFile(fh.handle, buf, (DWORD)count, &dwRead, &ov))
+    {
         return {(GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwRead};
+    }
     else
+    {
         return {(dwRead == 0 ? IOResult::Eof : IOResult::Success), dwRead};
+    }
 }
 
 // Function perform writing to the file: it may write up to `count' byte from `buf'.
@@ -314,15 +332,21 @@ Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count
     DWORD dwWritten = 0;
     OVERLAPPED ov = {};
     if (!WriteFile(fh.handle, buf, (DWORD)count, &dwWritten, &ov))
+    {
         return {(GetLastError() == ERROR_IO_PENDING ? IOResult::Pending : IOResult::Error), dwWritten};
+    }
     else
+    {
         return {IOResult::Success, dwWritten};
+    }
 }
 
 Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t count)
 {
     if (fh.handle == INVALID_HANDLE_VALUE)
+    {
         return {};
+    }
 
     AsyncHandle result;
     result.check_eof = true;
@@ -331,7 +355,9 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
     memset(result.overlapped.get(), 0, sizeof(OVERLAPPED));
     result.overlapped->hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (result.overlapped->hEvent == INVALID_HANDLE_VALUE)
+    {
         return {};
+    }
 
     DWORD val;
     DWORD bytesRead;
@@ -343,14 +369,20 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
         {
             INPUT_RECORD event;
             if (!PeekConsoleInput(fh.handle, &event, 1, &bytesRead))
+            {
                 return {};
+            }
             if (event.EventType != KEY_EVENT || (event.EventType == KEY_EVENT && !event.Event.KeyEvent.bKeyDown))
             {
                 if (!ReadConsoleInput(fh.handle, &event, 1, &bytesRead))
+                {
                     return {};
+                }
             }
             else
+            {
                 break;
+            }
         }
         if (!val)
         {
@@ -363,7 +395,9 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
     if (!ReadFile(fh.handle, buf, static_cast<DWORD>(count), nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
+        {
             return {};
+        }
     }
 
     return result;
@@ -372,7 +406,9 @@ Class::AsyncHandle Class::async_read(const FileHandle &fh, void *buf, size_t cou
 Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, size_t count)
 {
     if (fh.handle == INVALID_HANDLE_VALUE)
+    {
         return {};
+    }
 
     AsyncHandle result;
     result.handle = fh.handle;
@@ -385,7 +421,9 @@ Class::AsyncHandle Class::async_write(const FileHandle &fh, const void *buf, siz
     if (!WriteFile(fh.handle, buf, static_cast<DWORD>(count), nullptr, result.overlapped.get()))
     {
         if (GetLastError() != ERROR_IO_PENDING)
+        {
             return {};
+        }
     }
 
     return result;
@@ -401,15 +439,21 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
         {
             DWORD val;
             if (GetNumberOfConsoleInputEvents(it->handle.handle, &val) && val)
+            {
                 SetEvent(it->handle.overlapped->hEvent);
+            }
         }
     }
 
     // count number of active handles
     unsigned count = 0;
     for (auto it = begin; it != end; ++it)
+    {
         if (*it)
+        {
             ++count;
+        }
+    }
 
     // allocate memory for events array
     HANDLE *events = static_cast<HANDLE *>(alloca(count * sizeof(HANDLE)));
@@ -417,7 +461,9 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
     for (auto it = begin; it != end; ++it)
     {
         if (*it)
+        {
             events[n++] = it->handle.overlapped->hEvent;
+        }
     }
 
     assert(n == count);
@@ -428,10 +474,14 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 Class::IOResult Class::async_cancel(AsyncHandle &h)
 {
     if (!h)
+    {
         return {IOResult::Error};
+    }
 
     if (!CloseHandle(h.overlapped->hEvent))
+    {
         perror("CloseHandle(event) error");
+    }
 
     // console workaround -- canceling deferred operation
     if (h.buf)
@@ -442,9 +492,13 @@ Class::IOResult Class::async_cancel(AsyncHandle &h)
 
     IOResult result;
     if (!CancelIoEx(h.handle, h.overlapped.get()))
+    {
         result = {IOResult::Error};
+    }
     else
+    {
         result = {IOResult::Success};
+    }
 
     h = AsyncHandle();
     return result;
@@ -453,7 +507,9 @@ Class::IOResult Class::async_cancel(AsyncHandle &h)
 Class::IOResult Class::async_result(AsyncHandle &h)
 {
     if (!h)
+    {
         return {IOResult::Error};
+    }
 
     DWORD bytes = 1;
     bool finished;
@@ -471,22 +527,30 @@ Class::IOResult Class::async_result(AsyncHandle &h)
         {
             DWORD error = GetLastError();
             if (error == ERROR_IO_INCOMPLETE)
+            {
                 return {IOResult::Pending};
+            }
         }
     }
 
     if (!CloseHandle(h.overlapped->hEvent))
+    {
         perror("CloseHandle(event) error");
+    }
 
     bool check_eof = h.check_eof;
 
     h = AsyncHandle();
 
     if (!finished)
+    {
         return {IOResult::Error};
+    }
 
     if (check_eof && bytes == 0)
+    {
         return {IOResult::Eof, bytes};
+    }
 
     return {IOResult::Success, bytes};
 }
@@ -496,9 +560,13 @@ Class::IOResult Class::close(const FileHandle &fh)
 {
     assert(fh);
     if (fh.type == FileHandle::Socket)
+    {
         return {::closesocket(reinterpret_cast<SOCKET>(fh.handle)) == 0 ? IOResult::Success : IOResult::Error};
+    }
     else
+    {
         return {::CloseHandle(fh.handle) ? IOResult::Success : IOResult::Error};
+    }
 }
 
 // Function allows non-blocking IO on files, it is similar with select(2) system call on Unix.
@@ -554,7 +622,9 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
     for (unsigned n = 0; n < NFD; n++)
     {
         if (new_handles[n].type != FileHandle::FileOrPipe)
+        {
             throw std::runtime_error("can't use socket handle for stdin/stdout/stderr");
+        }
     }
 
     for (unsigned n = 0; n < NFD; n++)
@@ -568,7 +638,9 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
         }
 
         if (!SetHandleInformation(new_handles[n].handle, HANDLE_FLAG_INHERIT, 1))
+        {
             static_cast<void>(fprintf(stderr, "SetHandleInformation failed!\n"));
+        }
 
         if (!SetStdHandle(std_handles[n], new_handles[n].handle))
         {
@@ -579,14 +651,20 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 
         int fd = _open_osfhandle(reinterpret_cast<intptr_t>(new_handles[n].handle), open_flags[n]);
         if (fd == -1)
+        {
             throw Win32Exception("_open_osfhandle");
+        }
 
         m_orig_fd[n] = _dup(open_fds[n]);
         if (m_orig_fd[n] == -1)
+        {
             throw Win32Exception("_dup");
+        }
 
         if (_dup2(fd, open_fds[n]) == -1)
+        {
             throw Win32Exception("_dup2");
+        }
 
         close(fd);
     }
@@ -595,7 +673,9 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 Class::StdIOSwap::~StdIOSwap()
 {
     if (!m_valid)
+    {
         return;
+    }
 
     static const unsigned NFD = std::tuple_size_v<StdFiles>;
     static const DWORD std_handles[NFD] = {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};

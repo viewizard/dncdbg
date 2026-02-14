@@ -30,7 +30,9 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     }
 
     if (!m_evalResult || m_evalResult->threadId != threadId)
+    {
         return;
+    }
 
     m_evalResult->promiseValue.set_value(std::move(ppEvalResult));
     m_evalResult.reset(nullptr);
@@ -47,13 +49,17 @@ void EvalWaiter::CancelEvalRunning()
     const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
 
     if (!m_evalResult)
+    {
         return;
+    }
 
     ToRelease<ICorDebugEval2> iCorEval2;
     if (SUCCEEDED(m_evalResult->pEval->Abort()) ||
         (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))) &&
          SUCCEEDED(iCorEval2->RudeAbort())))
+    {
         m_evalCanceled = true;
+    }
 }
 
 std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(HRESULT &Status,
@@ -98,7 +104,9 @@ ICorDebugEval *EvalWaiter::FindEvalForThread(ICorDebugThread *pThread)
 
     DWORD threadId = 0;
     if (FAILED(pThread->GetID(&threadId)) || !m_evalResult)
+    {
         return nullptr;
+    }
 
     return m_evalResult->threadId == threadId ? m_evalResult->pEval : nullptr;
 }
@@ -116,7 +124,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     ToRelease<ICorDebugProcess> iCorProcess;
     IfFailRet(pThread->GetProcess(&iCorProcess));
     if (iCorProcess == nullptr)
+    {
         return E_FAIL;
+    }
     DWORD evalThreadId = 0;
     IfFailRet(pThread->GetID(&evalThreadId));
 
@@ -130,15 +140,18 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
         while (SUCCEEDED(iCorThreadEnum->Next(1, &iCorThread, &fetched)) && fetched == 1)
         {
             DWORD tid = 0;
-            if (SUCCEEDED(iCorThread->GetID(&tid)) && evalThreadId != tid)
+            if (SUCCEEDED(iCorThread->GetID(&tid)) &&
+                evalThreadId != tid &&
+                FAILED(iCorThread->SetDebugState(state)))
             {
-                if (FAILED(iCorThread->SetDebugState(state)))
+                if (state == THREAD_SUSPEND)
                 {
-                    if (state == THREAD_SUSPEND)
-                        LOGW("%s %s", "SetDebugState(THREAD_SUSPEND) during eval setup failed.",
-                             "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
-                    else
-                        LOGW("SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
+                    LOGW("%s %s", "SetDebugState(THREAD_SUSPEND) during eval setup failed.",
+                            "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
+                }
+                else
+                {
+                    LOGW("SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
                 }
             }
             iCorThread.Free();
@@ -159,7 +172,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             IfFailRet(Status);
 
             if (!f.valid())
+            {
                 return E_FAIL;
+            }
 
             // NOTE
             // MSVS 2017 debugger and newer use config file
@@ -188,7 +203,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 {
                     ToRelease<ICorDebugEval2> iCorEval2;
                     if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))))
+                    {
                         iCorEval2->RudeAbort();
+                    }
                 }
 
                 evalTimeOut = true;
@@ -211,7 +228,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             IfFailRet(evalResult->Status);
 
             if (!ppEvalResult)
+            {
                 return S_OK;
+            }
 
             *ppEvalResult = evalResult->iCorEval.Detach();
             return evalResult->Status;
@@ -233,9 +252,13 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     if (ret == CORDBG_S_FUNC_EVAL_ABORTED)
     {
         if (m_evalCrossThreadDependency)
+        {
             ret = CORDBG_E_CANT_CALL_ON_THIS_THREAD;
+        }
         else
+        {
             ret = m_evalCanceled ? COR_E_OPERATIONCANCELED : COR_E_TIMEOUT;
+        }
     }
     // In this case we have same behaviour as MS vsdbg and MSVS C# debugger - in case it was aborted with timeout, show proper error.
     else if (evalTimeOut)
@@ -257,7 +280,9 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     // In this case we have same behaviour as MSVS C# debugger (ATM vsdbg don't support Debugger.NotifyOfCrossThreadDependency).
     ICorDebugEval *pEval = FindEvalForThread(pThread);
     if (pEval == nullptr)
+    {
         return S_OK;
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugEval2> iCorEval2;

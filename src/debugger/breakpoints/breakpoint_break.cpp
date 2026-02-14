@@ -17,7 +17,9 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
@@ -39,7 +41,9 @@ HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, Ful
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
+    {
         return E_FAIL;
+    }
 
     fullyQualifiedIlOffset.modAddress = modAddress;
     fullyQualifiedIlOffset.methodToken = methodToken;
@@ -55,11 +59,15 @@ void BreakBreakpoint::SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const T
     m_lastStoppedIlOffset.Reset();
 
     if (lastStoppedThreadId == ThreadId::AllThreads)
+    {
         return;
+    }
 
     ToRelease<ICorDebugThread> pThread;
     if (SUCCEEDED(pProcess->GetThread(static_cast<int>(lastStoppedThreadId), &pThread)))
+    {
         GetFullyQualifiedIlOffset(pThread, m_lastStoppedIlOffset);
+    }
 }
 
 HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)
@@ -79,7 +87,9 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         IfFailRet(iCorFunction2->GetJMCStatus(&JMCStatus));
 
         if (JMCStatus == FALSE)
+        {
             return S_OK;
+        }
     }
 
     const ThreadId threadId(getThreadId(pThread));
@@ -96,14 +106,18 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     if (threadId != lastStoppedThreadId ||
         m_lastStoppedIlOffset.modAddress == 0 ||
         m_lastStoppedIlOffset.methodToken == 0)
+    {
         return S_FALSE;
+    }
 
     FullyQualifiedIlOffset_t fullyQualifiedIlOffset;
     IfFailRet(GetFullyQualifiedIlOffset(pThread, fullyQualifiedIlOffset));
 
     if (fullyQualifiedIlOffset.modAddress != m_lastStoppedIlOffset.modAddress ||
         fullyQualifiedIlOffset.methodToken != m_lastStoppedIlOffset.methodToken)
+    {
         return S_FALSE;
+    }
 
     SequencePoint lastSP;
     IfFailRet(m_sharedModules->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
@@ -119,7 +133,9 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         lastSP.endColumn != curSP.endColumn ||
         lastSP.offset != curSP.offset ||
         lastSP.document != curSP.document)
+    {
         return S_FALSE;
+    }
 
     return S_OK;
 }

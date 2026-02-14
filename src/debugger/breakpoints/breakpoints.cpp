@@ -68,7 +68,9 @@ HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
         ToRelease<ICorDebugAppDomain> pDomain(curDomain);
         ToRelease<ICorDebugBreakpointEnum> breakpoints;
         if (FAILED(pDomain->EnumerateBreakpoints(&breakpoints)))
+        {
             continue;
+        }
 
         ICorDebugBreakpoint *curBreakpoint = nullptr;
         ULONG breakpointsFetched = 0;

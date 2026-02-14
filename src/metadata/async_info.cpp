@@ -18,10 +18,14 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
     // behaviour and debugger logic also count on this.
 
     if (asyncMethodSteppingInfo.modAddress == modAddress && asyncMethodSteppingInfo.methodToken == methodToken)
+    {
         return asyncMethodSteppingInfo.retCode;
+    }
 
     if (!asyncMethodSteppingInfo.awaits.empty())
+    {
         asyncMethodSteppingInfo.awaits.clear();
+    }
 
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
@@ -29,7 +33,9 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
         [&](ModuleInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
                 return E_FAIL;
+            }
 
             HRESULT Status = S_OK;
             std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
@@ -68,14 +74,18 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
     const std::scoped_lock<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
     if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken)))
+    {
         return false;
+    }
 
     for (auto &await : asyncMethodSteppingInfo.awaits)
     {
         if (ipOffset <= await.yield_offset)
         {
             if (awaitInfo != nullptr)
+            {
                 *awaitInfo = &await;
+            }
             return true;
         }
         // Stop search, if IP inside 'await' routine.
@@ -99,7 +109,9 @@ bool AsyncInfo::FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef 
     const std::scoped_lock<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
     if (FAILED(GetAsyncMethodSteppingInfo(modAddress, methodToken)))
+    {
         return false;
+    }
 
     lastIlOffset = asyncMethodSteppingInfo.lastIlOffset;
     return true;

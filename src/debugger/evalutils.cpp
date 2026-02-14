@@ -48,12 +48,16 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
         case '<':
             paramDepth++;
             if (paramDepth == 1)
+            {
                 continue;
+            }
             break;
         case '>':
             paramDepth--;
             if (paramDepth == 0)
+            {
                 continue;
+            }
             break;
         default:
             break;
@@ -111,7 +115,9 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
     }
 
     if (typeToken == mdTypeDefNil) // type not found, continue search in next module
+    {
         return E_FAIL;
+    }
 
     // Resolve nested class
     for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
@@ -120,7 +126,9 @@ static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std:
         ParseGenericParams(identifiers[j], name);
         const mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
         if (classToken == mdTypeDefNil)
+        {
             break;
+        }
         typeToken = classToken;
         nextIdentifier = j + 1;
     }
@@ -134,7 +142,9 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = ParseType(typeName, ranks);
     if (classIdentifiers.size() == 1)
+    {
         classIdentifiers[0] = TypePrinter::RenameToSystem(classIdentifiers[0]);
+    }
 
     ToRelease<ICorDebugType> pType;
     int nextClassIdentifier = 0;
@@ -187,13 +197,17 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
             break;
         case ']':
             if (paramDepth == 0)
+            {
                 continue;
+            }
             break;
         case ',':
             if (paramDepth == 0)
             {
                 if (!ranks.empty())
+                {
                     ranks.back()++;
+                }
                 continue;
             }
             break;
@@ -232,7 +246,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     HRESULT Status = S_OK;
 
     if (pModule != nullptr)
+    {
         pModule->AddRef();
+    }
     ToRelease<ICorDebugModule> pTypeModule(pModule);
 
     mdTypeDef typeToken = mdTypeDefNil;
@@ -241,7 +257,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         pModules->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
             if (typeToken != mdTypeDefNil) // already found
+            {
                 return S_OK;
+            }
 
             if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
             {
@@ -257,7 +275,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     }
 
     if (typeToken == mdTypeDefNil)
+    {
         return E_FAIL;
+    }
 
     if (ppType != nullptr)
     {
@@ -294,7 +314,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         *ppType = pType.Detach();
     }
     if (ppModule != nullptr)
+    {
         *ppModule = pTypeModule.Detach();
+    }
 
     return S_OK;
 }

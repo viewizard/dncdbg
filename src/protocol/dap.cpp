@@ -65,12 +65,16 @@ static void to_json(json &j, const Breakpoint &b) {
              {"line",     b.line},
              {"verified", b.verified}};
     if (!b.message.empty())
+    {
         j["message"] = b.message;
+    }
     if (b.verified)
     {
         j["endLine"] = b.endLine;
         if (!b.source.IsNull())
+        {
             j["source"] = b.source;
+        }
     }
 }
 
@@ -83,7 +87,9 @@ static void to_json(json &j, const StackFrame &f) {
              {"endColumn", f.endColumn},
              {"moduleId",  f.moduleId}};
     if (!f.source.IsNull())
+    {
         j["source"] = f.source;
+    }
 }
 
 static void to_json(json &j, const Thread &t)
@@ -131,7 +137,9 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
                 {"source", details.source}};
 
     if (!details.message.empty())
+    {
         result["message"] = details.message;
+    }
 
     if (details.innerException)
     {
@@ -152,7 +160,9 @@ void DAP::EmitContinuedEvent(ThreadId threadId)
     json body;
 
     if (threadId)
+    {
         body["threadId"] = static_cast<int>(threadId);
+    }
 
     body["allThreadsContinued"] = true;
     EmitEvent("continued", body);
@@ -186,7 +196,9 @@ void DAP::EmitStoppedEvent(const StoppedEvent &event)
     // Note, `description` not in use at this moment, provide `reason` only.
 
     if (!event.text.empty())
+    {
         body["text"] = event.text;
+    }
 
     body["threadId"] = static_cast<int>(event.threadId);
     body["allThreadsStopped"] = event.allThreadsStopped;
@@ -442,7 +454,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 {
                     auto findFilter = g_DAPFilters.find(entry);
                     if (findFilter == g_DAPFilters.end())
+                    {
                         return E_INVALIDARG;
+                    }
                     // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
                     // don't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
@@ -452,23 +466,31 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 {
                     auto findId = entry.find("filterId");
                     if (findId == entry.end() || findId->second.empty())
+                    {
                         return E_INVALIDARG;
+                    }
 
                     auto findFilter = g_DAPFilters.find(findId->second);
                     if (findFilter == g_DAPFilters.end())
+                    {
                         return E_INVALIDARG;
+                    }
                     // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
                     // don't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
 
                     auto findCondition = entry.find("condition");
                     if (findCondition == entry.end() || findCondition->second.empty())
+                    {
                         continue;
+                    }
 
                     if (findCondition->second[0] == '!')
                     {
                         if (findCondition->second.size() == 1)
+                        {
                             continue;
+                        }
 
                         findCondition->second[0] = ' ';
                         exceptionBreakpoints.back().negativeCondition = true;
@@ -513,7 +535,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 std::vector<LineBreakpoint> lineBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
+                {
                     lineBreakpoints.emplace_back(std::string(), b.at("line"), b.value("condition", std::string()));
+                }
 
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(sharedDebugger->SetLineBreakpoints(arguments.at("source").at("path"), lineBreakpoints, breakpoints));
@@ -544,7 +568,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     "enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
 
                 if (!fileExec.empty())
+                {
                     return sharedDebugger->Launch(fileExec, execArgs, env, cwd, arguments.value("stopAtEntry", false));
+                }
 
                 const std::string program = arguments.at("program").get<std::string>();
                 std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
@@ -577,10 +603,14 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 auto terminateArgIter = arguments.find("terminateDebuggee");
                 DisconnectAction action = DisconnectAction::Default;
                 if (terminateArgIter == arguments.end())
+                {
                     action = DisconnectAction::Default;
+                }
                 else
+                {
                     action = terminateArgIter.value().get<bool>() ? DisconnectAction::Terminate
                                                                   : DisconnectAction::Detach;
+                }
 
                 sharedDebugger->Disconnect(action);
 
@@ -653,9 +683,13 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 const std::string filterName = arguments.value("filter", "");
                 VariablesFilter filter = VariablesFilter::Both;
                 if (filterName == "named")
+                {
                     filter = VariablesFilter::Named;
+                }
                 else if (filterName == "indexed")
+                {
                     filter = VariablesFilter::Indexed;
+                }
 
                 std::vector<Variable> variables;
                 IfFailRet(sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,
@@ -697,7 +731,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         body["message"] = stream.str();
                     }
                     else
+                    {
                         body["message"] = output;
+                    }
 
                     return Status;
                 }
@@ -743,7 +779,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         body["message"] = stream.str();
                     }
                     else
+                    {
                         body["message"] = output;
+                    }
 
                     return Status;
                 }
@@ -757,11 +795,17 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 const json &processIdArg = arguments.at("processId");
                 if (processIdArg.is_string())
+                {
                     processId = std::stoi(processIdArg.get<std::string>());
+                }
                 else if (processIdArg.is_number())
+                {
                     processId = processIdArg;
+                }
                 else
+                {
                     return E_INVALIDARG;
+                }
 
                 return sharedDebugger->Attach(processId);
             }},
@@ -866,14 +910,20 @@ static std::string ReadData(std::istream &cin)
         if (!cin.good())
         {
             if (cin.eof())
+            {
                 LOGI("EOF");
+            }
             else
+            {
                 LOGE("input stream reading error");
+            }
             return {};
         }
 
         if (!line.empty() && line.back() == '\r')
+        {
             line.pop_back();
+        }
 
         if (line.empty())
         {
@@ -891,7 +941,9 @@ static std::string ReadData(std::istream &cin)
             std::equal(CONTENT_LENGTH.begin(), CONTENT_LENGTH.end(), line.begin()))
         {
             if (content_len >= 0)
+            {
                 LOGW("protocol violation: duplicate '%s'", line.c_str());
+            }
 
             char *p = nullptr; // NOLINT(misc-const-correctness)
             errno = 0;
@@ -908,9 +960,13 @@ static std::string ReadData(std::istream &cin)
     if (!cin.read(result.data(), content_len))
     {
         if (cin.eof())
+        {
             LOGE("Unexpected EOF!");
+        }
         else
+        {
             LOGE("input stream reading error");
+        }
         return {};
     }
 
@@ -938,7 +994,9 @@ void DAP::CommandsWorker()
         if (c.command == "ncdbg_disconnect")
         {
             if (m_sharedDebugger != nullptr)
+            {
                 m_sharedDebugger->Disconnect();
+            }
             break;
         }
 
@@ -970,7 +1028,9 @@ void DAP::CommandsWorker()
             Status = COR_E_TIMEOUT;
         }
         else
+        {
             Status = future.get();
+        }
 
         if (SUCCEEDED(Status))
         {
@@ -987,7 +1047,9 @@ void DAP::CommandsWorker()
                 c.response["message"] = ss.str();
             }
             else
+            {
                 c.response["message"] = body["message"];
+            }
 
             c.response["success"] = false;
         }
@@ -996,14 +1058,20 @@ void DAP::CommandsWorker()
 
         // Post command action.
         if (g_syncCommandExecutionSet.find(c.command) != g_syncCommandExecutionSet.end())
+        {
             m_commandSyncCV.notify_one();
+        }
 
         if (c.command == "disconnect")
+        {
             break;
+        }
         // The Debug Adapter Protocol specifies that `InitializedEvent` occurs after the `InitializeRequest` has returned:
         // https://microsoft.github.io/debug-adapter-protocol/specification#arrow_left-initialized-event
         else if (c.command == "initialize" && SUCCEEDED(Status))
+        {
             EmitInitializedEvent();
+        }
 
         lockCommandsMutex.lock();
     }
@@ -1082,26 +1150,36 @@ void DAP::CommandLoop()
             queueEntry.response = resp;
 
             if (request["type"] != "request")
+            {
                 throw bad_format("wrong request type!");
+            }
 
             auto argIter = request.find("arguments");
             queueEntry.arguments = (argIter == request.end() ? json::object() : argIter.value());
 
             // Pre command action.
             if (queueEntry.command == "initialize")
+            {
                 EmitCapabilitiesEvent();
+            }
             else if (g_cancelCommandQueueSet.find(queueEntry.command) != g_cancelCommandQueueSet.end())
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
                 if (m_sharedDebugger != nullptr)
+                {
                     m_sharedDebugger->CancelEvalRunning();
+                }
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
                 {
                     if (g_debuggerSetupCommandSet.find(iter->command) != g_debuggerSetupCommandSet.end())
+                    {
                         ++iter;
+                    }
                     else
+                    {
                         iter = CancelCommand(iter);
+                    }
                 }
             }
             // Note, in case "cancel" this is command implementation itself.
@@ -1113,10 +1191,14 @@ void DAP::CommandLoop()
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end(); ++iter)
                 {
                     if (requestId != iter->response["request_seq"])
+                    {
                         continue;
+                    }
 
                     if (g_debuggerSetupCommandSet.find(iter->command) != g_debuggerSetupCommandSet.end())
+                    {
                         break;
+                    }
 
                     CancelCommand(iter);
 
@@ -1126,7 +1208,9 @@ void DAP::CommandLoop()
                 lockCommandsMutex.unlock();
 
                 if (!queueEntry.response["success"])
+                {
                     queueEntry.response["message"] = "CancelRequest is not supported for requestId.";
+                }
 
                 EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
                 continue;
@@ -1138,7 +1222,9 @@ void DAP::CommandLoop()
             m_commandsCV.notify_one(); // notify_one with lock
 
             if (isCommandNeedSync)
+            {
                 m_commandSyncCV.wait(lockCommandsMutex);
+            }
 
             continue;
         }
@@ -1167,7 +1253,9 @@ void DAP::CommandLoop()
 void DAP::SetupProtocolLogging(const std::string &path)
 {
     if (path.empty())
+    {
         return;
+    }
 
     m_protocolLog.open(path);
 }
@@ -1176,7 +1264,9 @@ void DAP::SetupProtocolLogging(const std::string &path)
 void DAP::Log(const std::string_view &prefix, const std::string &text)
 {
     if (!m_protocolLog.is_open())
+    {
         return;
+    }
     
     m_protocolLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }

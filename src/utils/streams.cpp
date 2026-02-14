@@ -78,7 +78,9 @@ int InStreamBuf::underflow()
 
     const size_t free = endp() - egptr();
     if (free < min_read_size() && in_avail() > 0)
+    {
         return traits_type::to_int_type(*gptr());
+    }
 
     using IOResult = IOSystem::IOResult;
     IOResult res;
@@ -96,7 +98,9 @@ int InStreamBuf::underflow()
         }
 
         if (res.status == IOResult::Success)
+        {
             break;
+        }
 
         std::this_thread::yield(); // loop  for non-blocking streams
     }
@@ -140,10 +144,14 @@ int OutStreamBuf::overflow(int c)
         size = pptr() - pbase();
         res = IOSystem::write(file_handle, pbase(), size);
         if (res.status == IOResult::Error)
+        {
             return traits_type::eof();
+        }
 
         if (res.status == IOResult::Success)
+        {
             break;
+        }
 
         std::this_thread::yield(); // for non-blocking streams
     }
@@ -166,15 +174,21 @@ int OutStreamBuf::sync()
         // try to write data
         const size_t size = pptr() - pbase();
         if (size == 0)
+        {
             break;
+        }
 
         using IOResult = IOSystem::IOResult;
         const IOResult res = IOSystem::write(file_handle, pbase(), size);
         if (res.status == IOResult::Error)
+        {
             return -1;
+        }
 
         if (res.status == IOResult::Success && size == res.size)
+        {
             break; // all data written
+        }
 
         setp(pbase() + res.size, epptr());
         pbump(static_cast<int>(size - res.size));

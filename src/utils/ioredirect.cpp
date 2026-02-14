@@ -137,8 +137,12 @@ void IORedirectHelper::worker()
     auto on_exit = [&](void *)
         {
             for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
+            {
                 if (h)
+                {
                     IOSystem::async_cancel(h);
+                }
+            }
 
             LOGI("IORedirectHelper::worker: terminated");
         };
@@ -159,14 +163,18 @@ void IORedirectHelper::worker()
     {
         // start new write requests if possible
         if (!out_handle)
+        {
             StartNewWriteRequests(read_lock, out_stream, out_handle);
+        }
 
         // process data available in buffer for input in_streams
         for (unsigned n = 0; n < Utility::Size(stream_types); n++)
         {
             InStreamBuf *const stream = in_streams[n];
             if (stream == nullptr)
+            {
                 continue;
+            }
 
             // process data already existing in the buffer
             const size_t avail = stream->egptr() - stream->gptr();
@@ -186,7 +194,9 @@ void IORedirectHelper::worker()
                 async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
 
                 if (LOGE_IF(!async_handles[n], "can't issue async read request!"))
+                {
                     return;
+                }
             }
         }
 
@@ -199,10 +209,14 @@ void IORedirectHelper::worker()
         if (result.status != IOSystem::IOResult::Pending)
         {
             if (LOGE_IF(result.status != IOSystem::IOResult::Success, "control pipe read error"))
+            {
                 return;
+            }
 
             if (m_finish)
+            {
                 return; // exit request
+            }
 
             // issue next read request for control pipe
             pipe_handle = IOSystem::async_read(m_worker_pipe.first, &dummybuf, 1);
@@ -210,11 +224,15 @@ void IORedirectHelper::worker()
 
         // process finished write requests
         if (out_handle && !ProcessFinishedWriteRequests(read_lock, out_stream, out_handle))
+        {
             return;
+        }
 
         // process finished read requests
         if (!ProcessFinishedReadRequests(in_streams, Utility::Size(stream_types), async_handles))
+        {
             return;
+        }
     }
 }
 
@@ -234,7 +252,9 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *
         out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
 
         if (LOGE_IF(!out_handle, "can't issue async write request!"))
+        {
             return;
+        }
 
         m_unsent = out_stream->pptr();
     }
@@ -293,7 +313,9 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
 
             // wake reader to read more data
             if (updated)
+            {
                 wake_reader();
+            }
         }
     }
     else if (result.status != IOSystem::IOResult::Pending)
@@ -313,7 +335,9 @@ bool IORedirectHelper::ProcessFinishedReadRequests(std::array<InStreamBuf *const
     {
         InStreamBuf *const stream = in_streams[n];
         if (stream == nullptr)
+        {
             continue;
+        }
 
         const IOSystem::IOResult result = IOSystem::async_result(async_handles[n]);
         if (result.status == IOSystem::IOResult::Success)
@@ -341,13 +365,17 @@ void IORedirectHelper::async_cancel()
     LOGD("canceling reading of real stdin");
     bool expected = false;
     if (m_cancel.compare_exchange_strong(expected, true))
+    {
         wake_reader();
+    }
 }
 
 AsyncResult IORedirectHelper::async_input(InStream &instream)
 {
     if (m_eof)
+    {
         return AsyncResult::Eof;
+    }
 
     auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
     if (out == nullptr)
@@ -362,12 +390,18 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
 
     auto on_exit = [&](void *) {
         for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        {
             if (h)
+            {
                 IOSystem::async_cancel(h);
+            }
+        }
 
         bool expected = true;
         if (m_cancel.compare_exchange_strong(expected, false))
+        {
             LOGD("async_input: canceled");
+        }
     };
 
     const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
@@ -376,7 +410,9 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
     char dummybuf = 0;
     pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
     if (LOGE_IF(!pipe_handle, "%s: control pipe reading error", __func__))
+    {
         return AsyncResult::Error;
+    }
 
     ReadLock read_lock(m_rwlock, std::defer_lock_t{});
 
@@ -399,7 +435,9 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
                 input_handle = IOSystem::async_read(instream.get_file_handle(), out->pptr(), avail);
 
                 if (LOGE_IF(!input_handle, "can't issue read request for real stdin"))
+                {
                     return AsyncResult::Error;
+                }
             }
             else
             {
@@ -416,17 +454,23 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
         auto &PollPeriod = WaitForever;
 #endif
         if (IOSystem::async_wait(async_handles, &async_handles[Utility::Size(async_handles)], PollPeriod))
+        {
             LOGD("%s: wake", __func__);
+        }
 
         // check if cancellation requested
         IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
         if (result.status != IOSystem::IOResult::Pending)
         {
             if (LOGE_IF(result.status != IOSystem::IOResult::Success, "control pipe read error"))
+            {
                 return AsyncResult::Error;
+            }
 
             if (m_cancel.load())
+            {
                 return AsyncResult::Canceled;
+            }
 
             pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
         }

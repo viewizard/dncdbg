@@ -28,7 +28,6 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
   readability-*,
-  -readability-braces-around-statements,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-magic-numbers,

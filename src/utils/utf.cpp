@@ -25,7 +25,9 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
 #endif
     iconv_t conv = iconv_open(toCode, "UTF-8"); // Open converter from UTF-8 to UTF-16LE
     if (conv == reinterpret_cast<iconv_t>(-1)) // NOLINT(performance-no-int-to-ptr)
+    {
         return {};
+    }
 
     size_t in_bytes = utf8_str.size();
     char *in_buf = const_cast<char *>(utf8_str.c_str()); // NOLINT(misc-const-correctness,cppcoreguidelines-pro-type-const-cast)
@@ -55,7 +57,9 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
 #endif
     iconv_t conv = iconv_open("UTF-8", fromCode); // Open converter from UTF-16LE to UTF-8
     if (conv == reinterpret_cast<iconv_t>(-1)) // NOLINT(performance-no-int-to-ptr)
+    {
         return {};
+    }
 
     size_t in_bytes = utf16_str.size() * sizeof(char16_t);
     char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str())); // NOLINT(misc-const-correctness,cppcoreguidelines-pro-type-const-cast)

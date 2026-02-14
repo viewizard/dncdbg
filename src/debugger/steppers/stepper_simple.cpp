@@ -76,7 +76,9 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
 
         ToRelease<ICorDebugStepperEnum> steppers;
         if (FAILED(pAppDomain->EnumerateSteppers(&steppers)))
+        {
             return false;
+        }
 
         ICorDebugStepper *curStepper = nullptr;
         ULONG steppersFetched = 0;
@@ -85,14 +87,18 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
             BOOL pbActive = TRUE;
             ToRelease<ICorDebugStepper> pStepper(curStepper);
             if (SUCCEEDED(pStepper->IsActive(&pbActive)) && pbActive)
+            {
                 return false;
+            }
         }
 
         return true;
     };
 
     if (stepForcedIgnoreBP())
+    {
         return S_OK;
+    }
 
     return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
 }

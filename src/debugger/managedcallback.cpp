@@ -185,7 +185,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProces
     LogFuncEntry();
 
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    {
         LOGW("The target process exited while evaluating the function.");
+    }
 
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(nullptr, nullptr);
 
@@ -218,7 +220,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     LogFuncEntry();
 
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    {
         LOGW("Thread was created by user code during evaluation with implicit user code execution.");
+    }
 
     const ThreadId threadId(getThreadId(pThread));
     m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartMethod::Attach);
@@ -236,7 +240,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, nullptr);
     if (m_debugger.GetLastStoppedThreadId() == threadId)
+    {
         m_debugger.InvalidateLastStoppedThreadId();
+    }
 
     m_debugger.m_uniqueBreakpoints->ManagedCallbackExitThread(pThread);
 
@@ -461,7 +467,9 @@ static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excMo
 static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame, bool justMyCode)
 {
     if (!justMyCode)
+    {
         return ExceptionCallbackType::CATCH_HANDLER_FOUND;
+    }
 
     BOOL JMCStatus = FALSE;
     ToRelease<ICorDebugFunction> iCorFunction;

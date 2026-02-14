@@ -24,11 +24,15 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::funct
         mdToken ptkType = mdTokenNil;
         if (FAILED(pMD->GetCustomAttributeProps(attr, &ptkObj, &ptkType, nullptr, nullptr)) ||
             FAILED(TypePrinter::NameForToken(ptkType, pMD, mdName, true, nullptr)))
+        {
             continue;
+        }
 
         found = cb(mdName);
         if (found)
+        {
             break;
+        }
     }
     pMD->CloseEnum(fEnum);
     return found;

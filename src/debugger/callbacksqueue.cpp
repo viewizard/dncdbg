@@ -24,7 +24,9 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 {
     // S_FALSE - not error and steppers not affect on callback
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackBreakpoint(pAppDomain, pThread))
+    {
         return false;
+    }
 
     bool atEntry = false;
     const ThreadId threadId(getThreadId(pThread));
@@ -32,13 +34,17 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     std::vector<BreakpointEvent> bpChangeEvents;
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, bpChangeEvents, atEntry))
+    {
         return false;
+    }
 
     // Disable all steppers if we stop at breakpoint during step.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     if (atEntry)
+    {
         event.reason = StoppedEventReason::Entry;
+    }
 
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
@@ -46,9 +52,13 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
         std::ostringstream ss;
         ss << "Breakpoint error: " << changeEvent.breakpoint.message << " - ";
         if (changeEvent.breakpoint.source.IsNull())
+        {
             ss << changeEvent.breakpoint.funcname << "()\n";
+        }
         else
+        {
             ss << changeEvent.breakpoint.source.path << ":" << changeEvent.breakpoint.line << "\n";
+        }
 
         m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         m_debugger.pProtocol->EmitBreakpointEvent(changeEvent);
@@ -61,7 +71,9 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
 {
     // S_FALSE - not error and steppers not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
+    {
         return false;
+    }
 
     const ThreadId threadId(getThreadId(pThread));
     const StoppedEvent event(StoppedEventReason::Step, threadId);
@@ -75,7 +87,9 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 {
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    {
         return false;
+    }
 
     // Disable all steppers if we stop at break during step.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
@@ -96,7 +110,9 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
 
     // S_FALSE - not error and not affect on callback (callback will emit stop event)
     if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
+    {
         return false;
+    }
 
     // Disable all steppers if we stop during step.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
@@ -186,9 +202,13 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
     // Note, we don't check m_callbacksQueue.empty() here, since callback() must add entry to queue.
     ToRelease<ICorDebugProcess> iCorProcess;
     if (SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess))
+    {
         pAppDomain->Continue(0);
+    }
     else
+    {
         m_callbacksCV.notify_one(); // notify_one with lock
+    }
 
     return S_OK;
 }
@@ -198,7 +218,9 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
         if (pAppDomain == nullptr)
+        {
             return E_NOTIMPL;
+        }
 
         pAppDomain->Continue(0);
         return S_OK;
@@ -211,12 +233,16 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
         ((pAppDomain != nullptr) && SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess)))
     {
         if (pAppDomain == nullptr)
+        {
             return E_NOTIMPL;
+        }
 
         pAppDomain->Continue(0);
     }
     else
+    {
         m_callbacksCV.notify_one(); // notify_one with lock
+    }
 
     return S_OK;
 }
@@ -226,7 +252,9 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
         if (pProcess == nullptr)
+        {
             return E_NOTIMPL;
+        }
 
         pProcess->Continue(0);
         return S_OK;
@@ -237,12 +265,16 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
     if (m_callbacksQueue.empty() || ((pProcess != nullptr) && HasQueuedCallbacks(pProcess)))
     {
         if (pProcess == nullptr)
+        {
             return E_NOTIMPL;
+        }
 
         pProcess->Continue(0);
     }
     else
+    {
         m_callbacksCV.notify_one(); // notify_one with lock
+    }
 
     return S_OK;
 }
@@ -275,7 +307,9 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
 static HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess)
 {
     if (stopEventInProcess)
+    {
         return S_FALSE; // Already stopped.
+    }
 
     HRESULT Status = S_OK;
     IfFailRet(pProcess->Stop(0));
@@ -296,7 +330,9 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
 {
     // Must be real thread ID or ThreadId::AllThreads.
     if (!lastStoppedThread)
+    {
         return E_INVALIDARG;
+    }
 
     const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
@@ -304,7 +340,9 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     HRESULT Status = S_OK;
     IfFailRet(InternalStop(pProcess, m_stopEventInProcess));
     if (Status == S_FALSE) // Already stopped.
+    {
         return S_OK;
+    }
 
     // Same logic as provide vsdbg in case of pause during stepping.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);

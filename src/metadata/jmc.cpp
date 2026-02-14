@@ -29,10 +29,14 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
 
         if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
             continue;
+        }
 
         if (HasAttribute(pMD, methodDef, methodAttrNames))
+        {
             excludeMethods.push_back(methodDef);
+        }
     }
     pMD->CloseEnum(fEnum);
 
@@ -54,9 +58,13 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         if (HasAttribute(pMD, typeDef, typeAttrNames))
+        {
             excludeTokens.push_back(typeDef);
+        }
         else
+        {
             GetNonJMCMethodsForTypeDef(pMD, typeDef, excludeTokens);
+        }
     }
     pMD->CloseEnum(fEnum);
 
@@ -73,7 +81,9 @@ static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<m
             ToRelease<ICorDebugFunction2> pFunction2;
             if (FAILED(pModule->GetFunctionFromToken(token, &pFunction)) ||
                 FAILED(pFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&pFunction2))))
+            {
                 continue;
+            }
 
             pFunction2->SetJMCStatus(FALSE);
         }
@@ -83,7 +93,9 @@ static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<m
             ToRelease<ICorDebugClass2> pClass2;
             if (FAILED(pModule->GetClassFromToken(token, &pClass)) ||
                 FAILED(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2))))
+            {
                 continue;
+            }
 
             pClass2->SetJMCStatus(FALSE);
         }

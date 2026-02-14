@@ -53,7 +53,9 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
     char *const *const pEnv = GetSystemEnvironment();
 
     if (pEnv == nullptr)
+    {
         return -1;
+    }
 
     int counter = 0;
     while (pEnv[counter] != nullptr)
@@ -61,7 +63,9 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
         const std::string env = pEnv[counter];
         const size_t pos = env.find_first_of('=');
         if (pos != std::string::npos && pos != 0)
+        {
             outMap.emplace(env.substr(0, pos), env.substr(pos + 1));
+        }
 
         ++counter;
     }
@@ -74,13 +78,17 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 HRESULT ManagedDebugger::CheckDebugProcess()
 {
     if (m_iCorProcess == nullptr)
+    {
         return E_FAIL;
+    }
 
     // We might have case, when process was exited/detached, but m_iCorProcess still not free and hold invalid object.
     // Note, we can't hold this lock, since this could deadlock execution at ICorDebugManagedCallback::ExitProcess call.
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (m_processAttachedState == ProcessAttachedState::Unattached)
+    {
         return E_FAIL;
+    }
     lockAttachedMutex.unlock();
 
     return S_OK;
@@ -195,7 +203,9 @@ HRESULT ManagedDebugger::RunIfReady()
     FrameId::invalidate();
 
     if (m_startMethod == StartMethod::None || !m_isConfigurationDone)
+    {
         return S_OK;
+    }
 
     switch (m_startMethod)
     {
@@ -282,7 +292,9 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
     {
         const HRESULT Status = DetachFromProcess();
         if (SUCCEEDED(Status))
+        {
             pProtocol->EmitTerminatedEvent();
+        }
 
         return Status;
     }
@@ -321,7 +333,9 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
+    {
         LOGE("Continue failed: 0x%08x", Status);
+    }
 
     return Status;
 }
@@ -353,7 +367,9 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
+    {
         LOGE("Continue failed: 0x%08x", Status);
+    }
 
     return Status;
 }
@@ -465,16 +481,13 @@ static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArr
 
         // No point in retrying in case of invalid arguments or no such process
         if (hr == E_INVALIDARG || hr == E_FAIL)
+        {
             return hr;
+        }
 
         // Sleep and retry enumerating the runtimes
         USleep(static_cast<unsigned long>(100 * 1000));
         numTries++;
-
-        // if (m_canceled)
-        // {
-        //     break;
-        // }
     }
 
     // Indicate a timeout
@@ -491,7 +504,9 @@ static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
     const int tryCount = timeoutSec * 10; // 100ms interval between attempts
     if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
         dwArrayLength == 0)
+    {
         return {};
+    }
 
     std::string result = to_utf8(pStringArray[0]);
 
@@ -510,7 +525,9 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     IfFailRet(iCorDebug->Initialize());
 
     if (m_clrPath.empty())
+    {
         m_clrPath = GetCLRPath(m_dbgshim, m_processId);
+    }
 
     m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(*this);
     m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
@@ -580,13 +597,8 @@ static bool IsDirExists(const char *const path)
 {
     struct stat info{};
 
-    if (stat(path, &info) != 0)
-        return false;
-
-    if ((info.st_mode & S_IFDIR) == 0U)
-        return false;
-
-    return true;
+    return ((stat(path, &info) == 0) &&
+            ((info.st_mode & S_IFDIR) != 0U));
 }
 
 static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
@@ -646,10 +658,10 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     PrepareSystemEnvironmentArg(m_env, outEnv);
 
     // cwd in launch.json set working directory for debugger https://code.visualstudio.com/docs/python/debugging#_cwd
-    if (!m_cwd.empty())
+    if (!m_cwd.empty() &&
+        (!IsDirExists(m_cwd.c_str()) || !SetWorkDir(m_cwd)))
     {
-        if (!IsDirExists(m_cwd.c_str()) || !SetWorkDir(m_cwd))
-            m_cwd.clear();
+        m_cwd.clear();
     }
 
     Status = m_ioredirect.exec([&]() -> HRESULT {
@@ -663,7 +675,9 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         });
 
     if (FAILED(Status))
+    {
         return Status;
+    }
 
 #ifdef FEATURE_PAL
     GetWaitpid().SetupTrackingPID(m_processId);
@@ -693,11 +707,15 @@ HRESULT ManagedDebugger::CheckNoProcess()
     const ReadLock r_lock(m_debugProcessRWLock);
 
     if (m_iCorProcess == nullptr)
+    {
         return S_OK;
+    }
 
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (m_processAttachedState == ProcessAttachedState::Attached)
+    {
         return E_FAIL; // Already attached
+    }
     lockAttachedMutex.unlock();
 
     Cleanup();
@@ -711,20 +729,28 @@ HRESULT ManagedDebugger::DetachFromProcess()
         const ReadLock r_lock(m_debugProcessRWLock);
         const std::scoped_lock<std::mutex> guardAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
+        {
             break;
+        }
 
         if (m_iCorProcess == nullptr)
+        {
             return E_FAIL;
+        }
 
         BOOL procRunning = FALSE;
         if (SUCCEEDED(m_iCorProcess->IsRunning(&procRunning)) && procRunning == TRUE)
+        {
             m_iCorProcess->Stop(0);
+        }
 
         DisableAllBreakpointsAndSteppers();
 
         HRESULT Status = S_OK;
         if (FAILED(Status = m_iCorProcess->Detach()))
+        {
             LOGE("Process detach failed: 0x%08x", Status);
+        }
 
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
     } while (false);
@@ -740,14 +766,20 @@ HRESULT ManagedDebugger::TerminateProcess()
         const ReadLock r_lock(m_debugProcessRWLock);
         std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
         if (m_processAttachedState == ProcessAttachedState::Unattached)
+        {
             break;
+        }
 
         if (m_iCorProcess == nullptr)
+        {
             return E_FAIL;
+        }
 
         BOOL procRunning = FALSE;
         if (SUCCEEDED(m_iCorProcess->IsRunning(&procRunning)) && procRunning == TRUE)
+        {
             m_iCorProcess->Stop(0);
+        }
 
         DisableAllBreakpointsAndSteppers();
 
@@ -778,7 +810,9 @@ void ManagedDebugger::Cleanup()
            (!m_iCorProcess && !m_iCorDebug && !m_uniqueManagedCallback && !m_sharedCallbacksQueue));
 
     if (m_iCorProcess == nullptr)
+    {
         return;
+    }
 
     m_iCorProcess.Free();
 
@@ -801,7 +835,9 @@ HRESULT ManagedDebugger::AttachToProcess()
 
     m_clrPath = GetCLRPath(m_dbgshim, m_processId);
     if (m_clrPath.empty())
+    {
         return E_INVALIDARG; // Unable to find libcoreclr.so
+    }
 
     static constexpr uint32_t bufSize = 100;
     std::array<WCHAR, bufSize> pBuffer{};
@@ -819,7 +855,9 @@ HRESULT ManagedDebugger::AttachToProcess()
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
                                       [this] { return m_processAttachedState == ProcessAttachedState::Attached; }))
+    {
         return E_FAIL;
+    }
 
     return S_OK;
 }
@@ -870,7 +908,9 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 
     stackFrame = StackFrame(threadId, level, "");
     if (FAILED(TypePrinter::GetMethodName(pFrame, stackFrame.methodName)))
+    {
         stackFrame.methodName = "Unnamed method in optimized code";
+    }
 
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(pFrame->GetFunction(&pFunc));
@@ -912,10 +952,11 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         {
             currentFrame++;
 
-            if (currentFrame < static_cast<int>(startFrame))
+            if ((currentFrame < static_cast<int>(startFrame)) ||
+                (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+            {
                 return;
-            if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
-                return;
+            }
 
             switch (frameType)
             {
@@ -958,7 +999,9 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     }
 
     if (!analyzeExceptions)
+    {
         return S_OK;
+    }
 
     // Sometimes Coreclr may return the empty stack frame in exception info
     // for some unknown reason. In that case the 2nd attempt is usually successful.
@@ -984,7 +1027,9 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 std::getline(ss, line, '\n');
                 const size_t lastcolon = line.find_last_of(':');
                 if (lastcolon == std::string::npos)
+                {
                     continue;
+                }
 
                 size_t beginpath = line.find_first_of('/');
                 if (beginpath == std::string::npos)
@@ -999,40 +1044,57 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 // append disk name, if exists
                 beginpath = line.find_last_of(' ', beginpath);
                 if (beginpath == std::string::npos)
+                {
                     continue;
+                }
 
                 beginpath++;
                 if (beginpath >= lastcolon)
+                {
                     continue;
+                }
 
                 // remove leading spaces and the first word ("at" for the case of English locale)
                 size_t beginname = line.find_first_not_of(' ');
                 if (beginname == std::string::npos)
+                {
                     continue;
+                }
 
                 beginname = line.find_first_of(' ', beginname);
                 if (beginname == std::string::npos)
+                {
                     continue;
+                }
                 beginname++;
 
                 // the function name ends with the last ')' before the beginning of fullpath
                 size_t endname = line.find_last_of(')', beginpath);
                 if (endname == std::string::npos)
+                {
                     continue;
+                }
                 endname++;
 
                 if (beginname >= endname)
+                {
                     continue;
+                }
 
                 // look for the line number after the last colon
                 const size_t beginlinenum = line.find_first_of("0123456789", lastcolon);
                 const size_t endlinenum = line.find_first_not_of("0123456789", beginlinenum);
                 if (beginlinenum == std::string::npos)
+                {
                     continue;
+                }
 
                 currentFrame++;
-                if (currentFrame < static_cast<int>(startFrame) || (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+                if (currentFrame < static_cast<int>(startFrame) ||
+                    (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+                {
                     continue;
+                }
 
                 const int l{std::stoi(line.substr(beginlinenum, endlinenum))};
                 stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, line.substr(beginname, endname - beginname));
@@ -1064,7 +1126,9 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
 
     ToRelease<ICorDebugThread> pThread;
     if (SUCCEEDED(Status = m_iCorProcess->GetThread(static_cast<int>(threadId), &pThread)))
+    {
         return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames);
+    }
 
     return Status;
 }

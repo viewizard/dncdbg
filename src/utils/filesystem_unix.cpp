@@ -36,7 +36,9 @@ std::string get_exe_path()
         std::string resizedPath(lenActualPath, '\0');
         char *pResizedPath = const_cast<char *>(resizedPath.data());
         if (_NSGetExecutablePath(pResizedPath, &lenActualPath) == 0)
+        {
             return pResizedPath;
+        }
     }
     return {};
 }
@@ -59,9 +61,13 @@ std::string_view GetTempDir()
         {
             const char *pPath = getenv("TMPDIR");
             if (pPath != nullptr)
+            {
                 return pPath;
+            }
             else
+            {
                 return P_tmpdir;
+            }
         };
 
     static const std::string result{get_tmpdir()};

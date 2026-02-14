@@ -35,7 +35,9 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
                                             std::vector<BreakpointEvent> &bpChangeEvents)
 {
     if (m_funcBreakpoints.empty())
+    {
         return S_FALSE; // Stopped at break, but no breakpoints.
+    }
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
@@ -44,7 +46,9 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
@@ -63,12 +67,16 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
             ToRelease<ICorDebugValue> pValue;
             ULONG cArgsFetched = 0;
             if (FAILED(pParamEnum->Next(1, &pValue, &cArgsFetched)))
+            {
                 continue;
+            }
 
             std::string param;
             IfFailRet(TypePrinter::GetTypeOfValue(pValue, param));
             if (i > 0)
+            {
                 ss << ",";
+            }
 
             ss << param;
         }
@@ -83,22 +91,30 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
         ManagedFuncBreakpoint &fbp = fb.second;
 
         if (!fbp.params.empty() && params != fbp.params)
+        {
             continue;
+        }
 
         for (auto &iCorFuncBreakpoint : fbp.iCorFuncBreakpoints)
         {
             IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, iCorFuncBreakpoint));
             if (Status == S_FALSE)
+            {
                 continue;
+            }
 
             std::string output;
             if (FAILED(Status = BreakpointUtils::IsEnableByCondition(fbp.condition, m_sharedVariables.get(), pThread, output)))
             {
                 if (output.empty())
+                {
                     return Status;
+                }
             }
             if (Status == S_FALSE)
+            {
                 continue;
+            }
 
             ++fbp.hitCount;
 
@@ -128,7 +144,9 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 
         if (fb.IsResolved() ||
             FAILED(ResolveFuncBreakpointInModule(pModule, fb)))
+        {
             continue;
+        }
 
         Breakpoint breakpoint;
         fb.ToBreakpoint(breakpoint);
@@ -158,13 +176,19 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
     for (auto it = m_funcBreakpoints.begin(); it != m_funcBreakpoints.end();)
     {
         if (funcBreakpointFuncs.find(it->first) == funcBreakpointFuncs.end())
+        {
             it = m_funcBreakpoints.erase(it);
+        }
         else
+        {
             ++it;
+        }
     }
 
     if (funcBreakpoints.empty())
+    {
         return S_OK;
+    }
 
     // Export function breakpoints
     // Note, DAP require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
@@ -174,7 +198,9 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
         std::string fullFuncName;
 
         if (!fb.module.empty())
+        {
             fullFuncName = fb.module + "!";
+        }
 
         fullFuncName += fb.func + fb.params;
 
@@ -192,7 +218,9 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
             fbp.condition = fb.condition;
 
             if (haveProcess)
+            {
                 ResolveFuncBreakpoint(fbp);
+            }
 
             fbp.ToBreakpoint(breakpoint);
             m_funcBreakpoints.insert(std::make_pair(fullFuncName, std::move(fbp)));
@@ -219,14 +247,18 @@ HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedF
     {
         IfFailRet(BreakpointUtils::SkipBreakpoint(entry.first, entry.second, m_justMyCode));
         if (Status == S_OK) // S_FALSE - don't skip breakpoint
+        {
             return S_OK;
+        }
 
         ToRelease<ICorDebugFunction> pFunc;
         IfFailRet(entry.first->GetFunctionFromToken(entry.second, &pFunc));
 
         uint32_t ilNextOffset = 0;
         if (FAILED(m_sharedModules->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
+        {
             return S_OK;
+        }
 
         ToRelease<ICorDebugCode> pCode;
         IfFailRet(pFunc->GetILCode(&pCode));

@@ -42,13 +42,17 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
     ULONG cParams = 0;
     IfFailRet(pParamEnum->GetCount(&cParams));
     if (cParams == 0)
+    {
         return E_FAIL;
+    }
     DWORD methodAttr = 0;
     IfFailRet(pMD_this->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr, &methodAttr,
                                        nullptr, nullptr, nullptr, nullptr));
     const bool thisParam = (methodAttr & mdStatic) == 0;
     if (!thisParam)
+    {
         return E_FAIL;
+    }
     // At this point, first param will be always 'this'.
     ToRelease<ICorDebugValue> pRefValue_this;
     IfFailRet(pParamEnum->Next(1, &pRefValue_this, nullptr));
@@ -80,18 +84,24 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
         }
 
         if (!str_equal(mdName.data(), W("<>t__builder")))
+        {
             continue;
+        }
 
         ToRelease<ICorDebugObjectValue> pObjValue_this;
         if (SUCCEEDED(pValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue_this))))
+        {
             pObjValue_this->GetFieldValue(pClass_this, fieldDef, &pRefValue_t_builder);
+        }
 
         break;
     }
     pMD_this->CloseEnum(hEnum);
 
     if (pRefValue_t_builder == nullptr)
+    {
         return E_FAIL;
+    }
     IfFailRet(DereferenceAndUnboxValue(pRefValue_t_builder, ppValue_builder, nullptr));
 
     return S_OK;
@@ -144,7 +154,9 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
         }
 
         if (!str_equal(propertyName.data(), W("ObjectIdForDebugger")))
+        {
             continue;
+        }
 
         mdObjectIdForDebuggerGetter = mdGetter;
         break;
@@ -152,7 +164,9 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
     pMD->CloseEnum(propEnum);
 
     if (mdObjectIdForDebuggerGetter == mdMethodDefNil)
+    {
         return E_FAIL;
+    }
 
     // Call 'ObjectIdForDebugger' property getter.
     ToRelease<ICorDebugFunction> pFunc;
@@ -204,7 +218,9 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
         }
 
         if (!str_equal(szFunctionName.data(), W("SetNotificationForWaitCompletion")))
+        {
             continue;
+        }
 
         setNotifDef = methodDef;
         break;
@@ -212,7 +228,9 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
     pMD->CloseEnum(hEnum);
 
     if (setNotifDef == mdMethodDefNil)
+    {
         return E_FAIL;
+    }
 
     // Create boolean argument and set it to TRUE.
     ToRelease<ICorDebugEval> pEval;
@@ -246,7 +264,9 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
@@ -260,7 +280,9 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken))
+    {
         return S_FALSE; // setup simple stepper
+    }
 
     ToRelease<ICorDebugILFrame> pILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
@@ -270,7 +292,9 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     IfFailRet(pILFrame->GetIP(&ipOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
+    {
         return E_FAIL;
+    }
 
     // If we are at end of async method with await blocks and doing step-in or step-over,
     // switch to step-out, so whole NotifyDebuggerOfWaitCompletion magic happens.
@@ -292,7 +316,9 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         std::string builderType;
         IfFailRet(TypePrinter::GetTypeOfValue(pBuilderValue, builderType));
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
+        {
             return m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
+        }
 
         IfFailRet(SetNotificationForWaitCompletion(pThread, pBuilderValue, m_sharedEvalHelpers.get()));
         IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion());
@@ -335,7 +361,9 @@ HRESULT AsyncStepper::ManagedCallbackStepComplete()
     // In case we have async method and first await breakpoint (yield_offset) was enabled, but not reached.
     m_asyncStepMutex.lock();
     if (m_asyncStep)
+    {
         m_asyncStep.reset(nullptr);
+    }
     m_asyncStepMutex.unlock();
 
     return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
@@ -345,9 +373,13 @@ HRESULT AsyncStepper::DisableAllSteppers()
 {
     m_asyncStepMutex.lock();
     if (m_asyncStep)
+    {
         m_asyncStep.reset(nullptr);
+    }
     if (m_asyncStepNotifyDebuggerOfWaitCompletion)
+    {
         m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
+    }
     m_asyncStepMutex.unlock();
 
     return S_OK;
@@ -424,7 +456,9 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         if (!m_asyncStepNotifyDebuggerOfWaitCompletion ||
             modAddress != m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress ||
             methodToken != m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken)
+        {
             return S_FALSE;
+        }
 
         m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
         // Note, notification flag will be reseted automatically in NotifyDebuggerOfWaitCompletion() method,
@@ -525,9 +559,13 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         BOOL isNull = FALSE;
         if (SUCCEEDED(GetAsyncIdReference(pThread, pFrame, m_sharedEvalHelpers.get(), &pValueRef)) &&
             SUCCEEDED(DereferenceAndUnboxValue(pValueRef, &pValue, &isNull)) && (isNull == FALSE))
+        {
             pValue->GetAddress(&currentAsyncId);
+        }
         else
+        {
             LOGE("Could not calculate current async ID for await block");
+        }
 
         CORDB_ADDRESS prevAsyncId = 0;
         ToRelease<ICorDebugValue> pDereferencedValue;
@@ -535,9 +573,13 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         if ((m_asyncStep->m_iCorHandleValueAsyncId != nullptr) && // Note, we could fail with m_iCorHandleValueAsyncId on previous breakpoint by some reason.
             SUCCEEDED(m_asyncStep->m_iCorHandleValueAsyncId->Dereference(&pDereferencedValue)) &&
             SUCCEEDED(DereferenceAndUnboxValue(pDereferencedValue, &pValueAsyncId, &isNull)) && (isNull == FALSE))
+        {
             pValueAsyncId->GetAddress(&prevAsyncId);
+        }
         else
+        {
             LOGE("Could not calculate previous async ID for await block");
+        }
 
         // Note, 'currentAsyncId' and 'prevAsyncId' is 64 bit addresses, in our case can't be 0.
         // If we can't detect proper thread - continue stepping for this thread.

@@ -94,14 +94,18 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     uint32_t ilOffset = 0;
     IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
     if (Status == S_OK) // S_FALSE = setup simple stepper
+    {
         return S_OK;
+    }
 
     return m_simpleStepper->SetupStep(pThread, stepType);
 }
@@ -113,7 +117,9 @@ HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICor
     // so, async stepping related breakpoints not a part of any user breakpoints related data (that will be checked in separate thread. see code below).
     IfFailRet(m_asyncStepper->ManagedCallbackBreakpoint(pThread));
     if (Status == S_OK) // S_FALSE - no error, but steppers not affect on callback
+    {
         return S_OK;
+    }
 
     return m_simpleStepper->ManagedCallbackBreakpoint(pAppDomain, pThread);
 }
@@ -125,7 +131,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     ToRelease<ICorDebugFrame> iCorFrame;
     IfFailRet(pThread->GetActiveFrame(&iCorFrame));
     if (iCorFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     ToRelease<ICorDebugFunction> iCorFunction;
     IfFailRet(iCorFrame->GetFunction(&iCorFunction));
@@ -147,7 +155,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         // In case stepping by method code lines or return to caller, don't check filtering (don't need to):
         // 1) filtering check for this method was already "passed" or 2) execution was stopped at breakpoint inside method or its callee.
         if (reason != CorDebugStepReason::STEP_CALL)
+        {
             return false;
+        }
 
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> szFunctionName{};
@@ -155,7 +165,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                                           nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (g_operatorMethodNames.find(szFunctionName.data()) != g_operatorMethodNames.end())
+            {
                 return true;
+            }
         }
 
         mdProperty propertyDef = mdPropertyNil;
@@ -169,7 +181,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                                                 nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
             {
                 if (mdSetter != methodDef && mdGetter != methodDef)
+                {
                     continue;
+                }
 
                 iMD->CloseEnum(propEnum);
                 return true;
@@ -246,7 +260,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         return S_OK;
     }
     else // Note, in case JMC enabled step, ManagedCallbackStepComplete() called only for user module code.
+    {
         return Status;
+    }
 
     // Care about attributes for "JMC disabled" case.
     if (!m_justMyCode)

@@ -63,7 +63,9 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
     DIR *dir = opendir(directory.c_str());
     if (dir == nullptr)
+    {
         return;
+    }
 
     std::set<std::string> addedAssemblies;
 
@@ -93,11 +95,11 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                 fullFilename.append(entry->d_name);
 
                 struct stat sb{};
-                if (stat(fullFilename.c_str(), &sb) == -1)
+                if ((stat(fullFilename.c_str(), &sb) == -1) ||
+                    !S_ISREG(sb.st_mode))
+                {
                     continue;
-
-                if (!S_ISREG(sb.st_mode))
-                    continue;
+                }
             }
             break;
 
@@ -108,12 +110,16 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
             const std::string filename(entry->d_name);
 
             if (ext.length() >= filename.length())
+            {
                 continue;
+            }
 
             // Check if the extension matches the one we are looking for
             const int extPos = filename.length() - ext.length();
             if (filename.compare(extPos, ext.length(), ext) != 0)
+            {
                 continue;
+            }
 
             const std::string filenameWithoutExt(filename.substr(0, extPos));
 
@@ -165,7 +171,9 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
                     std::string filename(data.cFileName);
                     if (ext.length() >= filename.length())
+                    {
                         continue;
+                    }
 
                     size_t extPos = filename.length() - ext.length();
                     std::string filenameWithoutExt(filename.substr(0, extPos));
@@ -204,7 +212,10 @@ void UnsetCoreCLREnv()
 uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter)
 {
     if (bstrString == nullptr)
+    {
         return 0;
+    }
+
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     return static_cast<uint32_t>((reinterpret_cast<uint32_t *>(bstrString)[-1]) / sizeof(WCHAR));
 #elif _WIN32
@@ -298,7 +309,9 @@ constexpr char UtilsClassName[] = "DNCDbg.Utils"; // NOLINT(cppcoreguidelines-av
 int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
 {
     if (address == 0 || buffer == nullptr || cb == 0)
+    {
         return 0;
+    }
 
     std::memcpy(buffer, reinterpret_cast<const void *>(address), cb); // NOLINT(performance-no-int-to-ptr)
     return cb;
@@ -312,7 +325,9 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
 {
     const ReadLock read_lock(CLRrwlock);
     if ((loadSymbolsForModuleDelegate == nullptr) || (ppSymbolReaderHandle == nullptr))
+    {
         return E_FAIL;
+    }
 
     // The module name needs to be null for in-memory PE's.
     const WCHAR *szModuleName = nullptr;
@@ -326,7 +341,9 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
                                                          static_cast<int>(inMemoryPdbSize), ReadMemoryForSymbols);
 
     if (*ppSymbolReaderHandle == nullptr)
+    {
         return E_FAIL;
+    }
 
     return S_OK;
 }
@@ -340,7 +357,9 @@ void DisposeSymbols(void *pSymbolReaderHandle)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((disposeDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
+    {
         return;
+    }
 
     disposeDelegate(pSymbolReaderHandle);
 }
@@ -353,7 +372,9 @@ void Init(const std::string &coreClrPath)
 
     // If we have shutdownCoreClr initialized, we already initialized all managed part.
     if (shutdownCoreClr != nullptr)
+    {
         return;
+    }
 
     const std::string clrDir = coreClrPath.substr(0, coreClrPath.rfind(DIRECTORY_SEPARATOR_CHAR_A));
 
@@ -366,11 +387,15 @@ void Init(const std::string &coreClrPath)
     // CoreCLR library." https://docs.microsoft.com/en-us/dotnet/core/tutorials/netcore-hosting
     DLHandle coreclrLib = DLOpen(coreClrPath);
     if (coreclrLib == nullptr)
+    {
         throw std::invalid_argument("Failed to load coreclr path=" + coreClrPath);
+    }
 
     coreclr_initialize_ptr initializeCoreCLR = reinterpret_cast<coreclr_initialize_ptr>(DLSym(coreclrLib, "coreclr_initialize"));
     if (initializeCoreCLR == nullptr)
+    {
         throw std::invalid_argument("coreclr_initialize not found in lib, CoreCLR path=" + coreClrPath);
+    }
 
     std::string tpaList;
     AddFilesFromDirectoryToTpaList(clrDir, tpaList);
@@ -385,11 +410,15 @@ void Init(const std::string &coreClrPath)
 
     const std::string exe = GetExeAbsPath();
     if (exe.empty())
+    {
         throw std::runtime_error("Unable to detect exe path");
+    }
 
     const std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_CHAR_A);
     if (dirSepIndex == std::string::npos)
+    {
         throw std::runtime_error("Can't find directory separator in string returned by GetExeAbsPath");
+    }
 
     const std::string exeDir = exe.substr(0, dirSepIndex);
 
@@ -405,15 +434,21 @@ void Init(const std::string &coreClrPath)
                                propertyValues, &hostHandle, &domainId);
 
     if (FAILED(Status))
+    {
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));
+    }
 
     coreclr_create_delegate_ptr createDelegate = reinterpret_cast<coreclr_create_delegate_ptr>(DLSym(coreclrLib, "coreclr_create_delegate"));
     if (createDelegate == nullptr)
+    {
         throw std::runtime_error("coreclr_create_delegate not found");
+    }
 
     shutdownCoreClr = reinterpret_cast<coreclr_shutdown_ptr>(DLSym(coreclrLib, "coreclr_shutdown"));
     if (shutdownCoreClr == nullptr)
+    {
         throw std::runtime_error("coreclr_shutdown not found");
+    }
 
     const bool allDelegatesCreated = 
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
@@ -438,7 +473,9 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
 
     if (!allDelegatesCreated)
+    {
         throw std::runtime_error("createDelegate failed with status: " + std::to_string(Status));
+    }
 
     const bool allDelegatesInited = (loadSymbolsForModuleDelegate != nullptr) &&
                                     (disposeDelegate != nullptr) &&
@@ -462,7 +499,9 @@ void Init(const std::string &coreClrPath)
                                     (calculationDelegate != nullptr);
 
     if (!allDelegatesInited)
+    {
         throw std::runtime_error("Some delegates nulled");
+    }
 }
 
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
@@ -470,12 +509,16 @@ void Shutdown()
 {
     const WriteLock write_lock(CLRrwlock);
     if (shutdownCoreClr == nullptr)
+    {
         return;
+    }
 
     // "Warm up Roslyn" thread still could be running at this point, let `coreclr_shutdown` care about this.
     HRESULT Status = S_OK;
     if (FAILED(Status = shutdownCoreClr(hostHandle, domainId)))
+    {
         LOGE("coreclr_shutdown failed - status: 0x%08x", Status);
+    }
 
     shutdownCoreClr = nullptr;
     loadSymbolsForModuleDelegate = nullptr;
@@ -502,7 +545,9 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef method
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getSequencePointByILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (sequencePoint == nullptr))
+    {
         return E_FAIL;
+    }
 
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
     const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, methodToken,
@@ -515,7 +560,9 @@ HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef methodToken, Se
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getSequencePointsDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
+    {
         return E_FAIL;
+    }
 
     const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, methodToken, reinterpret_cast<void **>(sequencePoints), &Count);
 
@@ -527,7 +574,9 @@ HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodTok
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getNextUserCodeILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
+    {
         return E_FAIL;
+    }
 
     int32_t NoUserCodeFound = 0;
 
@@ -536,7 +585,9 @@ HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodTok
                                                             &ilNextOffset, &NoUserCodeFound);
 
     if (noUserCodeFound != nullptr)
+    {
         *noUserCodeFound = NoUserCodeFound == 1;
+    }
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
@@ -546,8 +597,10 @@ HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef 
     const ReadLock read_lock(CLRrwlock);
     if ((getStepRangesFromIPDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
         (ilStartOffset == nullptr) || (ilEndOffset == nullptr))
+    {
         return E_FAIL;
 
+    }
     const RetCode retCode = getStepRangesFromIPDelegate(pSymbolReaderHandle, ip, MethodToken,
                                                         ilStartOffset, ilEndOffset);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
@@ -559,11 +612,15 @@ HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef met
     ReadLock read_lock(CLRrwlock);
     if ((getLocalVariableNameAndScopeDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
         (localName == nullptr) || (pIlStart == nullptr) || (pIlEnd == nullptr))
+    {
         return E_FAIL;
+    }
 
     BSTR wszLocalName = Interop::SysAllocStringLen(mdNameLen);
     if (SysStringLen(wszLocalName) == 0)
+    {
         return E_OUTOFMEMORY;
+    }
 
     const RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, methodToken, localIndex,
                                                                  &wszLocalName, pIlStart, pIlEnd);
@@ -585,7 +642,9 @@ HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getHoistedLocalScopesDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
+    {
         return E_FAIL;
+    }
 
     const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, methodToken, data, &hoistedLocalScopesCount);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
@@ -596,7 +655,9 @@ HRESULT CalculationDelegate(void *firstOp, int32_t firstType, void *secondOp, in
 {
     ReadLock read_lock(CLRrwlock);
     if (calculationDelegate == nullptr)
+    {
         return E_FAIL;
+    }
 
     BSTR werrorText = nullptr;
     const RetCode retCode = calculationDelegate(firstOp, firstType, secondOp, secondType, operationType,
@@ -619,7 +680,9 @@ HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensN
     const ReadLock read_lock(CLRrwlock);
     if ((getModuleMethodsRangesDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || ((constrTokensNum != 0U) && (constrTokens == nullptr)) ||
         ((normalTokensNum != 0U) && (normalTokens == nullptr)) || (data == nullptr))
+    {
         return E_FAIL;
+    }
 
     const RetCode retCode = getModuleMethodsRangesDelegate(pSymbolReaderHandle, constrTokensNum, constrTokens,
                                                            normalTokensNum, normalTokens, data);
@@ -631,7 +694,9 @@ HRESULT ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum, void *To
 {
     const ReadLock read_lock(CLRrwlock);
     if ((resolveBreakPointsDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (Tokens == nullptr) || (data == nullptr))
+    {
         return E_FAIL;
+    }
 
     const RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
                                                        to_utf16(sourcePath).c_str(), data);
@@ -643,7 +708,9 @@ HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef method
 {
     ReadLock read_lock(CLRrwlock);
     if ((getAsyncMethodSteppingInfoDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (ilOffset == nullptr))
+    {
         return E_FAIL;
+    }
 
     AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
     int32_t asyncInfoCount = 0;
@@ -653,7 +720,9 @@ HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef method
     read_lock.unlock();
 
     if (retCode != RetCode::OK)
+    {
         return E_FAIL;
+    }
 
     if (asyncInfoCount == 0)
     {
@@ -671,7 +740,9 @@ HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgr
 {
     ReadLock read_lock(CLRrwlock);
     if ((generateStackMachineProgramDelegate == nullptr) || (ppStackProgram == nullptr))
+    {
         return E_FAIL;
+    }
 
     textOutput = "";
     BSTR wTextOutput = nullptr;
@@ -691,7 +762,9 @@ void ReleaseStackMachineProgram(void *pStackProgram)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((releaseStackMachineProgramDelegate == nullptr) || (pStackProgram == nullptr))
+    {
         return;
+    }
 
     releaseStackMachineProgramDelegate(pStackProgram);
 }
@@ -702,7 +775,9 @@ HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std:
 {
     ReadLock read_lock(CLRrwlock);
     if ((nextStackCommandDelegate == nullptr) || (pStackProgram == nullptr))
+    {
         return E_FAIL;
+    }
 
     textOutput = "";
     BSTR wTextOutput = nullptr;
@@ -721,12 +796,16 @@ HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std:
 void *AllocString(const std::string &str)
 {
     if (str.empty())
+    {
         return nullptr;
+    }
 
     auto wstr = to_utf16(str);
     BSTR bstr = Interop::SysAllocStringLen(static_cast<int32_t>(wstr.size()));
     if (SysStringLen(bstr) == 0)
+    {
         return nullptr;
+    }
 
     memmove(bstr, wstr.data(), wstr.size() * sizeof(decltype(wstr[0])));
     return bstr;
@@ -736,14 +815,18 @@ HRESULT StringToUpper(std::string &String)
 {
     ReadLock read_lock(CLRrwlock);
     if (stringToUpperDelegate == nullptr)
+    {
         return E_FAIL;
+    }
 
     BSTR wString = nullptr;
     const RetCode retCode = stringToUpperDelegate(to_utf16(String).c_str(), &wString);
     read_lock.unlock();
 
     if ((retCode != RetCode::OK) || (wString == nullptr))
+    {
         return E_FAIL;
+    }
 
     String = to_utf8(wString);
     Interop::SysFreeString(wString);
@@ -755,7 +838,9 @@ BSTR SysAllocStringLen(int32_t size)
 {
     const ReadLock read_lock(CLRrwlock);
     if (sysAllocStringLenDelegate == nullptr)
+    {
         return nullptr;
+    }
 
     return reinterpret_cast<BSTR>(sysAllocStringLenDelegate(size));
 }
@@ -764,7 +849,9 @@ void SysFreeString(BSTR ptrBSTR)
 {
     const ReadLock read_lock(CLRrwlock);
     if (sysFreeStringDelegate == nullptr)
+    {
         return;
+    }
 
     sysFreeStringDelegate(ptrBSTR);
 }
@@ -773,7 +860,9 @@ void *CoTaskMemAlloc(int32_t size)
 {
     const ReadLock read_lock(CLRrwlock);
     if (coTaskMemAllocDelegate == nullptr)
+    {
         return nullptr;
+    }
 
     return coTaskMemAllocDelegate(size);
 }
@@ -782,7 +871,9 @@ void CoTaskMemFree(void *ptr)
 {
     const ReadLock read_lock(CLRrwlock);
     if (coTaskMemFreeDelegate == nullptr)
+    {
         return;
+    }
 
     coTaskMemFreeDelegate(ptr);
 }

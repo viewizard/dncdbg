@@ -35,7 +35,9 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
     ss << static_cast<int>(expb.categoryHint);
 
     if (expb.negativeCondition)
+    {
         ss << "!";
+    }
 
     for (const auto &entry : expb.condition)
     {
@@ -61,14 +63,20 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
         for (auto it = m_exceptionBreakpoints[filter].begin(); it != m_exceptionBreakpoints[filter].end();)
         {
             if (expBreakpoints[filter].find(it->first) == expBreakpoints[filter].end())
+            {
                 it = m_exceptionBreakpoints[filter].erase(it);
+            }
             else
+            {
                 ++it;
+            }
         }
     }
 
     if (exceptionBreakpoints.empty())
+    {
         return S_OK;
+    }
 
     // Export exception breakpoints
     for (const auto &expb : exceptionBreakpoints)
@@ -114,15 +122,21 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
     {
         if (expb.second.categoryHint != excCategory &&
             expb.second.categoryHint != ExceptionCategory::ANY)
+        {
             continue;
+        }
 
         if (expb.second.condition.empty())
+        {
             return true;
+        }
 
         const bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.end() ?
                                           expb.second.negativeCondition : !expb.second.negativeCondition;
         if (isCoveredByCondition)
+        {
             return true;
+        }
     }
 
     return false;
@@ -182,9 +196,13 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     auto lastDotPosition = details.fullTypeName.find_last_of('.');
     if (lastDotPosition < details.fullTypeName.size())
+    {
         details.typeName = details.fullTypeName.substr(lastDotPosition + 1);
+    }
     else
+    {
         details.typeName = details.fullTypeName;
+    }
 
     details.evaluateName = "$exception";
 
@@ -197,7 +215,9 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         {
             auto getMemberWithName = [&](const std::string &name, std::string &result) -> HRESULT {
                 if (memberName != name)
+                {
                     return S_FALSE;
+                }
 
                 ToRelease<ICorDebugValue> iCorResultValue;
                 IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
@@ -214,15 +234,21 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
             IfFailRet(Status = getMemberWithName("_message", details.message));
             if (Status == S_OK)
+            {
                 return S_OK;
+            }
 
             IfFailRet(Status = getMemberWithName("StackTrace", details.stackTrace));
             if (Status == S_OK)
+            {
                 return S_OK;
+            }
 
             IfFailRet(Status = getMemberWithName("Source", details.source));
             if (Status == S_OK)
+            {
                 return S_OK;
+            }
 
             if (memberName == "InnerException")
             {
@@ -241,7 +267,9 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     details.formattedDescription = "**" + details.fullTypeName + "**";
     if (!details.message.empty())
+    {
         details.formattedDescription += " '" + details.message + "'";
+    }
 
     if (iCorInnerExceptionValue != nullptr)
     {
@@ -258,7 +286,9 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
     ToRelease<ICorDebugValue> iCorExceptionValue;
     IfFailRet(pThread->GetCurrentException(&iCorExceptionValue));
     if (iCorExceptionValue == nullptr)
+    {
         return E_FAIL;
+    }
 
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
@@ -267,20 +297,28 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
 
     auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
     if (findBreakMode == m_threadsExceptionBreakMode.end() || findBreakMode->second == ExceptionBreakMode::NEVER)
+    {
         return E_FAIL;
+    }
 
     IfFailRet(GetExceptionDetails(pThread, iCorExceptionValue, exceptionInfo.details));
 
     std::string excModule;
     if (exceptionInfo.details.source.empty())
+    {
         excModule = "<unknown module>";
+    }
     else
+    {
         excModule = exceptionInfo.details.source + ".dll";
+    }
 
     GetExceptionShorDescription(findBreakMode->second, exceptionInfo.details.fullTypeName, excModule, exceptionInfo.description);
 
     if (!exceptionInfo.details.message.empty())
+    {
         exceptionInfo.description += ": '" + exceptionInfo.details.message + "'";
+    }
 
     if (exceptionInfo.details.innerException != nullptr)
     {
@@ -348,7 +386,9 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
     ToRelease<ICorDebugValue> iCorExceptionValue;
     IfFailRet(pThread->GetCurrentException(&iCorExceptionValue));
     if (iCorExceptionValue == nullptr)
+    {
         return E_FAIL;
+    }
 
     std::string excType;
     if (FAILED(TypePrinter::GetTypeOfValue(iCorExceptionValue, excType)))
@@ -370,7 +410,9 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
+            {
                 return S_OK;
+            }
 
             m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
             break;
@@ -384,7 +426,9 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             {
                 m_threadsExceptionStatus[tid].m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
                 if (find->second.m_excModule.empty())
+                {
                     find->second.m_excModule = excModule;
+                }
 
                 return S_OK;
             }
@@ -394,7 +438,9 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
+            {
                 return S_OK;
+            }
 
             m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
             break;

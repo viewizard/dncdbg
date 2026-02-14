@@ -86,13 +86,19 @@ FILE *open_log_file()
 {
     const char *env = getenv("LOG_OUTPUT");
     if (env == nullptr)
+    {
         return nullptr; // log disabled
+    }
 
     if (strcmp("stdout", env) == 0)
+    {
         return stdout;
+    }
 
     if (strcmp("stderr", env) == 0)
+    {
         return stderr;
+    }
 
     FILE *result = fopen(env, "a"); // NOLINT(cppcoreguidelines-owning-memory)
     if (result == nullptr)
@@ -132,15 +138,21 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
     const std::scoped_lock<std::mutex> lock(mutex);
 
     if (prio == DLOG_DEFAULT)
+    {
         prio = DLOG_INFO;
+    }
 
     char level = 'I';
     if (prio >= DLOG_DEBUG && prio <= DLOG_FATAL)
+    {
         level = "DIWEF"[prio - DLOG_DEBUG];
+    }
 
     static FILE *log_file = open_log_file();
     if (log_file == nullptr || (ferror(log_file) != 0))
+    {
         return DLOG_ERROR_NOT_PERMITTED;
+    }
 
     const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),
                             static_cast<int>(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());

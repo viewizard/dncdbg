@@ -21,7 +21,9 @@ void EvalHelpers::Cleanup()
 {
     m_pSuppressFinalizeMutex.lock();
     if (m_pSuppressFinalize != nullptr)
+    {
         m_pSuppressFinalize.Free();
+    }
     m_pSuppressFinalizeMutex.unlock();
 
     m_typeObjectCacheMutex.lock();
@@ -59,7 +61,9 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
     if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
+    {
         return S_OK;
+    }
 
     std::vector<ToRelease<ICorDebugType>> typeParams;
     // Reserve memory from the beginning, since typeParams will have ArgsTypeCount or more count of elements for sure.
@@ -100,7 +104,9 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
     if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
+    {
         return S_OK;
+    }
 
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
@@ -140,7 +146,9 @@ static HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, c
     const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
 
     if (methodDef == mdMethodDefNil)
+    {
         return E_FAIL;
+    }
 
     return pModule->GetFunctionFromToken(methodDef, ppFunction);
 }
@@ -237,11 +245,15 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
                    };
     auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
     if (it == m_typeObjectCache.end())
+    {
         return E_FAIL;
+    }
 
     // Move data to begin, so, last used will be on front.
     if (it != m_typeObjectCache.begin())
+    {
         m_typeObjectCache.splice(m_typeObjectCache.begin(), m_typeObjectCache, it);
+    }
 
     if (ppTypeObjectResult != nullptr)
     {
@@ -271,7 +283,9 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
                    };
     auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
     if (it != m_typeObjectCache.end())
+    {
         return S_OK;
+    }
 
     ToRelease<ICorDebugHandleValue> iCorHandleValue;
     IfFailRet(pTypeObject->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&iCorHandleValue)));
@@ -279,7 +293,9 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
     if (FAILED(iCorHandleValue->GetHandleType(&handleType)) ||
         handleType != CorDebugHandleType::HANDLE_STRONG)
+    {
         return E_FAIL;
+    }
 
     if (m_typeObjectCache.size() == m_typeObjectCacheSize)
     {
@@ -291,7 +307,9 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
         m_typeObjectCache.splice(m_typeObjectCache.begin(), m_typeObjectCache, std::prev(m_typeObjectCache.end()));
     }
     else
+    {
         m_typeObjectCache.emplace_front(type_object_t{typeID, iCorHandleValue.Detach()});
+    }
 
     return S_OK;
 }
@@ -304,17 +322,18 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     CorElementType et = ELEMENT_TYPE_MAX;
     IfFailRet(pType->GetType(&et));
 
-    if (et != ELEMENT_TYPE_CLASS && et != ELEMENT_TYPE_VALUETYPE)
+    if ((et != ELEMENT_TYPE_CLASS && et != ELEMENT_TYPE_VALUETYPE) ||
+        SUCCEEDED(TryReuseTypeObjectFromCache(pType, ppTypeObjectResult))) // Check cache first, before check type for static members.
+    {
         return S_OK;
-
-    // Check cache first, before check type for static members.
-    if (SUCCEEDED(TryReuseTypeObjectFromCache(pType, ppTypeObjectResult)))
-        return S_OK;
+    }
 
     // Create type object only in case type have static members.
     // Note, for some cases we have static members check outside this method.
     if (DetectStaticMembers && !TypeHaveStaticMembers(pType))
+    {
         return S_FALSE;
+    }
 
     std::vector<ToRelease<ICorDebugType>> typeParams;
     ToRelease<ICorDebugTypeEnum> pTypeEnum;
@@ -356,7 +375,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
         }
 
         if (m_pSuppressFinalize == nullptr)
+        {
             return E_FAIL;
+        }
 
         // Note, this call must ignore any eval flags.
         IfFailRet(EvalFunction(pThread, m_pSuppressFinalize, &pType, 1, pTypeObject.GetRef(), 1, nullptr, defaultEvalFlags));
@@ -365,7 +386,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     AddTypeObjectToCache(pType, pTypeObject);
 
     if (ppTypeObjectResult != nullptr)
+    {
         *ppTypeObjectResult = pTypeObject.Detach();
+    }
 
     return S_OK;
 }
@@ -377,7 +400,9 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
     HRESULT Status = S_OK;
 
     if ((pRawValue == nullptr) || (pThread == nullptr))
+    {
         return S_FALSE;
+    }
 
     CorSigUncompressCallingConv(pSignatureBlob);
     CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)

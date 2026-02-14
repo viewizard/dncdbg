@@ -39,7 +39,9 @@ void *DLSym(DLHandle handle, const std::string_view &symbol)
 {
     std::array<char, LINE_MAX> str{};
     if (symbol.size() >= str.size())
+    {
         return {};
+    }
 
     symbol.copy(str.data(), symbol.size());
     str[symbol.size()] = 0;

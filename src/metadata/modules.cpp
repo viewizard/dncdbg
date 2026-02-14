@@ -19,7 +19,9 @@ namespace dncdbg
 ModuleInfo::~ModuleInfo() noexcept
 {
     if (m_symbolReaderHandle != nullptr)
+    {
         Interop::DisposeSymbols(m_symbolReaderHandle);
+    }
 }
 
 static bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
@@ -40,7 +42,9 @@ static bool IsTargetFunction(const std::vector<std::string> &fullName, const std
     for (auto it = targetName.rbegin(); it != targetName.rend(); it++)
     {
         if (fullIt == fullName.rend() || *it != *fullIt)
+        {
             return false;
+        }
 
         fullIt++;
     }
@@ -79,7 +83,9 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
             Status = pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr);
             if (FAILED(Status))
+            {
                 continue;
+            }
 
             // Get generic types
             ToRelease<IMetaDataImport2> pMDImport2;
@@ -100,7 +106,9 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
                 Status = pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
                                                           szGenName.data(), mdNameLen, &genNameLen);
                 if (FAILED(Status))
+                {
                     continue;
+                }
 
                 // Add comma for each element. The last one will be stripped later.
                 genParams += to_utf8(szGenName.data()) + ",";
@@ -165,7 +173,9 @@ static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string
             if (IsTargetFunction(splitFullName, splitName))
             {
                 if (FAILED(cb(pModule, mdMethod)))
+                {
                     return false; // abort operation
+                }
             }
 
             return true; // continue for other functions with matching name
@@ -186,7 +196,9 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
     uint32_t name_len = 0;
 
     if (FAILED(pModule->GetName(mdNameLen, &name_len, name.data())))
+    {
         return {};
+    }
 
     std::string moduleName = to_utf8(name.data());
 
@@ -195,16 +207,22 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
     static const std::string selfPrefix("/proc/self/");
 
     if (moduleName.compare(0, selfPrefix.size(), selfPrefix) != 0)
+    {
         return moduleName;
+    }
 
     ToRelease<ICorDebugProcess> pProcess;
     if (FAILED(pModule->GetProcess(&pProcess)))
+    {
         return {};
+    }
 
     DWORD pid = 0;
 
     if (FAILED(pProcess->GetID(&pid)))
+    {
         return {};
+    }
 
     std::ostringstream ss;
     ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());
@@ -227,9 +245,13 @@ HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, 
     IfFailRet(pModule->GetName(mdNameLen, &len, szModuleName.data()));
 
     if (isFullPath)
+    {
         modName = to_utf8(szModuleName.data());
+    }
     else
+    {
         modName = GetBasename(to_utf8(szModuleName.data()));
+    }
 
     return modName == Name ? S_OK : S_FALSE;
 }
@@ -246,7 +268,9 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
 {
     auto info_pair = m_modulesInfo.find(modAddress);
     if (info_pair == m_modulesInfo.end())
+    {
         return E_FAIL;
+    }
 
     *ppmdInfo = &info_pair->second;
     return S_OK;
@@ -269,7 +293,9 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &mod
         {
             IfFailRet(IsModuleHaveSameName(pModule, module, isFullPath));
             if (Status == S_FALSE)
+            {
                 continue;
+            }
 
             module_checked = true;
         }
@@ -277,7 +303,9 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &mod
         ResolveMethodInModule(mdInfo.m_iCorModule, funcname, cb);
 
         if (module_checked)
+        {
             break;
+        }
     }
 
     return S_OK;
@@ -293,7 +321,9 @@ HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const s
     {
         IfFailRet(IsModuleHaveSameName(pModule, module, IsFullPath(module)));
         if (Status == S_FALSE)
+        {
             return E_FAIL;
+        }
 
         module_checked = true;
     }
@@ -320,8 +350,11 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &il
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
-    if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
+    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+        mappingResult == MAPPING_NO_INFO)
+    {
         return E_FAIL;
+    }
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
@@ -331,7 +364,9 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &il
 
     return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
+        {
             return E_FAIL;
+        }
 
         return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
     });
@@ -356,8 +391,11 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint3
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
-    if (mappingResult == MAPPING_UNMAPPED_ADDRESS || mappingResult == MAPPING_NO_INFO)
+    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+        mappingResult == MAPPING_NO_INFO)
+    {
         return E_FAIL;
+    }
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
@@ -371,7 +409,9 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     ToRelease<ICorDebugFrame> pFrame;
     IfFailRet(pThread->GetActiveFrame(&pFrame));
     if (pFrame == nullptr)
+    {
         return E_FAIL;
+    }
 
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
@@ -393,7 +433,9 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
+    {
         return E_FAIL;
+    }
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
@@ -403,7 +445,9 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
 
     IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
+        {
             return E_FAIL;
+        }
 
         return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset,
                                             &ilEndOffset);
@@ -444,7 +488,9 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     << std::setfill('0') << std::setw(2) << (static_cast<int>(mvid.Data4[1]) & 0xFF)
     << "-";
     for (int i = 2; i < 8; i++)
+    {
         ss << std::setfill('0') << std::setw(2) << (static_cast<int>(mvid.Data4[i]) & 0xFF);
+    }
 
     id = ss.str();
 
@@ -460,7 +506,9 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle
     IfFailRet(pModule->IsInMemory(&isInMemory));
 
     if (isDynamic == TRUE)
+    {
         return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
+    }
 
     uint64_t peAddress = 0;
     uint32_t peSize = 0;
@@ -479,7 +527,9 @@ static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle
         SIZE_T read = 0;
         IfFailRet(process->ReadMemory(peAddress, peSize, peBuf.data(), &read));
         if (read != peSize)
+        {
             return E_FAIL;
+        }
     }
 
     return Interop::LoadSymbolsForPortablePDB(
@@ -511,7 +561,9 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
         if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&pModule2))))
         {
             if (!needJMC)
+            {
                 pModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
+            }
 
             if (SUCCEEDED(Status = pModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
                                                                               // disable JMC on module's types/methods.
@@ -528,19 +580,25 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
                 // * DebuggerStepThroughAttribute tells the debugger to step through the code it's applied to, rather
                 // than step into the code. The .NET debugger considers all other code to be user code.
                 if (needJMC)
+                {
                     DisableJMCByAttributes(pModule);
+                }
             }
             else if (Status == CORDBG_E_CANT_SET_TO_JMC)
             {
                 if (needJMC)
+                {
                     outputText = "You are debugging a Release build of " + module.name +
                                  ". Using Just My Code with Release builds using compiler optimizations results in a "
                                  "degraded debugging experience (e.g. breakpoints will not be hit).";
+                }
                 else
+                {
                     outputText = "You are debugging a Release build of " + module.name +
                                  ". Without Just My Code Release builds try not to use compiler optimizations, but in "
                                  "some cases (e.g. attach) this still results in a degraded debugging experience (e.g. "
                                  "breakpoints will not be hit).";
+                }
             }
         }
 
@@ -550,8 +608,10 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
         IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
         if (FAILED(m_modulesSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
+        {
             LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "
                  "source path resolve in future.");
+        }
     }
 
     IfFailRet(GetModuleId(pModule, module.id));
@@ -581,7 +641,9 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
         [&](ModuleInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
                 return E_FAIL;
+            }
 
             return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandle, methodToken, localIndex,
                                                           wLocalName.data(), mdNameLen, pIlStart, pIlEnd);
@@ -603,7 +665,9 @@ HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef met
         [&](ModuleInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
                 return E_FAIL;
+            }
 
             return Interop::GetHoistedLocalScopes(mdInfo.m_symbolReaderHandle, methodToken, data, hoistedLocalScopesCount);
         });
@@ -640,7 +704,9 @@ HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMet
         [&](ModuleInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
                 return E_FAIL;
+            }
 
             return Interop::GetNextUserCodeILOffset(mdInfo.m_symbolReaderHandle, methodToken,
                                                     ilOffset, ilNextOffset, noUserCodeFound);
@@ -674,7 +740,9 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
         [&](ModuleInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
                 return E_FAIL;
+            }
 
             return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
         });

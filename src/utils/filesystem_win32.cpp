@@ -36,7 +36,9 @@ bool SetWorkDir(const std::string &path)
     // In the ANSI version of this function, the name is limited to MAX_PATH characters.
     // https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory
     if (path.size() >= MAX_PATH)
+    {
         return false;
+    }
 
     return SetCurrentDirectoryA(path.c_str());
 }

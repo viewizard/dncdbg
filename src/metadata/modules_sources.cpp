@@ -55,9 +55,13 @@ struct module_methods_data_t_deleter
             for (int32_t i = 0; i < p->fileNum; i++)
             {
                 if (p->moduleMethodsData[i].document != nullptr)
+                {
                     Interop::SysFreeString(p->moduleMethodsData[i].document);
+                }
                 if (p->moduleMethodsData[i].methodsData != nullptr)
+                {
                     Interop::CoTaskMemFree(p->moduleMethodsData[i].methodsData);
+                }
             }
             Interop::CoTaskMemFree(p->moduleMethodsData);
         }
@@ -94,9 +98,13 @@ void AddMethodData(/*in,out*/ std::map<size_t,
         const method_data_t key(find->methodDef, entry.startLine, entry.endLine, entry.startColumn, entry.endColumn);
         auto find_multi = multiMethodBpData.find(key);
         if (find_multi == multiMethodBpData.end())
+        {
             multiMethodBpData.emplace(key, std::vector<mdMethodDef>{entry.methodDef});
+        }
         else
+        {
             find_multi->second.emplace_back(entry.methodDef);
+        }
 
         return;
     }
@@ -127,7 +135,9 @@ void AddMethodData(/*in,out*/ std::map<size_t,
             AddMethodData(methodData, multiMethodBpData, tmp, nestedLevel + 1);
         }
         else
+        {
             break;
+        }
     } while (it != methodData[nestedLevel].begin());
 
     methodData[nestedLevel].emplace(entry);
@@ -148,7 +158,9 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
     {
         auto lower = std::lower_bound((*it).cbegin(), (*it).cend(), lineNum);
         if (lower == (*it).cend())
+        {
             break; // point behind last method for this nested level
+        }
 
         // case with first line of method, for example:
         // void Method(){
@@ -160,9 +172,13 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             // ... code ...; void Method() {     <- breakpoint at this line
             //  };
             if (result != nullptr)
+            {
                 closestNestedToken = (*lower).methodDef;
+            }
             else
+            {
                 result = &(*lower);
+            }
 
             break;
         }
@@ -192,7 +208,9 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             break;
         }
         else
+        {
             break;
+        }
     }
 
     if (result != nullptr)
@@ -231,7 +249,9 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolRead
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
             if ((methodTokens != nullptr) && methodTokens->find(methodDef) == methodTokens->end())
+            {
                 continue;
+            }
 
             std::array<WCHAR, mdNameLen> funcName{};
             ULONG funcNameLen = 0;
@@ -242,9 +262,13 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolRead
             }
 
             if (str_equal(funcName.data(), W(".ctor")) || str_equal(funcName.data(), W(".cctor")))
+            {
                 constrTokens.emplace_back(methodDef);
+            }
             else
+            {
                 normalTokens.emplace_back(methodDef);
+            }
         }
         pMDImport->CloseEnum(fEnum);
     }
@@ -261,7 +285,9 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolRead
     IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, static_cast<uint32_t>(constrTokens.size()), constrTokens.data(),
                                               static_cast<uint32_t>(normalTokens.size()), normalTokens.data(), &data));
     if (data == nullptr)
+    {
         return S_OK;
+    }
 
     inputData.reset(static_cast<module_methods_data_t *>(data));
     return S_OK;
@@ -295,7 +321,9 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
         m_sourcesMethodsData.emplace_back();
     }
     else
+    {
         fullPathIndex = findPathIndex->second;
+    }
 
     return S_OK;
 }
@@ -309,7 +337,9 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
     std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> inputData;
     IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, nullptr, inputData));
     if (inputData == nullptr)
+    {
         return S_OK;
+    }
 
     // Usually, modules provide files with unique full paths for sources.
     m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData->fileNum);
@@ -372,7 +402,9 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
     // IMPORTANT! Caller should care about m_sourcesInfoMutex.
     auto findIndexesByFileName = m_sourceNameToFullPathsIndexes.find(GetFileName(filename));
     if (findIndexesByFileName == m_sourceNameToFullPathsIndexes.end())
+    {
         return E_FAIL;
+    }
 
     auto const &possiblePathsIndexes = findIndexesByFileName->second;
     std::string result = filename;
@@ -386,10 +418,14 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
         if (pathElement == "..")
         {
             if (!pathDirs.empty())
+            {
                 pathDirs.pop_front();
+            }
         }
         else if (pathElement != ".")
+        {
             pathDirs.push_front(pathElement);
+        }
 
         result = result.substr(i + 1);
     }
@@ -417,7 +453,9 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
     for (const auto pathIndex : possiblePathsIndexes)
     {
         if (result.size() > m_sourceIndexToPath[pathIndex].size())
+        {
             continue;
+        }
 
         // Note, since assemblies could be built in different OSes, we could have different delimiters in source files
         // paths.
@@ -425,7 +463,9 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
             [](const char &a, const char &b)
             {
                 if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
+                {
                     return true;
+                }
                 return a == b;
             };
 
@@ -440,12 +480,16 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
                 for (; first1 != last1; ++first1, ++first2)
                 {
                     if (!BinaryPredicate(*first1, *first2))
+                    {
                         return false;
+                    }
                 }
                 return true;
             };
         if (equal())
+        {
             possibleResults.push_back(m_sourceIndexToPath[pathIndex]);
+        }
     }
     // The problem is - we could have several assemblies that could have sources with same relative paths with different
     // path's root. We don't really have a lot of options here, so, we assume, that all possible sources paths have same
@@ -456,7 +500,9 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
         for (const auto &path : possibleResults)
         {
             if (filename.length() > path.length())
+            {
                 filename = path;
+            }
         }
         return S_OK;
     }
@@ -493,7 +539,9 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
         findIndex = m_sourcePathToIndex.find(resolvedFilename);
         if (findIndex == m_sourcePathToIndex.end())
+        {
             return E_FAIL;
+        }
     }
 
     fullname_index = findIndex->second;
@@ -517,14 +565,18 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
     for (const auto &sourceData : m_sourcesMethodsData[findIndex->second])
     {
         if ((modAddress != 0U) && modAddress != sourceData.modAddress)
+        {
             continue;
+        }
 
         std::vector<mdMethodDef> Tokens;
         int32_t correctedStartLine = sourceLine;
         mdMethodDef closestNestedToken = mdMethodDefNil;
         if (!GetMethodTokensByLineNumber(sourceData.methodsData, sourceData.multiMethodsData, correctedStartLine,
                                          Tokens, closestNestedToken))
+        {
             continue;
+        }
         // correctedStartLine - in case line not belong any methods, if possible, will be "moved" to first line of
         // method below sourceLine.
 
@@ -537,7 +589,9 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         ModuleInfo *pmdInfo = nullptr; // Note, pmdInfo must be covered by m_modulesInfoMutex.
         IfFailRet(pModules->GetModuleInfo(sourceData.modAddress, &pmdInfo)); // we must have it, since we loaded data from it
         if (pmdInfo->m_symbolReaderHandle == nullptr)
+        {
             continue;
+        }
 
         void *data = nullptr;
         int32_t Count = 0;
@@ -573,7 +627,9 @@ HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fu
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     if (m_sourceIndexToPath.size() <= index)
+    {
         return E_FAIL;
+    }
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     fullPath = m_sourceIndexToInitialFullPath[index];
@@ -600,7 +656,9 @@ HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, un
 
     auto findIndex = m_sourcePathToIndex.find(fullPath);
     if (findIndex == m_sourcePathToIndex.end())
+    {
         return E_FAIL;
+    }
 
     index = findIndex->second;
     return S_OK;
