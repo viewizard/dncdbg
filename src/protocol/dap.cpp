@@ -604,6 +604,14 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 sharedDebugger->SetStepFiltering(arguments.value(
                     "enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
 
+                // TODO config
+                // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+                // in VSCode IDE launch.json
+                // "expressionEvaluationOptions": {
+                //     "allowImplicitFuncEval": false
+                // }
+                sharedDebugger->SetEvalFlags(defaultEvalFlags);
+
                 if (!fileExec.empty())
                 {
                     return sharedDebugger->Launch(fileExec, execArgs, env, cwd, arguments.value("stopAtEntry", false));
@@ -755,7 +763,6 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         }
                     }());
 
-                // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 Variable variable;
                 std::string output;
                 Status = sharedDebugger->Evaluate(frameId, expression, variable, output);
@@ -804,13 +811,8 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         }
                     }());
 
-                // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
-                // in VSCode IDE launch.json
-                // "expressionEvaluationOptions": {
-                //     "allowImplicitFuncEval": false
-                // }
                 std::string output;
-                Status = sharedDebugger->SetExpression(frameId, expression, defaultEvalFlags, value, output);
+                Status = sharedDebugger->SetExpression(frameId, expression, value, output);
                 if (FAILED(Status))
                 {
                     if (output.empty())

@@ -335,7 +335,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
 
     if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().iCorValue,
                                                           inputPropertyData, evalStack.front().identifiers,
-                                                          ppResultValue, resultSetterData, nullptr, ed.evalFlags)) &&
+                                                          ppResultValue, resultSetterData, nullptr)) &&
         !evalStack.front().identifiers.empty())
     {
         std::ostringstream ss;
@@ -359,7 +359,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> iCorValue;
     if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().iCorValue, nullptr,
-                                                           evalStack.front().identifiers, &iCorValue, nullptr, ppResultType, ed.evalFlags)) &&
+                                                           evalStack.front().identifiers, &iCorValue, nullptr, ppResultType)) &&
          !evalStack.front().identifiers.empty()) ||
         (iCorValue != nullptr))
     {
@@ -431,7 +431,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pValue, 1, pResultValue, ed.evalFlags);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
@@ -463,7 +463,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pTypeValue, 1, pResultValue, ed.evalFlags);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, &pTypeValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
@@ -825,7 +825,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         }
 
         std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
-        return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue, ed.evalFlags);
+        return ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue);
     };
 
     // Try execute operator for exact same type as provided values.
@@ -1210,7 +1210,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     ToRelease<ICorDebugValue> iCorValue;
     ToRelease<ICorDebugType> iCorType;
     IfFailRet(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().iCorValue, nullptr,
-                                                evalStack.front().identifiers, &iCorValue, nullptr, &iCorType, ed.evalFlags));
+                                                evalStack.front().identifiers, &iCorValue, nullptr, &iCorType));
 
     bool searchStatic = false;
     if (iCorType != nullptr)
@@ -1356,7 +1356,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     evalStack.front().ResetEntry();
     Status = ed.pEvalHelpers->EvalGenericFunction(
         ed.pThread, iCorFunc, iCorTypeArgs.data(), static_cast<uint32_t>(iCorTypeArgs.size()), iCorValueArgs.data(),
-        static_cast<uint32_t>(iCorValueArgs.size()), &evalStack.front().iCorValue, ed.evalFlags);
+        static_cast<uint32_t>(iCorValueArgs.size()), &evalStack.front().iCorValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is
     // void.
@@ -1476,7 +1476,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         IfFailRet(iCorValue2->GetExactType(&iCorType));
 
         Status = ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, iCorType.GetRef(), 1, iCorValueArgs.data(),
-                                               Int + 1, &evalStack.front().iCorValue, ed.evalFlags);
+                                               Int + 1, &evalStack.front().iCorValue);
     }
     return Status;
 }
@@ -1592,7 +1592,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         IfFailRet(iCorValue2->GetExactType(&iCorType));
 
         Status = ed.pEvalHelpers->EvalFunction(ed.pThread, iCorFunc, iCorType.GetRef(), 1, iCorValueArgs.data(),
-                                               Int + 1, &evalStack.front().iCorValue, ed.evalFlags);
+                                               Int + 1, &evalStack.front().iCorValue);
     }
     return Status;
 }
@@ -2072,8 +2072,8 @@ HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*
 
 } // unnamed namespace
 
-HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
-                              const std::string &expression, std::list<EvalStackEntry> &evalStack, std::string &output)
+HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
+                              std::list<EvalStackEntry> &evalStack, std::string &output)
 {
     static const std::vector<std::function<HRESULT(std::list<EvalStackEntry> &, void *, std::string &, EvalData &)>> CommandImplementation = {
         IdentifierName,
@@ -2146,7 +2146,6 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, u
 
     m_evalData.pThread = pThread;
     m_evalData.frameLevel = frameLevel;
-    m_evalData.evalFlags = evalFlags;
 
     do
     {
@@ -2191,14 +2190,14 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, u
     return Status;
 }
 
-HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
+HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel,
                                              const std::string &expression, ICorDebugValue **ppResultValue,
                                              std::string &output, bool *editable,
                                              std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
-    IfFailRet(Run(pThread, frameLevel, evalFlags, expression, evalStack, output));
+    IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
 
@@ -2219,12 +2218,12 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     return S_OK;
 }
 
-HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags,
+HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel,
                                                ICorDebugValue *pValue, const std::string &expression, std::string &output)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
-    IfFailRet(Run(pThread, frameLevel, evalFlags, expression, evalStack, output));
+    IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
 

@@ -172,7 +172,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
     ToRelease<ICorDebugFunction> pFunc;
     IfFailRet(pModule->GetFunctionFromToken(mdObjectIdForDebuggerGetter, &pFunc));
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, pValue.GetRef(), 1, ppValueAsyncIdRef, defaultEvalFlags));
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, pValue.GetRef(), 1, ppValueAsyncIdRef, true));
 
     return S_OK;
 }
@@ -252,7 +252,7 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
 
     std::array <ICorDebugValue *, 2> ppArgsValue{pBuilderValue, pNewBoolean};
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, ppArgsValue.data(), 2, nullptr, defaultEvalFlags));
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, ppArgsValue.data(), 2, nullptr, true));
 
     return S_OK;
 }

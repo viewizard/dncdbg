@@ -52,13 +52,14 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // [in] ppArgsValue - pointer to args Value array, could be nullptr;
 // [in] ArgsValueCount - size of args Value array;
 // [out] ppEvalResult - return value;
-// [in] evalFlags - evaluation flags.
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                                   uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
-                                  ICorDebugValue **ppEvalResult, uint32_t evalFlags)
+                                  ICorDebugValue **ppEvalResult, bool ignoreEvalFlags)
 {
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
+
+    const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : m_evalFlags;
 
     if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {
@@ -98,12 +99,12 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
 
 HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                                          uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
-                                         ICorDebugValue **ppEvalResult, uint32_t evalFlags)
+                                         ICorDebugValue **ppEvalResult)
 {
     assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
     assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
 
-    if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
+    if ((m_evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {
         return S_OK;
     }
@@ -379,7 +380,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
         }
 
         // Note, this call must ignore any eval flags.
-        IfFailRet(EvalFunction(pThread, m_pSuppressFinalize, &pType, 1, pTypeObject.GetRef(), 1, nullptr, defaultEvalFlags));
+        IfFailRet(EvalFunction(pThread, m_pSuppressFinalize, &pType, 1, pTypeObject.GetRef(), 1, nullptr, true));
     }
 
     AddTypeObjectToCache(pType, pTypeObject);

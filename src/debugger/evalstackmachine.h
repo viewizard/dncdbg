@@ -86,14 +86,12 @@ struct EvalData
     ToRelease<ICorDebugClass> iCorVoidClass;
     std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> corElementToValueClassMap;
     FrameLevel frameLevel;
-    uint32_t evalFlags;
 
     EvalData()
         : pThread(nullptr),
           pEvaluator(nullptr),
           pEvalHelpers(nullptr),
-          pEvalWaiter(nullptr),
-          evalFlags(defaultEvalFlags)
+          pEvalWaiter(nullptr)
     {}
 };
 
@@ -122,11 +120,11 @@ class EvalStackMachine
     }
 
     // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
-    HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags, const std::string &expression, ICorDebugValue **ppResultValue,
+    HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, ICorDebugValue **ppResultValue,
                                std::string &output, bool *editable = nullptr, std::unique_ptr<Evaluator::SetterData> *resultSetterData = nullptr);
 
     // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.
-    HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags, ICorDebugValue *pValue,
+    HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                  const std::string &expression, std::string &output);
 
     // Find ICorDebugClass objects for all predefined types we need for stack machine during Private.CoreLib load.
@@ -141,7 +139,7 @@ class EvalStackMachine
     EvalData m_evalData;
 
     // Run stack machine for particular expression.
-    HRESULT Run(ICorDebugThread *pThread, FrameLevel frameLevel, uint32_t evalFlags, const std::string &expression,
+    HRESULT Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                 std::list<EvalStackEntry> &evalStack, std::string &output);
 };
 

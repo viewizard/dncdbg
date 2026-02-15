@@ -11,6 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "types/types.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <list>
@@ -30,7 +31,8 @@ class EvalHelpers
 
     EvalHelpers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedModules(sharedModules),
-          m_sharedEvalWaiter(sharedEvalWaiter)
+          m_sharedEvalWaiter(sharedEvalWaiter),
+          m_evalFlags(defaultEvalFlags)
     {}
 
     HRESULT CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
@@ -39,11 +41,11 @@ class EvalHelpers
 
     HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                          uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
-                         ICorDebugValue **ppEvalResult, uint32_t evalFlags);
+                         ICorDebugValue **ppEvalResult, bool ignoreEvalFlags = false);
 
     HRESULT EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                                 uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
-                                ICorDebugValue **ppEvalResult, uint32_t evalFlags);
+                                ICorDebugValue **ppEvalResult);
 
     HRESULT GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugModule *pModule,
                             PCCOR_SIGNATURE pSignatureBlob, ULONG sigBlobLength, UVCP_CONSTANT pRawValue,
@@ -54,12 +56,18 @@ class EvalHelpers
     HRESULT FindMethodInModule(const std::string &moduleName, const WSTRING &className, const WSTRING &methodName,
                                ICorDebugFunction **ppFunction);
 
+    void SetEvalFlags(uint32_t evalFlags)
+    {
+        m_evalFlags = evalFlags;
+    }
+
     void Cleanup();
 
   private:
 
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
+    uint32_t m_evalFlags;
 
     std::mutex m_pSuppressFinalizeMutex;
     ToRelease<ICorDebugFunction> m_pSuppressFinalize;

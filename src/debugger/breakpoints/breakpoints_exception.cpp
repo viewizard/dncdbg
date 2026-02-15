@@ -220,7 +220,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 }
 
                 ToRelease<ICorDebugValue> iCorResultValue;
-                IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
+                IfFailRet(getValue(&iCorResultValue, true));
 
                 BOOL isNull = TRUE;
                 ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
@@ -252,7 +252,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
             if (memberName == "InnerException")
             {
-                IfFailRet(getValue(&iCorInnerExceptionValue, defaultEvalFlags));
+                IfFailRet(getValue(&iCorInnerExceptionValue, true));
                 BOOL isNull = FALSE;
                 ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
                 if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&iCorReferenceValue))) &&

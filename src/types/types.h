@@ -549,13 +549,10 @@ struct Variable
     // declarationLocationReference?: number;
     // valueLocationReference?: number;
 
-    uint32_t evalFlags; // not part of DAP
-
-    Variable(uint32_t flags = defaultEvalFlags)
+    Variable()
         : variablesReference(0),
           namedVariables(0),
-          indexedVariables(0),
-          evalFlags(flags)
+          indexedVariables(0)
     {
     }
 };

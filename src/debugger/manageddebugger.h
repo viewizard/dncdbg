@@ -74,6 +74,7 @@ class ManagedDebugger
         return m_stepFiltering;
     }
     void SetStepFiltering(bool enable);
+    void SetEvalFlags(uint32_t evalFlags);
 
     HRESULT Initialize();
     HRESULT Attach(int pid);
@@ -102,8 +103,7 @@ class ManagedDebugger
     HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output);
     void CancelEvalRunning();
     HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output);
-    HRESULT SetExpression(FrameId frameId, const std::string &expression, uint32_t evalFlags, const std::string &value,
-                          std::string &output);
+    HRESULT SetExpression(FrameId frameId, const std::string &expression, const std::string &value, std::string &output);
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
 
   private:

@@ -42,13 +42,13 @@ class Variables
     HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value, uint32_t ref,
                         std::string &output);
 
-    HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression, uint32_t evalFlags,
+    HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
                           const std::string &value, std::string &output);
 
     HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);
 
-    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression, Variable &variable,
-                     std::string &output);
+    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
+                     Variable &variable, std::string &output);
 
     HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &variable);
 
@@ -66,7 +66,6 @@ class Variables
         uint32_t variablesReference; // key
         int namedVariables;
         int indexedVariables;
-        uint32_t evalFlags;
 
         std::string evaluateName;
 
@@ -78,7 +77,6 @@ class Variables
             : variablesReference(variable.variablesReference),
               namedVariables(variable.namedVariables),
               indexedVariables(variable.indexedVariables),
-              evalFlags(variable.evalFlags),
               evaluateName(variable.evaluateName),
               valueKind(valueKind),
               iCorValue(pValue),
@@ -89,7 +87,6 @@ class Variables
             : variablesReference(variablesReference),
               namedVariables(namedVariables),
               indexedVariables(0),
-              evalFlags(0), // unused in this case, not involved into GetScopes routine
               valueKind(ValueKind::Scope),
               iCorValue(nullptr),
               frameId(frameId)

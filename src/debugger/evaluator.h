@@ -88,7 +88,7 @@ class Evaluator
         }
     };
 
-    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, int)>;
+    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, bool)>;
     using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)>;
     using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
@@ -105,7 +105,7 @@ class Evaluator
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
-                               ICorDebugType **ppResultType, uint32_t evalFlags);
+                               ICorDebugType **ppResultType);
 
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                         ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb);
@@ -124,19 +124,18 @@ class Evaluator
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                          ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
-                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
-                         uint32_t evalFlags);
+                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
                                   std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
-                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData, uint32_t evalFlags);
+                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                         std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
-                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value, uint32_t evalFlags,
+                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
                      std::string &output);
 
     static ArgElementType GetElementTypeByTypeName(const std::string &typeName);

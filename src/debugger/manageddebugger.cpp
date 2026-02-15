@@ -1189,7 +1189,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
     return m_sharedVariables->SetVariable(m_iCorProcess, name, value, ref, output);
 }
 
-HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression, uint32_t evalFlags,
+HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression,
                                        const std::string &value, std::string &output)
 {
     LogFuncEntry();
@@ -1198,7 +1198,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->SetExpression(m_iCorProcess, frameId, expression, evalFlags, value, output);
+    return m_sharedVariables->SetExpression(m_iCorProcess, frameId, expression, value, output);
 }
 
 void ManagedDebugger::SetJustMyCode(bool enable)
@@ -1212,6 +1212,11 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 {
     m_stepFiltering = enable;
     m_uniqueSteppers->SetStepFiltering(enable);
+}
+
+void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
+{
+    m_sharedEvalHelpers->SetEvalFlags(evalFlags);
 }
 
 void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)

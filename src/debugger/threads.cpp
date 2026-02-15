@@ -67,7 +67,7 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
                     }
 
                     ToRelease<ICorDebugValue> iCorResultValue;
-                    IfFailRet(getValue(&iCorResultValue, defaultEvalFlags));
+                    IfFailRet(getValue(&iCorResultValue, true));
 
                     BOOL isNull = TRUE;
                     ToRelease<ICorDebugValue> pValue;
