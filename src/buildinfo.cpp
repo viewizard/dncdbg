@@ -23,7 +23,7 @@
 #define STRINGIFY_(v) #v
 #define STRINGIFY(v) STRINGIFY_(v) // NOLINT(cppcoreguidelines-macro-usage)
 
-namespace dncdbg::BuildInfo
+namespace BuildInfo
 {
 
 const std::string_view version = "0.0.1";

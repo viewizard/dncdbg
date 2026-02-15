@@ -13,8 +13,16 @@
 
 namespace dncdbg
 {
+
 namespace hook
 {
+
+namespace
+{
+
+waitpid_t waitpid;
+
+} // unnamed namespace
 
 void waitpid_t::init() noexcept
 {
@@ -59,8 +67,6 @@ void waitpid_t::SetExitCode(pid_t PID, int Code)
     }
     exitCode = Code;
 }
-
-static waitpid_t waitpid;
 
 } // namespace hook
 

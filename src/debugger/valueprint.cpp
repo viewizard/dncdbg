@@ -21,63 +21,10 @@
 namespace dncdbg
 {
 
-// From strike.cpp
-HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull)
+namespace
 {
-    HRESULT Status = S_OK;
-    *ppOutputValue = nullptr;
-    if (pIsNull != nullptr)
-    {
-        *pIsNull = FALSE;
-    }
 
-    pValue->AddRef();
-    ToRelease<ICorDebugValue> trCurrentValue(pValue);
-
-    while (true)
-    {
-        ToRelease<ICorDebugReferenceValue> trReferenceValue;
-        Status = trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue));
-        if (SUCCEEDED(Status))
-        {
-            BOOL isNull = FALSE;
-            IfFailRet(trReferenceValue->IsNull(&isNull));
-            if (isNull == FALSE)
-            {
-                ToRelease<ICorDebugValue> trDereferencedValue;
-                IfFailRet(trReferenceValue->Dereference(&trDereferencedValue));
-                trCurrentValue = trDereferencedValue.Detach();
-                continue;
-            }
-            else
-            {
-                if (pIsNull != nullptr)
-                {
-                    *pIsNull = TRUE;
-                }
-                break; // unboxed till null reference
-            }
-        }
-
-        ToRelease<ICorDebugBoxValue> trBoxedValue;
-        Status = trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue));
-        if (SUCCEEDED(Status))
-        {
-            ToRelease<ICorDebugObjectValue> trUnboxedValue;
-            IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));
-            trCurrentValue = trUnboxedValue.Detach();
-            continue;
-        }
-
-        break; // unboxed till object
-    }
-
-    trCurrentValue->AddRef();
-    *ppOutputValue = trCurrentValue;
-    return S_OK;
-}
-
-static bool IsEnum(ICorDebugValue *pInputValue)
+bool IsEnum(ICorDebugValue *pInputValue)
 {
     ToRelease<ICorDebugValue> pValue;
     if (FAILED(DereferenceAndUnboxValue(pInputValue, &pValue, nullptr)))
@@ -102,7 +49,7 @@ static bool IsEnum(ICorDebugValue *pInputValue)
     return baseTypeName == "System.Enum";
 }
 
-static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string &output)
+HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -258,7 +205,7 @@ static HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std:
 }
 
 template <typename T, typename = typename std::enable_if_t<std::is_integral_v<T>>>
-static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
+HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
 {
     HRESULT Status = S_OK;
 
@@ -370,13 +317,13 @@ static HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     return S_OK;
 }
 
-static HRESULT GetUIntValue(ICorDebugValue *pInputValue, unsigned &value)
+HRESULT GetUIntValue(ICorDebugValue *pInputValue, unsigned &value)
 {
     return GetIntegralValue(pInputValue, value);
 }
 
-static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int &mid, unsigned int &lo,
-                                unsigned int &flags)
+HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int &mid, unsigned int &lo,
+                         unsigned int &flags)
 {
     HRESULT Status = S_OK;
 
@@ -460,7 +407,7 @@ static HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsign
     return (has_hi && has_mid && has_lo && has_flags ? S_OK : E_FAIL);
 }
 
-static inline uint64_t Make_64(uint32_t h, uint32_t l)
+inline uint64_t Make_64(uint32_t h, uint32_t l)
 {
     static constexpr uint32_t fourBytesShift = 32;
     uint64_t v = h;
@@ -468,17 +415,18 @@ static inline uint64_t Make_64(uint32_t h, uint32_t l)
     v |= l;
     return v;
 }
-static inline uint32_t Lo_32(uint64_t v)
+
+inline uint32_t Lo_32(uint64_t v)
 {
     return static_cast<uint32_t>(v);
 }
 
-static bool uint96_is_zero(const std::array<uint32_t, 3> &v)
+bool uint96_is_zero(const std::array<uint32_t, 3> &v)
 {
     return v[0] == 0 && v[1] == 0 && v[2] == 0;
 }
 
-static void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &remainder)
+void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &remainder)
 {
     remainder = 0;
     for (int i = 2; i >= 0; i--)
@@ -507,7 +455,7 @@ static void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint3
     }
 }
 
-static std::string uint96_to_string(std::array<uint32_t, 3> &v)
+std::string uint96_to_string(std::array<uint32_t, 3> &v)
 {
     static constexpr uint32_t divisor = 10;
     static constexpr std::array<char, 10> digits{'0','1','2','3','4','5','6','7','8','9'};
@@ -521,7 +469,7 @@ static std::string uint96_to_string(std::array<uint32_t, 3> &v)
     return result;
 }
 
-static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, unsigned int flags, std::string &output)
+void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, unsigned int flags, std::string &output)
 {
     std::array<uint32_t, 3> v{lo, mid, hi};
 
@@ -555,7 +503,7 @@ static void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, uns
     }
 }
 
-static HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
+HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -571,7 +519,7 @@ static HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
+HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -639,28 +587,7 @@ static HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugStringValue> pStringValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&pStringValue)));
-
-    uint32_t cchValue = 0;
-    IfFailRet(pStringValue->GetLength(&cchValue));
-    cchValue++; // Allocate one more for null terminator
-
-    ArrayHolder<WCHAR> str = new WCHAR[cchValue];
-
-    uint32_t cchValueReturned = 0;
-    IfFailRet(pStringValue->GetString(cchValue, &cchValueReturned, str));
-
-    output = to_utf8(str);
-
-    return S_OK;
-}
-
-static void EscapeString(std::string &s, char q = '\"')
+void EscapeString(std::string &s, char q = '\"')
 {
     for (std::size_t i = 0; i < s.size(); ++i)
     {
@@ -722,6 +649,85 @@ static void EscapeString(std::string &s, char q = '\"')
         }
         i += count;
     }
+}
+
+} // unnamed namespace
+
+// From strike.cpp
+HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull)
+{
+    HRESULT Status = S_OK;
+    *ppOutputValue = nullptr;
+    if (pIsNull != nullptr)
+    {
+        *pIsNull = FALSE;
+    }
+
+    pValue->AddRef();
+    ToRelease<ICorDebugValue> trCurrentValue(pValue);
+
+    while (true)
+    {
+        ToRelease<ICorDebugReferenceValue> trReferenceValue;
+        Status = trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue));
+        if (SUCCEEDED(Status))
+        {
+            BOOL isNull = FALSE;
+            IfFailRet(trReferenceValue->IsNull(&isNull));
+            if (isNull == FALSE)
+            {
+                ToRelease<ICorDebugValue> trDereferencedValue;
+                IfFailRet(trReferenceValue->Dereference(&trDereferencedValue));
+                trCurrentValue = trDereferencedValue.Detach();
+                continue;
+            }
+            else
+            {
+                if (pIsNull != nullptr)
+                {
+                    *pIsNull = TRUE;
+                }
+                break; // unboxed till null reference
+            }
+        }
+
+        ToRelease<ICorDebugBoxValue> trBoxedValue;
+        Status = trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue));
+        if (SUCCEEDED(Status))
+        {
+            ToRelease<ICorDebugObjectValue> trUnboxedValue;
+            IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));
+            trCurrentValue = trUnboxedValue.Detach();
+            continue;
+        }
+
+        break; // unboxed till object
+    }
+
+    trCurrentValue->AddRef();
+    *ppOutputValue = trCurrentValue;
+    return S_OK;
+}
+
+HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugStringValue> pStringValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&pStringValue)));
+
+    uint32_t cchValue = 0;
+    IfFailRet(pStringValue->GetLength(&cchValue));
+    cchValue++; // Allocate one more for null terminator
+
+    ArrayHolder<WCHAR> str = new WCHAR[cchValue];
+
+    uint32_t cchValueReturned = 0;
+    IfFailRet(pStringValue->GetString(cchValue, &cchValueReturned, str));
+
+    output = to_utf8(str);
+
+    return S_OK;
 }
 
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue)

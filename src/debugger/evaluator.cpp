@@ -23,157 +23,14 @@
 namespace dncdbg
 {
 
-bool Evaluator::ArgElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2)
+namespace
 {
-    static const std::unordered_map<CorElementType, ArgElementType> aliases = {
-        {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
-        {ELEMENT_TYPE_CHAR,    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
-        {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
-        {ELEMENT_TYPE_U1,      {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
-        {ELEMENT_TYPE_R8,      {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
-        {ELEMENT_TYPE_R4,      {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
-        {ELEMENT_TYPE_I4,      {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
-        {ELEMENT_TYPE_U4,      {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
-        {ELEMENT_TYPE_I8,      {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
-        {ELEMENT_TYPE_U8,      {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
-        {ELEMENT_TYPE_OBJECT,  {ELEMENT_TYPE_CLASS,     "System.Object"}},
-        {ELEMENT_TYPE_I2,      {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
-        {ELEMENT_TYPE_U2,      {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
-        {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
-    };
 
-    auto found = aliases.find(type1);
-    if (found != aliases.end())
-    {
-        if (found->second.corType == type2 && found->second.typeName == name2)
-        {
-            return true;
-        }
-    }
-    return false;
-}
+// https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
+constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
+constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 
-bool Evaluator::ArgElementType::areEqual(const ArgElementType &arg) const
-{
-    return (corType == arg.corType && typeName == arg.typeName) ||
-           isAlias(corType, arg.corType, arg.typeName) ||
-           isAlias(arg.corType, corType, typeName);
-}
-
-Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
-{
-    static const std::unordered_map<std::string, Evaluator::ArgElementType> stypes = {
-        {"void",    {ELEMENT_TYPE_VALUETYPE, "System.Void"}},
-        {"bool",    {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
-        {"byte",    {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
-        {"sbyte",   {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
-        {"char",    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
-        {"decimal", {ELEMENT_TYPE_VALUETYPE, "System.Decimal"}},
-        {"double",  {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
-        {"float",   {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
-        {"int",     {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
-        {"uint",    {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
-        {"long",    {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
-        {"ulong",   {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
-        {"object",  {ELEMENT_TYPE_CLASS,     "System.Object"}},
-        {"short",   {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
-        {"ushort",  {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
-        {"string",  {ELEMENT_TYPE_CLASS,     "System.String"}},
-        {"IntPtr",  {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
-        {"UIntPtr", {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}}
-    };
-
-    Evaluator::ArgElementType userType;
-    auto found = stypes.find(typeName);
-    if (found != stypes.end())
-    {
-        return found->second;
-    }
-    userType.corType = ELEMENT_TYPE_CLASS;
-    userType.typeName = typeName;
-    return userType;
-}
-
-HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
-{
-    HRESULT Status = S_OK;
-
-    if (indexes.empty())
-    {
-        return E_FAIL;
-    }
-
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> pValue;
-
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
-
-    if (isNull == TRUE)
-    {
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugArrayValue> pArrayVal;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayVal)));
-
-    uint32_t nRank = 0;
-    IfFailRet(pArrayVal->GetRank(&nRank));
-
-    if (indexes.size() != nRank)
-    {
-        return E_FAIL;
-    }
-
-    return pArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
-}
-
-HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
-                                        std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
-{
-    HRESULT Status = S_OK;
-
-    std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
-    int nextClassIdentifier = 0;
-    std::vector<std::string> fullpath;
-
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedModules.get(), nullptr, nullptr, &pModule));
-
-    bool trim = false;
-    while (!classIdentifiers.empty())
-    {
-        if (trim)
-        {
-            classIdentifiers.pop_back();
-        }
-
-        fullpath = classIdentifiers;
-        for (auto &identifier : identifiers)
-        {
-            fullpath.push_back(identifier);
-        }
-
-        nextClassIdentifier = 0;
-        ToRelease<ICorDebugType> pType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
-        {
-            break;
-        }
-
-        if (nextClassIdentifier == static_cast<int>(fullpath.size()))
-        {
-            *ppResultType = pType.Detach();
-            return S_OK;
-        }
-
-        trim = true;
-    }
-
-    return E_FAIL;
-}
-
-static void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
+void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
 {
     int i = static_cast<int32_t>(ind.size()) - 1;
 
@@ -189,7 +46,7 @@ static void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> 
     }
 }
 
-static std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<uint32_t> &base)
+std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<uint32_t> &base)
 {
     const size_t ind_size = ind.size();
     if (ind_size < 1 || base.size() != ind_size)
@@ -211,7 +68,7 @@ static std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::ve
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
 using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
-static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
+HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {
     HRESULT Status = S_OK;
     ULONG numFields = 0;
@@ -229,7 +86,7 @@ static HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, con
     return Status;
 }
 
-static HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
+HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
     mdProperty propertyDef = mdPropertyNil;
@@ -295,7 +152,7 @@ static HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef,
 // LoBounds ::= 29-bit-encoded-integer
 // Number ::= 29-bit-encoded-integer
 
-static void GetCorTypeName(ULONG corType, std::string &typeName)
+void GetCorTypeName(ULONG corType, std::string &typeName)
 {
     switch (corType)
     {
@@ -350,9 +207,9 @@ static void GetCorTypeName(ULONG corType, std::string &typeName)
     }
 }
 
-static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Evaluator::ArgElementType &argElementType,
-                                std::vector<Evaluator::ArgElementType> &typeGenerics,
-                                std::vector<Evaluator::ArgElementType> &methodGenerics, bool addCorTypeName = false)
+HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Evaluator::ArgElementType &argElementType,
+                         std::vector<Evaluator::ArgElementType> &typeGenerics,
+                         std::vector<Evaluator::ArgElementType> &methodGenerics, bool addCorTypeName = false)
 {
     HRESULT Status = S_OK;
     ULONG corType = 0;
@@ -508,6 +365,494 @@ static HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, Ev
     return S_OK;
 }
 
+// https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
+bool IsSynthesizedLocalName(WCHAR *mdName, ULONG nameLen)
+{
+    return (nameLen > 1 && starts_with(mdName, W("<"))) ||
+           (nameLen > 4 && starts_with(mdName, W("CS$<")));
+}
+
+enum class GeneratedCodeKind : uint8_t
+{
+    Normal,
+    Async,
+    Lambda
+};
+
+HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
+{
+    HRESULT Status = S_OK;
+    std::array<WCHAR, mdNameLen> name{};
+    ULONG nameLen = 0;
+    IfFailRet(pMD->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
+    const WSTRING typeName(name.data());
+
+    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
+    //  Parse the generated name. Returns true for names of the form
+    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
+    //  generated names, where [middle] and [__[suffix]] are optional,
+    //  and where c is a single character in [1-9a-z]
+    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
+
+    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
+    //  LambdaMethod = 'b',
+    //  LambdaDisplayClass = 'c',
+    //  StateMachineType = 'd',
+
+    // https://github.com/dotnet/roslyn/blob/21055e1858548dbd8f4c1fd5d25a9c9617873806/src/Compilers/Core/Portable/PublicAPI.Shipped.txt#L252
+    //  const Microsoft.CodeAnalysis.WellKnownMemberNames.MoveNextMethodName = "MoveNext" -> string!
+    //  ... used in SynthesizedStateMachineMoveNextMethod class constructor.
+
+    if (methodName.rfind(W("MoveNext"), 0) != WSTRING::npos && typeName.find(W(">d")) != WSTRING::npos)
+    {
+        result = GeneratedCodeKind::Async;
+    }
+    else if (methodName.find(W(">b")) != WSTRING::npos && typeName.find(W(">c")) != WSTRING::npos)
+    {
+        result = GeneratedCodeKind::Lambda;
+    }
+    else
+    {
+        result = GeneratedCodeKind::Normal;
+    }
+
+    return S_OK;
+}
+
+enum class GeneratedNameKind : uint8_t
+{
+    None,
+    ThisProxyField,
+    HoistedLocalField,
+    DisplayClassLocalOrField
+};
+
+GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
+{
+    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
+    //  Parse the generated name. Returns true for names of the form
+    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
+    //  generated names, where [middle] and [__[suffix]] are optional,
+    //  and where c is a single character in [1-9a-z]
+    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
+
+    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
+    //  ThisProxyField = '4',
+    //  HoistedLocalField = '5',
+    //  DisplayClassLocalOrField = '8',
+
+    if (localOrFieldName.find(W(">4")) != WSTRING::npos)
+    {
+        return GeneratedNameKind::ThisProxyField;
+    }
+    else if (localOrFieldName.find(W(">5")) != WSTRING::npos)
+    {
+        return GeneratedNameKind::HoistedLocalField;
+    }
+    else if (localOrFieldName.find(W(">8")) != WSTRING::npos)
+    {
+        return GeneratedNameKind::DisplayClassLocalOrField;
+    }
+
+    return GeneratedNameKind::None;
+}
+
+HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppClass, mdTypeDef &typeDef)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugValue2> iCorValue2;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
+    ToRelease<ICorDebugType> iCorType;
+    IfFailRet(iCorValue2->GetExactType(&iCorType));
+    IfFailRet(iCorType->GetClass(ppClass));
+    IfFailRet((*ppClass)->GetToken(&typeDef));
+    return S_OK;
+}
+
+HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, mdTypeDef typeDef,
+                                ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
+{
+    HRESULT Status = S_OK;
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> pValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return E_INVALIDARG;
+    }
+
+    Status = ForEachFields(pMD, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
+        std::array<WCHAR, mdNameLen> mdName{};
+        ULONG nameLen = 0;
+        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
+            {
+                ToRelease<ICorDebugObjectValue> pObjValue;
+                IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
+                IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
+                return S_OK;
+            };
+
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+            if (generatedNameKind == GeneratedNameKind::ThisProxyField)
+            {
+                IfFailRet(getValue(ppResultValue));
+                return E_ABORT; // Fast exit from cycle
+            }
+            else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+            {
+                ToRelease<ICorDebugValue> iCorDisplayClassValue;
+                IfFailRet(getValue(&iCorDisplayClassValue));
+                ToRelease<ICorDebugClass> iCorDisplayClass;
+                mdTypeDef displayClassTypeDef = mdTypeDefNil;
+                IfFailRet(GetClassAndTypeDefByValue(iCorDisplayClassValue, &iCorDisplayClass, displayClassTypeDef));
+                IfFailRet(FindThisProxyFieldValue(pMD, iCorDisplayClass, displayClassTypeDef, iCorDisplayClassValue, ppResultValue));
+                if (ppResultValue)
+                {
+                    return E_ABORT; // Fast exit from cycle
+                }
+            }
+        }
+        return S_OK; // Return with success to continue walk.
+    });
+
+    return Status == E_ABORT ? S_OK : Status;
+}
+
+// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
+HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
+{
+    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameConstants.cs#L11
+    const WSTRING suffixSeparator(W("__"));
+    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
+    if (suffixSeparatorOffset == WSTRING::npos)
+    {
+        return E_FAIL;
+    }
+
+    static constexpr size_t intMaxSizeInChars = 10;
+    const WSTRING slotIndexString = mdName.substr(suffixSeparatorOffset + suffixSeparator.size());
+    if (slotIndexString.empty() ||
+        // Slot index is positive 4 byte int, that mean max is 10 characters (2147483647).
+        slotIndexString.size() > intMaxSizeInChars)
+    {
+        return E_FAIL;
+    }
+
+    static constexpr int32_t base = 10;
+    int32_t slotIndex = 0;
+    for (const WCHAR wChar : slotIndexString)
+    {
+        if (wChar < W('0') || wChar > W('9'))
+        {
+            return E_FAIL;
+        }
+
+        slotIndex = (slotIndex * base) + static_cast<int32_t>(wChar - W('0'));
+    }
+
+    if (slotIndex < 1) // Slot index start from 1.
+    {
+        return E_FAIL;
+    }
+
+    index = slotIndex - 1;
+    return S_OK;
+}
+
+// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
+HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
+{
+    WSTRING::size_type nameStartOffset = 0;
+    if (mdName.length() > 1 && starts_with(mdName.data(), W("<")))
+    {
+        nameStartOffset = 1;
+    }
+    else if (mdName.length() > 4 && starts_with(mdName.data(), W("CS$<")))
+    {
+        nameStartOffset = 4;
+    }
+    else
+    {
+        return E_FAIL;
+    }
+
+    const WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
+    if (closeBracketOffset == WSTRING::npos)
+    {
+        return E_FAIL;
+    }
+
+    wLocalName = mdName.substr(nameStartOffset, closeBracketOffset - nameStartOffset);
+    return S_OK;
+}
+
+HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
+                                 std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
+                                 Modules *pModules, ICorDebugModule *pModule,
+                                 Evaluator::WalkStackVarsCallback cb)
+{
+    HRESULT Status = S_OK;
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> pValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return S_OK;
+    }
+
+    ToRelease<ICorDebugClass> pClass;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
+    IfFailRet(GetClassAndTypeDefByValue(pValue, &pClass, currentTypeDef));
+
+    struct hoisted_local_scope_t
+    {
+        uint32_t startOffset;
+        uint32_t length;
+    };
+    struct hoisted_local_scope_t_deleter
+    {
+        void operator()(hoisted_local_scope_t *p) const
+        {
+            Interop::CoTaskMemFree(p);
+        }
+    };
+
+    int32_t hoistedLocalScopesCount = -1;
+    std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
+
+    IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
+        std::array<WCHAR, mdNameLen> mdName{};
+        ULONG nameLen = 0;
+        DWORD fieldAttr = 0;
+        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                      &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+            (fieldAttr & fdStatic) != 0 ||
+            (fieldAttr & fdLiteral) != 0 ||
+            usedNames.find(mdName.data()) != usedNames.end())
+        {
+            return S_OK; // Return with success to continue walk.
+        }
+
+        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
+            // Get pValue again, since it could be neutered at eval call in `cb` on previous cycle.
+            pValue.Free();
+            IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+            ToRelease<ICorDebugObjectValue> pObjValue;
+            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
+            IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
+            return S_OK;
+        };
+
+        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+        if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+        {
+            ToRelease<ICorDebugValue> iCorDisplayClassValue;
+            IfFailRet(getValue(&iCorDisplayClassValue, false));
+            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
+                                               pModules, pModule, cb));
+        }
+        else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
+        {
+            if (hoistedLocalScopesCount == -1)
+            {
+                void *data = nullptr;
+                if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
+                {
+                    hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
+                }
+                else
+                {
+                    hoistedLocalScopesCount = 0;
+                }
+            }
+
+            // Check, that hoisted local is in scope.
+            // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
+            int32_t index;
+            if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
+                hoistedLocalScopesCount > index &&
+                (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
+                 currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+
+            WSTRING wLocalName;
+            if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+
+            IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
+            usedNames.insert(wLocalName);
+        }
+        // Ignore any other compiler generated fields, show only normal fields.
+        else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
+        {
+            IfFailRet(cb(to_utf8(mdName.data()), getValue));
+            usedNames.insert(mdName.data());
+        }
+        return S_OK; // Return with success to continue walk.
+    }));
+
+    return S_OK;
+}
+
+} // unnamed namespace
+
+bool Evaluator::ArgElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2)
+{
+    static const std::unordered_map<CorElementType, ArgElementType> aliases = {
+        {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
+        {ELEMENT_TYPE_CHAR,    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
+        {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
+        {ELEMENT_TYPE_U1,      {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
+        {ELEMENT_TYPE_R8,      {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
+        {ELEMENT_TYPE_R4,      {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
+        {ELEMENT_TYPE_I4,      {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
+        {ELEMENT_TYPE_U4,      {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
+        {ELEMENT_TYPE_I8,      {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
+        {ELEMENT_TYPE_U8,      {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
+        {ELEMENT_TYPE_OBJECT,  {ELEMENT_TYPE_CLASS,     "System.Object"}},
+        {ELEMENT_TYPE_I2,      {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
+        {ELEMENT_TYPE_U2,      {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
+        {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
+    };
+
+    auto found = aliases.find(type1);
+    if (found != aliases.end())
+    {
+        if (found->second.corType == type2 && found->second.typeName == name2)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Evaluator::ArgElementType::areEqual(const ArgElementType &arg) const
+{
+    return (corType == arg.corType && typeName == arg.typeName) ||
+           isAlias(corType, arg.corType, arg.typeName) ||
+           isAlias(arg.corType, corType, typeName);
+}
+
+Evaluator::ArgElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
+{
+    static const std::unordered_map<std::string, Evaluator::ArgElementType> stypes = {
+        {"void",    {ELEMENT_TYPE_VALUETYPE, "System.Void"}},
+        {"bool",    {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
+        {"byte",    {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
+        {"sbyte",   {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
+        {"char",    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
+        {"decimal", {ELEMENT_TYPE_VALUETYPE, "System.Decimal"}},
+        {"double",  {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
+        {"float",   {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
+        {"int",     {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
+        {"uint",    {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
+        {"long",    {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
+        {"ulong",   {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
+        {"object",  {ELEMENT_TYPE_CLASS,     "System.Object"}},
+        {"short",   {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
+        {"ushort",  {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
+        {"string",  {ELEMENT_TYPE_CLASS,     "System.String"}},
+        {"IntPtr",  {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
+        {"UIntPtr", {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}}
+    };
+
+    Evaluator::ArgElementType userType;
+    auto found = stypes.find(typeName);
+    if (found != stypes.end())
+    {
+        return found->second;
+    }
+    userType.corType = ELEMENT_TYPE_CLASS;
+    userType.typeName = typeName;
+    return userType;
+}
+
+HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
+{
+    HRESULT Status = S_OK;
+
+    if (indexes.empty())
+    {
+        return E_FAIL;
+    }
+
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> pValue;
+
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+
+    if (isNull == TRUE)
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugArrayValue> pArrayVal;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayVal)));
+
+    uint32_t nRank = 0;
+    IfFailRet(pArrayVal->GetRank(&nRank));
+
+    if (indexes.size() != nRank)
+    {
+        return E_FAIL;
+    }
+
+    return pArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
+}
+
+HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
+                                        std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
+{
+    HRESULT Status = S_OK;
+
+    std::vector<int> ranks;
+    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
+    int nextClassIdentifier = 0;
+    std::vector<std::string> fullpath;
+
+    ToRelease<ICorDebugModule> pModule;
+    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedModules.get(), nullptr, nullptr, &pModule));
+
+    bool trim = false;
+    while (!classIdentifiers.empty())
+    {
+        if (trim)
+        {
+            classIdentifiers.pop_back();
+        }
+
+        fullpath = classIdentifiers;
+        for (auto &identifier : identifiers)
+        {
+            fullpath.push_back(identifier);
+        }
+
+        nextClassIdentifier = 0;
+        ToRelease<ICorDebugType> pType;
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
+        {
+            break;
+        }
+
+        if (nextClassIdentifier == static_cast<int>(fullpath.size()))
+        {
+            *ppResultType = pType.Detach();
+            return S_OK;
+        }
+
+        trim = true;
+    }
+
+    return E_FAIL;
+}
+
 HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -521,9 +866,6 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethod
     return WalkMethods(iCorType, &iCorResultType, methodGenerics, cb);
 }
 
-// https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
-static constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
-static constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                                std::vector<Evaluator::ArgElementType> &methodGenerics,
                                const Evaluator::WalkMethodsCallback &cb)
@@ -731,13 +1073,6 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->setterFunction, setterData->propertyType.GetRef(),
                                                  1, ppArgsValue.data(), 2, nullptr);
     }
-}
-
-// https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
-static bool IsSynthesizedLocalName(WCHAR *mdName, ULONG nameLen)
-{
-    return (nameLen > 1 && starts_with(mdName, W("<"))) ||
-           (nameLen > 4 && starts_with(mdName, W("CS$<")));
 }
 
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
@@ -1059,155 +1394,6 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-enum class GeneratedCodeKind : uint8_t
-{
-    Normal,
-    Async,
-    Lambda
-};
-
-static HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
-{
-    HRESULT Status = S_OK;
-    std::array<WCHAR, mdNameLen> name{};
-    ULONG nameLen = 0;
-    IfFailRet(pMD->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
-    const WSTRING typeName(name.data());
-
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
-    //  Parse the generated name. Returns true for names of the form
-    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
-    //  generated names, where [middle] and [__[suffix]] are optional,
-    //  and where c is a single character in [1-9a-z]
-    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
-
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
-    //  LambdaMethod = 'b',
-    //  LambdaDisplayClass = 'c',
-    //  StateMachineType = 'd',
-
-    // https://github.com/dotnet/roslyn/blob/21055e1858548dbd8f4c1fd5d25a9c9617873806/src/Compilers/Core/Portable/PublicAPI.Shipped.txt#L252
-    //  const Microsoft.CodeAnalysis.WellKnownMemberNames.MoveNextMethodName = "MoveNext" -> string!
-    //  ... used in SynthesizedStateMachineMoveNextMethod class constructor.
-
-    if (methodName.rfind(W("MoveNext"), 0) != WSTRING::npos && typeName.find(W(">d")) != WSTRING::npos)
-    {
-        result = GeneratedCodeKind::Async;
-    }
-    else if (methodName.find(W(">b")) != WSTRING::npos && typeName.find(W(">c")) != WSTRING::npos)
-    {
-        result = GeneratedCodeKind::Lambda;
-    }
-    else
-    {
-        result = GeneratedCodeKind::Normal;
-    }
-
-    return S_OK;
-}
-
-enum class GeneratedNameKind : uint8_t
-{
-    None,
-    ThisProxyField,
-    HoistedLocalField,
-    DisplayClassLocalOrField
-};
-
-static GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
-{
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
-    //  Parse the generated name. Returns true for names of the form
-    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
-    //  generated names, where [middle] and [__[suffix]] are optional,
-    //  and where c is a single character in [1-9a-z]
-    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
-
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
-    //  ThisProxyField = '4',
-    //  HoistedLocalField = '5',
-    //  DisplayClassLocalOrField = '8',
-
-    if (localOrFieldName.find(W(">4")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::ThisProxyField;
-    }
-    else if (localOrFieldName.find(W(">5")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::HoistedLocalField;
-    }
-    else if (localOrFieldName.find(W(">8")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::DisplayClassLocalOrField;
-    }
-
-    return GeneratedNameKind::None;
-}
-
-static HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppClass, mdTypeDef &typeDef)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue2> iCorValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
-    ToRelease<ICorDebugType> iCorType;
-    IfFailRet(iCorValue2->GetExactType(&iCorType));
-    IfFailRet(iCorType->GetClass(ppClass));
-    IfFailRet((*ppClass)->GetToken(&typeDef));
-    return S_OK;
-}
-
-static HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, mdTypeDef typeDef,
-                                       ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
-{
-    HRESULT Status = S_OK;
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
-    if (isNull == TRUE)
-    {
-        return E_INVALIDARG;
-    }
-
-    Status = ForEachFields(pMD, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        std::array<WCHAR, mdNameLen> mdName{};
-        ULONG nameLen = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
-            {
-                ToRelease<ICorDebugObjectValue> pObjValue;
-                IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
-                IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
-                return S_OK;
-            };
-
-            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
-            if (generatedNameKind == GeneratedNameKind::ThisProxyField)
-            {
-                IfFailRet(getValue(ppResultValue));
-                return E_ABORT; // Fast exit from cycle
-            }
-            else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
-            {
-                ToRelease<ICorDebugValue> iCorDisplayClassValue;
-                IfFailRet(getValue(&iCorDisplayClassValue));
-                ToRelease<ICorDebugClass> iCorDisplayClass;
-                mdTypeDef displayClassTypeDef = mdTypeDefNil;
-                IfFailRet(GetClassAndTypeDefByValue(iCorDisplayClassValue, &iCorDisplayClass, displayClassTypeDef));
-                IfFailRet(FindThisProxyFieldValue(pMD, iCorDisplayClass, displayClassTypeDef, iCorDisplayClassValue, ppResultValue));
-                if (ppResultValue)
-                {
-                    return E_ABORT; // Fast exit from cycle
-                }
-            }
-        }
-        return S_OK; // Return with success to continue walk.
-    });
-
-    return Status == E_ABORT ? S_OK : Status;
-}
-
 // Note, this method return Class name, not Type name (will not provide generic initialization types if any).
 HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis)
 {
@@ -1297,186 +1483,6 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     } while (true);
 
     return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
-}
-
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
-static HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
-{
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameConstants.cs#L11
-    const WSTRING suffixSeparator(W("__"));
-    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
-    if (suffixSeparatorOffset == WSTRING::npos)
-    {
-        return E_FAIL;
-    }
-
-    static constexpr size_t intMaxSizeInChars = 10;
-    const WSTRING slotIndexString = mdName.substr(suffixSeparatorOffset + suffixSeparator.size());
-    if (slotIndexString.empty() ||
-        // Slot index is positive 4 byte int, that mean max is 10 characters (2147483647).
-        slotIndexString.size() > intMaxSizeInChars)
-    {
-        return E_FAIL;
-    }
-
-    static constexpr int32_t base = 10;
-    int32_t slotIndex = 0;
-    for (const WCHAR wChar : slotIndexString)
-    {
-        if (wChar < W('0') || wChar > W('9'))
-        {
-            return E_FAIL;
-        }
-
-        slotIndex = (slotIndex * base) + static_cast<int32_t>(wChar - W('0'));
-    }
-
-    if (slotIndex < 1) // Slot index start from 1.
-    {
-        return E_FAIL;
-    }
-
-    index = slotIndex - 1;
-    return S_OK;
-}
-
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
-static HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
-{
-    WSTRING::size_type nameStartOffset = 0;
-    if (mdName.length() > 1 && starts_with(mdName.data(), W("<")))
-    {
-        nameStartOffset = 1;
-    }
-    else if (mdName.length() > 4 && starts_with(mdName.data(), W("CS$<")))
-    {
-        nameStartOffset = 4;
-    }
-    else
-    {
-        return E_FAIL;
-    }
-
-    const WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
-    if (closeBracketOffset == WSTRING::npos)
-    {
-        return E_FAIL;
-    }
-
-    wLocalName = mdName.substr(nameStartOffset, closeBracketOffset - nameStartOffset);
-    return S_OK;
-}
-
-static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                        std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
-                                        Modules *pModules, ICorDebugModule *pModule,
-                                        Evaluator::WalkStackVarsCallback cb)
-{
-    HRESULT Status = S_OK;
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
-    if (isNull == TRUE)
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugClass> pClass;
-    mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(GetClassAndTypeDefByValue(pValue, &pClass, currentTypeDef));
-
-    struct hoisted_local_scope_t
-    {
-        uint32_t startOffset;
-        uint32_t length;
-    };
-    struct hoisted_local_scope_t_deleter
-    {
-        void operator()(hoisted_local_scope_t *p) const
-        {
-            Interop::CoTaskMemFree(p);
-        }
-    };
-
-    int32_t hoistedLocalScopesCount = -1;
-    std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
-
-    IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        std::array<WCHAR, mdNameLen> mdName{};
-        ULONG nameLen = 0;
-        DWORD fieldAttr = 0;
-        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                      &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
-            (fieldAttr & fdStatic) != 0 ||
-            (fieldAttr & fdLiteral) != 0 ||
-            usedNames.find(mdName.data()) != usedNames.end())
-        {
-            return S_OK; // Return with success to continue walk.
-        }
-
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
-            // Get pValue again, since it could be neutered at eval call in `cb` on previous cycle.
-            pValue.Free();
-            IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
-            ToRelease<ICorDebugObjectValue> pObjValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
-            IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
-            return S_OK;
-        };
-
-        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
-        if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
-        {
-            ToRelease<ICorDebugValue> iCorDisplayClassValue;
-            IfFailRet(getValue(&iCorDisplayClassValue, false));
-            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                               pModules, pModule, cb));
-        }
-        else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
-        {
-            if (hoistedLocalScopesCount == -1)
-            {
-                void *data = nullptr;
-                if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
-                {
-                    hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
-                }
-                else
-                {
-                    hoistedLocalScopesCount = 0;
-                }
-            }
-
-            // Check, that hoisted local is in scope.
-            // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
-            int32_t index;
-            if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
-                hoistedLocalScopesCount > index &&
-                (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
-                 currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
-            {
-                return S_OK; // Return with success to continue walk.
-            }
-
-            WSTRING wLocalName;
-            if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
-            {
-                return S_OK; // Return with success to continue walk.
-            }
-
-            IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
-            usedNames.insert(wLocalName);
-        }
-        // Ignore any other compiler generated fields, show only normal fields.
-        else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
-        {
-            IfFailRet(cb(to_utf8(mdName.data()), getValue));
-            usedNames.insert(mdName.data());
-        }
-        return S_OK; // Return with success to continue walk.
-    }));
-
-    return S_OK;
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)

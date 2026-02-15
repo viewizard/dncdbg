@@ -9,7 +9,10 @@
 namespace dncdbg
 {
 
-static uintptr_t GetSP(CONTEXT *context)
+namespace
+{
+
+uintptr_t GetSP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rsp;
@@ -28,7 +31,7 @@ static uintptr_t GetSP(CONTEXT *context)
 #endif
 }
 
-static uintptr_t GetFP(CONTEXT *context)
+uintptr_t GetFP(CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rbp;
@@ -47,7 +50,7 @@ static uintptr_t GetFP(CONTEXT *context)
 #endif
 }
 
-static void SetFP(CONTEXT *context, uintptr_t value)
+void SetFP(CONTEXT *context, uintptr_t value)
 {
 #if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     context->Rbp = value;
@@ -66,11 +69,13 @@ static void SetFP(CONTEXT *context, uintptr_t value)
 #endif
 }
 
-static void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
+void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
                                   CONTEXT */*pEndContext*/, const WalkFramesCallback &/*cb*/)
 {
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
 }
+
+} // unnamed namespace
 
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
 HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)

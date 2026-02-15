@@ -20,10 +20,10 @@
 static void setenv(const char *var, const char *val, int) { _putenv_s(var, val); }
 #endif
 
-namespace dncdbg
+namespace
 {
 
-static void print_help()
+void print_help()
 {
 #ifdef _WIN32
     std::cout << "Usage: dncdbg.exe [options]\n"
@@ -39,7 +39,7 @@ static void print_help()
               << "--version                                Displays the current version.\n";
 }
 
-static void print_buildinfo()
+void print_buildinfo()
 {
     std::cout << "DNCDbg version " << BuildInfo::version << "\n\n"
               << "Build info:\n"
@@ -65,16 +65,12 @@ static void print_buildinfo()
               << "Distributed under the MIT License.\n";
 }
 
-static void print_version()
+void print_version()
 {
     std::cout << "DNCDbg version " << BuildInfo::version << "\n";
 }
 
-} // namespace dncdbg
-
-using namespace dncdbg;
-
-static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std::function<void(int &i)>>> &partialArguments, int i)
+void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std::function<void(int &i)>>> &partialArguments, int i)
 {
     for (auto const &argument : partialArguments)
     {
@@ -87,6 +83,8 @@ static void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std
     static_cast<void>(fprintf(stderr, "Error: Unknown option %s\n", argv[i]));
     exit(EXIT_FAILURE);
 }
+
+} // unnamed namespace
 
 int
 #if defined(_WIN32) && defined(_TARGET_X86_)
@@ -147,7 +145,7 @@ int
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
-    DAP protocol(std::cin, std::cout);
+    dncdbg::DAP protocol(std::cin, std::cout);
 
     if (!protocolLogFilePath.empty())
     {

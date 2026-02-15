@@ -17,6 +17,109 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+mdMethodDef GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
+{
+    ULONG numMethods = 0;
+    HCORENUM mEnum = nullptr;
+    mdMethodDef methodDef = mdTypeDefNil;
+    pMD->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
+    pMD->CloseEnum(mEnum);
+    return methodDef;
+}
+
+HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WSTRING &methodName, ICorDebugFunction **ppFunction)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<IUnknown> pMDUnknown;
+    ToRelease<IMetaDataImport> pMD;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+
+    IfFailRet(pMD->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
+
+    const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
+
+    if (methodDef == mdMethodDefNil)
+    {
+        return E_FAIL;
+    }
+
+    return pModule->GetFunctionFromToken(methodDef, ppFunction);
+}
+
+bool TypeHaveStaticMembers(ICorDebugType *pType)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugClass> pClass;
+    IfFailRet(pType->GetClass(&pClass));
+    mdTypeDef typeDef = mdTypeDefNil;
+    IfFailRet(pClass->GetToken(&typeDef));
+    ToRelease<ICorDebugModule> pModule;
+    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<IUnknown> pMDUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
+    ToRelease<IMetaDataImport> pMD;
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+
+    ULONG numFields = 0;
+    HCORENUM hEnum = nullptr;
+    mdFieldDef fieldDef = mdFieldDefNil;
+    while (SUCCEEDED(pMD->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    {
+        DWORD fieldAttr = 0;
+        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if ((fieldAttr & fdStatic) != 0U)
+        {
+            pMD->CloseEnum(hEnum);
+            return true;
+        }
+    }
+    pMD->CloseEnum(hEnum);
+
+    mdProperty propertyDef = mdPropertyNil;
+    ULONG numProperties = 0;
+    HCORENUM propEnum = nullptr;
+    while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+    {
+        mdMethodDef mdGetter = mdMethodDefNil;
+        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
+                                         nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
+        {
+            continue;
+        }
+
+        DWORD getterAttr = 0;
+        if (FAILED(pMD->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                       nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if ((getterAttr & mdStatic) != 0U)
+        {
+            pMD->CloseEnum(propEnum);
+            return true;
+        }
+    }
+    pMD->CloseEnum(propEnum);
+
+    return false;
+}
+
+} // unnamed namespace
+
 void EvalHelpers::Cleanup()
 {
     m_pSuppressFinalizeMutex.lock();
@@ -121,39 +224,6 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
         });
 }
 
-static mdMethodDef GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
-{
-    ULONG numMethods = 0;
-    HCORENUM mEnum = nullptr;
-    mdMethodDef methodDef = mdTypeDefNil;
-    pMD->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
-    pMD->CloseEnum(mEnum);
-    return methodDef;
-}
-
-static HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WSTRING &methodName, ICorDebugFunction **ppFunction)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-
-    IfFailRet(pMD->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
-
-    const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
-
-    if (methodDef == mdMethodDefNil)
-    {
-        return E_FAIL;
-    }
-
-    return pModule->GetFunctionFromToken(methodDef, ppFunction);
-}
-
 HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WSTRING &className,
                                         const WSTRING &methodName, ICorDebugFunction **ppFunction)
 {
@@ -162,71 +232,6 @@ HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WST
     IfFailRet(m_sharedModules->GetModuleWithName(moduleName, &pModule));
     IfFailRet(FindFunction(pModule, className, methodName, ppFunction));
     return S_OK;
-}
-
-static bool TypeHaveStaticMembers(ICorDebugType *pType)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&typeDef));
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
-
-    ULONG numFields = 0;
-    HCORENUM hEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMD->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
-    {
-        DWORD fieldAttr = 0;
-        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
-        if ((fieldAttr & fdStatic) != 0U)
-        {
-            pMD->CloseEnum(hEnum);
-            return true;
-        }
-    }
-    pMD->CloseEnum(hEnum);
-
-    mdProperty propertyDef = mdPropertyNil;
-    ULONG numProperties = 0;
-    HCORENUM propEnum = nullptr;
-    while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
-    {
-        mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
-                                         nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
-        {
-            continue;
-        }
-
-        DWORD getterAttr = 0;
-        if (FAILED(pMD->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                       nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
-        if ((getterAttr & mdStatic) != 0U)
-        {
-            pMD->CloseEnum(propEnum);
-            return true;
-        }
-    }
-    pMD->CloseEnum(propEnum);
-
-    return false;
 }
 
 HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)

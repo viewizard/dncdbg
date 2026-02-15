@@ -89,82 +89,105 @@ const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
     return debuggerSetupCommandSet;
 }
 
-} // unnamed namespace
-
-static void to_json(json &j, const Source &s)
+void AddCapabilitiesTo(json &capabilities)
 {
-    j = json{{"name", s.name},
-             {"path", s.path}};
+    capabilities["supportsConfigurationDoneRequest"] = true;
+    capabilities["supportsFunctionBreakpoints"] = true;
+    capabilities["supportsConditionalBreakpoints"] = true;
+    capabilities["supportTerminateDebuggee"] = true;
+    capabilities["supportsSetVariable"] = true;
+    capabilities["supportsSetExpression"] = true;
+    capabilities["supportsTerminateRequest"] = true;
+    capabilities["supportsCancelRequest"] = true;
+    capabilities["supportsExceptionInfoRequest"] = true;
+    capabilities["supportsExceptionFilterOptions"] = true;
+    json excFilters = json::array();
+    for (const auto &entry : GetExceptionFilters())
+    {
+        const json filter{{"filter", entry.first},
+                          {"label",entry.first}};
+        excFilters.push_back(filter);
+    }
+    capabilities["exceptionBreakpointFilters"] = excFilters;
+    capabilities["supportsExceptionOptions"] = false; // TODO add implementation
 }
 
-static void to_json(json &j, const Breakpoint &b) {
-    j = json{{"id",       b.id},
-             {"line",     b.line},
-             {"verified", b.verified}};
-    if (!b.message.empty())
+std::string ReadData(std::istream &cin)
+{
+    // parse header (only content len) until empty line
+    long content_len = -1;
+    while (true)
     {
-        j["message"] = b.message;
-    }
-    if (b.verified)
-    {
-        j["endLine"] = b.endLine;
-        if (!b.source.IsNull())
+        std::string line;
+        std::getline(cin, line);
+        if (!cin.good())
         {
-            j["source"] = b.source;
+            if (cin.eof())
+            {
+                LOGI("EOF");
+            }
+            else
+            {
+                LOGE("input stream reading error");
+            }
+            return {};
+        }
+
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.pop_back();
+        }
+
+        if (line.empty())
+        {
+            if (content_len < 0)
+            {
+                LOGE("protocol error: no 'Content Length:' field!");
+                return {};
+            }
+            break; // header and content delimiter
+        }
+
+        LOGD("header: '%s'", line.c_str());
+
+        if (line.size() > CONTENT_LENGTH.size() &&
+            std::equal(CONTENT_LENGTH.begin(), CONTENT_LENGTH.end(), line.begin()))
+        {
+            if (content_len >= 0)
+            {
+                LOGW("protocol violation: duplicate '%s'", line.c_str());
+            }
+
+            char *p = nullptr; // NOLINT(misc-const-correctness)
+            errno = 0;
+            static constexpr int base = 10;
+            content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));
+            if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
+            {
+                LOGE("protocol violation: '%s'", line.c_str());
+                return {};
+            }
         }
     }
-}
 
-static void to_json(json &j, const StackFrame &f) {
-    j = json{{"id",        static_cast<int>(f.id)},
-             {"name",      f.methodName},
-             {"line",      f.line},
-             {"column",    f.column},
-             {"endLine",   f.endLine},
-             {"endColumn", f.endColumn},
-             {"moduleId",  f.moduleId}};
-    if (!f.source.IsNull())
+    std::string result(content_len, 0);
+    if (!cin.read(result.data(), content_len))
     {
-        j["source"] = f.source;
+        if (cin.eof())
+        {
+            LOGE("Unexpected EOF!");
+        }
+        else
+        {
+            LOGE("input stream reading error");
+        }
+        return {};
     }
+
+    return result;
 }
 
-static void to_json(json &j, const Thread &t)
-{
-    j = json{{"id", static_cast<int>(t.id)},
-             {"name", t.name}};
-          // {"running", t.running}
-}
-
-static void to_json(json &j, const Scope &s)
-{
-    j = json{{"name", s.name},
-             {"variablesReference", s.variablesReference},
-             {"expensive", false}};
-
-    if (s.variablesReference > 0)
-    {
-        j["namedVariables"] = s.namedVariables;
-        // j["indexedVariables"] = s.indexedVariables;
-    }
-}
-
-static void to_json(json &j, const Variable &v)
-{
-    j = json{{"name", v.name},
-             {"value", v.value},
-             {"type", v.type},
-             {"evaluateName", v.evaluateName},
-             {"variablesReference", v.variablesReference}};
-
-    if (v.variablesReference > 0)
-    {
-        j["namedVariables"] = v.namedVariables;
-        // j["indexedVariables"] = v.indexedVariables;
-    }
-}
-
-static json FormJsonForExceptionDetails(const ExceptionDetails &details)
+json FormJsonForExceptionDetails(const ExceptionDetails &details)
 {
     json result{{"typeName", details.typeName},
                 {"fullTypeName", details.fullTypeName},
@@ -188,6 +211,83 @@ static json FormJsonForExceptionDetails(const ExceptionDetails &details)
     }
 
     return result;
+}
+
+} // unnamed namespace
+
+static void to_json(json &j, const Source &s) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"name", s.name},
+             {"path", s.path}};
+}
+
+static void to_json(json &j, const Breakpoint &b) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"id",       b.id},
+             {"line",     b.line},
+             {"verified", b.verified}};
+    if (!b.message.empty())
+    {
+        j["message"] = b.message;
+    }
+    if (b.verified)
+    {
+        j["endLine"] = b.endLine;
+        if (!b.source.IsNull())
+        {
+            j["source"] = b.source;
+        }
+    }
+}
+
+static void to_json(json &j, const StackFrame &f) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"id",        static_cast<int>(f.id)},
+             {"name",      f.methodName},
+             {"line",      f.line},
+             {"column",    f.column},
+             {"endLine",   f.endLine},
+             {"endColumn", f.endColumn},
+             {"moduleId",  f.moduleId}};
+    if (!f.source.IsNull())
+    {
+        j["source"] = f.source;
+    }
+}
+
+static void to_json(json &j, const Thread &t) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"id", static_cast<int>(t.id)},
+             {"name", t.name}};
+          // {"running", t.running}
+}
+
+static void to_json(json &j, const Scope &s) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"name", s.name},
+             {"variablesReference", s.variablesReference},
+             {"expensive", false}};
+
+    if (s.variablesReference > 0)
+    {
+        j["namedVariables"] = s.namedVariables;
+        // j["indexedVariables"] = s.indexedVariables;
+    }
+}
+
+static void to_json(json &j, const Variable &v) // NOLINT(misc-use-anonymous-namespace)
+{
+    j = json{{"name", v.name},
+             {"value", v.value},
+             {"type", v.type},
+             {"evaluateName", v.evaluateName},
+             {"variablesReference", v.variablesReference}};
+
+    if (v.variablesReference > 0)
+    {
+        j["namedVariables"] = v.namedVariables;
+        // j["indexedVariables"] = v.indexedVariables;
+    }
 }
 
 void DAP::EmitContinuedEvent(ThreadId threadId)
@@ -397,29 +497,6 @@ void DAP::EmitProcessEvent(PID pid, const std::string &argv0)
     EmitEvent("process", body);
 }
 
-static void AddCapabilitiesTo(json &capabilities)
-{
-    capabilities["supportsConfigurationDoneRequest"] = true;
-    capabilities["supportsFunctionBreakpoints"] = true;
-    capabilities["supportsConditionalBreakpoints"] = true;
-    capabilities["supportTerminateDebuggee"] = true;
-    capabilities["supportsSetVariable"] = true;
-    capabilities["supportsSetExpression"] = true;
-    capabilities["supportsTerminateRequest"] = true;
-    capabilities["supportsCancelRequest"] = true;
-    capabilities["supportsExceptionInfoRequest"] = true;
-    capabilities["supportsExceptionFilterOptions"] = true;
-    json excFilters = json::array();
-    for (const auto &entry : GetExceptionFilters())
-    {
-        const json filter{{"filter", entry.first},
-                          {"label",entry.first}};
-        excFilters.push_back(filter);
-    }
-    capabilities["exceptionBreakpointFilters"] = excFilters;
-    capabilities["supportsExceptionOptions"] = false; // TODO add implementation
-}
-
 void DAP::EmitCapabilitiesEvent()
 {
     LogFuncEntry();
@@ -461,14 +538,13 @@ void DAP::EmitEvent(const std::string &name, const nlohmann::json &body)
     EmitMessageWithLog(LOG_EVENT, message);
 }
 
-static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, std::string &fileExec, std::vector<std::string> &execArgs,
-                             const std::string &command, const json &arguments, json &body)
+HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body)
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &body)>;
     static std::unordered_map<std::string, CommandCallback> commands{
         {"initialize", [&](const json &/*arguments*/, json &body)
             {
-                sharedDebugger->Initialize();
+                m_sharedDebugger->Initialize();
 
                 AddCapabilitiesTo(body);
 
@@ -542,7 +618,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 HRESULT Status = S_OK;
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
                 // TODO form body with breakpoints (optional output, MS vsdbg don't provide it for VSCode IDE now)
                 // body["breakpoints"] = breakpoints;
@@ -551,14 +627,14 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
             }},
         {"configurationDone", [&](const json &/*arguments*/, json &/*body*/)
             {
-                return sharedDebugger->ConfigurationDone(); 
+                return m_sharedDebugger->ConfigurationDone(); 
             }},
         {"exceptionInfo", [&](const json &arguments, json &body)
             {
                 HRESULT Status = S_OK;
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
-                IfFailRet(sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
+                IfFailRet(m_sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
 
                 body["exceptionId"] = exceptionInfo.exceptionId;
                 body["description"] = exceptionInfo.description;
@@ -577,7 +653,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 }
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(sharedDebugger->SetLineBreakpoints(arguments.at("source").at("path"), lineBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetLineBreakpoints(arguments.at("source").at("path"), lineBreakpoints, breakpoints));
 
                 body["breakpoints"] = breakpoints;
 
@@ -599,9 +675,9 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     env.clear();
                 }
 
-                sharedDebugger->SetJustMyCode(
+                m_sharedDebugger->SetJustMyCode(
                     arguments.value("justMyCode", true)); // MS vsdbg have "justMyCode" enabled by default.
-                sharedDebugger->SetStepFiltering(arguments.value(
+                m_sharedDebugger->SetStepFiltering(arguments.value(
                     "enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
 
                 // TODO config
@@ -610,11 +686,11 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 // "expressionEvaluationOptions": {
                 //     "allowImplicitFuncEval": false
                 // }
-                sharedDebugger->SetEvalFlags(defaultEvalFlags);
+                m_sharedDebugger->SetEvalFlags(defaultEvalFlags);
 
-                if (!fileExec.empty())
+                if (!m_fileExec.empty())
                 {
-                    return sharedDebugger->Launch(fileExec, execArgs, env, cwd, arguments.value("stopAtEntry", false));
+                    return m_sharedDebugger->Launch(m_fileExec, m_execArgs, env, cwd, arguments.value("stopAtEntry", false));
                 }
 
                 const std::string program = arguments.at("program").get<std::string>();
@@ -625,19 +701,19 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
                 {
                     args.insert(args.begin(), program);
-                    return sharedDebugger->Launch("dotnet", args, env, cwd, arguments.value("stopAtEntry", false));
+                    return m_sharedDebugger->Launch("dotnet", args, env, cwd, arguments.value("stopAtEntry", false));
                 }
                 else
                 {
                     // If we're not being asked to launch a dll, assume whatever we're given is an executable
-                    return sharedDebugger->Launch(program, args, env, cwd, arguments.value("stopAtEntry", false));
+                    return m_sharedDebugger->Launch(program, args, env, cwd, arguments.value("stopAtEntry", false));
                 }
             }},
         {"threads", [&](const json &/*arguments*/, json &body)
             {
                 HRESULT Status = S_OK;
                 std::vector<Thread> threads;
-                IfFailRet(sharedDebugger->GetThreads(threads));
+                IfFailRet(m_sharedDebugger->GetThreads(threads));
 
                 body["threads"] = threads;
 
@@ -657,13 +733,13 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                                                                   : DisconnectAction::Detach;
                 }
 
-                sharedDebugger->Disconnect(action);
+                m_sharedDebugger->Disconnect(action);
 
                 return S_OK;
             }},
         {"terminate", [&](const json &/*arguments*/, json &/*body*/)
             {
-                sharedDebugger->Disconnect(DisconnectAction::Terminate);
+                m_sharedDebugger->Disconnect(DisconnectAction::Terminate);
                 return S_OK;
             }},
         {"stackTrace", [&](const json &arguments, json &body)
@@ -674,7 +750,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
 
                 std::vector<StackFrame> stackFrames;
-                IfFailRet(sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
+                IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
                                                         static_cast<unsigned>(arguments.value("levels", 0)), stackFrames, totalFrames));
 
                 body["stackFrames"] = stackFrames;
@@ -688,27 +764,27 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 body["threadId"] = static_cast<int>(threadId);
-                return sharedDebugger->Continue(threadId);
+                return m_sharedDebugger->Continue(threadId);
             }},
         {"pause", [&](const json &arguments, json &body)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 body["threadId"] = static_cast<int>(threadId);
-                return sharedDebugger->Pause(threadId);
+                return m_sharedDebugger->Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_OVER);
             }},
         {"stepIn", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_IN);
             }},
         {"stepOut", [&](const json &arguments, json &/*body*/)
             {
-                return sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                    StepType::STEP_OUT);
             }},
         {"scopes", [&](const json &arguments, json &body)
@@ -716,7 +792,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
                 const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
-                IfFailRet(sharedDebugger->GetScopes(frameId, scopes));
+                IfFailRet(m_sharedDebugger->GetScopes(frameId, scopes));
 
                 body["scopes"] = scopes;
 
@@ -737,7 +813,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 }
 
                 std::vector<Variable> variables;
-                IfFailRet(sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,
+                IfFailRet(m_sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,
                                                        arguments.value("start", 0), arguments.value("count", 0),
                                                        variables));
 
@@ -754,7 +830,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.end())
                         {
-                            const ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -765,7 +841,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
 
                 Variable variable;
                 std::string output;
-                Status = sharedDebugger->Evaluate(frameId, expression, variable, output);
+                Status = m_sharedDebugger->Evaluate(frameId, expression, variable, output);
                 if (FAILED(Status))
                 {
                     if (output.empty())
@@ -802,7 +878,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                         auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.end())
                         {
-                            const ThreadId threadId = sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -812,7 +888,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     }());
 
                 std::string output;
-                Status = sharedDebugger->SetExpression(frameId, expression, value, output);
+                Status = m_sharedDebugger->SetExpression(frameId, expression, value, output);
                 if (FAILED(Status))
                 {
                     if (output.empty())
@@ -850,7 +926,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     return E_INVALIDARG;
                 }
 
-                return sharedDebugger->Attach(processId);
+                return m_sharedDebugger->Attach(processId);
             }},
         {"setVariable", [&](const json &arguments, json &body)
             {
@@ -861,7 +937,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 const int ref = arguments.at("variablesReference");
 
                 std::string output;
-                Status = sharedDebugger->SetVariable(name, value, ref, output);
+                Status = m_sharedDebugger->SetVariable(name, value, ref, output);
                 if (FAILED(Status))
                 {
                     body["message"] = output;
@@ -895,14 +971,14 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 }
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(sharedDebugger->SetFuncBreakpoints(funcBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetFuncBreakpoints(funcBreakpoints, breakpoints));
 
                 body["breakpoints"] = breakpoints;
 
                 return Status;
             }}};
 
-    if (sharedDebugger == nullptr)
+    if (m_sharedDebugger == nullptr)
     {
         return CORDBG_E_DEBUGGING_DISABLED;
     }
@@ -916,13 +992,11 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
     return command_it->second(arguments, body);
 }
 
-static HRESULT HandleCommandJSON(std::shared_ptr<ManagedDebugger> &sharedDebugger, std::string &fileExec,
-                                 std::vector<std::string> &execArgs, const std::string &command, const json &arguments,
-                                 json &body)
+HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body)
 {
     try
     {
-        return HandleCommand(sharedDebugger, fileExec, execArgs, command, arguments, body);
+        return HandleCommand(command, arguments, body);
     }
     catch (nlohmann::detail::exception &ex)
     {
@@ -931,81 +1005,6 @@ static HRESULT HandleCommandJSON(std::shared_ptr<ManagedDebugger> &sharedDebugge
     }
 
     return E_FAIL;
-}
-
-static std::string ReadData(std::istream &cin)
-{
-    // parse header (only content len) until empty line
-    long content_len = -1;
-    while (true)
-    {
-        std::string line;
-        std::getline(cin, line);
-        if (!cin.good())
-        {
-            if (cin.eof())
-            {
-                LOGI("EOF");
-            }
-            else
-            {
-                LOGE("input stream reading error");
-            }
-            return {};
-        }
-
-        if (!line.empty() && line.back() == '\r')
-        {
-            line.pop_back();
-        }
-
-        if (line.empty())
-        {
-            if (content_len < 0)
-            {
-                LOGE("protocol error: no 'Content Length:' field!");
-                return {};
-            }
-            break; // header and content delimiter
-        }
-
-        LOGD("header: '%s'", line.c_str());
-
-        if (line.size() > CONTENT_LENGTH.size() &&
-            std::equal(CONTENT_LENGTH.begin(), CONTENT_LENGTH.end(), line.begin()))
-        {
-            if (content_len >= 0)
-            {
-                LOGW("protocol violation: duplicate '%s'", line.c_str());
-            }
-
-            char *p = nullptr; // NOLINT(misc-const-correctness)
-            errno = 0;
-            static constexpr int base = 10;
-            content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));
-            if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
-            {
-                LOGE("protocol violation: '%s'", line.c_str());
-                return {};
-            }
-        }
-    }
-
-    std::string result(content_len, 0);
-    if (!cin.read(result.data(), content_len))
-    {
-        if (cin.eof())
-        {
-            LOGE("Unexpected EOF!");
-        }
-        else
-        {
-            LOGE("input stream reading error");
-        }
-        return {};
-    }
-
-    return result;
 }
 
 void DAP::CommandsWorker()
@@ -1038,7 +1037,7 @@ void DAP::CommandsWorker()
         json body = json::object();
         std::future<HRESULT> future = std::async(std::launch::async, [&]()
             {
-                return HandleCommandJSON(m_sharedDebugger, m_fileExec, m_execArgs, c.command, c.arguments, body);
+                return HandleCommandJSON(c.command, c.arguments, body);
             });
         HRESULT Status = S_OK;
         // Note, CommandsWorker() loop should never hangs, but even in case some command execution is timed out,

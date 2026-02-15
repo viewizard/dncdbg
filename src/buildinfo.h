@@ -6,7 +6,7 @@
 
 #include <string_view>
 
-namespace dncdbg::BuildInfo
+namespace BuildInfo
 {
 
 extern const std::string_view version;         // version for displaying
@@ -20,4 +20,4 @@ extern const std::string_view cpu_arch;        // CPU architecture name for whic
 extern const std::string_view date;
 extern const std::string_view time;            // Date and time of the build.
 
-} // namespace dncdbg::BuildInfo
+} // namespace BuildInfo

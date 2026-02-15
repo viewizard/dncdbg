@@ -32,6 +32,7 @@ class DAP
           m_seqCounter(1)
     {
     }
+
     void CreateManagedDebugger();
     void SetupProtocolLogging(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
@@ -39,6 +40,10 @@ class DAP
         m_fileExec = fileExec;
         m_execArgs = args;
     }
+    void CommandLoop();
+
+    HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
+    HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
 
     void EmitProcessEvent(PID, const std::string &argv0);
     void EmitStoppedEvent(const StoppedEvent &event);
@@ -49,8 +54,6 @@ class DAP
     void EmitModuleEvent(const ModuleEvent &event);
     void EmitOutputEvent(const OutputEvent &event);
     void EmitBreakpointEvent(const BreakpointEvent &event);
-    void CommandLoop();
-
     void EmitInitializedEvent();
     void EmitCapabilitiesEvent();
 

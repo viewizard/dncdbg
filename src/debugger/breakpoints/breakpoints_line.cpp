@@ -13,6 +13,118 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+HRESULT EnableOneICorBreakpointForLine(std::list<LineBreakpoints::ManagedLineBreakpoint> &bList)
+{
+    // Same logic as provide vsdbg - only one breakpoint is active for one line.
+    BOOL needEnable = TRUE;
+    HRESULT Status = S_OK;
+    for (auto &it : bList)
+    {
+        if (it.iCorFuncBreakpoints.empty())
+        {
+            continue;
+        }
+
+        for (const auto &iCorFuncBreakpoint : it.iCorFuncBreakpoints)
+        {
+            const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
+            Status = FAILED(ret) ? ret : Status;
+        }
+        needEnable = FALSE;
+    }
+    return Status;
+}
+
+// [in] pModule - optional, provide filter by module during resolve
+// [in,out] bp - breakpoint data for resolve
+HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule, LineBreakpoints::ManagedLineBreakpoint &bp,
+                              const std::string &bp_fullname, std::vector<ModulesSources::resolved_bp_t> &resolvedPoints,
+                              unsigned &bp_fullname_index)
+{
+    if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+
+    if (pModule != nullptr)
+    {
+        IfFailRet(pModule->GetBaseAddress(&modAddress));
+    }
+
+    IfFailRet(pModules->ResolveBreakpoint(modAddress, bp_fullname, bp_fullname_index, bp.linenum, resolvedPoints));
+    if (resolvedPoints.empty())
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp, const std::string &bp_fullname,
+                               bool justMyCode, const std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
+{
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    CORDB_ADDRESS modAddressTrack = 0;
+    bp.iCorFuncBreakpoints.reserve(resolvedPoints.size());
+    for (const auto &resolvedBP : resolvedPoints)
+    {
+        // Note, we might have situation with same source path in different modules.
+        // DAP and internal debugger routine don't support this case.
+        IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
+        if ((modAddress != 0U) && (modAddress != modAddressTrack))
+        {
+            LOGW("During breakpoint resolve, multiple modules with same source file path was detected.");
+            LOGW("File name: %s", bp_fullname.c_str());
+            LOGW("Breakpoint activated in module: %s", GetModuleFileName(resolvedPoints[0].iCorModule).c_str());
+            LOGW("Ignored module: %s", GetModuleFileName(resolvedBP.iCorModule).c_str());
+            continue;
+        }
+
+        IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.iCorModule, resolvedBP.methodToken, justMyCode));
+        if (Status == S_OK) // S_FALSE - don't skip breakpoint
+        {
+            continue;
+        }
+
+        modAddress = modAddressTrack;
+
+        ToRelease<ICorDebugFunction> pFunc;
+        IfFailRet(resolvedBP.iCorModule->GetFunctionFromToken(resolvedBP.methodToken, &pFunc));
+        ToRelease<ICorDebugCode> pCode;
+        IfFailRet(pFunc->GetILCode(&pCode));
+
+        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
+        IfFailRet(pCode->CreateBreakpoint(resolvedBP.ilOffset, &iCorFuncBreakpoint));
+        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
+
+        bp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
+    }
+
+    if (modAddress == 0)
+    {
+        return E_FAIL;
+    }
+
+    // No reason leave extra space here, since breakpoint could be setup for 1 module only (no more breakpoints will be added).
+    bp.iCorFuncBreakpoints.shrink_to_fit();
+
+    // same for multiple breakpoint resolve for one module
+    bp.linenum = resolvedPoints[0].startLine;
+    bp.endLine = resolvedPoints[0].endLine;
+    bp.modAddress = modAddress;
+
+    return S_OK;
+}
+
+} // unnamed namespace
+
 void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const
 {
     breakpoint.id = this->id;
@@ -116,114 +228,6 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     }
 
     return S_FALSE; // Stopped at break, but breakpoint not found.
-}
-
-static HRESULT EnableOneICorBreakpointForLine(std::list<LineBreakpoints::ManagedLineBreakpoint> &bList)
-{
-    // Same logic as provide vsdbg - only one breakpoint is active for one line.
-    BOOL needEnable = TRUE;
-    HRESULT Status = S_OK;
-    for (auto &it : bList)
-    {
-        if (it.iCorFuncBreakpoints.empty())
-        {
-            continue;
-        }
-
-        for (const auto &iCorFuncBreakpoint : it.iCorFuncBreakpoints)
-        {
-            const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
-            Status = FAILED(ret) ? ret : Status;
-        }
-        needEnable = FALSE;
-    }
-    return Status;
-}
-
-// [in] pModule - optional, provide filter by module during resolve
-// [in,out] bp - breakpoint data for resolve
-static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule,
-                                     LineBreakpoints::ManagedLineBreakpoint &bp, const std::string &bp_fullname,
-                                     std::vector<ModulesSources::resolved_bp_t> &resolvedPoints,
-                                     unsigned &bp_fullname_index)
-{
-    if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
-    {
-        return E_INVALIDARG;
-    }
-
-    HRESULT Status = S_OK;
-    CORDB_ADDRESS modAddress = 0;
-
-    if (pModule != nullptr)
-    {
-        IfFailRet(pModule->GetBaseAddress(&modAddress));
-    }
-
-    IfFailRet(pModules->ResolveBreakpoint(modAddress, bp_fullname, bp_fullname_index, bp.linenum, resolvedPoints));
-    if (resolvedPoints.empty())
-    {
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-static HRESULT ActivateLineBreakpoint(LineBreakpoints::ManagedLineBreakpoint &bp, const std::string &bp_fullname,
-                                      bool justMyCode, const std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
-{
-    HRESULT Status = S_OK;
-    CORDB_ADDRESS modAddress = 0;
-    CORDB_ADDRESS modAddressTrack = 0;
-    bp.iCorFuncBreakpoints.reserve(resolvedPoints.size());
-    for (const auto &resolvedBP : resolvedPoints)
-    {
-        // Note, we might have situation with same source path in different modules.
-        // DAP and internal debugger routine don't support this case.
-        IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
-        if ((modAddress != 0U) && (modAddress != modAddressTrack))
-        {
-            LOGW("During breakpoint resolve, multiple modules with same source file path was detected.");
-            LOGW("File name: %s", bp_fullname.c_str());
-            LOGW("Breakpoint activated in module: %s", GetModuleFileName(resolvedPoints[0].iCorModule).c_str());
-            LOGW("Ignored module: %s", GetModuleFileName(resolvedBP.iCorModule).c_str());
-            continue;
-        }
-
-        IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.iCorModule, resolvedBP.methodToken, justMyCode));
-        if (Status == S_OK) // S_FALSE - don't skip breakpoint
-        {
-            continue;
-        }
-
-        modAddress = modAddressTrack;
-
-        ToRelease<ICorDebugFunction> pFunc;
-        IfFailRet(resolvedBP.iCorModule->GetFunctionFromToken(resolvedBP.methodToken, &pFunc));
-        ToRelease<ICorDebugCode> pCode;
-        IfFailRet(pFunc->GetILCode(&pCode));
-
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        IfFailRet(pCode->CreateBreakpoint(resolvedBP.ilOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
-
-        bp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
-    }
-
-    if (modAddress == 0)
-    {
-        return E_FAIL;
-    }
-
-    // No reason leave extra space here, since breakpoint could be setup for 1 module only (no more breakpoints will be added).
-    bp.iCorFuncBreakpoints.shrink_to_fit();
-
-    // same for multiple breakpoint resolve for one module
-    bp.linenum = resolvedPoints[0].startLine;
-    bp.endLine = resolvedPoints[0].endLine;
-    bp.modAddress = modAddress;
-
-    return S_OK;
 }
 
 HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)

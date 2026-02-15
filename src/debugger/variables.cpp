@@ -16,7 +16,10 @@
 namespace dncdbg
 {
 
-static void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
+namespace
+{
+
+void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
 {
     numChild = 0;
 
@@ -76,7 +79,7 @@ struct VariableMember
     ~VariableMember() = default;
 };
 
-static HRESULT FillValueAndType(VariableMember &member, Variable &var)
+HRESULT FillValueAndType(VariableMember &member, Variable &var)
 {
     if (member.value == nullptr)
     {
@@ -90,9 +93,9 @@ static HRESULT FillValueAndType(VariableMember &member, Variable &var)
     return PrintValue(member.value, var.value, true);
 }
 
-static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
-                                        FrameLevel frameLevel, std::vector<VariableMember> &members, bool fetchOnlyStatic,
-                                        bool &hasStaticMembers, int childStart, int childEnd)
+HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
+                                 FrameLevel frameLevel, std::vector<VariableMember> &members, bool fetchOnlyStatic,
+                                 bool &hasStaticMembers, int childStart, int childEnd)
 {
     hasStaticMembers = false;
     HRESULT Status = S_OK;
@@ -143,6 +146,21 @@ static HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *p
 
     return S_OK;
 }
+
+void FixupInheritedFieldNames(std::vector<VariableMember> &members)
+{
+    std::unordered_set<std::string> names;
+    for (auto &it : members)
+    {
+        auto r = names.insert(it.name);
+        if (!r.second)
+        {
+            it.name += " (" + it.ownerType + ")";
+        }
+    }
+}
+
+} // unnamed namespace
 
 // Caller should guarantee, that pProcess is not null.
 HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter,
@@ -317,19 +335,6 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
     scopes.emplace_back(variablesReference, "Locals", namedVariables);
 
     return S_OK;
-}
-
-static void FixupInheritedFieldNames(std::vector<VariableMember> &members)
-{
-    std::unordered_set<std::string> names;
-    for (auto &it : members)
-    {
-        auto r = names.insert(it.name);
-        if (!r.second)
-        {
-            it.name += " (" + it.ownerType + ")";
-        }
-    }
 }
 
 HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread, int start, int count, std::vector<Variable> &variables)

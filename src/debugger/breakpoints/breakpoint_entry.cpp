@@ -17,7 +17,10 @@
 namespace dncdbg
 {
 
-static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
+namespace
+{
+
+mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 {
     FILE *pFile = nullptr;
 
@@ -116,8 +119,8 @@ static mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 // [in] mdMainClass - class token with Main method in module pModule;
 // [out] entryPointToken - corrected method token;
 // [out] entryPointOffset - corrected IL offset on first user code line.
-static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, Modules *pModules,
-                                            mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
+HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, Modules *pModules,
+                                     mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
     // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
     // `Namespace.ClassName.Main()`, that create `Namespace.ClassName.<Main>d__0` and start state machine routine.
@@ -185,6 +188,8 @@ static HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataI
     entryPointOffset = ilNextOffset;
     return S_OK;
 }
+
+} // unnamed namespace
 
 HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {

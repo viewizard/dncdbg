@@ -13,7 +13,10 @@
 namespace dncdbg
 {
 
-static const std::vector<std::string_view> &GetTypeAttrNames()
+namespace
+{
+
+const std::vector<std::string_view> &GetTypeAttrNames()
 {
     static const std::vector<std::string_view> typeAttrNames{
         DebuggerAttribute::NonUserCode,
@@ -22,7 +25,7 @@ static const std::vector<std::string_view> &GetTypeAttrNames()
     return typeAttrNames;
 }
 
-static const std::vector<std::string_view> &GetMethodAttrNames()
+const std::vector<std::string_view> &GetMethodAttrNames()
 {
     static const std::vector<std::string_view> methodAttrNames{
         DebuggerAttribute::NonUserCode,
@@ -32,7 +35,7 @@ static const std::vector<std::string_view> &GetMethodAttrNames()
     return methodAttrNames;
 }
 
-static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
+HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
     ULONG numMethods = 0;
     HCORENUM fEnum = nullptr;
@@ -59,7 +62,7 @@ static HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDe
     return S_OK;
 }
 
-static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken> &excludeTokens)
+HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken> &excludeTokens)
 {
     HRESULT Status = S_OK;
 
@@ -87,7 +90,7 @@ static HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<
     return S_OK;
 }
 
-static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken> &excludeTokens)
+void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken> &excludeTokens)
 {
     for (const mdToken token : excludeTokens)
     {
@@ -117,6 +120,8 @@ static void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<m
         }
     }
 }
+
+} // unnamed namespace
 
 HRESULT DisableJMCByAttributes(ICorDebugModule *pModule)
 {

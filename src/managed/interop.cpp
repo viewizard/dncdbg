@@ -37,7 +37,7 @@
 // Suppress undefined reference
 // `_invalid_parameter(char16_t const*, char16_t const*, char16_t const*, unsigned int, unsigned long)':
 //      /coreclr/src/pal/inc/rt/safecrt.h:386: undefined reference to `RaiseException'
-static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags,
+static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags, // NOLINT(misc-use-anonymous-namespace)
                            DWORD nNumberOfArguments, CONST ULONG_PTR *lpArguments)
 {
 }

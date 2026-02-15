@@ -46,6 +46,7 @@ extern "C" const IID IID_IUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0x
 
 namespace
 {
+
 constexpr auto startupWaitTimeout = std::chrono::milliseconds(5000);
 
 int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
@@ -72,7 +73,171 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 
     return 0;
 }
-} // namespace
+
+// From dbgshim.cpp
+bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
+{
+    for (DWORD i = 0; i < arrayLength; i++)
+    {
+        HANDLE h = handleArray[i];
+        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPWSTR **ppStringArray,
+                      DWORD *pdwArrayLength, int tryCount)
+{
+    int numTries = 0;
+    HRESULT hr = S_OK;
+
+    while (numTries < tryCount)
+    {
+        hr = dbgshim.EnumerateCLRs(pid, ppHandleArray, ppStringArray, pdwArrayLength);
+
+        // From dbgshim.cpp:
+        // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or
+        // ERROR_PARTIAL_COPY. If we get either of those, we try wait 1/10th of a second try again (that
+        // is the recommendation of the OS API owners).
+        // In dbgshim the following condition is used:
+        //  if ((hr != HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY)) && (hr != HRESULT_FROM_WIN32(ERROR_BAD_LENGTH)))
+        // Since we may be attaching to the process which has not loaded coreclr yes, let's give it some time to load.
+        if (SUCCEEDED(hr))
+        {
+            // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
+            if (*ppHandleArray != nullptr && *pdwArrayLength > 0)
+            {
+
+                // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
+                // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but
+                // before g_hContinueStartupEvent has been initialized.
+                if (AreAllHandlesValid(*ppHandleArray, *pdwArrayLength))
+                {
+                    return hr;
+                }
+                // Clean up memory allocated in EnumerateCLRs since this path it succeeded
+                dbgshim.CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
+
+                *ppHandleArray = nullptr;
+                *ppStringArray = nullptr;
+                *pdwArrayLength = 0;
+            }
+        }
+
+        // No point in retrying in case of invalid arguments or no such process
+        if (hr == E_INVALIDARG || hr == E_FAIL)
+        {
+            return hr;
+        }
+
+        // Sleep and retry enumerating the runtimes
+        static constexpr unsigned long sleepTime = 100000UL;
+        USleep(sleepTime);
+        numTries++;
+    }
+
+    // Indicate a timeout
+    hr = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+
+    return hr;
+}
+
+std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
+{
+    HANDLE *pHandleArray = nullptr;
+    LPWSTR *pStringArray = nullptr;
+    DWORD dwArrayLength = 0;
+    const int tryCount = timeoutSec * 10; // 100ms interval between attempts
+    if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
+        dwArrayLength == 0)
+    {
+        return {};
+    }
+
+    std::string result = to_utf8(pStringArray[0]);
+
+    dbgshim.CloseCLREnumeration(pHandleArray, pStringArray, dwArrayLength);
+
+    return result;
+}
+
+std::string EscapeShellArg(const std::string &arg)
+{
+    std::string s(arg);
+
+    for (std::string::size_type i = 0; i < s.size(); ++i)
+    {
+        std::string::size_type count = 0;
+        const char c = s.at(i);
+        switch (c)
+        {
+        case '\"':
+            count = 1;
+            s.insert(i, count, '\\');
+            s[i + count] = '\"';
+            break;
+        case '\\':
+            count = 1;
+            s.insert(i, count, '\\');
+            s[i + count] = '\\';
+            break;
+        default:
+            break;
+        }
+        i += count;
+    }
+
+    return s;
+}
+
+bool IsDirExists(const char *const path)
+{
+    struct stat info{};
+
+    return ((stat(path, &info) == 0) &&
+            ((info.st_mode & S_IFDIR) != 0U));
+}
+
+void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
+{
+    // We need to append the environ values with keeping the current process environment block.
+    // It works equal for any platrorms in coreclr CreateProcessW(), but not critical for Linux.
+    std::map<std::string, std::string> envMap;
+    if (GetSystemEnvironmentAsMap(envMap) != -1)
+    {
+        auto it = env.begin();
+        auto end = env.end();
+        // Override the system value (PATHs appending needs a complex implementation)
+        while (it != end)
+        {
+            envMap[it->first] = it->second;
+            ++it;
+        }
+        for (const auto &pair : envMap)
+        {
+            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.push_back('=');
+            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.push_back('\0');
+        }
+        outEnv.push_back('\0');
+    }
+    else
+    {
+        for (const auto &pair : env)
+        {
+            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.push_back('=');
+            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.push_back('\0');
+        }
+    }
+}
+
+} // unnamed namespace
 
 // Caller must care about m_debugProcessRWLock.
 HRESULT ManagedDebugger::CheckDebugProcess()
@@ -427,96 +592,6 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
     }
 }
 
-// From dbgshim.cpp
-static bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
-{
-    for (DWORD i = 0; i < arrayLength; i++)
-    {
-        HANDLE h = handleArray[i];
-        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-static HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPWSTR **ppStringArray,
-                             DWORD *pdwArrayLength, int tryCount)
-{
-    int numTries = 0;
-    HRESULT hr = S_OK;
-
-    while (numTries < tryCount)
-    {
-        hr = dbgshim.EnumerateCLRs(pid, ppHandleArray, ppStringArray, pdwArrayLength);
-
-        // From dbgshim.cpp:
-        // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or
-        // ERROR_PARTIAL_COPY. If we get either of those, we try wait 1/10th of a second try again (that
-        // is the recommendation of the OS API owners).
-        // In dbgshim the following condition is used:
-        //  if ((hr != HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY)) && (hr != HRESULT_FROM_WIN32(ERROR_BAD_LENGTH)))
-        // Since we may be attaching to the process which has not loaded coreclr yes, let's give it some time to load.
-        if (SUCCEEDED(hr))
-        {
-            // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
-            if (*ppHandleArray != nullptr && *pdwArrayLength > 0)
-            {
-
-                // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
-                // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but
-                // before g_hContinueStartupEvent has been initialized.
-                if (AreAllHandlesValid(*ppHandleArray, *pdwArrayLength))
-                {
-                    return hr;
-                }
-                // Clean up memory allocated in EnumerateCLRs since this path it succeeded
-                dbgshim.CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
-
-                *ppHandleArray = nullptr;
-                *ppStringArray = nullptr;
-                *pdwArrayLength = 0;
-            }
-        }
-
-        // No point in retrying in case of invalid arguments or no such process
-        if (hr == E_INVALIDARG || hr == E_FAIL)
-        {
-            return hr;
-        }
-
-        // Sleep and retry enumerating the runtimes
-        static constexpr unsigned long sleepTime = 100000UL;
-        USleep(sleepTime);
-        numTries++;
-    }
-
-    // Indicate a timeout
-    hr = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
-
-    return hr;
-}
-
-static std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
-{
-    HANDLE *pHandleArray = nullptr;
-    LPWSTR *pStringArray = nullptr;
-    DWORD dwArrayLength = 0;
-    const int tryCount = timeoutSec * 10; // 100ms interval between attempts
-    if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
-        dwArrayLength == 0)
-    {
-        return {};
-    }
-
-    std::string result = to_utf8(pStringArray[0]);
-
-    dbgshim.CloseCLREnumeration(pHandleArray, pStringArray, dwArrayLength);
-
-    return result;
-}
-
 HRESULT ManagedDebugger::Startup(IUnknown *punk)
 {
     HRESULT Status = S_OK;
@@ -564,79 +639,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 #endif // FEATURE_PAL
 
     return S_OK;
-}
-
-static std::string EscapeShellArg(const std::string &arg)
-{
-    std::string s(arg);
-
-    for (std::string::size_type i = 0; i < s.size(); ++i)
-    {
-        std::string::size_type count = 0;
-        const char c = s.at(i);
-        switch (c)
-        {
-        case '\"':
-            count = 1;
-            s.insert(i, count, '\\');
-            s[i + count] = '\"';
-            break;
-        case '\\':
-            count = 1;
-            s.insert(i, count, '\\');
-            s[i + count] = '\\';
-            break;
-        default:
-            break;
-        }
-        i += count;
-    }
-
-    return s;
-}
-
-static bool IsDirExists(const char *const path)
-{
-    struct stat info{};
-
-    return ((stat(path, &info) == 0) &&
-            ((info.st_mode & S_IFDIR) != 0U));
-}
-
-static void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
-{
-    // We need to append the environ values with keeping the current process environment block.
-    // It works equal for any platrorms in coreclr CreateProcessW(), but not critical for Linux.
-    std::map<std::string, std::string> envMap;
-    if (GetSystemEnvironmentAsMap(envMap) != -1)
-    {
-        auto it = env.begin();
-        auto end = env.end();
-        // Override the system value (PATHs appending needs a complex implementation)
-        while (it != end)
-        {
-            envMap[it->first] = it->second;
-            ++it;
-        }
-        for (const auto &pair : envMap)
-        {
-            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
-            outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
-            outEnv.push_back('\0');
-        }
-        outEnv.push_back('\0');
-    }
-    else
-    {
-        for (const auto &pair : env)
-        {
-            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
-            outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
-            outEnv.push_back('\0');
-        }
-    }
 }
 
 HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)

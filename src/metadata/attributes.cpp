@@ -11,7 +11,10 @@
 namespace dncdbg
 {
 
-static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::function<bool(const std::string &AttrName)> &cb)
+namespace
+{
+
+bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::function<bool(const std::string &AttrName)> &cb)
 {
     bool found = false;
     ULONG numAttributes = 0;
@@ -37,6 +40,8 @@ static bool ForEachAttribute(IMetaDataImport *pMD, mdToken tok, const std::funct
     pMD->CloseEnum(fEnum);
     return found;
 }
+
+} // unnamed namespace
 
 bool HasAttribute(IMetaDataImport *pMD, mdToken tok, const std::string_view &attrName)
 {

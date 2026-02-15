@@ -17,10 +17,13 @@
 namespace dncdbg
 {
 
+namespace
+{
+
 // Get '<>t__builder' field value for builder from frame.
 // [in] pFrame - frame that used for get all info needed (function, module, etc);
 // [out] ppValue_builder - result value.
-static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builder)
+HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builder)
 {
     HRESULT Status = S_OK;
 
@@ -113,7 +116,7 @@ static HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue
 // [in] pFrame - frame that used for get all info needed (function, module, etc);
 // [in] pEvalHelpers - pointer to managed debugger EvalHelpers;
 // [out] ppValueAsyncIdRef - result value (reference to created by builder object).
-static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, EvalHelpers *pEvalHelpers,
+HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, EvalHelpers *pEvalHelpers,
                                    ICorDebugValue **ppValueAsyncIdRef)
 {
     HRESULT Status = S_OK;
@@ -181,7 +184,7 @@ static HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFr
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame that used for get all info needed (function, module, etc);
 // [in] pEvalHelpers - pointer to managed debugger EvalHelpers;
-static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, EvalHelpers *pEvalHelpers)
+HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, EvalHelpers *pEvalHelpers)
 {
     HRESULT Status = S_OK;
 
@@ -256,6 +259,8 @@ static HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDe
 
     return S_OK;
 }
+
+} // unnamed namespace
 
 HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {

@@ -227,11 +227,9 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
     return (result != nullptr);
 }
 
-} // unnamed namespace
-
-static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
-                                   std::unordered_set<mdMethodDef> *methodTokens,
-                                   std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> &inputData)
+HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
+                            std::unordered_set<mdMethodDef> *methodTokens,
+                            std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> &inputData)
 {
     HRESULT Status = S_OK;
     // Note, we need 2 arrays of tokens - for normal methods and constructors (.ctor/.cctor, that could have segmented code).
@@ -293,11 +291,13 @@ static HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolRead
     return S_OK;
 }
 
-static std::string GetFileName(const std::string &path)
+std::string GetFileName(const std::string &path)
 {
     const std::size_t i = path.find_last_of("/\\");
     return i == std::string::npos ? path : path.substr(i + 1);
 }
+
+} // unnamed namespace
 
 // Caller must care about m_sourcesInfoMutex.
 HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)

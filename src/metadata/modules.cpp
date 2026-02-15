@@ -15,15 +15,10 @@
 namespace dncdbg
 {
 
-ModuleInfo::~ModuleInfo() noexcept
+namespace
 {
-    if (m_symbolReaderHandle != nullptr)
-    {
-        Interop::DisposeSymbols(m_symbolReaderHandle);
-    }
-}
 
-static bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
+bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
 {
     // Function should be matched by substring, i.e. received target function name should fully or partly equal with the
     // real function name. For example:
@@ -51,7 +46,7 @@ static bool IsTargetFunction(const std::vector<std::string> &fullName, const std
     return true;
 }
 
-static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
+HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
 {
     HRESULT Status = S_OK;
     ToRelease<IUnknown> pMDUnknown;
@@ -138,7 +133,7 @@ static HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(
     return S_OK;
 }
 
-static std::vector<std::string> split_on_tokens(const std::string &str, const char delim)
+std::vector<std::string> split_on_tokens(const std::string &str, const char delim)
 {
     std::vector<std::string> res;
     size_t pos = 0;
@@ -160,7 +155,7 @@ static std::vector<std::string> split_on_tokens(const std::string &str, const ch
     return res;
 }
 
-static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFuncBreakpointCallback &cb)
+HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFuncBreakpointCallback &cb)
 {
     std::vector<std::string> splitName = split_on_tokens(funcName, '.');
 
@@ -181,6 +176,69 @@ static HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string
         };
 
     return ForEachMethod(pModule, functor);
+}
+
+std::string GetFileName(const std::string &path)
+{
+    const std::size_t i = path.find_last_of("/\\");
+    return i == std::string::npos ? path : path.substr(i + 1);
+}
+
+HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
+{
+    HRESULT Status = S_OK;
+    BOOL isDynamic = FALSE;
+    BOOL isInMemory = FALSE;
+    IfFailRet(pModule->IsDynamic(&isDynamic));
+    IfFailRet(pModule->IsInMemory(&isInMemory));
+
+    if (isDynamic == TRUE)
+    {
+        return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
+    }
+
+    uint64_t peAddress = 0;
+    uint32_t peSize = 0;
+    IfFailRet(pModule->GetBaseAddress(&peAddress));
+    IfFailRet(pModule->GetSize(&peSize));
+
+    std::vector<unsigned char> peBuf;
+    uint64_t peBufAddress = 0;
+    if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
+    {
+        ToRelease<ICorDebugProcess> process;
+        IfFailRet(pModule->GetProcess(&process));
+
+        peBuf.resize(peSize);
+        peBufAddress = reinterpret_cast<uint64_t>(peBuf.data());
+        SIZE_T read = 0;
+        IfFailRet(process->ReadMemory(peAddress, peSize, peBuf.data(), &read));
+        if (read != peSize)
+        {
+            return E_FAIL;
+        }
+    }
+
+    return Interop::LoadSymbolsForPortablePDB(
+        GetModuleFileName(pModule),
+        isInMemory,
+        isInMemory, // isFileLayout
+        peBufAddress,
+        peSize,
+        0,          // inMemoryPdbAddress
+        0,          // inMemoryPdbSize
+        ppSymbolReaderHandle
+    );
+}
+
+} // unnamed namespace
+
+ModuleInfo::~ModuleInfo() noexcept
+{
+    if (m_symbolReaderHandle != nullptr)
+    {
+        Interop::DisposeSymbols(m_symbolReaderHandle);
+    }
 }
 
 void Modules::CleanupAllModules()
@@ -226,12 +284,6 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
     std::ostringstream ss;
     ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());
     return ss.str();
-}
-
-static std::string GetFileName(const std::string &path)
-{
-    const std::size_t i = path.find_last_of("/\\");
-    return i == std::string::npos ? path : path.substr(i + 1);
 }
 
 HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
@@ -443,53 +495,6 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     id = ss.str();
 
     return S_OK;
-}
-
-static HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
-{
-    HRESULT Status = S_OK;
-    BOOL isDynamic = FALSE;
-    BOOL isInMemory = FALSE;
-    IfFailRet(pModule->IsDynamic(&isDynamic));
-    IfFailRet(pModule->IsInMemory(&isInMemory));
-
-    if (isDynamic == TRUE)
-    {
-        return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
-    }
-
-    uint64_t peAddress = 0;
-    uint32_t peSize = 0;
-    IfFailRet(pModule->GetBaseAddress(&peAddress));
-    IfFailRet(pModule->GetSize(&peSize));
-
-    std::vector<unsigned char> peBuf;
-    uint64_t peBufAddress = 0;
-    if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
-    {
-        ToRelease<ICorDebugProcess> process;
-        IfFailRet(pModule->GetProcess(&process));
-
-        peBuf.resize(peSize);
-        peBufAddress = reinterpret_cast<uint64_t>(peBuf.data());
-        SIZE_T read = 0;
-        IfFailRet(process->ReadMemory(peAddress, peSize, peBuf.data(), &read));
-        if (read != peSize)
-        {
-            return E_FAIL;
-        }
-    }
-
-    return Interop::LoadSymbolsForPortablePDB(
-        GetModuleFileName(pModule),
-        isInMemory,
-        isInMemory, // isFileLayout
-        peBufAddress,
-        peSize,
-        0,          // inMemoryPdbAddress
-        0,          // inMemoryPdbSize
-        ppSymbolReaderHandle
-    );
 }
 
 HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)

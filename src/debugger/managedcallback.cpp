@@ -24,6 +24,60 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
+{
+    // Exception was thrown outside of managed code (for example, by runtime).
+    if (pFrame == nullptr)
+    {
+        excModule = "<unknown module>";
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugFunction> pFunc;
+    IfFailRet(pFrame->GetFunction(&pFunc));
+
+    ToRelease<ICorDebugModule> pModule;
+    IfFailRet(pFunc->GetModule(&pModule));
+
+    ToRelease<IUnknown> pMDUnknown;
+    ToRelease<IMetaDataImport> pMDImport;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
+
+    std::array<WCHAR, mdNameLen> mdName{};
+    ULONG nameLen = 0;
+    IfFailRet(pMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
+    excModule = to_utf8(mdName.data());
+
+    return S_OK;
+}
+
+ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame, bool justMyCode)
+{
+    if (!justMyCode)
+    {
+        return ExceptionCallbackType::CATCH_HANDLER_FOUND;
+    }
+
+    BOOL JMCStatus = FALSE;
+    ToRelease<ICorDebugFunction> iCorFunction;
+    ToRelease<ICorDebugFunction2> iCorFunction2;
+    if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
+        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
+        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
+    {
+        return ExceptionCallbackType::USER_CATCH_HANDLER_FOUND;
+    }
+
+    return ExceptionCallbackType::CATCH_HANDLER_FOUND;
+}
+
+} // unnamed namespace
+
 ULONG ManagedCallback::GetRefCount()
 {
     LogFuncEntry();
@@ -433,55 +487,6 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::DestroyConnection(ICorDebugProcess *p
 {
     LogFuncEntry();
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
-}
-
-static HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
-{
-    // Exception was thrown outside of managed code (for example, by runtime).
-    if (pFrame == nullptr)
-    {
-        excModule = "<unknown module>";
-        return S_OK;
-    }
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
-
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
-
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMDImport;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
-
-    std::array<WCHAR, mdNameLen> mdName{};
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
-    excModule = to_utf8(mdName.data());
-
-    return S_OK;
-}
-
-static ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame, bool justMyCode)
-{
-    if (!justMyCode)
-    {
-        return ExceptionCallbackType::CATCH_HANDLER_FOUND;
-    }
-
-    BOOL JMCStatus = FALSE;
-    ToRelease<ICorDebugFunction> iCorFunction;
-    ToRelease<ICorDebugFunction2> iCorFunction2;
-    if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
-        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
-    {
-        return ExceptionCallbackType::USER_CATCH_HANDLER_FOUND;
-    }
-
-    return ExceptionCallbackType::CATCH_HANDLER_FOUND;
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,

@@ -15,7 +15,6 @@ Checks: >
   modernize-*,
   -modernize-use-trailing-return-type,
   misc-*,
-  -misc-use-anonymous-namespace,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   bugprone-*,

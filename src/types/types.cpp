@@ -13,6 +13,17 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+std::string GetFileName(const std::string &path)
+{
+    const std::size_t i = path.find_last_of("/\\");
+    return i == std::string::npos ? path : path.substr(i + 1);
+}
+
+} // unnamed namespace
+
 // This class implements container, which hold elements of type `T', where
 // elements addressed by integral value of type `Key'. The `Key' can take
 // values from 0 to `Max' inclusively. The value of `Key' is not provided
@@ -277,12 +288,6 @@ FrameLevel FrameId::getLevel() const noexcept
 /*static*/ void FrameId::invalidate()
 {
     KnownFrames::instance().get()->clear();
-}
-
-static std::string GetFileName(const std::string &path)
-{
-    const std::size_t i = path.find_last_of("/\\");
-    return i == std::string::npos ? path : path.substr(i + 1);
 }
 
 Source::Source(const std::string &path) : name(GetFileName(path)), path(path)

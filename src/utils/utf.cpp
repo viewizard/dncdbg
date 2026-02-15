@@ -15,8 +15,11 @@
 namespace dncdbg
 {
 
+namespace
+{
+
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-static std::u16string utf8_to_utf16(const std::string &utf8_str)
+std::u16string utf8_to_utf16(const std::string &utf8_str)
 {
 #if BIGENDIAN
     static constexpr char toCode[] = "UTF-16BE"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
@@ -48,7 +51,7 @@ static std::u16string utf8_to_utf16(const std::string &utf8_str)
     return {reinterpret_cast<char16_t *>(out_buf.data()), u16_len};
 }
 
-static std::string utf16_to_utf8(const std::u16string &utf16_str)
+std::string utf16_to_utf8(const std::u16string &utf16_str)
 {
 #if BIGENDIAN
     static constexpr char fromCode[] = "UTF-16BE"; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
@@ -80,6 +83,8 @@ static std::string utf16_to_utf8(const std::u16string &utf16_str)
     return {out_buf.data(), u8_len};
 }
 #endif // #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+
+} // unnamed namespace
 
 std::string to_utf8(const WCHAR *wstr_)
 {

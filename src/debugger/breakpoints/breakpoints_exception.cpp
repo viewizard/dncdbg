@@ -12,23 +12,10 @@
 namespace dncdbg
 {
 
-void ExceptionBreakpoints::ManagedExceptionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
+namespace
 {
-    breakpoint.id = this->id;
-    breakpoint.verified = true;
-}
 
-void ExceptionBreakpoints::DeleteAll()
-{
-    m_breakpointsMutex.lock();
-    for (auto &filterMap : m_exceptionBreakpoints)
-    {
-        filterMap.clear();
-    }
-    m_breakpointsMutex.unlock();
-}
-
-static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb)
+std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb)
 {
     std::ostringstream ss;
 
@@ -45,6 +32,68 @@ static std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &e
     }
 
     return ss.str();
+}
+
+void GetExceptionShorDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
+{
+    switch (breakMode)
+    {
+    case ExceptionBreakMode::THROW:
+        result = "Exception thrown: '" + excType + "' in " + excModule;
+        break;
+
+    case ExceptionBreakMode::USER_UNHANDLED:
+        result = "An exception of type '" + excType + "' occurred in " + excModule + " but was not handled in user code";
+        break;
+
+    case ExceptionBreakMode::UNHANDLED:
+        result = "An unhandled exception of type '" + excType + "' occurred in " + excModule;
+        break;
+
+    default:
+        result = "";
+        break;
+    }
+}
+
+void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result)
+{
+    switch (breakMode)
+    {
+    case ExceptionBreakMode::THROW:
+        result = "always";
+        break;
+
+    case ExceptionBreakMode::USER_UNHANDLED:
+        result = "userUnhandled";
+        break;
+
+    case ExceptionBreakMode::UNHANDLED:
+        result = "unhandled";
+        break;
+
+    default:
+        result = "";
+        break;
+    }
+}
+
+} // unnamed namespace
+
+void ExceptionBreakpoints::ManagedExceptionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
+{
+    breakpoint.id = this->id;
+    breakpoint.verified = true;
+}
+
+void ExceptionBreakpoints::DeleteAll()
+{
+    m_breakpointsMutex.lock();
+    for (auto &filterMap : m_exceptionBreakpoints)
+    {
+        filterMap.clear();
+    }
+    m_breakpointsMutex.unlock();
 }
 
 HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
@@ -140,50 +189,6 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
     }
 
     return false;
-}
-
-static void GetExceptionShorDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
-{
-    switch (breakMode)
-    {
-    case ExceptionBreakMode::THROW:
-        result = "Exception thrown: '" + excType + "' in " + excModule;
-        break;
-
-    case ExceptionBreakMode::USER_UNHANDLED:
-        result = "An exception of type '" + excType + "' occurred in " + excModule + " but was not handled in user code";
-        break;
-
-    case ExceptionBreakMode::UNHANDLED:
-        result = "An unhandled exception of type '" + excType + "' occurred in " + excModule;
-        break;
-
-    default:
-        result = "";
-        break;
-    }
-}
-
-static void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result)
-{
-    switch (breakMode)
-    {
-    case ExceptionBreakMode::THROW:
-        result = "always";
-        break;
-
-    case ExceptionBreakMode::USER_UNHANDLED:
-        result = "userUnhandled";
-        break;
-
-    case ExceptionBreakMode::UNHANDLED:
-        result = "unhandled";
-        break;
-
-    default:
-        result = "";
-        break;
-    }
 }
 
 HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails &details)

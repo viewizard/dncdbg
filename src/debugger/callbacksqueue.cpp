@@ -19,6 +19,27 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+// NOTE caller must care about m_callbacksMutex.
+// Check stop status and stop, if need.
+// Return S_FALSE in case already was stopped, S_OK in case stopped by this call.
+HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess)
+{
+    if (stopEventInProcess)
+    {
+        return S_FALSE; // Already stopped.
+    }
+
+    HRESULT Status = S_OK;
+    IfFailRet(pProcess->Stop(0));
+    stopEventInProcess = true;
+    return S_OK;
+}
+
+}
+
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
     // S_FALSE - not error and steppers not affect on callback
@@ -286,22 +307,6 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
     }
 
     m_callbacksCV.notify_one(); // notify_one with lock
-    return S_OK;
-}
-
-// NOTE caller must care about m_callbacksMutex.
-// Check stop status and stop, if need.
-// Return S_FALSE in case already was stopped, S_OK in case stopped by this call.
-static HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess)
-{
-    if (stopEventInProcess)
-    {
-        return S_FALSE; // Already stopped.
-    }
-
-    HRESULT Status = S_OK;
-    IfFailRet(pProcess->Stop(0));
-    stopEventInProcess = true;
     return S_OK;
 }
 

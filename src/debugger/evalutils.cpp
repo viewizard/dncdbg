@@ -11,6 +11,92 @@
 namespace dncdbg::EvalUtils
 {
 
+namespace
+{
+
+std::vector<std::string> GatherParameters(const std::vector<std::string> &identifiers, int indexEnd)
+{
+    std::vector<std::string> result;
+    for (int i = 0; i < indexEnd; i++)
+    {
+        std::string typeName;
+        std::vector<std::string> params = ParseGenericParams(identifiers[i], typeName);
+        result.insert(result.end(), params.begin(), params.end());
+    }
+    return result;
+}
+
+mdTypeDef GetTypeTokenForName(IMetaDataImport *pMD, mdTypeDef tkEnclosingClass, const std::string &name)
+{
+    mdTypeDef typeToken = mdTypeDefNil;
+    pMD->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
+    return typeToken;
+}
+
+HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string> &identifiers,
+                         int &nextIdentifier, mdTypeDef &typeToken)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<IUnknown> pMDUnknown;
+    ToRelease<IMetaDataImport> pMD;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
+    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+
+    std::string currentTypeName;
+
+    // Search for type in module
+    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
+    {
+        std::string name;
+        ParseGenericParams(identifiers[i], name);
+        currentTypeName += (currentTypeName.empty() ? "" : ".") + name;
+
+        typeToken = GetTypeTokenForName(pMD, mdTypeDefNil, currentTypeName);
+        if (typeToken != mdTypeDefNil)
+        {
+            nextIdentifier = i + 1;
+            break;
+        }
+    }
+
+    if (typeToken == mdTypeDefNil) // type not found, continue search in next module
+    {
+        return E_FAIL;
+    }
+
+    // Resolve nested class
+    for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
+    {
+        std::string name;
+        ParseGenericParams(identifiers[j], name);
+        const mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
+        if (classToken == mdTypeDefNil)
+        {
+            break;
+        }
+        typeToken = classToken;
+        nextIdentifier = j + 1;
+    }
+
+    return S_OK;
+}
+
+HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, Modules *pModules,
+                          std::vector<ToRelease<ICorDebugType>> &types)
+{
+    HRESULT Status = S_OK;
+    for (const auto &p : params)
+    {
+        ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
+        IfFailRet(GetType(p, pThread, pModules, &tmpType));
+        types.emplace_back(tmpType);
+    }
+    return S_OK;
+}
+
+} // unnamed namespace
+
 std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName)
 {
     std::vector<std::string> result;
@@ -66,74 +152,6 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
     }
     typeName = identifier.substr(0, start) + '`' + std::to_string(result.size());
     return result;
-}
-
-static std::vector<std::string> GatherParameters(const std::vector<std::string> &identifiers, int indexEnd)
-{
-    std::vector<std::string> result;
-    for (int i = 0; i < indexEnd; i++)
-    {
-        std::string typeName;
-        std::vector<std::string> params = ParseGenericParams(identifiers[i], typeName);
-        result.insert(result.end(), params.begin(), params.end());
-    }
-    return result;
-}
-
-static mdTypeDef GetTypeTokenForName(IMetaDataImport *pMD, mdTypeDef tkEnclosingClass, const std::string &name)
-{
-    mdTypeDef typeToken = mdTypeDefNil;
-    pMD->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
-    return typeToken;
-}
-
-static HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string> &identifiers,
-                                int &nextIdentifier, mdTypeDef &typeToken)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
-
-    std::string currentTypeName;
-
-    // Search for type in module
-    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
-    {
-        std::string name;
-        ParseGenericParams(identifiers[i], name);
-        currentTypeName += (currentTypeName.empty() ? "" : ".") + name;
-
-        typeToken = GetTypeTokenForName(pMD, mdTypeDefNil, currentTypeName);
-        if (typeToken != mdTypeDefNil)
-        {
-            nextIdentifier = i + 1;
-            break;
-        }
-    }
-
-    if (typeToken == mdTypeDefNil) // type not found, continue search in next module
-    {
-        return E_FAIL;
-    }
-
-    // Resolve nested class
-    for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
-    {
-        std::string name;
-        ParseGenericParams(identifiers[j], name);
-        const mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
-        if (classToken == mdTypeDefNil)
-        {
-            break;
-        }
-        typeToken = classToken;
-        nextIdentifier = j + 1;
-    }
-
-    return S_OK;
 }
 
 HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *pModules, ICorDebugType **ppType)
@@ -225,19 +243,6 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
         result.back() += c;
     }
     return result;
-}
-
-static HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, Modules *pModules,
-                                 std::vector<ToRelease<ICorDebugType>> &types)
-{
-    HRESULT Status = S_OK;
-    for (const auto &p : params)
-    {
-        ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
-        IfFailRet(GetType(p, pThread, pModules, &tmpType));
-        types.emplace_back(tmpType);
-    }
-    return S_OK;
 }
 
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
