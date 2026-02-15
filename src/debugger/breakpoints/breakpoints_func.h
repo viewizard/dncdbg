@@ -69,18 +69,12 @@ class FuncBreakpoints
     struct ManagedFuncBreakpoint
     {
         uint32_t id;
-        std::string module;
-        bool module_checked; // in case "module" provided, we need mark that module was checked or not (since function could be not found by name)
         std::string name;
         std::string params;
         uint32_t hitCount;
         std::string condition;
         std::vector<ToRelease<ICorDebugFunctionBreakpoint>> iCorFuncBreakpoints;
 
-        bool IsResolved() const
-        {
-            return module_checked;
-        }
         bool IsVerified() const
         {
             return !iCorFuncBreakpoints.empty();
@@ -88,7 +82,6 @@ class FuncBreakpoints
 
         ManagedFuncBreakpoint()
             : id(0),
-              module_checked(false),
               hitCount(0)
         {}
 

@@ -24,7 +24,6 @@ namespace dncdbg
 
 HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id);
 std::string GetModuleFileName(ICorDebugModule *pModule);
-HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, bool isFullPath);
 
 struct ModuleInfo
 {
@@ -74,11 +73,10 @@ class Modules
     HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                               bool *noUserCodeFound);
 
-    HRESULT ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked, const std::string &funcname,
-                                       const ResolveFuncBreakpointCallback &cb);
+    HRESULT ResolveFuncBreakpointInAny(const std::string &funcname, const ResolveFuncBreakpointCallback &cb);
 
-    static HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module, bool &module_checked,
-                                                 std::string &funcname, const ResolveFuncBreakpointCallback &cb);
+    static HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+                                                 const ResolveFuncBreakpointCallback &cb);
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 

@@ -7,7 +7,6 @@
 #include "managed/interop.h"
 #include "metadata/jmc.h"
 #include "metadata/typeprinter.h"
-#include "utils/filesystem.h"
 #include <array>
 #include <iomanip>
 #include <sstream>
@@ -235,27 +234,6 @@ static std::string GetFileName(const std::string &path)
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
-HRESULT IsModuleHaveSameName(ICorDebugModule *pModule, const std::string &Name, bool isFullPath)
-{
-    HRESULT Status = S_OK;
-    uint32_t len = 0;
-    std::array<WCHAR, mdNameLen> szModuleName{};
-    std::string modName;
-
-    IfFailRet(pModule->GetName(mdNameLen, &len, szModuleName.data()));
-
-    if (isFullPath)
-    {
-        modName = to_utf8(szModuleName.data());
-    }
-    else
-    {
-        modName = GetBasename(to_utf8(szModuleName.data()));
-    }
-
-    return modName == Name ? S_OK : S_FALSE;
-}
-
 HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
@@ -276,58 +254,22 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
     return S_OK;
 }
 
-HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &module, bool &module_checked,
-                                            const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
+HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
 {
-    const bool isFullPath = IsFullPath(module);
-    HRESULT Status = S_OK;
-
     const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
     for (auto &info_pair : m_modulesInfo)
     {
         const ModuleInfo &mdInfo = info_pair.second;
-        ICorDebugModule *pModule = mdInfo.m_iCorModule.GetPtr();
-
-        if (!module.empty())
-        {
-            IfFailRet(IsModuleHaveSameName(pModule, module, isFullPath));
-            if (Status == S_FALSE)
-            {
-                continue;
-            }
-
-            module_checked = true;
-        }
-
         ResolveMethodInModule(mdInfo.m_iCorModule, funcname, cb);
-
-        if (module_checked)
-        {
-            break;
-        }
     }
 
     return S_OK;
 }
 
-HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, const std::string &module,
-                                               bool &module_checked, std::string &funcname,
+HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
                                                const ResolveFuncBreakpointCallback &cb)
 {
-    HRESULT Status = S_OK;
-
-    if (!module.empty())
-    {
-        IfFailRet(IsModuleHaveSameName(pModule, module, IsFullPath(module)));
-        if (Status == S_FALSE)
-        {
-            return E_FAIL;
-        }
-
-        module_checked = true;
-    }
-
     return ResolveMethodInModule(pModule, funcname, cb);
 }
 

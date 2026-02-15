@@ -311,6 +311,7 @@ struct StackFrame
     mutable Optional<FrameLevel> level;
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Breakpoint
 struct Breakpoint
 {
     uint32_t id;
@@ -318,10 +319,16 @@ struct Breakpoint
     std::string message;
     Source source;
     int line;
+    //column?: number;
     int endLine;
+    //endColumn?: number;
 
+    //instructionReference?: string;
+    //offset?: number;
+    //reason?: 'pending' | 'failed';
+
+    // not DAP part
     std::string condition;
-    std::string module;
     std::string funcname;
     std::string params;
 
@@ -543,13 +550,11 @@ enum class VariablesFilter
 
 struct LineBreakpoint
 {
-    std::string module;
     int line;
     std::string condition;
 
-    LineBreakpoint(const std::string &module, int linenum, const std::string &cond = std::string())
-        : module(module),
-          line(linenum),
+    LineBreakpoint(int linenum, const std::string &cond = std::string())
+        : line(linenum),
           condition(cond)
     {
     }
@@ -557,15 +562,13 @@ struct LineBreakpoint
 
 struct FuncBreakpoint
 {
-    std::string module;
     std::string func;
     std::string params;
     std::string condition;
 
-    FuncBreakpoint(const std::string &module, const std::string &func, const std::string &params,
+    FuncBreakpoint(const std::string &func, const std::string &params,
                    const std::string &cond = std::string())
-        : module(module),
-          func(func),
+        : func(func),
           params(params),
           condition(cond)
     {

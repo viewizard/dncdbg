@@ -19,7 +19,6 @@ void FuncBreakpoints::ManagedFuncBreakpoint::ToBreakpoint(Breakpoint &breakpoint
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
     breakpoint.condition = this->condition;
-    breakpoint.module = this->module;
     breakpoint.funcname = this->name;
     breakpoint.params = this->params;
 }
@@ -142,8 +141,7 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
     {
         ManagedFuncBreakpoint &fb = funcBreakpoints.second;
 
-        if (fb.IsResolved() ||
-            FAILED(ResolveFuncBreakpointInModule(pModule, fb)))
+        if (FAILED(ResolveFuncBreakpointInModule(pModule, fb)))
         {
             continue;
         }
@@ -165,12 +163,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
     std::unordered_set<std::string> funcBreakpointFuncs;
     for (const auto &fb : funcBreakpoints)
     {
-        std::string fullFuncName;
-        if (!fb.module.empty())
-        {
-            fullFuncName = fb.module + "!";
-        }
-        fullFuncName += fb.func + fb.params;
+        const std::string fullFuncName = fb.func + fb.params;
         funcBreakpointFuncs.insert(fullFuncName);
     }
     for (auto it = m_funcBreakpoints.begin(); it != m_funcBreakpoints.end();)
@@ -195,15 +188,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
     for (const auto &fb : funcBreakpoints)
     {
-        std::string fullFuncName;
-
-        if (!fb.module.empty())
-        {
-            fullFuncName = fb.module + "!";
-        }
-
-        fullFuncName += fb.func + fb.params;
-
+        const std::string fullFuncName = fb.func + fb.params;
         Breakpoint breakpoint;
 
         auto b = m_funcBreakpoints.find(fullFuncName);
@@ -212,7 +197,6 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
             // New function breakpoint
             ManagedFuncBreakpoint fbp;
             fbp.id = getId();
-            fbp.module = fb.module;
             fbp.name = fb.func;
             fbp.params = fb.params;
             fbp.condition = fb.condition;
@@ -278,8 +262,7 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp)
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedModules->ResolveFuncBreakpointInAny(
-        fbp.module, fbp.module_checked, fbp.name,
+    IfFailRet(m_sharedModules->ResolveFuncBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
@@ -295,7 +278,7 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule,
     ResolvedFBP fbpResolved;
 
     IfFailRet(m_sharedModules->ResolveFuncBreakpointInModule(
-        pModule, fbp.module, fbp.module_checked, fbp.name,
+        pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));

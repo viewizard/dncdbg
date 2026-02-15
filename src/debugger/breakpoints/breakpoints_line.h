@@ -117,7 +117,7 @@ class LineBreakpoints
         int resolved_linenum; // if int is 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
 
         ManagedLineBreakpointMapping()
-            : breakpoint("", 0, ""),
+            : breakpoint(0, ""),
               id(0),
               resolved_fullname_index(0),
               resolved_linenum(0)

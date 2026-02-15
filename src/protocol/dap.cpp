@@ -573,7 +573,7 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 std::vector<LineBreakpoint> lineBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
-                    lineBreakpoints.emplace_back(std::string(), b.at("line"), b.value("condition", std::string()));
+                    lineBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;
@@ -873,28 +873,19 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                 std::vector<FuncBreakpoint> funcBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
-                    std::string module;
                     std::string params;
                     std::string name = b.at("name");
 
-                    std::size_t i = name.find('!');
-
-                    if (i != std::string::npos)
-                    {
-                        module = std::string(name, 0, i);
-                        name.erase(0, i + 1);
-                    }
-
-                    i = name.find('(');
-                    if (i != std::string::npos)
+                    const std::size_t openBrace = name.find('(');
+                    if (openBrace != std::string::npos)
                     {
                         const std::size_t closeBrace = name.find(')');
 
-                        params = std::string(name, i, closeBrace - i + 1);
-                        name.erase(i, closeBrace);
+                        params = std::string(name, openBrace, closeBrace - openBrace + 1);
+                        name.erase(openBrace, closeBrace);
                     }
 
-                    funcBreakpoints.emplace_back(module, name, params, b.value("condition", std::string()));
+                    funcBreakpoints.emplace_back(name, params, b.value("condition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;

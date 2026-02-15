@@ -7,7 +7,6 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
-#include "utils/filesystem.h"
 #include <unordered_set>
 
 namespace dncdbg
@@ -153,37 +152,7 @@ static HRESULT ResolveLineBreakpoint(Modules *pModules, ICorDebugModule *pModule
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
 
-    if (!bp.module.empty() && (pModule != nullptr))
-    {
-        IfFailRet(IsModuleHaveSameName(pModule, bp.module, IsFullPath(bp.module)));
-        if (Status == S_FALSE)
-        {
-            return E_FAIL;
-        }
-    }
-    else if (!bp.module.empty())
-    {
-        bool isFullPath = IsFullPath(bp.module);
-        pModules->ForEachModule(
-            [&bp, &modAddress, &isFullPath, &Status](ICorDebugModule *pModule) -> HRESULT
-            {
-                IfFailRet(IsModuleHaveSameName(pModule, bp.module, isFullPath));
-                if (Status == S_FALSE)
-                {
-                    return S_FALSE;
-                }
-
-                IfFailRet(pModule->GetBaseAddress(&modAddress));
-
-                return E_ABORT; // Fast exit from cycle.
-            });
-
-        if (modAddress == 0U)
-        {
-            return E_FAIL;
-        }
-    }
-    else if (pModule != nullptr) // Filter data from only one module during resolve, if need.
+    if (pModule != nullptr)
     {
         IfFailRet(pModule->GetBaseAddress(&modAddress));
     }
@@ -269,7 +238,6 @@ HRESULT LineBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
 
             ManagedLineBreakpoint bp;
             bp.id = initialBreakpoint.id;
-            bp.module = initialBreakpoint.breakpoint.module;
             bp.linenum = initialBreakpoint.breakpoint.line;
             bp.endLine = initialBreakpoint.breakpoint.line;
             bp.condition = initialBreakpoint.breakpoint.condition;
@@ -405,7 +373,6 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string 
             // New breakpoint
             ManagedLineBreakpoint bp;
             bp.id = initialBreakpoint.id;
-            bp.module = initialBreakpoint.breakpoint.module;
             bp.linenum = line;
             bp.endLine = line;
             bp.condition = initialBreakpoint.breakpoint.condition;
@@ -478,7 +445,6 @@ HRESULT LineBreakpoints::SetLineBreakpoints(bool haveProcess, const std::string 
                 // Was already added, but was not yet resolved.
                 ManagedLineBreakpoint bp;
                 bp.id = initialBreakpoint.id;
-                bp.module = initialBreakpoint.breakpoint.module;
                 bp.linenum = line;
                 bp.endLine = line;
                 bp.condition = initialBreakpoint.breakpoint.condition;
