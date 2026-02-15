@@ -202,11 +202,12 @@ class FrameId : public CustomScalarType<FrameId>
     ScalarType m_id;
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Thread
 struct Thread
 {
     ThreadId id;
     std::string name;
-    bool running;
+    bool running; // not part of DAP
 
     Thread(ThreadId id_, const std::string &name_, bool running_)
         : id(id_),
@@ -216,10 +217,17 @@ struct Thread
     }
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Source
 struct Source
 {
     std::string name;
     std::string path;
+    // sourceReference?: number;
+    // presentationHint?: 'normal' | 'emphasize' | 'deemphasize';
+    // origin?: string;
+    // sources?: Source[];
+    // adapterData?: any;
+    // checksums?: Checksum[];
 
     Source(const std::string &path = {});
     bool IsNull() const
@@ -228,24 +236,7 @@ struct Source
     }
 };
 
-struct ClrAddr
-{
-    uint32_t ilOffset;
-    uint32_t nativeOffset;
-    uint32_t methodToken;
-
-    ClrAddr()
-        : ilOffset(0),
-          nativeOffset(0),
-          methodToken(0)
-    {
-    }
-    bool IsNull() const
-    {
-        return methodToken == 0;
-    }
-};
-
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_StackFrame
 struct StackFrame
 {
   public:
@@ -257,7 +248,10 @@ struct StackFrame
     int column;
     int endLine;
     int endColumn;
+    // canRestart?: boolean;
+    // instructionPointerReference?: string;
     std::string moduleId;
+    // presentationHint?: 'normal' | 'label' | 'subtle';
 
     StackFrame()
         : id(),
@@ -319,13 +313,13 @@ struct Breakpoint
     std::string message;
     Source source;
     int line;
-    //column?: number;
+    // column?: number;
     int endLine;
-    //endColumn?: number;
+    // endColumn?: number;
 
-    //instructionReference?: string;
-    //offset?: number;
-    //reason?: 'pending' | 'failed';
+    // instructionReference?: string;
+    // offset?: number;
+    // reason?: 'pending' | 'failed';
 
     Breakpoint()
         : id(0),
@@ -343,14 +337,19 @@ enum class SymbolStatus
     NotFound
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Module
 struct Module
 {
     std::string id;
     std::string name;
     std::string path;
-    // bool isOptimized; // TODO: support both fields for DAP
-    // bool isUserCode;
+    // isOptimized?: boolean;
+    // isUserCode?: boolean;
+    // version?: string;
     SymbolStatus symbolStatus;
+    // symbolFilePath?: string;
+    // dateTimeStamp?: string;
+    // addressRange?: string;
 
     Module() : symbolStatus(SymbolStatus::Skipped)
     {
@@ -366,12 +365,16 @@ enum class StoppedEventReason
     Entry
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Stopped
 struct StoppedEvent
 {
     StoppedEventReason reason;
+    // description?: string;
     ThreadId threadId;
+    // preserveFocusHint?: boolean;
     std::string text;
     bool allThreadsStopped;
+    // hitBreakpointIds?: number[];
 
     StoppedEvent(StoppedEventReason reason, ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
@@ -388,6 +391,7 @@ enum class BreakpointEventReason
     Removed
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Breakpoint
 struct BreakpointEvent
 {
     BreakpointEventReason reason;
@@ -400,6 +404,7 @@ struct BreakpointEvent
     }
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Exited
 struct ExitedEvent
 {
     int exitCode;
@@ -415,6 +420,7 @@ enum class ThreadEventReason
     Exited
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Thread
 struct ThreadEvent
 {
     ThreadEventReason reason;
@@ -434,11 +440,19 @@ enum class OutputCategory
     StdErr
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Output
 struct OutputEvent
 {
     OutputCategory category;
     std::string output;
+    // group?: 'start' | 'startCollapsed' | 'end';
+    // variablesReference?: number;
     StackFrame frame;
+    //  | - source?: Source;
+    //  | - line?: number;
+    //  \ - column?: number;
+    // data?: any;
+    // locationReference?: number;
 
     OutputEvent(OutputCategory category_, const std::string &output_)
         : category(category_),
@@ -455,10 +469,12 @@ enum class ModuleEventReason
     Removed
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_Module
 struct ModuleEvent
 {
     ModuleEventReason reason;
     Module module;
+
     ModuleEvent(ModuleEventReason reason, const Module &module)
         : reason(reason),
           module(module)
@@ -466,13 +482,20 @@ struct ModuleEvent
     }
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Scope
 struct Scope
 {
     std::string name;
+    // presentationHint?: 'arguments' | 'locals' | 'registers' | 'returnValue' | string;
     uint32_t variablesReference;
     int namedVariables;
     int indexedVariables;
     bool expensive;
+    // source?: Source;
+    // line?: number;
+    // column?: number;
+    // endLine?: number;
+    // endColumn?: number;
 
     Scope()
         : variablesReference(0),
@@ -513,6 +536,7 @@ enum enum_EVALFLAGS : uint32_t
 
 constexpr uint32_t defaultEvalFlags = 0;
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_Variable
 struct Variable
 {
     std::string name;
@@ -523,8 +547,12 @@ struct Variable
     uint32_t variablesReference;
     int namedVariables;
     int indexedVariables;
-    uint32_t evalFlags;
-    bool editable;
+    // memoryReference?: string;
+    // declarationLocationReference?: number;
+    // valueLocationReference?: number;
+
+    uint32_t evalFlags; // not part of DAP
+    bool editable; // not part of DAP
 
     Variable(uint32_t flags = defaultEvalFlags)
         : variablesReference(0),
@@ -543,10 +571,15 @@ enum class VariablesFilter
     Both
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_SourceBreakpoint
 struct LineBreakpoint
 {
     int line;
+    // column?: number;
     std::string condition;
+    // hitCondition?: string;
+    // logMessage?: string;
+    // mode?: string;
 
     LineBreakpoint(int linenum, const std::string &cond = std::string())
         : line(linenum),
@@ -555,11 +588,13 @@ struct LineBreakpoint
     }
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_FunctionBreakpoint
 struct FuncBreakpoint
 {
-    std::string func;
-    std::string params;
+    std::string func;  // name -> func(params)
+    std::string params;// name -> func(params)
     std::string condition;
+    // hitCondition?: string;
 
     FuncBreakpoint(const std::string &func, const std::string &params,
                    const std::string &cond = std::string())
@@ -590,7 +625,7 @@ enum class ExceptionBreakMode
     UNHANDLED       // stopped on unhandled
 };
 
-// https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails
 struct ExceptionDetails
 {
     std::string message;
@@ -601,8 +636,9 @@ struct ExceptionDetails
     // Note, DAP have "innerException" field as array, but in real we don't have array with inner exceptions
     // here, since exception object have only one exeption object reference in InnerException field.
     std::unique_ptr<ExceptionDetails> innerException;
-    std::string formattedDescription;
-    std::string source;
+
+    std::string formattedDescription; // not part of DAP
+    std::string source; // not part of DAP
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo
