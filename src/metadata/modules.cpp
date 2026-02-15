@@ -74,9 +74,8 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             ULONG nameLen = 0;
             std::array<WCHAR, mdNameLen> szFuncName{};
 
-            Status = pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
-                                               nullptr, nullptr, nullptr, nullptr, nullptr);
-            if (FAILED(Status))
+            if (FAILED(pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -97,9 +96,8 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                 std::array<WCHAR, mdNameLen> szGenName{};
                 ULONG genNameLen = 0;
 
-                Status = pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
-                                                          szGenName.data(), mdNameLen, &genNameLen);
-                if (FAILED(Status))
+                if (FAILED(pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
+                                                            szGenName.data(), mdNameLen, &genNameLen)))
                 {
                     continue;
                 }

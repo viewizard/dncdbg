@@ -76,8 +76,7 @@ HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const Walk
     mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
-        Status = cb(fieldDef);
-        if (FAILED(Status))
+        if (FAILED(Status = cb(fieldDef)))
         {
             break;
         }
@@ -95,8 +94,7 @@ HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const 
     while (SUCCEEDED(pMD->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
            numProperties != 0)
     {
-        Status = cb(propertyDef);
-        if (FAILED(Status))
+        if (FAILED(Status = cb(propertyDef)))
         {
             break;
         }
@@ -977,8 +975,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
         };
 
-        Status = cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction);
-        if (FAILED(Status))
+        if (FAILED(Status = cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction)))
         {
             pInputType->AddRef();
             *ppResultType = pInputType;

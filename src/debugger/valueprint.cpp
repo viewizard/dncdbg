@@ -656,7 +656,6 @@ void EscapeString(std::string &s, char q = '\"')
 // From strike.cpp
 HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull)
 {
-    HRESULT Status = S_OK;
     *ppOutputValue = nullptr;
     if (pIsNull != nullptr)
     {
@@ -665,12 +664,12 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
 
     pValue->AddRef();
     ToRelease<ICorDebugValue> trCurrentValue(pValue);
+    HRESULT Status = S_OK;
 
     while (true)
     {
         ToRelease<ICorDebugReferenceValue> trReferenceValue;
-        Status = trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue));
-        if (SUCCEEDED(Status))
+        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
         {
             BOOL isNull = FALSE;
             IfFailRet(trReferenceValue->IsNull(&isNull));
@@ -692,8 +691,7 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
         }
 
         ToRelease<ICorDebugBoxValue> trBoxedValue;
-        Status = trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue));
-        if (SUCCEEDED(Status))
+        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue))))
         {
             ToRelease<ICorDebugObjectValue> trUnboxedValue;
             IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));

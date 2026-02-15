@@ -430,10 +430,8 @@ void Init(const std::string &coreClrPath)
         "UseLatestBehaviorWhenTFMNotSpecified"   // AppDomainCompatSwitch
     };
 
-    Status = initializeCoreCLR(exe.c_str(), "debugger", sizeof(propertyKeys) / sizeof(propertyKeys[0]), propertyKeys,
-                               propertyValues, &hostHandle, &domainId);
-
-    if (FAILED(Status))
+    if (FAILED(Status = initializeCoreCLR(exe.c_str(), "debugger", sizeof(propertyKeys) / sizeof(propertyKeys[0]),
+                                          propertyKeys, propertyValues, &hostHandle, &domainId)))
     {
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));
     }

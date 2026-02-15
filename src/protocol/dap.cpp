@@ -823,7 +823,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"evaluate", [&](const json &arguments, json &body)
             {
-                HRESULT Status = S_OK;
                 const std::string expression = arguments.at("expression");
                 const FrameId frameId([&]()
                     {
@@ -839,10 +838,10 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         }
                     }());
 
+                HRESULT Status = S_OK;
                 Variable variable;
                 std::string output;
-                Status = m_sharedDebugger->Evaluate(frameId, expression, variable, output);
-                if (FAILED(Status))
+                if (FAILED(Status = m_sharedDebugger->Evaluate(frameId, expression, variable, output)))
                 {
                     if (output.empty())
                     {
@@ -870,7 +869,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"setExpression", [&](const json &arguments, json &body)
             {
-                HRESULT Status = S_OK;
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
                 const FrameId frameId([&]()
@@ -887,9 +885,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         }
                     }());
 
+                HRESULT Status = S_OK;
                 std::string output;
-                Status = m_sharedDebugger->SetExpression(frameId, expression, value, output);
-                if (FAILED(Status))
+                if (FAILED(Status = m_sharedDebugger->SetExpression(frameId, expression, value, output)))
                 {
                     if (output.empty())
                     {
@@ -930,15 +928,13 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"setVariable", [&](const json &arguments, json &body)
             {
-                HRESULT Status = S_OK;
-
                 const std::string name = arguments.at("name");
                 const std::string value = arguments.at("value");
                 const int ref = arguments.at("variablesReference");
 
+                HRESULT Status = S_OK;
                 std::string output;
-                Status = m_sharedDebugger->SetVariable(name, value, ref, output);
-                if (FAILED(Status))
+                if (FAILED(Status = m_sharedDebugger->SetVariable(name, value, ref, output)))
                 {
                     body["message"] = output;
                     return Status;

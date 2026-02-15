@@ -608,8 +608,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(*this);
     m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
-    Status = iCorDebug->SetManagedHandler(m_uniqueManagedCallback.get());
-    if (FAILED(Status))
+    if (FAILED(Status = iCorDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
     {
         iCorDebug->Terminate();
         m_uniqueManagedCallback.reset();
@@ -618,8 +617,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     }
 
     ToRelease<ICorDebugProcess> iCorProcess;
-    Status = iCorDebug->DebugActiveProcess(m_processId, FALSE, &iCorProcess);
-    if (FAILED(Status))
+    if (FAILED(Status = iCorDebug->DebugActiveProcess(m_processId, FALSE, &iCorProcess)))
     {
         iCorDebug->Terminate();
         m_uniqueManagedCallback.reset();
