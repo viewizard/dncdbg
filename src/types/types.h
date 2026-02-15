@@ -207,12 +207,10 @@ struct Thread
 {
     ThreadId id;
     std::string name;
-    bool running; // not part of DAP
 
     Thread(ThreadId id_, const std::string &name_, bool running_)
         : id(id_),
-          name(name_),
-          running(running_)
+          name(name_)
     {
     }
 };
@@ -552,14 +550,12 @@ struct Variable
     // valueLocationReference?: number;
 
     uint32_t evalFlags; // not part of DAP
-    bool editable; // not part of DAP
 
     Variable(uint32_t flags = defaultEvalFlags)
         : variablesReference(0),
           namedVariables(0),
           indexedVariables(0),
-          evalFlags(flags),
-          editable(false)
+          evalFlags(flags)
     {
     }
 };
@@ -637,8 +633,9 @@ struct ExceptionDetails
     // here, since exception object have only one exeption object reference in InnerException field.
     std::unique_ptr<ExceptionDetails> innerException;
 
-    std::string formattedDescription; // not part of DAP
-    std::string source; // not part of DAP
+    // not part of DAP specification, but send by vsdbg in `exceptionInfo` response in VSCode IDE
+    std::string formattedDescription;
+    std::string source;
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo

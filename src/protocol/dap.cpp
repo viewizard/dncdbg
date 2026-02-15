@@ -805,6 +805,10 @@ static HRESULT HandleCommand(std::shared_ptr<ManagedDebugger> &sharedDebugger, s
                     }());
 
                 // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+                // in VSCode IDE launch.json
+                // "expressionEvaluationOptions": {
+                //     "allowImplicitFuncEval": false
+                // }
                 std::string output;
                 Status = sharedDebugger->SetExpression(frameId, expression, defaultEvalFlags, value, output);
                 if (FAILED(Status))

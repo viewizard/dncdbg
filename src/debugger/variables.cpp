@@ -407,7 +407,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     ToRelease<ICorDebugValue> pResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, variable.evalFlags, expression,
-                                                           &pResultValue, output, &variable.editable));
+                                                           &pResultValue, output));
 
     variable.evaluateName = expression;
     IfFailRet(TypePrinter::GetTypeOfValue(pResultValue, variable.type));
