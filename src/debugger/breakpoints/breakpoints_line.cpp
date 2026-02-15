@@ -7,6 +7,7 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
+#include <sstream>
 #include <unordered_set>
 
 namespace dncdbg
@@ -16,7 +17,6 @@ void LineBreakpoints::ManagedLineBreakpoint::ToBreakpoint(Breakpoint &breakpoint
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
-    breakpoint.condition = this->condition;
     breakpoint.source = Source(fullname);
     breakpoint.line = this->linenum;
     breakpoint.endLine = this->endLine;
@@ -103,8 +103,11 @@ HRESULT LineBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
             {
                 Breakpoint breakpoint;
                 b.ToBreakpoint(breakpoint, sp.document);
-                breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
-                                     b.condition + "'. The error returned was '" + output + "'.";
+                std::ostringstream ss;
+                ss << "Breakpoint error: The condition for a breakpoint failed to execute. The condition was '"
+                   << b.condition << "'. The error returned was '" << output << "'. - "
+                   << sp.document << ":" << b.linenum << "\n";
+                breakpoint.message = ss.str();
                 bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 

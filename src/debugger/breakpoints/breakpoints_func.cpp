@@ -18,9 +18,6 @@ void FuncBreakpoints::ManagedFuncBreakpoint::ToBreakpoint(Breakpoint &breakpoint
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
-    breakpoint.condition = this->condition;
-    breakpoint.funcname = this->name;
-    breakpoint.params = this->params;
 }
 
 void FuncBreakpoints::DeleteAll()
@@ -121,8 +118,11 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
             {
                 Breakpoint breakpoint;
                 fbp.ToBreakpoint(breakpoint);
-                breakpoint.message = "The condition for a breakpoint failed to execute. The condition was '" +
-                                     fbp.condition + "'. The error returned was '" + output + "'.";
+                std::ostringstream ss;
+                ss << "Breakpoint error: The condition for a breakpoint failed to execute. The condition was '"
+                   << fbp.condition << "'. The error returned was '" << output << "'. - "
+                   << fbp.name << "(" << fbp.params << ")\n";
+                breakpoint.message = ss.str();
                 bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 

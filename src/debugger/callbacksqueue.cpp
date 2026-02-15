@@ -15,7 +15,6 @@
 #include "debugger/threads.h"
 #include "protocol/dap.h"
 #include <algorithm>
-#include <sstream>
 
 namespace dncdbg
 {
@@ -49,18 +48,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
     {
-        std::ostringstream ss;
-        ss << "Breakpoint error: " << changeEvent.breakpoint.message << " - ";
-        if (changeEvent.breakpoint.source.IsNull())
-        {
-            ss << changeEvent.breakpoint.funcname << "()\n";
-        }
-        else
-        {
-            ss << changeEvent.breakpoint.source.path << ":" << changeEvent.breakpoint.line << "\n";
-        }
-
-        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, ss.str()});
+        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, changeEvent.breakpoint.message});
         m_debugger.pProtocol->EmitBreakpointEvent(changeEvent);
     }
     m_debugger.pProtocol->EmitStoppedEvent(event);

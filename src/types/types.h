@@ -327,11 +327,6 @@ struct Breakpoint
     //offset?: number;
     //reason?: 'pending' | 'failed';
 
-    // not DAP part
-    std::string condition;
-    std::string funcname;
-    std::string params;
-
     Breakpoint()
         : id(0),
           verified(false),
