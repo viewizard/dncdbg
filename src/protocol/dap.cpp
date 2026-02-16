@@ -682,10 +682,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;
-                if (arguments.contains("expressionEvaluationOptions") &&
-                    arguments.at("expressionEvaluationOptions").contains("allowImplicitFuncEval"))
+                if (arguments.contains("expressionEvaluationOptions"))
                 {
-                    evalFlags |= arguments.at("expressionEvaluationOptions").at("allowImplicitFuncEval") ? 0 : EVAL_NOFUNCEVAL;
+                    evalFlags |= arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true) ? 0 : EVAL_NOFUNCEVAL;
                 }
                 m_sharedDebugger->SetEvalFlags(evalFlags);
 
