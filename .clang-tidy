@@ -16,7 +16,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   misc-*,
   -misc-no-recursion,
-  -misc-non-private-member-variables-in-classes,
   bugprone-*,
   -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
@@ -28,5 +27,6 @@ Checks: >
   -readability-suspicious-call-argument
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: 'true'
 WarningsAsErrors: "*"
 ...
