@@ -7,6 +7,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added clang-tidy checks.
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
+- Added `allowImplicitFuncEval` configuration option support (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

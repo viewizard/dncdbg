@@ -22,6 +22,9 @@
             "stopAtEntry": false,
             "justMyCode" : false,
             "enableStepFiltering": false,
+            "expressionEvaluationOptions": {
+                "allowImplicitFuncEval": true
+            },
             "logging": {
                 "diagnosticsLog" : {
                     "ProtocolMessages": true

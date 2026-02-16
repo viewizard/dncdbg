@@ -2182,6 +2182,9 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     case COR_E_THREADSTATE:
         output = "Thread is in an invalid state for this operation.";
         break;
+    case CORDBG_E_DEBUGGING_DISABLED:
+       output = "Implicit function evaluation is turned off by the user.";
+       break;
     default:
         break;
     }

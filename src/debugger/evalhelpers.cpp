@@ -166,7 +166,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
 
     if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {
-        return S_OK;
+        return CORDBG_E_DEBUGGING_DISABLED;
     }
 
     std::vector<ToRelease<ICorDebugType>> typeParams;
@@ -209,7 +209,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
 
     if ((m_evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {
-        return S_OK;
+        return CORDBG_E_DEBUGGING_DISABLED;
     }
 
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,

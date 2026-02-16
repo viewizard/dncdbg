@@ -680,13 +680,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 m_sharedDebugger->SetStepFiltering(arguments.value(
                     "enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
 
-                // TODO config
-                // TODO implement `allowImplicitFuncEval` https://github.com/OmniSharp/omnisharp-vscode/issues/3173
-                // in VSCode IDE launch.json
-                // "expressionEvaluationOptions": {
-                //     "allowImplicitFuncEval": false
-                // }
-                m_sharedDebugger->SetEvalFlags(defaultEvalFlags);
+                // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+                uint32_t evalFlags = defaultEvalFlags;
+                if (arguments.contains("expressionEvaluationOptions") &&
+                    arguments.at("expressionEvaluationOptions").contains("allowImplicitFuncEval"))
+                {
+                    evalFlags |= arguments.at("expressionEvaluationOptions").at("allowImplicitFuncEval") ? 0 : EVAL_NOFUNCEVAL;
+                }
+                m_sharedDebugger->SetEvalFlags(evalFlags);
 
                 if (!m_fileExec.empty())
                 {
