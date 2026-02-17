@@ -77,11 +77,8 @@ if (CPPCHECK)
                            --quiet
                            --suppress=uninitMemberVar:streams.h
                            --suppress=operatorEqRetRefThis:span.h
-                           --suppress=operatorEqVarError
-                           --suppress=duplInheritedMember
-                           --suppress=constParameterPointer
-                           --suppress=returnByReference
-                           --suppress=invalidPrintfArgType_float
+                           --suppress=operatorEqVarError:span.h
+                           --suppress=duplInheritedMember:streams.h
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
                            --suppress=constParameterReference

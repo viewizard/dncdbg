@@ -92,7 +92,7 @@ class IORedirectHelper
     void wake_reader() const;
 
     void worker(); // worker thread function
-    void StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+    void StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *const out_stream,
                                IOSystem::AsyncHandle &out_handle);
     bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
                                       IOSystem::AsyncHandle &out_handle);

@@ -237,7 +237,7 @@ void IORedirectHelper::worker()
     }
 }
 
-void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *const out_stream,
                                              IOSystem::AsyncHandle &out_handle)
 {
     assert(!read_lock);
