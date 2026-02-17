@@ -72,9 +72,7 @@ struct module_methods_data_t_deleter
 // Note, we use std::map since we need container that will not invalidate iterators on add new elements.
 void AddMethodData(/*in,out*/ std::map<size_t,
                    std::set<method_data_t>> &methodData,
-                   /*in,out*/ std::unordered_map<method_data_t,
-                   std::vector<mdMethodDef>,
-                   method_data_t_hash> &multiMethodBpData,
+                   /*in,out*/ std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> &multiMethodBpData,
                    const method_data_t &entry,
                    const size_t nestedLevel)
 {
@@ -144,9 +142,7 @@ void AddMethodData(/*in,out*/ std::map<size_t,
 }
 
 bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &methodBpData,
-                                 const std::unordered_map<method_data_t,
-                                 std::vector<mdMethodDef>,
-                                 method_data_t_hash> &multiMethodBpData,
+                                 const std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> &multiMethodBpData,
                                  /*in,out*/ int32_t &lineNum,
                                  /*out*/ std::vector<mdMethodDef> &Tokens,
                                  /*out*/ mdMethodDef &closestNestedToken)

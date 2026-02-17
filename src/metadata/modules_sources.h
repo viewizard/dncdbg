@@ -68,9 +68,6 @@ struct method_data_t
 
     bool NestedInto(const method_data_t &other) const
     {
-        assert(startLine != other.startLine || startColumn != other.startColumn);
-        assert(endLine != other.endLine || endColumn != other.endColumn);
-
         return (startLine > other.startLine || (startLine == other.startLine && startColumn > other.startColumn)) &&
                (endLine < other.endLine || (endLine == other.endLine && endColumn < other.endColumn));
     }

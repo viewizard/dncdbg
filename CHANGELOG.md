@@ -42,6 +42,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Removed string_view implementation (switched to std::string_view).
 - Removed rwlock implementation (switched to std::shared_mutex).
 - Removed escaped string code (nlohmann/json have it implemented now).
+- Removed wrong assertion `startLine != other.startLine || startColumn != other.startColumn' (record classes related issue).
 
 #### Fixed
 - Fixed extra qualification on Evaluator methods.
