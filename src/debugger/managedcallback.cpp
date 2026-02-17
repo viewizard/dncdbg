@@ -386,7 +386,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         {
             if (!stackFrame.source.IsNull())
             {
-                event.frame = stackFrame;
+                event.source = stackFrame.source;
+                event.line = stackFrame.line;
+                event.column = stackFrame.column;
                 break;
             }
         }

@@ -445,17 +445,18 @@ struct OutputEvent
     std::string output;
     // group?: 'start' | 'startCollapsed' | 'end';
     // variablesReference?: number;
-    StackFrame frame;
-    //  | - source?: Source;
-    //  | - line?: number;
-    //  \ - column?: number;
+    Source source;
+    int line;
+    int column;
     // data?: any;
     // locationReference?: number;
 
     OutputEvent(OutputCategory category_, const std::string &output_)
         : category(category_),
           output(output_),
-          frame()
+          source(),
+          line(0),
+          column(0)
     {
     }
 };

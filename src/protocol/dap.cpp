@@ -444,11 +444,11 @@ void DAP::EmitOutputEvent(const OutputEvent &event)
             break;
     }
 
-    if (!event.frame.source.IsNull())
+    if (!event.source.IsNull())
     {
-        body["source"] = event.frame.source;
-        body["line"] = event.frame.line;
-        body["column"] = event.frame.column;
+        body["source"] = event.source;
+        body["line"] = event.line;
+        body["column"] = event.column;
     }
 
     body["output"] = event.output;
