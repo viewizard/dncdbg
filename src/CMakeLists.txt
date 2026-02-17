@@ -81,7 +81,6 @@ if (CPPCHECK)
                            --suppress=duplInheritedMember:streams.h
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
-                           --suppress=constParameterReference
                            --suppress=unreadVariable
                            --suppress=accessMoved
                            --suppress=useStlAlgorithm

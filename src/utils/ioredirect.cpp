@@ -329,7 +329,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
     return true;
 }
 
-bool IORedirectHelper::ProcessFinishedReadRequests(std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
+bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
                                                    IOSystem::AsyncHandle async_handles[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     for (size_t n = 0; n < stream_types_cout; n++)

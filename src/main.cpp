@@ -70,7 +70,7 @@ void print_version()
     std::cout << "DNCDbg version " << BuildInfo::version << "\n";
 }
 
-void FindAndParseArgs(char **argv, std::vector<std::pair<std::string, std::function<void(int &i)>>> &partialArguments, int i)
+void FindAndParseArgs(char **argv, const std::vector<std::pair<std::string, std::function<void(int i)>>> &partialArguments, int i)
 {
     for (auto const &argument : partialArguments)
     {
@@ -114,11 +114,11 @@ int
             // VSCode IDE send this option silently to debugger, just ignore it
         }}};
 
-    std::vector<std::pair<std::string, std::function<void(int &i)>>> partialArguments{
-        {"--logProtocol=", [&](int &i) {
+    const std::vector<std::pair<std::string, std::function<void(int i)>>> partialArguments{
+        {"--logProtocol=", [&](int i) {
             protocolLogFilePath = argv[i] + strlen("--logProtocol="); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         }},
-        {"--log=", [&](int &i) {
+        {"--log=", [&](int i) {
             setenv("LOG_OUTPUT", argv[i] + strlen("--log="), 1); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         }}
     };
