@@ -643,7 +643,7 @@ endfunction()
 
 function(add_executable_clr targetName)
   if(NOT WIN32)
-    add_executable(${ARGV} ${VERSION_FILE_PATH})
+    add_executable(${ARGV})
     disable_pax_mprotect(${ARGV})
   else()
     add_executable(${ARGV})

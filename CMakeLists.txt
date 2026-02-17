@@ -67,6 +67,8 @@ include(cmake/configurepaths.cmake)
 # - correct `third_party/diagnostics/src/CMakeLists.cmake`, remove lines with `SOS` and `tests`
 # - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` file (enable `rtti` related options),
 #   change CMAKE_C_STANDARD and CMAKE_CXX_STANDARD to 17
+# - correct `third_party/diagnostics/eng/native/functions.cmake`, change line
+#   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
 #
 ###
 
