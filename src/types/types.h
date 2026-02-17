@@ -499,6 +499,7 @@ struct Scope
     Scope()
         : variablesReference(0),
           namedVariables(0),
+          indexedVariables(0),
           expensive(false)
     {
     }

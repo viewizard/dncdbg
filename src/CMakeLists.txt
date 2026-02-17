@@ -69,6 +69,33 @@ if (CLANG_TIDY)
     set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 endif()
 
+# cppcheck for dncdbg build only
+if (CPPCHECK)
+    set(CMAKE_CXX_CPPCHECK cppcheck
+                           --enable=all
+                           --check-level=exhaustive
+                           --quiet
+                           --suppress=uninitMemberVar:streams.h
+                           --suppress=operatorEqRetRefThis:span.h
+                           --suppress=invalidPrintfArgType_uint
+                           --suppress=operatorEqVarError
+                           --suppress=duplInheritedMember
+                           --suppress=constParameterPointer
+                           --suppress=returnByReference
+                           --suppress=invalidPrintfArgType_float
+                           --suppress=noExplicitConstructor
+                           --suppress=knownConditionTrueFalse
+                           --suppress=constParameterReference
+                           --suppress=unreadVariable
+                           --suppress=accessMoved
+                           --suppress=useStlAlgorithm
+                           --suppress=missingIncludeSystem
+                           --suppress=constVariablePointer
+                           --suppress=unusedFunction
+                           --suppress=unmatchedSuppression
+                           --suppress=*:*third_party/*)
+endif()
+
 if (WIN32)
     # fix issue with std::numeric_limits<T>::max() and std::max()
     add_definitions(-DNOMINMAX)

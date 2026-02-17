@@ -32,6 +32,9 @@ For build with Address Sanitizer, add the option
 For build with clang-tidy, add the option
 `-DCLANG_TIDY=1`
 
+For build with cppcheck (note, `cppcheck` package must be installed), add the option
+`-DCPPCHECK=1`
+
 For build with case-sensitive file name collision, add the option
 `-DCASE_SENSITIVE_FILENAME_COLLISION=1`
 
