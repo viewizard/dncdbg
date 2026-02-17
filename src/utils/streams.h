@@ -374,7 +374,7 @@ class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::
     // Function returns file handle which is used for reading data.
     IOSystem::FileHandle get_file_handle() const
     {
-        auto *ptr = dynamic_cast<InStreamBuf *>(rdbuf());
+        const auto *ptr = dynamic_cast<InStreamBuf *>(rdbuf());
         if (ptr == nullptr)
             throw std::runtime_error("dynamic_cast fail");
         return ptr->get_file_handle();
@@ -403,7 +403,7 @@ class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std
     // Function returns file handle which is used for writing data.
     IOSystem::FileHandle get_file_handle() const
     {
-        auto *ptr = dynamic_cast<OutStreamBuf *>(rdbuf());
+        const auto *ptr = dynamic_cast<OutStreamBuf *>(rdbuf());
         if (ptr == nullptr)
             throw std::runtime_error("dynamic_cast fail");
         return ptr->get_file_handle();
@@ -433,7 +433,7 @@ class IOStream : private StreamsInternal::BufferOwner<StreamBuf>, public std::io
     // Function returns file handle which is used for reading/writing data.
     IOSystem::FileHandle get_file_handle() const
     {
-        auto *ptr = dynamic_cast<StreamBuf *>(rdbuf());
+        const auto *ptr = dynamic_cast<StreamBuf *>(rdbuf());
         if (ptr == nullptr)
             throw std::runtime_error("dynamic_cast fail");
         return ptr->get_file_handle();

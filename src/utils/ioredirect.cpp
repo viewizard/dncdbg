@@ -25,7 +25,7 @@ constexpr std::chrono::milliseconds WaitForever{INT_MAX / divMax};
 
 char *get_streams_pptr(std::tuple<OutStream, InStream, InStream> &m_streams)
 {
-    auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
+    const auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
     if (out == nullptr)
     {
         LOGE("dynamic_cast fail");

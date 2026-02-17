@@ -79,13 +79,11 @@ if (CPPCHECK)
                            --suppress=operatorEqRetRefThis:span.h
                            --suppress=operatorEqVarError:span.h
                            --suppress=duplInheritedMember:streams.h
+                           --suppress=accessMoved:streams.h
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
-                           --suppress=unreadVariable
-                           --suppress=accessMoved
-                           --suppress=useStlAlgorithm
+                           --suppress=useStlAlgorithm:main.cpp
                            --suppress=missingIncludeSystem
-                           --suppress=constVariablePointer
                            --suppress=unusedFunction
                            --suppress=unmatchedSuppression
                            --suppress=*:*third_party/*)
