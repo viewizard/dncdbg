@@ -154,7 +154,7 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
         return DLOG_ERROR_NOT_PERMITTED;
     }
 
-    const int len = fprintf(log_file, "%lu.%03u %c/%s(P%4u, T%4u): ", long(ts.tv_sec & 0x7fffff),
+    const int len = fprintf(log_file, "%li.%03i %c/%s(P%4u, T%4u): ", static_cast<long>(ts.tv_sec & 0x7fffff),
                             static_cast<int>(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
 
     const int r = vfprintf(log_file, fmt, ap);
