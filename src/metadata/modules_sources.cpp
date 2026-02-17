@@ -70,8 +70,7 @@ struct module_methods_data_t_deleter
 };
 
 // Note, we use std::map since we need container that will not invalidate iterators on add new elements.
-void AddMethodData(/*in,out*/ std::map<size_t,
-                   std::set<method_data_t>> &methodData,
+void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodData,
                    /*in,out*/ std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> &multiMethodBpData,
                    const method_data_t &entry,
                    const size_t nestedLevel)
