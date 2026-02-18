@@ -31,22 +31,25 @@ struct method_data_t
     int32_t endLine;     // last segment/method SequencePoint's endLine
     int32_t startColumn; // first segment/method SequencePoint's startColumn
     int32_t endColumn;   // last segment/method SequencePoint's endColumn
+    int32_t isCtor;      // is method data constructor related
 
     method_data_t()
       : methodDef(0),
         startLine(0),
         endLine(0),
         startColumn(0),
-        endColumn(0)
+        endColumn(0),
+        isCtor(0)
     {
     }
 
-    method_data_t(mdMethodDef methodDef_, int32_t startLine_, int32_t endLine_, int32_t startColumn_, int32_t endColumn_)
+    method_data_t(mdMethodDef methodDef_, int32_t startLine_, int32_t endLine_, int32_t startColumn_, int32_t endColumn_, int32_t isCtor_)
         : methodDef(methodDef_),
           startLine(startLine_),
           endLine(endLine_),
           startColumn(startColumn_),
-          endColumn(endColumn_)
+          endColumn(endColumn_),
+          isCtor(isCtor_)
     {
     }
 
@@ -125,9 +128,6 @@ class ModulesSources
         CORDB_ADDRESS modAddress = 0;
         // properly ordered on each nested level arrays of methods data
         std::vector<std::vector<method_data_t>> methodsData;
-        // mapping method's data to array of tokens, that also represent same code
-        // aimed to resolve all methods token for constructor's segment, since it could be part of multiple constructors
-        std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> multiMethodsData;
     };
 
     // Note, breakpoints setup and ran debuggee's process could be in the same time.

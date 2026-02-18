@@ -71,7 +71,6 @@ struct module_methods_data_t_deleter
 
 // Note, we use std::map since we need container that will not invalidate iterators on add new elements.
 void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodData,
-                   /*in,out*/ std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> &multiMethodBpData,
                    const method_data_t &entry,
                    const size_t nestedLevel)
 {
@@ -87,29 +86,10 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
         methodData.emplace(nestedLevel, std::set<method_data_t>{entry});
         return;
     }
-
-    // same data that was already added, but with different method token (constructors case)
-    auto find = methodData[nestedLevel].find(entry);
-    if (find != methodData[nestedLevel].end())
-    {
-        const method_data_t key(find->methodDef, entry.startLine, entry.endLine, entry.startColumn, entry.endColumn);
-        auto find_multi = multiMethodBpData.find(key);
-        if (find_multi == multiMethodBpData.end())
-        {
-            multiMethodBpData.emplace(key, std::vector<mdMethodDef>{entry.methodDef});
-        }
-        else
-        {
-            find_multi->second.emplace_back(entry.methodDef);
-        }
-
-        return;
-    }
-
     auto it = methodData[nestedLevel].lower_bound(entry);
     if (it != methodData[nestedLevel].end() && entry.NestedInto(*it))
     {
-        AddMethodData(methodData, multiMethodBpData, entry, nestedLevel + 1);
+        AddMethodData(methodData, entry, nestedLevel + 1);
         return;
     }
 
@@ -120,16 +100,24 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
         return;
     }
 
+    // in case this is parts of constructor with same location (for example, `int i = 0;`)
+    if (it != methodData[nestedLevel].end() && *it == entry && entry.isCtor == 1)
+    {
+        assert(it->isCtor == 1); // also must be part of constructor
+        methodData[nestedLevel].emplace(entry);
+        return;
+    }
+
     // move all previously added nested for new entry elements to level above
     do
     {
         it = std::prev(it);
 
-        if ((*it).NestedInto(entry))
+        if (it->NestedInto(entry))
         {
             const method_data_t tmp = *it;
             it = methodData[nestedLevel].erase(it);
-            AddMethodData(methodData, multiMethodBpData, tmp, nestedLevel + 1);
+            AddMethodData(methodData, tmp, nestedLevel + 1);
         }
         else
         {
@@ -141,7 +129,6 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
 }
 
 bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &methodBpData,
-                                 const std::unordered_map<method_data_t, std::vector<mdMethodDef>, method_data_t_hash> &multiMethodBpData,
                                  /*in,out*/ int32_t &lineNum,
                                  /*out*/ std::vector<mdMethodDef> &Tokens,
                                  /*out*/ mdMethodDef &closestNestedToken)
@@ -151,8 +138,8 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
 
     for (auto it = methodBpData.cbegin(); it != methodBpData.cend(); ++it)
     {
-        auto lower = std::lower_bound((*it).cbegin(), (*it).cend(), lineNum);
-        if (lower == (*it).cend())
+        auto lower = std::lower_bound(it->cbegin(), it->cend(), lineNum);
+        if (lower == it->cend())
         {
             break; // point behind last method for this nested level
         }
@@ -160,7 +147,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
         // case with first line of method, for example:
         // void Method(){
         //            void Method(){ void Method(){...  <- breakpoint at this line
-        if (lineNum == (*lower).startLine)
+        if (lineNum == lower->startLine)
         {
             // At this point we can't check this case, let managed part decide (since it see Columns):
             // void Method() {
@@ -168,54 +155,66 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             //  };
             if (result != nullptr)
             {
-                closestNestedToken = (*lower).methodDef;
+                if (lower->isCtor == 1) // part of constructor
+                {
+                    assert(result->isCtor == 1); // also must be part of constructor
+                    Tokens.emplace_back(result->methodDef);
+                    result = &(*lower);
+                    continue; // need check nested level (if available)
+                }
+
+                closestNestedToken = lower->methodDef;
             }
             else
             {
                 result = &(*lower);
+
+                if (lower->isCtor == 1) // part of constructor
+                {
+                    continue; // need check nested level (if available)
+                }
+            }
+        }
+        else if (lineNum > lower->startLine && lower->endLine >= lineNum)
+        {
+            if (result != nullptr && lower->isCtor == 1) // part of constructor
+            {
+                assert(result->isCtor == 1); // also must be part of constructor
+                Tokens.emplace_back(result->methodDef);
             }
 
-            break;
-        }
-        else if (lineNum > (*lower).startLine && (*lower).endLine >= lineNum)
-        {
             result = &(*lower);
             continue; // need check nested level (if available)
         }
         // out of first level methods lines - forced move line to first method below, for example:
         //  <-- breakpoint at line without code (out of any methods)
         // void Method() {...}
-        else if (it == methodBpData.cbegin() && lineNum < (*lower).startLine)
+        else if (it == methodBpData.cbegin() && lineNum < lower->startLine)
         {
-            lineNum = (*lower).startLine;
+            lineNum = lower->startLine;
             result = &(*lower);
-            break;
+
+            if (lower->isCtor == 1) // part of constructor
+            {
+                continue; // need check nested level (if available)
+            }
         }
         // result was found on previous cycle, check for closest nested method
-        // need it in case of breakpoint setuped at lines without code and before nested method, for example:
+        // need it in case of breakpoint setup at lines without code and before nested method, for example:
         // {
         //  <-- breakpoint at line without code (inside method)
         //     void Method() {...}
         // }
-        else if ((result != nullptr) && lineNum <= (*lower).startLine && (*lower).endLine <= result->endLine)
+        else if (result != nullptr && lineNum <= lower->startLine && lower->endLine <= result->endLine)
         {
-            closestNestedToken = (*lower).methodDef;
-            break;
+            closestNestedToken = lower->methodDef;
         }
-        else
-        {
-            break;
-        }
+
+        break;
     }
 
     if (result != nullptr)
     {
-        auto find = multiMethodBpData.find(*result);
-        if (find != multiMethodBpData.end()) // only constructors segments could be part of multiple methods
-        {
-            Tokens.resize((*find).second.size());
-            std::copy(find->second.begin(), find->second.end(), Tokens.begin());
-        }
         Tokens.emplace_back(result->methodDef);
     }
 
@@ -367,8 +366,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
         std::map<size_t, std::set<method_data_t>> inputMethodsData;
         for (int j = 0; j < inputData->moduleMethodsData[i].methodNum; j++)
         {
-            AddMethodData(inputMethodsData, fileMethodsData.multiMethodsData,
-                          inputData->moduleMethodsData[i].methodsData[j], 0);
+            AddMethodData(inputMethodsData, inputData->moduleMethodsData[i].methodsData[j], 0);
         }
 
         fileMethodsData.methodsData.resize(inputMethodsData.size());
@@ -376,10 +374,6 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
         {
             fileMethodsData.methodsData[i].resize(inputMethodsData[i].size());
             std::copy(inputMethodsData[i].begin(), inputMethodsData[i].end(), fileMethodsData.methodsData[i].begin());
-        }
-        for (auto &data : fileMethodsData.multiMethodsData)
-        {
-            data.second.shrink_to_fit();
         }
     }
 
@@ -567,8 +561,7 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
         std::vector<mdMethodDef> Tokens;
         int32_t correctedStartLine = sourceLine;
         mdMethodDef closestNestedToken = mdMethodDefNil;
-        if (!GetMethodTokensByLineNumber(sourceData.methodsData, sourceData.multiMethodsData, correctedStartLine,
-                                         Tokens, closestNestedToken))
+        if (!GetMethodTokensByLineNumber(sourceData.methodsData, correctedStartLine, Tokens, closestNestedToken))
         {
             continue;
         }

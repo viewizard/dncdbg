@@ -471,14 +471,16 @@ public class SymbolReader
         public int endLine;     // last segment/method SequencePoint's endLine
         public int startColumn; // first segment/method SequencePoint's startColumn
         public int endColumn;   // last segment/method SequencePoint's endColumn
+        public int isCtor;      // is method data constructor related
 
-        public method_data_t(int methodDef_, int startLine_, int endLine_, int startColumn_, int endColumn_)
+        public method_data_t(int methodDef_, int startLine_, int endLine_, int startColumn_, int endColumn_, int isCtor_)
         {
             methodDef = methodDef_;
             startLine = startLine_;
             endLine = endLine_;
             startColumn = startColumn_;
             endColumn = endColumn_;
+            isCtor = isCtor_;
         }
         public void SetRange(int startLine_, int endLine_, int startColumn_, int endColumn_)
         {
@@ -557,7 +559,7 @@ public class SymbolReader
             for (int i = 0; i < constrNum * elementSize; i += elementSize)
             {
                 int methodToken = Marshal.ReadInt32(constrTokens, i);
-                method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0);
+                method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0, 1);
 
                 foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))
                 {
@@ -575,7 +577,7 @@ public class SymbolReader
             for (int i = 0; i < normalNum * elementSize; i += elementSize)
             {
                 int methodToken = Marshal.ReadInt32(normalTokens, i);
-                method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0);
+                method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0, 0);
                 DocumentHandle currentDocHandle = new DocumentHandle();
 
                 foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))

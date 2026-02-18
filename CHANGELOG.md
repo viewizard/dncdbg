@@ -21,6 +21,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Switched to C++17 standard.
 - Launch option `engineLogging` renamed to `logProtocol`.
 - Managed unwinder will ignore fails on particular frames now and continue unwind.
+- Implemented better class constructors source breakpoints support.
 
 #### Removed
 - Removed debug build support for .NET Core 2.1.
