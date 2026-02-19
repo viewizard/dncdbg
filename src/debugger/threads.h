@@ -31,7 +31,6 @@ class Threads
     void Remove(const ThreadId &threadId);
     HRESULT GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thread> &threads);
     HRESULT GetThreadIds(std::vector<ThreadId> &threads);
-    std::string GetThreadName(ICorDebugThread *pThread);
     void SetEvaluator(std::shared_ptr<Evaluator> &sharedEvaluator);
     void ResetEvaluator();
 
@@ -41,6 +40,8 @@ class Threads
     std::map<ThreadId, std::string> m_userThreads;
     ThreadId MainThread;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
+
+    std::string GetThreadName(ICorDebugThread *pThread);
 };
 
 } // namespace dncdbg

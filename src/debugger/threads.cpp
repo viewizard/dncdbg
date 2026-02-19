@@ -67,40 +67,42 @@ void Threads::Remove(const ThreadId &threadId)
 
 std::string Threads::GetThreadName(ICorDebugThread *pThread)
 {
+    assert(m_sharedEvaluator);
+
     std::string threadName = "<No name>";
 
-    if (pThread != nullptr && m_sharedEvaluator)
+    ToRelease<ICorDebugValue> trThreadObject;
+    if (pThread == nullptr ||
+        FAILED(pThread->GetObject(&trThreadObject)))
     {
-        ToRelease<ICorDebugValue> trThreadObject;
-        if (SUCCEEDED(pThread->GetObject(&trThreadObject)))
-        {
-            HRESULT Status = S_OK;
-            m_sharedEvaluator->WalkMembers(trThreadObject, nullptr, FrameLevel{0}, nullptr, false,
-                [&](ICorDebugType *, bool, const std::string &memberName,
-                    const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
-                {
-                    // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
-                    // this thread can be in not consistent state for evaluation or thread could break in optimized code.
-                    if (memberName != "_name")
-                    {
-                        return S_OK;
-                    }
-
-                    ToRelease<ICorDebugValue> trResultValue;
-                    IfFailRet(getValue(&trResultValue, true));
-
-                    BOOL isNull = TRUE;
-                    ToRelease<ICorDebugValue> trValue;
-                    IfFailRet(DereferenceAndUnboxValue(trResultValue, &trValue, &isNull));
-                    if (isNull == FALSE)
-                    {
-                        IfFailRet(PrintStringValue(trValue, threadName));
-                    }
-
-                    return E_ABORT; // Fast exit from cycle.
-                });
-        }
+        return threadName;
     }
+
+    HRESULT Status = S_OK;
+    m_sharedEvaluator->WalkMembers(trThreadObject, nullptr, FrameLevel{0}, nullptr, false,
+        [&](ICorDebugType *, bool, const std::string &memberName,
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
+        {
+            // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
+            // this thread can be in not consistent state for evaluation or thread could break in optimized code.
+            if (memberName != "_name")
+            {
+                return S_OK;
+            }
+
+            ToRelease<ICorDebugValue> trResultValue;
+            IfFailRet(getValue(&trResultValue, true));
+
+            BOOL isNull = TRUE;
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(DereferenceAndUnboxValue(trResultValue, &trValue, &isNull));
+            if (isNull == FALSE)
+            {
+                IfFailRet(PrintStringValue(trValue, threadName));
+            }
+
+            return E_ABORT; // Fast exit from cycle.
+        });
 
     return threadName;
 }
