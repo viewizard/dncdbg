@@ -88,8 +88,8 @@ class ManagedDebugger
     HRESULT Continue(ThreadId threadId);
     HRESULT Pause(ThreadId lastStoppedThread);
     HRESULT GetThreads(std::vector<Thread> &threads);
-    HRESULT SetLineBreakpoints(const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
-                               std::vector<Breakpoint> &breakpoints);
+    HRESULT SetSourceBreakpoints(const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                                 std::vector<Breakpoint> &breakpoints);
     HRESULT SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints,
                                std::vector<Breakpoint> &breakpoints);
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,

@@ -884,14 +884,14 @@ HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBrea
     return m_uniqueBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::SetLineBreakpoints(const std::string &filename,
-                                            const std::vector<LineBreakpoint> &lineBreakpoints,
-                                            std::vector<Breakpoint> &breakpoints)
+HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
+                                              const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                                              std::vector<Breakpoint> &breakpoints)
 {
     LogFuncEntry();
 
     const bool haveProcess = HaveDebugProcess();
-    return m_uniqueBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints);
+    return m_uniqueBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints,

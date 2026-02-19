@@ -567,7 +567,7 @@ enum class VariablesFilter
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_SourceBreakpoint
-struct LineBreakpoint
+struct SourceBreakpoint
 {
     int line;
     // column?: number;
@@ -576,7 +576,7 @@ struct LineBreakpoint
     // logMessage?: string;
     // mode?: string;
 
-    LineBreakpoint(int linenum, const std::string &cond = std::string())
+    SourceBreakpoint(int linenum, const std::string &cond = std::string())
         : line(linenum),
           condition(cond)
     {

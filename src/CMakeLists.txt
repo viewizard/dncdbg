@@ -19,7 +19,7 @@ set(dncdbg_SRC
     debugger/breakpoints/breakpoint_entry.cpp
     debugger/breakpoints/breakpoints_exception.cpp
     debugger/breakpoints/breakpoints_func.cpp
-    debugger/breakpoints/breakpoints_line.cpp
+    debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
     debugger/breakpoints/breakpointutils.cpp
     debugger/steppers/stepper_async.cpp

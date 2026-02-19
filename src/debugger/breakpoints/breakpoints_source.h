@@ -26,11 +26,11 @@ namespace dncdbg
 class Variables;
 class Modules;
 
-class LineBreakpoints
+class SourceBreakpoints
 {
   public:
 
-    LineBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
+    SourceBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
         : m_sharedModules(sharedModules),
           m_sharedVariables(sharedVariables),
           m_justMyCode(true)
@@ -42,8 +42,8 @@ class LineBreakpoints
         m_justMyCode = enable;
     };
     void DeleteAll();
-    HRESULT SetLineBreakpoints(bool haveProcess, const std::string &filename, const std::vector<LineBreakpoint> &lineBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
+    HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
@@ -59,7 +59,7 @@ class LineBreakpoints
     //     return S_OK;
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
 
-    struct ManagedLineBreakpoint
+    struct ManagedSourceBreakpoint
     {
         uint32_t id;
         std::string module;
@@ -77,7 +77,7 @@ class LineBreakpoints
             return !iCorFuncBreakpoints.empty();
         }
 
-        ManagedLineBreakpoint()
+        ManagedSourceBreakpoint()
             : id(0),
               modAddress(0),
               linenum(0),
@@ -86,7 +86,7 @@ class LineBreakpoints
         {
         }
 
-        ~ManagedLineBreakpoint()
+        ~ManagedSourceBreakpoint()
         {
             for (auto &iCorFuncBreakpoint : iCorFuncBreakpoints)
             {
@@ -97,10 +97,10 @@ class LineBreakpoints
 
         void ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const;
 
-        ManagedLineBreakpoint(ManagedLineBreakpoint &&that) = default;
-        ManagedLineBreakpoint(const ManagedLineBreakpoint &that) = delete;
-        ManagedLineBreakpoint &operator=(ManagedLineBreakpoint &&that) = default;
-        ManagedLineBreakpoint &operator=(const ManagedLineBreakpoint &that) = delete;
+        ManagedSourceBreakpoint(ManagedSourceBreakpoint &&that) = default;
+        ManagedSourceBreakpoint(const ManagedSourceBreakpoint &that) = delete;
+        ManagedSourceBreakpoint &operator=(ManagedSourceBreakpoint &&that) = default;
+        ManagedSourceBreakpoint &operator=(const ManagedSourceBreakpoint &that) = delete;
     };
 
   private:
@@ -109,34 +109,34 @@ class LineBreakpoints
     std::shared_ptr<Variables> m_sharedVariables;
     bool m_justMyCode;
 
-    struct ManagedLineBreakpointMapping
+    struct ManagedSourceBreakpointMapping
     {
-        LineBreakpoint breakpoint;
+        SourceBreakpoint breakpoint;
         uint32_t id;
         unsigned resolved_fullname_index;
         int resolved_linenum; // if int is 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
 
-        ManagedLineBreakpointMapping()
+        ManagedSourceBreakpointMapping()
             : breakpoint(0, ""),
               id(0),
               resolved_fullname_index(0),
               resolved_linenum(0)
         {
         }
-        ~ManagedLineBreakpointMapping() = default;
+        ~ManagedSourceBreakpointMapping() = default;
     };
 
     std::mutex m_breakpointsMutex;
     // Resolved line breakpoints:
     // Mapped in order to fast search with mapping data (see container below):
-    // resolved source full path index -> resolved line number -> list of all ManagedLineBreakpoint resolved to this line.
-    std::unordered_map<unsigned, std::unordered_map<int, std::list<ManagedLineBreakpoint>>> m_lineResolvedBreakpoints;
-    // Mapping for input LineBreakpoint array (input from protocol) to ManagedLineBreakpoint or unresolved breakpoint.
-    // Note, instead of FuncBreakpoint for resolved breakpoint we could have changed source path and/or line number.
+    // resolved source full path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
+    std::unordered_map<unsigned, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_lineResolvedBreakpoints;
+    // Mapping for input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
+    // Note, instead of FunctionBreakpoint for resolved breakpoint we could have changed source path and/or line number.
     // In this way we could connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.
     // Container have structure for fast compare current breakpoints data with new breakpoints data from protocol:
-    // path to source -> list of ManagedLineBreakpointMapping that include LineBreakpoint (from protocol) and resolve related data.
-    std::unordered_map<std::string, std::list<ManagedLineBreakpointMapping>> m_lineBreakpointMapping;
+    // path to source -> list of ManagedSourceBreakpointMapping that include SourceBreakpoint (from protocol) and resolve related data.
+    std::unordered_map<std::string, std::list<ManagedSourceBreakpointMapping>> m_sourceBreakpointMapping;
 
 };
 

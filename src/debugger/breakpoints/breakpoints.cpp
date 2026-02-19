@@ -8,7 +8,7 @@
 #include "debugger/breakpoints/breakpoint_entry.h"
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/breakpoints/breakpoints_func.h"
-#include "debugger/breakpoints/breakpoints_line.h"
+#include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
 #include <mutex>
@@ -21,14 +21,14 @@ Breakpoints::Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_pt
           m_entryBreakpoint(new EntryBreakpoint(sharedModules)),
           m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
           m_funcBreakpoints(new FuncBreakpoints(sharedModules, sharedVariables)),
-          m_lineBreakpoints(new LineBreakpoints(sharedModules, sharedVariables)),
+          m_sourceBreakpoints(new SourceBreakpoints(sharedModules, sharedVariables)),
           m_nextBreakpointId(1)
     {}
 
 void Breakpoints::SetJustMyCode(bool enable)
 {
     m_funcBreakpoints->SetJustMyCode(enable);
-    m_lineBreakpoints->SetJustMyCode(enable);
+    m_sourceBreakpoints->SetJustMyCode(enable);
     m_exceptionBreakpoints->SetJustMyCode(enable);
 }
 
@@ -51,7 +51,7 @@ void Breakpoints::DeleteAll()
 {
     m_entryBreakpoint->Delete();
     m_funcBreakpoints->DeleteAll();
-    m_lineBreakpoints->DeleteAll();
+    m_sourceBreakpoints->DeleteAll();
     m_exceptionBreakpoints->DeleteAll();
 }
 
@@ -95,11 +95,11 @@ HRESULT Breakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<Func
         });
 }
 
-HRESULT Breakpoints::SetLineBreakpoints(bool haveProcess, const std::string &filename,
-                                        const std::vector<LineBreakpoint> &lineBreakpoints,
-                                        std::vector<Breakpoint> &breakpoints)
+HRESULT Breakpoints::SetSourceBreakpoints(bool haveProcess, const std::string &filename,
+                                          const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                                          std::vector<Breakpoint> &breakpoints)
 {
-    return m_lineBreakpoints->SetLineBreakpoints(haveProcess, filename, lineBreakpoints, breakpoints,
+    return m_sourceBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
             const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
@@ -156,7 +156,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         return S_OK; // forced to interrupt this callback (breakpoint in not user code, continue process execution)
     }
 
-    if (SUCCEEDED(Status = m_lineBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
+    if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         return S_FALSE; // S_FALSE - not affect on callback (callback will emit stop event)
@@ -175,7 +175,7 @@ HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::ve
 {
     m_entryBreakpoint->ManagedCallbackLoadModule(pModule);
     m_funcBreakpoints->ManagedCallbackLoadModule(pModule, events);
-    m_lineBreakpoints->ManagedCallbackLoadModule(pModule, events);
+    m_sourceBreakpoints->ManagedCallbackLoadModule(pModule, events);
     return S_OK;
 }
 

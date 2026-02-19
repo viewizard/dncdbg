@@ -646,14 +646,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 HRESULT Status = S_OK;
 
-                std::vector<LineBreakpoint> lineBreakpoints;
+                std::vector<SourceBreakpoint> sourceBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
-                    lineBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()));
+                    sourceBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetLineBreakpoints(arguments.at("source").at("path"), lineBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetSourceBreakpoints(arguments.at("source").at("path"), sourceBreakpoints, breakpoints));
 
                 body["breakpoints"] = breakpoints;
 
