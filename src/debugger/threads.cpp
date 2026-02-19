@@ -18,16 +18,38 @@ ThreadId getThreadId(ICorDebugThread *pThread)
     return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
 }
 
-void Threads::Add(const ThreadId &threadId, bool processAttached)
+void Threads::Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
 {
     const WriteLock w_lock(m_userThreadsRWLock);
 
-    m_userThreads.emplace(threadId);
+    const std::string threadName = GetThreadName(pThread);
+
     // First added user thread during start is Main thread for sure.
     if (!processAttached && !MainThread)
     {
         MainThread = threadId;
+        if (threadName == "<No name>")
+        {
+            m_userThreads.insert({threadId, "Main Thread"});
+            return;
+        }
     }
+
+    m_userThreads.insert({threadId, threadName});
+}
+
+void Threads::ChangeName(ICorDebugThread *pThread)
+{
+    if (pThread == nullptr)
+    {
+        return;
+    }
+
+    const WriteLock w_lock(m_userThreadsRWLock);
+
+    const std::string threadName = GetThreadName(pThread);
+    const ThreadId threadId(getThreadId(pThread));
+    m_userThreads[threadId] = threadName;
 }
 
 void Threads::Remove(const ThreadId &threadId)
@@ -43,19 +65,17 @@ void Threads::Remove(const ThreadId &threadId)
     m_userThreads.erase(it);
 }
 
-std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &userThread)
+std::string Threads::GetThreadName(ICorDebugThread *pThread)
 {
     std::string threadName = "<No name>";
 
-    if (m_sharedEvaluator)
+    if (pThread != nullptr && m_sharedEvaluator)
     {
-        ToRelease<ICorDebugThread> pThread;
-        ToRelease<ICorDebugValue> iCorThreadObject;
-        if (SUCCEEDED(pProcess->GetThread(static_cast<int>(userThread), &pThread)) &&
-            SUCCEEDED(pThread->GetObject(&iCorThreadObject)))
+        ToRelease<ICorDebugValue> trThreadObject;
+        if (SUCCEEDED(pThread->GetObject(&trThreadObject)))
         {
             HRESULT Status = S_OK;
-            m_sharedEvaluator->WalkMembers(iCorThreadObject, nullptr, FrameLevel{0}, nullptr, false,
+            m_sharedEvaluator->WalkMembers(trThreadObject, nullptr, FrameLevel{0}, nullptr, false,
                 [&](ICorDebugType *, bool, const std::string &memberName,
                     const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
                 {
@@ -66,25 +86,20 @@ std::string Threads::GetThreadName(ICorDebugProcess *pProcess, const ThreadId &u
                         return S_OK;
                     }
 
-                    ToRelease<ICorDebugValue> iCorResultValue;
-                    IfFailRet(getValue(&iCorResultValue, true));
+                    ToRelease<ICorDebugValue> trResultValue;
+                    IfFailRet(getValue(&trResultValue, true));
 
                     BOOL isNull = TRUE;
-                    ToRelease<ICorDebugValue> pValue;
-                    IfFailRet(DereferenceAndUnboxValue(iCorResultValue, &pValue, &isNull));
+                    ToRelease<ICorDebugValue> trValue;
+                    IfFailRet(DereferenceAndUnboxValue(trResultValue, &trValue, &isNull));
                     if (isNull == FALSE)
                     {
-                        IfFailRet(PrintStringValue(pValue, threadName));
+                        IfFailRet(PrintStringValue(trValue, threadName));
                     }
 
                     return E_ABORT; // Fast exit from cycle.
                 });
         }
-    }
-
-    if (MainThread && MainThread == userThread && threadName == "<No name>")
-    {
-        return "Main Thread";
     }
 
     return threadName;
@@ -103,7 +118,7 @@ HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thr
     for (const auto &userThread : m_userThreads)
     {
         // ICorDebugThread::GetUserState not available for running thread.
-        threads.emplace_back(userThread, GetThreadName(pProcess, userThread), procRunning == TRUE);
+        threads.emplace_back(userThread.first, userThread.second, procRunning == TRUE);
     }
 
     return S_OK;
@@ -116,7 +131,7 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
     threads.reserve(m_userThreads.size());
     for (const auto &userThread : m_userThreads)
     {
-        threads.emplace_back(userThread);
+        threads.emplace_back(userThread.first);
     }
     return S_OK;
 }

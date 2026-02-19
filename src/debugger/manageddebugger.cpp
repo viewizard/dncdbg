@@ -346,6 +346,7 @@ ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
       StartupCallbackHR(S_OK)
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
+    m_sharedThreads->SetEvaluator(m_sharedEvaluator);
 }
 
 ManagedDebugger::~ManagedDebugger()

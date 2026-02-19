@@ -13,7 +13,7 @@
 
 #include "types/types.h"
 #include "utils/rwlock.h"
-#include <set>
+#include <map>
 #include <vector>
 
 namespace dncdbg
@@ -26,18 +26,19 @@ class Threads
 {
   public:
 
-    void Add(const ThreadId &threadId, bool processAttached);
+    void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
+    void ChangeName(ICorDebugThread *pThread);
     void Remove(const ThreadId &threadId);
     HRESULT GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thread> &threads);
     HRESULT GetThreadIds(std::vector<ThreadId> &threads);
-    std::string GetThreadName(ICorDebugProcess *pProcess, const ThreadId &userThread);
+    std::string GetThreadName(ICorDebugThread *pThread);
     void SetEvaluator(std::shared_ptr<Evaluator> &sharedEvaluator);
     void ResetEvaluator();
 
   private:
 
     RWLock m_userThreadsRWLock;
-    std::set<ThreadId> m_userThreads;
+    std::map<ThreadId, std::string> m_userThreads;
     ThreadId MainThread;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
 };

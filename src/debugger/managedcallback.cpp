@@ -279,7 +279,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     }
 
     const ThreadId threadId(getThreadId(pThread));
-    m_debugger.m_sharedThreads->Add(threadId, m_debugger.m_startMethod == StartMethod::Attach);
+    m_debugger.m_sharedThreads->Add(pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
     m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -435,9 +435,10 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ControlCTrap(ICorDebugProcess *pProce
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread */*pThread*/)
+HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     LogFuncEntry();
+    m_debugger.m_sharedThreads->ChangeName(pThread);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -513,6 +514,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
         case DEBUG_EXCEPTION_CATCH_HANDLER_FOUND:
             eventType = CorrectedByJMCCatchHandlerEventType(pFrame, m_debugger.IsJustMyCode());
             break;
+        case DEBUG_EXCEPTION_UNHANDLED:
         default:
             eventType = ExceptionCallbackType::UNHANDLED;
             break;
