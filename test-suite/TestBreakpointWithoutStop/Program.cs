@@ -32,8 +32,8 @@ class Program
 
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.AddFuncBreakpoint("testfunc");
-                Context.SetFuncBreakpoints(@"__FILE__:__LINE__");
+                Context.AddFunctionBreakpoint("testfunc");
+                Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
             });
 
         System.Threading.Thread.Sleep(15000);

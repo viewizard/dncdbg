@@ -19,18 +19,18 @@ class Program
                 Context Context = (Context)context;
                 Context.PrepareStart(null, null, @"__FILE__:__LINE__");
 
-                Context.AddFuncBreakpoint("funcbrackpoint1");
-                Context.AddFuncBreakpoint("funcbrackpoint2(int)");
-                Context.AddFuncBreakpoint("Program.funcbrackpoint3()");
-                Context.AddFuncBreakpoint("funcbrackpoint4");
-                Context.AddFuncBreakpoint("funcbrackpoint6(int)", "i==5");
-                Context.AddFuncBreakpoint("TestFuncBreak.Program.funcbrackpoint7", "z<10");
-                Context.SetFuncBreakpoints(@"__FILE__:__LINE__");
+                Context.AddFunctionBreakpoint("funcbrackpoint1");
+                Context.AddFunctionBreakpoint("funcbrackpoint2(int)");
+                Context.AddFunctionBreakpoint("Program.funcbrackpoint3()");
+                Context.AddFunctionBreakpoint("funcbrackpoint4");
+                Context.AddFunctionBreakpoint("funcbrackpoint6(int)", "i==5");
+                Context.AddFunctionBreakpoint("TestFuncBreak.Program.funcbrackpoint7", "z<10");
+                Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
 
                 // change condition to already setted bp
-                Context.RemoveFuncBreakpoint("funcbrackpoint6(int)");
-                Context.AddFuncBreakpoint("funcbrackpoint6(int)", "i>10");
-                Context.SetFuncBreakpoints(@"__FILE__:__LINE__");
+                Context.RemoveFunctionBreakpoint("funcbrackpoint6(int)");
+                Context.AddFunctionBreakpoint("funcbrackpoint6(int)", "i>10");
+                Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.PrepareEnd(@"__FILE__:__LINE__");
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
@@ -90,9 +90,9 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "br3");
 
-                Context.RemoveFuncBreakpoint("funcbrackpoint4");
-                Context.AddFuncBreakpoint("TestFuncBreak.Program.funcbrackpoint5(string)");
-                Context.SetFuncBreakpoints(@"__FILE__:__LINE__");
+                Context.RemoveFunctionBreakpoint("funcbrackpoint4");
+                Context.AddFunctionBreakpoint("TestFuncBreak.Program.funcbrackpoint5(string)");
+                Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

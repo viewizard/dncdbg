@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints/breakpoints_func.h"
+#include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
@@ -14,21 +14,21 @@
 namespace dncdbg
 {
 
-void FuncBreakpoints::ManagedFuncBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
+void FunctionBreakpoints::ManagedFunctionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
 }
 
-void FuncBreakpoints::DeleteAll()
+void FunctionBreakpoints::DeleteAll()
 {
     m_breakpointsMutex.lock();
     m_funcBreakpoints.clear();
     m_breakpointsMutex.unlock();
 }
 
-HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                            std::vector<BreakpointEvent> &bpChangeEvents)
+HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                                std::vector<BreakpointEvent> &bpChangeEvents)
 {
     if (m_funcBreakpoints.empty())
     {
@@ -84,7 +84,7 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     // must be done before enter into this cycles.
     for (auto &fb : m_funcBreakpoints)
     {
-        ManagedFuncBreakpoint &fbp = fb.second;
+        ManagedFunctionBreakpoint &fbp = fb.second;
 
         if (!fbp.params.empty() && params != fbp.params)
         {
@@ -133,15 +133,15 @@ HRESULT FuncBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugB
     return S_FALSE; // Stopped at break, but breakpoint not found.
 }
 
-HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
-    for (auto &funcBreakpoints : m_funcBreakpoints)
+    for (auto &functionBreakpoints : m_funcBreakpoints)
     {
-        ManagedFuncBreakpoint &fb = funcBreakpoints.second;
+        ManagedFunctionBreakpoint &fb = functionBreakpoints.second;
 
-        if (FAILED(ResolveFuncBreakpointInModule(pModule, fb)))
+        if (FAILED(ResolveFunctionBreakpointInModule(pModule, fb)))
         {
             continue;
         }
@@ -154,14 +154,14 @@ HRESULT FuncBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std
     return S_OK;
 }
 
-HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                                            std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                                                    std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     // Remove old breakpoints
     std::unordered_set<std::string> funcBreakpointFuncs;
-    for (const auto &fb : funcBreakpoints)
+    for (const auto &fb : functionBreakpoints)
     {
         const std::string fullFuncName = fb.func + fb.params;
         funcBreakpointFuncs.insert(fullFuncName);
@@ -178,15 +178,14 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
         }
     }
 
-    if (funcBreakpoints.empty())
+    if (functionBreakpoints.empty())
     {
         return S_OK;
     }
 
-    // Export function breakpoints
-    // Note, DAP require, that "breakpoints" and "funcBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP require, that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
 
-    for (const auto &fb : funcBreakpoints)
+    for (const auto &fb : functionBreakpoints)
     {
         const std::string fullFuncName = fb.func + fb.params;
         Breakpoint breakpoint;
@@ -195,7 +194,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
         if (b == m_funcBreakpoints.end())
         {
             // New function breakpoint
-            ManagedFuncBreakpoint fbp;
+            ManagedFunctionBreakpoint fbp;
             fbp.id = getId();
             fbp.name = fb.func;
             fbp.params = fb.params;
@@ -203,7 +202,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
 
             if (haveProcess)
             {
-                ResolveFuncBreakpoint(fbp);
+                ResolveFunctionBreakpoint(fbp);
             }
 
             fbp.ToBreakpoint(breakpoint);
@@ -211,7 +210,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
         }
         else
         {
-            ManagedFuncBreakpoint &fbp = b->second;
+            ManagedFunctionBreakpoint &fbp = b->second;
 
             fbp.condition = fb.condition;
             fbp.ToBreakpoint(breakpoint);
@@ -223,7 +222,7 @@ HRESULT FuncBreakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<
     return S_OK;
 }
 
-HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedFBP &fbpResolved)
+HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved)
 {
     HRESULT Status = S_OK;
 
@@ -257,27 +256,27 @@ HRESULT FuncBreakpoints::AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedF
     return S_OK;
 }
 
-HRESULT FuncBreakpoints::ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp)
+HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedModules->ResolveFuncBreakpointInAny(fbp.name,
+    IfFailRet(m_sharedModules->ResolveFunctionBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
             return S_OK;
         }));
 
-    return AddFuncBreakpoint(fbp, fbpResolved);
+    return AddFunctionBreakpoint(fbp, fbpResolved);
 }
 
-HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, ManagedFuncBreakpoint &fbp)
+HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp)
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedModules->ResolveFuncBreakpointInModule(
+    IfFailRet(m_sharedModules->ResolveFunctionBreakpointInModule(
         pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
@@ -285,7 +284,7 @@ HRESULT FuncBreakpoints::ResolveFuncBreakpointInModule(ICorDebugModule *pModule,
             return S_OK;
         }));
 
-    return AddFuncBreakpoint(fbp, fbpResolved);
+    return AddFunctionBreakpoint(fbp, fbpResolved);
 }
 
 } // namespace dncdbg

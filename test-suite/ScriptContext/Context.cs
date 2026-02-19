@@ -368,14 +368,14 @@ class Context
         }
     }
 
-    public void AddFuncBreakpoint(string funcName, string Condition = null)
+    public void AddFunctionBreakpoint(string funcName, string Condition = null)
     {
-        FuncBreakpointList.Add(new FunctionBreakpoint(funcName, Condition));
+        FunctionBreakpointList.Add(new FunctionBreakpoint(funcName, Condition));
     }
 
-    public void RemoveFuncBreakpoint(string funcName)
+    public void RemoveFunctionBreakpoint(string funcName)
     {
-        FuncBreakpointList.Remove(FuncBreakpointList.Find(x => x.name == funcName));
+        FunctionBreakpointList.Remove(FunctionBreakpointList.Find(x => x.name == funcName));
     }
 
     public void SetBreakpoints(string caller_trace)
@@ -390,10 +390,10 @@ class Context
         Assert.True(DAPDebugger.Request(setBreakpointsRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void SetFuncBreakpoints(string caller_trace)
+    public void SetFunctionBreakpoints(string caller_trace)
     {
         SetFunctionBreakpointsRequest setFunctionBreakpointsRequest = new SetFunctionBreakpointsRequest();
-        setFunctionBreakpointsRequest.arguments.breakpoints.AddRange(FuncBreakpointList);
+        setFunctionBreakpointsRequest.arguments.breakpoints.AddRange(FunctionBreakpointList);
         Assert.True(DAPDebugger.Request(setFunctionBreakpointsRequest).Success,
                     @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
@@ -1215,7 +1215,7 @@ class Context
     string BreakpointSourceName;
     List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
     List<int> BreakpointLines = new List<int>();
-    List<FunctionBreakpoint> FuncBreakpointList = new List<FunctionBreakpoint>();
+    List<FunctionBreakpoint> FunctionBreakpointList = new List<FunctionBreakpoint>();
 
     bool ExceptionFilterAll = false;
     bool ExceptionFilterUserUnhandled = false;

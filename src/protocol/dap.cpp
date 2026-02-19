@@ -948,7 +948,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 HRESULT Status = S_OK;
 
-                std::vector<FuncBreakpoint> funcBreakpoints;
+                std::vector<FunctionBreakpoint> functionBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
                     std::string params;
@@ -963,11 +963,11 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         name.erase(openBrace, closeBrace);
                     }
 
-                    funcBreakpoints.emplace_back(name, params, b.value("condition", std::string()));
+                    functionBreakpoints.emplace_back(name, params, b.value("condition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetFuncBreakpoints(funcBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
                 body["breakpoints"] = breakpoints;
 

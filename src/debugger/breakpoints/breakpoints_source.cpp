@@ -362,8 +362,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         }
     }
 
-    // Export breakpoints
-    // Note, DAP require, that "breakpoints" and "sourceBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP require, that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &sb : sourceBreakpoints)
     {

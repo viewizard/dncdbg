@@ -73,10 +73,10 @@ class Modules
     HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                               bool *noUserCodeFound);
 
-    HRESULT ResolveFuncBreakpointInAny(const std::string &funcname, const ResolveFuncBreakpointCallback &cb);
+    HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
-    static HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
-                                                 const ResolveFuncBreakpointCallback &cb);
+    static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+                                                     const ResolveFunctionBreakpointCallback &cb);
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 

@@ -27,11 +27,11 @@ namespace dncdbg
 class Variables;
 class Modules;
 
-class FuncBreakpoints
+class FunctionBreakpoints
 {
   public:
 
-    FuncBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
+    FunctionBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
         : m_sharedModules(sharedModules),
           m_sharedVariables(sharedVariables),
           m_justMyCode(true)
@@ -42,8 +42,8 @@ class FuncBreakpoints
         m_justMyCode = enable;
     };
     void DeleteAll();
-    HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
+    HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                                   std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
     // S_OK - breakpoint hit
@@ -66,7 +66,7 @@ class FuncBreakpoints
     std::shared_ptr<Variables> m_sharedVariables;
     bool m_justMyCode;
 
-    struct ManagedFuncBreakpoint
+    struct ManagedFunctionBreakpoint
     {
         uint32_t id;
         std::string name;
@@ -80,12 +80,12 @@ class FuncBreakpoints
             return !iCorFuncBreakpoints.empty();
         }
 
-        ManagedFuncBreakpoint()
+        ManagedFunctionBreakpoint()
             : id(0),
               hitCount(0)
         {}
 
-        ~ManagedFuncBreakpoint()
+        ~ManagedFunctionBreakpoint()
         {
             for (auto &iCorFuncBreakpoint : iCorFuncBreakpoints)
             {
@@ -96,19 +96,19 @@ class FuncBreakpoints
 
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
-        ManagedFuncBreakpoint(ManagedFuncBreakpoint &&that) = default;
-        ManagedFuncBreakpoint(const ManagedFuncBreakpoint &that) = delete;
-        ManagedFuncBreakpoint &operator=(ManagedFuncBreakpoint &&that) = default;
-        ManagedFuncBreakpoint &operator=(const ManagedFuncBreakpoint &that) = delete;
+        ManagedFunctionBreakpoint(ManagedFunctionBreakpoint &&that) = default;
+        ManagedFunctionBreakpoint(const ManagedFunctionBreakpoint &that) = delete;
+        ManagedFunctionBreakpoint &operator=(ManagedFunctionBreakpoint &&that) = default;
+        ManagedFunctionBreakpoint &operator=(const ManagedFunctionBreakpoint &that) = delete;
     };
 
     std::mutex m_breakpointsMutex;
-    std::unordered_map<std::string, ManagedFuncBreakpoint> m_funcBreakpoints;
+    std::unordered_map<std::string, ManagedFunctionBreakpoint> m_funcBreakpoints;
 
     using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
-    HRESULT AddFuncBreakpoint(ManagedFuncBreakpoint &fbp, ResolvedFBP &fbpResolved);
-    HRESULT ResolveFuncBreakpointInModule(ICorDebugModule *pModule, ManagedFuncBreakpoint &fbp);
-    HRESULT ResolveFuncBreakpoint(ManagedFuncBreakpoint &fbp);
+    HRESULT AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved);
+    HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp);
+    HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp);
 };
 
 } // namespace dncdbg

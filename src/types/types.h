@@ -584,14 +584,14 @@ struct SourceBreakpoint
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_FunctionBreakpoint
-struct FuncBreakpoint
+struct FunctionBreakpoint
 {
     std::string func;  // name -> func(params)
     std::string params;// name -> func(params)
     std::string condition;
     // hitCondition?: string;
 
-    FuncBreakpoint(const std::string &func, const std::string &params,
+    FunctionBreakpoint(const std::string &func, const std::string &params,
                    const std::string &cond = std::string())
         : func(func),
           params(params),

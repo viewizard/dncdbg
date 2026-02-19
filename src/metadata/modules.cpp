@@ -153,7 +153,7 @@ std::vector<std::string> split_on_tokens(const std::string &str, const char deli
     return res;
 }
 
-HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFuncBreakpointCallback &cb)
+HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFunctionBreakpointCallback &cb)
 {
     std::vector<std::string> splitName = split_on_tokens(funcName, '.');
 
@@ -304,7 +304,7 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
     return S_OK;
 }
 
-HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &funcname, const ResolveFuncBreakpointCallback &cb)
+HRESULT Modules::ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
 
@@ -317,8 +317,8 @@ HRESULT Modules::ResolveFuncBreakpointInAny(const std::string &funcname, const R
     return S_OK;
 }
 
-HRESULT Modules::ResolveFuncBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
-                                               const ResolveFuncBreakpointCallback &cb)
+HRESULT Modules::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+                                                   const ResolveFunctionBreakpointCallback &cb)
 {
     return ResolveMethodInModule(pModule, funcname, cb);
 }

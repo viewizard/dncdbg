@@ -26,7 +26,7 @@ class Modules;
 class BreakBreakpoint;
 class EntryBreakpoint;
 class ExceptionBreakpoints;
-class FuncBreakpoints;
+class FunctionBreakpoints;
 class SourceBreakpoints;
 
 class Breakpoints
@@ -41,8 +41,8 @@ class Breakpoints
     void DeleteAll();
     static HRESULT DisableAll(ICorDebugProcess *pProcess);
 
-    HRESULT SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                               std::vector<Breakpoint> &breakpoints);
+    HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                                   std::vector<Breakpoint> &breakpoints);
     HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                  std::vector<Breakpoint> &breakpoints);
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
@@ -69,7 +69,7 @@ class Breakpoints
     std::shared_ptr<BreakBreakpoint> m_breakBreakpoint;
     std::shared_ptr<EntryBreakpoint> m_entryBreakpoint;
     std::shared_ptr<ExceptionBreakpoints> m_exceptionBreakpoints;
-    std::shared_ptr<FuncBreakpoints> m_funcBreakpoints;
+    std::shared_ptr<FunctionBreakpoints> m_funcBreakpoints;
     std::shared_ptr<SourceBreakpoints> m_sourceBreakpoints;
 
     std::mutex m_nextBreakpointIdMutex;

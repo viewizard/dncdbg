@@ -894,13 +894,13 @@ HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
     return m_uniqueBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::SetFuncBreakpoints(const std::vector<FuncBreakpoint> &funcBreakpoints,
-                                            std::vector<Breakpoint> &breakpoints)
+HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                                                std::vector<Breakpoint> &breakpoints)
 {
     LogFuncEntry();
 
     const bool haveProcess = HaveDebugProcess();
-    return m_uniqueBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints);
+    return m_uniqueBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level,

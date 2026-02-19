@@ -7,7 +7,7 @@
 #include "debugger/breakpoints/breakpoint_break.h"
 #include "debugger/breakpoints/breakpoint_entry.h"
 #include "debugger/breakpoints/breakpoints_exception.h"
-#include "debugger/breakpoints/breakpoints_func.h"
+#include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
@@ -20,7 +20,7 @@ Breakpoints::Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_pt
         : m_breakBreakpoint(new BreakBreakpoint(sharedModules)),
           m_entryBreakpoint(new EntryBreakpoint(sharedModules)),
           m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
-          m_funcBreakpoints(new FuncBreakpoints(sharedModules, sharedVariables)),
+          m_funcBreakpoints(new FunctionBreakpoints(sharedModules, sharedVariables)),
           m_sourceBreakpoints(new SourceBreakpoints(sharedModules, sharedVariables)),
           m_nextBreakpointId(1)
     {}
@@ -84,10 +84,10 @@ HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
     return S_OK;
 }
 
-HRESULT Breakpoints::SetFuncBreakpoints(bool haveProcess, const std::vector<FuncBreakpoint> &funcBreakpoints,
-                                        std::vector<Breakpoint> &breakpoints)
+HRESULT Breakpoints::SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                                            std::vector<Breakpoint> &breakpoints)
 {
-    return m_funcBreakpoints->SetFuncBreakpoints(haveProcess, funcBreakpoints, breakpoints,
+    return m_funcBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
             const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);
