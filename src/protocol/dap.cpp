@@ -243,7 +243,7 @@ static void to_json(json &j, const Breakpoint &b) // NOLINT(misc-use-anonymous-n
 static void to_json(json &j, const StackFrame &f) // NOLINT(misc-use-anonymous-namespace)
 {
     j = json{{"id",        static_cast<int>(f.id)},
-             {"name",      f.methodName},
+             {"name",      f.name},
              {"line",      f.line},
              {"column",    f.column},
              {"endLine",   f.endLine},

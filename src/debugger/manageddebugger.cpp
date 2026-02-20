@@ -908,9 +908,9 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     HRESULT Status = S_OK;
 
     stackFrame = StackFrame(threadId, level, "");
-    if (FAILED(TypePrinter::GetMethodName(pFrame, stackFrame.methodName)))
+    if (FAILED(TypePrinter::GetMethodName(pFrame, stackFrame.name)))
     {
-        stackFrame.methodName = "Unnamed method in optimized code";
+        stackFrame.name = "Unnamed method in optimized code";
     }
 
     ToRelease<ICorDebugFunction> pFunc;

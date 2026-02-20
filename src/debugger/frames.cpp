@@ -286,6 +286,7 @@ const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
         return "Security";
     case STUBFRAME_JIT_COMPILATION:
         return "JIT Compilation";
+    case STUBFRAME_NONE:
     default:
         return "Unknown";
     }

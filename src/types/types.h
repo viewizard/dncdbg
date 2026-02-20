@@ -240,7 +240,7 @@ struct StackFrame
   public:
 
     FrameId id; // should be assigned only once, before calls to GetLevel or GetThreadId.
-    std::string methodName;
+    std::string name;
     Source source;
     int line;
     int column;
@@ -262,9 +262,9 @@ struct StackFrame
     {
     }
 
-    StackFrame(ThreadId threadId, FrameLevel level_, const std::string &methodName_)
+    StackFrame(ThreadId threadId, FrameLevel level_, const std::string &name_)
         : id(FrameId(threadId, level_)),
-          methodName(methodName_),
+          name(name_),
           line(0),
           column(0),
           endLine(0),
