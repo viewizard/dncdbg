@@ -11,63 +11,12 @@
 namespace dncdbg
 {
 
-ThreadId getThreadId(ICorDebugThread *pThread)
+namespace
 {
-    DWORD threadId = 0; // invalid value for Win32
-    const HRESULT res = pThread->GetID(&threadId);
-    return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
-}
 
-void Threads::Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
 {
-    const WriteLock w_lock(m_userThreadsRWLock);
-
-    const std::string threadName = GetThreadName(pThread);
-
-    // First added user thread during start is Main thread for sure.
-    if (!processAttached && !MainThread)
-    {
-        MainThread = threadId;
-        if (threadName == "<No name>")
-        {
-            m_userThreads.insert({threadId, "Main Thread"});
-            return;
-        }
-    }
-
-    m_userThreads.insert({threadId, threadName});
-}
-
-void Threads::ChangeName(ICorDebugThread *pThread)
-{
-    if (pThread == nullptr)
-    {
-        return;
-    }
-
-    const WriteLock w_lock(m_userThreadsRWLock);
-
-    const std::string threadName = GetThreadName(pThread);
-    const ThreadId threadId(getThreadId(pThread));
-    m_userThreads[threadId] = threadName;
-}
-
-void Threads::Remove(const ThreadId &threadId)
-{
-    const WriteLock w_lock(m_userThreadsRWLock);
-
-    auto it = m_userThreads.find(threadId);
-    if (it == m_userThreads.end())
-    {
-        return;
-    }
-
-    m_userThreads.erase(it);
-}
-
-std::string Threads::GetThreadName(ICorDebugThread *pThread)
-{
-    assert(m_sharedEvaluator);
+    assert(sharedEvaluator);
 
     std::string threadName = "<No name>";
 
@@ -79,7 +28,7 @@ std::string Threads::GetThreadName(ICorDebugThread *pThread)
     }
 
     HRESULT Status = S_OK;
-    m_sharedEvaluator->WalkMembers(trThreadObject, nullptr, FrameLevel{0}, nullptr, false,
+    sharedEvaluator->WalkMembers(trThreadObject, nullptr, FrameLevel{0}, nullptr, false,
         [&](ICorDebugType *, bool, const std::string &memberName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
         {
@@ -105,6 +54,62 @@ std::string Threads::GetThreadName(ICorDebugThread *pThread)
         });
 
     return threadName;
+}
+
+} // unnamed namespace
+
+ThreadId getThreadId(ICorDebugThread *pThread)
+{
+    DWORD threadId = 0; // invalid value for Win32
+    const HRESULT res = pThread->GetID(&threadId);
+    return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
+}
+
+void Threads::Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+{
+    const WriteLock w_lock(m_userThreadsRWLock);
+
+    const std::string threadName = GetThreadName(sharedEvaluator, pThread);
+
+    // First added user thread during start is Main thread for sure.
+    if (!processAttached && !MainThread)
+    {
+        MainThread = threadId;
+        if (threadName == "<No name>")
+        {
+            m_userThreads.insert({threadId, "Main Thread"});
+            return;
+        }
+    }
+
+    m_userThreads.insert({threadId, threadName});
+}
+
+void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
+{
+    if (pThread == nullptr)
+    {
+        return;
+    }
+
+    const WriteLock w_lock(m_userThreadsRWLock);
+
+    const std::string threadName = GetThreadName(sharedEvaluator, pThread);
+    const ThreadId threadId(getThreadId(pThread));
+    m_userThreads[threadId] = threadName;
+}
+
+void Threads::Remove(const ThreadId &threadId)
+{
+    const WriteLock w_lock(m_userThreadsRWLock);
+
+    auto it = m_userThreads.find(threadId);
+    if (it == m_userThreads.end())
+    {
+        return;
+    }
+
+    m_userThreads.erase(it);
 }
 
 // Caller should guarantee, that pProcess is not null.
@@ -136,16 +141,6 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
         threads.emplace_back(userThread.first);
     }
     return S_OK;
-}
-
-void Threads::SetEvaluator(std::shared_ptr<Evaluator> &sharedEvaluator)
-{
-    m_sharedEvaluator = sharedEvaluator;
-}
-
-void Threads::ResetEvaluator()
-{
-    m_sharedEvaluator.reset();
 }
 
 } // namespace dncdbg

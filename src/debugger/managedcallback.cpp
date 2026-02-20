@@ -279,7 +279,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     }
 
     const ThreadId threadId(getThreadId(pThread));
-    m_debugger.m_sharedThreads->Add(pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
+    m_debugger.m_sharedThreads->Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
     m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -438,7 +438,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ControlCTrap(ICorDebugProcess *pProce
 HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     LogFuncEntry();
-    m_debugger.m_sharedThreads->ChangeName(pThread);
+    m_debugger.m_sharedThreads->ChangeName(m_debugger.m_sharedEvaluator, pThread);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
