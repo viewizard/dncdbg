@@ -237,9 +237,7 @@ struct Source
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_StackFrame
 struct StackFrame
 {
-  public:
-
-    FrameId id; // should be assigned only once, before calls to GetLevel or GetThreadId.
+    FrameId id;
     std::string name;
     Source source;
     int line;
@@ -256,9 +254,7 @@ struct StackFrame
           line(0),
           column(0),
           endLine(0),
-          endColumn(0),
-          thread(ThreadId{}, true),
-          level(FrameLevel{}, true)
+          endColumn(0)
     {
     }
 
@@ -268,9 +264,17 @@ struct StackFrame
           line(0),
           column(0),
           endLine(0),
-          endColumn(0),
-          thread(threadId, true),
-          level(level_, true)
+          endColumn(0)
+    {
+    }
+
+    StackFrame(ThreadId threadId, FrameLevel level_, std::string &&name_)
+        : id(FrameId(threadId, level_)),
+          name(name_),
+          line(0),
+          column(0),
+          endLine(0),
+          endColumn(0)
     {
     }
 
@@ -279,28 +283,9 @@ struct StackFrame
           line(0),
           column(0),
           endLine(0),
-          endColumn(0),
-          thread(ThreadId{}, false),
-          level(FrameLevel{}, false)
+          endColumn(0)
     {
     }
-
-    FrameLevel GetLevel() const
-    {
-        return std::get<1>(level) ? std::get<0>(level) : std::get<0>(level) = id.getLevel();
-    }
-
-    ThreadId GetThreadId() const
-    {
-        return std::get<1>(thread) ? std::get<0>(thread) : std::get<0>(thread) = id.getThread();
-    }
-
-  private:
-
-    template <typename T> using Optional = std::tuple<T, bool>;
-
-    mutable Optional<ThreadId> thread;
-    mutable Optional<FrameLevel> level;
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_Breakpoint
