@@ -6,6 +6,8 @@ Initially DNCDbg based on [NetCoreDbg](https://github.com/Samsung/netcoredbg) ve
 
 **Project goals:** implement close to MSVS C# debugger functionality (excluding related to MSVS IDE and not DAP supported features), complete [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) support, low memory consumption and high performance.
 
+Current [Debug Adapter Protocol support status.](docs/dap_status.md)
+
 ## Development process
 
 The project's development strategy is Trunk-Based Development, this means you can build current upstream code and be sure you have last version with all features and fixes included. You can find upcoming changes in [CHANGELOG.md](CHANGELOG.md).

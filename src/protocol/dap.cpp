@@ -182,6 +182,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"initialize", [&](const json &/*arguments*/, json &body)
             {
                 m_sharedDebugger->Initialize();
+                // clientID, clientName, adapterID - not in use now
 
                 DAPIO::AddCapabilitiesTo(body);
 
