@@ -6,7 +6,6 @@
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include "utils/streams.h"
-#include "utils/utility.h"
 #include <array>
 #include <cstring>
 
@@ -130,9 +129,9 @@ void IORedirectHelper::worker()
     }
 
     // currently existing asyncchronous io requests
-    IOSystem::AsyncHandle async_handles[Utility::Size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    IOSystem::AsyncHandle async_handles[std::size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     auto &out_handle = async_handles[0];
-    auto &pipe_handle = async_handles[Utility::Size(stream_types)];
+    auto &pipe_handle = async_handles[std::size(stream_types)];
 
     // at exit: cancel all unfinished io requests
     auto on_exit = [&](void *)
@@ -169,7 +168,7 @@ void IORedirectHelper::worker()
         }
 
         // process data available in buffer for input in_streams
-        for (unsigned n = 0; n < Utility::Size(stream_types); n++)
+        for (unsigned n = 0; n < std::size(stream_types); n++)
         {
             InStreamBuf *const stream = in_streams[n];
             if (stream == nullptr)
@@ -202,7 +201,7 @@ void IORedirectHelper::worker()
         }
 
         // check if data available for reading or write operation is finished
-        IOSystem::async_wait(async_handles, &async_handles[Utility::Size(async_handles)], WaitForever);
+        IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], WaitForever);
         LOGD("%s: wake", __func__);
 
         // check if termination requested
@@ -230,7 +229,7 @@ void IORedirectHelper::worker()
         }
 
         // process finished read requests
-        if (!ProcessFinishedReadRequests(in_streams, Utility::Size(stream_types), async_handles))
+        if (!ProcessFinishedReadRequests(in_streams, std::size(stream_types), async_handles))
         {
             return;
         }
@@ -454,7 +453,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
 #else
         const auto &PollPeriod = WaitForever;
 #endif
-        if (IOSystem::async_wait(async_handles, &async_handles[Utility::Size(async_handles)], PollPeriod))
+        if (IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], PollPeriod))
         {
             LOGD("%s: wake", __func__);
         }
