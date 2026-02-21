@@ -194,9 +194,9 @@ template <typename T> struct Singleton
 };
 
 // ThreadId == 0 is invalid for Win32 API and PAL library.
-/*static*/ const ThreadId ThreadId::Invalid{InvalidValue};
+const ThreadId ThreadId::Invalid{InvalidValue};
 
-/*static*/ const ThreadId ThreadId::AllThreads{AllThreadsValue};
+const ThreadId ThreadId::AllThreads{AllThreadsValue};
 
 namespace
 {
@@ -285,7 +285,7 @@ FrameLevel FrameId::getLevel() const noexcept
     return {};
 }
 
-/*static*/ void FrameId::invalidate()
+void FrameId::invalidate()
 {
     KnownFrames::instance().get()->clear();
 }
