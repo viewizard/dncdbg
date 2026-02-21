@@ -9,7 +9,6 @@
 #include "utils/logger.h"
 
 #include <string>
-#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <utility>
@@ -81,7 +80,7 @@ void FindAndParseArgs(char **argv, const std::vector<std::pair<std::string, std:
             return;
         }
     }
-    static_cast<void>(fprintf(stderr, "Error: Unknown option %s\n", argv[i]));
+    std::cerr << "Error: Unknown option " << argv[i] << "\n";
     exit(EXIT_FAILURE);
 }
 

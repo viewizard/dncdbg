@@ -7,13 +7,13 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <csignal>
+#include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -62,7 +62,7 @@ struct AsyncRead
                 return {Class::IOResult::Pending, 0};
             }
 
-            static_cast<void>(fprintf(stderr, "select error %i", errno));
+            std::cerr << "select error " << errno << "\n";
             return {Class::IOResult::Error, size_t(result)};
         }
 
@@ -114,7 +114,7 @@ struct AsyncWrite
                 return {Class::IOResult::Pending, 0};
             }
 
-            static_cast<void>(fprintf(stderr, "select error %i", errno));
+            std::cerr << "select error " << errno << "\n";
             return {Class::IOResult::Error, size_t(result)};
         }
 
@@ -307,7 +307,7 @@ bool Class::async_wait(const IOSystem::AsyncHandleIterator &begin, const IOSyste
 
     if (result < 0)
     {
-        static_cast<void>(fprintf(stderr, "select error %i", errno));
+        std::cerr << "select error " << errno << "\n";
         throw std::runtime_error("select error");
     }
 
@@ -371,13 +371,13 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cpp
         m_orig_fd[n] = ::dup(oldfd[n]);
         if (m_orig_fd[n] == -1)
         {
-            static_cast<void>(fprintf(stderr, "dup error %i", errno));
+            std::cerr << "dup error " << errno << "\n";
             throw std::runtime_error("dup error");
         }
 
         if (::dup2(newfd[n], oldfd[n]) == -1)
         {
-            static_cast<void>(fprintf(stderr, "dup2 error %i", errno));
+            std::cerr << "dup2 error " << errno << "\n";
             throw std::runtime_error("dup2 error");
         }
     }

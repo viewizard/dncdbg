@@ -15,6 +15,8 @@
 #include <stdexcept>
 #include <cstring>
 #include <ws2tcpip.h>
+#include <iostream>
+#include <iomanip>
 
 // short alias for full class name
 namespace
@@ -212,19 +214,19 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     {
         auto err = GetLastError();
         ::CloseHandle(writing_fd);
-        static_cast<void>(fprintf(stderr, "CreateFile pipe error: %#x\n", err));
+        std::cerr << "dup error 0x" << std::setw(8) << std::setfill('0') << std::hex << err << "\n";
         return {FileHandle(), FileHandle()};
     }
 
     if (!SetHandleInformation(writing_fd, HANDLE_FLAG_INHERIT, 0))
     {
-        static_cast<void>(fprintf(stderr, "SetHandleInformation failed!\n"));
+        std::cerr << "SetHandleInformation failed!\n";
         return {FileHandle(), FileHandle()};
     }
 
     if (!SetHandleInformation(reading_fd, HANDLE_FLAG_INHERIT, 0))
     {
-        static_cast<void>(fprintf(stderr, "SetHandleInformation failed!\n"));
+        std::cerr << "SetHandleInformation failed!\n";
         return {FileHandle(), FileHandle()};
     }
 
@@ -246,7 +248,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     SOCKET sockFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd == INVALID_SOCKET)
     {
-        static_cast<void>(fprintf(stderr, "can't create socket: %#x\n", WSAGetLastError()));
+        std::cerr << "can't create socket: 0x" << std::setw(8) << std::setfill('0') << std::hex << WSAGetLastError() << "\n";
         return {};
     }
 
@@ -254,7 +256,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     if (::setsockopt(sockFd, SOL_SOCKET, SO_REUSEADDR, (const char *)&enable, sizeof(BOOL)) == SOCKET_ERROR)
     {
         ::closesocket(sockFd);
-        static_cast<void>(fprintf(stderr, "setsockopt failed\n"));
+        std::cerr << "setsockopt failed\n";
         return {};
     }
     memset(&serv_addr, 0, sizeof(serv_addr));
@@ -266,7 +268,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     if (::bind(sockFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == SOCKET_ERROR)
     {
         ::closesocket(sockFd);
-        static_cast<void>(fprintf(stderr, "can't bind to specified port!\n"));
+        std::cerr << "can't bind to specified port!\n";
         return {};
     }
 
@@ -277,7 +279,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
     ::closesocket(sockFd);
     if (newsockfd == INVALID_SOCKET)
     {
-        static_cast<void>(fprintf(stderr, "can't accept connection\n"));
+        std::cerr << "can't accept connection\n";
         return {};
     }
 
@@ -639,7 +641,7 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true)
 
         if (!SetHandleInformation(new_handles[n].handle, HANDLE_FLAG_INHERIT, 1))
         {
-            static_cast<void>(fprintf(stderr, "SetHandleInformation failed!\n"));
+            std::cerr << "SetHandleInformation failed!\n";
         }
 
         if (!SetStdHandle(std_handles[n], new_handles[n].handle))

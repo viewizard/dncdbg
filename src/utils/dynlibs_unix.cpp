@@ -14,6 +14,7 @@
 #include "utils/logger.h"
 #include <dlfcn.h>
 #include <array>
+#include <iostream>
 
 namespace dncdbg
 {
@@ -27,7 +28,7 @@ DLHandle DLOpen(const std::string &path)
     if (tmpPointer == nullptr)
     {
         const char *err = ::dlerror();
-        static_cast<void>(fprintf(stderr, "dlopen() error: %s\n", err));
+        std::cerr << "dlopen() error: " << err << "\n";
         LOGE("dlopen() error: %s", err);
     }
     return reinterpret_cast<DLHandle>(tmpPointer);
@@ -53,7 +54,7 @@ void *DLSym(DLHandle handle, const std::string_view &symbol)
     const char *err = ::dlerror();
     if (err != nullptr)
     {
-        static_cast<void>(fprintf(stderr, "dlsym() error: %s\n", err));
+        std::cerr << "dlsym() error: " << err << "\n";
         LOGE("dlsym() error: %s", err);
     }
 
@@ -68,7 +69,7 @@ bool DLClose(DLHandle handle)
     if (ret != 0)
     {
         const char *err = ::dlerror();
-        static_cast<void>(fprintf(stderr, "dlclose() error: %s\n", err));
+        std::cerr << "dlclose() error: " << err << "\n";
         LOGE("dlclose() error: %s", err);
     }
 
