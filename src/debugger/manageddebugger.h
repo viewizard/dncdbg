@@ -95,7 +95,7 @@ class ManagedDebugger
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                     std::vector<Breakpoint> &breakpoints);
     HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                          std::vector<StackFrame> &stackFrames, int &totalFrames);
+                          std::vector<StackFrame> &stackFrames);
     HRESULT StepCommand(ThreadId threadId, StepType stepType);
     HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes);
     HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count,
@@ -165,7 +165,7 @@ class ManagedDebugger
 
     HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame);
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                 std::vector<StackFrame> &stackFrames, int &totalFrames);
+                                 std::vector<StackFrame> &stackFrames);
 
     friend class ManagedCallback;
     friend class CallbacksQueue;

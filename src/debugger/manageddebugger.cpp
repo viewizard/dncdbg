@@ -909,7 +909,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 }
 
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
-                                              unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames)
+                                              unsigned maxFrames, std::vector<StackFrame> &stackFrames)
 {
     HRESULT Status = S_OK;
     int currentFrame = -1;
@@ -962,25 +962,20 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             }
         }));
 
-    totalFrames = currentFrame + 1;
-    ExceptionInfo exceptionInfo;
-    bool analyzeExceptions = true;
-    if (!stackFrames.empty())
-    {
-        analyzeExceptions = analyzeExceptions && (stackFrames.front().line == 0);
-    }
-
-    if (!analyzeExceptions)
+    if (!stackFrames.empty() && stackFrames.front().line != 0)
     {
         return S_OK;
     }
 
-    // Sometimes Coreclr may return the empty stack frame in exception info
-    // for some unknown reason. In that case the 2nd attempt is usually successful.
-    // If even the 3rd attempt failed, there is almost no chances to get data successfuly.
-    const int tries = 3;
-    for (int tryCount = 0; tryCount < tries; tryCount++)
+    // In case async method, user code could be moved to `.NET TP Worker` thread, but in case of
+    // unhandled exception in this user code, exception will be catched and retrown by not user code
+    // in initial code execution thread.
+    // This usually mean we don't have any apropriate stack trace with code above, so, we try analyze
+    // exception object for real exception stack trace.
+    static constexpr int triesLimit = 3;
+    for (int tryCount = 0; tryCount < triesLimit; tryCount++)
     {
+        ExceptionInfo exceptionInfo;
         if (SUCCEEDED(GetExceptionInfo(threadId, exceptionInfo)))
         {
             std::stringstream ss(exceptionInfo.details.stackTrace);
@@ -1078,7 +1073,6 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             if (countOfNewFrames > 0)
             {
                 stackFrames.erase(stackFrames.begin(), std::next(stackFrames.begin(), static_cast<intptr_t>(sizeofStackFrame)));
-                totalFrames = currentFrame + 1;
                 break;
             }
         }
@@ -1088,7 +1082,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 }
 
 HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                       std::vector<StackFrame> &stackFrames, int &totalFrames)
+                                       std::vector<StackFrame> &stackFrames)
 {
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
@@ -1097,7 +1091,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     ToRelease<ICorDebugThread> pThread;
     if (SUCCEEDED(Status = m_iCorProcess->GetThread(static_cast<int>(threadId), &pThread)))
     {
-        return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames, totalFrames);
+        return GetManagedStackTrace(pThread, threadId, startFrame, maxFrames, stackFrames);
     }
 
     return Status;

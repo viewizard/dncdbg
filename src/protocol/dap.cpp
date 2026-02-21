@@ -384,15 +384,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 HRESULT Status = S_OK;
 
-                int totalFrames = 0;
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
 
                 std::vector<StackFrame> stackFrames;
                 IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
-                                                        static_cast<unsigned>(arguments.value("levels", 0)), stackFrames, totalFrames));
+                                                        static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
                 body["stackFrames"] = stackFrames;
-                body["totalFrames"] = totalFrames;
+                body["totalFrames"] = stackFrames.size();
 
                 return S_OK;
             }},

@@ -347,10 +347,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
 
     DWORD threadId = 0;
     pThread->GetID(&threadId);
-    int totalFrames = 0;
     std::vector<StackFrame> stackFrames;
     if ((threadId != 0U) &&
-        SUCCEEDED(m_debugger.GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames, totalFrames)))
+        SUCCEEDED(m_debugger.GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames)))
     {
         // Find first frame with source file data (code with PDB/user code).
         for (const StackFrame &stackFrame : stackFrames)
