@@ -10,6 +10,7 @@
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"
 #include "utils/platform.h"
+#include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>
 #include <vector>

@@ -6,6 +6,7 @@
 #include "metadata/modules_sources.h"
 #include "managed/interop.h"
 #include "metadata/modules.h"
+#include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>
 #include <algorithm>

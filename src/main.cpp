@@ -35,7 +35,6 @@ void print_help()
               << "--buildinfo                              Print build info.\n"
               << "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
               << "--log=<path to log file>                 Enable debugger logging to file.\n"
-              << "                                         File log by default. File is created in 'current' folder.\n"
               << "--version                                Displays the current version.\n";
 }
 

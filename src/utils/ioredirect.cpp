@@ -193,8 +193,9 @@ void IORedirectHelper::worker()
                 LOGD("requesting %u bytes to read", static_cast<int>(free_size));
                 async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
 
-                if (LOGE_IF(!async_handles[n], "can't issue async read request!"))
+                if (!async_handles[n])
                 {
+                    LOGE("can't issue async read request!");
                     return;
                 }
             }
@@ -208,8 +209,9 @@ void IORedirectHelper::worker()
         const IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
         if (result.status != IOSystem::IOResult::Pending)
         {
-            if (LOGE_IF(result.status != IOSystem::IOResult::Success, "control pipe read error"))
+            if (result.status != IOSystem::IOResult::Success)
             {
+                LOGE("control pipe read error");
                 return;
             }
 
@@ -251,8 +253,9 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, const OutStrea
         LOGD("have %u bytes unsent", static_cast<int>(bytes));
         out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
 
-        if (LOGE_IF(!out_handle, "can't issue async write request!"))
+        if (!out_handle)
         {
+            LOGE("can't issue async write request!");
             return;
         }
 
@@ -409,8 +412,9 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
     // issue read request for control pipe
     char dummybuf = 0;
     pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
-    if (LOGE_IF(!pipe_handle, "%s: control pipe reading error", __func__))
+    if (!pipe_handle)
     {
+        LOGE("%s: control pipe reading error", __func__);
         return AsyncResult::Error;
     }
 
@@ -434,8 +438,9 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
                 LOGD("requesting %u bytes to read", static_cast<int>(avail));
                 input_handle = IOSystem::async_read(instream.get_file_handle(), out->pptr(), avail);
 
-                if (LOGE_IF(!input_handle, "can't issue read request for real stdin"))
+                if (!input_handle)
                 {
+                    LOGE("can't issue read request for real stdin");
                     return AsyncResult::Error;
                 }
             }
@@ -462,8 +467,9 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
         IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
         if (result.status != IOSystem::IOResult::Pending)
         {
-            if (LOGE_IF(result.status != IOSystem::IOResult::Success, "control pipe read error"))
+            if (result.status != IOSystem::IOResult::Success)
             {
+                LOGE("control pipe read error");
                 return AsyncResult::Error;
             }
 

@@ -112,24 +112,15 @@ FILE *open_log_file()
 }
 } // namespace
 
-extern "C" int dlog_print(log_priority prio, const char *tag, const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    dlog_vprint(prio, tag, fmt, args);
-    va_end(args);
-    return 0;
-}
-
 // Function should form output line like this:
 //
-// 1500636976.777 I/HARDWARE(P 2293, T 2293): udev.c: uevent_control_cb(62) > Set udev monitor buffer size 131072
-// ^             ^  ^          ^       ^      ^       ^                 ^     ^
-// |             |  ` tag      `pid    ` tid  |       ` function name   |     ` user provided message...
-// |             ` log level                  ` file name               ` line number
+// 1500636976.777 I(P 2293, T 2293): udev.c: uevent_control_cb(62) > Set udev monitor buffer size 131072
+// ^              ^    ^       ^      ^       ^                 ^     ^
+// |              |    `pid    ` tid  |       ` function name   |     ` user provided message
+// |              ` log level         ` file name               ` line number
 // `--- time sec.msec
 //
-extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, va_list ap)
+extern "C" int dlog_vprint(log_priority prio, const char *fmt, va_list ap)
 {
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -154,8 +145,8 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
         return DLOG_ERROR_NOT_PERMITTED;
     }
 
-    const int len = fprintf(log_file, "%li.%03i %c/%s(P%4u, T%4u): ", static_cast<long>(ts.tv_sec & 0x7fffff),
-                            static_cast<int>(ts.tv_nsec / 1000000), level, tag, get_pid(), get_tid());
+    const int len = fprintf(log_file, "%li.%03i %c(P%4u, T%4u): ", static_cast<long>(ts.tv_sec & 0x7fffff),
+                            static_cast<int>(ts.tv_nsec / 1000000), level, get_pid(), get_tid());
 
     const int r = vfprintf(log_file, fmt, ap);
     if (r < 0)
@@ -166,4 +157,13 @@ extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, 
 
     static_cast<void>(fputc('\n', log_file));
     return fflush(log_file) < 0 ? DLOG_ERROR_NOT_PERMITTED : len + r + 1;
+}
+
+extern "C" int dlog_print(log_priority prio, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    dlog_vprint(prio, fmt, args);
+    va_end(args);
+    return 0;
 }

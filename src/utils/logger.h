@@ -2,12 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-// This file implements interface of Tizen's logger for linux/windows.
-// See Tizen's documentation and source code for details.
-// This file is usable only with C++ source code (plain C not supported).
-// This file might be used in place of dlog.h on Tizen platform too
-// (actually Tizen's logger functions will be called).
-
 #pragma once
 
 #include <stdarg.h>
@@ -22,12 +16,6 @@
 #error "This file applicable only in C++ source code, plain C not supported."
 #endif
 
-// This is the local tag used for the following simplified logging macros.
-// You can change this preprocessor definition before using the other macros to change the tag.
-#ifndef LOG_TAG
-#define LOG_TAG nullptr
-#endif
-
 // Log levels as defined in Tizen.
 enum log_priority
 {
@@ -40,24 +28,21 @@ enum log_priority
     DLOG_FATAL
 };
 
-// Main Tizen's log function:
-// this function writes log message with given priority and tag...
-extern "C" int dlog_print(log_priority prio, const char *tag, const char *fmt, ...)
+// this function writes log message with given priority
+extern "C" int dlog_print(log_priority prio, const char *fmt, ...)
 #ifndef _MSC_VER
-    __attribute__((format(printf, 3, 4))) // check printf arguments (GCC/Clang only)
+    __attribute__((format(printf, 2, 3))) // check printf arguments (GCC/Clang only)
 #endif
     ;
 
-// Alternative for case, when arguments passed as va_args.
-extern "C" int dlog_vprint(log_priority prio, const char *tag, const char *fmt, va_list ap);
-
-// Possible results of dlog_printf() function call.
-#define DLOG_ERROR_INVALID_PARAMETER (-1)
-#define DLOG_ERROR_NOT_PERMITTED (-2)
+// Possible results of dlog_print() function call.
+constexpr int DLOG_ERROR_INVALID_PARAMETER = -1;
+constexpr int DLOG_ERROR_NOT_PERMITTED  = -2;
 
 // All definitions in this namespace intendent only for internal usage.
 namespace DLogInternal
 {
+
 // This function computes file path (directory component) length at compile time.
 template <size_t N> constexpr size_t path_len(const char (&path)[N], size_t pos = N - 1)
 {
@@ -80,20 +65,6 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...)
 }
 #endif
 
-struct LogFuncEntry
-{
-    const char *const func;
-
-    LogFuncEntry(const char *func) : func(func)
-    {
-        dlog_print(DLOG_DEBUG, "ENTRY", "%s", func);
-    }
-
-    ~LogFuncEntry()
-    {
-        dlog_print(DLOG_DEBUG, "LEAVE", "%s", func);
-    }
-};
 } // namespace DLogInternal
 
 // Following macros shouldn't be used directly, it is intendent for internal use.
@@ -108,70 +79,21 @@ struct LogFuncEntry
 #endif
 
 // Following macros shouldn't be used directly, it is intendent for internal use.
-#define LOG_(prio, tag, fmt, ...) \
+#define LOG_(prio, fmt, ...) \
         (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
-        dlog_print(prio, tag, "%.*s: %.*s(%.*s) > " fmt, \
+        dlog_print(prio, "%.*s: %.*s(%.*s) > " fmt, \
             static_cast<int>(sizeof(__FILE__) - DLogInternal::path_len(__FILE__)), &__FILE__[DLogInternal::path_len(__FILE__)], \
             static_cast<int>(DLogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
             static_cast<int>(sizeof(LOG_S_(__LINE))), LOG_S_(__LINE__), \
             ##__VA_ARGS__))
 
-// These macros intendent to send a main log message using the current LOG_TAG.
-// Similar macros defined in original Tizen's dlog.h.
 #ifdef DEBUG
-#define LOGD(fmt, ...) LOG_(DLOG_DEBUG, LOG_TAG, fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...) LOG_(DLOG_DEBUG, fmt, ##__VA_ARGS__)
 #else
 #define LOGD(fmt, ...) LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__)
 #endif
 
-#define LOGI(fmt, ...) LOG_(DLOG_INFO, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOGW(fmt, ...) LOG_(DLOG_WARN, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOGE(fmt, ...) LOG_(DLOG_ERROR, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOGF(fmt, ...) LOG_(DLOG_FATAL, LOG_TAG, fmt, ##__VA_ARGS__)
-
-// This macro allows to specify priority and a tag.
-// The macro definition is similar to original from Tizen's dlog.h
-#define LOG(priority, tag, format, ...) LOG_(D##priority, tag, format, ##__VA_ARGS__)
-
-// ONLY FOR:
-// - ManagedCallback's callback methods;
-// - ManagedDebugger's methods called directly from protocols;
-// - All protocol's emit methods;
-// This feature provide only minimal info you would need in user's log for issue investigation.
-#ifdef DEBUG
-#ifdef _WIN32
-#define __CROSS_FUNCTION__ __FUNCSIG__
-#elif defined(__GNUC__)
-#define __CROSS_FUNCTION__ __PRETTY_FUNCTION__
-#else
-#define __CROSS_FUNCTION__ __func__
-#endif
-#define LogFuncEntry() const DLogInternal::LogFuncEntry _func_entry_(__CROSS_FUNCTION__)
-#else
-#define LogFuncEntry() do {} while(0)
-#endif
-
-// Macros for internal usage.
-#define LOG_IF_(prio, tag, expr, fmt, ...)  (!(expr) ? true : \
-        LOG_(prio, tag, "expression '%.*s' failed: " fmt, static_cast<int>(sizeof(#expr)), #expr, ##__VA_ARGS__), false)
-
-// Macros which is absent in dlog.h, added for Pavel Orekhov.
-// This macros allows to call some function and if function returns negative (false) result,
-// log some error message. First argument of macros should be logical expression (function call)
-// which returns boolean expression.
-//
-// Usage example:
-//
-//    HRESULT Status = S_OK;
-//    if (LOGD_IF(FAILED(Status = ApiCall(x, y)), "x = %d, y = %d", x, y))
-//      return E_FAIL;
-//
-#ifdef DEBUG
-#define LOGD_IF(expr, fmt, ...) LOG_IF_(DLOG_DEFAULT, LOG_TAG, expr, fmt, ##__VA_ARGS__)
-#else
-#define LOGD_IF(expr, fmt, ...) LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__)
-#endif
-
-#define LOGI_IF(expr, fmt, ...) LOG_IF_(DLOG_INFO, LOG_TAG, expr, fmt, ##__VA_ARGS__)
-#define LOGW_IF(expr, fmt, ...) LOG_IF_(DLOG_WARNING, LOG_TAG, expr, fmt, ##__VA_ARGS__)
-#define LOGE_IF(expr, fmt, ...) LOG_IF_(DLOG_ERROR, LOG_TAG, expr, fmt, ##__VA_ARGS__)
+#define LOGI(fmt, ...) LOG_(DLOG_INFO, fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...) LOG_(DLOG_WARN, fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...) LOG_(DLOG_ERROR, fmt, ##__VA_ARGS__)
+#define LOGF(fmt, ...) LOG_(DLOG_FATAL, fmt, ##__VA_ARGS__)

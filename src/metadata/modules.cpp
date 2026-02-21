@@ -7,6 +7,7 @@
 #include "managed/interop.h"
 #include "metadata/jmc.h"
 #include "metadata/typeprinter.h"
+#include "utils/logger.h"
 #include <array>
 #include <iomanip>
 #include <sstream>

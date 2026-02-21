@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "utils/logger.h"
 #include <cassert>
 
 namespace dncdbg
@@ -112,7 +111,7 @@ template <class T> class ToRelease
 };
 
 #ifndef IfFailRet
-#define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { LOGE("%s : 0x%08x", #EXPR, Status); return (Status); } } while (0)
+#define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { return (Status); } } while (0)
 #endif
 
 constexpr uint32_t mdNameLen = 2048;

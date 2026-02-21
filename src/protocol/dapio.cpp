@@ -4,7 +4,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "protocol/dapio.h"
-#include "utils/logger.h"
 #include <iostream>
 
 // for convenience
@@ -153,8 +152,6 @@ void DAPIO::EmitProcessEvent(PID pid, const std::string &argv0)
 
 void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
 {
-    LogFuncEntry();
-
     json body;
 
     switch (event.reason)
@@ -196,7 +193,6 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
 
 void DAPIO::EmitExitedEvent(const ExitedEvent &event)
 {
-    LogFuncEntry();
     json body;
     body["exitCode"] = event.exitCode;
     EmitEvent("exited", body);
@@ -204,14 +200,11 @@ void DAPIO::EmitExitedEvent(const ExitedEvent &event)
 
 void DAPIO::EmitTerminatedEvent()
 {
-    LogFuncEntry();
     EmitEvent("terminated", json::object());
 }
 
 void DAPIO::EmitContinuedEvent(ThreadId threadId)
 {
-    LogFuncEntry();
-
     json body;
 
     if (threadId)
@@ -225,7 +218,6 @@ void DAPIO::EmitContinuedEvent(ThreadId threadId)
 
 void DAPIO::EmitThreadEvent(const ThreadEvent &event)
 {
-    LogFuncEntry();
     json body;
 
     switch (event.reason)
@@ -247,7 +239,6 @@ void DAPIO::EmitThreadEvent(const ThreadEvent &event)
 
 void DAPIO::EmitModuleEvent(const ModuleEvent &event)
 {
-    LogFuncEntry();
     json body;
 
     switch (event.reason)
@@ -289,7 +280,6 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
 
 void DAPIO::EmitOutputEvent(const OutputEvent &event)
 {
-    LogFuncEntry();
     json body;
 
     switch(event.category)
@@ -319,7 +309,6 @@ void DAPIO::EmitOutputEvent(const OutputEvent &event)
 
 void DAPIO::EmitBreakpointEvent(const BreakpointEvent &event)
 {
-    LogFuncEntry();
     json body;
 
     switch (event.reason)
@@ -342,14 +331,11 @@ void DAPIO::EmitBreakpointEvent(const BreakpointEvent &event)
 
 void DAPIO::EmitInitializedEvent()
 {
-    LogFuncEntry();
     EmitEvent("initialized", json::object());
 }
 
 void DAPIO::EmitCapabilitiesEvent()
 {
-    LogFuncEntry();
-
     json body = json::object();
     json capabilities = json::object();
 

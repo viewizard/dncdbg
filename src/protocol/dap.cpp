@@ -7,6 +7,7 @@
 #include "protocol/dap.h"
 #include "protocol/dapio.h"
 #include "debugger/manageddebugger.h"
+#include "utils/logger.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <exception>
@@ -108,8 +109,6 @@ std::string ReadData(std::istream &cin)
             }
             break; // header and content delimiter
         }
-
-        LOGD("header: '%s'", line.c_str());
 
         if (line.size() > CONTENT_LENGTH.size() &&
             std::equal(CONTENT_LENGTH.begin(), CONTENT_LENGTH.end(), line.begin()))

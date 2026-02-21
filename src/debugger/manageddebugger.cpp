@@ -311,8 +311,6 @@ void ManagedDebugger::InvalidateLastStoppedThreadId()
 
 ThreadId ManagedDebugger::GetLastStoppedThreadId()
 {
-    LogFuncEntry();
-
     const std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
     return m_lastStoppedThreadId;
 }
@@ -354,8 +352,6 @@ ManagedDebugger::~ManagedDebugger()
 
 HRESULT ManagedDebugger::Initialize()
 {
-    LogFuncEntry();
-
     // TODO: Report capabilities and check client support
     m_startMethod = StartMethod::None;
     return S_OK;
@@ -386,8 +382,6 @@ HRESULT ManagedDebugger::RunIfReady()
 
 HRESULT ManagedDebugger::Attach(int pid)
 {
-    LogFuncEntry();
-
     m_startMethod = StartMethod::Attach;
     m_processId = pid;
     return RunIfReady();
@@ -396,8 +390,6 @@ HRESULT ManagedDebugger::Attach(int pid)
 HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
                                 const std::map<std::string, std::string> &env, const std::string &cwd, bool stopAtEntry)
 {
-    LogFuncEntry();
-
     m_startMethod = StartMethod::Launch;
     m_execPath = fileExec;
     m_execArgs = execArgs;
@@ -409,8 +401,6 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
 
 HRESULT ManagedDebugger::ConfigurationDone()
 {
-    LogFuncEntry();
-
     m_isConfigurationDone = true;
 
     return RunIfReady();
@@ -418,8 +408,6 @@ HRESULT ManagedDebugger::ConfigurationDone()
 
 HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
 {
-    LogFuncEntry();
-
     bool terminate = false;
     switch (action)
     {
@@ -467,8 +455,6 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
 
 HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -505,8 +491,6 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
 HRESULT ManagedDebugger::Continue(ThreadId threadId)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -539,8 +523,6 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
 HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -550,8 +532,6 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 
 HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -864,8 +844,6 @@ HRESULT ManagedDebugger::AttachToProcess()
 
 HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -878,7 +856,6 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                                  std::vector<Breakpoint> &breakpoints)
 {
-    LogFuncEntry();
     return m_uniqueBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
@@ -886,8 +863,6 @@ HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
                                               const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                               std::vector<Breakpoint> &breakpoints)
 {
-    LogFuncEntry();
-
     const bool haveProcess = HaveDebugProcess();
     return m_uniqueBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
 }
@@ -895,8 +870,6 @@ HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
 HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                                 std::vector<Breakpoint> &breakpoints)
 {
-    LogFuncEntry();
-
     const bool haveProcess = HaveDebugProcess();
     return m_uniqueBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
 }
@@ -938,8 +911,6 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
                                               unsigned maxFrames, std::vector<StackFrame> &stackFrames, int &totalFrames)
 {
-    LogFuncEntry();
-
     HRESULT Status = S_OK;
     int currentFrame = -1;
 
@@ -1119,8 +1090,6 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                        std::vector<StackFrame> &stackFrames, int &totalFrames)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -1137,8 +1106,6 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
 HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count,
                                       std::vector<Variable> &variables)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -1148,8 +1115,6 @@ HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilt
 
 HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -1160,8 +1125,6 @@ HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
 HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression, Variable &variable,
                                   std::string &output)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -1171,16 +1134,12 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
 
 void ManagedDebugger::CancelEvalRunning()
 {
-    LogFuncEntry();
-
     m_sharedEvalWaiter->CancelEvalRunning();
 }
 
 HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string &value, uint32_t ref,
                                      std::string &output)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
@@ -1191,8 +1150,6 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
 HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression,
                                        const std::string &value, std::string &output)
 {
-    LogFuncEntry();
-
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());

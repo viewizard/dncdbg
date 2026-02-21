@@ -7,6 +7,7 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "metadata/modules.h"
+#include "utils/logger.h"
 #include <sstream>
 #include <unordered_set>
 

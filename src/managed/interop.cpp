@@ -19,8 +19,8 @@
 #include <palclr.h>
 #endif
 
-#include "utils/logger.h" // NOLINT(misc-include-cleaner)
-#include "utils/torelease.h" // NOLINT(misc-include-cleaner)
+#include "utils/logger.h"
+#include "utils/torelease.h"
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
