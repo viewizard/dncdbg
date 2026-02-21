@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "types/types.h" // AsyncResult
 #include "utils/iosystem.h"
 #include "utils/platform.h"
 #include "utils/rwlock.h"
@@ -20,6 +19,13 @@
 
 namespace dncdbg
 {
+
+enum class AsyncResult
+{
+    Canceled, // function canceled due to debugger interruption
+    Error,    // IO error
+    Eof       // EOF reached
+};
 
 // This class allows to redirect standard input/output file of the program
 // (and its child processes), and provides event driven mechanism for

@@ -667,13 +667,6 @@ struct ExceptionBreakpoint
     }
 };
 
-enum class AsyncResult
-{
-    Canceled, // function canceled due to debugger interruption
-    Error,    // IO error
-    Eof       // EOF reached
-};
-
 enum class StepType
 {
     STEP_IN = 0,
