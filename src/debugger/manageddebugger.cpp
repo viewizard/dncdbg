@@ -21,7 +21,7 @@
 #include "debugger/variables.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
-#include "protocol/dap.h"
+#include "protocol/dapio.h"
 #include "utils/waitpid.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
@@ -317,12 +317,11 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
     return m_lastStoppedThreadId;
 }
 
-ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
+ManagedDebugger::ManagedDebugger()
     : m_processAttachedState(ProcessAttachedState::Unattached),
       m_lastStoppedThreadId(ThreadId::AllThreads),
       m_startMethod(StartMethod::None),
       m_isConfigurationDone(false),
-      pProtocol(pProtocol_),
       m_sharedThreads(new Threads),
       m_sharedModules(new Modules),
       m_sharedEvalWaiter(new EvalWaiter),
@@ -339,7 +338,7 @@ ManagedDebugger::ManagedDebugger(DAP *pProtocol_)
       m_unregisterToken(nullptr),
       m_processId(0),
       m_ioredirect({IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe()},
-            [this](auto &&PH1, auto &&PH2)
+            [](auto &&PH1, auto &&PH2)
             {
                 InputCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
             }),
@@ -457,7 +456,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
         const HRESULT Status = DetachFromProcess();
         if (SUCCEEDED(Status))
         {
-            pProtocol->EmitTerminatedEvent();
+            DAPIO::EmitTerminatedEvent();
         }
 
         return Status;
@@ -492,8 +491,8 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     IfFailRet(m_uniqueSteppers->SetupStep(pThread, stepType));
 
     m_sharedVariables->Clear();
-    FrameId::invalidate();                   // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // DAP need thread ID.
+    FrameId::invalidate();               // Clear all created during break frames.
+    DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
@@ -526,8 +525,8 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     }
 
     m_sharedVariables->Clear();
-    FrameId::invalidate();                   // Clear all created during break frames.
-    pProtocol->EmitContinuedEvent(threadId); // DAP need thread ID.
+    FrameId::invalidate();               // Clear all created during break frames.
+    DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_iCorProcess)))
@@ -577,7 +576,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         {
             ss << " mscordbi or mscordaccore libs is not the same version as the target CoreCLR.";
         }
-        self->pProtocol->EmitOutputEvent({OutputCategory::StdErr, ss.str()});
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         self->StartupCallbackHR = hr;
         return;
     }
@@ -698,7 +697,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         return E_FAIL;
     }
 
-    pProtocol->EmitProcessEvent(PID{m_processId}, fileExec);
+    DAPIO::EmitProcessEvent(PID{m_processId}, fileExec);
 
     return S_OK;
 }
@@ -1221,7 +1220,7 @@ void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 
 void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)
 {
-    pProtocol->EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()}));
+    DAPIO::EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()}));
 }
 
 } // namespace dncdbg

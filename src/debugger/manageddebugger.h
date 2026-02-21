@@ -25,7 +25,6 @@
 namespace dncdbg
 {
 
-class DAP;
 class Threads;
 class Steppers;
 class Evaluator;
@@ -62,7 +61,7 @@ class ManagedDebugger
 {
   public:
 
-    ManagedDebugger(DAP *pProtocol);
+    ManagedDebugger();
     ~ManagedDebugger();
 
     bool IsJustMyCode() const
@@ -131,7 +130,6 @@ class ManagedDebugger
     std::map<std::string, std::string> m_env;
     bool m_isConfigurationDone;
 
-    DAP *pProtocol;
     std::shared_ptr<Threads> m_sharedThreads;
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
@@ -160,7 +158,7 @@ class ManagedDebugger
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    void InputCallback(IORedirectHelper::StreamType, Utility::span<char> text);
+    static void InputCallback(IORedirectHelper::StreamType, Utility::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

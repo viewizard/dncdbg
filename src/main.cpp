@@ -5,6 +5,7 @@
 
 #include "buildinfo.h"
 #include "protocol/dap.h"
+#include "protocol/dapio.h"
 #include "utils/logger.h"
 
 #include <string>
@@ -145,12 +146,12 @@ int
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
-    dncdbg::DAP protocol(std::cin, std::cout);
-
     if (!protocolLogFilePath.empty())
     {
-        protocol.SetupProtocolLogging(protocolLogFilePath);
+        dncdbg::DAPIO::SetupProtocolLogging(protocolLogFilePath);
     }
+
+    dncdbg::DAP protocol;
 
     protocol.CommandLoop();
     return EXIT_SUCCESS;

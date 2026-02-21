@@ -13,7 +13,7 @@
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
-#include "protocol/dap.h"
+#include "protocol/dapio.h"
 #include <algorithm>
 
 namespace dncdbg
@@ -69,10 +69,10 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
     {
-        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, changeEvent.breakpoint.message});
-        m_debugger.pProtocol->EmitBreakpointEvent(changeEvent);
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, changeEvent.breakpoint.message});
+        DAPIO::EmitBreakpointEvent(changeEvent);
     }
-    m_debugger.pProtocol->EmitStoppedEvent(event);
+    DAPIO::EmitStoppedEvent(event);
     return true;
 }
 
@@ -88,7 +88,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
     const StoppedEvent event(StoppedEventReason::Step, threadId);
 
     m_debugger.SetLastStoppedThread(pThread);
-    m_debugger.pProtocol->EmitStoppedEvent(event);
+    DAPIO::EmitStoppedEvent(event);
     return true;
 }
 
@@ -107,7 +107,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     const ThreadId threadId(getThreadId(pThread));
 
     const StoppedEvent event(StoppedEventReason::Pause, threadId);
-    m_debugger.pProtocol->EmitStoppedEvent(event);
+    DAPIO::EmitStoppedEvent(event);
     return true;
 }
 
@@ -127,7 +127,7 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
-    m_debugger.pProtocol->EmitStoppedEvent(event);
+    DAPIO::EmitStoppedEvent(event);
     return true;
 }
 
@@ -349,7 +349,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     {
         // DAP event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);
-        m_debugger.pProtocol->EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, lastStoppedThread));
+        DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, lastStoppedThread));
         return S_OK;
     }
 

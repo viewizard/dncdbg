@@ -25,17 +25,13 @@ class DAP
 {
   public:
 
-    DAP(std::istream &input, std::ostream &output)
+    DAP()
         : m_exit(false),
-          m_sharedDebugger(nullptr),
-          cin(input),
-          cout(output),
-          m_seqCounter(1)
+          m_sharedDebugger(nullptr)
     {
     }
 
     void CreateManagedDebugger();
-    void SetupProtocolLogging(const std::string &path);
     void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
     {
         m_fileExec = fileExec;
@@ -46,39 +42,13 @@ class DAP
     HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
     HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
 
-    void EmitProcessEvent(PID, const std::string &argv0);
-    void EmitStoppedEvent(const StoppedEvent &event);
-    void EmitExitedEvent(const ExitedEvent &event);
-    void EmitTerminatedEvent();
-    void EmitContinuedEvent(ThreadId threadId);
-    void EmitThreadEvent(const ThreadEvent &event);
-    void EmitModuleEvent(const ModuleEvent &event);
-    void EmitOutputEvent(const OutputEvent &event);
-    void EmitBreakpointEvent(const BreakpointEvent &event);
-    void EmitInitializedEvent();
-    void EmitCapabilitiesEvent();
-
   private:
 
     std::atomic<bool> m_exit;
     std::shared_ptr<ManagedDebugger> m_sharedDebugger;
 
-    // File streams used to read commands and write responses.
-    std::istream &cin;
-    std::ostream &cout;
-
-    std::mutex m_outMutex;
-    std::ofstream m_protocolLog;
-    uint64_t m_seqCounter; // Note, this counter must be covered by m_outMutex.
-
     std::string m_fileExec;
     std::vector<std::string> m_execArgs;
-
-    void EmitMessage(nlohmann::json &message, std::string &output);
-    void EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message);
-    void EmitEvent(const std::string &name, const nlohmann::json &body);
-
-    void Log(const std::string_view &prefix, const std::string &text);
 
     struct CommandQueueEntry
     {

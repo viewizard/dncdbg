@@ -16,7 +16,7 @@
 #include "debugger/threads.h"
 #include "managed/interop.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
-#include "protocol/dap.h"
+#include "protocol/dapio.h"
 #include "utils/waitpid.h"
 #include "utils/utf.h"
 #include <array>
@@ -263,9 +263,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProces
     }
 #endif // FEATURE_PAL
 
-    m_debugger.pProtocol->EmitExitedEvent(ExitedEvent(exitCode));
+    DAPIO::EmitExitedEvent(ExitedEvent(exitCode));
     m_debugger.NotifyProcessExited();
-    m_debugger.pProtocol->EmitTerminatedEvent();
+    DAPIO::EmitTerminatedEvent();
     return S_OK;
 }
 
@@ -281,7 +281,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     const ThreadId threadId(getThreadId(pThread));
     m_debugger.m_sharedThreads->Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
+    DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
     m_debugger.m_uniqueBreakpoints->ManagedCallbackExitThread(pThread);
 
-    m_debugger.pProtocol->EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
+    DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
@@ -313,9 +313,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     m_debugger.m_sharedModules->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), outputText);
     if (!outputText.empty())
     {
-        m_debugger.pProtocol->EmitOutputEvent({OutputCategory::StdErr, outputText});
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, outputText});
     }
-    m_debugger.pProtocol->EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
+    DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
@@ -323,7 +323,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
         m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
         for (const BreakpointEvent &event : events)
         {
-            m_debugger.pProtocol->EmitBreakpointEvent(event);
+            DAPIO::EmitBreakpointEvent(event);
         }
     }
 
@@ -394,7 +394,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         }
     }
 
-    m_debugger.pProtocol->EmitOutputEvent(event);
+    DAPIO::EmitOutputEvent(event);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

@@ -46,6 +46,7 @@ set(dncdbg_SRC
     metadata/modules_sources.cpp
     metadata/typeprinter.cpp
     protocol/dap.cpp
+    protocol/dapio.cpp
     utils/utf.cpp
     main.cpp
     buildinfo.cpp

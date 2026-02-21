@@ -5,8 +5,8 @@
 
 #include "managed/interop.h"
 #include "protocol/dap.h"
+#include "protocol/dapio.h"
 #include "debugger/manageddebugger.h"
-#include "utils/logger.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <exception>
@@ -28,22 +28,6 @@ namespace dncdbg
 
 namespace
 {
-
-constexpr std::string_view TWO_CRLF("\r\n\r\n");
-constexpr std::string_view CONTENT_LENGTH("Content-Length: ");
-
-constexpr std::string_view LOG_COMMAND("-> (C) ");
-constexpr std::string_view LOG_RESPONSE("<- (R) ");
-constexpr std::string_view LOG_EVENT("<- (E) ");
-
-const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters()
-{
-    static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
-        {"all", ExceptionBreakpointFilter::THROW},
-        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
-    };
-    return exceptionFilters;
-}
 
 // Make sure we continue add new commands into queue only after current command execution is finished.
 // Note, configurationDone: prevent deadlock in _dup() call during std::getline() from stdin in main thread.
@@ -87,29 +71,6 @@ const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
         "attach"
     };
     return debuggerSetupCommandSet;
-}
-
-void AddCapabilitiesTo(json &capabilities)
-{
-    capabilities["supportsConfigurationDoneRequest"] = true;
-    capabilities["supportsFunctionBreakpoints"] = true;
-    capabilities["supportsConditionalBreakpoints"] = true;
-    capabilities["supportTerminateDebuggee"] = true;
-    capabilities["supportsSetVariable"] = true;
-    capabilities["supportsSetExpression"] = true;
-    capabilities["supportsTerminateRequest"] = true;
-    capabilities["supportsCancelRequest"] = true;
-    capabilities["supportsExceptionInfoRequest"] = true;
-    capabilities["supportsExceptionFilterOptions"] = true;
-    json excFilters = json::array();
-    for (const auto &entry : GetExceptionFilters())
-    {
-        const json filter{{"filter", entry.first},
-                          {"label",entry.first}};
-        excFilters.push_back(filter);
-    }
-    capabilities["exceptionBreakpointFilters"] = excFilters;
-    capabilities["supportsExceptionOptions"] = false; // TODO add implementation
 }
 
 std::string ReadData(std::istream &cin)
@@ -215,329 +176,6 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
 } // unnamed namespace
 
-static void to_json(json &j, const Source &s) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"name", s.name},
-             {"path", s.path}};
-}
-
-static void to_json(json &j, const Breakpoint &b) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"id",       b.id},
-             {"line",     b.line},
-             {"verified", b.verified}};
-    if (!b.message.empty())
-    {
-        j["message"] = b.message;
-    }
-    if (b.verified)
-    {
-        j["endLine"] = b.endLine;
-        if (!b.source.IsNull())
-        {
-            j["source"] = b.source;
-        }
-    }
-}
-
-static void to_json(json &j, const StackFrame &f) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"id",        static_cast<int>(f.id)},
-             {"name",      f.name},
-             {"line",      f.line},
-             {"column",    f.column},
-             {"endLine",   f.endLine},
-             {"endColumn", f.endColumn},
-             {"moduleId",  f.moduleId}};
-    if (!f.source.IsNull())
-    {
-        j["source"] = f.source;
-    }
-}
-
-static void to_json(json &j, const Thread &t) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"id", static_cast<int>(t.id)},
-             {"name", t.name}};
-          // {"running", t.running}
-}
-
-static void to_json(json &j, const Scope &s) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"name", s.name},
-             {"variablesReference", s.variablesReference},
-             {"expensive", false}};
-
-    if (s.variablesReference > 0)
-    {
-        j["namedVariables"] = s.namedVariables;
-        // j["indexedVariables"] = s.indexedVariables;
-    }
-}
-
-static void to_json(json &j, const Variable &v) // NOLINT(misc-use-anonymous-namespace)
-{
-    j = json{{"name", v.name},
-             {"value", v.value},
-             {"type", v.type},
-             {"evaluateName", v.evaluateName},
-             {"variablesReference", v.variablesReference}};
-
-    if (v.variablesReference > 0)
-    {
-        j["namedVariables"] = v.namedVariables;
-        // j["indexedVariables"] = v.indexedVariables;
-    }
-}
-
-void DAP::EmitContinuedEvent(ThreadId threadId)
-{
-    LogFuncEntry();
-
-    json body;
-
-    if (threadId)
-    {
-        body["threadId"] = static_cast<int>(threadId);
-    }
-
-    body["allThreadsContinued"] = true;
-    EmitEvent("continued", body);
-}
-
-void DAP::EmitStoppedEvent(const StoppedEvent &event)
-{
-    LogFuncEntry();
-
-    json body;
-
-    switch (event.reason)
-    {
-    case StoppedEventReason::Step:
-        body["reason"] = "step";
-        break;
-    case StoppedEventReason::Breakpoint:
-        body["reason"] = "breakpoint";
-        break;
-    case StoppedEventReason::Exception:
-        body["reason"] = "exception";
-        break;
-    case StoppedEventReason::Pause:
-        body["reason"] = "pause";
-        break;
-    case StoppedEventReason::Entry:
-        body["reason"] = "entry";
-        break;
-    }
-
-    // Note, `description` not in use at this moment, provide `reason` only.
-
-    if (!event.text.empty())
-    {
-        body["text"] = event.text;
-    }
-
-    body["threadId"] = static_cast<int>(event.threadId);
-    body["allThreadsStopped"] = event.allThreadsStopped;
-
-    // vsdbg shows additional info, but it is not a part of the protocol
-    // body["line"] = event.frame.line;
-    // body["column"] = event.frame.column;
-    // body["source"] = event.frame.source;
-
-    EmitEvent("stopped", body);
-}
-
-void DAP::EmitExitedEvent(const ExitedEvent &event)
-{
-    LogFuncEntry();
-    json body;
-    body["exitCode"] = event.exitCode;
-    EmitEvent("exited", body);
-}
-
-void DAP::EmitTerminatedEvent()
-{
-    LogFuncEntry();
-    EmitEvent("terminated", json::object());
-}
-
-void DAP::EmitThreadEvent(const ThreadEvent &event)
-{
-    LogFuncEntry();
-    json body;
-
-    switch (event.reason)
-    {
-    case ThreadEventReason::Started:
-        body["reason"] = "started";
-        break;
-    case ThreadEventReason::Exited:
-        body["reason"] = "exited";
-        break;
-    default:
-        return;
-    }
-
-    body["threadId"] = static_cast<int>(event.threadId);
-
-    EmitEvent("thread", body);
-}
-
-void DAP::EmitModuleEvent(const ModuleEvent &event)
-{
-    LogFuncEntry();
-    json body;
-
-    switch (event.reason)
-    {
-    case ModuleEventReason::New:
-        body["reason"] = "new";
-        break;
-    case ModuleEventReason::Changed:
-        body["reason"] = "changed";
-        break;
-    case ModuleEventReason::Removed:
-        body["reason"] = "removed";
-        break;
-    }
-
-    json &module = body["module"];
-    module["id"] = event.module.id;
-    module["name"] = event.module.name;
-    module["path"] = event.module.path;
-
-    if (event.reason != ModuleEventReason::Removed)
-    {
-        switch (event.module.symbolStatus)
-        {
-        case SymbolStatus::Skipped:
-            module["symbolStatus"] = "Skipped loading symbols.";
-            break;
-        case SymbolStatus::Loaded:
-            module["symbolStatus"] = "Symbols loaded.";
-            break;
-        case SymbolStatus::NotFound:
-            module["symbolStatus"] = "Symbols not found.";
-            break;
-        }
-    }
-
-    EmitEvent("module", body);
-}
-
-void DAP::EmitOutputEvent(const OutputEvent &event)
-{
-    LogFuncEntry();
-    json body;
-
-    switch(event.category)
-    {
-        case OutputCategory::Console:
-            body["category"] = "console";
-            break;
-        case OutputCategory::StdOut:
-            body["category"] = "stdout";
-            break;
-        case OutputCategory::StdErr:
-            body["category"] = "stderr";
-            break;
-    }
-
-    if (!event.source.IsNull())
-    {
-        body["source"] = event.source;
-        body["line"] = event.line;
-        body["column"] = event.column;
-    }
-
-    body["output"] = event.output;
-
-    EmitEvent("output", body);
-}
-
-void DAP::EmitBreakpointEvent(const BreakpointEvent &event)
-{
-    LogFuncEntry();
-    json body;
-
-    switch (event.reason)
-    {
-    case BreakpointEventReason::New:
-        body["reason"] = "new";
-        break;
-    case BreakpointEventReason::Changed:
-        body["reason"] = "changed";
-        break;
-    case BreakpointEventReason::Removed:
-        body["reason"] = "removed";
-        break;
-    }
-
-    body["breakpoint"] = event.breakpoint;
-
-    EmitEvent("breakpoint", body);
-}
-
-void DAP::EmitInitializedEvent()
-{
-    LogFuncEntry();
-    EmitEvent("initialized", json::object());
-}
-
-void DAP::EmitProcessEvent(PID pid, const std::string &argv0)
-{
-    json body;
-
-    body["name"] = argv0;
-    body["systemProcessId"] = PID::ScalarType(pid);
-    body["isLocalProcess"] = true;
-    body["startMethod"] = "launch";
-
-    EmitEvent("process", body);
-}
-
-void DAP::EmitCapabilitiesEvent()
-{
-    LogFuncEntry();
-
-    json body = json::object();
-    json capabilities = json::object();
-
-    AddCapabilitiesTo(capabilities);
-
-    body["capabilities"] = capabilities;
-
-    EmitEvent("capabilities", body);
-}
-
-// Caller must care about m_outMutex.
-void DAP::EmitMessage(nlohmann::json &message, std::string &output)
-{
-    message["seq"] = m_seqCounter;
-    ++m_seqCounter;
-    output = message.dump();
-    cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
-    cout.flush();
-}
-
-void DAP::EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message)
-{
-    const std::scoped_lock<std::mutex> lock(m_outMutex);
-    std::string output;
-    EmitMessage(message, output);
-    Log(message_prefix, output);
-}
-
-void DAP::EmitEvent(const std::string &name, const nlohmann::json &body)
-{
-    json message;
-    message["type"] = "event";
-    message["event"] = name;
-    message["body"] = body;
-    EmitMessageWithLog(LOG_EVENT, message);
-}
-
 HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body)
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &body)>;
@@ -546,7 +184,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 m_sharedDebugger->Initialize();
 
-                AddCapabilitiesTo(body);
+                DAPIO::AddCapabilitiesTo(body);
 
                 return S_OK;
             }},
@@ -565,8 +203,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 for (const auto &entry : filters)
                 {
-                    auto findFilter = GetExceptionFilters().find(entry);
-                    if (findFilter == GetExceptionFilters().end())
+                    auto findFilter = DAPIO::GetExceptionFilters().find(entry);
+                    if (findFilter == DAPIO::GetExceptionFilters().end())
                     {
                         return E_INVALIDARG;
                     }
@@ -583,8 +221,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         return E_INVALIDARG;
                     }
 
-                    auto findFilter = GetExceptionFilters().find(findId->second);
-                    if (findFilter == GetExceptionFilters().end())
+                    auto findFilter = DAPIO::GetExceptionFilters().find(findId->second);
+                    if (findFilter == DAPIO::GetExceptionFilters().end())
                     {
                         return E_INVALIDARG;
                     }
@@ -1085,7 +723,7 @@ void DAP::CommandsWorker()
             c.response["success"] = false;
         }
 
-        EmitMessageWithLog(LOG_RESPONSE, c.response);
+        DAPIO::EmitMessageWithLog(LOG_RESPONSE, c.response);
 
         // Post command action.
         if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().end())
@@ -1101,7 +739,7 @@ void DAP::CommandsWorker()
         // https://microsoft.github.io/debug-adapter-protocol/specification#arrow_left-initialized-event
         else if (c.command == "initialize" && SUCCEEDED(Status))
         {
-            EmitInitializedEvent();
+            DAPIO::EmitInitializedEvent();
         }
 
         lockCommandsMutex.lock();
@@ -1116,7 +754,7 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
     iter->response["success"] = false;
     iter->response["message"] =
         std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled.");
-    EmitMessageWithLog(LOG_RESPONSE, iter->response);
+    DAPIO::EmitMessageWithLog(LOG_RESPONSE, iter->response);
     return m_commandsQueue.erase(iter);
 }
 
@@ -1137,7 +775,7 @@ void DAP::CommandLoop()
 
     while (!m_exit)
     {
-        const std::string requestText = ReadData(cin);
+        const std::string requestText = ReadData(std::cin);
         if (requestText.empty())
         {
             CommandQueueEntry queueEntry;
@@ -1149,10 +787,7 @@ void DAP::CommandLoop()
             break;
         }
 
-        {
-            const std::scoped_lock<std::mutex> lock(m_outMutex);
-            Log(LOG_COMMAND, requestText);
-        }
+        DAPIO::Log(LOG_COMMAND, requestText);
 
         struct bad_format : public std::invalid_argument
         {
@@ -1191,7 +826,7 @@ void DAP::CommandLoop()
             // Pre command action.
             if (queueEntry.command == "initialize")
             {
-                EmitCapabilitiesEvent();
+                DAPIO::EmitCapabilitiesEvent();
             }
             else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().end())
             {
@@ -1243,7 +878,7 @@ void DAP::CommandLoop()
                     queueEntry.response["message"] = "CancelRequest is not supported for requestId.";
                 }
 
-                EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+                DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
                 continue;
             }
 
@@ -1274,32 +909,11 @@ void DAP::CommandLoop()
             queueEntry.response["message"] = std::string("can't parse: ") + ex.what();
         }
 
-        EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+        DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
     }
 
     commandsWorker.join();
     Interop::Shutdown();
-}
-
-void DAP::SetupProtocolLogging(const std::string &path)
-{
-    if (path.empty())
-    {
-        return;
-    }
-
-    m_protocolLog.open(path);
-}
-
-// Caller must care about m_outMutex.
-void DAP::Log(const std::string_view &prefix, const std::string &text)
-{
-    if (!m_protocolLog.is_open())
-    {
-        return;
-    }
-    
-    m_protocolLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 
 void DAP::CreateManagedDebugger()
@@ -1307,11 +921,11 @@ void DAP::CreateManagedDebugger()
     assert(m_sharedDebugger == nullptr);
     try
     {
-        m_sharedDebugger = std::make_shared<ManagedDebugger>(this);
+        m_sharedDebugger = std::make_shared<ManagedDebugger>();
     }
     catch (const std::exception &e)
     {
-        EmitOutputEvent(OutputEvent(OutputCategory::StdErr, e.what()));
+        DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdErr, e.what()));
     }
 }
 
