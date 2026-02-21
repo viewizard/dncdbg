@@ -158,14 +158,14 @@
 ####  DisconnectResponse
 ```diff
 ```
-#### TerminateRequest
+#### TerminateRequest `terminate`
 ```diff
 -   restart?: boolean;
 ```
 ####  TerminateResponse
 ```diff
 ```
-#### SetBreakpointsRequest `terminate`
+#### SetBreakpointsRequest `setBreakpoints`
 ```diff
 +   source: Source;
 +   breakpoints?: SourceBreakpoint[];
@@ -211,7 +211,7 @@
 -   singleThread?: boolean;
 -   granularity?: SteppingGranularity;
 ```
-#### NextResponse `next`
+#### NextResponse
 ```diff
 ```
 #### StepInRequest `stepIn`
@@ -221,7 +221,7 @@
 -   targetId?: number;
 -   granularity?: SteppingGranularity;
 ```
-#### StepInResponse `next`
+#### StepInResponse
 ```diff
 ```
 #### StepOutRequest `stepOut`
@@ -230,14 +230,14 @@
 -   singleThread?: boolean;
 -   granularity?: SteppingGranularity;
 ```
-#### StepOutResponse `next`
+#### StepOutResponse
 ```diff
 ```
 #### PauseRequest `pause`
 ```diff
 +   threadId: number;
 ```
-#### PauseResponse `next`
+#### PauseResponse
 ```diff
 ```
 #### StackTraceRequest `stackTrace`
