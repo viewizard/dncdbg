@@ -7,22 +7,12 @@
 #include <algorithm>
 #include <cstddef> // ptrdiff_t
 #include <mutex>
+#include <vector>
 
 // Important! All "types" code must not depends from other debugger's code.
 
 namespace dncdbg
 {
-
-namespace
-{
-
-std::string GetFileName(const std::string &path)
-{
-    const std::size_t i = path.find_last_of("/\\");
-    return i == std::string::npos ? path : path.substr(i + 1);
-}
-
-} // unnamed namespace
 
 // This class implements container, which hold elements of type `T', where
 // elements addressed by integral value of type `Key'. The `Key' can take
@@ -288,10 +278,6 @@ FrameLevel FrameId::getLevel() const noexcept
 void FrameId::invalidate()
 {
     KnownFrames::instance().get()->clear();
-}
-
-Source::Source(const std::string &path) : name(GetFileName(path)), path(path)
-{
 }
 
 } // namespace dncdbg

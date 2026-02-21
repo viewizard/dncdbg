@@ -12,6 +12,7 @@
 #endif
 
 #include "types/types.h"
+#include "types/protocol.h"
 #include "utils/torelease.h"
 #include <condition_variable>
 #include <functional>

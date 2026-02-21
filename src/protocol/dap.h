@@ -6,6 +6,7 @@
 #pragma once
 
 #include "types/types.h"
+#include "types/protocol.h"
 #include <json/json.hpp>
 #include <atomic>
 #include <condition_variable>

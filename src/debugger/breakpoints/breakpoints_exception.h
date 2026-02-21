@@ -12,6 +12,7 @@
 #endif
 
 #include "types/types.h"
+#include "types/protocol.h"
 #include <functional>
 #include <memory>
 #include <mutex>

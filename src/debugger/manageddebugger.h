@@ -12,6 +12,7 @@
 #endif
 
 #include "types/types.h"
+#include "types/protocol.h"
 #include "utils/ioredirect.h"
 #include "utils/dbgshim.h"
 #include "utils/rwlock.h"
