@@ -34,7 +34,6 @@ class DAPIO
   public:
 
     static void SetupProtocolLogging(const std::string &path);
-    static void ResetSeqCounter();
 
     static const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters();
     static void AddCapabilitiesTo(nlohmann::json &capabilities);

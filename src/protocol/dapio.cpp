@@ -133,11 +133,6 @@ void DAPIO::SetupProtocolLogging(const std::string &path)
     m_protocolLog.open(path);
 }
 
-void DAPIO::ResetSeqCounter()
-{
-    m_seqCounter = 1;
-}
-
 void DAPIO::EmitProcessEvent(PID pid, const std::string &argv0)
 {
     json body;
