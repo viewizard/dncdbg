@@ -924,7 +924,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         {
             currentFrame++;
 
-            if ((currentFrame < static_cast<int>(startFrame)) ||
+            if (currentFrame < static_cast<int>(startFrame) ||
                 (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
             {
                 return;
@@ -967,10 +967,10 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         return S_OK;
     }
 
-    // In case async method, user code could be moved to `.NET TP Worker` thread, but in case of
+    // In case of async method, user code could be moved to `.NET TP Worker` thread and in case of
     // unhandled exception in this user code, exception will be catched and retrown by not user code
-    // in initial code execution thread.
-    // This usually mean we don't have any apropriate stack trace with code above, so, we try analyze
+    // in initial async method code execution thread.
+    // This usually mean we don't have any appropriate stack trace with code above, so, we try analyze
     // exception object for real exception stack trace.
     static constexpr int triesLimit = 3;
     for (int tryCount = 0; tryCount < triesLimit; tryCount++)
@@ -979,9 +979,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         if (SUCCEEDED(GetExceptionInfo(threadId, exceptionInfo)))
         {
             std::stringstream ss(exceptionInfo.details.stackTrace);
-            int countOfNewFrames = 0;
-            int currentFrame = -1;
-            const size_t sizeofStackFrame = stackFrames.size();
+            std::vector<StackFrame> exStackFrames;
+            currentFrame = -1;
 
             // The stackTrace strings from ExceptionInfo usually looks like:
             // at Program.Func2(string[] strvect) in /home/user/work/vscode_test/utils.cs:line 122
@@ -1057,24 +1056,42 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 }
 
                 currentFrame++;
-                if (currentFrame < static_cast<int>(startFrame) ||
-                    (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+                if (currentFrame < static_cast<int>(startFrame))
                 {
                     continue;
                 }
+                if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+                {
+                    break;
+                }
 
-                const int l{std::stoi(line.substr(beginlinenum, endlinenum))};
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, line.substr(beginname, endname - beginname));
-                stackFrames.back().source = Source(line.substr(beginpath, lastcolon - beginpath));
-                stackFrames.back().line = stackFrames.back().endLine = l;
-                countOfNewFrames++;
+                const int lineNum(std::stoi(line.substr(beginlinenum, endlinenum)));
+                exStackFrames.emplace_back(threadId, FrameLevel{currentFrame}, line.substr(beginname, endname - beginname));
+                exStackFrames.back().source = Source(line.substr(beginpath, lastcolon - beginpath));
+                exStackFrames.back().line = lineNum;
+                exStackFrames.back().endLine = lineNum;
             }
 
-            if (countOfNewFrames > 0)
+            if (exStackFrames.empty())
             {
-                stackFrames.erase(stackFrames.begin(), std::next(stackFrames.begin(), static_cast<intptr_t>(sizeofStackFrame)));
                 break;
             }
+
+            if (maxFrames == 0 || (maxFrames != 0 && exStackFrames.size() < maxFrames))
+            {
+                for (auto &frame : stackFrames)
+                {
+                    frame.id = FrameId(threadId, FrameLevel{static_cast<int>(exStackFrames.size())});
+                    exStackFrames.emplace_back(frame);
+                    if (maxFrames != 0 && exStackFrames.size() >= maxFrames)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            stackFrames = std::move(exStackFrames);
+            break;
         }
     }
 
