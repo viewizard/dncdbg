@@ -388,7 +388,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 std::vector<StackFrame> stackFrames;
                 IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
-                                                        static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
+                                                          static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
                 body["stackFrames"] = stackFrames;
                 body["totalFrames"] = stackFrames.size();
@@ -412,17 +412,17 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"next", [&](const json &arguments, json &/*body*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                   StepType::STEP_OVER);
+                                                     StepType::STEP_OVER);
             }},
         {"stepIn", [&](const json &arguments, json &/*body*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                   StepType::STEP_IN);
+                                                     StepType::STEP_IN);
             }},
         {"stepOut", [&](const json &arguments, json &/*body*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                   StepType::STEP_OUT);
+                                                     StepType::STEP_OUT);
             }},
         {"scopes", [&](const json &arguments, json &body)
             {
@@ -451,8 +451,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 std::vector<Variable> variables;
                 IfFailRet(m_sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,
-                                                       arguments.value("start", 0), arguments.value("count", 0),
-                                                       variables));
+                                                         arguments.value("start", 0), arguments.value("count", 0),
+                                                         variables));
 
                 body["variables"] = variables;
 
