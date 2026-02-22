@@ -58,4 +58,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed logic bug in TryParseSlotIndex method.
 - Fixed bug in corhost related logic (TPA list creation).
 - Fixed some methods `void *&` (`PVOID &`) parameters to `void **`.
-- Fixed stacktrace for exception in async methods.
+- Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).

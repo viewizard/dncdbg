@@ -108,6 +108,9 @@ class ManagedDebugger
 
   private:
 
+    friend class ManagedCallback;
+    friend class CallbacksQueue;
+
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
     std::condition_variable m_processAttachedCV;
     ProcessAttachedState m_processAttachedState;
@@ -167,8 +170,11 @@ class ManagedDebugger
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                  std::vector<StackFrame> &stackFrames);
 
-    friend class ManagedCallback;
-    friend class CallbacksQueue;
+    CORDB_ADDRESS PrivateCoreLibModAddress;
+    mdMethodDef ExceptionDispatchInfoThrowMethodDef;
+    HRESULT FindExceptionDispatchInfoThrow(CORDB_ADDRESS &modAddress, mdMethodDef &methodDef);
+    bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
+    HRESULT GetExceptionStackTrace(ICorDebugThread *pThread, std::string &stackTrace);
 
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     HRESULT StartupCallbackHR;
