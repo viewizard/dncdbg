@@ -913,8 +913,80 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
     {
         ss << typeName << ".";
     }
-    ss << methodName << "()";
+    ss << methodName << "(";
 
+    auto addMethodParameters = [&]() -> HRESULT
+    {
+        ToRelease<ICorDebugFunction> trFunction;
+        IfFailRet(pFrame->GetFunction(&trFunction));
+
+        ToRelease<ICorDebugModule> trModule;
+        IfFailRet(trFunction->GetModule(&trModule));
+
+        ToRelease<IUnknown> trMDUnknown;
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trMDUnknown));
+        ToRelease<IMetaDataImport> trMD;
+        IfFailRet(trMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMD)));
+
+        mdMethodDef methodDef = mdMethodDefNil;
+        IfFailRet(trFunction->GetToken(&methodDef));
+
+        ToRelease<ICorDebugILFrame> trILFrame;
+        IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+        ULONG cArguments = 0;
+        ToRelease<ICorDebugValueEnum> trArgumentEnum;
+        IfFailRet(trILFrame->EnumerateArguments(&trArgumentEnum));
+        IfFailRet(trArgumentEnum->GetCount(&cArguments));
+
+        DWORD methodAttr = 0;
+        std::array<WCHAR, mdNameLen> szMethod{};
+        ULONG szMethodLen = 0;
+        IfFailRet(trMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
+                                    &methodAttr, nullptr, nullptr, nullptr, nullptr));
+
+        const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
+        for (ULONG i = i_start; i < cArguments; i++)
+        {
+            // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
+            // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
+            // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
+            const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+            std::array<WCHAR, mdNameLen> wParamName{};
+            ULONG paramNameLen = 0;
+            mdParamDef paramDef = mdParamDefNil;
+            if (FAILED(trMD->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
+                FAILED(trMD->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
+                                        &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            if (i != i_start)
+            {
+                    ss << ", ";
+            }
+
+            // TODO GetArgument() failed for some frames with optimized code, change to method PCCOR_SIGNATURE from GetMethodProps()
+            // and parse it with ParseElementType() for proper types, since we don't really need ICorDebugValue here, only types.
+
+            ToRelease<ICorDebugValue> trValue;
+            if (SUCCEEDED(trILFrame->GetArgument(i, &trValue)))
+            {
+                std::string valueType;
+                GetTypeOfValue(trValue, valueType);
+                ss << valueType << " ";
+            }
+            // else
+            //    in case of fail, ignore parameter for now
+
+            ss << to_utf8(wParamName.data());
+        }
+        return S_OK;
+    };
+    addMethodParameters();
+
+    ss << ")";
     output = ss.str();
     return S_OK;
 }
