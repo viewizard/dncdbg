@@ -1019,7 +1019,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             if (SUCCEEDED(GetExceptionStackTrace(pThread, stackTrace)))
             {
                 std::stringstream ss(stackTrace);
-                // The stackTrace strings from ExceptionInfo usually looks like:
+                // The stackTrace strings from exception usually looks like:
                 // at Program.Func2(string[] strvect) in /home/user/work/vscode_test/utils.cs:line 122
                 // at Program.Func1<int, char>() in /home/user/work/vscode_test/utils.cs:line 78
                 // at Program.Main() in /home/user/work/vscode_test/Program.cs:line 25
