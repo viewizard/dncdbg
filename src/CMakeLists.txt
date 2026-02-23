@@ -43,6 +43,7 @@ set(dncdbg_SRC
     managed/interop.cpp
     metadata/attributes.cpp
     metadata/jmc.cpp
+    metadata/sigparse.cpp
     metadata/typeprinter.cpp
     protocol/dap.cpp
     protocol/dapio.cpp

@@ -11,6 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/torelease.h"
 #include <functional>
@@ -27,35 +28,6 @@ class EvalStackMachine;
 class Evaluator
 {
   public:
-
-    struct ArgElementType
-    {
-        CorElementType corType = ELEMENT_TYPE_MAX;
-        std::string typeName;
-
-        ArgElementType()
-            : corType(ELEMENT_TYPE_MAX)
-        {}
-
-        ArgElementType(CorElementType t, std::string n)
-        {
-            corType = t;
-            typeName = n;
-        }
-
-        static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
-        bool areEqual(const ArgElementType &arg) const;
-        inline bool operator==(const ArgElementType &arg)
-        {
-            return areEqual(arg);
-        }
-        inline bool operator!=(const ArgElementType &arg)
-        {
-            return !areEqual(arg);
-        }
-    };
-
-    using ReturnElementType = ArgElementType;
 
     struct SetterData
     {
@@ -93,7 +65,8 @@ class Evaluator
     using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)>;
     using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
-    using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)>;
+    using ReturnElementType = SigElementType;
+    using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<SigElementType> &, GetFunctionCallback)>;
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
@@ -116,8 +89,8 @@ class Evaluator
     static HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
 
     HRESULT LookupExtensionMethods(ICorDebugType *pType, const std::string &methodName,
-                                   std::vector<Evaluator::ArgElementType> &methodArgs,
-                                   std::vector<Evaluator::ArgElementType> &methodGenerics,
+                                   std::vector<SigElementType> &methodArgs,
+                                   std::vector<SigElementType> &methodGenerics,
                                    ICorDebugFunction **ppCorFunc);
 
     HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
@@ -133,13 +106,13 @@ class Evaluator
 
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
-                        std::vector<Evaluator::ArgElementType> &methodGenerics, const WalkMethodsCallback &cb);
+                        std::vector<SigElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
                      const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
                      std::string &output);
 
-    static ArgElementType GetElementTypeByTypeName(const std::string &typeName);
+    static SigElementType GetElementTypeByTypeName(const std::string &typeName);
 
   private:
 
