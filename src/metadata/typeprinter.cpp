@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/typeprinter.h"
+#include "metadata/sigparse.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
@@ -942,8 +943,16 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         DWORD methodAttr = 0;
         std::array<WCHAR, mdNameLen> szMethod{};
         ULONG szMethodLen = 0;
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
         IfFailRet(trMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
-                                    &methodAttr, nullptr, nullptr, nullptr, nullptr));
+                                       &methodAttr, &pSig, &cbSig, nullptr, nullptr));
+
+        SigElementType returnElementType;
+        std::vector<SigElementType> argElementTypes;
+        const std::vector<SigElementType> typeGenerics; // TODO fill this vector
+        const std::vector<SigElementType> methodGenerics; // TODO fill this vector
+        IfFailRet(SigParse(trMD, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes, true));
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)
@@ -957,7 +966,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
             mdParamDef paramDef = mdParamDefNil;
             if (FAILED(trMD->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
                 FAILED(trMD->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
-                                        &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+                                           &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -967,18 +976,19 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
                     ss << ", ";
             }
 
-            // TODO GetArgument() failed for some frames with optimized code, change to method PCCOR_SIGNATURE from GetMethodProps()
-            // and parse it with ParseElementType() for proper types, since we don't really need ICorDebugValue here, only types.
-
+            std::string valueType;
             ToRelease<ICorDebugValue> trValue;
-            if (SUCCEEDED(trILFrame->GetArgument(i, &trValue)))
+            if (argElementTypes.size() > i && !argElementTypes[i].typeName.empty())
             {
-                std::string valueType;
-                GetTypeOfValue(trValue, valueType);
+                ss << argElementTypes[i].typeName << " ";
+            }
+            else if (SUCCEEDED(trILFrame->GetArgument(i, &trValue)) &&
+                     SUCCEEDED(GetTypeOfValue(trValue, valueType)))
+            {
                 ss << valueType << " ";
             }
             // else
-            //    in case of fail, ignore parameter for now
+            //    in case of fail, ignore parameter type, print only parameter name
 
             ss << to_utf8(wParamName.data());
         }

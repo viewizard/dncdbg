@@ -282,7 +282,7 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
 // Return S_FALSE in case abort parsing, since next block are not implemented.
 HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
                  const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
-                 std::vector<SigElementType> &argElementTypes)
+                 std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics
@@ -317,7 +317,7 @@ HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<S
     pSig += elementSize;
 
     // 4. return type
-    IfFailRet(ParseElementType(pMD, &pSig, returnElementType, typeGenerics, methodGenerics));
+    IfFailRet(ParseElementType(pMD, &pSig, returnElementType, typeGenerics, methodGenerics, addCorTypeName));
     if (Status == S_FALSE)
     {
         return S_FALSE;
@@ -327,7 +327,7 @@ HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<S
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMD, &pSig, argElementTypes[i], typeGenerics, methodGenerics));
+        IfFailRet(ParseElementType(pMD, &pSig, argElementTypes[i], typeGenerics, methodGenerics, addCorTypeName));
         if (Status == S_FALSE)
         {
             return S_FALSE;

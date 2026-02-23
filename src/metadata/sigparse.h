@@ -50,6 +50,6 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
 
 HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
                  const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
-                 std::vector<SigElementType> &argElementTypes);
+                 std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 
 } // namespace dncdbg
