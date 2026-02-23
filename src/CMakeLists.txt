@@ -29,32 +29,29 @@ set(dncdbg_SRC
     debugger/evalhelpers.cpp
     debugger/evalstackmachine.cpp
     debugger/evaluator.cpp
-    debugger/evalwaiter.cpp
     debugger/evalutils.cpp
+    debugger/evalwaiter.cpp
     debugger/frames.cpp
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp
     debugger/threads.cpp
     debugger/valueprint.cpp
     debugger/variables.cpp
-    types/types.cpp
+    debuginfo/async_info.cpp
+    debuginfo/modules_sources.cpp
+    debuginfo/modules.cpp
     managed/interop.cpp
     metadata/attributes.cpp
-    metadata/async_info.cpp
     metadata/jmc.cpp
-    metadata/modules.cpp
-    metadata/modules_sources.cpp
     metadata/typeprinter.cpp
     protocol/dap.cpp
     protocol/dapio.cpp
-    utils/utf.cpp
-    main.cpp
-    buildinfo.cpp
+    types/types.cpp
     utils/dynlibs_unix.cpp
     utils/dynlibs_win32.cpp
-    utils/filesystem.cpp
     utils/filesystem_unix.cpp
     utils/filesystem_win32.cpp
+    utils/filesystem.cpp
     utils/ioredirect.cpp
     utils/iosystem_unix.cpp
     utils/iosystem_win32.cpp
@@ -62,7 +59,10 @@ set(dncdbg_SRC
     utils/platform_unix.cpp
     utils/platform_win32.cpp
     utils/streams.cpp
+    utils/utf.cpp
     utils/waitpid.cpp
+    buildinfo.cpp
+    main.cpp
     )
 
 # clang-tidy for dncdbg build only

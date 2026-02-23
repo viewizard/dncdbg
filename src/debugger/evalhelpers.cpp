@@ -7,7 +7,7 @@
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
 #include "debugger/valueprint.h"
-#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
 #include "utils/platform.h"
 #include "utils/utf.h"

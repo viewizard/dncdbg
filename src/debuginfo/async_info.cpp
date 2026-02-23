@@ -3,9 +3,9 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "metadata/async_info.h"
+#include "debuginfo/async_info.h"
+#include "debuginfo/modules.h"
 #include "managed/interop.h"
-#include "metadata/modules.h"
 
 namespace dncdbg
 {

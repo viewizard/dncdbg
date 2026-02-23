@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "metadata/modules.h"
+#include "debuginfo/modules.h"
 #include "managed/interop.h"
 #include "metadata/jmc.h"
 #include "metadata/typeprinter.h"

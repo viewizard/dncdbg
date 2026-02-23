@@ -6,8 +6,8 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h"
+#include "debuginfo/modules.h" // NOLINT(misc-include-cleaner)
 #include "metadata/attributes.h"
-#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <array>
