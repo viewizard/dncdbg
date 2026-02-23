@@ -589,7 +589,7 @@ HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
 
 HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                  std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
-                                 Modules *pModules, ICorDebugModule *pModule,
+                                 DebugInfo *pDebugInfo, ICorDebugModule *pModule,
                                  Evaluator::WalkStackVarsCallback cb)
 {
     HRESULT Status = S_OK;
@@ -650,14 +650,14 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputVal
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, false));
             IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                               pModules, pModule, cb));
+                                               pDebugInfo, pModule, cb));
         }
         else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
         {
             if (hoistedLocalScopesCount == -1)
             {
                 void *data = nullptr;
-                if (SUCCEEDED(pModules->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
+                if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
                 {
                     hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
                 }
@@ -816,7 +816,7 @@ HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::str
     std::vector<std::string> fullpath;
 
     ToRelease<ICorDebugModule> pModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedModules.get(), nullptr, nullptr, &pModule));
+    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, nullptr, &pModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -834,7 +834,7 @@ HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::str
 
         nextClassIdentifier = 0;
         ToRelease<ICorDebugType> pType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), pModule, &pType)))
         {
             break;
         }
@@ -1497,7 +1497,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     // GetFrameILAndSequencePoint() return "success" code only in case it found sequence point
     // for current IP, that mean we stop inside user code.
     // Note, we could have request for not user code, we ignore it and this is OK.
-    if (FAILED(m_sharedModules->GetFrameILAndSequencePoint(pFrame, currentIlOffset, sp)))
+    if (FAILED(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, currentIlOffset, sp)))
     {
         return S_OK;
     }
@@ -1630,7 +1630,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         WSTRING wLocalName;
         int32_t ilStart = 0;
         int32_t ilEnd = 0;
-        if (FAILED(m_sharedModules->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)) ||
+        if (FAILED(m_sharedDebugInfo->GetFrameNamedLocalVariable(pModule, methodDef, i, wLocalName, &ilStart, &ilEnd)) ||
             ilStart < 0 ||
             ilEnd < 0 ||
             currentIlOffset < static_cast<uint32_t>(ilStart) ||
@@ -1660,7 +1660,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, false));
             IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                               m_sharedModules.get(), pModule, cb));
+                                               m_sharedDebugInfo.get(), pModule, cb));
             continue;
         }
 
@@ -1673,7 +1673,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
-        return WalkGeneratedClassFields(pMD, currentThis, currentIlOffset, usedNames, methodDef, m_sharedModules.get(), pModule, cb);
+        return WalkGeneratedClassFields(pMD, currentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), pModule, cb);
     }
 
     return S_OK;
@@ -1751,7 +1751,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<std::string> fullpath;
 
     ToRelease<ICorDebugModule> pModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedModules.get(), nullptr, nullptr, &pModule));
+    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, nullptr, &pModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -1769,7 +1769,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             fullpath.push_back(identifiers[i]);
         }
 
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedModules.get(), pModule, &pType)))
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), pModule, &pType)))
         {
             break;
         }
@@ -1937,7 +1937,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         ToRelease<ICorDebugType> pType;
-        IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, m_sharedModules.get(), nullptr, &pType));
+        IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, &pType));
         IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, pType, &pResolvedValue));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
@@ -1992,7 +1992,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
         }
     }
 
-    m_sharedModules->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
+    m_sharedDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
     {
         ULONG typesCnt = 0;
         HCORENUM fTypeEnum = nullptr;

@@ -20,7 +20,7 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 class EvalHelpers;
 class EvalStackMachine;
 
@@ -95,10 +95,10 @@ class Evaluator
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
     using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<ArgElementType> &, GetFunctionCallback)>;
 
-    Evaluator(std::shared_ptr<Modules> &sharedModules,
+    Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
               std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedModules(sharedModules),
+        : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedEvalHelpers(sharedEvalHelpers),
           m_sharedEvalStackMachine(sharedEvalStackMachine)
     {}
@@ -143,7 +143,7 @@ class Evaluator
 
   private:
 
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
 };

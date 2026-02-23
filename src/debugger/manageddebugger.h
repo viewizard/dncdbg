@@ -35,7 +35,7 @@ class Variables;
 class ManagedCallback;
 class CallbacksQueue;
 class Breakpoints;
-class Modules;
+class DebugInfo;
 
 enum class ProcessAttachedState
 {
@@ -134,7 +134,7 @@ class ManagedDebugger
     bool m_isConfigurationDone;
 
     std::shared_ptr<Threads> m_sharedThreads;
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;

@@ -53,7 +53,7 @@ class Variables
 
     HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &variable);
 
-    void Clear()
+    void Cleanup()
     {
         m_referencesMutex.lock();
         m_references.clear();

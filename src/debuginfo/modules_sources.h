@@ -84,10 +84,10 @@ struct method_data_t_hash
     }
 };
 
-class Modules;
-struct ModuleInfo;
+class DebugInfo;
+struct PDBInfo;
 
-class ModulesSources
+class DebugInfoSources
 {
   public:
 
@@ -110,7 +110,7 @@ class ModulesSources
     };
 
     HRESULT ResolveBreakpoint(
-        /*in*/ Modules *pModules,
+        /*in*/ DebugInfo *pDebugInfo,
         /*in*/ CORDB_ADDRESS modAddress,
         /*in*/ const std::string &filename,
         /*out*/ unsigned &fullname_index,

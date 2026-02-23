@@ -41,8 +41,8 @@ HRESULT EnableOneICorBreakpointForLine(std::list<SourceBreakpoints::ManagedSourc
 
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
-HRESULT ResolveSourceBreakpoint(Modules *pModules, ICorDebugModule *pModule, SourceBreakpoints::ManagedSourceBreakpoint &bp,
-                                const std::string &bp_fullname, std::vector<ModulesSources::resolved_bp_t> &resolvedPoints,
+HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, SourceBreakpoints::ManagedSourceBreakpoint &bp,
+                                const std::string &bp_fullname, std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints,
                                 unsigned &bp_fullname_index)
 {
     if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
@@ -58,7 +58,7 @@ HRESULT ResolveSourceBreakpoint(Modules *pModules, ICorDebugModule *pModule, Sou
         IfFailRet(pModule->GetBaseAddress(&modAddress));
     }
 
-    IfFailRet(pModules->ResolveBreakpoint(modAddress, bp_fullname, bp_fullname_index, bp.linenum, resolvedPoints));
+    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, bp_fullname, bp_fullname_index, bp.linenum, resolvedPoints));
     if (resolvedPoints.empty())
     {
         return E_FAIL;
@@ -68,7 +68,7 @@ HRESULT ResolveSourceBreakpoint(Modules *pModules, ICorDebugModule *pModule, Sou
 }
 
 HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp, const std::string &bp_fullname,
-                                 bool justMyCode, const std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
+                                 bool justMyCode, const std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -159,10 +159,10 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
 
     uint32_t ilOffset = 0;
     SequencePoint sp;
-    IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
+    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
 
     unsigned filenameIndex = 0;
-    IfFailRet(m_sharedModules->GetIndexBySourceFullPath(sp.document, filenameIndex));
+    IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.document, filenameIndex));
 
     auto breakpoints = m_lineResolvedBreakpoints.find(filenameIndex);
     if (breakpoints == m_lineResolvedBreakpoints.end())
@@ -250,9 +250,9 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
             bp.endLine = initialBreakpoint.breakpoint.line;
             bp.condition = initialBreakpoint.breakpoint.condition;
             unsigned resolved_fullname_index = 0;
-            std::vector<ModulesSources::resolved_bp_t> resolvedPoints;
+            std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
-            if (FAILED(ResolveSourceBreakpoint(m_sharedModules.get(), pModule, bp, initialBreakpoints.first,
+            if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialBreakpoints.first,
                                                resolvedPoints, resolved_fullname_index)) ||
                 FAILED(ActivateSourceBreakpoint(bp, initialBreakpoints.first, m_justMyCode, resolvedPoints)))
             {
@@ -260,7 +260,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
             }
 
             std::string resolved_fullname;
-            m_sharedModules->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
+            m_sharedDebugInfo->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
 
             Breakpoint breakpoint;
             bp.ToBreakpoint(breakpoint, resolved_fullname);
@@ -384,16 +384,16 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             bp.endLine = line;
             bp.condition = initialBreakpoint.breakpoint.condition;
             unsigned resolved_fullname_index = 0;
-            std::vector<ModulesSources::resolved_bp_t> resolvedPoints;
+            std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
             if (haveProcess &&
-                SUCCEEDED(ResolveSourceBreakpoint(m_sharedModules.get(), nullptr, bp, filename, resolvedPoints, resolved_fullname_index)) &&
+                SUCCEEDED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), nullptr, bp, filename, resolvedPoints, resolved_fullname_index)) &&
                 SUCCEEDED(ActivateSourceBreakpoint(bp, filename, m_justMyCode, resolvedPoints)))
             {
                 initialBreakpoint.resolved_fullname_index = resolved_fullname_index;
                 initialBreakpoint.resolved_linenum = bp.linenum;
                 std::string resolved_fullname;
-                m_sharedModules->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
+                m_sharedDebugInfo->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
                 bp.ToBreakpoint(breakpoint, resolved_fullname);
                 m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
                 EnableOneICorBreakpointForLine(m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
@@ -442,7 +442,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                     // Existing breakpoint
                     bp.condition = initialBreakpoint.breakpoint.condition;
                     std::string resolved_fullname;
-                    m_sharedModules->GetSourceFullPathByIndex(initialBreakpoint.resolved_fullname_index, resolved_fullname);
+                    m_sharedDebugInfo->GetSourceFullPathByIndex(initialBreakpoint.resolved_fullname_index, resolved_fullname);
                     bp.ToBreakpoint(breakpoint, resolved_fullname);
                     break;
                 }

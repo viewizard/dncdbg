@@ -18,14 +18,14 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 
 class SimpleStepper
 {
   public:
 
-    SimpleStepper(std::shared_ptr<Modules> &sharedModules)
-        : m_sharedModules(sharedModules),
+    SimpleStepper(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+        : m_sharedDebugInfo(sharedDebugInfo),
           m_justMyCode(true),
           m_enabledSimpleStepId(0)
     {}
@@ -51,7 +51,7 @@ class SimpleStepper
 
   private:
 
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     bool m_justMyCode;
 
     std::mutex m_stepMutex;

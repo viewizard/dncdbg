@@ -115,11 +115,11 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 // Try to setup proper entry breakpoint method token and IL offset for async Main method.
 // [in] pModule - module with async Main method;
 // [in] pMD - metadata interface for pModule;
-// [in] pModules - all loaded modules debug related data;
+// [in] pDebugInfo - all loaded modules debug related data;
 // [in] mdMainClass - class token with Main method in module pModule;
 // [out] entryPointToken - corrected method token;
 // [out] entryPointOffset - corrected IL offset on first user code line.
-HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, Modules *pModules,
+HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, DebugInfo *pDebugInfo,
                                      mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
     // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
@@ -182,7 +182,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
 
     // Note, in case of async `MoveNext` method, user code don't start from 0 IL offset.
     uint32_t ilNextOffset = 0;
-    IfFailRet(pModules->GetNextUserCodeILOffsetInMethod(pModule, resultToken, 0, ilNextOffset));
+    IfFailRet(pDebugInfo->GetNextUserCodeILOffsetInMethod(pModule, resultToken, 0, ilNextOffset));
 
     entryPointToken = resultToken;
     entryPointOffset = ilNextOffset;
@@ -226,7 +226,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         // this should be method without user code.
         str_equal(funcName.data(), W("<Main>")))
     {
-        TrySetupAsyncEntryBreakpoint(pModule, pMD, m_sharedModules.get(), mdMainClass, entryPointToken, entryPointOffset);
+        TrySetupAsyncEntryBreakpoint(pModule, pMD, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
     }
 
     ToRelease<ICorDebugFunction> pFunction;

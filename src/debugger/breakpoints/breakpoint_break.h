@@ -18,14 +18,14 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 
 class BreakBreakpoint
 {
   public:
 
-    BreakBreakpoint(std::shared_ptr<Modules> &sharedModules)
-        : m_sharedModules(sharedModules)
+    BreakBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+        : m_sharedDebugInfo(sharedDebugInfo)
     {
     }
 
@@ -43,7 +43,7 @@ class BreakBreakpoint
   private:
 
     std::mutex m_breakMutex;
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
 
     struct FullyQualifiedIlOffset_t
     {

@@ -232,7 +232,7 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
 
 } // unnamed namespace
 
-ModuleInfo::~ModuleInfo() noexcept
+PDBInfo::~PDBInfo() noexcept
 {
     if (m_symbolReaderHandle != nullptr)
     {
@@ -240,10 +240,10 @@ ModuleInfo::~ModuleInfo() noexcept
     }
 }
 
-void Modules::CleanupAllModules()
+void DebugInfo::Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
-    m_modulesInfo.clear();
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+    m_debugInfo.clear();
 }
 
 std::string GetModuleFileName(ICorDebugModule *pModule)
@@ -285,18 +285,18 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
     return ss.str();
 }
 
-HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, const ModuleInfoCallback &cb)
+HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
 {
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
-    auto info_pair = m_modulesInfo.find(modAddress);
-    return (info_pair == m_modulesInfo.end()) ? E_FAIL : cb(info_pair->second);
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+    auto info_pair = m_debugInfo.find(modAddress);
+    return (info_pair == m_debugInfo.end()) ? E_FAIL : cb(info_pair->second);
 }
 
-// Caller must care about m_modulesInfoMutex.
-HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
+// Caller must care about m_debugInfoMutex.
+HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo)
 {
-    auto info_pair = m_modulesInfo.find(modAddress);
-    if (info_pair == m_modulesInfo.end())
+    auto info_pair = m_debugInfo.find(modAddress);
+    if (info_pair == m_debugInfo.end())
     {
         return E_FAIL;
     }
@@ -305,26 +305,26 @@ HRESULT Modules::GetModuleInfo(CORDB_ADDRESS modAddress, ModuleInfo **ppmdInfo)
     return S_OK;
 }
 
-HRESULT Modules::ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
+HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
 {
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (auto &info_pair : m_modulesInfo)
+    for (auto &info_pair : m_debugInfo)
     {
-        const ModuleInfo &mdInfo = info_pair.second;
-        ResolveMethodInModule(mdInfo.m_iCorModule, funcname, cb);
+        const PDBInfo &mdInfo = info_pair.second;
+        ResolveMethodInModule(mdInfo.m_trModule, funcname, cb);
     }
 
     return S_OK;
 }
 
-HRESULT Modules::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
                                                    const ResolveFunctionBreakpointCallback &cb)
 {
     return ResolveMethodInModule(pModule, funcname, cb);
 }
 
-HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
+HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
                                             SequencePoint &sequencePoint)
 {
     HRESULT Status = S_OK;
@@ -355,7 +355,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &il
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    return GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
+    return GetPDBInfo(modAddress, [&](PDBInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
         {
             return E_FAIL;
@@ -365,7 +365,7 @@ HRESULT Modules::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &il
     });
 }
 
-HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
+HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                                    bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
@@ -396,7 +396,7 @@ HRESULT Modules::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint3
     return GetNextUserCodeILOffsetInMethod(pModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
 }
 
-HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
+HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> pFrame;
@@ -436,7 +436,7 @@ HRESULT Modules::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_S
     uint32_t ilStartOffset = 0;
     uint32_t ilEndOffset = 0;
 
-    IfFailRet(GetModuleInfo(modAddress, [&](ModuleInfo &mdInfo) -> HRESULT {
+    IfFailRet(GetPDBInfo(modAddress, [&](PDBInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
         {
             return E_FAIL;
@@ -496,7 +496,7 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
     return S_OK;
 }
 
-HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
+HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
 {
     HRESULT Status = S_OK;
 
@@ -559,7 +559,7 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
         IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
 
-        if (FAILED(m_modulesSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
+        if (FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
         {
             LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "
                  "source path resolve in future.");
@@ -572,14 +572,14 @@ HRESULT Modules::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, 
     IfFailRet(pModule->GetBaseAddress(&baseAddress));
 
     pModule->AddRef();
-    ModuleInfo mdInfo{pSymbolReaderHandle, pModule};
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
-    m_modulesInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
+    PDBInfo mdInfo{pSymbolReaderHandle, pModule};
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+    m_debugInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
 
     return S_OK;
 }
 
-HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
+HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
                                             WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {
     HRESULT Status = S_OK;
@@ -589,8 +589,8 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
 
     std::array<WCHAR, mdNameLen> wLocalName{};
 
-    IfFailRet(GetModuleInfo(modAddress,
-        [&](ModuleInfo &mdInfo) -> HRESULT
+    IfFailRet(GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
             {
@@ -606,15 +606,15 @@ HRESULT Modules::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDe
     return S_OK;
 }
 
-HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
+HRESULT DebugInfo::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
                                        int32_t &hoistedLocalScopesCount)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    return GetModuleInfo(modAddress,
-        [&](ModuleInfo &mdInfo) -> HRESULT
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
             {
@@ -625,35 +625,35 @@ HRESULT Modules::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef met
         });
 }
 
-HRESULT Modules::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule)
+HRESULT DebugInfo::GetModuleWithName(const std::string &name, ICorDebugModule **ppModule)
 {
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (auto &info_pair : m_modulesInfo)
+    for (auto &info_pair : m_debugInfo)
     {
-        const ModuleInfo &mdInfo = info_pair.second;
+        const PDBInfo &mdInfo = info_pair.second;
 
-        const std::string path = GetModuleFileName(mdInfo.m_iCorModule);
+        const std::string path = GetModuleFileName(mdInfo.m_trModule);
 
         if (GetFileName(path) == name)
         {
-            mdInfo.m_iCorModule->AddRef();
-            *ppModule = mdInfo.m_iCorModule;
+            mdInfo.m_trModule->AddRef();
+            *ppModule = mdInfo.m_trModule;
             return S_OK;
         }
     }
     return E_FAIL;
 }
 
-HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                                  uint32_t &ilNextOffset, bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    return GetModuleInfo(modAddress,
-        [&](ModuleInfo &mdInfo) -> HRESULT
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
             {
@@ -665,7 +665,7 @@ HRESULT Modules::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMet
         });
 }
 
-HRESULT Modules::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                             SequencePoint *sequencePoint)
 {
     Interop::SequencePoint symSequencePoint;
@@ -685,11 +685,11 @@ HRESULT Modules::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodD
     return S_OK;
 }
 
-HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
+HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                             SequencePoint &sequencePoint)
 {
-    return GetModuleInfo(modAddress,
-        [&](ModuleInfo &mdInfo) -> HRESULT
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
             {
@@ -700,20 +700,20 @@ HRESULT Modules::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDe
         });
 }
 
-HRESULT Modules::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
+HRESULT DebugInfo::ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
     HRESULT Status = S_OK;
-    const std::scoped_lock<std::mutex> lock(m_modulesInfoMutex);
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (auto &info_pair : m_modulesInfo)
+    for (auto &info_pair : m_debugInfo)
     {
-        const ModuleInfo &mdInfo = info_pair.second;
-        IfFailRet(cb(mdInfo.m_iCorModule));
+        const PDBInfo &mdInfo = info_pair.second;
+        IfFailRet(cb(mdInfo.m_trModule));
     }
     return S_OK;
 }
 
-HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
+HRESULT DebugInfo::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
                                    /*in*/ const std::string &filename_,
 #else
@@ -721,7 +721,7 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
 #endif
                                    /*out*/ unsigned &fullname_index,
                                    /*in*/ int sourceLine,
-                                   /*out*/ std::vector<ModulesSources::resolved_bp_t> &resolvedPoints)
+                                   /*out*/ std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status = S_OK;
@@ -729,19 +729,19 @@ HRESULT Modules::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
     IfFailRet(Interop::StringToUpper(filename));
 #endif
 
-    // Note, in all code we use m_modulesInfoMutex > m_sourcesInfoMutex lock sequence.
-    const std::scoped_lock<std::mutex> lockModulesInfo(m_modulesInfoMutex);
-    return m_modulesSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
+    // Note, in all code we use m_debugInfoMutex > m_sourcesInfoMutex lock sequence.
+    const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
+    return m_debugInfoSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
 }
 
-HRESULT Modules::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
+HRESULT DebugInfo::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
 {
-    return m_modulesSources.GetSourceFullPathByIndex(index, fullPath);
+    return m_debugInfoSources.GetSourceFullPathByIndex(index, fullPath);
 }
 
-HRESULT Modules::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
+HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
 {
-    return m_modulesSources.GetIndexBySourceFullPath(fullPath, index);
+    return m_debugInfoSources.GetIndexBySourceFullPath(fullPath, index);
 }
 
 } // namespace dncdbg

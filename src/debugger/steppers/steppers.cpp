@@ -16,14 +16,14 @@
 namespace dncdbg
 {
 
-Steppers::Steppers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
-    : m_simpleStepper(new SimpleStepper(sharedModules)),
-        m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedModules, sharedEvalHelpers)),
-        m_sharedModules(sharedModules),
-        m_initialStepType(StepType::STEP_OVER),
-        m_justMyCode(true),
-        m_stepFiltering(true),
-        m_filteredPrevStep(false)
+Steppers::Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+    : m_simpleStepper(new SimpleStepper(sharedDebugInfo)),
+      m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedDebugInfo, sharedEvalHelpers)),
+      m_sharedDebugInfo(sharedDebugInfo),
+      m_initialStepType(StepType::STEP_OVER),
+      m_justMyCode(true),
+      m_stepFiltering(true),
+      m_filteredPrevStep(false)
 {}
 
 HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
@@ -44,7 +44,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
 
     uint32_t ilOffset = 0;
-    IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
+    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
     if (Status == S_OK) // S_FALSE = setup simple stepper
@@ -211,7 +211,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     uint32_t ilNextUserCodeOffset = 0;
     bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call
                                   // could be failed before delegate call.
-    if (SUCCEEDED(Status = m_sharedModules->GetFrameILAndNextUserCodeILOffset(iCorFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
+    if (SUCCEEDED(Status = m_sharedDebugInfo->GetFrameILAndNextUserCodeILOffset(iCorFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
     {
         if (reason == CorDebugStepReason::STEP_NORMAL)
         {
@@ -227,7 +227,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 uint32_t ilOffset = 0;
                 SequencePoint sp;
-                IfFailRet(m_sharedModules->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
+                IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
                     sp.endLine == m_StepStartSP.endLine &&

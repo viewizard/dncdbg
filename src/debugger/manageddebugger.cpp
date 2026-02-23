@@ -322,14 +322,14 @@ ManagedDebugger::ManagedDebugger()
       m_startMethod(StartMethod::None),
       m_isConfigurationDone(false),
       m_sharedThreads(new Threads),
-      m_sharedModules(new Modules),
+      m_sharedDebugInfo(new DebugInfo),
       m_sharedEvalWaiter(new EvalWaiter),
-      m_sharedEvalHelpers(new EvalHelpers(m_sharedModules, m_sharedEvalWaiter)),
+      m_sharedEvalHelpers(new EvalHelpers(m_sharedDebugInfo, m_sharedEvalWaiter)),
       m_sharedEvalStackMachine(new EvalStackMachine),
-      m_sharedEvaluator(new Evaluator(m_sharedModules, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
+      m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
       m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
-      m_uniqueSteppers(new Steppers(m_sharedModules, m_sharedEvalHelpers)),
-      m_uniqueBreakpoints(new Breakpoints(m_sharedModules, m_sharedEvaluator, m_sharedVariables)),
+      m_uniqueSteppers(new Steppers(m_sharedDebugInfo, m_sharedEvalHelpers)),
+      m_uniqueBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_justMyCode(true),
@@ -479,7 +479,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     IfFailRet(m_iCorProcess->GetThread(static_cast<int>(threadId), &pThread));
     IfFailRet(m_uniqueSteppers->SetupStep(pThread, stepType));
 
-    m_sharedVariables->Clear();
+    m_sharedVariables->Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
     DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
 
@@ -511,7 +511,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
         return S_OK; // Send 'OK' response, but don't generate continue event.
     }
 
-    m_sharedVariables->Clear();
+    m_sharedVariables->Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
     DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
 
@@ -783,9 +783,9 @@ HRESULT ManagedDebugger::TerminateProcess()
 
 void ManagedDebugger::Cleanup()
 {
-    m_sharedModules->CleanupAllModules();
+    m_sharedDebugInfo->Cleanup();
     m_sharedEvalHelpers->Cleanup();
-    m_sharedVariables->Clear();
+    m_sharedVariables->Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
@@ -897,7 +897,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 
     uint32_t ilOffset = 0;
     SequencePoint sp;
-    if (SUCCEEDED(m_sharedModules->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
+    if (SUCCEEDED(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
     {
         stackFrame.source = Source(sp.document);
         stackFrame.line = sp.startLine;

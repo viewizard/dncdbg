@@ -46,7 +46,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     const BOOL bStepIn = (stepType == StepType::STEP_IN) ? TRUE : FALSE;
 
     COR_DEBUG_STEP_RANGE range;
-    if (SUCCEEDED(m_sharedModules->GetStepRangeFromCurrentIP(pThread, &range)))
+    if (SUCCEEDED(m_sharedDebugInfo->GetStepRangeFromCurrentIP(pThread, &range)))
     {
         IfFailRet(pStepper->StepRange(bStepIn, &range, 1));
     }

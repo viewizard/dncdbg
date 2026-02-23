@@ -229,7 +229,7 @@ HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WST
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugModule> pModule;
-    IfFailRet(m_sharedModules->GetModuleWithName(moduleName, &pModule));
+    IfFailRet(m_sharedDebugInfo->GetModuleWithName(moduleName, &pModule));
     IfFailRet(FindFunction(pModule, className, methodName, ppFunction));
     return S_OK;
 }
@@ -449,7 +449,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             std::string typeName;
             TypePrinter::NameForTypeSig(pSignatureBlob, pType, pMD, typeName);
             ToRelease<ICorDebugType> pElementType;
-            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedModules.get(), &pElementType));
+            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &pElementType));
 
             ToRelease<ICorDebugAppDomain> pAppDomain;
             IfFailRet(pThread->GetAppDomain(&pAppDomain));
@@ -488,7 +488,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             std::string typeName;
             TypePrinter::NameForTypeSig(pSignatureBlob, pType, pMD, typeName);
             ToRelease<ICorDebugType> pValueType;
-            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedModules.get(), &pValueType));
+            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &pValueType));
 
             // Create value from ICorDebugType
             ToRelease<ICorDebugEval> pEval;

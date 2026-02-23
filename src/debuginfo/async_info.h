@@ -18,13 +18,13 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 
 class AsyncInfo
 {
   public:
 
-    AsyncInfo(std::shared_ptr<Modules> &sharedModules) : m_sharedModules(sharedModules)
+    AsyncInfo(std::shared_ptr<DebugInfo> &sharedDebugInfo) : m_sharedDebugInfo(sharedDebugInfo)
     {
     }
 
@@ -51,7 +51,7 @@ class AsyncInfo
 
   private:
 
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
 
     struct AsyncMethodInfo
     {

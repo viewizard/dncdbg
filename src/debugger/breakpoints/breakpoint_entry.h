@@ -18,14 +18,14 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 
 class EntryBreakpoint
 {
   public:
 
-    EntryBreakpoint(std::shared_ptr<Modules> &sharedModules)
-        : m_sharedModules(sharedModules),
+    EntryBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+        : m_sharedDebugInfo(sharedDebugInfo),
           m_stopAtEntry(false)
     {
     }
@@ -53,7 +53,7 @@ class EntryBreakpoint
   private:
 
     std::mutex m_entryMutex;
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     ToRelease<ICorDebugFunctionBreakpoint> m_iCorFuncBreakpoint;
     bool m_stopAtEntry;
 };

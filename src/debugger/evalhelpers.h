@@ -22,15 +22,15 @@
 namespace dncdbg
 {
 
-class Modules;
+class DebugInfo;
 class EvalWaiter;
 
 class EvalHelpers
 {
   public:
 
-    EvalHelpers(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
-        : m_sharedModules(sharedModules),
+    EvalHelpers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+        : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedEvalWaiter(sharedEvalWaiter),
           m_evalFlags(defaultEvalFlags)
     {}
@@ -65,7 +65,7 @@ class EvalHelpers
 
   private:
 
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     uint32_t m_evalFlags;
 

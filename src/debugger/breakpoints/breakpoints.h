@@ -23,7 +23,7 @@ namespace dncdbg
 
 class Evaluator;
 class Variables;
-class Modules;
+class DebugInfo;
 class BreakBreakpoint;
 class EntryBreakpoint;
 class ExceptionBreakpoints;
@@ -34,7 +34,7 @@ class Breakpoints
 {
   public:
 
-    Breakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<Variables> &sharedVariables);
+    Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<Variables> &sharedVariables);
 
     void SetJustMyCode(bool enable);
     void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);

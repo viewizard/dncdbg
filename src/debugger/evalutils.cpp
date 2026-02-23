@@ -82,14 +82,14 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     return S_OK;
 }
 
-HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, Modules *pModules,
+HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, DebugInfo *pDebugInfo,
                           std::vector<ToRelease<ICorDebugType>> &types)
 {
     HRESULT Status = S_OK;
     for (const auto &p : params)
     {
         ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
-        IfFailRet(GetType(p, pThread, pModules, &tmpType));
+        IfFailRet(GetType(p, pThread, pDebugInfo, &tmpType));
         types.emplace_back(tmpType);
     }
     return S_OK;
@@ -154,7 +154,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
     return result;
 }
 
-HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *pModules, ICorDebugType **ppType)
+HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, DebugInfo *pDebugInfo, ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
     std::vector<int> ranks;
@@ -166,7 +166,7 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, Modules *
 
     ToRelease<ICorDebugType> pType;
     int nextClassIdentifier = 0;
-    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, pModules, nullptr, &pType));
+    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, pDebugInfo, nullptr, &pType));
 
     if (!ranks.empty())
     {
@@ -246,7 +246,7 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
 }
 
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 Modules *pModules, ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
+                 DebugInfo *pDebugInfo, ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
 
@@ -260,7 +260,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (pTypeModule == nullptr)
     {
-        pModules->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
+        pDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
             if (typeToken != mdTypeDefNil) // already found
             {
                 return S_OK;
@@ -288,7 +288,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> types;
-        IfFailRet(ResolveParameters(params, pThread, pModules, types));
+        IfFailRet(ResolveParameters(params, pThread, pDebugInfo, types));
 
         ToRelease<ICorDebugClass> pClass;
         IfFailRet(pTypeModule->GetClassFromToken(typeToken, &pClass));

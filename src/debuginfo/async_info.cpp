@@ -29,8 +29,8 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
 
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
-    asyncMethodSteppingInfo.retCode = m_sharedModules->GetModuleInfo(modAddress,
-        [&](ModuleInfo &mdInfo) -> HRESULT
+    asyncMethodSteppingInfo.retCode = m_sharedDebugInfo->GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
             if (mdInfo.m_symbolReaderHandle == nullptr)
             {

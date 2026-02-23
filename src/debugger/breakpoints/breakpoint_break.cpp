@@ -120,12 +120,12 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     }
 
     SequencePoint lastSP;
-    IfFailRet(m_sharedModules->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
-                                                          m_lastStoppedIlOffset.ilOffset, lastSP));
+    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
+                                                            m_lastStoppedIlOffset.ilOffset, lastSP));
 
     SequencePoint curSP;
-    IfFailRet(m_sharedModules->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
-                                                          fullyQualifiedIlOffset.ilOffset, curSP));
+    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
+                                                            fullyQualifiedIlOffset.ilOffset, curSP));
 
     if (lastSP.startLine != curSP.startLine ||
         lastSP.startColumn != curSP.startColumn ||

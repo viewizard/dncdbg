@@ -238,7 +238,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
         IfFailRet(entry.first->GetFunctionFromToken(entry.second, &pFunc));
 
         uint32_t ilNextOffset = 0;
-        if (FAILED(m_sharedModules->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
+        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
         {
             return S_OK;
         }
@@ -261,7 +261,7 @@ HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedModules->ResolveFunctionBreakpointInAny(fbp.name,
+    IfFailRet(m_sharedDebugInfo->ResolveFunctionBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
@@ -276,7 +276,7 @@ HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedModules->ResolveFunctionBreakpointInModule(
+    IfFailRet(m_sharedDebugInfo->ResolveFunctionBreakpointInModule(
         pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {

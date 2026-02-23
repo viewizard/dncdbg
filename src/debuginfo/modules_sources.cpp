@@ -295,7 +295,7 @@ std::string GetFileName(const std::string &path)
 } // unnamed namespace
 
 // Caller must care about m_sourcesInfoMutex.
-HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
+HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
     std::string fullPath = to_utf8(document);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
@@ -323,7 +323,7 @@ HRESULT ModulesSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
     return S_OK;
 }
 
-HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
+HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
                                                       void *pSymbolReaderHandle)
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
@@ -387,7 +387,7 @@ HRESULT ModulesSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, 
     return S_OK;
 }
 
-HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
+HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
 {
     // IMPORTANT! Caller should care about m_sourcesInfoMutex.
     auto findIndexesByFileName = m_sourceNameToFullPathsIndexes.find(GetFileName(filename));
@@ -500,7 +500,7 @@ HRESULT ModulesSources::ResolveRelativeSourceFileName(std::string &filename)
     return E_FAIL;
 }
 
-HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
+HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
                                           /*in*/ CORDB_ADDRESS modAddress,
                                           /*in*/ const std::string &filename,
                                           /*out*/ unsigned &fullname_index,
@@ -575,8 +575,8 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
             return E_FAIL;
         }
 
-        ModuleInfo *pmdInfo = nullptr; // Note, pmdInfo must be covered by m_modulesInfoMutex.
-        IfFailRet(pModules->GetModuleInfo(sourceData.modAddress, &pmdInfo)); // we must have it, since we loaded data from it
+        PDBInfo *pmdInfo = nullptr; // Note, pmdInfo must be covered by m_debugInfoMutex.
+        IfFailRet(pDebugInfo->GetPDBInfo(sourceData.modAddress, &pmdInfo)); // we must have it, since we loaded data from it
         if (pmdInfo->m_symbolReaderHandle == nullptr)
         {
             continue;
@@ -600,18 +600,18 @@ HRESULT ModulesSources::ResolveBreakpoint(/*in*/ Modules *pModules,
 
         for (int32_t i = 0; i < Count; i++)
         {
-            pmdInfo->m_iCorModule->AddRef();
+            pmdInfo->m_trModule->AddRef();
 
             resolvedPoints.emplace_back(inputData.get()[i].startLine, inputData.get()[i].endLine,
                                         inputData.get()[i].ilOffset, inputData.get()[i].methodToken,
-                                        pmdInfo->m_iCorModule.GetPtr());
+                                        pmdInfo->m_trModule.GetPtr());
         }
     }
 
     return S_OK;
 }
 
-HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
+HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
@@ -630,9 +630,9 @@ HRESULT ModulesSources::GetSourceFullPathByIndex(unsigned index, std::string &fu
 }
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath_, unsigned &index)
+HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath_, unsigned &index)
 #else
-HRESULT ModulesSources::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
+HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
 #endif
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION

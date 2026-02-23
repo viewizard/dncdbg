@@ -26,14 +26,14 @@ namespace dncdbg
 {
 
 class Variables;
-class Modules;
+class DebugInfo;
 
 class FunctionBreakpoints
 {
   public:
 
-    FunctionBreakpoints(std::shared_ptr<Modules> &sharedModules, std::shared_ptr<Variables> &sharedVariables)
-        : m_sharedModules(sharedModules),
+    FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Variables> &sharedVariables)
+        : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedVariables(sharedVariables),
           m_justMyCode(true)
     {}
@@ -63,7 +63,7 @@ class FunctionBreakpoints
 
   private:
 
-    std::shared_ptr<Modules> m_sharedModules;
+    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Variables> m_sharedVariables;
     bool m_justMyCode;
 
