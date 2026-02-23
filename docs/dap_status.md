@@ -138,6 +138,20 @@
 ```diff
 -   noDebug?: boolean;
 -   __restart?: any;
+@@ VSCode IDE additional fields: @@
++   cwd?: string;
++   env?: string;
++   program?: string;
++   args?: string;
++   stopAtEntry?: boolean;
++   justMyCode?: boolean;
++   enableStepFiltering?: boolean;
++   expressionEvaluationOptions?: ExpressionEvaluationOptions;
+```
+#### ExpressionEvaluationOptions
+```diff
+@@ VSCode IDE additional field: @@
++   allowImplicitFuncEval?: boolean;
 ```
 ####  LaunchResponse
 ```diff
