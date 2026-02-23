@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalutils.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo.h"
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
 

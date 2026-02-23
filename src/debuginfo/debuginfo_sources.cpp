@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debuginfo/modules_sources.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo_sources.h"
+#include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
 #include "utils/logger.h"
 #include "utils/utf.h"

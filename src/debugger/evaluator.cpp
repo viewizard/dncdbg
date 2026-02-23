@@ -9,7 +9,7 @@
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
 #include "metadata/attributes.h"
 #include "metadata/typeprinter.h"

@@ -14,7 +14,7 @@
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/threads.h"
-#include "debuginfo/modules.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "managed/interop.h"
 #include "protocol/dapio.h"
 #include "utils/logger.h"

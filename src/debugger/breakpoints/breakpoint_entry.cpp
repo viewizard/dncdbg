@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoints/breakpoint_entry.h"
 #include "debugger/breakpoints/breakpointutils.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo.h"
 #include "utils/utf.h"
 #include <array>
 #include <string>

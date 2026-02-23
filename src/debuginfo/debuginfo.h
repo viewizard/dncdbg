@@ -11,7 +11,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/modules_sources.h"
+#include "debuginfo/debuginfo_sources.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"

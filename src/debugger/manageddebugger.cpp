@@ -20,7 +20,7 @@
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debugger/valueprint.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
 #include "utils/waitpid.h"

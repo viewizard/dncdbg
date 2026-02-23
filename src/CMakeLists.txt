@@ -38,8 +38,8 @@ set(dncdbg_SRC
     debugger/valueprint.cpp
     debugger/variables.cpp
     debuginfo/async_info.cpp
-    debuginfo/modules_sources.cpp
-    debuginfo/modules.cpp
+    debuginfo/debuginfo_sources.cpp
+    debuginfo/debuginfo.cpp
     managed/interop.cpp
     metadata/attributes.cpp
     metadata/jmc.cpp

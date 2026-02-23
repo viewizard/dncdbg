@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/async_info.h"
-#include "debuginfo/modules.h"
+#include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
 
 namespace dncdbg
