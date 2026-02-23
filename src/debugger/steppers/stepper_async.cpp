@@ -33,10 +33,10 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     IfFailRet(pFrame->GetFunction(&pFunction));
     ToRelease<ICorDebugModule> pModule_this;
     IfFailRet(pFunction->GetModule(&pModule_this));
-    ToRelease<IUnknown> pMDUnknown_this;
-    IfFailRet(pModule_this->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown_this));
-    ToRelease<IMetaDataImport> pMD_this;
-    IfFailRet(pMDUnknown_this->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD_this)));
+    ToRelease<IUnknown> trUnknown_this;
+    IfFailRet(pModule_this->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown_this));
+    ToRelease<IMetaDataImport> trMDImport_this;
+    IfFailRet(trUnknown_this->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport_this)));
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
     ToRelease<ICorDebugILFrame> pILFrame;
@@ -50,8 +50,8 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
         return E_FAIL;
     }
     DWORD methodAttr = 0;
-    IfFailRet(pMD_this->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr, &methodAttr,
-                                       nullptr, nullptr, nullptr, nullptr));
+    IfFailRet(trMDImport_this->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr, &methodAttr,
+                                              nullptr, nullptr, nullptr, nullptr));
     const bool thisParam = (methodAttr & mdStatic) == 0;
     if (!thisParam)
     {
@@ -77,12 +77,12 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     ToRelease<ICorDebugValue> pRefValue_t_builder;
-    while (SUCCEEDED(pMD_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> mdName{};
-        if (FAILED(pMD_this->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr,
-                                           nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr,
+                                                  nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
@@ -100,7 +100,7 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
 
         break;
     }
-    pMD_this->CloseEnum(hEnum);
+    trMDImport_this->CloseEnum(hEnum);
 
     if (pRefValue_t_builder == nullptr)
     {
@@ -136,23 +136,23 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = nullptr;
     mdMethodDef mdObjectIdForDebuggerGetter = mdMethodDefNil;
-    while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+    while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         ULONG propertyNameLen = 0;
         std::array<WCHAR, mdNameLen> propertyName{};
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
-                                         nullptr, 0, nullptr)))
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen,
+                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
+                                                nullptr, 0, nullptr)))
         {
             continue;
         }
@@ -165,7 +165,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
         mdObjectIdForDebuggerGetter = mdGetter;
         break;
     }
-    pMD->CloseEnum(propEnum);
+    trMDImport->CloseEnum(propEnum);
 
     if (mdObjectIdForDebuggerGetter == mdMethodDefNil)
     {
@@ -201,22 +201,22 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
 
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ULONG numMethods = 0;
     HCORENUM hEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
     mdMethodDef setNotifDef = mdMethodDefNil;
-    while (SUCCEEDED(pMD->EnumMethods(&hEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (SUCCEEDED(trMDImport->EnumMethods(&hEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
         mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> szFunctionName{};
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                       nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
+                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
@@ -229,7 +229,7 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
         setNotifDef = methodDef;
         break;
     }
-    pMD->CloseEnum(hEnum);
+    trMDImport->CloseEnum(hEnum);
 
     if (setNotifDef == mdMethodDefNil)
     {

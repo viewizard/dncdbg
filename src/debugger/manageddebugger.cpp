@@ -828,12 +828,11 @@ HRESULT ManagedDebugger::AttachToProcess()
     IfFailRet(m_dbgshim.CreateVersionStringFromModule(
         m_processId, reinterpret_cast<const WCHAR *>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
 
-    ToRelease<IUnknown> pCordb;
-
-    IfFailRet(m_dbgshim.CreateDebuggingInterfaceFromVersionEx(CorDebugVersion_4_0, pBuffer.data(), &pCordb));
+    ToRelease<IUnknown> trCordb;
+    IfFailRet(m_dbgshim.CreateDebuggingInterfaceFromVersionEx(CorDebugVersion_4_0, pBuffer.data(), &trCordb));
 
     m_unregisterToken = nullptr;
-    IfFailRet(Startup(pCordb));
+    IfFailRet(Startup(trCordb));
 
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,

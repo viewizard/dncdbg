@@ -35,29 +35,29 @@ const std::vector<std::string_view> &GetMethodAttrNames()
     return methodAttrNames;
 }
 
-HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMD, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
+HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
     ULONG numMethods = 0;
     HCORENUM fEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
-    while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
         mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> szFunctionName{};
 
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                       nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
-        if (HasAttribute(pMD, methodDef, GetMethodAttrNames()))
+        if (HasAttribute(pMDImport, methodDef, GetMethodAttrNames()))
         {
             excludeMethods.push_back(methodDef);
         }
     }
-    pMD->CloseEnum(fEnum);
+    pMDImport->CloseEnum(fEnum);
 
     return S_OK;
 }
@@ -66,26 +66,26 @@ HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ULONG numTypedefs = 0;
     HCORENUM fEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
-    while (SUCCEEDED(pMD->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
-        if (HasAttribute(pMD, typeDef, GetTypeAttrNames()))
+        if (HasAttribute(trMDImport, typeDef, GetTypeAttrNames()))
         {
             excludeTokens.push_back(typeDef);
         }
         else
         {
-            GetNonJMCMethodsForTypeDef(pMD, typeDef, excludeTokens);
+            GetNonJMCMethodsForTypeDef(trMDImport, typeDef, excludeTokens);
         }
     }
-    pMD->CloseEnum(fEnum);
+    trMDImport->CloseEnum(fEnum);
 
     return S_OK;
 }
@@ -139,10 +139,10 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     std::vector<mdToken> excludeTokens;
     std::unordered_set<mdToken> excludeTypeTokens;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     for (const mdMethodDef methodToken : methodTokens)
     {
@@ -155,11 +155,11 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         IfFailRet(pClass->GetToken(&typeToken));
 
         // In case class have "not user code" related attribute, no reason set JMC to false for each method, set it to class will be enough.
-        if (HasAttribute(pMD, typeToken, GetTypeAttrNames()))
+        if (HasAttribute(trMDImport, typeToken, GetTypeAttrNames()))
         {
             excludeTypeTokens.emplace(typeToken);
         }
-        else if (HasAttribute(pMD, methodToken, GetMethodAttrNames()))
+        else if (HasAttribute(trMDImport, methodToken, GetMethodAttrNames()))
         {
             excludeTokens.push_back(methodToken);
         }

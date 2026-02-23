@@ -145,10 +145,10 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     IfFailRet(iCorClass->GetToken(&typeDef));
     ToRelease<ICorDebugModule> iCorModule;
     IfFailRet(iCorFunction->GetModule(&iCorModule));
-    ToRelease<IUnknown> iUnknown;
-    IfFailRet(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &iUnknown));
-    ToRelease<IMetaDataImport> iMD;
-    IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&iMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     auto methodShouldBeFltered = [&]() -> bool
     {
@@ -161,8 +161,8 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> szFunctionName{};
-        if (SUCCEEDED(iMD->GetMethodProps(methodDef, nullptr, szFunctionName.data(), mdNameLen, &nameLen,
-                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (SUCCEEDED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), mdNameLen, &nameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (g_operatorMethodNames.find(szFunctionName.data()) != g_operatorMethodNames.end())
             {
@@ -173,23 +173,23 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         mdProperty propertyDef = mdPropertyNil;
         ULONG numProperties = 0;
         HCORENUM propEnum = nullptr;
-        while (SUCCEEDED(iMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+        while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
         {
             mdMethodDef mdSetter = mdMethodDefNil;
             mdMethodDef mdGetter = mdMethodDefNil;
-            if (SUCCEEDED(iMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
-                                                nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+            if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
+                                                       nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
             {
                 if (mdSetter != methodDef && mdGetter != methodDef)
                 {
                     continue;
                 }
 
-                iMD->CloseEnum(propEnum);
+                trMDImport->CloseEnum(propEnum);
                 return true;
             }
         }
-        iMD->CloseEnum(propEnum);
+        trMDImport->CloseEnum(propEnum);
 
         return false;
     };
@@ -269,7 +269,8 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     {
         static const std::vector<std::string_view> attrNames{DebuggerAttribute::Hidden, DebuggerAttribute::StepThrough};
 
-        if (HasAttribute(iMD, typeDef, DebuggerAttribute::StepThrough) || HasAttribute(iMD, methodDef, attrNames))
+        if (HasAttribute(trMDImport, typeDef, DebuggerAttribute::StepThrough) ||
+            HasAttribute(trMDImport, methodDef, attrNames))
         {
             IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
             // In case step-in will return from filtered method and no user code was called, step-in again.

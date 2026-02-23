@@ -65,30 +65,30 @@ std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<ui
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
 using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
-HRESULT ForEachFields(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
+HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {
     HRESULT Status = S_OK;
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         if (FAILED(Status = cb(fieldDef)))
         {
             break;
         }
     }
-    pMD->CloseEnum(hEnum);
+    pMDImport->CloseEnum(hEnum);
     return Status;
 }
 
-HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
+HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = nullptr;
-    while (SUCCEEDED(pMD->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
+    while (SUCCEEDED(pMDImport->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
            numProperties != 0)
     {
         if (FAILED(Status = cb(propertyDef)))
@@ -96,7 +96,7 @@ HRESULT ForEachProperties(IMetaDataImport *pMD, mdTypeDef currentTypeDef, const 
             break;
         }
     }
-    pMD->CloseEnum(propEnum);
+    pMDImport->CloseEnum(propEnum);
     return Status;
 }
 
@@ -114,12 +114,12 @@ enum class GeneratedCodeKind : uint8_t
     Lambda
 };
 
-HRESULT GetGeneratedCodeKind(IMetaDataImport *pMD, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
+HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
     HRESULT Status = S_OK;
     std::array<WCHAR, mdNameLen> name{};
     ULONG nameLen = 0;
-    IfFailRet(pMD->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
     const WSTRING typeName(name.data());
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
@@ -204,7 +204,7 @@ HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppCla
     return S_OK;
 }
 
-HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, mdTypeDef typeDef,
+HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
 {
     HRESULT Status = S_OK;
@@ -216,11 +216,11 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, md
         return E_INVALIDARG;
     }
 
-    Status = ForEachFields(pMD, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
+    Status = ForEachFields(pMDImport, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
         std::array<WCHAR, mdNameLen> mdName{};
         ULONG nameLen = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
             {
@@ -243,7 +243,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMD, ICorDebugClass *pClass, md
                 ToRelease<ICorDebugClass> iCorDisplayClass;
                 mdTypeDef displayClassTypeDef = mdTypeDefNil;
                 IfFailRet(GetClassAndTypeDefByValue(iCorDisplayClassValue, &iCorDisplayClass, displayClassTypeDef));
-                IfFailRet(FindThisProxyFieldValue(pMD, iCorDisplayClass, displayClassTypeDef, iCorDisplayClassValue, ppResultValue));
+                IfFailRet(FindThisProxyFieldValue(pMDImport, iCorDisplayClass, displayClassTypeDef, iCorDisplayClassValue, ppResultValue));
                 if (ppResultValue)
                 {
                     return E_ABORT; // Fast exit from cycle
@@ -324,7 +324,7 @@ HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
     return S_OK;
 }
 
-HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
+HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                  std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                  DebugInfo *pDebugInfo, ICorDebugModule *pModule,
                                  Evaluator::WalkStackVarsCallback cb)
@@ -358,12 +358,12 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputVal
     int32_t hoistedLocalScopesCount = -1;
     std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
 
-    IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
+    IfFailRet(ForEachFields(pMDImport, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
         std::array<WCHAR, mdNameLen> mdName{};
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
-        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                      &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+        if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                            &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
             (fieldAttr & fdStatic) != 0 ||
             (fieldAttr & fdLiteral) != 0 ||
             usedNames.find(mdName.data()) != usedNames.end())
@@ -386,7 +386,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMD, ICorDebugValue *pInputVal
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, false));
-            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
+            IfFailRet(WalkGeneratedClassFields(pMDImport, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                pDebugInfo, pModule, cb));
         }
         else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
@@ -612,10 +612,10 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
     IfFailRet(pClass->GetModule(&pModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     std::vector<SigElementType> typeGenerics;
     ToRelease<ICorDebugTypeEnum> paramTypes;
@@ -641,7 +641,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
     ULONG numMethods = 0;
     HCORENUM fEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
-    while (SUCCEEDED(pMD->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
 
         mdTypeDef memTypeDef = mdTypeDefNil;
@@ -650,15 +650,15 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;
-        if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                       &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
+                                              &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
         {
             continue;
         }
 
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
-        IfFailRet(SigParse(pMD, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
+        IfFailRet(SigParse(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
         if (Status == S_FALSE)
         {
             continue;
@@ -675,11 +675,11 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         {
             pInputType->AddRef();
             *ppResultType = pInputType;
-            pMD->CloseEnum(fEnum);
+            trMDImport->CloseEnum(fEnum);
             return Status;
         }
     }
-    pMD->CloseEnum(fEnum);
+    trMDImport->CloseEnum(fEnum);
 
     ToRelease<ICorDebugType> iCorBaseType;
     if (SUCCEEDED(pInputType->GetBase(&iCorBaseType)) && iCorBaseType != nullptr)
@@ -874,11 +874,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     IfFailRet(pClass->GetModule(&pModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
-    IfFailRet(ForEachFields(pMD, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(ForEachFields(trMDImport, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
         std::array<WCHAR, mdNameLen> mdName{};
@@ -886,8 +886,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         ULONG sigBlobLength = 0;
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
-                                         &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
+        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+                                                &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
         {
             // Prevent access to internal compiler added fields (without visible name).
             // Should be accessed by debugger routine only and hidden from user/ide.
@@ -949,7 +949,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         }
         return S_OK;
     }));
-    IfFailRet(ForEachProperties(pMD, currentTypeDef, [&](mdProperty propertyDef) -> HRESULT
+    IfFailRet(ForEachProperties(trMDImport, currentTypeDef, [&](mdProperty propertyDef) -> HRESULT
     {
         mdTypeDef propertyClass = mdTypeDefNil;
 
@@ -959,13 +959,13 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         mdMethodDef mdGetter = mdMethodDefNil;
         mdMethodDef mdSetter = mdMethodDefNil;
         std::array<WCHAR, mdNameLen> propertyName{};
-        if (SUCCEEDED(pMD->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
-                                            &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
-                                            &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+        if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
+                                                   &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
+                                                   &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
         {
             DWORD getterAttr = 0;
-            if (FAILED(pMD->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                           nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                                  nullptr, nullptr, nullptr, nullptr)))
             {
                 return S_OK;
             }
@@ -992,20 +992,20 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             ULONG numAttributes = 0;
             HCORENUM hEnum = nullptr;
             mdCustomAttribute attr = 0;
-            while (SUCCEEDED(pMD->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
+            while (SUCCEEDED(trMDImport->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
                    numAttributes != 0)
             {
                 mdToken ptkObj = mdTokenNil;
                 mdToken ptkType = mdTokenNil;
                 void const *ppBlob = nullptr;
                 ULONG pcbSize = 0;
-                if (FAILED(pMD->GetCustomAttributeProps(attr, &ptkObj, &ptkType, &ppBlob, &pcbSize)))
+                if (FAILED(trMDImport->GetCustomAttributeProps(attr, &ptkObj, &ptkType, &ppBlob, &pcbSize)))
                 {
                     continue;
                 }
 
                 std::string mdName;
-                if (FAILED(TypePrinter::NameForToken(ptkType, pMD, mdName, true, nullptr)))
+                if (FAILED(TypePrinter::NameForToken(ptkType, trMDImport, mdName, true, nullptr)))
                 {
                     continue;
                 }
@@ -1022,7 +1022,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     break;
                 }
             }
-            pMD->CloseEnum(hEnum);
+            trMDImport->CloseEnum(hEnum);
 
             if (debuggerBrowsableState_Never)
             {
@@ -1104,10 +1104,10 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunction->GetModule(&pModule));
 
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
@@ -1115,8 +1115,8 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     DWORD methodAttr = 0;
     std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
-                                  &methodAttr, nullptr, nullptr, nullptr, nullptr));
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
+                                         &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     ToRelease<ICorDebugClass> pClass;
     IfFailRet(pFunction->GetClass(&pClass));
@@ -1132,14 +1132,14 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     // In case this is static method, this is not async/lambda case for sure.
     if (!haveThis)
     {
-        return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
+        return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
     }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
-    IfFailRet(GetGeneratedCodeKind(pMD, szMethod.data(), typeDef, generatedCodeKind));
+    IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod.data(), typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
     {
-        return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
+        return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
     }
 
     ToRelease<ICorDebugILFrame> pILFrame;
@@ -1149,7 +1149,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
 
     // Check do we have real This value (that should be stored in ThisProxyField).
     ToRelease<ICorDebugValue> userThis;
-    IfFailRet(FindThisProxyFieldValue(pMD, pClass, typeDef, currentThis, &userThis));
+    IfFailRet(FindThisProxyFieldValue(trMDImport, pClass, typeDef, currentThis, &userThis));
     haveThis = (userThis != nullptr);
 
     // Find first user code enclosing class, since compiler add async/lambda as nested class.
@@ -1157,7 +1157,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     {
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> mdName{};
-        IfFailRet(pMD->GetTypeDefProps(typeDef, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr));
+        IfFailRet(trMDImport->GetTypeDefProps(typeDef, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr));
 
         if (!IsSynthesizedLocalName(mdName.data(), nameLen))
         {
@@ -1165,7 +1165,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
         }
 
         mdTypeDef enclosingClass = mdTypeDefNil;
-        if (SUCCEEDED(Status = pMD->GetNestedClassProps(typeDef, &enclosingClass)))
+        if (SUCCEEDED(Status = trMDImport->GetNestedClassProps(typeDef, &enclosingClass)))
         {
             typeDef = enclosingClass;
         }
@@ -1175,7 +1175,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
         }
     } while (true);
 
-    return TypePrinter::NameForTypeDef(typeDef, pMD, methodClass, nullptr);
+    return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
@@ -1207,10 +1207,10 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunction->GetModule(&pModule));
 
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(pFunction->GetToken(&methodDef));
@@ -1238,8 +1238,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     DWORD methodAttr = 0;
     std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(pMD->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
-                                  &methodAttr, nullptr, nullptr, nullptr, nullptr));
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
+                                         &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     ToRelease<ICorDebugValue> currentThis; // Current This. Note, in case async method or lambda - this is special object (not user's "this").
@@ -1250,7 +1250,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         IfFailRet(pFunction->GetClass(&pClass));
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(pClass->GetToken(&typeDef));
-        IfFailRet(GetGeneratedCodeKind(pMD, szMethod.data(), typeDef, generatedCodeKind));
+        IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod.data(), typeDef, generatedCodeKind));
         IfFailRet(pILFrame->GetArgument(0, &currentThis));
 
         ToRelease<ICorDebugValue> userThis;
@@ -1262,7 +1262,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         else
         {
             // Check do we have real This value (that should be stored in ThisProxyField).
-            IfFailRet(FindThisProxyFieldValue(pMD, pClass, typeDef, currentThis, &userThis));
+            IfFailRet(FindThisProxyFieldValue(trMDImport, pClass, typeDef, currentThis, &userThis));
         }
 
         if (userThis != nullptr)
@@ -1294,9 +1294,9 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         std::array<WCHAR, mdNameLen> wParamName{};
         ULONG paramNameLen = 0;
         mdParamDef paramDef = mdParamDefNil;
-        if (FAILED(pMD->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-            FAILED(pMD->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
-                                      &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
+            FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
+                                             &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
@@ -1355,7 +1355,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             ToRelease<ICorDebugValue> iCorDisplayClassValue;
             IfFailRet(getValue(&iCorDisplayClassValue, false));
-            IfFailRet(WalkGeneratedClassFields(pMD, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
+            IfFailRet(WalkGeneratedClassFields(trMDImport, iCorDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                m_sharedDebugInfo.get(), pModule, cb));
             continue;
         }
@@ -1369,7 +1369,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
-        return WalkGeneratedClassFields(pMD, currentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), pModule, cb);
+        return WalkGeneratedClassFields(trMDImport, currentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), pModule, cb);
     }
 
     return S_OK;
@@ -1694,16 +1694,16 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
         HCORENUM fTypeEnum = nullptr;
         mdTypeDef mdType = mdTypeDefNil;
 
-        ToRelease<IUnknown> pMDUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-        ToRelease<IMetaDataImport> pMD;
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        while (SUCCEEDED(pMD->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
+        while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
         {
             std::string typeName;
-            if (!HasAttribute(pMD, mdType, attributeName) ||
-                FAILED(TypePrinter::NameForToken(mdType, pMD, typeName, false, nullptr)))
+            if (!HasAttribute(trMDImport, mdType, attributeName) ||
+                FAILED(TypePrinter::NameForToken(mdType, trMDImport, typeName, false, nullptr)))
             {
                 continue;
             }
@@ -1711,7 +1711,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
             mdMethodDef mdMethod = mdMethodDefNil;
             ULONG methodsCnt = 0;
 
-            while (SUCCEEDED(pMD->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
+            while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
             {
                 mdTypeDef memTypeDef = mdTypeDefNil;
                 ULONG nameLen = 0;
@@ -1719,9 +1719,9 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
 
-                if (FAILED(pMD->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
-                                               nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
-                    !HasAttribute(pMD, mdMethod, attributeName))
+                if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
+                                                      nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
+                    !HasAttribute(trMDImport, mdMethod, attributeName))
                 {
                     continue;
                 }
@@ -1735,7 +1735,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 // TODO use SigParse() for sig parsing:
                 //    SigElementType returnElementType;
                 //    std::vector<SigElementType> argElementTypes;
-                //    IfFailRet(SigParse(pMD, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
+                //    IfFailRet(SigParse(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
                 //    if (Status == S_FALSE)
                 //    {
                 //        continue;
@@ -1765,7 +1765,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
 
                 // 4. return type
                 SigElementType returnElementType;
-                if (FAILED(ParseElementType(pMD, &pSig, returnElementType, typeGenerics, methodGenerics)))
+                if (FAILED(ParseElementType(trMDImport, &pSig, returnElementType, typeGenerics, methodGenerics)))
                 {
                     continue;
                 }
@@ -1774,7 +1774,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 std::vector<SigElementType> argElementTypes(cParams);
                 for (ULONG i = 0; i < cParams; ++i)
                 {
-                    if (FAILED(ParseElementType(pMD, &pSig, argElementTypes[i], typeGenerics, methodGenerics)))
+                    if (FAILED(ParseElementType(trMDImport, &pSig, argElementTypes[i], typeGenerics, methodGenerics)))
                     {
                         break;
                     }
@@ -1812,14 +1812,14 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             continue;
                         }
 
-                        ToRelease<IUnknown> pMDUnk;
-                        if (FAILED(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnk)))
+                        ToRelease<IUnknown> trUnknownInt;
+                        if (FAILED(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownInt)))
                         {
                             continue;
                         }
 
-                        ToRelease<IMetaDataImport> pMDI;
-                        if (FAILED(pMDUnk->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDI))))
+                        ToRelease<IMetaDataImport> trMDImportInt;
+                        if (FAILED(trUnknownInt->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportInt))))
                         {
                             continue;
                         }
@@ -1827,7 +1827,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                         HCORENUM ifEnum = nullptr;
                         mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
                         ULONG pcImpls = 0;
-                        while (SUCCEEDED(pMDI->EnumInterfaceImpls(&ifEnum, metaTypeDef, &ifaceImpl, 1, &pcImpls)) &&
+                        while (SUCCEEDED(trMDImportInt->EnumInterfaceImpls(&ifEnum, metaTypeDef, &ifaceImpl, 1, &pcImpls)) &&
                                pcImpls != 0)
                         {
                             mdTypeDef tkClass = mdTypeDefNil;
@@ -1835,21 +1835,21 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             PCCOR_SIGNATURE pSig = nullptr;
                             ULONG pcbSig = 0;
                             SigElementType ifaceElementType;
-                            if (FAILED(pMDI->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
+                            if (FAILED(trMDImportInt->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
                             {
                                 continue;
                             }
                             if (TypeFromToken(tkIface) == mdtTypeSpec)
                             {
-                                if (FAILED(pMDI->GetTypeSpecFromToken(tkIface, &pSig, &pcbSig)) ||
-                                    FAILED(ParseElementType(pMDI, &pSig, ifaceElementType, typeGenerics, methodGenerics, false)))
+                                if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &pcbSig)) ||
+                                    FAILED(ParseElementType(trMDImportInt, &pSig, ifaceElementType, typeGenerics, methodGenerics, false)))
                                 {
                                     continue;
                                 }
                             }
                             else
                             {
-                                if (FAILED(TypePrinter::NameForToken(tkIface, pMDI, ifaceElementType.typeName, true, nullptr)))
+                                if (FAILED(TypePrinter::NameForToken(tkIface, trMDImportInt, ifaceElementType.typeName, true, nullptr)))
                                 {
                                     continue;
                                 }
@@ -1870,14 +1870,14 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                 if (found)
                                 {
                                     pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
-                                    pMDI->CloseEnum(ifEnum);
-                                    pMD->CloseEnum(fFuncEnum);
-                                    pMD->CloseEnum(fTypeEnum);
+                                    trMDImportInt->CloseEnum(ifEnum);
+                                    trMDImport->CloseEnum(fFuncEnum);
+                                    trMDImport->CloseEnum(fTypeEnum);
                                     return E_ABORT;
                                 }
                             }
                         }
-                        pMDI->CloseEnum(ifEnum);
+                        trMDImportInt->CloseEnum(ifEnum);
                     }
                 }
                 else if (ty != argElementTypes[0].corType || (methodArgs.size() + 1 != argElementTypes.size()))
@@ -1898,15 +1898,15 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                     if (found)
                     {
                         pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
-                        pMD->CloseEnum(fFuncEnum);
-                        pMD->CloseEnum(fTypeEnum);
+                        trMDImport->CloseEnum(fFuncEnum);
+                        trMDImport->CloseEnum(fTypeEnum);
                         return E_ABORT;
                     }
                 }
             }
-            pMD->CloseEnum(fFuncEnum);
+            trMDImport->CloseEnum(fFuncEnum);
         }
-        pMD->CloseEnum(fTypeEnum);
+        trMDImport->CloseEnum(fTypeEnum);
         return S_OK;
     });
     return S_OK;

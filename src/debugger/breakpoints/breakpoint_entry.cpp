@@ -114,12 +114,12 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 
 // Try to setup proper entry breakpoint method token and IL offset for async Main method.
 // [in] pModule - module with async Main method;
-// [in] pMD - metadata interface for pModule;
+// [in] pMDImport - metadataimport interface for pModule;
 // [in] pDebugInfo - all loaded modules debug related data;
 // [in] mdMainClass - class token with Main method in module pModule;
 // [out] entryPointToken - corrected method token;
 // [out] entryPointOffset - corrected IL offset on first user code line.
-HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMD, DebugInfo *pDebugInfo,
+HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMDImport, DebugInfo *pDebugInfo,
                                      mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
     // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
@@ -134,10 +134,10 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
     HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
-    while(SUCCEEDED(pMD->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
+    while(SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
     {
         mdTypeDef mdEnclosingClass = mdTypeDefNil;
-        if (FAILED(pMD->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
+        if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
         {
             continue;
         }
@@ -145,7 +145,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         DWORD flags = 0;
         std::array<WCHAR, mdNameLen> className{};
         ULONG classNameLen = 0;
-        IfFailRet(pMD->GetTypeDefProps(typeDef, className.data(), mdNameLen, &classNameLen, &flags, nullptr));
+        IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), mdNameLen, &classNameLen, &flags, nullptr));
         if (!starts_with(className.data(), W("<Main>d__")))
         {
             continue;
@@ -154,13 +154,13 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (SUCCEEDED(pMD->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
             mdTypeDef memTypeDef = mdTypeDefNil;
             std::array<WCHAR, mdNameLen> funcName{};
             ULONG funcNameLen = 0;
-            if (FAILED(pMD->GetMethodProps(methodDef, &memTypeDef, funcName.data(), mdNameLen, &funcNameLen,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, funcName.data(), mdNameLen, &funcNameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -171,9 +171,9 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
                 break;
             }
         }
-        pMD->CloseEnum(fEnum);
+        pMDImport->CloseEnum(fEnum);
     }
-    pMD->CloseEnum(hEnum);
+    pMDImport->CloseEnum(hEnum);
 
     if (resultToken == mdMethodDefNil)
     {
@@ -210,23 +210,23 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     }
 
     uint32_t entryPointOffset = 0;
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
+    ToRelease<IUnknown> trUnknown;
+    ToRelease<IMetaDataImport> trMDImport;
     mdTypeDef mdMainClass = mdTypeDefNil;
     std::array<WCHAR, mdNameLen> funcName{};
     ULONG funcNameLen = 0;
     // If we can't setup entry point correctly for async method, leave it "as is".
-    if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown)) &&
-        SUCCEEDED(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD))) &&
-        SUCCEEDED(pMD->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), mdNameLen, &funcNameLen,
-                                      nullptr, nullptr, nullptr, nullptr, nullptr)) &&
+    if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) &&
+        SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) &&
+        SUCCEEDED(trMDImport->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), mdNameLen, &funcNameLen,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)) &&
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/main-and-command-args/
         // In case of async method as entry method, GetEntryPointTokenFromFile() should return compiler's generated method `<Main>`, plus,
         // this should be method without user code.
         str_equal(funcName.data(), W("<Main>")))
     {
-        TrySetupAsyncEntryBreakpoint(pModule, pMD, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
+        TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
     }
 
     ToRelease<ICorDebugFunction> pFunction;

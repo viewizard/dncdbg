@@ -50,55 +50,53 @@ bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vecto
 HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMDImport;
-
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ULONG typesCnt = 0;
     HCORENUM fTypeEnum = nullptr;
     mdTypeDef mdType = mdTypeDefNil;
 
-    while (SUCCEEDED(pMDImport->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
     {
         std::string typeName;
-        IfFailRet(TypePrinter::NameForToken(mdType, pMDImport, typeName, false, nullptr));
+        IfFailRet(TypePrinter::NameForToken(mdType, trMDImport, typeName, false, nullptr));
 
         HCORENUM fFuncEnum = nullptr;
         mdMethodDef mdMethod = mdMethodDefNil;
         ULONG methodsCnt = 0;
 
-        while (SUCCEEDED(pMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
+        while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
         {
             mdTypeDef memTypeDef = mdTypeDefNil;
             ULONG nameLen = 0;
             std::array<WCHAR, mdNameLen> szFuncName{};
 
-            if (FAILED(pMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
             // Get generic types
-            ToRelease<IMetaDataImport2> pMDImport2;
-
-            IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&pMDImport2)));
+            ToRelease<IMetaDataImport2> trMDImport2;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
             HCORENUM fGenEnum = nullptr;
             mdGenericParam gp = mdGenericParamNil;
             ULONG fetched = 0;
             std::string genParams;
 
-            while (SUCCEEDED(pMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
+            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
             {
                 mdMethodDef memMethodDef = mdMethodDefNil;
                 std::array<WCHAR, mdNameLen> szGenName{};
                 ULONG genNameLen = 0;
 
-                if (FAILED(pMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
-                                                            szGenName.data(), mdNameLen, &genNameLen)))
+                if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
+                                                             szGenName.data(), mdNameLen, &genNameLen)))
                 {
                     continue;
                 }
@@ -107,7 +105,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                 genParams += to_utf8(szGenName.data()) + ",";
             }
 
-            pMDImport2->CloseEnum(fGenEnum);
+            trMDImport2->CloseEnum(fGenEnum);
 
             std::string fullName = to_utf8(szFuncName.data());
             if (!genParams.empty())
@@ -119,15 +117,15 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
 
             if (!functor(typeName + "." + fullName, mdMethod)) // NOLINT(performance-inefficient-string-concatenation)
             {
-                pMDImport->CloseEnum(fFuncEnum);
-                pMDImport->CloseEnum(fTypeEnum);
+                trMDImport->CloseEnum(fFuncEnum);
+                trMDImport->CloseEnum(fTypeEnum);
                 return E_FAIL;
             }
         }
 
-        pMDImport->CloseEnum(fFuncEnum);
+        trMDImport->CloseEnum(fFuncEnum);
     }
-    pMDImport->CloseEnum(fTypeEnum);
+    trMDImport->CloseEnum(fTypeEnum);
 
     return S_OK;
 }
@@ -463,14 +461,12 @@ HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMDImport;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
-
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
     GUID mvid;
-
-    IfFailRet(pMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
+    IfFailRet(trMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
 
     static constexpr uint32_t widthMvid8 = 8;
     static constexpr uint32_t widthMvid4 = 4;
@@ -554,12 +550,12 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
             }
         }
 
-        ToRelease<IUnknown> pMDUnknown;
-        ToRelease<IMetaDataImport> pMDImport;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        if (FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, pMDImport, pSymbolReaderHandle)))
+        if (FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
         {
             LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "
                  "source path resolve in future.");

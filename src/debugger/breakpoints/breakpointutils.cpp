@@ -130,12 +130,12 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     // Care about attributes for "JMC disabled" case.
     if (!justMyCode)
     {
-        ToRelease<IUnknown> iUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &iUnknown));
-        ToRelease<IMetaDataImport> iMD;
-        IfFailRet(iUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&iMD)));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        if (HasAttribute(iMD, methodToken, DebuggerAttribute::Hidden))
+        if (HasAttribute(trMDImport, methodToken, DebuggerAttribute::Hidden))
         {
             return S_OK; // need skip breakpoint
         }

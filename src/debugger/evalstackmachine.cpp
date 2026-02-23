@@ -2240,19 +2240,19 @@ HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLe
 HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     static const WSTRING strTypeDefDecimal{W("System.Decimal")};
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefDecimal.c_str(), mdTypeDefNil, &typeDef));
+    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefDecimal.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorDecimalClass));
 
     typeDef = mdTypeDefNil;
     static const WSTRING strTypeDefVoid{W("System.Void")};
-    IfFailRet(pMD->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
+    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.iCorVoidClass));
 
     static const std::vector<std::pair<CorElementType, const WCHAR *>> corElementToValueNameMap{
@@ -2273,7 +2273,7 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     for (const auto &entry : corElementToValueNameMap)
     {
         typeDef = mdTypeDefNil;
-        IfFailRet(pMD->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
+        IfFailRet(trMDImport->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
         IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.corElementToValueClassMap[entry.first]));
     }
 

@@ -121,7 +121,7 @@ void GetCorTypeName(ULONG corType, std::string &typeName)
 // LoBounds ::= 29-bit-encoded-integer
 // Number ::= 29-bit-encoded-integer
 
-HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
+HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
                          const std::vector<SigElementType> &typeGenerics,
                          const std::vector<SigElementType> &methodGenerics, bool addCorTypeName)
 {
@@ -158,11 +158,11 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
     case ELEMENT_TYPE_VALUETYPE:
     case ELEMENT_TYPE_CLASS:
         *ppSig += CorSigUncompressToken(*ppSig, &tk);
-        IfFailRet(TypePrinter::NameForTypeByToken(tk, pMD, sigElementType.typeName, nullptr));
+        IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
         break;
 
     case ELEMENT_TYPE_SZARRAY:
-        if (FAILED(Status = ParseElementType(pMD, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
+        if (FAILED(Status = ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
         {
             return Status;
         }
@@ -171,7 +171,7 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
         break;
     case ELEMENT_TYPE_ARRAY:
     {
-        if (FAILED(Status = ParseElementType(pMD, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
+        if (FAILED(Status = ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
         {
             return Status;
         }
@@ -247,12 +247,12 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
         }
         *ppSig += CorSigUncompressToken(*ppSig, &token);
         sigElementType.corType = (CorElementType)corType;
-        IfFailRet(TypePrinter::NameForTypeByToken(token, pMD, sigElementType.typeName, nullptr));
+        IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
         *ppSig += CorSigUncompressData(*ppSig, &number);
         for (ULONG i = 0; i < number; i++)
         {
             SigElementType mycop; // Not needed at the moment
-            if (FAILED(Status = ParseElementType(pMD, ppSig, mycop, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
+            if (FAILED(Status = ParseElementType(pMDImport, ppSig, mycop, typeGenerics, methodGenerics, true)) || Status == S_FALSE)
             {
                 return Status;
             }
@@ -280,7 +280,7 @@ HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElemen
 }
 
 // Return S_FALSE in case abort parsing, since next block are not implemented.
-HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
+HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
                  const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
                  std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
@@ -317,7 +317,7 @@ HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<S
     pSig += elementSize;
 
     // 4. return type
-    IfFailRet(ParseElementType(pMD, &pSig, returnElementType, typeGenerics, methodGenerics, addCorTypeName));
+    IfFailRet(ParseElementType(pMDImport, &pSig, returnElementType, typeGenerics, methodGenerics, addCorTypeName));
     if (Status == S_FALSE)
     {
         return S_FALSE;
@@ -327,7 +327,7 @@ HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<S
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMD, &pSig, argElementTypes[i], typeGenerics, methodGenerics, addCorTypeName));
+        IfFailRet(ParseElementType(pMDImport, &pSig, argElementTypes[i], typeGenerics, methodGenerics, addCorTypeName));
         if (Status == S_FALSE)
         {
             return S_FALSE;

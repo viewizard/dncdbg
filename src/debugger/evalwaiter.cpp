@@ -304,20 +304,20 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     // in order to make code simple and clear, we don't check enclosing classes with recursion here
     // since we know behaviour for sure, just find "System.Diagnostics.Debugger" first
     mdTypeDef typeDefParent = mdTypeDefNil;
     static const WSTRING strParentTypeDef(W("System.Diagnostics.Debugger"));
-    IfFailRet(pMD->FindTypeDefByName(strParentTypeDef.c_str(), mdTypeDefNil, &typeDefParent));
+    IfFailRet(trMDImport->FindTypeDefByName(strParentTypeDef.c_str(), mdTypeDefNil, &typeDefParent));
 
     mdTypeDef typeDef = mdTypeDefNil;
     static const WSTRING strTypeDef(W("CrossThreadDependencyNotification"));
-    IfFailRet(pMD->FindTypeDefByName(strTypeDef.c_str(), typeDefParent, &typeDef));
+    IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), typeDefParent, &typeDef));
 
     m_iCorCrossThreadDependencyNotification.Free(); // allow re-setup if need
     return pModule->GetClassFromToken(typeDef, &m_iCorCrossThreadDependencyNotification);

@@ -20,13 +20,13 @@ namespace dncdbg
 namespace
 {
 
-mdMethodDef GetMethodToken(IMetaDataImport *pMD, mdTypeDef cl, const WSTRING &methodName)
+mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef cl, const WSTRING &methodName)
 {
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;
     mdMethodDef methodDef = mdTypeDefNil;
-    pMD->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
-    pMD->CloseEnum(mEnum);
+    pMDImport->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
+    pMDImport->CloseEnum(mEnum);
     return methodDef;
 }
 
@@ -34,16 +34,16 @@ HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WS
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
 
-    IfFailRet(pMD->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
+    IfFailRet(trMDImport->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
 
-    const mdMethodDef methodDef = GetMethodToken(pMD, typeDef, methodName);
+    const mdMethodDef methodDef = GetMethodToken(trMDImport, typeDef, methodName);
 
     if (methodDef == mdMethodDefNil)
     {
@@ -63,57 +63,57 @@ bool TypeHaveStaticMembers(ICorDebugType *pType)
     IfFailRet(pClass->GetToken(&typeDef));
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMD->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
-        if (FAILED(pMD->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
         if ((fieldAttr & fdStatic) != 0U)
         {
-            pMD->CloseEnum(hEnum);
+            trMDImport->CloseEnum(hEnum);
             return true;
         }
     }
-    pMD->CloseEnum(hEnum);
+    trMDImport->CloseEnum(hEnum);
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = nullptr;
-    while (SUCCEEDED(pMD->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+    while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(pMD->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
-                                         nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
+                                                nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
         {
             continue;
         }
 
         DWORD getterAttr = 0;
-        if (FAILED(pMD->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                       nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                              nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
         if ((getterAttr & mdStatic) != 0U)
         {
-            pMD->CloseEnum(propEnum);
+            trMDImport->CloseEnum(propEnum);
             return true;
         }
     }
-    pMD->CloseEnum(propEnum);
+    trMDImport->CloseEnum(propEnum);
 
     return false;
 }
@@ -413,10 +413,10 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
     CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
     CorSigUncompressElementType(pSignatureBlob, &underlyingType);
 
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     switch (underlyingType)
     {
@@ -447,7 +447,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            TypePrinter::NameForTypeSig(pSignatureBlob, pType, pMD, typeName);
+            TypePrinter::NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> pElementType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &pElementType));
 
@@ -486,7 +486,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            TypePrinter::NameForTypeSig(pSignatureBlob, pType, pMD, typeName);
+            TypePrinter::NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> pValueType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &pValueType));
 

@@ -26,10 +26,10 @@ std::vector<std::string> GatherParameters(const std::vector<std::string> &identi
     return result;
 }
 
-mdTypeDef GetTypeTokenForName(IMetaDataImport *pMD, mdTypeDef tkEnclosingClass, const std::string &name)
+mdTypeDef GetTypeTokenForName(IMetaDataImport *pMDImport, mdTypeDef tkEnclosingClass, const std::string &name)
 {
     mdTypeDef typeToken = mdTypeDefNil;
-    pMD->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
+    pMDImport->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
     return typeToken;
 }
 
@@ -38,10 +38,10 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     std::string currentTypeName;
 
@@ -52,7 +52,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
         ParseGenericParams(identifiers[i], name);
         currentTypeName += (currentTypeName.empty() ? "" : ".") + name;
 
-        typeToken = GetTypeTokenForName(pMD, mdTypeDefNil, currentTypeName);
+        typeToken = GetTypeTokenForName(trMDImport, mdTypeDefNil, currentTypeName);
         if (typeToken != mdTypeDefNil)
         {
             nextIdentifier = i + 1;
@@ -70,7 +70,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     {
         std::string name;
         ParseGenericParams(identifiers[j], name);
-        const mdTypeDef classToken = GetTypeTokenForName(pMD, typeToken, name);
+        const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, name);
         if (classToken == mdTypeDefNil)
         {
             break;
@@ -296,18 +296,18 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         ToRelease<ICorDebugClass2> pClass2;
         IfFailRet(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2)));
 
-        ToRelease<IUnknown> pMDUnknown;
-        IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-        ToRelease<IMetaDataImport> pMD;
-        IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
         DWORD flags = 0;
         ULONG nameLen = 0;
         mdToken tkExtends = mdTokenNil;
-        IfFailRet(pMD->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
+        IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
 
         std::string eTypeName;
-        IfFailRet(TypePrinter::NameForToken(tkExtends, pMD, eTypeName, true, nullptr));
+        IfFailRet(TypePrinter::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
 
         const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
         const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;

@@ -44,11 +44,11 @@ struct SigElementType
     }
 };
 
-HRESULT ParseElementType(IMetaDataImport *pMD, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
+HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
                          const std::vector<SigElementType> &typeGenerics,
                          const std::vector<SigElementType> &methodGenerics, bool addCorTypeName = false);
 
-HRESULT SigParse(IMetaDataImport *pMD, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
+HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
                  const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
                  std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 

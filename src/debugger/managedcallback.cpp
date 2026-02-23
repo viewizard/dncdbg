@@ -44,14 +44,14 @@ HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
     ToRelease<ICorDebugModule> pModule;
     IfFailRet(pFunc->GetModule(&pModule));
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMDImport;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMDImport)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     std::array<WCHAR, mdNameLen> mdName{};
     ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
+    IfFailRet(trMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
     excModule = to_utf8(mdName.data());
 
     return S_OK;

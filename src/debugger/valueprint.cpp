@@ -67,10 +67,10 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
     IfFailRet(pClass->GetModule(&pModule));
     IfFailRet(pClass->GetToken(&currentTypeDef));
 
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     //First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant
     //We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar)
@@ -78,13 +78,13 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
     HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     CorElementType enumUnderlyingType = ELEMENT_TYPE_MAX;
-    while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
         PCCOR_SIGNATURE pSignatureBlob = nullptr;
         ULONG sigBlobLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                         &pSignatureBlob, &sigBlobLength, nullptr, nullptr, nullptr)))
+        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                                &pSignatureBlob, &sigBlobLength, nullptr, nullptr, nullptr)))
         {
             if ((fieldAttr & fdStatic) == 0)
             {
@@ -94,7 +94,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
             }
         }
     }
-    pMD->CloseEnum(fEnum);
+    trMDImport->CloseEnum(fEnum);
 
     auto getValue = [&enumUnderlyingType](const void *data) -> uint64_t
     {
@@ -133,20 +133,20 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
 
     // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
     // that "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
-    const bool foundFlagsAttr = HasAttribute(pMD, currentTypeDef, "System.FlagsAttribute..ctor");
+    const bool foundFlagsAttr = HasAttribute(trMDImport, currentTypeDef, "System.FlagsAttribute..ctor");
 
     uint64_t remainingValue = curValue;
     std::map<uint64_t, std::string> OrderedFlags;
     fEnum = nullptr;
-    while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
         std::array<WCHAR, mdNameLen> mdName{};
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
-                                         nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
+        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+                                                nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
         {
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
@@ -157,7 +157,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
             const uint64_t currentConstValue = getValue(pRawValue);
             if (currentConstValue == curValue)
             {
-                pMD->CloseEnum(fEnum);
+                trMDImport->CloseEnum(fEnum);
                 output = to_utf8(mdName.data());
 
                 return S_OK;
@@ -179,7 +179,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
             }
         }
     }
-    pMD->CloseEnum(fEnum);
+    trMDImport->CloseEnum(fEnum);
 
     // Don't lose data, provide number as-is instead.
     if (!OrderedFlags.empty() && (remainingValue == 0U))
@@ -327,20 +327,20 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
 {
     HRESULT Status = S_OK;
 
-    mdTypeDef currentTypeDef = mdTypeDefNil;
-    ToRelease<ICorDebugClass> pClass;
     ToRelease<ICorDebugValue2> pValue2;
-    ToRelease<ICorDebugType> pType;
-    ToRelease<ICorDebugModule> pModule;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
+    ToRelease<ICorDebugType> pType;
     IfFailRet(pValue2->GetExactType(&pType));
+    ToRelease<ICorDebugClass> pClass;
     IfFailRet(pType->GetClass(&pClass));
+    ToRelease<ICorDebugModule> pModule;
     IfFailRet(pClass->GetModule(&pModule));
+    mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> pMDUnknown;
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     bool has_hi = false;
     bool has_mid = false;
@@ -350,13 +350,13 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
     ULONG numFields = 0;
     HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMD->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         DWORD fieldAttr = 0;
         std::array<WCHAR, mdNameLen> mdName{};
-        if(SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
-                                        nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+                                               nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (((fieldAttr & fdLiteral) != 0U) ||
                 ((fieldAttr & fdStatic) != 0U))
@@ -402,7 +402,7 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
             }
         }
     }
-    pMD->CloseEnum(fEnum);
+    trMDImport->CloseEnum(fEnum);
 
     return (has_hi && has_mid && has_lo && has_flags ? S_OK : E_FAIL);
 }
@@ -746,10 +746,10 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(pClass->GetModule(&pModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(pClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> pMDUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &pMDUnknown));
-    ToRelease<IMetaDataImport> pMD;
-    IfFailRet(pMDUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&pMD)));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ToRelease<ICorDebugObjectValue> pObjValue;
     ToRelease<ICorDebugValue> unboxedResultValue;
@@ -759,12 +759,12 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMD->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (SUCCEEDED(trMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
         std::array<WCHAR, mdNameLen> mdName{};
-        if (SUCCEEDED(pMD->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
             if (str_equal(mdName.data(), W("value")))
