@@ -315,8 +315,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 m_sharedDebugger->SetJustMyCode(
                     arguments.value("justMyCode", true)); // MS vsdbg have "justMyCode" enabled by default.
-                m_sharedDebugger->SetStepFiltering(arguments.value(
-                    "enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
+                m_sharedDebugger->SetStepFiltering(
+                    arguments.value("enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
 
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;
