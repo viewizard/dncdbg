@@ -58,26 +58,26 @@ void Breakpoints::DeleteAll()
 HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugAppDomainEnum> domains;
-    IfFailRet(pProcess->EnumerateAppDomains(&domains));
+    ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
+    IfFailRet(pProcess->EnumerateAppDomains(&trAppDomainEnum));
 
     ICorDebugAppDomain *curDomain = nullptr;
     ULONG domainsFetched = 0;
-    while (SUCCEEDED(domains->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
+    while (SUCCEEDED(trAppDomainEnum->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
     {
-        ToRelease<ICorDebugAppDomain> pDomain(curDomain);
-        ToRelease<ICorDebugBreakpointEnum> breakpoints;
-        if (FAILED(pDomain->EnumerateBreakpoints(&breakpoints)))
+        ToRelease<ICorDebugAppDomain> trDomain(curDomain);
+        ToRelease<ICorDebugBreakpointEnum> trBreakpointEnum;
+        if (FAILED(trDomain->EnumerateBreakpoints(&trBreakpointEnum)))
         {
             continue;
         }
 
         ICorDebugBreakpoint *curBreakpoint = nullptr;
         ULONG breakpointsFetched = 0;
-        while (SUCCEEDED(breakpoints->Next(1, &curBreakpoint, &breakpointsFetched)) && breakpointsFetched == 1)
+        while (SUCCEEDED(trBreakpointEnum->Next(1, &curBreakpoint, &breakpointsFetched)) && breakpointsFetched == 1)
         {
-            ToRelease<ICorDebugBreakpoint> pBreakpoint(curBreakpoint);
-            pBreakpoint->Activate(FALSE);
+            ToRelease<ICorDebugBreakpoint> trBreakpoint(curBreakpoint);
+            trBreakpoint->Activate(FALSE);
         }
     }
 
@@ -143,14 +143,14 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
 
     // Don't stop at breakpoint in not JMC code, if possible (error here is not fatal for debug process).
     // We need this check here, since we can't guarantee this check in SkipBreakpoint().
-    ToRelease<ICorDebugFrame> iCorFrame;
-    ToRelease<ICorDebugFunction> iCorFunction;
-    ToRelease<ICorDebugFunction2> iCorFunction2;
+    ToRelease<ICorDebugFrame> trFrame;
+    ToRelease<ICorDebugFunction> trFunction;
+    ToRelease<ICorDebugFunction2> trFunction2;
     BOOL JMCStatus = FALSE;
-    if (SUCCEEDED(pThread->GetActiveFrame(&iCorFrame)) && iCorFrame != nullptr &&
-        SUCCEEDED(iCorFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
-        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) &&
+    if (SUCCEEDED(pThread->GetActiveFrame(&trFrame)) && trFrame != nullptr &&
+        SUCCEEDED(trFrame->GetFunction(&trFunction)) &&
+        SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+        SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
         JMCStatus == FALSE)
     {
         return S_OK; // forced to interrupt this callback (breakpoint in not user code, continue process execution)

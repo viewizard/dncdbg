@@ -36,23 +36,23 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&pFunctionBreakpoint)));
+    ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
 
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
-    ToRelease<ICorDebugValueEnum> pParamEnum;
-    IfFailRet(pILFrame->EnumerateArguments(&pParamEnum));
+    ToRelease<ICorDebugValueEnum> trParamEnum;
+    IfFailRet(trILFrame->EnumerateArguments(&trParamEnum));
     ULONG cParams = 0;
-    IfFailRet(pParamEnum->GetCount(&cParams));
+    IfFailRet(trParamEnum->GetCount(&cParams));
 
     std::ostringstream ss;
     ss << "(";
@@ -60,15 +60,15 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     {
         for (ULONG i = 0; i < cParams; ++i)
         {
-            ToRelease<ICorDebugValue> pValue;
+            ToRelease<ICorDebugValue> trValue;
             ULONG cArgsFetched = 0;
-            if (FAILED(pParamEnum->Next(1, &pValue, &cArgsFetched)))
+            if (FAILED(trParamEnum->Next(1, &trValue, &cArgsFetched)))
             {
                 continue;
             }
 
             std::string param;
-            IfFailRet(TypePrinter::GetTypeOfValue(pValue, param));
+            IfFailRet(TypePrinter::GetTypeOfValue(trValue, param));
             if (i > 0)
             {
                 ss << ",";
@@ -91,9 +91,9 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             continue;
         }
 
-        for (auto &iCorFuncBreakpoint : fbp.iCorFuncBreakpoints)
+        for (auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
         {
-            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, iCorFuncBreakpoint));
+            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint));
             if (Status == S_FALSE)
             {
                 continue;
@@ -234,8 +234,8 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
             return S_OK;
         }
 
-        ToRelease<ICorDebugFunction> pFunc;
-        IfFailRet(entry.first->GetFunctionFromToken(entry.second, &pFunc));
+        ToRelease<ICorDebugFunction> trFunc;
+        IfFailRet(entry.first->GetFunctionFromToken(entry.second, &trFunc));
 
         uint32_t ilNextOffset = 0;
         if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
@@ -243,14 +243,14 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
             return S_OK;
         }
 
-        ToRelease<ICorDebugCode> pCode;
-        IfFailRet(pFunc->GetILCode(&pCode));
+        ToRelease<ICorDebugCode> trCode;
+        IfFailRet(trFunc->GetILCode(&trCode));
 
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        IfFailRet(pCode->CreateBreakpoint(ilNextOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+        IfFailRet(trCode->CreateBreakpoint(ilNextOffset, &trFuncBreakpoint));
+        IfFailRet(trFuncBreakpoint->Activate(TRUE));
 
-        fbp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
+        fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
     }
 
     return S_OK;

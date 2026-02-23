@@ -85,19 +85,19 @@ HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std::strin
 
 HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args)
 {
-    ToRelease<ICorDebugTypeEnum> pTypeEnum;
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
 
-    if (SUCCEEDED(pType->EnumerateTypeParameters(&pTypeEnum)))
+    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
     {
         ULONG fetched = 0;
-        ToRelease<ICorDebugType> pCurrentTypeParam;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
 
-        while (SUCCEEDED(pTypeEnum->Next(1, &pCurrentTypeParam, &fetched)) && fetched == 1)
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
         {
             std::string name;
-            GetTypeOfValue(pCurrentTypeParam, name);
+            GetTypeOfValue(trCurrentTypeParam, name);
             args.emplace_back(name);
-            pCurrentTypeParam.Free();
+            trCurrentTypeParam.Free();
         }
     }
 
@@ -108,22 +108,21 @@ HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugILFrame2> pILFrame2;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, reinterpret_cast<void **>(&pILFrame2)));
+    ToRelease<ICorDebugILFrame2> trILFrame2;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, reinterpret_cast<void **>(&trILFrame2)));
 
-    ToRelease<ICorDebugTypeEnum> pTypeEnum;
-
-    if (SUCCEEDED(pILFrame2->EnumerateTypeParameters(&pTypeEnum)))
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+    if (SUCCEEDED(trILFrame2->EnumerateTypeParameters(&trTypeEnum)))
     {
         ULONG numTypes = 0;
-        ToRelease<ICorDebugType> pCurrentTypeParam;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
 
-        while (SUCCEEDED(pTypeEnum->Next(1, &pCurrentTypeParam, &numTypes)) && numTypes == 1)
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &numTypes)) && numTypes == 1)
         {
             std::string name;
-            GetTypeOfValue(pCurrentTypeParam, name);
+            GetTypeOfValue(trCurrentTypeParam, name);
             args.emplace_back(name);
-            pCurrentTypeParam.Free();
+            trCurrentTypeParam.Free();
         }
     }
 
@@ -467,16 +466,16 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pImport, std::string &md
 HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(pType->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
     mdToken tk = mdTokenNil;
-    IfFailRet(pClass->GetToken(&tk));
+    IfFailRet(trClass->GetToken(&tk));
     std::list<std::string> args;
     AddGenericArgs(pType, args);
     return NameForTypeByToken(tk, trMDImport, mdName, &args);
@@ -485,11 +484,11 @@ HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
 HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue2> iCorValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&iCorValue2)));
-    ToRelease<ICorDebugType> iCorType;
-    IfFailRet(iCorValue2->GetExactType(&iCorType));
-    return NameForTypeByType(iCorType, mdName);
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    return NameForTypeByType(trType, mdName);
 }
 
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, bool bClassName,
@@ -585,12 +584,12 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
 
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
 {
-    ToRelease<ICorDebugType> pType;
-    ToRelease<ICorDebugValue2> pValue2;
-    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&pValue2)))) &&
-        SUCCEEDED(pValue2->GetExactType(&pType)))
+    ToRelease<ICorDebugType> trType;
+    ToRelease<ICorDebugValue2> trValue2;
+    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&trValue2)))) &&
+        SUCCEEDED(trValue2->GetExactType(&trType)))
     {
-        return GetTypeOfValue(pType, output);
+        return GetTypeOfValue(trType, output);
     }
     else
     {
@@ -647,14 +646,14 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
 
         mdTypeDef typeDef = mdTypeDefNil;
-        ToRelease<ICorDebugClass> pClass;
-        if (SUCCEEDED(pType->GetClass(&pClass)) && SUCCEEDED(pClass->GetToken(&typeDef)))
+        ToRelease<ICorDebugClass> trClass;
+        if (SUCCEEDED(pType->GetClass(&trClass)) && SUCCEEDED(trClass->GetToken(&typeDef)))
         {
-            ToRelease<ICorDebugModule> pModule;
-            IfFailRet(pClass->GetModule(&pModule));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trClass->GetModule(&trModule));
 
             ToRelease<IUnknown> trUnknown;
-            IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
             IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -736,10 +735,10 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
     {
         std::string subElementType;
         std::string subArrayType;
-        ToRelease<ICorDebugType> pFirstParameter;
-        if (SUCCEEDED(pType->GetFirstTypeParameter(&pFirstParameter)))
+        ToRelease<ICorDebugType> trFirstParameter;
+        if (SUCCEEDED(pType->GetFirstTypeParameter(&trFirstParameter)))
         {
-            GetTypeOfValue(pFirstParameter, subElementType, subArrayType);
+            GetTypeOfValue(trFirstParameter, subElementType, subArrayType);
         }
         else
         {
@@ -795,19 +794,19 @@ void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *enclosingType, IMeta
 {
     // Gather generic arguments from enclosing type
     std::vector<std::string> args;
-    ToRelease<ICorDebugTypeEnum> pTypeEnum;
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
 
-    if (SUCCEEDED(enclosingType->EnumerateTypeParameters(&pTypeEnum)))
+    if (SUCCEEDED(enclosingType->EnumerateTypeParameters(&trTypeEnum)))
     {
         ULONG fetched = 0;
-        ToRelease<ICorDebugType> pCurrentTypeParam;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
 
-        while (SUCCEEDED(pTypeEnum->Next(1, &pCurrentTypeParam, &fetched)) && fetched == 1)
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
         {
             std::string name;
-            GetTypeOfValue(pCurrentTypeParam, name);
+            GetTypeOfValue(trCurrentTypeParam, name);
             args.emplace_back(name);
-            pCurrentTypeParam.Free();
+            trCurrentTypeParam.Free();
         }
     }
 
@@ -831,23 +830,23 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugFunction> pFunction;
-    IfFailRet(pFrame->GetFunction(&pFunction));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pFrame->GetFunction(&trFunction));
 
-    ToRelease<ICorDebugClass> pClass;
-    ToRelease<ICorDebugModule> pModule;
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trFunction->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
     mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(pFunction->GetClass(&pClass));
-    IfFailRet(pFunction->GetModule(&pModule));
-    IfFailRet(pFunction->GetToken(&methodDef));
+    IfFailRet(trFunction->GetToken(&methodDef));
 
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&typeDef));
+    IfFailRet(trClass->GetToken(&typeDef));
 
     mdTypeDef memTypeDef = mdTypeDefNil;
     ULONG nameLen = 0;

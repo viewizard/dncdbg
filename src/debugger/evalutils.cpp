@@ -83,14 +83,14 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
 }
 
 HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, DebugInfo *pDebugInfo,
-                          std::vector<ToRelease<ICorDebugType>> &types)
+                          std::vector<ToRelease<ICorDebugType>> &trTypes)
 {
     HRESULT Status = S_OK;
     for (const auto &p : params)
     {
         ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
         IfFailRet(GetType(p, pThread, pDebugInfo, &tmpType));
-        types.emplace_back(tmpType);
+        trTypes.emplace_back(tmpType);
     }
     return S_OK;
 }
@@ -164,27 +164,27 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, DebugInfo
         classIdentifiers[0] = TypePrinter::RenameToSystem(classIdentifiers[0]);
     }
 
-    ToRelease<ICorDebugType> pType;
+    ToRelease<ICorDebugType> trType;
     int nextClassIdentifier = 0;
-    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, pDebugInfo, nullptr, &pType));
+    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, pDebugInfo, nullptr, &trType));
 
     if (!ranks.empty())
     {
-        ToRelease<ICorDebugAppDomain2> pAppDomain2;
-        ToRelease<ICorDebugAppDomain> pAppDomain;
-        IfFailRet(pThread->GetAppDomain(&pAppDomain));
-        IfFailRet(pAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&pAppDomain2)));
+        ToRelease<ICorDebugAppDomain> trAppDomain;
+        ToRelease<ICorDebugAppDomain2> trAppDomain2;
+        IfFailRet(pThread->GetAppDomain(&trAppDomain));
+        IfFailRet(trAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&trAppDomain2)));
 
         for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
         {
-            const ToRelease<ICorDebugType> pElementType(std::move(pType));
-            IfFailRet(pAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, *irank,
-                                                         pElementType,
-                                                         &pType)); // NOLINT(clang-analyzer-cplusplus.Move,bugprone-use-after-move)
+            const ToRelease<ICorDebugType> trElementType(std::move(trType));
+            IfFailRet(trAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, *irank,
+                                                          trElementType,
+                                                          &trType)); // NOLINT(clang-analyzer-cplusplus.Move,bugprone-use-after-move)
         }
     }
 
-    *ppType = pType.Detach();
+    *ppType = trType.Detach();
     return S_OK;
 }
 
@@ -254,11 +254,11 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         pModule->AddRef();
     }
-    ToRelease<ICorDebugModule> pTypeModule(pModule);
+    ToRelease<ICorDebugModule> trTypeModule(pModule);
 
     mdTypeDef typeToken = mdTypeDefNil;
 
-    if (pTypeModule == nullptr)
+    if (trTypeModule == nullptr)
     {
         pDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
             if (typeToken != mdTypeDefNil) // already found
@@ -269,14 +269,14 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
             if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
             {
                 pModule->AddRef();
-                pTypeModule = pModule;
+                trTypeModule = pModule;
             }
             return S_OK;
         });
     }
     else
     {
-        FindTypeInModule(pTypeModule, identifiers, nextIdentifier, typeToken);
+        FindTypeInModule(trTypeModule, identifiers, nextIdentifier, typeToken);
     }
 
     if (typeToken == mdTypeDefNil)
@@ -287,17 +287,17 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     if (ppType != nullptr)
     {
         const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
-        std::vector<ToRelease<ICorDebugType>> types;
-        IfFailRet(ResolveParameters(params, pThread, pDebugInfo, types));
+        std::vector<ToRelease<ICorDebugType>> trTypes;
+        IfFailRet(ResolveParameters(params, pThread, pDebugInfo, trTypes));
 
-        ToRelease<ICorDebugClass> pClass;
-        IfFailRet(pTypeModule->GetClassFromToken(typeToken, &pClass));
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(trTypeModule->GetClassFromToken(typeToken, &trClass));
 
-        ToRelease<ICorDebugClass2> pClass2;
-        IfFailRet(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2)));
+        ToRelease<ICorDebugClass2> trClass2;
+        IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
 
         ToRelease<IUnknown> trUnknown;
-        IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        IfFailRet(trTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -312,15 +312,15 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
         const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
-        ToRelease<ICorDebugType> pType;
-        IfFailRet(pClass2->GetParameterizedType(et, static_cast<uint32_t>(types.size()),
-                                                reinterpret_cast<ICorDebugType **>(types.data()), &pType));
+        ToRelease<ICorDebugType> trType;
+        IfFailRet(trClass2->GetParameterizedType(et, static_cast<uint32_t>(trTypes.size()),
+                                                 reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));
 
-        *ppType = pType.Detach();
+        *ppType = trType.Detach();
     }
     if (ppModule != nullptr)
     {
-        *ppModule = pTypeModule.Detach();
+        *ppModule = trTypeModule.Detach();
     }
 
     return S_OK;

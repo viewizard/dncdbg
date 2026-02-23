@@ -27,7 +27,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
-        (*ppEvalResult).Status = pEval->GetResult(&((*ppEvalResult).iCorEval));
+        (*ppEvalResult).Status = pEval->GetResult(&((*ppEvalResult).trEval));
     }
 
     if (!m_evalResult || m_evalResult->threadId != threadId)
@@ -54,10 +54,10 @@ void EvalWaiter::CancelEvalRunning()
         return;
     }
 
-    ToRelease<ICorDebugEval2> iCorEval2;
+    ToRelease<ICorDebugEval2> trEval2;
     if (SUCCEEDED(m_evalResult->pEval->Abort()) ||
-        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))) &&
-         SUCCEEDED(iCorEval2->RudeAbort())))
+        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) &&
+         SUCCEEDED(trEval2->RudeAbort())))
     {
         m_evalCanceled = true;
     }
@@ -122,9 +122,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     // Make sure, that all managed callbacks ignore standard logic during evaluation and don't pause/interrupt managed code execution.
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugProcess> iCorProcess;
-    IfFailRet(pThread->GetProcess(&iCorProcess));
-    if (iCorProcess == nullptr)
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pThread->GetProcess(&trProcess));
+    if (trProcess == nullptr)
     {
         return E_FAIL;
     }
@@ -134,16 +134,16 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     // Note, we need suspend during eval all managed threads, that not used for eval (delegates, reverse pinvokes, managed threads).
     auto ChangeThreadsState = [&](CorDebugThreadState state)
     {
-        ToRelease<ICorDebugThreadEnum> iCorThreadEnum;
-        iCorProcess->EnumerateThreads(&iCorThreadEnum);
+        ToRelease<ICorDebugThreadEnum> trThreadEnum;
+        trProcess->EnumerateThreads(&trThreadEnum);
         ULONG fetched = 0;
-        ToRelease<ICorDebugThread> iCorThread;
-        while (SUCCEEDED(iCorThreadEnum->Next(1, &iCorThread, &fetched)) && fetched == 1)
+        ToRelease<ICorDebugThread> trThread;
+        while (SUCCEEDED(trThreadEnum->Next(1, &trThread, &fetched)) && fetched == 1)
         {
             DWORD tid = 0;
-            if (SUCCEEDED(iCorThread->GetID(&tid)) &&
+            if (SUCCEEDED(trThread->GetID(&tid)) &&
                 evalThreadId != tid &&
-                FAILED(iCorThread->SetDebugState(state)))
+                FAILED(trThread->SetDebugState(state)))
             {
                 if (state == THREAD_SUSPEND)
                 {
@@ -155,7 +155,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                     LOGW("SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
                 }
             }
-            iCorThread.Free();
+            trThread.Free();
         }
     };
 
@@ -164,12 +164,12 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     {
         ChangeThreadsState(THREAD_SUSPEND);
 
-        ToRelease<ICorDebugEval> iCorEval;
-        IfFailRet(pThread->CreateEval(&iCorEval));
+        ToRelease<ICorDebugEval> trEval;
+        IfFailRet(pThread->CreateEval(&trEval));
 
         try
         {
-            auto f = RunEval(Status, iCorProcess, pThread, iCorEval, cbSetupEval);
+            auto f = RunEval(Status, trProcess, pThread, trEval, cbSetupEval);
             IfFailRet(Status);
 
             if (!f.valid())
@@ -198,20 +198,20 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
 
                 // In this case we have same behaviour as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort eval by any cost.
                 // Ignore errors here, this our last chance prevent debugger hangs.
-                iCorProcess->Stop(0);
+                trProcess->Stop(0);
                 ChangeThreadsState(THREAD_RUN);
 
-                if (FAILED(iCorEval->Abort()))
+                if (FAILED(trEval->Abort()))
                 {
-                    ToRelease<ICorDebugEval2> iCorEval2;
-                    if (SUCCEEDED(iCorEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))))
+                    ToRelease<ICorDebugEval2> trEval2;
+                    if (SUCCEEDED(trEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))))
                     {
-                        iCorEval2->RudeAbort();
+                        trEval2->RudeAbort();
                     }
                 }
 
                 evalTimeOut = true;
-                iCorProcess->Continue(0);
+                trProcess->Continue(0);
             }
             // Wait for 5 more seconds, give `Abort()` a chance.
             static constexpr uint32_t abortEvalTimeout = 5000; // TODO config
@@ -219,7 +219,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             if (timeoutStatus == std::future_status::timeout)
             {
                 // Looks like can't be aborted, this is fatal error for debugger (debuggee have inconsistent state now).
-                iCorProcess->Stop(0);
+                trProcess->Stop(0);
                 m_evalResultMutex.lock();
                 m_evalResult.reset(nullptr);
                 m_evalResultMutex.unlock();
@@ -235,7 +235,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 return S_OK;
             }
 
-            *ppEvalResult = evalResult->iCorEval.Detach();
+            *ppEvalResult = evalResult->trEval.Detach();
             return evalResult->Status;
         }
         catch (const std::future_error &)
@@ -244,13 +244,13 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
         }
     };
 
-    SetEnableCustomNotification(iCorProcess, TRUE);
+    SetEnableCustomNotification(trProcess, TRUE);
 
     m_evalCanceled = false;
     m_evalCrossThreadDependency = false;
     HRESULT ret = WaitResult();
 
-    SetEnableCustomNotification(iCorProcess, FALSE);
+    SetEnableCustomNotification(trProcess, FALSE);
 
     if (ret == CORDBG_S_FUNC_EVAL_ABORTED)
     {
@@ -288,10 +288,10 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugEval2> iCorEval2;
+    ToRelease<ICorDebugEval2> trEval2;
     if (FAILED(Status = pEval->Abort()) &&
-        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&iCorEval2))) ||
-         FAILED(Status = iCorEval2->RudeAbort())))
+        (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) ||
+         FAILED(Status = trEval2->RudeAbort())))
     {
         LOGE("Can't abort evaluation in custom notification callback, %0x", Status);
         return Status;
@@ -319,16 +319,16 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     static const WSTRING strTypeDef(W("CrossThreadDependencyNotification"));
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), typeDefParent, &typeDef));
 
-    m_iCorCrossThreadDependencyNotification.Free(); // allow re-setup if need
-    return pModule->GetClassFromToken(typeDef, &m_iCorCrossThreadDependencyNotification);
+    m_trCrossThreadDependencyNotification.Free(); // allow re-setup if need
+    return pModule->GetClassFromToken(typeDef, &m_trCrossThreadDependencyNotification);
 }
 
 HRESULT EvalWaiter::SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugProcess3> pProcess3;
-    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, reinterpret_cast<void **>(&pProcess3)));
-    return pProcess3->SetEnableCustomNotification(m_iCorCrossThreadDependencyNotification, fEnable);
+    ToRelease<ICorDebugProcess3> trProcess3;
+    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, reinterpret_cast<void **>(&trProcess3)));
+    return trProcess3->SetEnableCustomNotification(m_trCrossThreadDependencyNotification, fEnable);
 }
 
 } // namespace dncdbg

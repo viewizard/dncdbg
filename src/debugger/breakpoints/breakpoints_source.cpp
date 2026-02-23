@@ -24,12 +24,12 @@ HRESULT EnableOneICorBreakpointForLine(std::list<SourceBreakpoints::ManagedSourc
     HRESULT Status = S_OK;
     for (auto &it : bList)
     {
-        if (it.iCorFuncBreakpoints.empty())
+        if (it.trFuncBreakpoints.empty())
         {
             continue;
         }
 
-        for (const auto &iCorFuncBreakpoint : it.iCorFuncBreakpoints)
+        for (const auto &iCorFuncBreakpoint : it.trFuncBreakpoints)
         {
             const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
             Status = FAILED(ret) ? ret : Status;
@@ -73,22 +73,22 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     CORDB_ADDRESS modAddressTrack = 0;
-    bp.iCorFuncBreakpoints.reserve(resolvedPoints.size());
+    bp.trFuncBreakpoints.reserve(resolvedPoints.size());
     for (const auto &resolvedBP : resolvedPoints)
     {
         // Note, we might have situation with same source path in different modules.
         // DAP and internal debugger routine don't support this case.
-        IfFailRet(resolvedBP.iCorModule->GetBaseAddress(&modAddressTrack));
+        IfFailRet(resolvedBP.trModule->GetBaseAddress(&modAddressTrack));
         if ((modAddress != 0U) && (modAddress != modAddressTrack))
         {
             LOGW("During breakpoint resolve, multiple modules with same source file path was detected.");
             LOGW("File name: %s", bp_fullname.c_str());
-            LOGW("Breakpoint activated in module: %s", GetModuleFileName(resolvedPoints[0].iCorModule).c_str());
-            LOGW("Ignored module: %s", GetModuleFileName(resolvedBP.iCorModule).c_str());
+            LOGW("Breakpoint activated in module: %s", GetModuleFileName(resolvedPoints[0].trModule).c_str());
+            LOGW("Ignored module: %s", GetModuleFileName(resolvedBP.trModule).c_str());
             continue;
         }
 
-        IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.iCorModule, resolvedBP.methodToken, justMyCode));
+        IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken, justMyCode));
         if (Status == S_OK) // S_FALSE - don't skip breakpoint
         {
             continue;
@@ -96,16 +96,16 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
         modAddress = modAddressTrack;
 
-        ToRelease<ICorDebugFunction> pFunc;
-        IfFailRet(resolvedBP.iCorModule->GetFunctionFromToken(resolvedBP.methodToken, &pFunc));
-        ToRelease<ICorDebugCode> pCode;
-        IfFailRet(pFunc->GetILCode(&pCode));
+        ToRelease<ICorDebugFunction> trFunc;
+        IfFailRet(resolvedBP.trModule->GetFunctionFromToken(resolvedBP.methodToken, &trFunc));
+        ToRelease<ICorDebugCode> trCode;
+        IfFailRet(trFunc->GetILCode(&trCode));
 
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        IfFailRet(pCode->CreateBreakpoint(resolvedBP.ilOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+        IfFailRet(trCode->CreateBreakpoint(resolvedBP.ilOffset, &trFuncBreakpoint));
+        IfFailRet(trFuncBreakpoint->Activate(TRUE));
 
-        bp.iCorFuncBreakpoints.emplace_back(iCorFuncBreakpoint.Detach());
+        bp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
     }
 
     if (modAddress == 0)
@@ -114,7 +114,7 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
     }
 
     // No reason leave extra space here, since breakpoint could be setup for 1 module only (no more breakpoints will be added).
-    bp.iCorFuncBreakpoints.shrink_to_fit();
+    bp.trFuncBreakpoints.shrink_to_fit();
 
     // same for multiple breakpoint resolve for one module
     bp.linenum = resolvedPoints[0].startLine;
@@ -147,19 +147,19 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                                               std::vector<BreakpointEvent> &bpChangeEvents)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&pFunctionBreakpoint)));
+    ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
 
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
     uint32_t ilOffset = 0;
     SequencePoint sp;
-    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, sp));
+    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
 
     unsigned filenameIndex = 0;
     IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.document, filenameIndex));
@@ -184,14 +184,14 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     }
 
     mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
     // Same logic as provide vsdbg - only one breakpoint is active for one line, find first active in the list.
     for (auto &b : bList)
     {
-        for (const auto &iCorFuncBreakpoint : b.iCorFuncBreakpoints)
+        for (const auto &iCorFuncBreakpoint : b.trFuncBreakpoints)
         {
-            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, iCorFuncBreakpoint));
+            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, iCorFuncBreakpoint));
             if (Status == S_FALSE)
             {
                 continue;

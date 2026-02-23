@@ -14,31 +14,31 @@ namespace dncdbg
 HRESULT BreakBreakpoint::GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
     mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trFrame->GetFunction(&trFunc));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
 
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
     uint32_t ilOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
@@ -63,28 +63,28 @@ void BreakBreakpoint::SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const T
         return;
     }
 
-    ToRelease<ICorDebugThread> pThread;
-    if (SUCCEEDED(pProcess->GetThread(static_cast<int>(lastStoppedThreadId), &pThread)))
+    ToRelease<ICorDebugThread> trThread;
+    if (SUCCEEDED(pProcess->GetThread(static_cast<int>(lastStoppedThreadId), &trThread)))
     {
-        GetFullyQualifiedIlOffset(pThread, m_lastStoppedIlOffset);
+        GetFullyQualifiedIlOffset(trThread, m_lastStoppedIlOffset);
     }
 }
 
 HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFrame> iCorFrame;
-    IfFailRet(pThread->GetActiveFrame(&iCorFrame));
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
 
     // Ignore break on Break() outside of code with loaded PDB (see JMC setup during module load).
-    if (iCorFrame != nullptr)
+    if (trFrame != nullptr)
     {
-        ToRelease<ICorDebugFunction> iCorFunction;
-        IfFailRet(iCorFrame->GetFunction(&iCorFunction));
-        ToRelease<ICorDebugFunction2> iCorFunction2;
-        IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2)));
+        ToRelease<ICorDebugFunction> trFunction;
+        IfFailRet(trFrame->GetFunction(&trFunction));
+        ToRelease<ICorDebugFunction2> trFunction2;
+        IfFailRet(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2)));
         BOOL JMCStatus = FALSE;
-        IfFailRet(iCorFunction2->GetJMCStatus(&JMCStatus));
+        IfFailRet(trFunction2->GetJMCStatus(&JMCStatus));
 
         if (JMCStatus == FALSE)
         {

@@ -71,11 +71,11 @@ class SourceBreakpoints
         std::string condition;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
         // For example, `MyType obj = new MyType(1);` code will be added to all class constructors).
-        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> iCorFuncBreakpoints;
+        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 
         bool IsVerified() const
         {
-            return !iCorFuncBreakpoints.empty();
+            return !trFuncBreakpoints.empty();
         }
 
         ManagedSourceBreakpoint()
@@ -89,7 +89,7 @@ class SourceBreakpoints
 
         ~ManagedSourceBreakpoint()
         {
-            for (auto &iCorFuncBreakpoint : iCorFuncBreakpoints)
+            for (auto &iCorFuncBreakpoint : trFuncBreakpoints)
             {
                 if (iCorFuncBreakpoint)
                     iCorFuncBreakpoint->Activate(FALSE);

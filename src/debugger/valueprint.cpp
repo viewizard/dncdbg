@@ -26,22 +26,22 @@ namespace
 
 bool IsEnum(ICorDebugValue *pInputValue)
 {
-    ToRelease<ICorDebugValue> pValue;
-    if (FAILED(DereferenceAndUnboxValue(pInputValue, &pValue, nullptr)))
+    ToRelease<ICorDebugValue> trValue;
+    if (FAILED(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr)))
     {
         return false;
     }
 
     std::string baseTypeName;
-    ToRelease<ICorDebugValue2> pValue2;
-    ToRelease<ICorDebugType> pType;
-    ToRelease<ICorDebugType> pBaseType;
+    ToRelease<ICorDebugValue2> trValue2;
+    ToRelease<ICorDebugType> trType;
+    ToRelease<ICorDebugType> trBaseType;
 
-    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))) ||
-        FAILED(pValue2->GetExactType(&pType)) ||
-        FAILED(pType->GetBase(&pBaseType)) ||
-        pBaseType == nullptr ||
-        FAILED(TypePrinter::GetTypeOfValue(pBaseType, baseTypeName)))
+    if (FAILED(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
+        FAILED(trValue2->GetExactType(&trType)) ||
+        FAILED(trType->GetBase(&trBaseType)) ||
+        trBaseType == nullptr ||
+        FAILED(TypePrinter::GetTypeOfValue(trBaseType, baseTypeName)))
     {
         return false;
     }
@@ -53,22 +53,22 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, nullptr));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
 
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
-    ToRelease<ICorDebugClass> pClass;
-    ToRelease<ICorDebugValue2> pValue2;
-    ToRelease<ICorDebugType> pType;
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-    IfFailRet(pValue2->GetExactType(&pType));
-    IfFailRet(pType->GetClass(&pClass));
-    IfFailRet(pClass->GetModule(&pModule));
-    IfFailRet(pClass->GetToken(&currentTypeDef));
+    IfFailRet(trClass->GetToken(&currentTypeDef));
 
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -210,8 +210,8 @@ HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
 
     if (isNull == TRUE)
     {
@@ -219,14 +219,14 @@ HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
     }
 
     uint32_t cbSize = 0;
-    IfFailRet(pValue->GetSize(&cbSize));
+    IfFailRet(trValue->GetSize(&cbSize));
     if (cbSize != sizeof(value))
     {
         return E_FAIL;
     }
 
     CorElementType corElemType = ELEMENT_TYPE_MAX;
-    IfFailRet(pValue->GetType(&corElemType));
+    IfFailRet(trValue->GetType(&corElemType));
 
     switch (corElemType)
     {
@@ -311,9 +311,9 @@ HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue(&value));
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(&value));
     return S_OK;
 }
 
@@ -327,18 +327,18 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-    ToRelease<ICorDebugType> pType;
-    IfFailRet(pValue2->GetExactType(&pType));
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&currentTypeDef));
+    IfFailRet(trClass->GetToken(&currentTypeDef));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -364,40 +364,40 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
                 continue;
             }
 
-            ToRelease<ICorDebugValue> pFieldVal;
-            ToRelease<ICorDebugObjectValue> pObjValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
-            IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, &pFieldVal));
+            ToRelease<ICorDebugObjectValue> trObjValue;
+            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+            ToRelease<ICorDebugValue> trFieldVal;
+            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, &trFieldVal));
 
             const std::string name = to_utf8(mdName.data());
 
             if (name == "hi" || name == "_hi32")
             {
-                IfFailRet(GetUIntValue(pFieldVal, hi));
+                IfFailRet(GetUIntValue(trFieldVal, hi));
                 has_hi = true;
             }
             else if (name == "_lo64")
             {
                 static constexpr unsigned int fourBytesShift = 32;
                 unsigned long long lo64 = 0;
-                IfFailRet(GetIntegralValue(pFieldVal, lo64));
+                IfFailRet(GetIntegralValue(trFieldVal, lo64));
                 mid = lo64 >> fourBytesShift;
                 lo = lo64 & ((1ULL << fourBytesShift) - 1);
                 has_mid = has_lo = true;
             }
             else if (name == "mid")
             {
-                IfFailRet(GetUIntValue(pFieldVal, mid));
+                IfFailRet(GetUIntValue(trFieldVal, mid));
                 has_mid = true;
             }
             else if (name == "lo")
             {
-                IfFailRet(GetUIntValue(pFieldVal, lo));
+                IfFailRet(GetUIntValue(trFieldVal, lo));
                 has_lo = true;
             }
             else if (name == "flags" || name == "_flags")
             {
-                IfFailRet(GetUIntValue(pFieldVal, flags));
+                IfFailRet(GetUIntValue(trFieldVal, flags));
                 has_flags = true;
             }
         }
@@ -523,18 +523,18 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugArrayValue> pArrayValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&pArrayValue)));
+    ToRelease<ICorDebugArrayValue> trArrayValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue)));
 
     uint32_t nRank = 0;
-    IfFailRet(pArrayValue->GetRank(&nRank));
+    IfFailRet(trArrayValue->GetRank(&nRank));
     if (nRank < 1)
     {
         return E_UNEXPECTED;
     }
 
     uint32_t cElements = 0;
-    IfFailRet(pArrayValue->GetCount(&cElements));
+    IfFailRet(trArrayValue->GetCount(&cElements));
 
     std::ostringstream ss;
     ss << "{";
@@ -542,26 +542,26 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     std::string elementType;
     std::string arrayType;
 
-    ToRelease<ICorDebugType> pFirstParameter;
-    ToRelease<ICorDebugValue2> pValue2;
-    ToRelease<ICorDebugType> pType;
-    if (SUCCEEDED(pArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2))) &&
-        SUCCEEDED(pValue2->GetExactType(&pType)))
+    ToRelease<ICorDebugType> trFirstParameter;
+    ToRelease<ICorDebugValue2> trValue2;
+    ToRelease<ICorDebugType> trType;
+    if (SUCCEEDED(trArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) &&
+        SUCCEEDED(trValue2->GetExactType(&trType)))
     {
-        if (SUCCEEDED(pType->GetFirstTypeParameter(&pFirstParameter)))
+        if (SUCCEEDED(trType->GetFirstTypeParameter(&trFirstParameter)))
         {
-            TypePrinter::GetTypeOfValue(pFirstParameter, elementType, arrayType);
+            TypePrinter::GetTypeOfValue(trFirstParameter, elementType, arrayType);
         }
     }
 
     std::vector<uint32_t> dims(nRank, 0);
-    pArrayValue->GetDimensions(nRank, dims.data());
+    trArrayValue->GetDimensions(nRank, dims.data());
 
     std::vector<uint32_t> base(nRank, 0);
     BOOL hasBaseIndicies = FALSE;
-    if (SUCCEEDED(pArrayValue->HasBaseIndicies(&hasBaseIndicies)) && (hasBaseIndicies == TRUE))
+    if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndicies)) && (hasBaseIndicies == TRUE))
     {
-        IfFailRet(pArrayValue->GetBaseIndicies(nRank, base.data()));
+        IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
     }
 
     ss << elementType << "[";
@@ -711,17 +711,17 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugStringValue> pStringValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&pStringValue)));
+    ToRelease<ICorDebugStringValue> trStringValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugStringValue, reinterpret_cast<void **>(&trStringValue)));
 
     uint32_t cchValue = 0;
-    IfFailRet(pStringValue->GetLength(&cchValue));
+    IfFailRet(trStringValue->GetLength(&cchValue));
     cchValue++; // Allocate one more for null terminator
 
     ArrayHolder<WCHAR> str = new WCHAR[cchValue];
 
     uint32_t cchValueReturned = 0;
-    IfFailRet(pStringValue->GetString(cchValue, &cchValueReturned, str));
+    IfFailRet(trStringValue->GetString(cchValue, &cchValueReturned, str));
 
     output = to_utf8(str);
 
@@ -731,30 +731,30 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-    ToRelease<ICorDebugType> pType;
-    IfFailRet(pValue2->GetExactType(&pType));
-    if (pType == nullptr)
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    if (trType == nullptr)
     {
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&currentTypeDef));
+    IfFailRet(trClass->GetToken(&currentTypeDef));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    ToRelease<ICorDebugObjectValue> pObjValue;
-    ToRelease<ICorDebugValue> unboxedResultValue;
-    IfFailRet(DereferenceAndUnboxValue(pValue, &unboxedResultValue));
-    IfFailRet(unboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue)));
+    ToRelease<ICorDebugObjectValue> trObjValue;
+    ToRelease<ICorDebugValue> trUnboxedResultValue;
+    IfFailRet(DereferenceAndUnboxValue(pValue, &trUnboxedResultValue));
+    IfFailRet(trUnboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
@@ -769,13 +769,13 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
             if (str_equal(mdName.data(), W("value")))
             {
-                IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppValueValue));
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppValueValue));
             }
 
             // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
             if (str_equal(mdName.data(), W("hasValue")))
             {
-                IfFailRet(pObjValue->GetFieldValue(pClass, fieldDef, ppHasValueValue));
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppHasValueValue));
             }
         }
     }
@@ -786,12 +786,12 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
 HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue> pValueValue;
-    ToRelease<ICorDebugValue> pHasValueValue;
-    IfFailRet(GetNullableValue(pValue, &pValueValue, &pHasValueValue));
+    ToRelease<ICorDebugValue> trValueValue;
+    ToRelease<ICorDebugValue> trHasValueValue;
+    IfFailRet(GetNullableValue(pValue, &trValueValue, &trHasValueValue));
 
     uint32_t cbSize = 0;
-    IfFailRet(pHasValueValue->GetSize(&cbSize));
+    IfFailRet(trHasValueValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)
     {
@@ -799,13 +799,13 @@ HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
     }
     memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
-    ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
-    // pHasValueValue is ELEMENT_TYPE_BOOLEAN
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+    // trHasValueValue is ELEMENT_TYPE_BOOLEAN
     if (rgbValue[0] != 0)
     {
-        PrintValue(pValueValue, outTextValue, true);
+        PrintValue(trValueValue, outTextValue, true);
     }
     else
     {
@@ -820,8 +820,8 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     HRESULT Status = S_OK;
 
     BOOL isNull = TRUE;
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &pValue, &isNull));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
 
     if (isNull == TRUE)
     {
@@ -830,7 +830,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     }
 
     uint32_t cbSize = 0;
-    IfFailRet(pValue->GetSize(&cbSize));
+    IfFailRet(trValue->GetSize(&cbSize));
     ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
     if (rgbValue == nullptr)
     {
@@ -840,11 +840,11 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
 
     CorElementType corElemType = ELEMENT_TYPE_MAX;
-    IfFailRet(pValue->GetType(&corElemType));
+    IfFailRet(trValue->GetType(&corElemType));
     if (corElemType == ELEMENT_TYPE_STRING)
     {
         std::string raw_str;
-        IfFailRet(PrintStringValue(pValue, raw_str));
+        IfFailRet(PrintStringValue(trValue, raw_str));
 
         if (!escape)
         {
@@ -862,16 +862,16 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     if (corElemType == ELEMENT_TYPE_SZARRAY || corElemType == ELEMENT_TYPE_ARRAY)
     {
-        return PrintArrayValue(pValue, output);
+        return PrintArrayValue(trValue, output);
     }
 
-    ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
 
-    if (IsEnum(pValue))
+    if (IsEnum(trValue))
     {
-        return PrintEnumValue(pValue, rgbValue, output);
+        return PrintEnumValue(trValue, rgbValue, output);
     }
 
     static constexpr uint32_t floatPrecision = 8;
@@ -891,10 +891,10 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     case ELEMENT_TYPE_FNPTR:
     {
         CORDB_ADDRESS addr = 0;
-        ToRelease<ICorDebugReferenceValue> pReferenceValue;
-        if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&pReferenceValue))))
+        ToRelease<ICorDebugReferenceValue> trReferenceValue;
+        if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
         {
-            pReferenceValue->GetValue(&addr);
+            trReferenceValue->GetValue(&addr);
         }
         ss << "<function pointer 0x" << std::hex << addr << ">";
     }
@@ -904,11 +904,11 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     case ELEMENT_TYPE_CLASS:
     {
         std::string typeName;
-        TypePrinter::GetTypeOfValue(pValue, typeName);
+        TypePrinter::GetTypeOfValue(trValue, typeName);
         if (typeName == "decimal") // TODO: implement mechanism for printing custom type values
         {
             std::string val;
-            PrintDecimalValue(pValue, val);
+            PrintDecimalValue(trValue, val);
             ss << val;
         }
         else if (typeName == "void")
@@ -918,7 +918,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         else if (typeName.back() == '?') // System.Nullable<T>
         {
             std::string val;
-            PrintNullableValue(pValue, val);
+            PrintNullableValue(trValue, val);
             ss << val;
         }
         else

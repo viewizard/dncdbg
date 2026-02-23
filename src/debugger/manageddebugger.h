@@ -146,8 +146,8 @@ class ManagedDebugger
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;
 
     RWLock m_debugProcessRWLock;
-    ToRelease<ICorDebug> m_iCorDebug;
-    ToRelease<ICorDebugProcess> m_iCorProcess;
+    ToRelease<ICorDebug> m_trDebug;
+    ToRelease<ICorDebugProcess> m_trProcess;
 
     bool m_justMyCode;
     bool m_stepFiltering;

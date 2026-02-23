@@ -31,9 +31,9 @@ class Evaluator
 
     struct SetterData
     {
-        ToRelease<ICorDebugValue> thisValue;
-        ToRelease<ICorDebugType> propertyType;
-        ToRelease<ICorDebugFunction> setterFunction;
+        ToRelease<ICorDebugValue> trThisValue;
+        ToRelease<ICorDebugType> trPropertyType;
+        ToRelease<ICorDebugFunction> trSetterFunction;
 
         SetterData(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
         {
@@ -42,22 +42,22 @@ class Evaluator
 
         SetterData(SetterData &setterData)
         {
-            Set(setterData.thisValue.GetPtr(), setterData.propertyType.GetPtr(), setterData.setterFunction.GetPtr());
+            Set(setterData.trThisValue.GetPtr(), setterData.trPropertyType.GetPtr(), setterData.trSetterFunction.GetPtr());
         };
 
         void Set(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
         {
             if (pValue)
                 pValue->AddRef();
-            thisValue = pValue;
+            trThisValue = pValue;
 
             if (pType)
                 pType->AddRef();
-            propertyType = pType;
+            trPropertyType = pType;
 
             if (pFunction)
                 pFunction->AddRef();
-            setterFunction = pFunction;
+            trSetterFunction = pFunction;
         }
     };
 
@@ -108,7 +108,7 @@ class Evaluator
     HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
                         std::vector<SigElementType> &methodGenerics, const WalkMethodsCallback &cb);
     HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);
-    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &iCorPrevValue,
+    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
                      const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
                      std::string &output);
 

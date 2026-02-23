@@ -63,13 +63,13 @@ class AsyncStepper
 
     struct asyncBreakpoint_t
     {
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
         CORDB_ADDRESS modAddress = 0;
         mdMethodDef methodToken = mdMethodDefNil;
         uint32_t ilOffset = 0;
 
         asyncBreakpoint_t()
-            : iCorFuncBreakpoint(nullptr),
+            : trFuncBreakpoint(nullptr),
               modAddress(0),
               methodToken(0),
               ilOffset(0)
@@ -77,8 +77,8 @@ class AsyncStepper
 
         ~asyncBreakpoint_t()
         {
-            if (iCorFuncBreakpoint)
-                iCorFuncBreakpoint->Activate(FALSE);
+            if (trFuncBreakpoint)
+                trFuncBreakpoint->Activate(FALSE);
         }
     };
 
@@ -89,7 +89,7 @@ class AsyncStepper
         uint32_t m_resume_offset;
         asyncStepStatus m_stepStatus;
         std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
-        ToRelease<ICorDebugHandleValue> m_iCorHandleValueAsyncId;
+        ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
 
         asyncStep_t()
             : m_threadId(ThreadId::Invalid),
@@ -97,7 +97,7 @@ class AsyncStepper
               m_resume_offset(0),
               m_stepStatus(asyncStepStatus::yield_offset_breakpoint),
               m_Breakpoint(nullptr),
-              m_iCorHandleValueAsyncId(nullptr)
+              m_trHandleValueAsyncId(nullptr)
         {}
     };
 

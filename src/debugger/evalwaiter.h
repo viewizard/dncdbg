@@ -45,12 +45,12 @@ class EvalWaiter
     bool m_evalCanceled;
     bool m_evalCrossThreadDependency;
 
-    ToRelease<ICorDebugClass> m_iCorCrossThreadDependencyNotification;
+    ToRelease<ICorDebugClass> m_trCrossThreadDependencyNotification;
     HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable);
 
     struct evalResultData_t
     {
-        ToRelease<ICorDebugValue> iCorEval;
+        ToRelease<ICorDebugValue> trEval;
         HRESULT Status = E_FAIL;
     };
 

@@ -29,22 +29,22 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     HRESULT Status = S_OK;
 
     // Find 'this'.
-    ToRelease<ICorDebugFunction> pFunction;
-    IfFailRet(pFrame->GetFunction(&pFunction));
-    ToRelease<ICorDebugModule> pModule_this;
-    IfFailRet(pFunction->GetModule(&pModule_this));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pFrame->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule_this;
+    IfFailRet(trFunction->GetModule(&trModule_this));
     ToRelease<IUnknown> trUnknown_this;
-    IfFailRet(pModule_this->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown_this));
+    IfFailRet(trModule_this->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown_this));
     ToRelease<IMetaDataImport> trMDImport_this;
     IfFailRet(trUnknown_this->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport_this)));
     mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(pFunction->GetToken(&methodDef));
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
-    ToRelease<ICorDebugValueEnum> pParamEnum;
-    IfFailRet(pILFrame->EnumerateArguments(&pParamEnum));
+    IfFailRet(trFunction->GetToken(&methodDef));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+    ToRelease<ICorDebugValueEnum> trParamEnum;
+    IfFailRet(trILFrame->EnumerateArguments(&trParamEnum));
     ULONG cParams = 0;
-    IfFailRet(pParamEnum->GetCount(&cParams));
+    IfFailRet(trParamEnum->GetCount(&cParams));
     if (cParams == 0)
     {
         return E_FAIL;
@@ -58,25 +58,25 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
         return E_FAIL;
     }
     // At this point, first param will be always 'this'.
-    ToRelease<ICorDebugValue> pRefValue_this;
-    IfFailRet(pParamEnum->Next(1, &pRefValue_this, nullptr));
+    ToRelease<ICorDebugValue> trRefValue_this;
+    IfFailRet(trParamEnum->Next(1, &trRefValue_this, nullptr));
 
     // Find '<>t__builder' field.
-    ToRelease<ICorDebugValue> pValue_this;
-    IfFailRet(DereferenceAndUnboxValue(pRefValue_this, &pValue_this, nullptr));
-    ToRelease<ICorDebugValue2> pValue2_this;
-    IfFailRet(pValue_this->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2_this)));
-    ToRelease<ICorDebugType> pType_this;
-    IfFailRet(pValue2_this->GetExactType(&pType_this));
-    ToRelease<ICorDebugClass> pClass_this;
-    IfFailRet(pType_this->GetClass(&pClass_this));
+    ToRelease<ICorDebugValue> trValue_this;
+    IfFailRet(DereferenceAndUnboxValue(trRefValue_this, &trValue_this, nullptr));
+    ToRelease<ICorDebugValue2> trValue2_this;
+    IfFailRet(trValue_this->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2_this)));
+    ToRelease<ICorDebugType> trType_this;
+    IfFailRet(trValue2_this->GetExactType(&trType_this));
+    ToRelease<ICorDebugClass> trClass_this;
+    IfFailRet(trType_this->GetClass(&trClass_this));
     mdTypeDef typeDef_this = mdTypeDefNil;
-    IfFailRet(pClass_this->GetToken(&typeDef_this));
+    IfFailRet(trClass_this->GetToken(&typeDef_this));
 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    ToRelease<ICorDebugValue> pRefValue_t_builder;
+    ToRelease<ICorDebugValue> trRefValue_t_builder;
     while (SUCCEEDED(trMDImport_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
@@ -92,21 +92,21 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
             continue;
         }
 
-        ToRelease<ICorDebugObjectValue> pObjValue_this;
-        if (SUCCEEDED(pValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&pObjValue_this))))
+        ToRelease<ICorDebugObjectValue> trObjValue_this;
+        if (SUCCEEDED(trValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue_this))))
         {
-            pObjValue_this->GetFieldValue(pClass_this, fieldDef, &pRefValue_t_builder);
+            trObjValue_this->GetFieldValue(trClass_this, fieldDef, &trRefValue_t_builder);
         }
 
         break;
     }
     trMDImport_this->CloseEnum(hEnum);
 
-    if (pRefValue_t_builder == nullptr)
+    if (trRefValue_t_builder == nullptr)
     {
         return E_FAIL;
     }
-    IfFailRet(DereferenceAndUnboxValue(pRefValue_t_builder, ppValue_builder, nullptr));
+    IfFailRet(DereferenceAndUnboxValue(trRefValue_t_builder, ppValue_builder, nullptr));
 
     return S_OK;
 }
@@ -121,23 +121,23 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
                                    ICorDebugValue **ppValueAsyncIdRef)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue> pValue;
-    IfFailRet(GetAsyncTBuilder(pFrame, &pValue));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(GetAsyncTBuilder(pFrame, &trValue));
 
     // Find 'ObjectIdForDebugger' property.
-    ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-    ToRelease<ICorDebugType> pType;
-    IfFailRet(pValue2->GetExactType(&pType));
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
     mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&typeDef));
+    IfFailRet(trClass->GetToken(&typeDef));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -173,10 +173,10 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
     }
 
     // Call 'ObjectIdForDebugger' property getter.
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pModule->GetFunctionFromToken(mdObjectIdForDebuggerGetter, &pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trModule->GetFunctionFromToken(mdObjectIdForDebuggerGetter, &trFunc));
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, pValue.GetRef(), 1, ppValueAsyncIdRef, true));
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, trFunc, trType.GetRef(), 1, trValue.GetRef(), 1, ppValueAsyncIdRef, true));
 
     return S_OK;
 }
@@ -190,19 +190,19 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     HRESULT Status = S_OK;
 
     // Find SetNotificationForWaitCompletion() method.
-    ToRelease<ICorDebugValue2> pValue2;
-    IfFailRet(pBuilderValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-    ToRelease<ICorDebugType> pType;
-    IfFailRet(pValue2->GetExactType(&pType));
-    ToRelease<ICorDebugClass> pClass;
-    IfFailRet(pType->GetClass(&pClass));
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(pBuilderValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
     mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(pClass->GetToken(&typeDef));
+    IfFailRet(trClass->GetToken(&typeDef));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pClass->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -237,26 +237,26 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     }
 
     // Create boolean argument and set it to TRUE.
-    ToRelease<ICorDebugEval> pEval;
-    IfFailRet(pThread->CreateEval(&pEval));
-    ToRelease<ICorDebugValue> pNewBoolean;
-    IfFailRet(pEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &pNewBoolean));
+    ToRelease<ICorDebugEval> trEval;
+    IfFailRet(pThread->CreateEval(&trEval));
+    ToRelease<ICorDebugValue> trNewBoolean;
+    IfFailRet(trEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &trNewBoolean));
     uint32_t cbSize = 0;
-    IfFailRet(pNewBoolean->GetSize(&cbSize));
+    IfFailRet(trNewBoolean->GetSize(&cbSize));
     std::vector<BYTE> rgbValue(cbSize, 0);
-    ToRelease<ICorDebugGenericValue> pGenericValue;
-    IfFailRet(pNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&pGenericValue)));
-    IfFailRet(pGenericValue->GetValue(static_cast<void *>(rgbValue.data())));
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(rgbValue.data())));
     rgbValue[0] = 1; // TRUE
-    IfFailRet(pGenericValue->SetValue(static_cast<void *>(rgbValue.data())));
+    IfFailRet(trGenericValue->SetValue(static_cast<void *>(rgbValue.data())));
 
     // Call this.<>t__builder.SetNotificationForWaitCompletion(TRUE).
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pModule->GetFunctionFromToken(setNotifDef, &pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trModule->GetFunctionFromToken(setNotifDef, &trFunc));
 
-    std::array <ICorDebugValue *, 2> ppArgsValue{pBuilderValue, pNewBoolean};
+    std::array <ICorDebugValue *, 2> ppArgsValue{pBuilderValue, trNewBoolean};
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, pFunc, pType.GetRef(), 1, ppArgsValue.data(), 2, nullptr, true));
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, trFunc, trType.GetRef(), 1, ppArgsValue.data(), 2, nullptr, true));
 
     return S_OK;
 }
@@ -267,35 +267,35 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
     mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trFrame->GetFunction(&trFunc));
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunc->GetILCode(&trCode));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
 
     if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken))
     {
         return S_FALSE; // setup simple stepper
     }
 
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
     uint32_t ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(pILFrame->GetIP(&ipOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&ipOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
@@ -313,20 +313,20 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
     if (stepType == StepType::STEP_OUT)
     {
-        ToRelease<ICorDebugValue> pBuilderValue;
-        IfFailRet(GetAsyncTBuilder(pFrame, &pBuilderValue));
+        ToRelease<ICorDebugValue> trBuilderValue;
+        IfFailRet(GetAsyncTBuilder(trFrame, &trBuilderValue));
 
         // In case method is "async void", builder is "System.Runtime.CompilerServices.AsyncVoidMethodBuilder"
         // "If we are inside `async void` method, do normal step-out" from:
         // https://github.com/dotnet/runtime/blob/32d0360b73bd77256cc9a9314a3c4280a61ea9bc/src/mono/mono/component/debugger-engine.c#L1350
         std::string builderType;
-        IfFailRet(TypePrinter::GetTypeOfValue(pBuilderValue, builderType));
+        IfFailRet(TypePrinter::GetTypeOfValue(trBuilderValue, builderType));
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
         {
             return m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
         }
 
-        IfFailRet(SetNotificationForWaitCompletion(pThread, pBuilderValue, m_sharedEvalHelpers.get()));
+        IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue, m_sharedEvalHelpers.get()));
         IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion());
         // Note, we don't create stepper here, since all we need in case of breakpoint is call Continue() from StepCommand().
         return S_OK;
@@ -353,10 +353,10 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         m_asyncStep->m_Breakpoint->methodToken = methodToken;
         m_asyncStep->m_Breakpoint->ilOffset = awaitInfo->yield_offset;
 
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        IfFailRet(pCode->CreateBreakpoint(m_asyncStep->m_Breakpoint->ilOffset, &iCorFuncBreakpoint));
-        IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
-        m_asyncStep->m_Breakpoint->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+        IfFailRet(trCode->CreateBreakpoint(m_asyncStep->m_Breakpoint->ilOffset, &trFuncBreakpoint));
+        IfFailRet(trFuncBreakpoint->Activate(TRUE));
+        m_asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
     }
 
     return S_FALSE; // setup simple stepper
@@ -401,26 +401,26 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
     static const std::string assemblyName("System.Private.CoreLib.dll");
     static const WSTRING className(W("System.Threading.Tasks.Task"));
     static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(m_sharedEvalHelpers->FindMethodInModule(assemblyName, className, methodName, &pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(m_sharedEvalHelpers->FindMethodInModule(assemblyName, className, methodName, &trFunc));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
     mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(pFunc->GetToken(&methodDef));
+    IfFailRet(trFunc->GetToken(&methodDef));
 
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunc->GetILCode(&trCode));
 
-    ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-    IfFailRet(pCode->CreateBreakpoint(0, &iCorFuncBreakpoint));
-    IfFailRet(iCorFuncBreakpoint->Activate(TRUE));
+    ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+    IfFailRet(trCode->CreateBreakpoint(0, &trFuncBreakpoint));
+    IfFailRet(trFuncBreakpoint->Activate(TRUE));
 
     const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
     m_asyncStepNotifyDebuggerOfWaitCompletion = std::make_unique<asyncBreakpoint_t>();
-    m_asyncStepNotifyDebuggerOfWaitCompletion->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
+    m_asyncStepNotifyDebuggerOfWaitCompletion->trFuncBreakpoint = trFuncBreakpoint.Detach();
     m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress = modAddress;
     m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken = methodDef;
 
@@ -431,21 +431,21 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
 // [in] pThread - object that represents the thread that contains the breakpoint.
 HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 {
-    ToRelease<ICorDebugFrame> pFrame;
+    ToRelease<ICorDebugFrame> trFrame;
     mdMethodDef methodToken = mdMethodDefNil;
-    if (FAILED(pThread->GetActiveFrame(&pFrame)) ||
-        pFrame == nullptr ||
-        FAILED(pFrame->GetFunctionToken(&methodToken)))
+    if (FAILED(pThread->GetActiveFrame(&trFrame)) ||
+        trFrame == nullptr ||
+        FAILED(trFrame->GetFunctionToken(&methodToken)))
     {
         LOGE("Failed receive function token for async step");
         return S_FALSE;
     }
     CORDB_ADDRESS modAddress = 0;
-    ToRelease<ICorDebugFunction> pFunc;
-    ToRelease<ICorDebugModule> pModule;
-    if (FAILED(pFrame->GetFunction(&pFunc)) ||
-        FAILED(pFunc->GetModule(&pModule)) ||
-        FAILED(pModule->GetBaseAddress(&modAddress)))
+    ToRelease<ICorDebugFunction> trFunc;
+    ToRelease<ICorDebugModule> trModule;
+    if (FAILED(trFrame->GetFunction(&trFunc)) ||
+        FAILED(trFunc->GetModule(&trModule)) ||
+        FAILED(trModule->GetBaseAddress(&modAddress)))
     {
         LOGE("Failed receive module address for async step");
         return S_FALSE;
@@ -485,11 +485,11 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return S_FALSE;
     }
 
-    ToRelease<ICorDebugILFrame> pILFrame;
+    ToRelease<ICorDebugILFrame> trILFrame;
     uint32_t ipOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    if (FAILED(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame))) ||
-        FAILED(pILFrame->GetIP(&ipOffset, &mappingResult)) ||
+    if (FAILED(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame))) ||
+        FAILED(trILFrame->GetIP(&ipOffset, &mappingResult)) ||
         mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
@@ -515,34 +515,34 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
 
         HRESULT Status = S_OK;
-        ToRelease<ICorDebugProcess> pProcess;
-        IfFailRet(pThread->GetProcess(&pProcess));
-        m_simpleStepper->DisableAllSteppers(pProcess);
+        ToRelease<ICorDebugProcess> trProcess;
+        IfFailRet(pThread->GetProcess(&trProcess));
+        m_simpleStepper->DisableAllSteppers(trProcess);
 
         m_asyncStep->m_stepStatus = asyncStepStatus::resume_offset_breakpoint;
 
-        ToRelease<ICorDebugCode> pCode;
-        ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-        if (FAILED(pFunc->GetILCode(&pCode)) ||
-            FAILED(pCode->CreateBreakpoint(m_asyncStep->m_resume_offset, &iCorFuncBreakpoint)) ||
-            FAILED(iCorFuncBreakpoint->Activate(TRUE)))
+        ToRelease<ICorDebugCode> trCode;
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+        if (FAILED(trFunc->GetILCode(&trCode)) ||
+            FAILED(trCode->CreateBreakpoint(m_asyncStep->m_resume_offset, &trFuncBreakpoint)) ||
+            FAILED(trFuncBreakpoint->Activate(TRUE)))
         {
             LOGE("Could not setup second breakpoint (resume_offset) for await block");
             return S_FALSE;
         }
 
-        m_asyncStep->m_Breakpoint->iCorFuncBreakpoint->Activate(FALSE);
-        m_asyncStep->m_Breakpoint->iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
+        m_asyncStep->m_Breakpoint->trFuncBreakpoint->Activate(FALSE);
+        m_asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
         m_asyncStep->m_Breakpoint->ilOffset = m_asyncStep->m_resume_offset;
 
         CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
-        ToRelease<ICorDebugValue> iCorValue;
-        if (FAILED(GetAsyncIdReference(pThread, pFrame, m_sharedEvalHelpers.get(), &iCorValue)) ||
-            FAILED(iCorValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_iCorHandleValueAsyncId))) ||
-            FAILED(m_asyncStep->m_iCorHandleValueAsyncId->GetHandleType(&handleType)) ||
+        ToRelease<ICorDebugValue> trValue;
+        if (FAILED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalHelpers.get(), &trValue)) ||
+            FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_trHandleValueAsyncId))) ||
+            FAILED(m_asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
             handleType != CorDebugHandleType::HANDLE_STRONG) // Note, we need only strong handle here, that will not invalidated on continue-break.
         {
-            m_asyncStep->m_iCorHandleValueAsyncId.Free();
+            m_asyncStep->m_trHandleValueAsyncId.Free();
             LOGE("Could not setup handle with async ID for await block");
         }
     }
@@ -559,14 +559,14 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             return S_OK;
         }
 
-        ToRelease<ICorDebugValue> pValueRef;
+        ToRelease<ICorDebugValue> trValueRef;
         CORDB_ADDRESS currentAsyncId = 0;
-        ToRelease<ICorDebugValue> pValue;
+        ToRelease<ICorDebugValue> trValue;
         BOOL isNull = FALSE;
-        if (SUCCEEDED(GetAsyncIdReference(pThread, pFrame, m_sharedEvalHelpers.get(), &pValueRef)) &&
-            SUCCEEDED(DereferenceAndUnboxValue(pValueRef, &pValue, &isNull)) && (isNull == FALSE))
+        if (SUCCEEDED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalHelpers.get(), &trValueRef)) &&
+            SUCCEEDED(DereferenceAndUnboxValue(trValueRef, &trValue, &isNull)) && (isNull == FALSE))
         {
-            pValue->GetAddress(&currentAsyncId);
+            trValue->GetAddress(&currentAsyncId);
         }
         else
         {
@@ -574,13 +574,13 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
 
         CORDB_ADDRESS prevAsyncId = 0;
-        ToRelease<ICorDebugValue> pDereferencedValue;
-        ToRelease<ICorDebugValue> pValueAsyncId;
-        if ((m_asyncStep->m_iCorHandleValueAsyncId != nullptr) && // Note, we could fail with m_iCorHandleValueAsyncId on previous breakpoint by some reason.
-            SUCCEEDED(m_asyncStep->m_iCorHandleValueAsyncId->Dereference(&pDereferencedValue)) &&
-            SUCCEEDED(DereferenceAndUnboxValue(pDereferencedValue, &pValueAsyncId, &isNull)) && (isNull == FALSE))
+        ToRelease<ICorDebugValue> trDereferencedValue;
+        ToRelease<ICorDebugValue> trValueAsyncId;
+        if ((m_asyncStep->m_trHandleValueAsyncId != nullptr) && // Note, we could fail with m_trHandleValueAsyncId on previous breakpoint by some reason.
+            SUCCEEDED(m_asyncStep->m_trHandleValueAsyncId->Dereference(&trDereferencedValue)) &&
+            SUCCEEDED(DereferenceAndUnboxValue(trDereferencedValue, &trValueAsyncId, &isNull)) && (isNull == FALSE))
         {
-            pValueAsyncId->GetAddress(&prevAsyncId);
+            trValueAsyncId->GetAddress(&prevAsyncId);
         }
         else
         {

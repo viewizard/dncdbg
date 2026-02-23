@@ -64,11 +64,11 @@ struct VariableMember
 {
     std::string name;
     std::string ownerType;
-    ToRelease<ICorDebugValue> value;
+    ToRelease<ICorDebugValue> trValue;
     VariableMember(const std::string &name, std::string &ownerType, ICorDebugValue *pValue) // NOLINT(modernize-pass-by-value)
         : name(name),
           ownerType(std::move(ownerType)),
-          value(pValue)
+          trValue(pValue)
     {
     }
 
@@ -81,7 +81,7 @@ struct VariableMember
 
 HRESULT FillValueAndType(VariableMember &member, Variable &var)
 {
-    if (member.value == nullptr)
+    if (member.trValue == nullptr)
     {
         // "SUCCEEDED" result, variable found but error during value receive itself.
         // For example, in case of eval flags `EVAL_NOFUNCEVAL` and property.
@@ -89,8 +89,8 @@ HRESULT FillValueAndType(VariableMember &member, Variable &var)
         return S_FALSE;
     }
 
-    TypePrinter::GetTypeOfValue(member.value, var.type);
-    return PrintValue(member.value, var.value, true);
+    TypePrinter::GetTypeOfValue(member.trValue, var.type);
+    return PrintValue(member.trValue, var.value, true);
 }
 
 HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
@@ -128,8 +128,8 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
             }
 
             // Note, in this case error is not fatal, but if protocol side need cancel command execution, stop walk and return error to caller.
-            ToRelease<ICorDebugValue> iCorResultValue;
-            if (getValue(&iCorResultValue, false) == COR_E_OPERATIONCANCELED)
+            ToRelease<ICorDebugValue> trResultValue;
+            if (getValue(&trResultValue, false) == COR_E_OPERATIONCANCELED)
             {
                 return COR_E_OPERATIONCANCELED;
             }
@@ -140,7 +140,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
                 IfFailRet(TypePrinter::GetTypeOfValue(pType, className));
             }
 
-            members.emplace_back(name, className, iCorResultValue.Detach());
+            members.emplace_back(name, className, trResultValue.Detach());
             return S_OK;
         }));
 
@@ -178,8 +178,8 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &pThread));
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &trThread));
 
     // Named and Indexed variables are in the same index (internally), Named variables go first
     if (filter == VariablesFilter::Named && (start + count > ref.namedVariables || count == 0))
@@ -193,11 +193,11 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 
     if (ref.IsScope())
     {
-        IfFailRet(GetStackVariables(ref.frameId, pThread, start, count, variables));
+        IfFailRet(GetStackVariables(ref.frameId, trThread, start, count, variables));
     }
     else
     {
-        IfFailRet(GetChildren(ref, pThread, start, count, variables));
+        IfFailRet(GetChildren(ref, trThread, start, count, variables));
     }
     return S_OK;
 }
@@ -229,17 +229,17 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
 
 HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &var)
 {
-    ToRelease<ICorDebugValue> pExceptionValue;
-    if (SUCCEEDED(pThread->GetCurrentException(&pExceptionValue)) && pExceptionValue != nullptr)
+    ToRelease<ICorDebugValue> trExceptionValue;
+    if (SUCCEEDED(pThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
     {
         var.name = "$exception";
         var.evaluateName = var.name;
 
         HRESULT Status = S_OK;
-        IfFailRet(PrintValue(pExceptionValue, var.value));
-        IfFailRet(TypePrinter::GetTypeOfValue(pExceptionValue, var.type));
+        IfFailRet(PrintValue(trExceptionValue, var.value));
+        IfFailRet(TypePrinter::GetTypeOfValue(trExceptionValue, var.type));
 
-        return AddVariableReference(var, frameId, pExceptionValue, ValueKind::Variable);
+        return AddVariableReference(var, frameId, trExceptionValue, ValueKind::Variable);
     }
 
     return E_FAIL;
@@ -274,12 +274,12 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             Variable var;
             var.name = name;
             var.evaluateName = var.name;
-            ToRelease<ICorDebugValue> iCorValue;
-            IfFailRet(getValue(&iCorValue, false));
-            IfFailRet(TypePrinter::GetTypeOfValue(iCorValue, var.type));
-            IfFailRet(PrintValue(iCorValue, var.value));
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(getValue(&trValue, false));
+            IfFailRet(TypePrinter::GetTypeOfValue(trValue, var.type));
+            IfFailRet(PrintValue(trValue, var.value));
 
-            IfFailRet(AddVariableReference(var, frameId, iCorValue, ValueKind::Variable));
+            IfFailRet(AddVariableReference(var, frameId, trValue, ValueKind::Variable));
             variables.push_back(var);
             return S_OK;
         })) &&
@@ -300,18 +300,18 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
     int namedVariables = 0;
     uint32_t variablesReference = 0;
 
-    ToRelease<ICorDebugValue> pExceptionValue;
-    if (SUCCEEDED(pThread->GetCurrentException(&pExceptionValue)) && pExceptionValue != nullptr)
+    ToRelease<ICorDebugValue> trExceptionValue;
+    if (SUCCEEDED(trThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
     {
         namedVariables++;
     }
 
-    IfFailRet(m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
+    IfFailRet(m_sharedEvaluator->WalkStackVars(trThread, frameId.getLevel(),
         [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
         {
             namedVariables++;
@@ -344,7 +344,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
         return E_INVALIDARG;
     }
 
-    if (ref.iCorValue == nullptr)
+    if (ref.trValue == nullptr)
     {
         return S_OK;
     }
@@ -353,7 +353,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
     std::vector<VariableMember> members;
     bool hasStaticMembers = false;
 
-    IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), ref.iCorValue, pThread, ref.frameId.getLevel(),
+    IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), ref.trValue, pThread, ref.frameId.getLevel(),
                                        members, ref.valueKind == ValueKind::Class, hasStaticMembers, start,
                                        count == 0 ? INT_MAX : start + count));
 
@@ -369,7 +369,7 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
         }
         IfFailRet(FillValueAndType(it, var));
-        IfFailRet(AddVariableReference(var, ref.frameId, it.value, ValueKind::Variable));
+        IfFailRet(AddVariableReference(var, ref.frameId, it.trValue, ValueKind::Variable));
         variables.push_back(var);
     }
 
@@ -378,18 +378,18 @@ HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread,
         const bool staticsInRange = start < ref.namedVariables && (count == 0 || start + count >= ref.namedVariables);
         if (staticsInRange)
         {
-            ToRelease<ICorDebugValue2> pValue2;
-            IfFailRet(ref.iCorValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&pValue2)));
-            ToRelease<ICorDebugType> pType;
-            IfFailRet(pValue2->GetExactType(&pType));
+            ToRelease<ICorDebugValue2> trValue2;
+            IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+            ToRelease<ICorDebugType> trType;
+            IfFailRet(trValue2->GetExactType(&trType));
             // Note, this call could return S_FALSE without ICorDebugValue creation in case type don't have static members.
-            IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, pType, nullptr, false));
+            IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, trType, nullptr, false));
 
             Variable var;
             var.name = "Static members";
-            IfFailRet(TypePrinter::GetTypeOfValue(ref.iCorValue, var.evaluateName)); // do not expose type for this fake variable
+            IfFailRet(TypePrinter::GetTypeOfValue(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
-            IfFailRet(AddVariableReference(var, ref.frameId, ref.iCorValue, ValueKind::Class));
+            IfFailRet(AddVariableReference(var, ref.frameId, ref.trValue, ValueKind::Class));
             variables.push_back(var);
         }
     }
@@ -407,19 +407,19 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
 
-    ToRelease<ICorDebugValue> pResultValue;
+    ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
-    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, expression,
-                                                           &pResultValue, output));
+    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameLevel, expression,
+                                                           &trResultValue, output));
 
     variable.evaluateName = expression;
-    IfFailRet(TypePrinter::GetTypeOfValue(pResultValue, variable.type));
-    IfFailRet(PrintValue(pResultValue, variable.value));
+    IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
+    IfFailRet(PrintValue(trResultValue, variable.value));
 
-    return AddVariableReference(variable, frameId, pResultValue, ValueKind::Variable);
+    return AddVariableReference(variable, frameId, trResultValue, ValueKind::Variable);
 }
 
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
@@ -436,16 +436,16 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
     VariableReference &varRef = it->second;
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(varRef.frameId.getThread()), &pThread));
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(varRef.frameId.getThread()), &trThread));
 
     if (varRef.IsScope())
     {
-        IfFailRet(SetStackVariable(varRef, pThread, name, value, output));
+        IfFailRet(SetStackVariable(varRef, trThread, name, value, output));
     }
     else
     {
-        IfFailRet(SetChild(varRef, pThread, name, value, output));
+        IfFailRet(SetChild(varRef, trThread, name, value, output));
     }
 
     return S_OK;
@@ -465,11 +465,11 @@ HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            ToRelease<ICorDebugValue> iCorValue;
-            IfFailRet(getValue(&iCorValue, false));
-            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), iCorValue, &getValue,
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(getValue(&trValue, false));
+            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   nullptr, value, output));
-            IfFailRet(PrintValue(iCorValue, output));
+            IfFailRet(PrintValue(trValue, output));
             found = true;
             return E_ABORT; // Fast exit from cycle.
         })) &&
@@ -494,7 +494,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
         return E_INVALIDARG;
     }
 
-    if (ref.iCorValue == nullptr)
+    if (ref.trValue == nullptr)
     {
         return S_OK;
     }
@@ -502,7 +502,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     HRESULT Status = S_OK;
     bool found = false;
 
-    if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.iCorValue, pThread, ref.frameId.getLevel(), nullptr, true,
+    if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), nullptr, true,
         [&](ICorDebugType *, bool /*is_static*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
@@ -511,16 +511,16 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
                 return S_OK;
             }
 
-            if (setterData && !setterData->setterFunction)
+            if (setterData && !setterData->trSetterFunction)
             {
                 return E_FAIL;
             }
 
-            ToRelease<ICorDebugValue> iCorValue;
-            IfFailRet(getValue(&iCorValue, false));
-            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), iCorValue, &getValue,
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(getValue(&trValue, false));
+            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   setterData, value, output));
-            IfFailRet(PrintValue(iCorValue, output));
+            IfFailRet(PrintValue(trValue, output));
             found = true;
             return E_ABORT; // Fast exit from cycle.
         })) &&
@@ -547,23 +547,23 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugThread> pThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &pThread));
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
 
-    ToRelease<ICorDebugValue> iCorValue;
+    ToRelease<ICorDebugValue> trValue;
     bool editable = false;
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameId.getLevel(), expression,
-                                                           &iCorValue, output, &editable, &setterData));
+    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameId.getLevel(), expression,
+                                                           &trValue, output, &editable, &setterData));
     if (!editable ||
-        (editable && (setterData != nullptr) && (setterData->setterFunction == nullptr))) // property, that don't have setter
+        (editable && (setterData != nullptr) && (setterData->trSetterFunction == nullptr))) // property, that don't have setter
     {
         output = "'" + expression + "' cannot be assigned to";
         return E_INVALIDARG;
     }
 
-    IfFailRet(m_sharedEvaluator->SetValue(pThread, frameId.getLevel(), iCorValue, nullptr, setterData.get(), value, output));
-    IfFailRet(PrintValue(iCorValue, output));
+    IfFailRet(m_sharedEvaluator->SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
+    IfFailRet(PrintValue(trValue, output));
     return S_OK;
 }
 

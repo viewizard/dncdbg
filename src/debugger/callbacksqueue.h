@@ -85,9 +85,9 @@ class CallbacksQueue
     struct CallbackQueueEntry
     {
         CallbackQueueCall Call;
-        ToRelease<ICorDebugAppDomain> iCorAppDomain;
-        ToRelease<ICorDebugThread> iCorThread;
-        ToRelease<ICorDebugBreakpoint> iCorBreakpoint;
+        ToRelease<ICorDebugAppDomain> trAppDomain;
+        ToRelease<ICorDebugThread> trThread;
+        ToRelease<ICorDebugBreakpoint> trBreakpoint;
         CorDebugStepReason Reason = CorDebugStepReason::STEP_NORMAL; // Initial value in order to suppress static analyzer warnings.
         ExceptionCallbackType EventType = ExceptionCallbackType::FIRST_CHANCE; // Initial value in order to suppress static analyzer warnings.
         std::string ExcModule;
@@ -100,9 +100,9 @@ class CallbacksQueue
                            ExceptionCallbackType eventType,
                            const std::string &excModule = "")
             : Call(call),
-              iCorAppDomain(pAppDomain),
-              iCorThread(pThread),
-              iCorBreakpoint(pBreakpoint),
+              trAppDomain(pAppDomain),
+              trThread(pThread),
+              trBreakpoint(pBreakpoint),
               Reason(reason),
               EventType(eventType),
               ExcModule(excModule)

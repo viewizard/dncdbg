@@ -203,13 +203,13 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
     uint64_t peBufAddress = 0;
     if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
     {
-        ToRelease<ICorDebugProcess> process;
-        IfFailRet(pModule->GetProcess(&process));
+        ToRelease<ICorDebugProcess> trProcess;
+        IfFailRet(pModule->GetProcess(&trProcess));
 
         peBuf.resize(peSize);
         peBufAddress = reinterpret_cast<uint64_t>(peBuf.data());
         SIZE_T read = 0;
-        IfFailRet(process->ReadMemory(peAddress, peSize, peBuf.data(), &read));
+        IfFailRet(trProcess->ReadMemory(peAddress, peSize, peBuf.data(), &read));
         if (read != peSize)
         {
             return E_FAIL;
@@ -265,15 +265,15 @@ std::string GetModuleFileName(ICorDebugModule *pModule)
         return moduleName;
     }
 
-    ToRelease<ICorDebugProcess> pProcess;
-    if (FAILED(pModule->GetProcess(&pProcess)))
+    ToRelease<ICorDebugProcess> trProcess;
+    if (FAILED(pModule->GetProcess(&trProcess)))
     {
         return {};
     }
 
     DWORD pid = 0;
 
-    if (FAILED(pProcess->GetID(&pid)))
+    if (FAILED(trProcess->GetID(&pid)))
     {
         return {};
     }
@@ -330,28 +330,25 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
 
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
-
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
 
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress, [&](PDBInfo &mdInfo) -> HRESULT {
         if (mdInfo.m_symbolReaderHandle == nullptr)
@@ -371,57 +368,51 @@ HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uin
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(pFrame->GetFunctionToken(&methodToken));
 
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
 
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
-
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(pILFrame->GetIP(&ilOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
 
-    return GetNextUserCodeILOffsetInMethod(pModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
+    return GetNextUserCodeILOffsetInMethod(trModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
 }
 
 HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
     mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trFrame->GetFunction(&trFunc));
 
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunc->GetILCode(&pCode));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
-
-    ToRelease<ICorDebugILFrame> pILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&pILFrame)));
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
     uint32_t nOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(pILFrame->GetIP(&nOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&nOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
@@ -429,7 +420,7 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     }
 
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
 
     uint32_t ilStartOffset = 0;
     uint32_t ilEndOffset = 0;
@@ -440,15 +431,14 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
             return E_FAIL;
         }
 
-        return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset,
-                                            &ilEndOffset);
+        return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
     }));
 
     if (ilStartOffset == ilEndOffset)
     {
-        ToRelease<ICorDebugCode> pCode;
-        IfFailRet(pFunc->GetILCode(&pCode));
-        IfFailRet(pCode->GetSize(&ilEndOffset));
+        ToRelease<ICorDebugCode> trCode;
+        IfFailRet(trFunc->GetILCode(&trCode));
+        IfFailRet(trCode->GetSize(&ilEndOffset));
     }
 
     range->startOffset = ilStartOffset;
@@ -505,16 +495,16 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
-        ToRelease<ICorDebugModule2> pModule2;
-        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&pModule2))))
+        ToRelease<ICorDebugModule2> trModule2;
+        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
         {
             if (!needJMC)
             {
-                pModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
+                trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
             }
 
-            if (SUCCEEDED(Status = pModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
-                                                                              // disable JMC on module's types/methods.
+            if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
+                                                                               // disable JMC on module's types/methods.
             {
                 // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
                 // since this is the only way provide good speed for stepping in case "JMC disabled".

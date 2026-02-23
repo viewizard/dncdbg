@@ -30,30 +30,30 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
         return S_FALSE;
     }
 
-    ToRelease<ICorDebugFunction> pFunction1;
-    ToRelease<ICorDebugFunction> pFunction2;
-    IfFailRet(pBreakpoint1->GetFunction(&pFunction1));
-    IfFailRet(pBreakpoint2->GetFunction(&pFunction2));
+    ToRelease<ICorDebugFunction> trFunction1;
+    ToRelease<ICorDebugFunction> trFunction2;
+    IfFailRet(pBreakpoint1->GetFunction(&trFunction1));
+    IfFailRet(pBreakpoint2->GetFunction(&trFunction2));
 
     mdMethodDef methodDef1 = mdMethodDefNil;
     mdMethodDef methodDef2 = mdMethodDefNil;
-    IfFailRet(pFunction1->GetToken(&methodDef1));
-    IfFailRet(pFunction2->GetToken(&methodDef2));
+    IfFailRet(trFunction1->GetToken(&methodDef1));
+    IfFailRet(trFunction2->GetToken(&methodDef2));
 
     if (methodDef1 != methodDef2)
     {
         return S_FALSE;
     }
 
-    ToRelease<ICorDebugModule> pModule1;
-    ToRelease<ICorDebugModule> pModule2;
-    IfFailRet(pFunction1->GetModule(&pModule1));
-    IfFailRet(pFunction2->GetModule(&pModule2));
+    ToRelease<ICorDebugModule> trModule1;
+    ToRelease<ICorDebugModule> trModule2;
+    IfFailRet(trFunction1->GetModule(&trModule1));
+    IfFailRet(trFunction2->GetModule(&trModule2));
 
     CORDB_ADDRESS modAddress1 = 0;
-    IfFailRet(pModule1->GetBaseAddress(&modAddress1));
+    IfFailRet(trModule1->GetBaseAddress(&modAddress1));
     CORDB_ADDRESS modAddress2 = 0;
-    IfFailRet(pModule2->GetBaseAddress(&modAddress2));
+    IfFailRet(trModule2->GetBaseAddress(&modAddress2));
 
     if (modAddress1 != modAddress2)
     {
@@ -75,11 +75,11 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
     IfFailRet(pThread->GetID(&threadId));
     const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
 
-    ToRelease<ICorDebugProcess> iCorProcess;
-    IfFailRet(pThread->GetProcess(&iCorProcess));
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pThread->GetProcess(&trProcess));
 
     Variable variable; // NOLINT(misc-const-correctness)
-    if (FAILED(Status = pVariables->Evaluate(iCorProcess, frameId, condition, variable, output)))
+    if (FAILED(Status = pVariables->Evaluate(trProcess, frameId, condition, variable, output)))
     {
         if (output.empty())
         {
@@ -111,14 +111,14 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     HRESULT Status = S_OK;
 
     // Skip breakpoints outside of code with loaded PDB (see JMC setup during module load).
-    ToRelease<ICorDebugFunction> iCorFunction;
-    IfFailRet(pModule->GetFunctionFromToken(methodToken, &iCorFunction));
-    ToRelease<ICorDebugFunction2> iCorFunction2;
-    IfFailRet(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2)));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
+    ToRelease<ICorDebugFunction2> trFunction2;
+    IfFailRet(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2)));
     BOOL JMCStatus = FALSE;
     // In case process was not stopped, GetJMCStatus() could return CORDBG_E_PROCESS_NOT_SYNCHRONIZED or another error code.
     // It is OK, check it as JMC code (pModule have symbols for sure), we will also check JMC status at breakpoint callback itself.
-    if (FAILED(iCorFunction2->GetJMCStatus(&JMCStatus)))
+    if (FAILED(trFunction2->GetJMCStatus(&JMCStatus)))
     {
         JMCStatus = TRUE;
     }

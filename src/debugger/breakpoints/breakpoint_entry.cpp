@@ -195,7 +195,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_stopAtEntry || (m_iCorFuncBreakpoint != nullptr))
+    if (!m_stopAtEntry || (m_trFuncBreakpoint != nullptr))
     {
         return S_FALSE;
     }
@@ -229,14 +229,14 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
     }
 
-    ToRelease<ICorDebugFunction> pFunction;
-    IfFailRet(pModule->GetFunctionFromToken(entryPointToken, &pFunction));
-    ToRelease<ICorDebugCode> pCode;
-    IfFailRet(pFunction->GetILCode(&pCode));
-    ToRelease<ICorDebugFunctionBreakpoint> iCorFuncBreakpoint;
-    IfFailRet(pCode->CreateBreakpoint(entryPointOffset, &iCorFuncBreakpoint));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pModule->GetFunctionFromToken(entryPointToken, &trFunction));
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunction->GetILCode(&trCode));
+    ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+    IfFailRet(trCode->CreateBreakpoint(entryPointOffset, &trFuncBreakpoint));
 
-    m_iCorFuncBreakpoint = iCorFuncBreakpoint.Detach();
+    m_trFuncBreakpoint = trFuncBreakpoint.Detach();
 
     return S_OK;
 }
@@ -245,22 +245,22 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_stopAtEntry || (m_iCorFuncBreakpoint == nullptr))
+    if (!m_stopAtEntry || (m_trFuncBreakpoint == nullptr))
     {
         return S_FALSE; // S_FALSE - no error, but not affect on callback
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunctionBreakpoint> pFunctionBreakpoint;
-    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&pFunctionBreakpoint)));
-    IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(pFunctionBreakpoint, m_iCorFuncBreakpoint));
+    ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
+    IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
+    IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, m_trFuncBreakpoint));
     if (Status == S_FALSE)
     {
         return S_FALSE;
     }
 
-    m_iCorFuncBreakpoint->Activate(FALSE);
-    m_iCorFuncBreakpoint.Free();
+    m_trFuncBreakpoint->Activate(FALSE);
+    m_trFuncBreakpoint.Free();
     return S_OK;
 }
 
@@ -268,13 +268,13 @@ void EntryBreakpoint::Delete()
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (m_iCorFuncBreakpoint == nullptr)
+    if (m_trFuncBreakpoint == nullptr)
     {
         return;
     }
 
-    m_iCorFuncBreakpoint->Activate(FALSE);
-    m_iCorFuncBreakpoint.Free();
+    m_trFuncBreakpoint->Activate(FALSE);
+    m_trFuncBreakpoint.Free();
 }
 
 } // namespace dncdbg

@@ -74,11 +74,11 @@ class FunctionBreakpoints
         std::string params;
         uint32_t hitCount;
         std::string condition;
-        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> iCorFuncBreakpoints;
+        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 
         bool IsVerified() const
         {
-            return !iCorFuncBreakpoints.empty();
+            return !trFuncBreakpoints.empty();
         }
 
         ManagedFunctionBreakpoint()
@@ -88,7 +88,7 @@ class FunctionBreakpoints
 
         ~ManagedFunctionBreakpoint()
         {
-            for (auto &iCorFuncBreakpoint : iCorFuncBreakpoints)
+            for (auto &iCorFuncBreakpoint : trFuncBreakpoints)
             {
                 if (iCorFuncBreakpoint)
                     iCorFuncBreakpoint->Activate(FALSE);

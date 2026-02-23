@@ -96,27 +96,27 @@ void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken>
     {
         if (TypeFromToken(token) == mdtMethodDef)
         {
-            ToRelease<ICorDebugFunction> pFunction;
-            ToRelease<ICorDebugFunction2> pFunction2;
-            if (FAILED(pModule->GetFunctionFromToken(token, &pFunction)) ||
-                FAILED(pFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&pFunction2))))
+            ToRelease<ICorDebugFunction> trFunction;
+            ToRelease<ICorDebugFunction2> trFunction2;
+            if (FAILED(pModule->GetFunctionFromToken(token, &trFunction)) ||
+                FAILED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))))
             {
                 continue;
             }
 
-            pFunction2->SetJMCStatus(FALSE);
+            trFunction2->SetJMCStatus(FALSE);
         }
         else if (TypeFromToken(token) == mdtTypeDef)
         {
-            ToRelease<ICorDebugClass> pClass;
-            ToRelease<ICorDebugClass2> pClass2;
-            if (FAILED(pModule->GetClassFromToken(token, &pClass)) ||
-                FAILED(pClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&pClass2))))
+            ToRelease<ICorDebugClass> trClass;
+            ToRelease<ICorDebugClass2> trClass2;
+            if (FAILED(pModule->GetClassFromToken(token, &trClass)) ||
+                FAILED(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2))))
             {
                 continue;
             }
 
-            pClass2->SetJMCStatus(FALSE);
+            trClass2->SetJMCStatus(FALSE);
         }
     }
 }
@@ -147,12 +147,12 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     for (const mdMethodDef methodToken : methodTokens)
     {
         // Note, in case of method we need check class attributes first, since class also could have it.
-        ToRelease<ICorDebugFunction> pFunction;
-        IfFailRet(pModule->GetFunctionFromToken(methodToken, &pFunction));
-        ToRelease<ICorDebugClass> pClass;
-        IfFailRet(pFunction->GetClass(&pClass));
+        ToRelease<ICorDebugFunction> trFunction;
+        IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(trFunction->GetClass(&trClass));
         mdToken typeToken = mdTokenNil;
-        IfFailRet(pClass->GetToken(&typeToken));
+        IfFailRet(trClass->GetToken(&typeToken));
 
         // In case class have "not user code" related attribute, no reason set JMC to false for each method, set it to class will be enough.
         if (HasAttribute(trMDImport, typeToken, GetTypeAttrNames()))

@@ -155,16 +155,16 @@ void CallbacksQueue::CallbacksWorker()
         switch (c.Call)
         {
         case CallbackQueueCall::Breakpoint:
-            m_stopEventInProcess = CallbacksWorkerBreakpoint(c.iCorAppDomain, c.iCorThread, c.iCorBreakpoint);
+            m_stopEventInProcess = CallbacksWorkerBreakpoint(c.trAppDomain, c.trThread, c.trBreakpoint);
             break;
         case CallbackQueueCall::StepComplete:
-            m_stopEventInProcess = CallbacksWorkerStepComplete(c.iCorThread, c.Reason);
+            m_stopEventInProcess = CallbacksWorkerStepComplete(c.trThread, c.Reason);
             break;
         case CallbackQueueCall::Break:
-            m_stopEventInProcess = CallbacksWorkerBreak(c.iCorAppDomain, c.iCorThread);
+            m_stopEventInProcess = CallbacksWorkerBreak(c.trAppDomain, c.trThread);
             break;
         case CallbackQueueCall::Exception:
-            m_stopEventInProcess = CallbacksWorkerException(c.iCorAppDomain, c.iCorThread, c.EventType, c.ExcModule);
+            m_stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType, c.ExcModule);
             break;
         case CallbackQueueCall::CreateProcess:
             m_stopEventInProcess = CallbacksWorkerCreateProcess();
@@ -175,7 +175,7 @@ void CallbacksQueue::CallbacksWorker()
             return;
         }
 
-        ToRelease<ICorDebugAppDomain> iCorAppDomain(c.iCorAppDomain.Detach());
+        ToRelease<ICorDebugAppDomain> trAppDomain(c.trAppDomain.Detach());
         m_callbacksQueue.pop_front();
 
         // Continue process execution only in case we don't have stop event emitted and queue is empty.
@@ -183,7 +183,7 @@ void CallbacksQueue::CallbacksWorker()
         // m_callbacksMutex will be unlocked only in m_callbacksCV.wait(), when CallbacksWorker will be ready for notify_one.
         if (m_callbacksQueue.empty() && !m_stopEventInProcess)
         {
-            iCorAppDomain->Continue(0);
+            trAppDomain->Continue(0);
         }
     }
 }
@@ -209,8 +209,8 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
     assert(!m_callbacksQueue.empty());
 
     // Note, we don't check m_callbacksQueue.empty() here, since callback() must add entry to queue.
-    ToRelease<ICorDebugProcess> iCorProcess;
-    if (SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess))
+    ToRelease<ICorDebugProcess> trProcess;
+    if (SUCCEEDED(pAppDomain->GetProcess(&trProcess)) && HasQueuedCallbacks(trProcess))
     {
         pAppDomain->Continue(0);
     }
@@ -237,9 +237,9 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
 
     const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
-    ToRelease<ICorDebugProcess> iCorProcess;
+    ToRelease<ICorDebugProcess> trProcess;
     if (m_callbacksQueue.empty() ||
-        ((pAppDomain != nullptr) && SUCCEEDED(pAppDomain->GetProcess(&iCorProcess)) && HasQueuedCallbacks(iCorProcess)))
+        ((pAppDomain != nullptr) && SUCCEEDED(pAppDomain->GetProcess(&trProcess)) && HasQueuedCallbacks(trProcess)))
     {
         if (pAppDomain == nullptr)
         {

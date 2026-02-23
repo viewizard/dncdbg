@@ -71,7 +71,7 @@ class Variables
         std::string evaluateName;
 
         ValueKind valueKind;
-        ToRelease<ICorDebugValue> iCorValue;
+        ToRelease<ICorDebugValue> trValue;
         FrameId frameId;
 
         VariableReference(const Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
@@ -80,7 +80,7 @@ class Variables
               indexedVariables(variable.indexedVariables),
               evaluateName(variable.evaluateName),
               valueKind(valueKind),
-              iCorValue(pValue),
+              trValue(pValue),
               frameId(frameId)
         {}
 
@@ -89,7 +89,7 @@ class Variables
               namedVariables(namedVariables),
               indexedVariables(0),
               valueKind(ValueKind::Scope),
-              iCorValue(nullptr),
+              trValue(nullptr),
               frameId(frameId)
         {}
 

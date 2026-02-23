@@ -14,28 +14,28 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugStepper> pStepper;
-    IfFailRet(pThread->CreateStepper(&pStepper));
+    ToRelease<ICorDebugStepper> trStepper;
+    IfFailRet(pThread->CreateStepper(&trStepper));
 
     constexpr auto mask = static_cast<CorDebugIntercept>(INTERCEPT_ALL & ~(INTERCEPT_SECURITY | INTERCEPT_CLASS_INIT)); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
-    IfFailRet(pStepper->SetInterceptMask(mask));
+    IfFailRet(trStepper->SetInterceptMask(mask));
 
     const CorDebugUnmappedStop stopMask = STOP_NONE;
-    IfFailRet(pStepper->SetUnmappedStopMask(stopMask));
+    IfFailRet(trStepper->SetUnmappedStopMask(stopMask));
 
-    ToRelease<ICorDebugStepper2> pStepper2;
-    IfFailRet(pStepper->QueryInterface(IID_ICorDebugStepper2, reinterpret_cast<void **>(&pStepper2)));
+    ToRelease<ICorDebugStepper2> trStepper2;
+    IfFailRet(trStepper->QueryInterface(IID_ICorDebugStepper2, reinterpret_cast<void **>(&trStepper2)));
 
     // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
     // since this is the only way provide good speed for stepping in case "JMC disabled".
     // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.
-    IfFailRet(pStepper2->SetJMC(TRUE));
+    IfFailRet(trStepper2->SetJMC(TRUE));
 
     const ThreadId threadId(getThreadId(pThread));
 
     if (stepType == StepType::STEP_OUT)
     {
-        IfFailRet(pStepper->StepOut());
+        IfFailRet(trStepper->StepOut());
 
         const std::scoped_lock<std::mutex> lock(m_stepMutex);
         m_enabledSimpleStepId = static_cast<int>(threadId);
@@ -48,11 +48,11 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     COR_DEBUG_STEP_RANGE range;
     if (SUCCEEDED(m_sharedDebugInfo->GetStepRangeFromCurrentIP(pThread, &range)))
     {
-        IfFailRet(pStepper->StepRange(bStepIn, &range, 1));
+        IfFailRet(trStepper->StepRange(bStepIn, &range, 1));
     }
     else
     {
-        IfFailRet(pStepper->Step(bStepIn));
+        IfFailRet(trStepper->Step(bStepIn));
     }
 
     const std::scoped_lock<std::mutex> lock(m_stepMutex);
@@ -74,19 +74,19 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
             }
         }
 
-        ToRelease<ICorDebugStepperEnum> steppers;
-        if (FAILED(pAppDomain->EnumerateSteppers(&steppers)))
+        ToRelease<ICorDebugStepperEnum> trStepperEnum;
+        if (FAILED(pAppDomain->EnumerateSteppers(&trStepperEnum)))
         {
             return false;
         }
 
         ICorDebugStepper *curStepper = nullptr;
         ULONG steppersFetched = 0;
-        while (SUCCEEDED(steppers->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
+        while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
         {
             BOOL pbActive = TRUE;
-            ToRelease<ICorDebugStepper> pStepper(curStepper);
-            if (SUCCEEDED(pStepper->IsActive(&pbActive)) && pbActive)
+            ToRelease<ICorDebugStepper> trStepper(curStepper);
+            if (SUCCEEDED(trStepper->IsActive(&pbActive)) && pbActive)
             {
                 return false;
             }
@@ -117,23 +117,23 @@ HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugAppDomainEnum> domains;
-    IfFailRet(pProcess->EnumerateAppDomains(&domains));
+    ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
+    IfFailRet(pProcess->EnumerateAppDomains(&trAppDomainEnum));
 
     ICorDebugAppDomain *curDomain = nullptr;
     ULONG domainsFetched = 0;
-    while (SUCCEEDED(domains->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
+    while (SUCCEEDED(trAppDomainEnum->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
     {
-        ToRelease<ICorDebugAppDomain> pDomain(curDomain);
-        ToRelease<ICorDebugStepperEnum> steppers;
-        IfFailRet(pDomain->EnumerateSteppers(&steppers));
+        ToRelease<ICorDebugAppDomain> trDomain(curDomain);
+        ToRelease<ICorDebugStepperEnum> trStepperEnum;
+        IfFailRet(trDomain->EnumerateSteppers(&trStepperEnum));
 
         ICorDebugStepper *curStepper = nullptr;
         ULONG steppersFetched = 0;
-        while (SUCCEEDED(steppers->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
+        while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
         {
-            ToRelease<ICorDebugStepper> pStepper(curStepper);
-            pStepper->Deactivate();
+            ToRelease<ICorDebugStepper> trStepper(curStepper);
+            trStepper->Deactivate();
         }
     }
 

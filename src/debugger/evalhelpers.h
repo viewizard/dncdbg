@@ -69,13 +69,13 @@ class EvalHelpers
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     uint32_t m_evalFlags;
 
-    std::mutex m_pSuppressFinalizeMutex;
-    ToRelease<ICorDebugFunction> m_pSuppressFinalize;
+    std::mutex m_trSuppressFinalizeMutex;
+    ToRelease<ICorDebugFunction> m_trSuppressFinalize;
 
     struct type_object_t
     {
-        COR_TYPEID id;
-        ToRelease<ICorDebugHandleValue> typeObject;
+        COR_TYPEID m_TypeID;
+        ToRelease<ICorDebugHandleValue> m_trTypeObject;
     };
 
     std::mutex m_typeObjectCacheMutex;

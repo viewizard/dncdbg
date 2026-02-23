@@ -35,22 +35,22 @@ struct EvalStackEntry
     };
 
     // Unresolved identifiers.
-    // Note, in case we already have some resolved identifiers (iCorValue), unresolved identifiers must be resolved within iCorValue.
+    // Note, in case we already have some resolved identifiers (trValue), unresolved identifiers must be resolved within trValue.
     std::vector<std::string> identifiers;
     // Resolved to value identifiers.
-    ToRelease<ICorDebugValue> iCorValue;
+    ToRelease<ICorDebugValue> trValue;
     // Generic types cache. Note, finally we need the method's generic types only, i.e. the last element of
     // identifiers vector. The other type(class)'s generics can easily be got from the corresponding iCorDebugType
-    std::vector<ToRelease<ICorDebugType>> genericTypeCache;
+    std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
     // Prevent future binding in case of conditional access with nulled object (`a?.b`, `a?[1]`, ...).
-    // Note, this state could be related to iCorValue only (iCorValue must be checked for null first).
+    // Note, this state could be related to trValue only (trValue must be checked for null first).
     bool preventBinding;
     // This is literal entry (value was created from literal).
     bool literal;
     // This entry is real variable (not literal, not result of expression calculation, not result of function call, ...).
     bool editable;
-    // In case iCorValue is editable and property, we need extra data in order to set value.
-    // Note, this data directly connected with `iCorValue` and could be available only in case `editable` is true.
+    // In case trValue is editable and property, we need extra data in order to set value.
+    // Note, this data directly connected with `trValue` and could be available only in case `editable` is true.
     std::unique_ptr<Evaluator::SetterData> setterData;
 
     EvalStackEntry()
@@ -63,8 +63,8 @@ struct EvalStackEntry
     void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
     {
         identifiers.clear();
-        iCorValue.Free();
-        genericTypeCache.clear();
+        trValue.Free();
+        trGenericTypeCache.clear();
         preventBinding = false;
         if (resetLiteral == ResetLiteralStatus::Yes)
             literal = false;
@@ -81,10 +81,10 @@ struct EvalData
     EvalWaiter *pEvalWaiter;
     // In case of NumericLiteralExpression with Decimal, NewParameterizedObjectNoConstructor() are used.
     // Proper ICorDebugClass must be provided for Decimal (will be found during FindPredefinedTypes() call).
-    ToRelease<ICorDebugClass> iCorDecimalClass;
+    ToRelease<ICorDebugClass> trDecimalClass;
     // In case eval return void, we are forced to create System.Void value.
-    ToRelease<ICorDebugClass> iCorVoidClass;
-    std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> corElementToValueClassMap;
+    ToRelease<ICorDebugClass> trVoidClass;
+    std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> trElementToValueClassMap;
     FrameLevel frameLevel;
 
     EvalData()

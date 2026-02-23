@@ -32,19 +32,19 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     m_filteredPrevStep = false;
     m_initialStepType = stepType;
 
-    ToRelease<ICorDebugProcess> pProcess;
-    IfFailRet(pThread->GetProcess(&pProcess));
-    DisableAllSteppers(pProcess);
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pThread->GetProcess(&trProcess));
+    DisableAllSteppers(trProcess);
 
-    ToRelease<ICorDebugFrame> pFrame;
-    IfFailRet(pThread->GetActiveFrame(&pFrame));
-    if (pFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
     uint32_t ilOffset = 0;
-    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, m_StepStartSP));
+    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
     if (Status == S_OK) // S_FALSE = setup simple stepper
@@ -128,25 +128,25 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugFrame> iCorFrame;
-    IfFailRet(pThread->GetActiveFrame(&iCorFrame));
-    if (iCorFrame == nullptr)
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
     {
         return E_FAIL;
     }
 
-    ToRelease<ICorDebugFunction> iCorFunction;
-    IfFailRet(iCorFrame->GetFunction(&iCorFunction));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(trFrame->GetFunction(&trFunction));
     mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(iCorFunction->GetToken(&methodDef));
-    ToRelease<ICorDebugClass> iCorClass;
-    IfFailRet(iCorFunction->GetClass(&iCorClass));
+    IfFailRet(trFunction->GetToken(&methodDef));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trFunction->GetClass(&trClass));
     mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(iCorClass->GetToken(&typeDef));
-    ToRelease<ICorDebugModule> iCorModule;
-    IfFailRet(iCorFunction->GetModule(&iCorModule));
+    IfFailRet(trClass->GetToken(&typeDef));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(iCorModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -211,7 +211,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     uint32_t ilNextUserCodeOffset = 0;
     bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call
                                   // could be failed before delegate call.
-    if (SUCCEEDED(Status = m_sharedDebugInfo->GetFrameILAndNextUserCodeILOffset(iCorFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
+    if (SUCCEEDED(Status = m_sharedDebugInfo->GetFrameILAndNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
     {
         if (reason == CorDebugStepReason::STEP_NORMAL)
         {
@@ -227,7 +227,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 uint32_t ilOffset = 0;
                 SequencePoint sp;
-                IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(iCorFrame, ilOffset, sp));
+                IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
                     sp.endLine == m_StepStartSP.endLine &&
@@ -297,9 +297,9 @@ HRESULT Steppers::DisableAllSteppers(ICorDebugProcess *pProcess)
 HRESULT Steppers::DisableAllSteppers(ICorDebugAppDomain *pAppDomain)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugProcess> iCorProcess;
-    IfFailRet(pAppDomain->GetProcess(&iCorProcess));
-    return DisableAllSteppers(iCorProcess);
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pAppDomain->GetProcess(&trProcess));
+    return DisableAllSteppers(trProcess);
 }
 
 HRESULT Steppers::DisableAllSimpleSteppers(ICorDebugProcess *pProcess)

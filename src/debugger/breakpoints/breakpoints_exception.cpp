@@ -212,7 +212,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
     details.evaluateName = "$exception";
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue> iCorInnerExceptionValue;
+    ToRelease<ICorDebugValue> trInnerExceptionValue;
     const bool escape = false;
     m_sharedEvaluator->WalkMembers(
         pExceptionValue, pThread, FrameLevel{0}, nullptr, false,
@@ -224,15 +224,15 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                     return S_FALSE;
                 }
 
-                ToRelease<ICorDebugValue> iCorResultValue;
-                IfFailRet(getValue(&iCorResultValue, true));
+                ToRelease<ICorDebugValue> trResultValue;
+                IfFailRet(getValue(&trResultValue, true));
 
                 BOOL isNull = TRUE;
-                ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-                if (SUCCEEDED(iCorResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&iCorReferenceValue))) &&
-                    SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == FALSE)
+                ToRelease<ICorDebugReferenceValue> trReferenceValue;
+                if (SUCCEEDED(trResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
+                    SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == FALSE)
                 {
-                    PrintValue(iCorResultValue, result, escape);
+                    PrintValue(trResultValue, result, escape);
                 }
                 return S_OK;
             };
@@ -257,13 +257,13 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
             if (memberName == "InnerException")
             {
-                IfFailRet(getValue(&iCorInnerExceptionValue, true));
+                IfFailRet(getValue(&trInnerExceptionValue, true));
                 BOOL isNull = FALSE;
-                ToRelease<ICorDebugReferenceValue> iCorReferenceValue;
-                if (SUCCEEDED(iCorInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&iCorReferenceValue))) &&
-                    SUCCEEDED(iCorReferenceValue->IsNull(&isNull)) && isNull == TRUE)
+                ToRelease<ICorDebugReferenceValue> trReferenceValue;
+                if (SUCCEEDED(trInnerExceptionValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
+                    SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == TRUE)
                 {
-                    iCorInnerExceptionValue.Free();
+                    trInnerExceptionValue.Free();
                 }
             }
 
@@ -276,10 +276,10 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         details.formattedDescription += " '" + details.message + "'";
     }
 
-    if (iCorInnerExceptionValue != nullptr)
+    if (trInnerExceptionValue != nullptr)
     {
         details.innerException = std::make_unique<ExceptionDetails>();
-        GetExceptionDetails(pThread, iCorInnerExceptionValue, *details.innerException);
+        GetExceptionDetails(pThread, trInnerExceptionValue, *details.innerException);
     }
 
     return S_OK;
@@ -288,9 +288,9 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue> iCorExceptionValue;
-    IfFailRet(pThread->GetCurrentException(&iCorExceptionValue));
-    if (iCorExceptionValue == nullptr)
+    ToRelease<ICorDebugValue> trExceptionValue;
+    IfFailRet(pThread->GetCurrentException(&trExceptionValue));
+    if (trExceptionValue == nullptr)
     {
         return E_FAIL;
     }
@@ -306,7 +306,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
         return E_FAIL;
     }
 
-    IfFailRet(GetExceptionDetails(pThread, iCorExceptionValue, exceptionInfo.details));
+    IfFailRet(GetExceptionDetails(pThread, trExceptionValue, exceptionInfo.details));
 
     std::string excModule;
     if (exceptionInfo.details.source.empty())
@@ -388,15 +388,15 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 
-    ToRelease<ICorDebugValue> iCorExceptionValue;
-    IfFailRet(pThread->GetCurrentException(&iCorExceptionValue));
-    if (iCorExceptionValue == nullptr)
+    ToRelease<ICorDebugValue> trExceptionValue;
+    IfFailRet(pThread->GetCurrentException(&trExceptionValue));
+    if (trExceptionValue == nullptr)
     {
         return E_FAIL;
     }
 
     std::string excType;
-    if (FAILED(TypePrinter::GetTypeOfValue(iCorExceptionValue, excType)))
+    if (FAILED(TypePrinter::GetTypeOfValue(trExceptionValue, excType)))
     {
         excType = "<unknown exception>";
     }

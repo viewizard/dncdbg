@@ -38,14 +38,14 @@ HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
     }
 
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunction> pFunc;
-    IfFailRet(pFrame->GetFunction(&pFunc));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
 
-    ToRelease<ICorDebugModule> pModule;
-    IfFailRet(pFunc->GetModule(&pModule));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
 
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -65,11 +65,11 @@ ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame
     }
 
     BOOL JMCStatus = FALSE;
-    ToRelease<ICorDebugFunction> iCorFunction;
-    ToRelease<ICorDebugFunction2> iCorFunction2;
-    if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&iCorFunction)) &&
-        SUCCEEDED(iCorFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&iCorFunction2))) &&
-        SUCCEEDED(iCorFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
+    ToRelease<ICorDebugFunction> trFunction;
+    ToRelease<ICorDebugFunction2> trFunction2;
+    if (pFrame != nullptr && SUCCEEDED(pFrame->GetFunction(&trFunction)) &&
+        SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+        SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) && JMCStatus == TRUE)
     {
         return ExceptionCallbackType::USER_CATCH_HANDLER_FOUND;
     }
@@ -200,13 +200,13 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
     // In case of `attach`, NotifyProcessCreated() call will notify debugger that debuggee process attached and debugger
     // should stop debuggee process by dirrect `Pause()` call. From another side, callback queue have bunch of asynchronous
     // added entries and, for example, `CreateThread()` could be called after this callback and broke our debugger logic.
-    ToRelease<ICorDebugAppDomainEnum> domains;
+    ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
     ICorDebugAppDomain *pAppDomain = nullptr;
     ULONG domainsFetched = 0;
-    if (SUCCEEDED(pProcess->EnumerateAppDomains(&domains)))
+    if (SUCCEEDED(pProcess->EnumerateAppDomains(&trAppDomainEnum)))
     {
         // At this point we have only one domain for sure.
-        if (SUCCEEDED(domains->Next(1, &pAppDomain, &domainsFetched)) && domainsFetched == 1)
+        if (SUCCEEDED(trAppDomainEnum->Next(1, &pAppDomain, &domainsFetched)) && domainsFetched == 1)
         {
             // Don't AddRef() here for pAppDomain! We get it with AddRef() from Next() and will release in m_callbacksQueue by ToRelease destructor.
             return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
@@ -498,9 +498,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::FunctionRemapComplete(ICorDebugAppDom
 HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController */*pController*/, ICorDebugThread *pThread,
                                                            ICorDebugMDA */*pMDA*/)
 {
-    ToRelease<ICorDebugProcess> iCorProcess;
-    pThread->GetProcess(&iCorProcess);
-    return m_sharedCallbacksQueue->ContinueProcess(iCorProcess);
+    ToRelease<ICorDebugProcess> trProcess;
+    pThread->GetProcess(&trProcess);
+    return m_sharedCallbacksQueue->ContinueProcess(trProcess);
 }
 
 // ICorDebugManagedCallback3

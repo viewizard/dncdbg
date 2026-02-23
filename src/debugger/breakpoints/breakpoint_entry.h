@@ -54,7 +54,7 @@ class EntryBreakpoint
 
     std::mutex m_entryMutex;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
-    ToRelease<ICorDebugFunctionBreakpoint> m_iCorFuncBreakpoint;
+    ToRelease<ICorDebugFunctionBreakpoint> m_trFuncBreakpoint;
     bool m_stopAtEntry;
 };
 

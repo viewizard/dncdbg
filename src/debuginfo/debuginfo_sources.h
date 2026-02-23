@@ -97,14 +97,14 @@ class DebugInfoSources
         int32_t endLine;
         uint32_t ilOffset;
         uint32_t methodToken;
-        ToRelease<ICorDebugModule> iCorModule;
+        ToRelease<ICorDebugModule> trModule;
 
         resolved_bp_t(int32_t startLine_, int32_t endLine_, uint32_t ilOffset_, uint32_t methodToken_, ICorDebugModule *pModule)
             : startLine(startLine_),
               endLine(endLine_),
               ilOffset(ilOffset_),
               methodToken(methodToken_),
-              iCorModule(pModule)
+              trModule(pModule)
         {
         }
     };
