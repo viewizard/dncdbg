@@ -5,6 +5,8 @@
 
 #include "debugger/frames.h"
 #include "utils/torelease.h"
+#include <list>
+#include <vector>
 
 namespace dncdbg
 {
@@ -75,6 +77,62 @@ void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTE
     // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
 }
 
+HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, std::list<ToRelease<ICorDebugInternalFrame2>> &trInternalFrames)
+{
+    HRESULT Status = S_OK;
+    uint32_t cInternalFrames = 0;
+    IfFailRet(trThread3->GetActiveInternalFrames(0, &cInternalFrames, nullptr));
+
+    uint32_t fetchedFrames = 0;
+    std::vector<ICorDebugInternalFrame2*> pInternalFrames(cInternalFrames);
+    if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
+        fetchedFrames == cInternalFrames)
+    {
+        for (const auto &entry : pInternalFrames)
+        {
+            trInternalFrames.emplace_back(entry);
+        }
+    }
+    else
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
+{
+    ToRelease<ICorDebugInternalFrame> trInternalFrame;
+    CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
+    if (SUCCEEDED(pInternalFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
+    {
+        trInternalFrame->GetFrameType(&corFrameType);
+    }
+    else
+    {
+        return false;
+    }
+
+    switch (corFrameType)
+    {
+    case STUBFRAME_M2U:
+    case STUBFRAME_U2M:
+    case STUBFRAME_APPDOMAIN_TRANSITION:
+    case STUBFRAME_LIGHTWEIGHT_FUNCTION:
+    case STUBFRAME_FUNC_EVAL:
+    case STUBFRAME_INTERNALCALL:
+    case STUBFRAME_CLASS_INIT:
+    case STUBFRAME_SECURITY:
+    case STUBFRAME_JIT_COMPILATION:
+        return true;
+    case STUBFRAME_EXCEPTION: // no reason add `[Exception]` frame on the top of stacktrace
+    case STUBFRAME_NONE:
+    default:
+        return false;
+    }
+}
+
 } // unnamed namespace
 
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
@@ -95,9 +153,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     memset((void *)(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
     memset((void *)&currentCtx, 0, sizeof(CONTEXT));
 
-    // TODO ICorDebugInternalFrame support for more info about CoreCLR related internal routine and call cb() with `FrameCLRInternal`
-    // ICorDebugThread3::GetActiveInternalFrames
-    // https://learn.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugthread3-getactiveinternalframes-method
+    std::list<ToRelease<ICorDebugInternalFrame2>> trInternalFrames;
+    GetActiveInternalFrames(trThread3, trInternalFrames);
 
     int level = -1;
     static constexpr bool firstFrame = true;
@@ -117,6 +174,30 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         {
             continue;
         }
+
+        if (trFrame != nullptr && !trInternalFrames.empty())
+        {
+            BOOL isCloser = TRUE;
+            for (auto it = trInternalFrames.begin(); it != trInternalFrames.end(); )
+            {
+                if (SUCCEEDED((*it)->IsCloserToLeaf(trFrame, &isCloser)) &&
+                    isCloser == TRUE)
+                {
+                    ToRelease<ICorDebugFrame> trIntFrame;
+                    if (SUCCEEDED((*it)->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
+                        AllowInternalFrame(*it))
+                    {
+                        cb(FrameType::CLRInternal, trIntFrame);
+                    }
+                    it = trInternalFrames.erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+        }
+
         if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
         {
             // We've hit a native frame, we need to store the CONTEXT
@@ -186,7 +267,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                 if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
                     mappingResult == MAPPING_NO_INFO)
                 {
-                    cb(FrameType::Unknown, trFrame);
+                    // Related to ICorDebugInternalFrame, ignore.
                     continue;
                 }
 
@@ -213,6 +294,16 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb);
         }
         cb(FrameType::CLRNative, nullptr);
+    }
+
+    for (const auto &trIntFrame2 : trInternalFrames)
+    {
+        ToRelease<ICorDebugFrame> trIntFrame;
+        if (SUCCEEDED(trIntFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
+            AllowInternalFrame(trIntFrame2))
+        {
+            cb(FrameType::CLRInternal, trIntFrame);
+        }
     }
 
     // We may have native frames at the end of the stack
