@@ -242,11 +242,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_2");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "TestExceptionBreakpoint.outside_user_code.throw_Exception()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_3");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "TestExceptionBreakpoint.outside_user_code.throw_Exception_with_catch()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterAllWithOptions("");
@@ -267,11 +267,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_2");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "TestExceptionBreakpoint.outside_user_code.throw_Exception()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_3");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "TestExceptionBreakpoint.outside_user_code.throw_Exception_with_catch()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterAllWithOptions("System.NullReferenceException");
@@ -313,11 +313,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_5");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "TestExceptionBreakpoint.outside_user_code.throw_Exception_NullReferenceException_with_catch()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "[External Code]");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_6");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "TestExceptionBreakpoint.outside_user_code.throw_NullReferenceException()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterAllWithOptions("!System.Exception");
@@ -339,11 +339,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_5");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "TestExceptionBreakpoint.outside_user_code.throw_Exception_NullReferenceException_with_catch()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "[External Code]");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_6");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "TestExceptionBreakpoint.outside_user_code.throw_NullReferenceException()");
+                Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.NullReferenceException", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterUserUnhandled();

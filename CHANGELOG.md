@@ -8,8 +8,9 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
 - Added `allowImplicitFuncEval` configuration option support (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
-- Added initial implementation for methods parameters output in stacktrace.
+- Added methods parameters output in stacktrace.
 - Added active CLR internal frames output in stacktrace.
+- Added proper Just My Code enabled stacktrace.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

@@ -1003,6 +1003,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     static const std::string FrameCLRNativeText = "[Native Frames]";
     // This frame usually indicate some fail during managed unwind
     static const std::string FrameUnknownText = "[Unknown Frame]";
+    // Not user code related frame in case of Just My Code enabled.
+    static const std::string ExternalCodeText = "[External Code]";
 
     // Exception rethrown with System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw() case.
     // Note, this is optional part, ignore errors.
@@ -1112,9 +1114,36 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
         }
     }
 
+    bool prevFrameExternal = false;
+
     IfFailRet(WalkFrames(pThread,
         [&](FrameType frameType, ICorDebugFrame *pFrame) -> void
         {
+            if (IsJustMyCode())
+            {
+                ToRelease<ICorDebugFunction> trFunction;
+                ToRelease<ICorDebugFunction2> trFunction2;
+                BOOL JMCStatus = FALSE;
+                if (frameType == FrameType::CLRManaged &&
+                    SUCCEEDED(pFrame->GetFunction(&trFunction)) &&
+                    SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+                    SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
+                    JMCStatus == TRUE)
+                {
+                    prevFrameExternal = false;
+                }
+                else
+                {
+                    if (!prevFrameExternal)
+                    {
+                        currentFrame++;
+                        stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
+                        prevFrameExternal = true;
+                    }
+                    return;
+                }
+            }
+
             currentFrame++;
 
             if (currentFrame < static_cast<int>(startFrame) ||
