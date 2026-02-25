@@ -48,11 +48,6 @@ public class Utils
         Marshal.FreeBSTR(ptr);
     }
 
-    internal static IntPtr CoTaskMemAlloc(int size)
-    {
-        return Marshal.AllocCoTaskMem(size);
-    }
-
     internal static void CoTaskMemFree(IntPtr ptr)
     {
         Marshal.FreeCoTaskMem(ptr);

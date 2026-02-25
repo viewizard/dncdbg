@@ -262,7 +262,6 @@ using DisposeDelegate = void (*)(void *);
 using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
 using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
 using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
-using GetSequencePointsDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *);
 using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
 using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
 using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
@@ -273,7 +272,6 @@ using GenerateStackMachineProgramDelegate = int (*)(const WCHAR *, void **, BSTR
 using ReleaseStackMachineProgramDelegate = void (*)(void *);
 using NextStackCommandDelegate = int (*)(void *, int32_t *, void **, BSTR *);
 using StringToUpperDelegate = RetCode (*)(const WCHAR *, BSTR *);
-using CoTaskMemAllocDelegate = void *(*)(int32_t);
 using CoTaskMemFreeDelegate = void (*)(void *);
 using SysAllocStringLenDelegate = void *(*)(int32_t);
 using SysFreeStringDelegate = void (*)(void *);
@@ -283,7 +281,6 @@ DisposeDelegate disposeDelegate = nullptr;
 GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate = nullptr;
 GetHoistedLocalScopesDelegate getHoistedLocalScopesDelegate = nullptr;
 GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate = nullptr;
-GetSequencePointsDelegate getSequencePointsDelegate = nullptr;
 GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate = nullptr;
 GetStepRangesFromIPDelegate getStepRangesFromIPDelegate = nullptr;
 GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate = nullptr;
@@ -293,7 +290,6 @@ GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate = nullpt
 ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate = nullptr;
 NextStackCommandDelegate nextStackCommandDelegate = nullptr;
 StringToUpperDelegate stringToUpperDelegate = nullptr;
-CoTaskMemAllocDelegate coTaskMemAllocDelegate = nullptr;
 CoTaskMemFreeDelegate coTaskMemFreeDelegate = nullptr;
 SysAllocStringLenDelegate sysAllocStringLenDelegate = nullptr;
 SysFreeStringDelegate sysFreeStringDelegate = nullptr;
@@ -454,7 +450,6 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetHoistedLocalScopes", reinterpret_cast<void **>(&getHoistedLocalScopesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetSequencePoints", reinterpret_cast<void **>(&getSequencePointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, SymbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
@@ -465,7 +460,6 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, EvaluationClassName, "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate)));
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemAlloc", reinterpret_cast<void **>(&coTaskMemAllocDelegate)));
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate)));
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate)));
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, ManagedPartDllName, UtilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
@@ -480,7 +474,6 @@ void Init(const std::string &coreClrPath)
                                     (getLocalVariableNameAndScopeDelegate != nullptr) &&
                                     (getHoistedLocalScopesDelegate != nullptr) &&
                                     (getSequencePointByILOffsetDelegate != nullptr) &&
-                                    (getSequencePointsDelegate != nullptr) &&
                                     (getNextUserCodeILOffsetDelegate != nullptr) &&
                                     (getStepRangesFromIPDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
@@ -490,7 +483,6 @@ void Init(const std::string &coreClrPath)
                                     (releaseStackMachineProgramDelegate != nullptr) &&
                                     (nextStackCommandDelegate != nullptr) &&
                                     (stringToUpperDelegate != nullptr) &&
-                                    (coTaskMemAllocDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
                                     (sysFreeStringDelegate != nullptr) &&
@@ -524,14 +516,12 @@ void Shutdown()
     getLocalVariableNameAndScopeDelegate = nullptr;
     getHoistedLocalScopesDelegate = nullptr;
     getSequencePointByILOffsetDelegate = nullptr;
-    getSequencePointsDelegate = nullptr;
     getNextUserCodeILOffsetDelegate = nullptr;
     getStepRangesFromIPDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     getAsyncMethodSteppingInfoDelegate = nullptr;
     stringToUpperDelegate = nullptr;
-    coTaskMemAllocDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
     sysFreeStringDelegate = nullptr;
@@ -550,20 +540,6 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef method
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
     const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
                                                                ilOffset, sequencePoint);
-
-    return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef methodToken, SequencePoint **sequencePoints, int32_t &Count)
-{
-    const ReadLock read_lock(CLRrwlock);
-    if ((getSequencePointsDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    const RetCode retCode = getSequencePointsDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                      reinterpret_cast<void **>(sequencePoints), &Count);
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
@@ -855,17 +831,6 @@ void SysFreeString(BSTR ptrBSTR)
     }
 
     sysFreeStringDelegate(ptrBSTR);
-}
-
-void *CoTaskMemAlloc(int32_t size)
-{
-    const ReadLock read_lock(CLRrwlock);
-    if (coTaskMemAllocDelegate == nullptr)
-    {
-        return nullptr;
-    }
-
-    return coTaskMemAllocDelegate(size);
 }
 
 void CoTaskMemFree(void *ptr)

@@ -94,7 +94,6 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
                                   uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle);
 void DisposeSymbols(void *pSymbolReaderHandle);
 HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
-HRESULT GetSequencePoints(void *pSymbolReaderHandle, mdMethodDef MethodToken, SequencePoint **sequencePoints, int32_t &Count);
 HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
                                 uint32_t &ilNextOffset, bool *noUserCodeFound);
 HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
@@ -116,7 +115,6 @@ void *AllocString(const std::string &str);
 HRESULT StringToUpper(std::string &String);
 BSTR SysAllocStringLen(int32_t size);
 void SysFreeString(BSTR ptrBSTR);
-void *CoTaskMemAlloc(int32_t size);
 void CoTaskMemFree(void *ptr);
 
 } // namespace dncdbg::Interop
