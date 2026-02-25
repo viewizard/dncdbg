@@ -1,12 +1,79 @@
 ## Debug Adapter Protocol support status.
 
-**Annotation:**
+#### Key to Notation
 ```diff
 + Implemented
 - Not implemented
 ! Partially implemented
 @@ Comments @@
 ```
+
+#### Base Protocol
+
+[ProtocolMessage](#protocolmessage)
+[Request](#request)
+[Event](#event)
+[Response](#response)
+[Cancel Request](#cancelrequest-cancel)
+
+#### Events
+
+[Stopped Event](#stoppedevent)
+[Continued Event](#continuedevent)
+[Exited Event](#exitedevent)
+[Terminated Event](#terminatedevent)
+[Thread Event](#threadevent)
+[Output Event](#outputevent)
+[Breakpoint Event](#breakpointevent)
+[Module Event](#moduleevent)
+[Process Event](#processevent)
+[Capabilities Event](#capabilitiesevent)
+
+#### Requests
+
+[Initialize Request](#initializerequest-initialize)
+[Launch Request](#launchrequest-launch)
+[Attach Request](#attachrequest-attach)
+[Disconnect Request](#disconnectrequest-disconnect)
+[Terminate Request](#terminaterequest-terminate)
+[SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints)
+[SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints)
+[SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints)
+[Continue Request](#continuerequest-continue)
+[Next Request](#nextrequest-next)
+[StepIn Request](#stepinrequest-stepin)
+[StepOut Request](#stepoutrequest-stepout)
+[Pause Request](#pauserequest-pause)
+[StackTrace Request](#stacktracerequest-stacktrace)
+[Scopes Request](#scopesrequest-scopes)
+[Variables Request](#variablesrequest-variables)
+[SetVariable Request](#setvariablerequest-setvariable)
+[Threads Request](#threadsrequest-threads)
+[Evaluate Request](#evaluaterequest-evaluate)
+[SetExpression Request](#setexpressionrequest-setexpression)
+[ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+
+#### Types
+
+[Capabilities](#capabilities)
+[ExceptionBreakpointsFilter](#exceptionbreakpointsfilter)
+[Message](#message)
+[Module](#module)
+[Thread](#thread)
+[Source](#source)
+[StackFrame](#stackframe)
+[Scope](#scope)
+[Variable](#variable)
+[SourceBreakpoint](#sourcebreakpoint)
+[FunctionBreakpoint](#functionbreakpoint)
+[Breakpoint](#breakpoint)
+[ExceptionFilterOptions](#exceptionfilteroptions)
+[ExceptionOptions](#exceptionoptions)
+[ExceptionDetails](#exceptiondetails)
+[ExpressionEvaluationOptions](#expressionevaluationoptions)
+
+## Base Protocol
+
 #### ProtocolMessage
 ```diff
 +  seq: number;
@@ -110,6 +177,9 @@
 ```diff
 +   capabilities: Capabilities;
 ```
+
+## Requests
+
 #### InitializeRequest `initialize`
 ```diff
 +   clientID?: string;
@@ -148,19 +218,14 @@
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
 ```
-#### ExpressionEvaluationOptions
-```diff
-@@ VSCode IDE additional field: @@
-+   allowImplicitFuncEval?: boolean;
-```
-####  LaunchResponse
+#### LaunchResponse
 ```diff
 ```
 #### AttachRequest `attach`
 ```diff
 -   __restart?: any;
 ```
-####  AttachResponse
+#### AttachResponse
 ```diff
 ```
 #### DisconnectRequest `disconnect`
@@ -169,14 +234,14 @@
 +   terminateDebuggee?: boolean;
 -   suspendDebuggee?: boolean;
 ```
-####  DisconnectResponse
+#### DisconnectResponse
 ```diff
 ```
 #### TerminateRequest `terminate`
 ```diff
 -   restart?: boolean;
 ```
-####  TerminateResponse
+#### TerminateResponse
 ```diff
 ```
 #### SetBreakpointsRequest `setBreakpoints`
@@ -360,6 +425,9 @@
 +   breakMode: ExceptionBreakMode;
 +   details?: ExceptionDetails;
 ```
+
+## Types
+
 #### Capabilities
 ```diff
 +   supportsConfigurationDoneRequest?: boolean;
@@ -546,4 +614,9 @@
 @@ VSCode IDE additional fields: @@
 +   std::string formattedDescription;
 +   std::string source;
+```
+#### ExpressionEvaluationOptions
+```diff
+@@ VSCode IDE additional field: @@
++   allowImplicitFuncEval?: boolean;
 ```
