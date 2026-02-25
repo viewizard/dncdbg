@@ -317,13 +317,13 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, c
 }
 
 HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
-                                                   const ResolveFunctionBreakpointCallback &cb)
+                                                     const ResolveFunctionBreakpointCallback &cb)
 {
     return ResolveMethodInModule(pModule, funcname, cb);
 }
 
 HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
-                                            SequencePoint &sequencePoint)
+                                              SequencePoint &sequencePoint)
 {
     HRESULT Status = S_OK;
 
@@ -361,7 +361,7 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
 }
 
 HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
-                                                   bool *noUserCodeFound)
+                                                     bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
 
@@ -566,7 +566,7 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
 }
 
 HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
-                                            WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
+                                              WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {
     HRESULT Status = S_OK;
 
@@ -593,7 +593,7 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
 }
 
 HRESULT DebugInfo::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
-                                       int32_t &hoistedLocalScopesCount)
+                                         int32_t &hoistedLocalScopesCount)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -632,7 +632,7 @@ HRESULT DebugInfo::GetModuleWithName(const std::string &name, ICorDebugModule **
 }
 
 HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                                 uint32_t &ilNextOffset, bool *noUserCodeFound)
+                                                   uint32_t &ilNextOffset, bool *noUserCodeFound)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -652,7 +652,7 @@ HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdM
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                            SequencePoint *sequencePoint)
+                                              SequencePoint *sequencePoint)
 {
     Interop::SequencePoint symSequencePoint;
 
@@ -672,7 +672,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                            SequencePoint &sequencePoint)
+                                              SequencePoint &sequencePoint)
 {
     return GetPDBInfo(modAddress,
         [&](PDBInfo &mdInfo) -> HRESULT
