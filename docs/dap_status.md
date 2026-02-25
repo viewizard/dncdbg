@@ -23,7 +23,7 @@
 
 #### Types
 
-[Capabilities](#capabilities), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Message](#message), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
+[Capabilities](#capabilities), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
 
 ## Base Protocol
 
@@ -434,16 +434,6 @@
 -   default?: boolean;
 -   supportsCondition?: boolean;
 -   conditionDescription?: string;
-```
-#### Message
-```diff
-+   id: number;
--   format: string;
--   variables?: { [key: string]: string; };
--   sendTelemetry?: boolean;
--   showUser?: boolean;
--   url?: string;
--   urlLabel?: string;
 ```
 #### Module
 ```diff
