@@ -10,67 +10,20 @@
 
 #### Base Protocol
 
-[ProtocolMessage](#protocolmessage)
-[Request](#request)
-[Event](#event)
-[Response](#response)
-[Cancel Request](#cancelrequest-cancel)
+[ProtocolMessage](#protocolmessage), [Request](#request), [Event](#event), [Response](#response), [Cancel Request](#cancelrequest-cancel)
 
 #### Events
 
-[Stopped Event](#stoppedevent)
-[Continued Event](#continuedevent)
-[Exited Event](#exitedevent)
-[Terminated Event](#terminatedevent)
-[Thread Event](#threadevent)
-[Output Event](#outputevent)
-[Breakpoint Event](#breakpointevent)
-[Module Event](#moduleevent)
-[Process Event](#processevent)
-[Capabilities Event](#capabilitiesevent)
+[Stopped Event](#stoppedevent), [Continued Event](#continuedevent), [Exited Event](#exitedevent), [Terminated Event](#terminatedevent), [Thread Event](#threadevent), [Output Event](#outputevent), [Breakpoint Event](#breakpointevent), [Module Event](#moduleevent), [Process Event](#processevent), [Capabilities Event](#capabilitiesevent)
 
 #### Requests
 
-[Initialize Request](#initializerequest-initialize)
-[Launch Request](#launchrequest-launch)
-[Attach Request](#attachrequest-attach)
-[Disconnect Request](#disconnectrequest-disconnect)
-[Terminate Request](#terminaterequest-terminate)
-[SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints)
-[SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints)
-[SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints)
-[Continue Request](#continuerequest-continue)
-[Next Request](#nextrequest-next)
-[StepIn Request](#stepinrequest-stepin)
-[StepOut Request](#stepoutrequest-stepout)
-[Pause Request](#pauserequest-pause)
-[StackTrace Request](#stacktracerequest-stacktrace)
-[Scopes Request](#scopesrequest-scopes)
-[Variables Request](#variablesrequest-variables)
-[SetVariable Request](#setvariablerequest-setvariable)
-[Threads Request](#threadsrequest-threads)
-[Evaluate Request](#evaluaterequest-evaluate)
-[SetExpression Request](#setexpressionrequest-setexpression)
-[ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables)
+[SetVariable Request](#setvariablerequest-setvariable), [Threads Request](#threadsrequest-threads), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
 
 #### Types
 
-[Capabilities](#capabilities)
-[ExceptionBreakpointsFilter](#exceptionbreakpointsfilter)
-[Message](#message)
-[Module](#module)
-[Thread](#thread)
-[Source](#source)
-[StackFrame](#stackframe)
-[Scope](#scope)
-[Variable](#variable)
-[SourceBreakpoint](#sourcebreakpoint)
-[FunctionBreakpoint](#functionbreakpoint)
-[Breakpoint](#breakpoint)
-[ExceptionFilterOptions](#exceptionfilteroptions)
-[ExceptionOptions](#exceptionoptions)
-[ExceptionDetails](#exceptiondetails)
-[ExpressionEvaluationOptions](#expressionevaluationoptions)
+[Capabilities](#capabilities), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Message](#message), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
 
 ## Base Protocol
 
