@@ -447,7 +447,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
+            TypeNameFromSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> trElementType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trElementType));
 
@@ -481,7 +481,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
+            TypeNameFromSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> trValueType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trValueType));
 

@@ -73,8 +73,8 @@ void GetCorTypeName(ULONG corType, std::string &typeName)
 }
 
 // From sildasm.cpp
-PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::string> &args,
-                               IMetaDataImport *pMDImport, std::string &out, std::string &appendix)
+PCCOR_SIGNATURE TypeNameFromSig(PCCOR_SIGNATURE typePtr, const std::vector<std::string> &args,
+                                IMetaDataImport *pMDImport, std::string &out, std::string &appendix)
 {
     mdToken tk = mdTokenNil;
     int typ = 0;
@@ -83,7 +83,7 @@ PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::s
     auto getGetNameWithAppendix = [&](const char *str) -> std::string
     {
         std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pMDImport, out, subAppendix);
+        typePtr = TypeNameFromSig(typePtr, args, pMDImport, out, subAppendix);
         return str + subAppendix;
     };
 
@@ -155,7 +155,7 @@ PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::s
     case ELEMENT_TYPE_SZARRAY:
     {
         std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pMDImport, out, subAppendix);
+        typePtr = TypeNameFromSig(typePtr, args, pMDImport, out, subAppendix);
         appendix = "[]" + subAppendix;
         break;
     }
@@ -163,7 +163,7 @@ PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::s
     case ELEMENT_TYPE_ARRAY:
     {
         std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pMDImport, out, subAppendix);
+        typePtr = TypeNameFromSig(typePtr, args, pMDImport, out, subAppendix);
         std::string newAppendix;
         const unsigned rank = CorSigUncompressData(typePtr);
         // <TODO> what is the syntax for the rank 0 case? </TODO>
@@ -244,7 +244,7 @@ PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::s
 
     case ELEMENT_TYPE_GENERICINST:
     {
-        // typePtr = NameForTypeSig(typePtr, args, pMDImport, out, appendix);
+        // typePtr = TypeNameFromSig(typePtr, args, pMDImport, out, appendix);
         CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
         typePtr += CorSigUncompressElementType(typePtr, &underlyingType);
         typePtr += CorSigUncompressToken(typePtr, &tk);
@@ -256,7 +256,7 @@ PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::s
         {
             std::string genType;
             std::string genTypeAppendix;
-            typePtr = NameForTypeSig(typePtr, args, pMDImport, genType, genTypeAppendix);
+            typePtr = TypeNameFromSig(typePtr, args, pMDImport, genType, genTypeAppendix);
             genericArgs.push_back(genType + genTypeAppendix);
         }
         TypePrinter::NameForToken(tk, pMDImport, out, true, &genericArgs);
@@ -551,7 +551,7 @@ HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::ve
     return S_OK;
 }
 
-void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport, std::string &typeName)
+void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport, std::string &typeName)
 {
     // Gather generic arguments from enclosing type
     std::vector<std::string> args;
@@ -573,7 +573,7 @@ void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMet
 
     std::string out;
     std::string appendix;
-    NameForTypeSig(typePtr, args, pMDImport, out, appendix);
+    TypeNameFromSig(typePtr, args, pMDImport, out, appendix);
     typeName = out + appendix;
 }
 

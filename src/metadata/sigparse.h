@@ -52,6 +52,7 @@ HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::ve
                  const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
                  std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 
-void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport, std::string &typeName);
+void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport,
+                     std::string &typeName);
 
 } // namespace dncdbg
