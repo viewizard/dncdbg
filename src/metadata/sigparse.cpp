@@ -494,9 +494,9 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
 }
 
 // Return S_FALSE in case abort parsing, since next block are not implemented.
-HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
-                 const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
-                 std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
+                       const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
+                       std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics

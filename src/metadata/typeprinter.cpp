@@ -709,7 +709,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         std::vector<SigElementType> argElementTypes;
         const std::vector<SigElementType> typeGenerics; // TODO fill this vector
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
-        IfFailRet(SigParse(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes, true));
+        IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes, true));
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)

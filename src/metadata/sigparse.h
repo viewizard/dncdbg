@@ -48,9 +48,9 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
                          const std::vector<SigElementType> &typeGenerics,
                          const std::vector<SigElementType> &methodGenerics, bool addCorTypeName = false);
 
-HRESULT SigParse(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
-                 const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
-                 std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
+                       const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
+                       std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 
 void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport,
                      std::string &typeName);
