@@ -17,14 +17,13 @@
 namespace dncdbg::TypePrinter
 {
 
-HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::string &mdName,
+HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
                        std::list<std::string> *args);
-HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, bool bClassName,
+HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
                      std::list<std::string> *args);
-HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, std::list<std::string> *args);
+HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args);
 HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName);
 HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName);
-void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *enclosingType, IMetaDataImport *pImport, std::string &typeName);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);

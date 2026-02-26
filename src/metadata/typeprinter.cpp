@@ -67,16 +67,16 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
     return ss.str();
 }
 
-HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pImport, std::string &mdName)
+HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::string &mdName)
 {
     // Note, instead of GetTypeDefProps(), GetTypeRefProps() return fully-qualified name.
     // CoreCLR use dynamic allocated or size fixed buffers up to 16kb for GetTypeRefProps().
     HRESULT Status = S_OK;
     ULONG refNameSize = 0;
-    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
+    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
 
     std::vector<WCHAR> refName(refNameSize + 1, 0);
-    IfFailRet(pImport->GetTypeRefProps(tkTypeRef, nullptr, refName.data(), refNameSize, nullptr));
+    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, refName.data(), refNameSize, nullptr));
 
     mdName = to_utf8(refName.data());
 
@@ -127,220 +127,6 @@ HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
     }
 
     return S_OK;
-}
-
-// From sildasm.cpp
-PCCOR_SIGNATURE NameForTypeSig(PCCOR_SIGNATURE typePtr, const std::vector<std::string> &args,
-                               IMetaDataImport *pImport, std::string &out, std::string &appendix)
-{
-    mdToken tk = mdTokenNil;
-    int typ = 0;
-    ULONG n = 0;
-
-    auto getGetNameWithAppendix = [&](const char *str) -> std::string
-    {
-        std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
-        return str + subAppendix;
-    };
-
-    switch (typ = CorSigUncompressElementType(typePtr))
-    {
-    case ELEMENT_TYPE_VOID:
-        out = "void";
-        break;
-    case ELEMENT_TYPE_BOOLEAN:
-        out = "bool";
-        break;
-    case ELEMENT_TYPE_CHAR:
-        out = "char";
-        break;
-    case ELEMENT_TYPE_I1:
-        out = "sbyte";
-        break;
-    case ELEMENT_TYPE_U1:
-        out = "byte";
-        break;
-    case ELEMENT_TYPE_I2:
-        out = "short";
-        break;
-    case ELEMENT_TYPE_U2:
-        out = "ushort";
-        break;
-    case ELEMENT_TYPE_I4:
-        out = "int";
-        break;
-    case ELEMENT_TYPE_U4:
-        out = "uint";
-        break;
-    case ELEMENT_TYPE_I8:
-        out = "long";
-        break;
-    case ELEMENT_TYPE_U8:
-        out = "ulong";
-        break;
-    case ELEMENT_TYPE_R4:
-        out = "float";
-        break;
-    case ELEMENT_TYPE_R8:
-        out = "double";
-        break;
-    case ELEMENT_TYPE_U:
-        out = "UIntPtr";
-        break;
-    case ELEMENT_TYPE_I:
-        out = "IntPtr";
-        break;
-    case ELEMENT_TYPE_OBJECT:
-        out = "object";
-        break;
-    case ELEMENT_TYPE_STRING:
-        out = "string";
-        break;
-    case ELEMENT_TYPE_TYPEDBYREF:
-        out = "typedref";
-        break;
-
-    case ELEMENT_TYPE_VALUETYPE:
-    case ELEMENT_TYPE_CLASS:
-    {
-        typePtr += CorSigUncompressToken(typePtr, &tk);
-        NameForToken(tk, pImport, out, true, nullptr);
-    }
-    break;
-
-    case ELEMENT_TYPE_SZARRAY:
-    {
-        std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
-        appendix = "[]" + subAppendix;
-        break;
-    }
-
-    case ELEMENT_TYPE_ARRAY:
-    {
-        std::string subAppendix;
-        typePtr = NameForTypeSig(typePtr, args, pImport, out, subAppendix);
-        std::string newAppendix;
-        const unsigned rank = CorSigUncompressData(typePtr);
-        // <TODO> what is the syntax for the rank 0 case? </TODO>
-        if (rank == 0)
-        {
-            newAppendix += "[BAD: RANK == 0!]";
-        }
-        else
-        {
-            std::vector<int> lowerBounds(rank, 0);
-            std::vector<ULONG> sizes(rank, 0);
-
-            const unsigned numSizes = CorSigUncompressData(typePtr);
-            assert(numSizes <= rank);
-            for (unsigned i = 0; i < numSizes; i++)
-            {
-                sizes[i] = CorSigUncompressData(typePtr);
-            }
-
-            const unsigned numLowBounds = CorSigUncompressData(typePtr);
-            assert(numLowBounds <= rank);
-            for (unsigned i = 0; i < numLowBounds; i++)
-            {
-                typePtr += CorSigUncompressSignedInt(typePtr, &lowerBounds[i]);
-            }
-
-            newAppendix += '[';
-            if (rank == 1 && numSizes == 0 && numLowBounds == 0)
-            {
-                newAppendix += "..";
-            }
-            else
-            {
-                for (unsigned i = 0; i < rank; i++)
-                {
-                    // if (sizes[i] != 0 || lowerBounds[i] != 0)
-                    // {
-                    //     if (i < numSizes && lowerBounds[i] == 0)
-                    //         out += std::to_string(sizes[i]);
-                    //     else
-                    //     {
-                    //         if(i < numLowBounds)
-                    //         {
-                    //             newAppendix +=  std::to_string(lowerBounds[i]);
-                    //             newAppendix += "..";
-                    //             if (/*sizes[i] != 0 && */i < numSizes)
-                    //                 newAppendix += std::to_string(lowerBounds[i] + sizes[i] - 1);
-                    //         }
-                    //     }
-                    // }
-                    if (i < rank - 1)
-                    {
-                        newAppendix += ',';
-                    }
-                }
-            }
-            newAppendix += ']';
-        }
-        appendix = newAppendix + subAppendix;
-        break;
-    }
-
-    case ELEMENT_TYPE_VAR:
-        n = CorSigUncompressData(typePtr);
-        out = n < static_cast<ULONG>(args.size()) ? args.at(n) : "!" + std::to_string(n);
-        break;
-
-    case ELEMENT_TYPE_MVAR:
-        out += "!!";
-        n = CorSigUncompressData(typePtr);
-        out += std::to_string(n);
-        break;
-
-    case ELEMENT_TYPE_FNPTR:
-        out = "method ";
-        out += "METHOD"; // was: typePtr = PrettyPrintSignature(typePtr, 0x7FFF, "*", out, pIMDI, nullptr);
-        break;
-
-    case ELEMENT_TYPE_GENERICINST:
-    {
-        // typePtr = NameForTypeSig(typePtr, args, pImport, out, appendix);
-        CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
-        typePtr += CorSigUncompressElementType(typePtr, &underlyingType);
-        typePtr += CorSigUncompressToken(typePtr, &tk);
-
-        std::list<std::string> genericArgs;
-
-        unsigned numArgs = CorSigUncompressData(typePtr);
-        while ((numArgs--) != 0U)
-        {
-            std::string genType;
-            std::string genTypeAppendix;
-            typePtr = NameForTypeSig(typePtr, args, pImport, genType, genTypeAppendix);
-            genericArgs.push_back(genType + genTypeAppendix);
-        }
-        NameForToken(tk, pImport, out, true, &genericArgs);
-        break;
-    }
-
-    case ELEMENT_TYPE_PINNED:
-        appendix = getGetNameWithAppendix(" pinned");
-        break;
-    case ELEMENT_TYPE_PTR:
-        appendix = getGetNameWithAppendix("*");
-        break;
-    case ELEMENT_TYPE_BYREF:
-        appendix = getGetNameWithAppendix("&");
-        break;
-    default:
-    case ELEMENT_TYPE_SENTINEL:
-    case ELEMENT_TYPE_END:
-        // assert(!"Unknown Type");
-        if (typ != 0)
-        {
-            out = "/* UNKNOWN TYPE (0x%X)*/" + std::to_string(typ);
-        }
-        break;
-    } // end switch
-
-    return typePtr;
 }
 
 } // unnamed namespace
@@ -407,14 +193,14 @@ std::string RenameToCSharp(const std::string &typeName)
 *                                                                      *
 \**********************************************************************/
 // Caller should guard against exception
-HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::string &mdName, std::list<std::string> *args)
+HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args)
 {
     HRESULT Status = S_OK;
     DWORD flags = 0;
     std::array<WCHAR, mdNameLen> name{};
     ULONG nameLen = 0;
 
-    IfFailRet(pImport->GetTypeDefProps(tkTypeDef, name.data(), mdNameLen, &nameLen, &flags, nullptr));
+    IfFailRet(pMDImport->GetTypeDefProps(tkTypeDef, name.data(), mdNameLen, &nameLen, &flags, nullptr));
     mdName = to_utf8(name.data());
 
     if (!IsTdNested(flags))
@@ -428,17 +214,17 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pImport, std::strin
     }
 
     mdTypeDef tkEnclosingClass = mdTypeDefNil;
-    IfFailRet(pImport->GetNestedClassProps(tkTypeDef, &tkEnclosingClass));
+    IfFailRet(pMDImport->GetNestedClassProps(tkTypeDef, &tkEnclosingClass));
 
     std::string enclosingName;
-    IfFailRet(NameForTypeDef(tkEnclosingClass, pImport, enclosingName, args));
+    IfFailRet(NameForTypeDef(tkEnclosingClass, pMDImport, enclosingName, args));
 
     mdName = enclosingName + "." + ((args != nullptr) ? ConsumeGenericArgs(mdName, *args) : mdName);
 
     return S_OK;
 }
 
-HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, std::list<std::string> *args)
+HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args)
 {
     mdName[0] = L'\0';
     if (TypeFromToken(mb) != mdtTypeDef && TypeFromToken(mb) != mdtTypeRef)
@@ -449,11 +235,11 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pImport, std::string &md
     HRESULT hr = S_OK;
     if (TypeFromToken(mb) == mdtTypeDef)
     {
-        hr = NameForTypeDef(mb, pImport, mdName, args);
+        hr = NameForTypeDef(mb, pMDImport, mdName, args);
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        hr = NameForTypeRef(mb, pImport, mdName);
+        hr = NameForTypeRef(mb, pMDImport, mdName);
     }
     else
     {
@@ -491,7 +277,7 @@ HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
     return NameForTypeByType(trType, mdName);
 }
 
-HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, bool bClassName,
+HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
                      std::list<std::string> *args)
 {
     mdName[0] = L'\0';
@@ -510,19 +296,19 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     std::array<WCHAR, mdNameLen> name{};
     if (TypeFromToken(mb) == mdtTypeDef)
     {
-        hr = NameForTypeDef(mb, pImport, mdName, args);
+        hr = NameForTypeDef(mb, pMDImport, mdName, args);
     }
     else if (TypeFromToken(mb) == mdtFieldDef)
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr,
-                                     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        hr = pMDImport->GetMemberProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr,
+                                       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (mdClass != mdTypeDefNil && bClassName)
             {
-                hr = NameForTypeDef(mdClass, pImport, mdName, args);
+                hr = NameForTypeDef(mdClass, pMDImport, mdName, args);
                 mdName += ".";
             }
             mdName += to_utf8(name.data());
@@ -532,13 +318,13 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMethodProps(mb, &mdClass, name.data(), mdNameLen, &size,
-                                     nullptr, nullptr, nullptr, nullptr, nullptr);
+        hr = pMDImport->GetMethodProps(mb, &mdClass, name.data(), mdNameLen, &size,
+                                       nullptr, nullptr, nullptr, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (mdClass != mdTypeDefNil && bClassName)
             {
-                hr = NameForTypeDef(mdClass, pImport, mdName, args);
+                hr = NameForTypeDef(mdClass, pMDImport, mdName, args);
                 mdName += ".";
             }
             mdName += to_utf8(name.data());
@@ -548,17 +334,17 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     {
         mdTypeDef mdClass = mdTypeDefNil;
         ULONG size = 0;
-        hr = pImport->GetMemberRefProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr);
+        hr = pMDImport->GetMemberRefProps(mb, &mdClass, name.data(), mdNameLen, &size, nullptr, nullptr);
         if (SUCCEEDED(hr))
         {
             if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
             {
-                hr = NameForTypeRef(mdClass, pImport, mdName);
+                hr = NameForTypeRef(mdClass, pMDImport, mdName);
                 mdName += ".";
             }
             else if (TypeFromToken(mdClass) == mdtTypeDef && bClassName)
             {
-                hr = NameForTypeDef(mdClass, pImport, mdName, args);
+                hr = NameForTypeDef(mdClass, pMDImport, mdName, args);
                 mdName += ".";
             }
             // TODO TypeSpec
@@ -567,7 +353,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pImport, std::string &mdName, 
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        hr = NameForTypeRef(mb, pImport, mdName);
+        hr = NameForTypeRef(mb, pMDImport, mdName);
     }
     else
     {
@@ -787,33 +573,6 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         break;
     }
     return S_OK;
-}
-
-void NameForTypeSig(PCCOR_SIGNATURE typePtr, ICorDebugType *enclosingType, IMetaDataImport *pImport,
-                    std::string &typeName)
-{
-    // Gather generic arguments from enclosing type
-    std::vector<std::string> args;
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-
-    if (SUCCEEDED(enclosingType->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ULONG fetched = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
-
-        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
-        {
-            std::string name;
-            GetTypeOfValue(trCurrentTypeParam, name);
-            args.emplace_back(name);
-            trCurrentTypeParam.Free();
-        }
-    }
-
-    std::string out;
-    std::string appendix;
-    NameForTypeSig(typePtr, args, pImport, out, appendix);
-    typeName = out + appendix;
 }
 
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)

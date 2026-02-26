@@ -8,7 +8,7 @@
 #include "debugger/evalwaiter.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "metadata/typeprinter.h"
+#include "metadata/sigparse.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
@@ -447,7 +447,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            TypePrinter::NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
+            NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> trElementType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trElementType));
 
@@ -481,7 +481,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         {
             // Get type name from signature and get its ICorDebugType
             std::string typeName;
-            TypePrinter::NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
+            NameForTypeSig(pSignatureBlob, pType, trMDImport, typeName);
             ToRelease<ICorDebugType> trValueType;
             IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trValueType));
 
