@@ -6,7 +6,7 @@
 5. Open created file inside your project `.vscode/launch.json`
 6. Add `.NET Core Launch with DNCDbg` configuration:
 
-```
+```json
         {
             "name": ".NET Core Launch with DNCDbg",
             "type": "coreclr",
@@ -20,7 +20,7 @@
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
             "stopAtEntry": false,
-            "justMyCode" : false,
+            "justMyCode" : true,
             "enableStepFiltering": false,
             "expressionEvaluationOptions": {
                 "allowImplicitFuncEval": true
