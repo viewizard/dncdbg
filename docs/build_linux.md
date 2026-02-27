@@ -7,6 +7,11 @@
 3. You may also need to install some common developers tools not mentioned here, such as [Git](https://www.git-scm.com/downloads), etc...
 4. Optional: debugger requires the **.NET SDK**, which is typically downloaded automatically, but can also be downloaded manually from here: https://dotnet.microsoft.com/download.
 
+***For example, Debian/Ubuntu prerequisites packages installation:***
+```
+sudo apt install cmake clang llvm build-essential liblttng-ust-dev
+```
+
 ## Compiling
 
 Configure the build with the following commands:
@@ -29,8 +34,7 @@ Add your build type (`Release` or `Debug`), for example:
 For build with Address Sanitizer, add the option
 `-DASAN=1`
 
-For build with clang-tidy, add the option
-`-DCLANG_TIDY=1`
+For build with clang-tidy (note, `clang-tidy` package must be installed), add the option `-DCLANG_TIDY=1`
 
 For build with cppcheck (note, `cppcheck` package must be installed), add the option
 `-DCPPCHECK=1`
