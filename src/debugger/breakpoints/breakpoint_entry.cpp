@@ -95,7 +95,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
                     (fseek(pFile, offset, SEEK_SET) != 0) ||
                     (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1) ||
 
-                    (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT))
+                    (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT) != 0U)
                 {
                     return mdMethodDefNil;
                 }

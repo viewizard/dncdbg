@@ -86,7 +86,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
         {
             BOOL pbActive = TRUE;
             ToRelease<ICorDebugStepper> trStepper(curStepper);
-            if (SUCCEEDED(trStepper->IsActive(&pbActive)) && pbActive)
+            if (SUCCEEDED(trStepper->IsActive(&pbActive)) && pbActive == TRUE)
             {
                 return false;
             }

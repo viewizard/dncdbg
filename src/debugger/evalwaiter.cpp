@@ -230,7 +230,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             auto evalResult = f.get();
             IfFailRet(evalResult->Status);
 
-            if (!ppEvalResult)
+            if (ppEvalResult == nullptr)
             {
                 return S_OK;
             }

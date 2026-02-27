@@ -285,7 +285,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
         {
-            if (!initialBreakpoint.resolved_linenum)
+            if (initialBreakpoint.resolved_linenum == 0)
             {
                 return S_OK;
             }

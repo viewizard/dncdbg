@@ -244,7 +244,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                 mdTypeDef displayClassTypeDef = mdTypeDefNil;
                 IfFailRet(GetClassAndTypeDefByValue(trDisplayClassValue, &trDisplayClass, displayClassTypeDef));
                 IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
-                if (ppResultValue)
+                if (ppResultValue != nullptr)
                 {
                     return E_ABORT; // Fast exit from cycle
                 }
@@ -1299,7 +1299,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         }
 
         auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
-            if (!trFrame) // Forced to update trFrame/trILFrame.
+            if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
                 IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
                 if (trFrame == nullptr)
@@ -1334,7 +1334,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
         auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
         {
-            if (!trFrame) // Forced to update trFrame/trILFrame.
+            if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
                 IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
                 if (trFrame == nullptr)
@@ -1409,7 +1409,8 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                             }
 
                             IfFailRet(getValue(&trResultValue, false));
-                            if (setterData && resultSetterData)
+                            if (setterData != nullptr &&
+                                resultSetterData != nullptr)
                             {
                                 *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
                             }
