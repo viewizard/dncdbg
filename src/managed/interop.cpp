@@ -241,7 +241,7 @@ unsigned int domainId = 0;
 #define CORECLR_CALLING_CONVENTION
 #endif
 
-#define CORECLR_HOSTING_API(function, ...) \
+#define CORECLR_HOSTING_API(function, ...) /* NOLINT(cppcoreguidelines-macro-usage) */ \
     extern "C" int CORECLR_CALLING_CONVENTION function(__VA_ARGS__); \
     using function##_ptr = int (CORECLR_CALLING_CONVENTION *)(__VA_ARGS__)
 

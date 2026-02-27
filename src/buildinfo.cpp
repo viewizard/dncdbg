@@ -20,7 +20,7 @@
 
 #include "buildinfo.h"
 
-#define STRINGIFY_(v) #v
+#define STRINGIFY_(v) #v // NOLINT(cppcoreguidelines-macro-usage)
 #define STRINGIFY(v) STRINGIFY_(v) // NOLINT(cppcoreguidelines-macro-usage)
 
 namespace BuildInfo
