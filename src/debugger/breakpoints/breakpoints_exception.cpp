@@ -7,7 +7,6 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"
-#include <list>
 #include <sstream>
 
 namespace dncdbg
@@ -192,14 +191,15 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
     return false;
 }
 
-HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails &details)
+HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails *pDetails)
 {
-    std::list<ToRelease<ICorDebugValue>> trInnerExceptionsValues;
-    ExceptionDetails *pDetails = &details;
+    ToRelease<ICorDebugValue> trInnerExceptionValue;
+    pExceptionValue->AddRef();
+    ToRelease<ICorDebugValue> trExceptionValue(pExceptionValue);
 
-    while (true)
+    while (pDetails != nullptr)
     {
-        if (FAILED(TypePrinter::GetTypeOfValue(pExceptionValue, pDetails->fullTypeName)))
+        if (FAILED(TypePrinter::GetTypeOfValue(trExceptionValue, pDetails->fullTypeName)))
         {
             pDetails->fullTypeName = "<unknown exception>";
         }
@@ -218,7 +218,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
         HRESULT Status = S_OK;
         m_sharedEvaluator->WalkMembers(
-            pExceptionValue, pThread, FrameLevel{0}, nullptr, false,
+            trExceptionValue, pThread, FrameLevel{0}, nullptr, false,
             [&](ICorDebugType *, bool, const std::string &memberName, const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
             {
                 auto getMemberWithName =
@@ -275,7 +275,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("InnerException",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        trInnerExceptionsValues.emplace_back(trValue.Detach());
+                        trInnerExceptionValue = trValue.Detach();
                     }));
 
                 return S_OK;
@@ -287,15 +287,16 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
             pDetails->formattedDescription += " '" + pDetails->message + "'";
         }
 
-        if (trInnerExceptionsValues.empty() ||
-            trInnerExceptionsValues.back() == pExceptionValue)
+        if (trInnerExceptionValue == nullptr)
         {
-            break;
+            pDetails = nullptr;
         }
-
-        pDetails->innerException = std::make_unique<ExceptionDetails>();
-        pDetails = pDetails->innerException.get();
-        pExceptionValue = trInnerExceptionsValues.back();
+        else
+        {
+            pDetails->innerException = std::make_unique<ExceptionDetails>();
+            pDetails = pDetails->innerException.get();
+            trExceptionValue = trInnerExceptionValue.Detach();
+        }
     };
 
     return S_OK;
@@ -322,7 +323,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
         return E_FAIL;
     }
 
-    IfFailRet(GetExceptionDetails(pThread, trExceptionValue, exceptionInfo.details));
+    IfFailRet(GetExceptionDetails(pThread, trExceptionValue, &exceptionInfo.details));
 
     std::string excModule;
     if (exceptionInfo.details.source.empty())

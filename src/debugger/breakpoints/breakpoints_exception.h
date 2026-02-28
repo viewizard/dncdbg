@@ -74,7 +74,7 @@ class ExceptionBreakpoints
     // Note, we have Exception callback called with different exception callback type, and we need know exception type that related to current stop event.
     std::unordered_map<DWORD, ExceptionBreakMode> m_threadsExceptionBreakMode;
 
-    HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails &details);
+    HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails *pDetails);
 
     struct ManagedExceptionBreakpoint
     {
