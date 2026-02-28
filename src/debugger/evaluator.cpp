@@ -77,6 +77,11 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
         {
             break;
         }
+        else if (Status == S_FALSE)
+        {
+            Status = S_OK;
+            break;
+        }
     }
     pMDImport->CloseEnum(hEnum);
     return Status;
@@ -216,44 +221,44 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
         return E_INVALIDARG;
     }
 
-    Status = ForEachFields(pMDImport, typeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        std::array<WCHAR, mdNameLen> mdName{};
-        ULONG nameLen = 0;
-        if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+    return ForEachFields(pMDImport, typeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
+            std::array<WCHAR, mdNameLen> mdName{};
+            ULONG nameLen = 0;
+            if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                                   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
-                ToRelease<ICorDebugObjectValue> trObjValue;
-                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                IfFailRet(trObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
-                return S_OK;
-            };
-
-            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
-            if (generatedNameKind == GeneratedNameKind::ThisProxyField)
-            {
-                IfFailRet(getValue(ppResultValue));
-                return E_ABORT; // Fast exit from cycle
-            }
-            else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
-            {
-                ToRelease<ICorDebugValue> trDisplayClassValue;
-                IfFailRet(getValue(&trDisplayClassValue));
-                ToRelease<ICorDebugClass> trDisplayClass;
-                mdTypeDef displayClassTypeDef = mdTypeDefNil;
-                IfFailRet(GetClassAndTypeDefByValue(trDisplayClassValue, &trDisplayClass, displayClassTypeDef));
-                IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
-                if (ppResultValue != nullptr)
+                auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
                 {
-                    return E_ABORT; // Fast exit from cycle
+                    ToRelease<ICorDebugObjectValue> trObjValue;
+                    IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                    IfFailRet(trObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
+                    return S_OK;
+                };
+
+                const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+                if (generatedNameKind == GeneratedNameKind::ThisProxyField)
+                {
+                    IfFailRet(getValue(ppResultValue));
+                    return S_FALSE; // Fast exit from cycle
+                }
+                else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+                {
+                    ToRelease<ICorDebugValue> trDisplayClassValue;
+                    IfFailRet(getValue(&trDisplayClassValue));
+                    ToRelease<ICorDebugClass> trDisplayClass;
+                    mdTypeDef displayClassTypeDef = mdTypeDefNil;
+                    IfFailRet(GetClassAndTypeDefByValue(trDisplayClassValue, &trDisplayClass, displayClassTypeDef));
+                    IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
+                    if (ppResultValue != nullptr)
+                    {
+                        return S_FALSE; // Fast exit from cycle
+                    }
                 }
             }
-        }
-        return S_OK; // Return with success to continue walk.
-    });
-
-    return Status == E_ABORT ? S_OK : Status;
+            return S_OK; // Return with success to continue walk.
+        });
 }
 
 // https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
@@ -358,82 +363,83 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
     int32_t hoistedLocalScopesCount = -1;
     std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
 
-    IfFailRet(ForEachFields(pMDImport, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        std::array<WCHAR, mdNameLen> mdName{};
-        ULONG nameLen = 0;
-        DWORD fieldAttr = 0;
-        if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                            &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
-            (fieldAttr & fdStatic) != 0 ||
-            (fieldAttr & fdLiteral) != 0 ||
-            usedNames.find(mdName.data()) != usedNames.end())
+    return ForEachFields(pMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
+            std::array<WCHAR, mdNameLen> mdName{};
+            ULONG nameLen = 0;
+            DWORD fieldAttr = 0;
+            if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+                                                &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+                (fieldAttr & fdStatic) != 0 ||
+                (fieldAttr & fdLiteral) != 0 ||
+                usedNames.find(mdName.data()) != usedNames.end())
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+
+            auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+            {
+                // Get pValue again, since it could be neutered at eval call in `cb` on previous cycle.
+                trValue.Free();
+                IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+                ToRelease<ICorDebugObjectValue> trObjValue;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
+                return S_OK;
+            };
+
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+            if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+            {
+                ToRelease<ICorDebugValue> trDisplayClassValue;
+                IfFailRet(getValue(&trDisplayClassValue, false));
+                IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
+                                                   pDebugInfo, pModule, cb));
+            }
+            else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
+            {
+                if (hoistedLocalScopesCount == -1)
+                {
+                    void *data = nullptr;
+                    if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
+                    {
+                        hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
+                    }
+                    else
+                    {
+                        hoistedLocalScopesCount = 0;
+                    }
+                }
+
+                // Check, that hoisted local is in scope.
+                // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
+                int32_t index = 0;
+                if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
+                    hoistedLocalScopesCount > index &&
+                    (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
+                    currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                WSTRING wLocalName;
+                if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
+                usedNames.insert(wLocalName);
+            }
+            // Ignore any other compiler generated fields, show only normal fields.
+            else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
+            {
+                IfFailRet(cb(to_utf8(mdName.data()), getValue));
+                usedNames.insert(mdName.data());
+            }
             return S_OK; // Return with success to continue walk.
-        }
-
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
-            // Get pValue again, since it could be neutered at eval call in `cb` on previous cycle.
-            trValue.Free();
-            IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-            ToRelease<ICorDebugObjectValue> trObjValue;
-            IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
-            return S_OK;
-        };
-
-        const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
-        if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
-        {
-            ToRelease<ICorDebugValue> trDisplayClassValue;
-            IfFailRet(getValue(&trDisplayClassValue, false));
-            IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                               pDebugInfo, pModule, cb));
-        }
-        else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
-        {
-            if (hoistedLocalScopesCount == -1)
-            {
-                void *data = nullptr;
-                if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
-                {
-                    hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
-                }
-                else
-                {
-                    hoistedLocalScopesCount = 0;
-                }
-            }
-
-            // Check, that hoisted local is in scope.
-            // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
-            int32_t index;
-            if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
-                hoistedLocalScopesCount > index &&
-                (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
-                 currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
-            {
-                return S_OK; // Return with success to continue walk.
-            }
-
-            WSTRING wLocalName;
-            if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
-            {
-                return S_OK; // Return with success to continue walk.
-            }
-
-            IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
-            usedNames.insert(wLocalName);
-        }
-        // Ignore any other compiler generated fields, show only normal fields.
-        else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
-        {
-            IfFailRet(cb(to_utf8(mdName.data()), getValue));
-            usedNames.insert(mdName.data());
-        }
-        return S_OK; // Return with success to continue walk.
-    }));
-
-    return S_OK;
+        });
 }
 
 } // unnamed namespace
@@ -889,77 +895,79 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-    IfFailRet(ForEachFields(trMDImport, currentTypeDef, [&](mdFieldDef fieldDef) -> HRESULT {
-        ULONG nameLen = 0;
-        DWORD fieldAttr = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
-        PCCOR_SIGNATURE pSignatureBlob = nullptr;
-        ULONG sigBlobLength = 0;
-        UVCP_CONSTANT pRawValue = nullptr;
-        ULONG rawValueLength = 0;
-        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
-                                                &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
+    IfFailRet(ForEachFields(trMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            // Prevent access to internal compiler added fields (without visible name).
-            // Should be accessed by debugger routine only and hidden from user/ide.
-            // More about compiler generated names in Roslyn sources:
-            // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
-            // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-            if (IsSynthesizedLocalName(mdName.data(), nameLen))
+            ULONG nameLen = 0;
+            DWORD fieldAttr = 0;
+            std::array<WCHAR, mdNameLen> mdName{};
+            PCCOR_SIGNATURE pSignatureBlob = nullptr;
+            ULONG sigBlobLength = 0;
+            UVCP_CONSTANT pRawValue = nullptr;
+            ULONG rawValueLength = 0;
+            if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+                                                    &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
             {
-                return S_OK;
-            }
-
-            const bool is_static = (fieldAttr & fdStatic);
-            if (isNull && !is_static)
-            {
-                return S_OK;
-            }
-
-            const std::string name = to_utf8(mdName.data());
-
-            auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
-            {
-                if (fieldAttr & fdLiteral)
+                // Prevent access to internal compiler added fields (without visible name).
+                // Should be accessed by debugger routine only and hidden from user/ide.
+                // More about compiler generated names in Roslyn sources:
+                // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
+                // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
+                if (IsSynthesizedLocalName(mdName.data(), nameLen))
                 {
-                    IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trType, trModule, pSignatureBlob,
-                                                                   sigBlobLength, pRawValue, rawValueLength,
-                                                                   ppResultValue));
+                    return S_OK; // Return with success to continue walk.
                 }
-                else if (fieldAttr & fdStatic)
+
+                const bool is_static = (fieldAttr & fdStatic);
+                if (isNull && !is_static)
                 {
-                    if (pThread == nullptr)
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                const std::string name = to_utf8(mdName.data());
+
+                auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+                {
+                    if (fieldAttr & fdLiteral)
                     {
-                        return E_FAIL;
+                        IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trType, trModule, pSignatureBlob,
+                                                                       sigBlobLength, pRawValue, rawValueLength,
+                                                                       ppResultValue));
+                    }
+                    else if (fieldAttr & fdStatic)
+                    {
+                        if (pThread == nullptr)
+                        {
+                            return E_FAIL;
+                        }
+
+                        ToRelease<ICorDebugFrame> trFrame;
+                        IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
+
+                        if (trFrame == nullptr)
+                        {
+                            return E_FAIL;
+                        }
+
+                        IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
+                    }
+                    else
+                    {
+                        // Get trValue again, since it could be neutered at eval call in `cb` on previous cycle.
+                        trValue.Free();
+                        IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+                        ToRelease<ICorDebugObjectValue> trObjValue;
+                        IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                        IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
                     }
 
-                    ToRelease<ICorDebugFrame> trFrame;
-                    IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
+                    return S_OK; // Return with success to continue walk.
+                };
 
-                    if (trFrame == nullptr)
-                    {
-                        return E_FAIL;
-                    }
-
-                    IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
-                }
-                else
-                {
-                    // Get trValue again, since it could be neutered at eval call in `cb` on previous cycle.
-                    trValue.Free();
-                    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-                    ToRelease<ICorDebugObjectValue> trObjValue;
-                    IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                    IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
-                }
-
-                return S_OK;
-            };
-
-            IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-        }
-        return S_OK;
-    }));
+                IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+            }
+            return S_OK; // Return with success to continue walk.
+        }));
     IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
         [&](mdProperty propertyDef) -> HRESULT
         {
@@ -979,13 +987,13 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
                                                       nullptr, nullptr, nullptr, nullptr)))
                 {
-                    return S_OK;
+                    return S_OK; // Return with success to continue walk.
                 }
 
                 bool is_static = (getterAttr & mdStatic);
                 if (isNull && !is_static)
                 {
-                    return S_OK;
+                    return S_OK; // Return with success to continue walk.
                 }
 
                 // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
@@ -1038,7 +1046,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                 if (debuggerBrowsableState_Never)
                 {
-                    return S_OK;
+                    return S_OK; // Return with success to continue walk.
                 }
 
                 const std::string name = to_utf8(propertyName.data());
@@ -1074,7 +1082,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                 }
             }
-            return S_OK;
+            return S_OK; // Return with success to continue walk.
         }));
 
     std::string baseTypeName;
