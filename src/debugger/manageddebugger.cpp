@@ -1117,7 +1117,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     bool prevFrameExternal = false;
 
     IfFailRet(WalkFrames(pThread,
-        [&](FrameType frameType, ICorDebugFrame *pFrame) -> void
+        [&](FrameType frameType, ICorDebugFrame *pFrame) -> HRESULT
         {
             if (IsJustMyCode())
             {
@@ -1140,16 +1140,19 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                         stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
                         prevFrameExternal = true;
                     }
-                    return;
+                    return S_OK; // Continue walk.
                 }
             }
 
             currentFrame++;
 
-            if (currentFrame < static_cast<int>(startFrame) ||
-                (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+            if (currentFrame < static_cast<int>(startFrame))
             {
-                return;
+                return S_OK; // Continue walk.
+            }
+            if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+            {
+                return S_FALSE; // Fast exit from cycle.
             }
 
             switch (frameType)
@@ -1182,6 +1185,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 break;
             }
             }
+
+            return S_OK; // Continue walk.
         }));
 
     return S_OK;

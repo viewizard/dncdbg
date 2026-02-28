@@ -187,7 +187,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                     if (SUCCEEDED((*it)->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
                         AllowInternalFrame(*it))
                     {
-                        cb(FrameType::CLRInternal, trIntFrame);
+                        if (cb(FrameType::CLRInternal, trIntFrame) == S_FALSE)
+                        {
+                            return S_OK;
+                        }
                     }
                     it = trInternalFrames.erase(it);
                 }
@@ -271,11 +274,17 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                     continue;
                 }
 
-                cb(FrameType::CLRManaged, trFrame);
+                if (cb(FrameType::CLRManaged, trFrame) == S_FALSE)
+                {
+                    return S_OK;
+                }
             }
             else
             {
-                cb(FrameType::Unknown, trFrame);
+                if (cb(FrameType::Unknown, trFrame) == S_FALSE)
+                {
+                    return S_OK;
+                }
             }
             continue;
         }
@@ -283,7 +292,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         ToRelease<ICorDebugNativeFrame> trNativeFrame;
         if (FAILED(trFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&trNativeFrame))))
         {
-            cb(FrameType::Unknown, trFrame);
+            if (cb(FrameType::Unknown, trFrame) == S_FALSE)
+            {
+                return S_OK;
+            }
             continue;
         }
         // If the first frame is CoreCLR native frame then we might be in a call to unmanaged code.
@@ -293,7 +305,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         {
             UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb);
         }
-        cb(FrameType::CLRNative, nullptr);
+        if (cb(FrameType::CLRNative, nullptr) == S_FALSE)
+        {
+            return S_OK;
+        }
     }
 
     for (const auto &trIntFrame2 : trInternalFrames)
@@ -302,7 +317,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         if (SUCCEEDED(trIntFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
             AllowInternalFrame(trIntFrame2))
         {
-            cb(FrameType::CLRInternal, trIntFrame);
+            if (cb(FrameType::CLRInternal, trIntFrame) == S_FALSE)
+            {
+                return S_OK;
+            }
         }
     }
 
@@ -332,23 +350,25 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 
     int currentFrame = -1;
 
-    WalkFrames(pThread, [&](FrameType frameType, ICorDebugFrame *pFrame) {
-        currentFrame++;
-
-        if (currentFrame < static_cast<int>(level))
+    WalkFrames(pThread,
+        [&](FrameType frameType, ICorDebugFrame *pFrame) -> HRESULT
         {
-            return S_OK;
-        }
-        else if (currentFrame > static_cast<int>(level) ||
-                 frameType != FrameType::CLRManaged)
-        {
-            return E_FAIL;
-        }
+            currentFrame++;
 
-        pFrame->AddRef();
-        *ppFrame = pFrame;
-        return E_ABORT; // Fast exit from cycle.
-    });
+            if (currentFrame < static_cast<int>(level))
+            {
+                return S_OK; // Continue walk.
+            }
+            else if (currentFrame > static_cast<int>(level) ||
+                    frameType != FrameType::CLRManaged)
+            {
+                return S_FALSE; // Fast exit from cycle.
+            }
+
+            pFrame->AddRef();
+            *ppFrame = pFrame;
+            return S_FALSE; // Fast exit from cycle.
+        });
 
     return *ppFrame != nullptr ? S_OK : E_FAIL;
 }
