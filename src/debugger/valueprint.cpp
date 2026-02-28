@@ -783,38 +783,6 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     return S_OK;
 }
 
-HRESULT PrintNullableValue(ICorDebugValue *pValue, std::string &outTextValue)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue> trValueValue;
-    ToRelease<ICorDebugValue> trHasValueValue;
-    IfFailRet(GetNullableValue(pValue, &trValueValue, &trHasValueValue));
-
-    uint32_t cbSize = 0;
-    IfFailRet(trHasValueValue->GetSize(&cbSize));
-    ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
-    if (rgbValue == nullptr)
-    {
-        return E_OUTOFMEMORY;
-    }
-    memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
-
-    ToRelease<ICorDebugGenericValue> trGenericValue;
-    IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
-    // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-    if (rgbValue[0] != 0)
-    {
-        PrintValue(trValueValue, outTextValue, true);
-    }
-    else
-    {
-        outTextValue = "null";
-    }
-
-    return S_OK;
-}
-
 HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape)
 {
     HRESULT Status = S_OK;
@@ -917,9 +885,33 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         }
         else if (typeName.back() == '?') // System.Nullable<T>
         {
-            std::string val;
-            PrintNullableValue(trValue, val);
-            ss << val;
+            ToRelease<ICorDebugValue> trValueValue;
+            ToRelease<ICorDebugValue> trHasValueValue;
+            IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
+
+            uint32_t cbSize = 0;
+            IfFailRet(trHasValueValue->GetSize(&cbSize));
+            ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
+            if (rgbValue == nullptr)
+            {
+                return E_OUTOFMEMORY;
+            }
+            memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+
+            ToRelease<ICorDebugGenericValue> trGenericValue;
+            IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+            IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+            // trHasValueValue is ELEMENT_TYPE_BOOLEAN
+            if (rgbValue[0] != 0)
+            {
+                std::string val;
+                PrintValue(trValueValue, val, true);
+                ss << val;
+            }
+            else
+            {
+                ss << "null";
+            }
         }
         else
         {
