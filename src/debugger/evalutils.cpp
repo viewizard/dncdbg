@@ -260,19 +260,21 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (trTypeModule == nullptr)
     {
-        pDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT {
-            if (typeToken != mdTypeDefNil) // already found
+        IfFailRet(pDebugInfo->ForEachModule(
+            [&](ICorDebugModule *pModule) -> HRESULT
             {
-                return S_OK;
-            }
+                if (typeToken != mdTypeDefNil) // already found
+                {
+                    return S_FALSE; // Fast exit from cycle
+                }
 
-            if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
-            {
-                pModule->AddRef();
-                trTypeModule = pModule;
-            }
-            return S_OK;
-        });
+                if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
+                {
+                    pModule->AddRef();
+                    trTypeModule = pModule;
+                }
+                return S_OK; // Return with success to continue walk.
+            }));
     }
     else
     {

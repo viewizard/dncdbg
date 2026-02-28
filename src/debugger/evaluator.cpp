@@ -1708,7 +1708,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
         }
     }
 
-    m_sharedDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
+    IfFailRet(m_sharedDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
     {
         ULONG typesCnt = 0;
         HCORENUM fTypeEnum = nullptr;
@@ -1893,7 +1893,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                     trMDImportInt->CloseEnum(ifEnum);
                                     trMDImport->CloseEnum(fFuncEnum);
                                     trMDImport->CloseEnum(fTypeEnum);
-                                    return E_ABORT;
+                                    return S_FALSE; // Fast exit from cycle
                                 }
                             }
                         }
@@ -1920,15 +1920,15 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                         pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
                         trMDImport->CloseEnum(fFuncEnum);
                         trMDImport->CloseEnum(fTypeEnum);
-                        return E_ABORT;
+                        return S_FALSE; // Fast exit from cycle
                     }
                 }
             }
             trMDImport->CloseEnum(fFuncEnum);
         }
         trMDImport->CloseEnum(fTypeEnum);
-        return S_OK;
-    });
+        return S_OK; // Return with success to continue walk.
+    }));
     return S_OK;
 }
 

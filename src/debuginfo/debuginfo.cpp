@@ -694,9 +694,17 @@ HRESULT DebugInfo::ForEachModule(const std::function<HRESULT(ICorDebugModule *pM
     for (auto &info_pair : m_debugInfo)
     {
         const PDBInfo &mdInfo = info_pair.second;
-        IfFailRet(cb(mdInfo.m_trModule));
+        if (FAILED(Status = cb(mdInfo.m_trModule)))
+        {
+            break;
+        }
+        else if (Status == S_FALSE)
+        {
+            Status = S_OK;
+            break;
+        }
     }
-    return S_OK;
+    return Status;
 }
 
 HRESULT DebugInfo::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
