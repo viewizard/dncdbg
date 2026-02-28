@@ -960,119 +960,122 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         }
         return S_OK;
     }));
-    IfFailRet(ForEachProperties(trMDImport, currentTypeDef, [&](mdProperty propertyDef) -> HRESULT
-    {
-        mdTypeDef propertyClass = mdTypeDefNil;
-
-        ULONG propertyNameLen = 0;
-        UVCP_CONSTANT pDefaultValue;
-        ULONG cchDefaultValue;
-        mdMethodDef mdGetter = mdMethodDefNil;
-        mdMethodDef mdSetter = mdMethodDefNil;
-        std::array<WCHAR, mdNameLen> propertyName{};
-        if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
-                                                   &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
-                                                   &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+    IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
+        [&](mdProperty propertyDef) -> HRESULT
         {
-            DWORD getterAttr = 0;
-            if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                                  nullptr, nullptr, nullptr, nullptr)))
-            {
-                return S_OK;
-            }
+            mdTypeDef propertyClass = mdTypeDefNil;
 
-            bool is_static = (getterAttr & mdStatic);
-            if (isNull && !is_static)
+            ULONG propertyNameLen = 0;
+            UVCP_CONSTANT pDefaultValue;
+            ULONG cchDefaultValue;
+            mdMethodDef mdGetter = mdMethodDefNil;
+            mdMethodDef mdSetter = mdMethodDefNil;
+            std::array<WCHAR, mdNameLen> propertyName{};
+            if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
+                                                       &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
+                                                       &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
             {
-                return S_OK;
-            }
-
-            // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
-            // Since we check only first byte, no reason store it as int (default enum type in c#)
-            enum DebuggerBrowsableState : char // NOLINT(cppcoreguidelines-use-enum-class)
-            {
-                Never = 0,
-                Expanded = 1,
-                Collapsed = 2,
-                RootHidden = 3
-            };
-
-            const char *g_DebuggerBrowsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
-            bool debuggerBrowsableState_Never = false;
-
-            ULONG numAttributes = 0;
-            HCORENUM hEnum = nullptr;
-            mdCustomAttribute attr = 0;
-            while (SUCCEEDED(trMDImport->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
-                   numAttributes != 0)
-            {
-                mdToken ptkObj = mdTokenNil;
-                mdToken ptkType = mdTokenNil;
-                void const *ppBlob = nullptr;
-                ULONG pcbSize = 0;
-                if (FAILED(trMDImport->GetCustomAttributeProps(attr, &ptkObj, &ptkType, &ppBlob, &pcbSize)))
+                DWORD getterAttr = 0;
+                if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                                      nullptr, nullptr, nullptr, nullptr)))
                 {
-                    continue;
+                    return S_OK;
                 }
 
-                std::string mdName;
-                if (FAILED(TypePrinter::NameForToken(ptkType, trMDImport, mdName, true, nullptr)))
+                bool is_static = (getterAttr & mdStatic);
+                if (isNull && !is_static)
                 {
-                    continue;
+                    return S_OK;
                 }
 
-                if (mdName == g_DebuggerBrowsable
-                    // In case of DebuggerBrowsableAttribute blob is 8 bytes:
-                    // 2 bytes - blob prolog 0x0001
-                    // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
-                    // 2 bytes - alignment
-                    // We check only one byte (first data byte), no reason check 4 bytes in our case.
-                    && pcbSize > 2 && (static_cast<char const *>(ppBlob)[2] == DebuggerBrowsableState::Never))
+                // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
+                // Since we check only first byte, no reason store it as int (default enum type in c#)
+                enum DebuggerBrowsableState : char // NOLINT(cppcoreguidelines-use-enum-class)
                 {
-                    debuggerBrowsableState_Never = true;
-                    break;
+                    Never = 0,
+                    Expanded = 1,
+                    Collapsed = 2,
+                    RootHidden = 3
+                };
+
+                const char *g_DebuggerBrowsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
+                bool debuggerBrowsableState_Never = false;
+
+                ULONG numAttributes = 0;
+                HCORENUM hEnum = nullptr;
+                mdCustomAttribute attr = 0;
+                while (SUCCEEDED(trMDImport->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
+                       numAttributes != 0)
+                {
+                    mdToken ptkObj = mdTokenNil;
+                    mdToken ptkType = mdTokenNil;
+                    void const *ppBlob = nullptr;
+                    ULONG pcbSize = 0;
+                    if (FAILED(trMDImport->GetCustomAttributeProps(attr, &ptkObj, &ptkType, &ppBlob, &pcbSize)))
+                    {
+                        continue;
+                    }
+
+                    std::string mdName;
+                    if (FAILED(TypePrinter::NameForToken(ptkType, trMDImport, mdName, true, nullptr)))
+                    {
+                        continue;
+                    }
+
+                    if (mdName == g_DebuggerBrowsable
+                        // In case of DebuggerBrowsableAttribute blob is 8 bytes:
+                        // 2 bytes - blob prolog 0x0001
+                        // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
+                        // 2 bytes - alignment
+                        // We check only one byte (first data byte), no reason check 4 bytes in our case.
+                        && pcbSize > 2 && (static_cast<char const *>(ppBlob)[2] == DebuggerBrowsableState::Never))
+                    {
+                        debuggerBrowsableState_Never = true;
+                        break;
+                    }
+                }
+                trMDImport->CloseEnum(hEnum);
+
+                if (debuggerBrowsableState_Never)
+                {
+                    return S_OK;
+                }
+
+                const std::string name = to_utf8(propertyName.data());
+
+                auto getValue =
+                    [&](ICorDebugValue **ppResultValue, bool ignoreEvalFlags) -> HRESULT
+                    {
+                        if (pThread == nullptr)
+                        {
+                            return E_FAIL;
+                        }
+
+                        ToRelease<ICorDebugFunction> trFunc;
+                        IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
+
+                        return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetRef(), 1,
+                                                                 is_static ? nullptr : &pInputValue, is_static ? 0 : 1,
+                                                                 ppResultValue, ignoreEvalFlags);
+                    };
+
+                if (provideSetterData)
+                {
+                    ToRelease<ICorDebugFunction> trFuncSetter;
+                    if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
+                    {
+                        trFuncSetter.Free();
+                    }
+                    Evaluator::SetterData setterData(is_static ? nullptr : pInputValue, trType, trFuncSetter);
+                    IfFailRet(cb(trType, is_static, name, getValue, &setterData));
+                }
+                else
+                {
+                    IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                 }
             }
-            trMDImport->CloseEnum(hEnum);
-
-            if (debuggerBrowsableState_Never)
-            {
-                return S_OK;
-            }
-
-            const std::string name = to_utf8(propertyName.data());
-
-            auto getValue = [&](ICorDebugValue **ppResultValue, bool ignoreEvalFlags) -> HRESULT {
-                if (pThread == nullptr)
-                {
-                    return E_FAIL;
-                }
-
-                ToRelease<ICorDebugFunction> trFunc;
-                IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
-
-                return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetRef(), 1,
-                                                         is_static ? nullptr : &pInputValue, is_static ? 0 : 1,
-                                                         ppResultValue, ignoreEvalFlags);
-            };
-
-            if (provideSetterData)
-            {
-                ToRelease<ICorDebugFunction> trFuncSetter;
-                if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
-                {
-                    trFuncSetter.Free();
-                }
-                Evaluator::SetterData setterData(is_static ? nullptr : pInputValue, trType, trFuncSetter);
-                IfFailRet(cb(trType, is_static, name, getValue, &setterData));
-            }
-            else
-            {
-                IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-            }
-        }
-        return S_OK;
-    }));
+            return S_OK;
+        }));
 
     std::string baseTypeName;
     ToRelease<ICorDebugType> trBaseType;
