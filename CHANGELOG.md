@@ -5,6 +5,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added TestStdIO.
 - Added shrinked [diagnostics](https://github.com/dotnet/diagnostics) sources v9.0.661903, dbgshim library build now during debugger build.
 - Added clang-tidy checks.
+- Added cppcheck checks.
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
 - Added `allowImplicitFuncEval` configuration option support (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
@@ -16,16 +17,12 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Replaced VSCode to DAP (variables, class names, tests, etc).
 - Refactored test-suite.
 - nlohmann/json version bump to 3.12.0
-- Refactored filesystem related code.
-- Refactored interop related code.
-- Refactored EmitOutputEvent method.
-- Improved NameForTypeSig method code.
+- Improved and refactored debugger source code.
 - Updated package references for managed part.
 - Switched to C++17 standard.
 - Launch option `engineLogging` renamed to `logProtocol`.
 - Managed unwinder will ignore fails on particular frames now and continue unwind.
-- Implemented better class constructors source breakpoints support.
-- Improved thread name add/change related code.
+- Improved managed class constructors related logic for source breakpoints.
 
 #### Removed
 - Removed debug build support for .NET Core 2.1.
@@ -47,7 +44,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Removed string_view implementation (switched to std::string_view).
 - Removed rwlock implementation (switched to std::shared_mutex).
 - Removed escaped string code (nlohmann/json have it implemented now).
-- Removed wrong assertion `startLine != other.startLine || startColumn != other.startColumn' (record classes related issue).
+- Removed wrong assertion `startLine != other.startLine || startColumn != other.startColumn' (C# record classes related issue).
 - Removed Utility::Size() implementation (switched to std::size()).
 
 #### Fixed
@@ -63,3 +60,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed some methods `void *&` (`PVOID &`) parameters to `void **`.
 - Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
 - Fixed Cancel Request, `requestId` is optional parameter now.
+- Fixed exception type name fail handling logic in GetExceptionDetails().
