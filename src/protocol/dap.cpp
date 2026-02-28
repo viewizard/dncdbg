@@ -751,8 +751,7 @@ void DAP::CommandsWorker()
 std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<DAP::CommandQueueEntry>::iterator &iter)
 {
     iter->response["success"] = false;
-    iter->response["message"] =
-        std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled.");
+    iter->response["message"] = std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled.");
     DAPIO::EmitMessageWithLog(LOG_RESPONSE, iter->response);
     return m_commandsQueue.erase(iter);
 }
@@ -848,7 +847,8 @@ void DAP::CommandLoop()
                 }
             }
             // Note, in case "cancel" this is command implementation itself.
-            else if (queueEntry.command == "cancel")
+            else if (queueEntry.command == "cancel" &&
+                     queueEntry.arguments.contains("requestId"))
             {
                 auto requestId = queueEntry.arguments.at("requestId");
                 std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);

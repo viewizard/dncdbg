@@ -47,7 +47,7 @@
 +  request_seq: number;
 +  success: boolean;
 +  command: string;
--  message?: 'cancelled' | 'notStopped' | string;
++  message?: 'cancelled' | 'notStopped' | string;
 +  body?: any;
 ```
 #### ErrorResponse
@@ -57,7 +57,7 @@
 #### CancelRequest `cancel`
 ```diff
 +   requestId?: number;
-+   progressId?: string;
+-   progressId?: string;
 ```
 #### CancelResponse
 ```diff
