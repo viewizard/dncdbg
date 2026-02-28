@@ -199,10 +199,9 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     while (true)
     {
-        std::string excType;
         if (FAILED(TypePrinter::GetTypeOfValue(pExceptionValue, pDetails->fullTypeName)))
         {
-            excType = "<unknown exception>";
+            pDetails->fullTypeName = "<unknown exception>";
         }
 
         auto lastDotPosition = pDetails->fullTypeName.find_last_of('.');
