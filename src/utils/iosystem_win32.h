@@ -56,11 +56,11 @@ template <> struct IOSystemTraits<Win32PlatformTag>
         size_t count;
 
         AsyncHandle()
-          : handle(INVALID_HANDLE_VALUE),
-            overlapped(),
-            check_eof(false),
-            buf(nullptr),
-            count(0)
+            : handle(INVALID_HANDLE_VALUE),
+              overlapped(),
+              check_eof(false),
+              buf(nullptr),
+              count(0)
         {
         }
 

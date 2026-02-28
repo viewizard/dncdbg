@@ -34,12 +34,12 @@ struct method_data_t
     int32_t isCtor;      // is method data constructor related
 
     method_data_t()
-      : methodDef(0),
-        startLine(0),
-        endLine(0),
-        startColumn(0),
-        endColumn(0),
-        isCtor(0)
+        : methodDef(0),
+          startLine(0),
+          endLine(0),
+          startColumn(0),
+          endColumn(0),
+          isCtor(0)
     {
     }
 

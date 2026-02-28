@@ -32,8 +32,8 @@ struct PDBInfo
     ToRelease<ICorDebugModule> m_trModule;
 
     PDBInfo(void *Handle, ICorDebugModule *Module)
-      : m_symbolReaderHandle(Handle),
-        m_trModule(Module)
+        : m_symbolReaderHandle(Handle),
+          m_trModule(Module)
     {
     }
 

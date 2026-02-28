@@ -31,9 +31,9 @@ struct AsyncRead
     size_t size;
 
     AsyncRead(int fd, void *buf, size_t size)
-      : fd(fd),
-        buffer(buf),
-        size(size)
+        : fd(fd),
+          buffer(buf),
+          size(size)
     {
     }
 
@@ -84,9 +84,9 @@ struct AsyncWrite
     size_t size;
 
     AsyncWrite(int fd, const void *buf, size_t size)
-      : fd(fd),
-        buffer(buf),
-        size(size)
+        : fd(fd),
+          buffer(buf),
+          size(size)
     {
     }
 
