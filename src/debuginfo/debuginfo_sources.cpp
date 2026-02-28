@@ -72,61 +72,81 @@ struct module_methods_data_t_deleter
 
 // Note, we use std::map since we need container that will not invalidate iterators on add new elements.
 void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodData,
-                   const method_data_t &entry,
-                   const size_t nestedLevel)
+                   const method_data_t &entry, const size_t level)
 {
-    // if we here, we need at least one nested level for sure
-    if (methodData.empty())
+    struct MethodDataWithLevel
     {
-        methodData.emplace(0, std::set<method_data_t>{entry});
-        return;
-    }
-    assert(nestedLevel <= methodData.size()); // could be increased only at 1 per recursive call
-    if (nestedLevel == methodData.size())
-    {
-        methodData.emplace(nestedLevel, std::set<method_data_t>{entry});
-        return;
-    }
-    auto it = methodData[nestedLevel].lower_bound(entry);
-    if (it != methodData[nestedLevel].end() && entry.NestedInto(*it))
-    {
-        AddMethodData(methodData, entry, nestedLevel + 1);
-        return;
-    }
-
-    // case with only one element on nested level, NestedInto() was already called and entry checked
-    if (it == methodData[nestedLevel].begin())
-    {
-        methodData[nestedLevel].emplace(entry);
-        return;
-    }
-
-    // in case this is parts of constructor with same location (for example, `int i = 0;`)
-    if (it != methodData[nestedLevel].end() && *it == entry && entry.isCtor == 1)
-    {
-        assert(it->isCtor == 1); // also must be part of constructor
-        methodData[nestedLevel].emplace(entry);
-        return;
-    }
-
-    // move all previously added nested for new entry elements to level above
-    do
-    {
-        it = std::prev(it);
-
-        if (it->NestedInto(entry))
+        MethodDataWithLevel(const method_data_t &entry_, const size_t level_)
+            : entry(entry_),
+              level(level_)
         {
-            const method_data_t tmp = *it;
-            it = methodData[nestedLevel].erase(it);
-            AddMethodData(methodData, tmp, nestedLevel + 1);
         }
-        else
-        {
-            break;
-        }
-    } while (it != methodData[nestedLevel].begin());
 
-    methodData[nestedLevel].emplace(entry);
+        method_data_t entry;
+        size_t level;
+    };
+
+    std::list<MethodDataWithLevel> methodDataQueue;
+    methodDataQueue.emplace_back(entry, level);
+
+    while (!methodDataQueue.empty())
+    {
+        MethodDataWithLevel currentData = methodDataQueue.front();
+        methodDataQueue.pop_front();
+
+        // if we here, we need at least one nested level for sure
+        if (methodData.empty())
+        {
+            methodData.emplace(0, std::set<method_data_t>{currentData.entry});
+            continue;
+        }
+        assert(currentData.level <= methodData.size()); // could be increased only at 1 per recursive call
+        if (currentData.level == methodData.size())
+        {
+            methodData.emplace(currentData.level, std::set<method_data_t>{currentData.entry});
+            continue;
+        }
+        auto it = methodData[currentData.level].lower_bound(currentData.entry);
+        if (it != methodData[currentData.level].end() && currentData.entry.NestedInto(*it))
+        {
+            methodDataQueue.emplace_back(currentData.entry, currentData.level + 1);
+            continue;
+        }
+
+        // case with only one element on nested level, NestedInto() was already called and entry checked
+        if (it == methodData[currentData.level].begin())
+        {
+            methodData[currentData.level].emplace(currentData.entry);
+            continue;
+        }
+
+        // in case this is parts of constructor with same location (for example, `int i = 0;`)
+        if (it != methodData[currentData.level].end() && *it == currentData.entry && currentData.entry.isCtor == 1)
+        {
+            assert(it->isCtor == 1); // also must be part of constructor
+            methodData[currentData.level].emplace(currentData.entry);
+            continue;
+        }
+
+        // move all previously added nested for new entry elements to level above
+        while (it != methodData[currentData.level].begin())
+        {
+            it = std::prev(it);
+
+            if (it->NestedInto(currentData.entry))
+            {
+                const method_data_t tmp = *it;
+                it = methodData[currentData.level].erase(it);
+                methodDataQueue.emplace_back(tmp, currentData.level + 1);
+            }
+            else
+            {
+                break;
+            }
+        };
+
+        methodData[currentData.level].emplace(currentData.entry);
+    }
 }
 
 bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &methodBpData,
@@ -364,6 +384,16 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
         //        { return lhs.endLine > rhs.endLine || (lhs.endLine == rhs.endLine && lhs.endColumn > rhs.endColumn); }
         //    };
         //    std::multiset<method_data_t, compare> orderedInputData;
+        //    for (int j = 0; j < inputData->moduleMethodsData[i].methodNum; j++)
+        //    {
+        //        orderedInputData.emplace(inputData->moduleMethodsData[i].methodsData[j]);
+        //    }
+        //    std::map<size_t, std::set<method_data_t>> inputMethodsData;
+        //    for (const auto &entry : orderedInputData)
+        //    {
+        //        AddMethodData(inputMethodsData, entry, 0);
+        //    }
+
         std::map<size_t, std::set<method_data_t>> inputMethodsData;
         for (int j = 0; j < inputData->moduleMethodsData[i].methodNum; j++)
         {
