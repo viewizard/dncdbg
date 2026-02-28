@@ -606,85 +606,96 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
                                const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pInputType->GetClass(&trClass));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trClass->GetModule(&trModule));
-    mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    pInputType->AddRef();
+    ToRelease<ICorDebugType> trInputType(pInputType);
 
-    std::vector<SigElementType> typeGenerics;
-    ToRelease<ICorDebugTypeEnum> trParamTypes;
-
-    if (SUCCEEDED(pInputType->EnumerateTypeParameters(&trParamTypes)))
+    while (trInputType != nullptr)
     {
-        ULONG fetched = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(trInputType->GetClass(&trClass));
+        ToRelease<ICorDebugModule> trModule;
+        IfFailRet(trClass->GetModule(&trModule));
+        mdTypeDef currentTypeDef = mdTypeDefNil;
+        IfFailRet(trClass->GetToken(&currentTypeDef));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        while (SUCCEEDED(trParamTypes->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
+        std::vector<SigElementType> typeGenerics;
+        ToRelease<ICorDebugTypeEnum> trParamTypes;
+
+        if (SUCCEEDED(trInputType->EnumerateTypeParameters(&trParamTypes)))
         {
-            SigElementType argElType;
-            trCurrentTypeParam->GetType(&argElType.corType);
-            if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
+            ULONG fetched = 0;
+            ToRelease<ICorDebugType> trCurrentTypeParam;
+
+            while (SUCCEEDED(trParamTypes->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
             {
-                IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
+                SigElementType argElType;
+                trCurrentTypeParam->GetType(&argElType.corType);
+                if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
+                {
+                    IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
+                }
+                typeGenerics.emplace_back(argElType);
+                trCurrentTypeParam.Free();
             }
-            typeGenerics.emplace_back(argElType);
-            trCurrentTypeParam.Free();
-        }
-    }
-
-    ULONG numMethods = 0;
-    HCORENUM fEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
-    while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
-    {
-
-        mdTypeDef memTypeDef = mdTypeDefNil;
-        ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> szFunctionName{};
-        DWORD methodAttr = 0;
-        PCCOR_SIGNATURE pSig = nullptr;
-        ULONG cbSig = 0;
-        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                              &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
-        {
-            continue;
         }
 
-        SigElementType returnElementType;
-        std::vector<SigElementType> argElementTypes;
-        IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
-        if (Status == S_FALSE)
+        ULONG numMethods = 0;
+        HCORENUM fEnum = nullptr;
+        mdMethodDef methodDef = mdMethodDefNil;
+        while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            continue;
-        }
+            mdTypeDef memTypeDef = mdTypeDefNil;
+            ULONG nameLen = 0;
+            std::array<WCHAR, mdNameLen> szFunctionName{};
+            DWORD methodAttr = 0;
+            PCCOR_SIGNATURE pSig = nullptr;
+            ULONG cbSig = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
+                                                &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+            {
+                continue;
+            }
 
-        const bool is_static = ((methodAttr & mdStatic) != 0U);
+            SigElementType returnElementType;
+            std::vector<SigElementType> argElementTypes;
+            IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
+            if (Status == S_FALSE)
+            {
+                continue;
+            }
 
-        auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
-        {
-            return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
-        };
+            const bool is_static = ((methodAttr & mdStatic) != 0U);
 
-        if (FAILED(Status = cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction)))
-        {
-            pInputType->AddRef();
-            *ppResultType = pInputType;
+            auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
+            {
+                return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
+            };
+
+            IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            if (Status == S_FALSE)
+            {
+                continue;
+            }
+
+            *ppResultType = trInputType.Detach();
             trMDImport->CloseEnum(fEnum);
-            return Status;
+            return S_OK;
         }
-    }
-    trMDImport->CloseEnum(fEnum);
+        trMDImport->CloseEnum(fEnum);
 
-    ToRelease<ICorDebugType> trBaseType;
-    if (SUCCEEDED(pInputType->GetBase(&trBaseType)) && trBaseType != nullptr)
-    {
-        IfFailRet(WalkMethods(trBaseType, ppResultType, methodGenerics, cb));
+        ToRelease<ICorDebugType> trBaseType;
+        if (SUCCEEDED(trInputType->GetBase(&trBaseType)) && trBaseType != nullptr)
+        {
+            trInputType = trBaseType.Detach();
+        }
+        else
+        {
+            trInputType.Free();
+        }
     }
 
     return S_OK;

@@ -413,20 +413,20 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
     IfFailRet(GetArgData(pValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    ed.pEvaluator->WalkMethods(pValue,
+    IfFailRet(Evaluator::WalkMethods(pValue,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
+            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if (!is_static || methodArgs.size() != 1 || opName != methodName ||
+                elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
             {
-                if (!is_static || methodArgs.size() != 1 || opName != methodName ||
-                    elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
-                {
-                    return S_OK;
-                }
+                return S_FALSE; // Return with success to continue walk.
+            }
 
-                IfFailRet(getFunction(&trFunc));
+            IfFailRet(getFunction(&trFunc));
 
-                return E_ABORT; // Fast exit from cycle.
-            });
+            return S_OK; // Fast exit from cycle.
+        }));
     if (trFunc == nullptr)
     {
         return E_FAIL;
@@ -444,21 +444,21 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
     IfFailRet(GetArgData(pTypeValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    ed.pEvaluator->WalkMethods(pValue,
+    IfFailRet(Evaluator::WalkMethods(pValue,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
+            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if (!is_static || methodArgs.size() != 1 || opName != methodName || elemRetType != methodRet.corType ||
+                typeRetName != methodRet.typeName || elemType != methodArgs[0].corType ||
+                typeName != methodArgs[0].typeName)
             {
-                if (!is_static || methodArgs.size() != 1 || opName != methodName || elemRetType != methodRet.corType ||
-                    typeRetName != methodRet.typeName || elemType != methodArgs[0].corType ||
-                    typeName != methodArgs[0].typeName)
-                {
-                    return S_OK;
-                }
+                return S_FALSE; // Return with success to continue walk.
+            }
 
-                IfFailRet(getFunction(&trFunc));
+            IfFailRet(getFunction(&trFunc));
 
-                return E_ABORT; // Fast exit from cycle.
-            });
+            return S_OK; // Fast exit from cycle.
+        }));
     if (trFunc == nullptr)
     {
         return E_FAIL;
@@ -805,29 +805,31 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     }
 
     ToRelease<ICorDebugValue> trTypeValue;
-    auto CallOperator = [&](std::function<HRESULT(std::vector<SigElementType> &)> cb) {
-        ToRelease<ICorDebugFunction> trFunc;
-        ed.pEvaluator->WalkMethods(pValue,
-            [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
-            {
-                if (!is_static || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
-                {
-                    return S_OK; // Return with success to continue walk.
-                }
-
-                IfFailRet(getFunction(&trFunc));
-
-                return E_ABORT; // Fast exit from cycle, since we already found trFunc.
-            });
-        if (trFunc == nullptr)
+    auto CallOperator =
+        [&](std::function<HRESULT(std::vector<SigElementType> &)> cb) -> HRESULT
         {
-            return E_INVALIDARG;
-        }
+            ToRelease<ICorDebugFunction> trFunc;
+            IfFailRet(Evaluator::WalkMethods(pValue,
+                [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+                    std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                {
+                    if (!is_static || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
+                    {
+                        return S_FALSE; // Return with success to continue walk.
+                    }
 
-        std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
-        return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue);
-    };
+                    IfFailRet(getFunction(&trFunc));
+
+                    return S_OK; // Fast exit from cycle, since we already found trFunc.
+                }));
+            if (trFunc == nullptr)
+            {
+                return E_INVALIDARG;
+            }
+
+            std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
+            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue);
+        };
 
     // Try execute operator for exact same type as provided values.
     if (SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
@@ -1276,29 +1278,29 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugType> trResultType;
-    ed.pEvaluator->WalkMethods(trType, &trResultType, methodGenerics,
+    IfFailRet(Evaluator::WalkMethods(trType, &trResultType, methodGenerics,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
+            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if ((searchStatic && !is_static) || (!searchStatic && is_static && !idsEmpty) ||
+                funcArgs.size() != methodArgs.size() || funcName != methodName)
             {
-                if ((searchStatic && !is_static) || (!searchStatic && is_static && !idsEmpty) ||
-                    funcArgs.size() != methodArgs.size() || funcName != methodName)
+                return S_FALSE; // Return with success to continue walk.
+            }
+
+            for (size_t i = 0; i < funcArgs.size(); ++i)
+            {
+                if (funcArgs[i] != methodArgs[i])
                 {
-                    return S_OK;
+                    return S_FALSE; // Return with success to continue walk.
                 }
+            }
 
-                for (size_t i = 0; i < funcArgs.size(); ++i)
-                {
-                    if (funcArgs[i] != methodArgs[i])
-                    {
-                        return S_OK;
-                    }
-                }
+            IfFailRet(getFunction(&trFunc));
+            isInstance = !is_static;
 
-                IfFailRet(getFunction(&trFunc));
-                isInstance = !is_static;
-
-                return E_ABORT; // Fast exit from cycle.
-            });
+            return S_OK; // Fast exit from cycle.
+        }));
 
     if (trFunc == nullptr)
     {
@@ -1434,28 +1436,28 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         }
 
         ToRelease<ICorDebugFunction> trFunc;
-        ed.pEvaluator->WalkMethods(trObjectValue,
+        IfFailRet(Evaluator::WalkMethods(trObjectValue,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
+                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            {
+                const std::string name = "get_Item";
+                const std::size_t found = methodName.rfind(name);
+                if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
+                    found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
-                    const std::string name = "get_Item";
-                    const std::size_t found = methodName.rfind(name);
-                    if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
-                        found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
-                    {
-                        return S_OK; // Return with success to continue walk.
-                    }
+                    return S_FALSE; // Return with success to continue walk.
+                }
 
-                    for (size_t i = 0; i < funcArgs.size(); ++i)
+                for (size_t i = 0; i < funcArgs.size(); ++i)
+                {
+                    if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
                     {
-                        if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
-                        {
-                            return S_OK;
-                        }
+                        return S_FALSE; // Return with success to continue walk.
                     }
-                    IfFailRet(getFunction(&trFunc));
-                    return E_ABORT; // Fast exit from cycle, since we already found trFunc.
-                });
+                }
+                IfFailRet(getFunction(&trFunc));
+                return S_OK; // Fast exit from cycle, since we already found trFunc.
+            }));
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
@@ -1550,28 +1552,28 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         }
 
         ToRelease<ICorDebugFunction> trFunc;
-        ed.pEvaluator->WalkMethods(trObjectValue,
+        IfFailRet(Evaluator::WalkMethods(trObjectValue,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction)
+                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
                 {
                     const std::string name = "get_Item";
                     const std::size_t found = methodName.rfind(name);
                     if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                         found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_FALSE; // Return with success to continue walk.
                     }
 
                     for (size_t i = 0; i < funcArgs.size(); ++i)
                     {
                         if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
                         {
-                            return S_OK;
+                            return S_FALSE; // Return with success to continue walk.
                         }
                     }
                     IfFailRet(getFunction(&trFunc));
-                    return E_ABORT; // Fast exit from cycle, since we already found trFunc.
-                });
+                    return S_OK; // Fast exit from cycle, since we already found trFunc.
+                }));
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
