@@ -847,9 +847,16 @@ void DAP::CommandLoop()
                 }
             }
             // Note, in case "cancel" this is command implementation itself.
-            else if (queueEntry.command == "cancel" &&
-                     queueEntry.arguments.contains("requestId"))
+            else if (queueEntry.command == "cancel")
             {
+                if (!queueEntry.arguments.contains("requestId"))
+                {
+                    queueEntry.response["success"] = false;
+                    queueEntry.response["message"] = "CancelRequest don't have requestId.";
+                    DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+                    continue;
+                }
+
                 auto requestId = queueEntry.arguments.at("requestId");
                 std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
                 queueEntry.response["success"] = false;
