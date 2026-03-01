@@ -973,11 +973,15 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                     if (Status == S_FALSE)
                     {
-                        return S_OK;
+                        return S_FALSE; // Fast exit from cycle.
                     }
                 }
                 return S_OK; // Return with success to continue walk.
             }));
+        if (Status == S_FALSE)
+        {
+            return S_OK;
+        }
         IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
             {
@@ -1088,7 +1092,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         IfFailRet(cb(trType, is_static, name, getValue, &setterData));
                         if (Status == S_FALSE)
                         {
-                            return S_OK;
+                            return S_FALSE; // Fast exit from cycle.
                         }
                     }
                     else
@@ -1096,12 +1100,16 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                         if (Status == S_FALSE)
                         {
-                            return S_OK;
+                            return S_FALSE; // Fast exit from cycle.
                         }
                     }
                 }
                 return S_OK; // Return with success to continue walk.
             }));
+        if (Status == S_FALSE)
+        {
+            return S_OK;
+        }
 
         std::string baseTypeName;
         ToRelease<ICorDebugType> trBaseType;
