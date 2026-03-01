@@ -7,6 +7,12 @@
 
 #pragma once
 
+#ifdef FEATURE_PAL
+#include <pal_mstypes.h>
+#else
+#include <winerror.h>
+#endif
+
 #include <cassert>
 
 namespace dncdbg
@@ -113,6 +119,8 @@ template <class T> class ToRelease
 #ifndef IfFailRet
 #define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { return (Status); } } while (0)
 #endif
+
+constexpr HRESULT S_CAN_EXIT = 0x00777001L;
 
 constexpr uint32_t mdNameLen = 2048;
 

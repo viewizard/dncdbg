@@ -265,7 +265,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
             {
                 if (typeToken != mdTypeDefNil) // already found
                 {
-                    return S_FALSE; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from cycle
                 }
 
                 if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))

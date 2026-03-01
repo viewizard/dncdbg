@@ -698,7 +698,7 @@ HRESULT DebugInfo::ForEachModule(const std::function<HRESULT(ICorDebugModule *pM
         {
             break;
         }
-        else if (Status == S_FALSE)
+        else if (Status == S_CAN_EXIT)
         {
             Status = S_OK;
             break;

@@ -65,7 +65,7 @@ std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<ui
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
 using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
-// Note, could return S_FALSE for fast exit.
+// Note, could return S_CAN_EXIT for fast exit.
 HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -75,7 +75,7 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
     while (SUCCEEDED(pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         if (FAILED(Status = cb(fieldDef)) ||
-            Status == S_FALSE)
+            Status == S_CAN_EXIT)
         {
             break;
         }
@@ -84,7 +84,7 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
     return Status;
 }
 
-// Note, could return S_FALSE for fast exit.
+// Note, could return S_CAN_EXIT for fast exit.
 HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -95,7 +95,7 @@ HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, 
            numProperties != 0)
     {
         if (FAILED(Status = cb(propertyDef)) ||
-            Status == S_FALSE)
+            Status == S_CAN_EXIT)
         {
             break;
         }
@@ -240,7 +240,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                 if (generatedNameKind == GeneratedNameKind::ThisProxyField)
                 {
                     IfFailRet(getValue(ppResultValue));
-                    return S_FALSE; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from cycle
                 }
                 else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
                 {
@@ -252,14 +252,14 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
                     if (ppResultValue != nullptr)
                     {
-                        return S_FALSE; // Fast exit from cycle
+                        return S_CAN_EXIT; // Fast exit from cycle
                     }
                 }
             }
             return S_OK; // Return with success to continue walk.
         });
 
-    // Note, ForEachFields() could return S_FALSE for fast exit.
+    // Note, ForEachFields() could return S_CAN_EXIT for fast exit.
     return SUCCEEDED(Status) ? S_OK : Status;
 }
 
@@ -331,7 +331,7 @@ HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
     return S_OK;
 }
 
-// Note, could return S_FALSE for fast exit.
+// Note, could return S_CAN_EXIT for fast exit.
 HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                  std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                  DebugInfo *pDebugInfo, ICorDebugModule *pModule,
@@ -399,9 +399,9 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(getValue(&trDisplayClassValue, false));
                 IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                    pDebugInfo, pModule, cb));
-                if (Status == S_FALSE)
+                if (Status == S_CAN_EXIT)
                 {
-                    return S_FALSE; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from cycle
                 }
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
@@ -437,9 +437,9 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 }
 
                 IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
-                if (Status == S_FALSE)
+                if (Status == S_CAN_EXIT)
                 {
-                    return S_FALSE; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from cycle
                 }
                 usedNames.insert(wLocalName);
             }
@@ -447,9 +447,9 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
             {
                 IfFailRet(cb(to_utf8(mdName.data()), getValue));
-                if (Status == S_FALSE)
+                if (Status == S_CAN_EXIT)
                 {
-                    return S_FALSE; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from cycle
                 }
                 usedNames.insert(mdName.data());
             }
@@ -697,7 +697,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             };
 
             IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
-            if (Status == S_FALSE)
+            if (Status == S_CAN_EXIT)
             {
                 *ppResultType = trInputType.Detach();
                 trMDImport->CloseEnum(fEnum);
@@ -829,7 +829,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         };
 
         IfFailRet(cb(nullptr, false, "", getValue, nullptr));
-        // Note, cb could return S_FALSE for fast exit.
+        // Note, cb could return S_CAN_EXIT for fast exit.
         return S_OK;
     }
 
@@ -862,7 +862,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             };
 
             IfFailRet(cb(nullptr, false, "[" + IndiciesToStr(ind, base) + "]", getValue, nullptr));
-            if (Status == S_FALSE)
+            if (Status == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -986,16 +986,16 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     };
 
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-                    if (Status == S_FALSE)
+                    if (Status == S_CAN_EXIT)
                     {
-                        return S_FALSE; // Fast exit from cycle.
+                        return S_CAN_EXIT; // Fast exit from cycle.
                     }
                 }
                 return S_OK; // Return with success to continue walk.
             }));
-        if (Status == S_FALSE)
+        if (Status == S_CAN_EXIT)
         {
-            return S_OK;
+            return S_CAN_EXIT;
         }
         IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
@@ -1105,23 +1105,23 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
                         Evaluator::SetterData setterData(is_static ? nullptr : pInputValue, trType, trFuncSetter);
                         IfFailRet(cb(trType, is_static, name, getValue, &setterData));
-                        if (Status == S_FALSE)
+                        if (Status == S_CAN_EXIT)
                         {
-                            return S_FALSE; // Fast exit from cycle.
+                            return S_CAN_EXIT; // Fast exit from cycle.
                         }
                     }
                     else
                     {
                         IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-                        if (Status == S_FALSE)
+                        if (Status == S_CAN_EXIT)
                         {
-                            return S_FALSE; // Fast exit from cycle.
+                            return S_CAN_EXIT; // Fast exit from cycle.
                         }
                     }
                 }
                 return S_OK; // Return with success to continue walk.
             }));
-        if (Status == S_FALSE)
+        if (Status == S_CAN_EXIT)
         {
             return S_OK;
         }
@@ -1341,7 +1341,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 return S_OK;
             };
             IfFailRet(cb("this", getValue));
-            if (Status == S_FALSE)
+            if (Status == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -1386,7 +1386,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         };
 
         IfFailRet(cb(to_utf8(wParamName.data()), getValue));
-        if (Status == S_FALSE)
+        if (Status == S_CAN_EXIT)
         {
             return S_OK;
         }
@@ -1432,7 +1432,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             IfFailRet(getValue(&trDisplayClassValue, false));
             IfFailRet(WalkGeneratedClassFields(trMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                m_sharedDebugInfo.get(), trModule, cb));
-            if (Status == S_FALSE)
+            if (Status == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -1440,7 +1440,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         }
 
         IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
-        if (Status == S_FALSE)
+        if (Status == S_CAN_EXIT)
         {
             return S_OK;
         }
@@ -1453,7 +1453,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
         IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));
-        // Note WalkGeneratedClassFields() could return S_FALSE.
+        // Note WalkGeneratedClassFields() could return S_CAN_EXIT.
         return S_OK;
     }
 
@@ -1503,7 +1503,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
                 }
 
-                return S_FALSE; // Fast exit from cycle.
+                return S_CAN_EXIT; // Fast exit from cycle.
             }));
 
         if (trResultValue == nullptr)
@@ -1641,7 +1641,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
                     if (name == identifiers.at(nextIdentifier))
                     {
-                        return S_FALSE; // Fast way to exit from stack vars walk routine.
+                        return S_CAN_EXIT; // Fast way to exit from stack vars walk routine.
                     }
                 }
                 else if (name == identifiers.at(nextIdentifier))
@@ -1651,7 +1651,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                         return S_OK;
                     }
 
-                    return S_FALSE; // Fast way to exit from stack vars walk routine.
+                    return S_CAN_EXIT; // Fast way to exit from stack vars walk routine.
                 }
 
                 return S_OK;
@@ -1954,7 +1954,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                     trMDImportInt->CloseEnum(ifEnum);
                                     trMDImport->CloseEnum(fFuncEnum);
                                     trMDImport->CloseEnum(fTypeEnum);
-                                    return S_FALSE; // Fast exit from cycle
+                                    return S_CAN_EXIT; // Fast exit from cycle
                                 }
                             }
                         }
@@ -1981,7 +1981,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                         pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
                         trMDImport->CloseEnum(fFuncEnum);
                         trMDImport->CloseEnum(fTypeEnum);
-                        return S_FALSE; // Fast exit from cycle
+                        return S_CAN_EXIT; // Fast exit from cycle
                     }
                 }
             }

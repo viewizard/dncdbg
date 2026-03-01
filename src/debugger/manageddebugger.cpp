@@ -989,7 +989,7 @@ HRESULT ManagedDebugger::GetExceptionStackTrace(ICorDebugThread *pThread, std::s
                 PrintValue(trResultValue, stackTrace, false);
             }
 
-            return S_FALSE; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from cycle.
         }));
 
     return stackTrace.empty() ? E_FAIL : S_OK;
@@ -1154,7 +1154,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             }
             if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
             {
-                return S_FALSE; // Fast exit from cycle.
+                return S_CAN_EXIT; // Fast exit from cycle.
             }
 
             switch (frameType)
