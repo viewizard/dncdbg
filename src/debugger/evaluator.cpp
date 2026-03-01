@@ -65,6 +65,7 @@ std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<ui
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
 using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
+// Note, could return S_FALSE for fast exit.
 HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -73,13 +74,9 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
     mdFieldDef fieldDef = mdFieldDefNil;
     while (SUCCEEDED(pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
-        if (FAILED(Status = cb(fieldDef)))
+        if (FAILED(Status = cb(fieldDef)) ||
+            Status == S_FALSE)
         {
-            break;
-        }
-        else if (Status == S_FALSE)
-        {
-            Status = S_OK;
             break;
         }
     }
@@ -87,6 +84,7 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
     return Status;
 }
 
+// Note, could return S_FALSE for fast exit.
 HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -96,7 +94,8 @@ HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, 
     while (SUCCEEDED(pMDImport->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
            numProperties != 0)
     {
-        if (FAILED(Status = cb(propertyDef)))
+        if (FAILED(Status = cb(propertyDef)) ||
+            Status == S_FALSE)
         {
             break;
         }
@@ -221,7 +220,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
         return E_INVALIDARG;
     }
 
-    return ForEachFields(pMDImport, typeDef,
+    Status = ForEachFields(pMDImport, typeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
             std::array<WCHAR, mdNameLen> mdName{};
@@ -259,6 +258,9 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
             }
             return S_OK; // Return with success to continue walk.
         });
+
+    // Note, ForEachFields() could return S_FALSE for fast exit.
+    return SUCCEEDED(Status) ? S_OK : Status;
 }
 
 // https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
@@ -329,10 +331,11 @@ HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
     return S_OK;
 }
 
+// Note, could return S_FALSE for fast exit.
 HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                  std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                  DebugInfo *pDebugInfo, ICorDebugModule *pModule,
-                                 Evaluator::WalkStackVarsCallback cb)
+                                 const Evaluator::WalkStackVarsCallback &cb)
 {
     HRESULT Status = S_OK;
     BOOL isNull = FALSE;
@@ -396,6 +399,10 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(getValue(&trDisplayClassValue, false));
                 IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                    pDebugInfo, pModule, cb));
+                if (Status == S_FALSE)
+                {
+                    return S_FALSE; // Fast exit from cycle
+                }
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
             {
@@ -430,12 +437,20 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 }
 
                 IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
+                if (Status == S_FALSE)
+                {
+                    return S_FALSE; // Fast exit from cycle
+                }
                 usedNames.insert(wLocalName);
             }
             // Ignore any other compiler generated fields, show only normal fields.
             else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
             {
                 IfFailRet(cb(to_utf8(mdName.data()), getValue));
+                if (Status == S_FALSE)
+                {
+                    return S_FALSE; // Fast exit from cycle
+                }
                 usedNames.insert(mdName.data());
             }
             return S_OK; // Return with success to continue walk.
@@ -784,7 +799,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 }
 
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb)
+                               ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb)
 {
     HRESULT Status = S_OK;
 
@@ -814,7 +829,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         };
 
         IfFailRet(cb(nullptr, false, "", getValue, nullptr));
-        // Note, callee could return S_FALSE for fast exit.
+        // Note, cb could return S_FALSE for fast exit.
         return S_OK;
     }
 
@@ -1326,6 +1341,10 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 return S_OK;
             };
             IfFailRet(cb("this", getValue));
+            if (Status == S_FALSE)
+            {
+                return S_OK;
+            }
             // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
             trFrame.Free();
             trILFrame.Free();
@@ -1367,6 +1386,10 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         };
 
         IfFailRet(cb(to_utf8(wParamName.data()), getValue));
+        if (Status == S_FALSE)
+        {
+            return S_OK;
+        }
         usedNames.insert(wParamName.data());
         // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
         trFrame.Free();
@@ -1409,10 +1432,18 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             IfFailRet(getValue(&trDisplayClassValue, false));
             IfFailRet(WalkGeneratedClassFields(trMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                m_sharedDebugInfo.get(), trModule, cb));
+            if (Status == S_FALSE)
+            {
+                return S_OK;
+            }
             continue;
         }
 
         IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
+        if (Status == S_FALSE)
+        {
+            return S_OK;
+        }
         usedNames.insert(wLocalName);
         // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
         trFrame.Free();
@@ -1421,7 +1452,9 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
-        return WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb);
+        IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));
+        // Note WalkGeneratedClassFields() could return S_FALSE.
+        return S_OK;
     }
 
     return S_OK;
@@ -1596,38 +1629,33 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     }
     else
     {
-        // Note, we use E_ABORT error code as fast way to exit from stack vars walk routine here.
-        if (FAILED(Status = WalkStackVars(pThread, frameLevel,
-                [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+        IfFailRet(WalkStackVars(pThread, frameLevel,
+            [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+            {
+                if (name == "this")
                 {
-                    if (name == "this")
+                    if (FAILED(getValue(&trThisValue, false)) || (trThisValue == nullptr))
                     {
-                        if (FAILED(getValue(&trThisValue, false)) || (trThisValue == nullptr))
-                        {
-                            return S_OK;
-                        }
-
-                        if (name == identifiers.at(nextIdentifier))
-                        {
-                            return E_ABORT; // Fast way to exit from stack vars walk routine.
-                        }
-                    }
-                    else if (name == identifiers.at(nextIdentifier))
-                    {
-                        if (FAILED(getValue(&trResolvedValue, false)) || (trResolvedValue == nullptr))
-                        {
-                            return S_OK;
-                        }
-
-                        return E_ABORT; // Fast way to exit from stack vars walk routine.
+                        return S_OK;
                     }
 
-                    return S_OK;
-                })) &&
-            (trThisValue == nullptr) && (trResolvedValue == nullptr)) // Check, that we have fast exit instead of real error.
-        {
-            return Status;
-        }
+                    if (name == identifiers.at(nextIdentifier))
+                    {
+                        return S_FALSE; // Fast way to exit from stack vars walk routine.
+                    }
+                }
+                else if (name == identifiers.at(nextIdentifier))
+                {
+                    if (FAILED(getValue(&trResolvedValue, false)) || (trResolvedValue == nullptr))
+                    {
+                        return S_OK;
+                    }
+
+                    return S_FALSE; // Fast way to exit from stack vars walk routine.
+                }
+
+                return S_OK;
+            }));
     }
 
     if ((trResolvedValue == nullptr) && (trThisValue != nullptr)) // check this/this.*

@@ -82,7 +82,7 @@ class Evaluator
                                ICorDebugType **ppResultType);
 
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                        ICorDebugType *pTypeCast, bool provideSetterData, WalkMembersCallback cb);
+                        ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb);
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 

@@ -257,7 +257,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
         ++currentIndex;
     }
 
-    if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
+    return m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
         [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
             ++currentIndex; // NOLINT(bugprone-inc-dec-in-conditions)
@@ -268,7 +268,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             }
             if (count != 0 && currentIndex >= start + count)
             {
-                return E_ABORT; // Fast exit from cycle.
+                return S_FALSE; // Fast exit from cycle.
             }
 
             Variable var;
@@ -282,13 +282,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             IfFailRet(AddVariableReference(var, frameId, trValue, ValueKind::Variable));
             variables.push_back(var);
             return S_OK;
-        })) &&
-        Status != E_ABORT)
-    {
-        return Status;
-    }
-
-    return S_OK;
+        });
 }
 
 HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes)
