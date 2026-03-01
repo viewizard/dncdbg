@@ -684,12 +684,10 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
             if (Status == S_FALSE)
             {
-                continue;
+                *ppResultType = trInputType.Detach();
+                trMDImport->CloseEnum(fEnum);
+                return S_OK;
             }
-
-            *ppResultType = trInputType.Detach();
-            trMDImport->CloseEnum(fEnum);
-            return S_OK;
         }
         trMDImport->CloseEnum(fEnum);
 

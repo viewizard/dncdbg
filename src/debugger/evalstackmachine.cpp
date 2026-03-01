@@ -420,12 +420,12 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
             if (!is_static || methodArgs.size() != 1 || opName != methodName ||
                 elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
             {
-                return S_FALSE; // Return with success to continue walk.
+                return S_OK; // Return with success to continue walk.
             }
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_OK; // Fast exit from cycle.
+            return S_FALSE; // Fast exit from cycle.
         }));
     if (trFunc == nullptr)
     {
@@ -452,12 +452,12 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
                 typeRetName != methodRet.typeName || elemType != methodArgs[0].corType ||
                 typeName != methodArgs[0].typeName)
             {
-                return S_FALSE; // Return with success to continue walk.
+                return S_OK; // Return with success to continue walk.
             }
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_OK; // Fast exit from cycle.
+            return S_FALSE; // Fast exit from cycle.
         }));
     if (trFunc == nullptr)
     {
@@ -815,12 +815,12 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
                 {
                     if (!is_static || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     {
-                        return S_FALSE; // Return with success to continue walk.
+                        return S_OK; // Return with success to continue walk.
                     }
 
                     IfFailRet(getFunction(&trFunc));
 
-                    return S_OK; // Fast exit from cycle, since we already found trFunc.
+                    return S_FALSE; // Fast exit from cycle, since we already found trFunc.
                 }));
             if (trFunc == nullptr)
             {
@@ -1285,21 +1285,21 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
             if ((searchStatic && !is_static) || (!searchStatic && is_static && !idsEmpty) ||
                 funcArgs.size() != methodArgs.size() || funcName != methodName)
             {
-                return S_FALSE; // Return with success to continue walk.
+                return S_OK; // Return with success to continue walk.
             }
 
             for (size_t i = 0; i < funcArgs.size(); ++i)
             {
                 if (funcArgs[i] != methodArgs[i])
                 {
-                    return S_FALSE; // Return with success to continue walk.
+                    return S_OK; // Return with success to continue walk.
                 }
             }
 
             IfFailRet(getFunction(&trFunc));
             isInstance = !is_static;
 
-            return S_OK; // Fast exit from cycle.
+            return S_FALSE; // Fast exit from cycle.
         }));
 
     if (trFunc == nullptr)
@@ -1445,18 +1445,18 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
                 if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                     found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
-                    return S_FALSE; // Return with success to continue walk.
+                    return S_OK; // Return with success to continue walk.
                 }
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
                     if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
                     {
-                        return S_FALSE; // Return with success to continue walk.
+                        return S_OK; // Return with success to continue walk.
                     }
                 }
                 IfFailRet(getFunction(&trFunc));
-                return S_OK; // Fast exit from cycle, since we already found trFunc.
+                return S_FALSE; // Fast exit from cycle, since we already found trFunc.
             }));
         if (trFunc == nullptr)
         {
@@ -1561,18 +1561,18 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
                     if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                         found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                     {
-                        return S_FALSE; // Return with success to continue walk.
+                        return S_OK; // Return with success to continue walk.
                     }
 
                     for (size_t i = 0; i < funcArgs.size(); ++i)
                     {
                         if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
                         {
-                            return S_FALSE; // Return with success to continue walk.
+                            return S_OK; // Return with success to continue walk.
                         }
                     }
                     IfFailRet(getFunction(&trFunc));
-                    return S_OK; // Fast exit from cycle, since we already found trFunc.
+                    return S_FALSE; // Fast exit from cycle, since we already found trFunc.
                 }));
         if (trFunc == nullptr)
         {
