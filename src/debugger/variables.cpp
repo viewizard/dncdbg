@@ -33,7 +33,7 @@ void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, b
     // No thread and FrameLevel{0} here, since we need only count children.
     if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, nullptr, false,
                [&](ICorDebugType *, bool is_static, const std::string &,
-                   const Evaluator::GetValueCallback &, Evaluator::SetterData *)
+                   const Evaluator::GetValueCallback &, Evaluator::SetterData *) -> HRESULT
                 {
                     if (is_static)
                     {
@@ -107,7 +107,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
 
     IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, nullptr, false,
         [&](ICorDebugType *pType, bool is_static, const std::string &name,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
         {
             if (is_static)
             {
@@ -455,9 +455,7 @@ HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pTh
                                     const std::string &value, std::string &output)
 {
     HRESULT Status = S_OK;
-    bool found = false;
-
-    if (FAILED(Status = m_sharedEvaluator->WalkStackVars(pThread, ref.frameId.getLevel(),
+    IfFailRet(m_sharedEvaluator->WalkStackVars(pThread, ref.frameId.getLevel(),
         [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
             if (varName != name)
@@ -470,15 +468,10 @@ HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pTh
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   nullptr, value, output));
             IfFailRet(PrintValue(trValue, output));
-            found = true;
-            return E_ABORT; // Fast exit from cycle.
-        })) &&
-        Status != E_ABORT)
-    {
-        return Status;
-    }
+            return S_FALSE; // Fast exit from cycle.
+        }));
 
-    if (!found)
+    if (output.empty())
     {
         output = "Variable name not found.";
         return E_FAIL;
@@ -500,9 +493,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     }
 
     HRESULT Status = S_OK;
-    bool found = false;
-
-    if (FAILED(Status = m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), nullptr, true,
+    IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), nullptr, true,
         [&](ICorDebugType *, bool /*is_static*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
@@ -521,15 +512,10 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   setterData, value, output));
             IfFailRet(PrintValue(trValue, output));
-            found = true;
-            return E_ABORT; // Fast exit from cycle.
-        })) &&
-        Status != E_ABORT)
-    {
-        return Status;
-    }
+            return S_FALSE; // Fast exit from cycle.
+        }));
 
-    if (!found)
+    if (output.empty())
     {
         output = "Variable name not found.";
         return E_FAIL;

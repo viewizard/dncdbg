@@ -966,9 +966,11 @@ HRESULT ManagedDebugger::GetExceptionStackTrace(ICorDebugThread *pThread, std::s
         return E_FAIL;
     }
 
-    m_sharedEvaluator->WalkMembers(
+    HRESULT Status = S_OK;
+    IfFailRet(m_sharedEvaluator->WalkMembers(
         trExceptionValue, pThread, FrameLevel{0}, nullptr, false,
-        [&](ICorDebugType *, bool, const std::string &memberName, const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *)
+        [&](ICorDebugType *, bool, const std::string &memberName,
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
         {
             if (memberName != "StackTrace")
             {
@@ -987,8 +989,8 @@ HRESULT ManagedDebugger::GetExceptionStackTrace(ICorDebugThread *pThread, std::s
                 PrintValue(trResultValue, stackTrace, false);
             }
 
-            return S_OK;
-        });
+            return S_FALSE; // Fast exit from cycle.
+        }));
 
     return stackTrace.empty() ? E_FAIL : S_OK;
 }

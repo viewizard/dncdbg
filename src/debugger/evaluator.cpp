@@ -813,7 +813,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             return S_OK;
         };
 
-        return cb(nullptr, false, "", getValue, nullptr);
+        IfFailRet(cb(nullptr, false, "", getValue, nullptr));
+        // Note, callee could return S_FALSE for fast exit.
+        return S_OK;
     }
 
     ToRelease<ICorDebugArrayValue> trArrayValue;
@@ -845,7 +847,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             };
 
             IfFailRet(cb(nullptr, false, "[" + IndiciesToStr(ind, base) + "]", getValue, nullptr));
-            IncIndicies(ind, dims);
+            if (Status == S_FALSE)
+            {
+                return S_OK;
+            }
+            IncIndicies(ind, dims); // FIXME why we need this here?
         }
 
         return S_OK;
@@ -963,6 +969,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 };
 
                 IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                if (Status == S_FALSE)
+                {
+                    return S_OK;
+                }
             }
             return S_OK; // Return with success to continue walk.
         }));
@@ -1074,10 +1084,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     }
                     Evaluator::SetterData setterData(is_static ? nullptr : pInputValue, trType, trFuncSetter);
                     IfFailRet(cb(trType, is_static, name, getValue, &setterData));
+                    if (Status == S_FALSE)
+                    {
+                        return S_OK;
+                    }
                 }
                 else
                 {
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                    if (Status == S_FALSE)
+                    {
+                        return S_OK;
+                    }
                 }
             }
             return S_OK; // Return with success to continue walk.
@@ -1416,27 +1434,27 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
 
-        WalkMembers(trClassValue, pThread, frameLevel, nullptr, (resultSetterData != nullptr),
-                    [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
-                        const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData)
-                        {
-                            if ((is_static && valueKind == ValueKind::Variable) ||
-                                (!is_static && valueKind == ValueKind::Class) ||
-                                memberName != identifiers[i])
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, nullptr, (resultSetterData != nullptr),
+            [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
+                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
+            {
+                if ((is_static && valueKind == ValueKind::Variable) ||
+                    (!is_static && valueKind == ValueKind::Class) ||
+                    memberName != identifiers[i])
 
-                            {
-                                return S_OK;
-                            }
+                {
+                    return S_OK;
+                }
 
-                            IfFailRet(getValue(&trResultValue, false));
-                            if (setterData != nullptr &&
-                                resultSetterData != nullptr)
-                            {
-                                *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
-                            }
+                IfFailRet(getValue(&trResultValue, false));
+                if (setterData != nullptr &&
+                    resultSetterData != nullptr)
+                {
+                    *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
+                }
 
-                            return E_ABORT; // Fast exit from cycle with result.
-                        });
+                return S_FALSE; // Fast exit from cycle.
+            }));
 
         if (trResultValue == nullptr)
         {
