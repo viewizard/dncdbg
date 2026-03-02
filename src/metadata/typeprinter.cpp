@@ -710,6 +710,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         const std::vector<SigElementType> typeGenerics; // TODO fill this vector
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
         IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes, true));
+        // Ignore S_NOT_IMPL return code here, we need all we could parse from sig.
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)

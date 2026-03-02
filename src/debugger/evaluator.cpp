@@ -684,7 +684,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
             IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
-            if (Status == S_FALSE)
+            if (Status == S_NOT_IMPL)
             {
                 continue;
             }
@@ -1817,7 +1817,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                 //    SigElementType returnElementType;
                 //    std::vector<SigElementType> argElementTypes;
                 //    IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
-                //    if (Status == S_FALSE)
+                //    if (Status == S_NOT_IMPL)
                 //    {
                 //        continue;
                 //    }
