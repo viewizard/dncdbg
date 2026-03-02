@@ -337,7 +337,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     // Note, for some cases we have static members check outside this method.
     if (DetectStaticMembers && !TypeHaveStaticMembers(pType))
     {
-        return S_FALSE;
+        return S_NO_STATIC;
     }
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;

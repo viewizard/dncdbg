@@ -1141,7 +1141,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             {
                 if (pThread != nullptr)
                 {
-                    // Note, this call could return S_FALSE without ICorDebugValue creation in case type don't have static members.
+                    // Note, this call could return S_NO_STATIC without ICorDebugValue creation in case type don't have static members.
                     IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, trBaseType));
                 }
                 // Add fields of base class.
@@ -1580,7 +1580,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
         ToRelease<ICorDebugValue> trTypeObject;
         IfFailRet(m_sharedEvalHelpers->CreatTypeObjectStaticConstructor(pThread, trType, &trTypeObject));
-        if (Status == S_OK && // type have static members (S_FALSE if type don't have static members)
+        if (Status == S_OK && // type have static members (S_NO_STATIC if type don't have static members)
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, fieldName,
                                    0, ppResult, resultSetterData)))
         {
@@ -1725,7 +1725,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return S_OK;
         }
 
-        if (Status == S_FALSE || // type don't have static members, nothing explore here
+        if (Status == S_NO_STATIC || // type don't have static members, nothing explore here
             nextIdentifier == static_cast<int>(identifiers.size())) // trResolvedValue is temporary object for members exploration, can't be result
         {
             return E_INVALIDARG;
