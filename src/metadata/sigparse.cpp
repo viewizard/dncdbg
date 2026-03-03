@@ -321,7 +321,8 @@ bool SigElementType::isAlias(const CorElementType type1, const CorElementType ty
 
 bool SigElementType::areEqual(const SigElementType &arg) const
 {
-    return (corType == arg.corType && typeName == arg.typeName) ||
+    return (corType == arg.corType && typeName == arg.typeName &&
+            elementType == arg.elementType && varNum == arg.varNum) ||
            isAlias(corType, arg.corType, arg.typeName) ||
            isAlias(arg.corType, corType, typeName);
 }
@@ -373,9 +374,7 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // LoBounds ::= 29-bit-encoded-integer
 // Number ::= 29-bit-encoded-integer
 
-HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
-                         const std::vector<SigElementType> &typeGenerics,
-                         const std::vector<SigElementType> &methodGenerics, bool addCorTypeName)
+HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
     ULONG corType = 0;
@@ -414,13 +413,13 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         break;
 
     case ELEMENT_TYPE_SZARRAY:
-        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true));
+        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
         sigElementType.corType = (CorElementType)corType;
         sigElementType.typeName += "[]";
         break;
     case ELEMENT_TYPE_ARRAY:
     {
-        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true));
+        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
         sigElementType.corType = (CorElementType)corType;
         // Parse for the rank
         ULONG rank = 0;
@@ -452,36 +451,14 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
 
     case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
         *ppSig += CorSigUncompressData(*ppSig, &argNum);
-        // Note, caller could provide any typeGenerics, with any size for testing methods.
-        if (argNum >= typeGenerics.size())
-        {
-            return E_INVALIDARG;
-        }
-        else
-        {
-            sigElementType = typeGenerics[argNum];
-            if (addCorTypeName && sigElementType.typeName.empty())
-            {
-                GetCorTypeName(sigElementType.corType, sigElementType.typeName);
-            }
-        }
+        sigElementType.elementType = ELEMENT_TYPE_VAR;
+        sigElementType.varNum = argNum;
         break;
 
     case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
         *ppSig += CorSigUncompressData(*ppSig, &argNum);
-        // Note, caller could provide any methodGenerics, with any size for testing methods.
-        if (argNum >= methodGenerics.size())
-        {
-            return E_INVALIDARG;
-        }
-        else
-        {
-            sigElementType = methodGenerics[argNum];
-            if (addCorTypeName && sigElementType.typeName.empty())
-            {
-                GetCorTypeName(sigElementType.corType, sigElementType.typeName);
-            }
-        }
+        sigElementType.elementType = ELEMENT_TYPE_MVAR;
+        sigElementType.varNum = argNum;
         break;
 
     case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
@@ -500,7 +477,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         for (ULONG i = 0; i < number; i++)
         {
             SigElementType tmp; // Not needed at the moment
-            IfFailRet(ParseElementType(pMDImport, ppSig, tmp, typeGenerics, methodGenerics, true));
+            IfFailRet(ParseElementType(pMDImport, ppSig, tmp, true));
         }
         break;
     }
@@ -524,8 +501,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     return S_OK;
 }
 
-HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
-                       const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElementType &returnElementType,
                        std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
@@ -561,13 +537,13 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const s
     pSig += elementSize;
 
     // 4. return type
-    IfFailRet(ParseElementType(pMDImport, &pSig, returnElementType, typeGenerics, methodGenerics, addCorTypeName));
+    IfFailRet(ParseElementType(pMDImport, &pSig, returnElementType, addCorTypeName));
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMDImport, &pSig, argElementTypes[i], typeGenerics, methodGenerics, addCorTypeName));
+        IfFailRet(ParseElementType(pMDImport, &pSig, argElementTypes[i], addCorTypeName));
     }
 
     return S_OK;
@@ -597,6 +573,40 @@ void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMe
     std::string appendix;
     TypeNameFromSig(typePtr, args, pMDImport, out, appendix);
     typeName = out + appendix;
+}
+
+HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg)
+{
+    if (methodArg.elementType == ELEMENT_TYPE_VAR)
+    {
+        if (methodArg.varNum >= typeGenerics.size())
+        {
+            return E_INVALIDARG;
+        }
+        methodArg.corType = typeGenerics[methodArg.varNum].corType;
+        methodArg.typeName = typeGenerics[methodArg.varNum].typeName;
+        methodArg.elementType = ELEMENT_TYPE_END;
+        methodArg.varNum = 0;
+    }
+
+    return S_OK;
+}
+
+HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg)
+{
+    if (methodArg.elementType == ELEMENT_TYPE_MVAR)
+    {
+        if (methodArg.varNum >= methodGenerics.size())
+        {
+            return E_INVALIDARG;
+        }
+        methodArg.corType = methodGenerics[methodArg.varNum].corType;
+        methodArg.typeName = methodGenerics[methodArg.varNum].typeName;
+        methodArg.elementType = ELEMENT_TYPE_END;
+        methodArg.varNum = 0;
+    }
+
+    return S_OK;
 }
 
 } // namespace dncdbg

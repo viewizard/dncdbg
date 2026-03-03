@@ -83,11 +83,11 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "s.WordCount(\"first\", 1)", "error: 0x80070057");
 
                 // FIXME
-                //Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"null\"", "string", "lists.ElementAt(0)");
-                //Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"first\"", "string", "lists.ElementAt(1)");
-                //Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"second\"", "string", "lists.ElementAt(2)");
-                //Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"third\"", "string", "lists.ElementAt(3)");
-                //Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"fourth\"", "string", "lists.ElementAt(4)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"null\"", "string", "lists.ElementAt(0)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"first\"", "string", "lists.ElementAt(1)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"second\"", "string", "lists.ElementAt(2)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"third\"", "string", "lists.ElementAt(3)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"fourth\"", "string", "lists.ElementAt(4)");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "lists.ElemetAt()", "error: 0x80070057");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "lists.ElementAt(1,2)", "error: 0x80070057");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "lists.ElementAt(\"first\")", "error: 0x80070057");

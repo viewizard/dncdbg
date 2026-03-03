@@ -448,9 +448,9 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if (!is_static || methodArgs.size() != 1 || opName != methodName || elemRetType != methodRet.corType ||
-                typeRetName != methodRet.typeName || elemType != methodArgs[0].corType ||
-                typeName != methodArgs[0].typeName)
+            if (!is_static || methodArgs.size() != 1 || opName != methodName || 
+                elemRetType != methodRet.corType || typeRetName != methodRet.typeName ||
+                elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -1278,7 +1278,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugType> trResultType;
-    IfFailRet(Evaluator::WalkMethods(trType, &trResultType, methodGenerics,
+    IfFailRet(Evaluator::WalkMethods(trType, &trResultType,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
@@ -1290,7 +1290,8 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
             for (size_t i = 0; i < funcArgs.size(); ++i)
             {
-                if (funcArgs[i] != methodArgs[i])
+                if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs[i])) ||
+                    funcArgs[i] != methodArgs[i])
                 {
                     return S_OK; // Return with success to continue walk.
                 }

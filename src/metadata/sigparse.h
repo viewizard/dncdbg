@@ -19,17 +19,23 @@ namespace dncdbg
 
 struct SigElementType
 {
-    CorElementType corType = ELEMENT_TYPE_MAX;
+    CorElementType corType;
     std::string typeName;
+    int elementType;
+    ULONG varNum;
 
     SigElementType()
-        : corType(ELEMENT_TYPE_MAX)
+        : corType(ELEMENT_TYPE_MAX),
+          elementType(ELEMENT_TYPE_END),
+          varNum(0)
     {}
 
     SigElementType(CorElementType t, std::string n)
     {
         corType = t;
         typeName = n;
+        elementType = ELEMENT_TYPE_END;
+        varNum = 0;
     }
 
     static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
@@ -44,15 +50,15 @@ struct SigElementType
     }
 };
 
-HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType,
-                         const std::vector<SigElementType> &typeGenerics,
-                         const std::vector<SigElementType> &methodGenerics, bool addCorTypeName = false);
+HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType, bool addCorTypeName = false);
 
-HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
-                       const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElementType &returnElementType,
                        std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 
 void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport,
                      std::string &typeName);
+
+HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg);
+HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg);
 
 } // namespace dncdbg

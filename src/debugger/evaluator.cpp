@@ -457,7 +457,34 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
         });
 }
 
+HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeGenerics)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+
+    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
+    {
+        ULONG fetched = 0;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
+
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
+        {
+            SigElementType argElType;
+            trCurrentTypeParam->GetType(&argElType.corType);
+            if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
+            {
+                IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
+            }
+            typeGenerics.emplace_back(argElType);
+            trCurrentTypeParam.Free();
+        }
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
+
 SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
 {
     static const std::unordered_map<std::string, SigElementType> stypes = {
@@ -578,19 +605,20 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethod
     IfFailRet(pInputTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
     ToRelease<ICorDebugType> trType;
     IfFailRet(trValue2->GetExactType(&trType));
-    std::vector<SigElementType> methodGenerics;
     ToRelease<ICorDebugType> trResultType;
 
-    return WalkMethods(trType, &trResultType, methodGenerics, cb);
+    return WalkMethods(trType, &trResultType, cb);
 }
 
 HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
-                               std::vector<SigElementType> &methodGenerics,
                                const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
     pInputType->AddRef();
     ToRelease<ICorDebugType> trInputType(pInputType);
+
+    std::vector<SigElementType> typeGenerics;
+    IfFailRet(GetTypeGenerics(pInputType, typeGenerics));
 
     while (trInputType != nullptr)
     {
@@ -604,27 +632,6 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        std::vector<SigElementType> typeGenerics;
-        ToRelease<ICorDebugTypeEnum> trParamTypes;
-
-        if (SUCCEEDED(trInputType->EnumerateTypeParameters(&trParamTypes)))
-        {
-            ULONG fetched = 0;
-            ToRelease<ICorDebugType> trCurrentTypeParam;
-
-            while (SUCCEEDED(trParamTypes->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
-            {
-                SigElementType argElType;
-                trCurrentTypeParam->GetType(&argElType.corType);
-                if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
-                {
-                    IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
-                }
-                typeGenerics.emplace_back(argElType);
-                trCurrentTypeParam.Free();
-            }
-        }
 
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
@@ -645,7 +652,25 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            if (FAILED(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes)))
+            if (FAILED(ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes)))
+            {
+                continue;
+            }
+
+            if (FAILED(ApplyTypeGenerics(typeGenerics, returnElementType)))
+            {
+                continue;
+            }
+
+            bool convertFailed = false;
+            for (auto &argType : argElementTypes)
+            {
+                if (FAILED(ApplyTypeGenerics(typeGenerics, argType)))
+                {
+                    convertFailed = true;
+                }
+            }
+            if (convertFailed)
             {
                 continue;
             }
@@ -1704,31 +1729,14 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
 HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::string &methodName,
                                           std::vector<SigElementType> &methodArgs,
-                                          std::vector<SigElementType> &methodGenerics,
+                                          std::vector<SigElementType> &/*methodGenerics*/,
                                           ICorDebugFunction **ppCorFunc)
 {
     static constexpr std::string_view attributeName("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
     HRESULT Status = S_OK;
+
     std::vector<SigElementType> typeGenerics;
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-
-    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ULONG fetched = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
-
-        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
-        {
-            SigElementType argElType;
-            trCurrentTypeParam->GetType(&argElType.corType);
-            if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
-            {
-                IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
-            }
-            typeGenerics.emplace_back(argElType);
-            trCurrentTypeParam.Free();
-        }
-    }
+    IfFailRet(GetTypeGenerics(pType, typeGenerics));
 
     IfFailRet(m_sharedDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
     {
@@ -1776,10 +1784,13 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
 
                 SigElementType returnElementType;
                 std::vector<SigElementType> argElementTypes;
-                if (FAILED(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes)))
+                if (FAILED(ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes)))
                 {
                     continue;
                 }
+
+                // TODO
+                // argElementTypes - typeGenerics, methodGenerics
 
                 std::string typeName;
                 CorElementType ty = ELEMENT_TYPE_MAX;
@@ -1843,7 +1854,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             if (TypeFromToken(tkIface) == mdtTypeSpec)
                             {
                                 if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &pcbSig)) ||
-                                    FAILED(ParseElementType(trMDImportInt, &pSig, ifaceElementType, typeGenerics, methodGenerics, false)))
+                                    FAILED(ParseElementType(trMDImportInt, &pSig, ifaceElementType, false)))
                                 {
                                     continue;
                                 }

@@ -710,7 +710,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         const std::vector<SigElementType> typeGenerics; // TODO fill this vector
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
         // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes, true);
+        ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes, true);
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)
@@ -736,7 +736,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
 
             std::string valueType;
             ToRelease<ICorDebugValue> trValue;
-            if (argElementTypes.size() > i && !argElementTypes[i].typeName.empty())
+            if (argElementTypes.size() > i && !argElementTypes[i].typeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
                 ss << argElementTypes[i].typeName << " ";
             }
