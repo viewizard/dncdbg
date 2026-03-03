@@ -302,8 +302,7 @@ class Program
             };
         }
 
-        Label.Checkpoint(
-            "test_all_concrete_exception", "test_all_except_concrete_exception",
+        Label.Checkpoint("test_all_concrete_exception", "test_all_except_concrete_exception",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -328,8 +327,7 @@ class Program
 
         // test filter "all" with options "!System.Exception" ("all" for all except "System.Exception")
 
-        Label.Checkpoint(
-            "test_all_except_concrete_exception", "test_user_unhandled",
+        Label.Checkpoint("test_all_except_concrete_exception", "test_user_unhandled",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -517,8 +515,7 @@ class Program
 
         // test DAP add multiple breakpoints (both filters)
 
-        Label.Checkpoint(
-            "test_DAP_2", "test_DAP_3",
+        Label.Checkpoint("test_DAP_2", "test_DAP_3",
             (Object context) =>
             {
                 Context Context = (Context)context;

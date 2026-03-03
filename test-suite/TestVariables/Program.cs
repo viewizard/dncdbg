@@ -352,8 +352,7 @@ class Program
 
         int dummy1 = 1;                                     Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint(
-            "setup_var", "test_var",
+        Label.Checkpoint("setup_var", "test_var",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -857,8 +856,7 @@ class Program
 
         int dummy2 = 2;                                     Label.Breakpoint("BREAK2");
 
-        Label.Checkpoint(
-            "test_var", "bp_func_test",
+        Label.Checkpoint("test_var", "bp_func_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -964,8 +962,7 @@ class Program
 
         i++;                                                            Label.Breakpoint("bp3");
 
-        Label.Checkpoint(
-            "test_NotifyOfCrossThreadDependency", "test_eval_timeout",
+        Label.Checkpoint("test_NotifyOfCrossThreadDependency", "test_eval_timeout",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -993,8 +990,7 @@ class Program
 
         i++;                                                            Label.Breakpoint("bp4");
 
-        Label.Checkpoint(
-            "test_eval_timeout", "test_eval_exception",
+        Label.Checkpoint("test_eval_timeout", "test_eval_exception",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1033,8 +1029,7 @@ class Program
 
             i++;                                                            Label.Breakpoint("bp5");
 
-        Label.Checkpoint(
-            "test_eval_exception", "finish",
+        Label.Checkpoint("test_eval_exception", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1070,8 +1065,7 @@ class Program
     {
         int dummy1 = 1;                                     Label.Breakpoint("bp_func1");
 
-        Label.Checkpoint(
-            "bp_func_test", "bp_func_test2",
+        Label.Checkpoint("bp_func_test", "bp_func_test2",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1092,8 +1086,7 @@ class Program
 
         dummy1 = 2;                                         Label.Breakpoint("bp_func2");
 
-        Label.Checkpoint(
-            "bp_func_test2", "test_debugger_browsable_state",
+        Label.Checkpoint("bp_func_test2", "test_debugger_browsable_state",
             (Object context) =>
             {
                 Context Context = (Context)context;

@@ -78,8 +78,7 @@ class Program
         lists.Add("fourth");
         string res = lists.ElementAt(1);                                   Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint(
-            "bp_test", "finish",
+        Label.Checkpoint("bp_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

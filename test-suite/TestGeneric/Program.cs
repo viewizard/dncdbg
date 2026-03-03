@@ -199,8 +199,7 @@ class Program
 
             Console.WriteLine("test_func()");                                                            Label.Breakpoint("BREAK2");
 
-            Label.Checkpoint(
-                "test_func", "test_set_value",
+            Label.Checkpoint("test_func", "test_set_value",
                 (Object context) =>
                 {
                     Context Context = (Context)context;
@@ -341,8 +340,7 @@ class Program
 
         ttt.test_func();                                                                                 Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint(
-            "test_main", "test_func",
+        Label.Checkpoint("test_main", "test_func",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -446,8 +444,7 @@ class Program
 
         Console.WriteLine("test set value");                                                             Label.Breakpoint("BREAK3");
 
-        Label.Checkpoint(
-            "test_set_value", "finish",
+        Label.Checkpoint("test_set_value", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

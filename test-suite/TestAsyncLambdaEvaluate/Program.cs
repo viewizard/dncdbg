@@ -57,8 +57,7 @@ class TestWithThis
         };
         lambda3();
 
-        Label.Checkpoint(
-            "func_lambda", "func_async",
+        Label.Checkpoint("func_lambda", "func_async",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -164,8 +163,7 @@ class TestWithThis
             int scope_i = 20;                                                                  Label.Breakpoint("bp18");
         }
 
-        Label.Checkpoint(
-            "func_async", "func_async_with_lambda",
+        Label.Checkpoint("func_async", "func_async_with_lambda",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -232,8 +230,7 @@ class TestWithThis
             int scope_i = 20;                                                                  Label.Breakpoint("bp24");
         }
 
-        Label.Checkpoint(
-            "func_async_with_lambda", "finish",
+        Label.Checkpoint("func_async_with_lambda", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -538,8 +535,7 @@ class Program
             int scope_i = 20;                                                                  Label.Breakpoint("bp11");
         }
 
-        Label.Checkpoint(
-            "static_func_async_with_lambda", "func_lambda",
+        Label.Checkpoint("static_func_async_with_lambda", "func_lambda",
             (Object context) =>
             {
                 Context Context = (Context)context;

@@ -157,8 +157,7 @@ class Program
 
         Console.WriteLine("A breakpoint \"bp\" is set on this line"); Label.Breakpoint("bp");
 
-        Label.Checkpoint(
-            "values_test", "finish",
+        Label.Checkpoint("values_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

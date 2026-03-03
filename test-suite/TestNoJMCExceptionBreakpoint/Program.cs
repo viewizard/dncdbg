@@ -188,8 +188,7 @@ class Program
             outside_user_code.throw_Exception_with_catch();                                    Label.Breakpoint("bp_test_3");
         }
 
-        Label.Checkpoint(
-            "test_all", "test_all_empty_options",
+        Label.Checkpoint("test_all", "test_all_empty_options",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -214,8 +213,7 @@ class Program
 
         // test filter "all" with empty options
 
-        Label.Checkpoint(
-            "test_all_empty_options", "test_all_concrete_exception",
+        Label.Checkpoint("test_all_empty_options", "test_all_concrete_exception",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -461,8 +459,7 @@ class Program
 
         // test DAP add multiple breakpoints (both filters)
 
-        Label.Checkpoint(
-            "test_DAP_2", "test_DAP_3",
+        Label.Checkpoint("test_DAP_2", "test_DAP_3",
             (Object context) =>
             {
                 Context Context = (Context)context;

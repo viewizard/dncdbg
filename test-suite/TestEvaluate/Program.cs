@@ -85,8 +85,7 @@ public class test_this_t
         int this_i = 4;
         int break_line4 = 1;                                                            Label.Breakpoint("BREAK4");
 
-        Label.Checkpoint(
-            "this_test", "nested_test",
+        Label.Checkpoint("this_test", "nested_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -144,8 +143,7 @@ public class test_nested
             {
                 int break_line5 = 1;                                                            Label.Breakpoint("BREAK5");
 
-                Label.Checkpoint(
-                    "nested_test", "base_class_test",
+                Label.Checkpoint("nested_test", "base_class_test",
                     (Object context) =>
                     {
                         Context Context = (Context)context;
@@ -497,8 +495,7 @@ class Program
         int i4 = 1;
         int break_line1 = 1;                                                                    Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint(
-            "values_test", "expression_test",
+        Label.Checkpoint("values_test", "expression_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -564,8 +561,7 @@ class Program
         string testString2 = "test";
         int break_line2 = 1;                                                                    Label.Breakpoint("BREAK2");
 
-        Label.Checkpoint(
-            "expression_test", "static_test",
+        Label.Checkpoint("expression_test", "static_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -795,8 +791,7 @@ class Program
         // in this way we check that finalizer was not called by GC for `cl`
         GC.Collect();
 
-        Label.Checkpoint(
-            "static_test", "this_test",
+        Label.Checkpoint("static_test", "this_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -899,8 +894,7 @@ class Program
         {
             string localVar = "localVar";
 
-            Label.Checkpoint(
-                "lambda_test1", "lambda_test2",
+            Label.Checkpoint("lambda_test1", "lambda_test2",
                 (Object context) =>
                 {
                     Context Context = (Context)context;
@@ -923,8 +917,7 @@ class Program
         {
             string localVar = "localVar";
 
-            Label.Checkpoint(
-                "lambda_test2", "internal_var_test",
+            Label.Checkpoint("lambda_test2", "internal_var_test",
                 (Object context) =>
                 {
                     Context Context = (Context)context;
@@ -968,8 +961,7 @@ class Program
 
         // Test literals.
 
-        Label.Checkpoint(
-            "literals_test", "conditional_access_test",
+        Label.Checkpoint("literals_test", "conditional_access_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1014,8 +1006,7 @@ class Program
         object_with_array object_with_array = new object_with_array();
         int break_line10 = 1;                                                                        Label.Breakpoint("BREAK10");
 
-        Label.Checkpoint(
-            "conditional_access_test", "method_calls_test",
+        Label.Checkpoint("conditional_access_test", "method_calls_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1082,8 +1073,7 @@ class Program
 
         int break_line11 = 1;                                                                        Label.Breakpoint("BREAK11");
 
-        Label.Checkpoint(
-            "method_calls_test", "unary_operators_test",
+        Label.Checkpoint("method_calls_test", "unary_operators_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1170,8 +1160,7 @@ class Program
 
         int break_line12 = 1;                                                                        Label.Breakpoint("BREAK12");
 
-        Label.Checkpoint(
-            "unary_operators_test", "function_evaluation_test",
+        Label.Checkpoint("unary_operators_test", "function_evaluation_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1266,8 +1255,7 @@ class Program
         int test_int = 1;
 
         int break_line14 = 1;                                                                        Label.Breakpoint("BREAK14");
-        Label.Checkpoint(
-            "coalesce_test", "finish",
+        Label.Checkpoint("coalesce_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

@@ -190,8 +190,7 @@ class Program
         indexAsString[0, 0] = 100;
         simpleInt[6] = 66;                                       Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint(
-            "bp_test", "finish",
+        Label.Checkpoint("bp_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

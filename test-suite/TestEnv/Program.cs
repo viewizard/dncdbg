@@ -31,8 +31,7 @@ class Program
 
         Console.WriteLine("Env A = " + EnvA + " Env B = " + EnvB); Label.Breakpoint("bp");
 
-        Label.Checkpoint(
-            "env_test", "finish",
+        Label.Checkpoint("env_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

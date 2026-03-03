@@ -79,8 +79,7 @@ Label.Breakpoint("bp3");
 Label.Breakpoint("resolved_bp1");       Console.WriteLine(
                                                           "Hello World!");          Label.Breakpoint("bp4");
 
-        Label.Checkpoint(
-            "bp_test1", "bp_test2",
+        Label.Checkpoint("bp_test1", "bp_test2",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -111,8 +110,7 @@ Label.Breakpoint("bp5");                // Console.WriteLine("Hello World!");
                                         /* Console.WriteLine("Hello World!"); */
 Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
 
-        Label.Checkpoint(
-            "bp_test2", "bp_test3",
+        Label.Checkpoint("bp_test2", "bp_test3",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -136,8 +134,7 @@ Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
 Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                                                           "Hello World!");          Label.Breakpoint("bp6");
 
-        Label.Checkpoint(
-            "bp_test3", "bp_test4",
+        Label.Checkpoint("bp_test3", "bp_test4",
             (Object context) =>
             {
                 Context Context = (Context)context;
