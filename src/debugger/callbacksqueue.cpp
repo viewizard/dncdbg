@@ -19,27 +19,6 @@
 namespace dncdbg
 {
 
-namespace
-{
-
-// NOTE caller must care about m_callbacksMutex.
-// Check stop status and stop, if need.
-// Return S_FALSE in case already was stopped, S_OK in case stopped by this call.
-HRESULT InternalStop(ICorDebugProcess *pProcess, bool &stopEventInProcess)
-{
-    if (stopEventInProcess)
-    {
-        return S_FALSE; // Already stopped.
-    }
-
-    HRESULT Status = S_OK;
-    IfFailRet(pProcess->Stop(0));
-    stopEventInProcess = true;
-    return S_OK;
-}
-
-}
-
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
     // S_FALSE - not error and steppers not affect on callback
@@ -310,15 +289,7 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
     return S_OK;
 }
 
-// Analog of "pProcess->Stop(0)" call that also care about callbacks.
-HRESULT CallbacksQueue::Stop(ICorDebugProcess *pProcess)
-{
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
-    // DO NOT reset steppers here, this is "pProcess->Stop(0)" like call, that care about callbacks.
-    return InternalStop(pProcess, m_stopEventInProcess);
-}
-
-// Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best thread.
+// Stop process and set last stopped thread.
 HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread)
 {
     // Must be real thread ID or ThreadId::AllThreads.
@@ -329,13 +300,15 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
 
     const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
-    // Note, in case Stop() failed, no stop event will be emitted, don't set m_stopEventInProcess to "true" in this case.
-    HRESULT Status = S_OK;
-    IfFailRet(InternalStop(pProcess, m_stopEventInProcess));
-    if (Status == S_FALSE) // Already stopped.
+    if (m_stopEventInProcess)
     {
-        return S_OK;
+        return S_OK; // Already stopped.
     }
+
+    HRESULT Status = S_OK;
+    // Note, in case Stop() failed, no stop event will be emitted, don't set m_stopEventInProcess to "true" in this case.
+    IfFailRet(pProcess->Stop(0));
+    m_stopEventInProcess = true;
 
     // Same logic as provide vsdbg in case of pause during stepping.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);
