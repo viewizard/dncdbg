@@ -662,15 +662,15 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
                 continue;
             }
 
-            bool convertFailed = false;
+            bool applyFailed = false;
             for (auto &argType : argElementTypes)
             {
                 if (FAILED(ApplyTypeGenerics(typeGenerics, argType)))
                 {
-                    convertFailed = true;
+                    applyFailed = true;
                 }
             }
-            if (convertFailed)
+            if (applyFailed)
             {
                 continue;
             }
