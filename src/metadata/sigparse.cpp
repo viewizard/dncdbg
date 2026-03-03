@@ -376,19 +376,13 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         break;
 
     case ELEMENT_TYPE_SZARRAY:
-        if (FAILED(Status = ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_NOT_IMPL)
-        {
-            return Status;
-        }
+        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true));
         sigElementType.corType = (CorElementType)corType;
         sigElementType.typeName += "[]";
         break;
     case ELEMENT_TYPE_ARRAY:
     {
-        if (FAILED(Status = ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true)) || Status == S_NOT_IMPL)
-        {
-            return Status;
-        }
+        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, typeGenerics, methodGenerics, true));
         sigElementType.corType = (CorElementType)corType;
         // Parse for the rank
         ULONG rank = 0;
@@ -423,7 +417,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         // Note, caller could provide any typeGenerics, with any size for testing methods.
         if (argNum >= typeGenerics.size())
         {
-            return S_NOT_IMPL;
+            return E_INVALIDARG;
         }
         else
         {
@@ -440,7 +434,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         // Note, caller could provide any methodGenerics, with any size for testing methods.
         if (argNum >= methodGenerics.size())
         {
-            return S_NOT_IMPL;
+            return E_INVALIDARG;
         }
         else
         {
@@ -459,19 +453,16 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         *ppSig += CorSigUncompressData(*ppSig, &corType);
         if (corType != ELEMENT_TYPE_CLASS && corType != ELEMENT_TYPE_VALUETYPE)
         {
-            return S_NOT_IMPL;
+            return E_NOTIMPL;
         }
         *ppSig += CorSigUncompressToken(*ppSig, &token);
-        sigElementType.corType = (CorElementType)corType;
+        sigElementType.corType = static_cast<CorElementType>(corType);
         IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
         *ppSig += CorSigUncompressData(*ppSig, &number);
         for (ULONG i = 0; i < number; i++)
         {
-            SigElementType mycop; // Not needed at the moment
-            if (FAILED(Status = ParseElementType(pMDImport, ppSig, mycop, typeGenerics, methodGenerics, true)) || Status == S_NOT_IMPL)
-            {
-                return Status;
-            }
+            SigElementType tmp; // Not needed at the moment
+            IfFailRet(ParseElementType(pMDImport, ppSig, tmp, typeGenerics, methodGenerics, true));
         }
         break;
     }
@@ -486,7 +477,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     case ELEMENT_TYPE_BYREF: // ref, in, out
     case ELEMENT_TYPE_CMOD_REQD:
     case ELEMENT_TYPE_CMOD_OPT:
-        return S_NOT_IMPL;
+        return E_NOTIMPL;
 
     default:
         return E_INVALIDARG;
@@ -495,7 +486,6 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     return S_OK;
 }
 
-// Return S_NOT_IMPL in case abort parsing, since block are not implemented.
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const std::vector<SigElementType> &typeGenerics,
                        const std::vector<SigElementType> &methodGenerics, SigElementType &returnElementType,
                        std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
@@ -518,7 +508,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const s
     // TODO add VARARG methods support.
     if ((convFlags & SIG_METHOD_VARARG) != 0U)
     {
-        return S_NOT_IMPL;
+        return E_NOTIMPL;
     }
 
     // 2. count of generics if any
@@ -534,20 +524,12 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, const s
 
     // 4. return type
     IfFailRet(ParseElementType(pMDImport, &pSig, returnElementType, typeGenerics, methodGenerics, addCorTypeName));
-    if (Status == S_NOT_IMPL)
-    {
-        return S_NOT_IMPL;
-    }
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
         IfFailRet(ParseElementType(pMDImport, &pSig, argElementTypes[i], typeGenerics, methodGenerics, addCorTypeName));
-        if (Status == S_NOT_IMPL)
-        {
-            return S_NOT_IMPL;
-        }
     }
 
     return S_OK;

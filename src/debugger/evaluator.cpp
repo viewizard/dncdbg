@@ -683,8 +683,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
-            if (Status == S_NOT_IMPL)
+            if (FAILED(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes)))
             {
                 continue;
             }
@@ -1813,52 +1812,11 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                     continue;
                 }
 
-                // TODO use ParseMethodSig() for sig parsing:
-                //    SigElementType returnElementType;
-                //    std::vector<SigElementType> argElementTypes;
-                //    IfFailRet(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes));
-                //    if (Status == S_NOT_IMPL)
-                //    {
-                //        continue;
-                //    }
-
-                ULONG cParams = 0; // Count of signature parameters.
-                ULONG gParams = 0; // count of generic parameters;
-                ULONG elementSize = 0;
-                ULONG convFlags = 0;
-
-                // 1. calling convention for MethodDefSig:
-                // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
-                elementSize = CorSigUncompressData(pSig, &convFlags);
-                pSig += elementSize;
-
-                // 2. if method has generic params, count them
-                constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
-                if ((convFlags & SIG_METHOD_GENERIC) != 0U)
-                {
-                    elementSize = CorSigUncompressData(pSig, &gParams);
-                    pSig += elementSize;
-                }
-
-                // 3. count of params
-                elementSize = CorSigUncompressData(pSig, &cParams);
-                pSig += elementSize;
-
-                // 4. return type
                 SigElementType returnElementType;
-                if (FAILED(ParseElementType(trMDImport, &pSig, returnElementType, typeGenerics, methodGenerics)))
+                std::vector<SigElementType> argElementTypes;
+                if (FAILED(ParseMethodSig(trMDImport, pSig, typeGenerics, methodGenerics, returnElementType, argElementTypes)))
                 {
                     continue;
-                }
-
-                // 5. get next element from method signature
-                std::vector<SigElementType> argElementTypes(cParams);
-                for (ULONG i = 0; i < cParams; ++i)
-                {
-                    if (FAILED(ParseElementType(trMDImport, &pSig, argElementTypes[i], typeGenerics, methodGenerics)))
-                    {
-                        break;
-                    }
                 }
 
                 std::string typeName;
