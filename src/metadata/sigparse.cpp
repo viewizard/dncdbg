@@ -6,6 +6,7 @@
 #include "metadata/sigparse.h"
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -287,6 +288,43 @@ PCCOR_SIGNATURE TypeNameFromSig(PCCOR_SIGNATURE typePtr, const std::vector<std::
 }
 
 } // unnamed namespace
+
+bool SigElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2)
+{
+    static const std::unordered_map<CorElementType, SigElementType> aliases = {
+        {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
+        {ELEMENT_TYPE_CHAR,    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
+        {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
+        {ELEMENT_TYPE_U1,      {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
+        {ELEMENT_TYPE_R8,      {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
+        {ELEMENT_TYPE_R4,      {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
+        {ELEMENT_TYPE_I4,      {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
+        {ELEMENT_TYPE_U4,      {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
+        {ELEMENT_TYPE_I8,      {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
+        {ELEMENT_TYPE_U8,      {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
+        {ELEMENT_TYPE_OBJECT,  {ELEMENT_TYPE_CLASS,     "System.Object"}},
+        {ELEMENT_TYPE_I2,      {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
+        {ELEMENT_TYPE_U2,      {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
+        {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
+    };
+
+    auto found = aliases.find(type1);
+    if (found != aliases.end())
+    {
+        if (found->second.corType == type2 && found->second.typeName == name2)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SigElementType::areEqual(const SigElementType &arg) const
+{
+    return (corType == arg.corType && typeName == arg.typeName) ||
+           isAlias(corType, arg.corType, arg.typeName) ||
+           isAlias(arg.corType, corType, typeName);
+}
 
 // https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
 // This blog post originally appeared on David Broman's blog on 10/13/2005
