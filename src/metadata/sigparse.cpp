@@ -322,7 +322,8 @@ bool SigElementType::isAlias(const CorElementType type1, const CorElementType ty
 bool SigElementType::areEqual(const SigElementType &arg) const
 {
     return (corType == arg.corType && typeName == arg.typeName &&
-            elementType == arg.elementType && varNum == arg.varNum) ||
+            // in case of generic type, must be applied to real type first
+            elementType == ELEMENT_TYPE_END && arg.elementType == ELEMENT_TYPE_END) ||
            isAlias(corType, arg.corType, arg.typeName) ||
            isAlias(arg.corType, corType, typeName);
 }
