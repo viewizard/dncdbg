@@ -47,12 +47,12 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
-    if (Status == S_OK) // S_FALSE = setup simple stepper
+    if (Status == S_USE_SIMPLE_STEPPER)
     {
-        return S_OK;
+        return m_simpleStepper->SetupStep(pThread, stepType);
     }
 
-    return m_simpleStepper->SetupStep(pThread, stepType);
+    return S_OK;
 }
 
 HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)

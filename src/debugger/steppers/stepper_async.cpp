@@ -287,7 +287,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
     if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken))
     {
-        return S_FALSE; // setup simple stepper
+        return S_USE_SIMPLE_STEPPER; // setup simple stepper instead
     }
 
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -359,7 +359,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         m_asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
     }
 
-    return S_FALSE; // setup simple stepper
+    return S_USE_SIMPLE_STEPPER; // setup simple stepper instead
 }
 
 HRESULT AsyncStepper::ManagedCallbackStepComplete()

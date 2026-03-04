@@ -122,6 +122,7 @@ template <class T> class ToRelease
 
 constexpr HRESULT S_CAN_EXIT = 0x00777001L;
 constexpr HRESULT S_NO_STATIC = 0x00777002L;
+constexpr HRESULT S_USE_SIMPLE_STEPPER = 0x00777003L;
 
 constexpr uint32_t mdNameLen = 2048;
 
