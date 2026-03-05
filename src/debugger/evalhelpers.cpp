@@ -404,9 +404,10 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
 {
     HRESULT Status = S_OK;
 
-    if ((pRawValue == nullptr) || (pThread == nullptr))
+    if (pRawValue == nullptr ||
+        pThread == nullptr)
     {
-        return S_FALSE;
+        return E_INVALIDARG;
     }
 
     CorSigUncompressCallingConv(pSignatureBlob);
