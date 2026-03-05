@@ -200,7 +200,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     {
         IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT));
         m_filteredPrevStep = true;
-        return S_OK;
+        return S_IGNORE;
     }
 
     const bool filteredPrevStep = m_filteredPrevStep;
@@ -219,7 +219,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             {
                 // Step completed on some compiler generated (not user) code inside user code (for example, `finally` block related code)
                 IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
-                return S_OK;
+                return S_IGNORE;
             }
             else
             {
@@ -235,7 +235,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                     sp.document == m_StepStartSP.document)
                 {
                     IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
-                    return S_OK;
+                    return S_IGNORE;
                 }
             }
         }
@@ -243,13 +243,13 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         else if (reason == CorDebugStepReason::STEP_CALL && ipOffset < ilNextUserCodeOffset)
         {
             IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OVER));
-            return S_OK;
+            return S_IGNORE;
         }
         // was return from filtered method
         else if (reason == CorDebugStepReason::STEP_RETURN && filteredPrevStep)
         {
             IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
-            return S_OK;
+            return S_IGNORE;
         }
     }
     else if (noUserCodeFound)
@@ -257,7 +257,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
         // In case step-in will return from method and no user code was called in user module, step-in again.
         m_filteredPrevStep = true;
-        return S_OK;
+        return S_IGNORE;
     }
     else // Note, in case JMC enabled step, ManagedCallbackStepComplete() called only for user module code.
     {
@@ -276,7 +276,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             // In case step-in will return from filtered method and no user code was called, step-in again.
             m_filteredPrevStep = true;
 
-            return S_OK;
+            return S_IGNORE;
         }
     }
 
@@ -284,7 +284,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     m_simpleStepper->ManagedCallbackStepComplete();
     m_asyncStepper->ManagedCallbackStepComplete();
 
-    return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
+    return S_OK;
 }
 
 HRESULT Steppers::DisableAllSteppers(ICorDebugProcess *pProcess)

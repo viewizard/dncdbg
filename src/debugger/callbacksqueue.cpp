@@ -55,9 +55,10 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
 bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
-    // S_FALSE - not error and steppers not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
+    if (S_IGNORE == m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
     {
+        // Steppers related break (for example, filtering enabled and we need continue step),
+        // don't emit stop event and continue execution.
         return false;
     }
 

@@ -372,7 +372,7 @@ HRESULT AsyncStepper::ManagedCallbackStepComplete()
     }
     m_asyncStepMutex.unlock();
 
-    return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
+    return S_OK;
 }
 
 HRESULT AsyncStepper::DisableAllSteppers()

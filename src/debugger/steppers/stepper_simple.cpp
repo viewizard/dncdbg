@@ -107,7 +107,7 @@ HRESULT SimpleStepper::ManagedCallbackStepComplete()
     m_enabledSimpleStepId = 0;
     m_stepMutex.unlock();
 
-    return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
+    return S_OK;
 }
 
 HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
