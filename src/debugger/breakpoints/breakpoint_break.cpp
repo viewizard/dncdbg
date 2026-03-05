@@ -88,7 +88,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
 
         if (JMCStatus == FALSE)
         {
-            return S_OK;
+            return S_IGNORE;
         }
     }
 
@@ -107,7 +107,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         m_lastStoppedIlOffset.modAddress == 0 ||
         m_lastStoppedIlOffset.methodToken == 0)
     {
-        return S_FALSE;
+        return S_OK;
     }
 
     FullyQualifiedIlOffset_t fullyQualifiedIlOffset;
@@ -116,7 +116,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     if (fullyQualifiedIlOffset.modAddress != m_lastStoppedIlOffset.modAddress ||
         fullyQualifiedIlOffset.methodToken != m_lastStoppedIlOffset.methodToken)
     {
-        return S_FALSE;
+        return S_OK;
     }
 
     SequencePoint lastSP;
@@ -134,10 +134,10 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         lastSP.offset != curSP.offset ||
         lastSP.document != curSP.document)
     {
-        return S_FALSE;
+        return S_OK;
     }
 
-    return S_OK;
+    return S_IGNORE;
 }
 
 } // namespace dncdbg

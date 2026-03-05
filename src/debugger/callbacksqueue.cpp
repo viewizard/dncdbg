@@ -72,13 +72,14 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
     {
+        // Break related (for example, stop at `Debugger.Break()` in not user code with enabled JMC),
+        // don't emit break stop event and continue execution.
         return false;
     }
 
-    // Disable all steppers if we stop at break during step.
+    // At this point we stop at Break, disable all steppers (we could stop at Break during step).
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
