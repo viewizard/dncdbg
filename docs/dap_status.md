@@ -72,8 +72,7 @@
 -   preserveFocusHint?: boolean;
 +   text?: string;
 +   allThreadsStopped?: boolean;
-!   hitBreakpointIds?: number[];
-@@ hitBreakpointIds provide only one breakpoint now, first found for this code line @@
+-   hitBreakpointIds?: number[];
 ```
 #### ContinuedEvent
 ```diff

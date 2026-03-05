@@ -65,42 +65,39 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
 {
     const ThreadId threadId(getThreadId(pThread));
 
-    auto stepForcedIgnoreBP = [&]() {
+    auto stepForcedIgnoreBP =
+        [&]()
         {
-            const std::scoped_lock<std::mutex> lock(m_stepMutex);
-            if (m_enabledSimpleStepId != static_cast<int>(threadId))
+            {
+                const std::scoped_lock<std::mutex> lock(m_stepMutex);
+                if (m_enabledSimpleStepId != static_cast<int>(threadId))
+                {
+                    return false;
+                }
+            }
+
+            ToRelease<ICorDebugStepperEnum> trStepperEnum;
+            if (FAILED(pAppDomain->EnumerateSteppers(&trStepperEnum)))
             {
                 return false;
             }
-        }
 
-        ToRelease<ICorDebugStepperEnum> trStepperEnum;
-        if (FAILED(pAppDomain->EnumerateSteppers(&trStepperEnum)))
-        {
-            return false;
-        }
-
-        ICorDebugStepper *curStepper = nullptr;
-        ULONG steppersFetched = 0;
-        while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
-        {
-            BOOL pbActive = TRUE;
-            ToRelease<ICorDebugStepper> trStepper(curStepper);
-            if (SUCCEEDED(trStepper->IsActive(&pbActive)) && pbActive == TRUE)
+            ICorDebugStepper *curStepper = nullptr;
+            ULONG steppersFetched = 0;
+            while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
             {
-                return false;
+                BOOL pbActive = TRUE;
+                ToRelease<ICorDebugStepper> trStepper(curStepper);
+                if (SUCCEEDED(trStepper->IsActive(&pbActive)) && pbActive == TRUE)
+                {
+                    return false;
+                }
             }
-        }
 
-        return true;
-    };
+            return true;
+        };
 
-    if (stepForcedIgnoreBP())
-    {
-        return S_OK;
-    }
-
-    return S_FALSE; // S_FALSE - no error, but steppers not affect on callback
+    return stepForcedIgnoreBP() ? S_IGNORE : S_OK;
 }
 
 HRESULT SimpleStepper::ManagedCallbackStepComplete()

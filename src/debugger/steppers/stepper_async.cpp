@@ -438,7 +438,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         FAILED(trFrame->GetFunctionToken(&methodToken)))
     {
         LOGE("Failed receive function token for async step");
-        return S_FALSE;
+        return E_FAIL;
     }
     CORDB_ADDRESS modAddress = 0;
     ToRelease<ICorDebugFunction> trFunc;
@@ -448,7 +448,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         FAILED(trModule->GetBaseAddress(&modAddress)))
     {
         LOGE("Failed receive module address for async step");
-        return S_FALSE;
+        return E_FAIL;
     }
 
     const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
@@ -463,7 +463,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             modAddress != m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress ||
             methodToken != m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken)
         {
-            return S_FALSE;
+            return S_OK;
         }
 
         m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
@@ -473,7 +473,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // Update stepping request to new thread/frame_count that we are continuing on
         // so continuing with normal step-out works as expected.
         m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
-        return S_OK;
+        return S_IGNORE;
     }
 
     if (modAddress != m_asyncStep->m_Breakpoint->modAddress ||
@@ -482,7 +482,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // Async step was breaked by another breakpoint, remove async step related breakpoint.
         // Same behavior as MS vsdbg have for stepping interrupted by breakpoint.
         m_asyncStep.reset(nullptr);
-        return S_FALSE;
+        return S_OK;
     }
 
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -494,7 +494,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         mappingResult == MAPPING_NO_INFO)
     {
         LOGE("Failed receive current IP offset for async step");
-        return S_FALSE;
+        return E_FAIL;
     }
 
     if (ipOffset != m_asyncStep->m_Breakpoint->ilOffset)
@@ -502,7 +502,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // Async step was breaked by another breakpoint, remove async step related breakpoint.
         // Same behavior as MS vsdbg have for stepping interrupted by breakpoint.
         m_asyncStep.reset(nullptr);
-        return S_FALSE;
+        return S_OK;
     }
 
     if (m_asyncStep->m_stepStatus == asyncStepStatus::yield_offset_breakpoint)
@@ -511,7 +511,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         if (m_asyncStep->m_threadId != getThreadId(pThread))
         {
             // Parallel thread execution, skip it and continue async step routine.
-            return S_OK;
+            return S_IGNORE;
         }
 
         HRESULT Status = S_OK;
@@ -528,7 +528,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             FAILED(trFuncBreakpoint->Activate(TRUE)))
         {
             LOGE("Could not setup second breakpoint (resume_offset) for await block");
-            return S_FALSE;
+            return S_OK;
         }
 
         m_asyncStep->m_Breakpoint->trFuncBreakpoint->Activate(FALSE);
@@ -556,7 +556,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         {
             m_simpleStepper->SetupStep(pThread, m_asyncStep->m_initialStepType);
             m_asyncStep.reset(nullptr);
-            return S_OK;
+            return S_IGNORE;
         }
 
         ToRelease<ICorDebugValue> trValueRef;
@@ -596,7 +596,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
     }
 
-    return S_OK;
+    return S_IGNORE;
 }
 
 } // namespace dncdbg

@@ -129,8 +129,8 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
     //     S_OK - breakpoint hit
     //     S_FALSE - no breakpoint hit.
     // ManagedCallbackBreakpoint return:
-    //     S_OK - callback should be interrupted without event emit
-    //     S_FALSE - callback should not be interrupted and emit stop event
+    //     S_OK - callback execution should not be interrupted with stop event emit
+    //     S_IGNORE - callback execution should be interrupted without event emit
 
     HRESULT Status = S_OK;
     atEntry = false;
@@ -138,7 +138,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         atEntry = true;
-        return S_FALSE; // S_FALSE - not affect on callback (callback will emit stop event)
+        return S_OK;
     }
 
     // Don't stop at breakpoint in not JMC code, if possible (error here is not fatal for debug process).
@@ -153,22 +153,22 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
         JMCStatus == FALSE)
     {
-        return S_OK; // forced to interrupt this callback (breakpoint in not user code, continue process execution)
+        return S_IGNORE; // breakpoint in not user code, continue process execution
     }
 
     if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
-        return S_FALSE; // S_FALSE - not affect on callback (callback will emit stop event)
+        return S_OK;
     }
 
     if (SUCCEEDED(Status = m_funcBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
-        return S_FALSE; // S_FALSE - not affect on callback (callback will emit stop event)
+        return S_OK;
     }
 
-    return S_OK; // no breakpoints hit, forced to interrupt this callback
+    return S_IGNORE;
 }
 
 HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)

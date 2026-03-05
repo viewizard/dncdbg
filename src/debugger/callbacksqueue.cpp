@@ -21,29 +21,24 @@ namespace dncdbg
 
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
-    // S_FALSE - not error and steppers not affect on callback
-    if (S_FALSE != m_debugger.m_uniqueSteppers->ManagedCallbackBreakpoint(pAppDomain, pThread))
+    if (S_IGNORE == m_debugger.m_uniqueSteppers->ManagedCallbackBreakpoint(pAppDomain, pThread))
     {
+        // Steppers related break (for example, async stepping internal breakpoints),
+        // don't emit breakpoint stop event and continue execution.
         return false;
     }
 
     bool atEntry = false;
-    const ThreadId threadId(getThreadId(pThread));
-    StoppedEvent event(StoppedEventReason::Breakpoint, threadId);
     std::vector<BreakpointEvent> bpChangeEvents;
-    // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, bpChangeEvents, atEntry))
+    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, bpChangeEvents, atEntry))
     {
+        // Breakpoints related break (for example, breakpoint's condition failed or stop in not user code
+        // with enabled JMC), don't emit breakpoint stop event and continue execution.
         return false;
     }
 
-    // Disable all steppers if we stop at breakpoint during step.
+    // At this point we stop at breakpoint, disable all steppers (we could stop at breakpoint during step).
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
-
-    if (atEntry)
-    {
-        event.reason = StoppedEventReason::Entry;
-    }
 
     m_debugger.SetLastStoppedThread(pThread);
     for (const BreakpointEvent &changeEvent : bpChangeEvents)
@@ -51,6 +46,9 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
         DAPIO::EmitOutputEvent({OutputCategory::StdErr, changeEvent.breakpoint.message});
         DAPIO::EmitBreakpointEvent(changeEvent);
     }
+
+    const ThreadId threadId(getThreadId(pThread));
+    const StoppedEvent event(atEntry ? StoppedEventReason::Entry : StoppedEventReason::Breakpoint, threadId);
     DAPIO::EmitStoppedEvent(event);
     return true;
 }

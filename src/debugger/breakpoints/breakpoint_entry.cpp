@@ -245,9 +245,10 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
 
-    if (!m_stopAtEntry || (m_trFuncBreakpoint == nullptr))
+    if (!m_stopAtEntry ||
+        m_trFuncBreakpoint == nullptr)
     {
-        return S_FALSE; // S_FALSE - no error, but not affect on callback
+        return S_FALSE;
     }
 
     HRESULT Status = S_OK;

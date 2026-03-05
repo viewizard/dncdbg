@@ -61,9 +61,9 @@ HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICor
     // Check async stepping related breakpoints first, since user can't setup breakpoints to await block yield or resume offsets manually,
     // so, async stepping related breakpoints not a part of any user breakpoints related data (that will be checked in separate thread. see code below).
     IfFailRet(m_asyncStepper->ManagedCallbackBreakpoint(pThread));
-    if (Status == S_OK) // S_FALSE - no error, but steppers not affect on callback
+    if (Status == S_IGNORE)
     {
-        return S_OK;
+        return S_IGNORE;
     }
 
     return m_simpleStepper->ManagedCallbackBreakpoint(pAppDomain, pThread);
