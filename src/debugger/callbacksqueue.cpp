@@ -93,18 +93,18 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               ExceptionCallbackType eventType, const std::string &excModule)
 {
-    const ThreadId threadId(getThreadId(pThread));
-    const StoppedEvent event(StoppedEventReason::Exception, threadId);
-
-    // S_FALSE - not error and not affect on callback (callback will emit stop event)
-    if (S_FALSE != m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
+    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
     {
+        // Exception related break (for example, catch handler or filtered thrown exception),
+        // don't emit stop event and continue execution.
         return false;
     }
 
-    // Disable all steppers if we stop during step.
+    // At this point we stop at exception, disable all steppers (we could stop at exception during step).
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
+    const ThreadId threadId(getThreadId(pThread));
+    const StoppedEvent event(StoppedEventReason::Exception, threadId);
     m_debugger.SetLastStoppedThread(pThread);
     DAPIO::EmitStoppedEvent(event);
     return true;

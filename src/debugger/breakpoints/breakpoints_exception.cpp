@@ -434,7 +434,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
             {
-                return S_OK;
+                return S_IGNORE;
             }
 
             m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
@@ -453,7 +453,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                     find->second.m_excModule = excModule;
                 }
 
-                return S_OK;
+                return S_IGNORE;
             }
 
             m_threadsExceptionStatus[tid].m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
@@ -462,7 +462,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
             {
-                return S_OK;
+                return S_IGNORE;
             }
 
             m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
@@ -476,14 +476,14 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             if (!m_justMyCode || m_threadsExceptionStatus[tid].m_lastEvent == ExceptionCallbackType::FIRST_CHANCE)
             {
                 m_threadsExceptionStatus.erase(tid);
-                return S_OK;
+                return S_IGNORE;
             }
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::USER_UNHANDLED, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
             {
                 m_threadsExceptionStatus.erase(tid);
-                return S_OK;
+                return S_IGNORE;
             }
 
             excModule = m_threadsExceptionStatus[tid].m_excModule;
@@ -499,7 +499,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             assert(m_threadsExceptionStatus[tid].m_lastEvent == ExceptionCallbackType::USER_FIRST_CHANCE);
 
             m_threadsExceptionStatus.erase(tid);
-            return S_OK;
+            return S_IGNORE;
         }
 
         case ExceptionCallbackType::UNHANDLED:
@@ -524,7 +524,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             return E_INVALIDARG;
     }
 
-    return S_FALSE; // S_FALSE - breakpoint hit, not affect on callback (callback will emit stop event)
+    return S_OK;
 }
 
 HRESULT ExceptionBreakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
