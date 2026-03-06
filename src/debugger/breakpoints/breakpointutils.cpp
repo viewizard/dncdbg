@@ -98,12 +98,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
         return E_FAIL;
     }
 
-    if (variable.value != "true")
-    {
-        return S_FALSE;
-    }
-
-    return S_OK;
+    return variable.value == "true" ? S_OK : S_FALSE;
 }
 
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode)
