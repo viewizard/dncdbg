@@ -124,7 +124,7 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     }
     if (JMCStatus == FALSE)
     {
-        return S_OK; // need skip breakpoint
+        return S_SKIP;
     }
 
     // Care about attributes for "JMC disabled" case.
@@ -137,11 +137,11 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
 
         if (HasAttribute(trMDImport, methodToken, DebuggerAttribute::Hidden))
         {
-            return S_OK; // need skip breakpoint
+            return S_SKIP;
         }
     }
 
-    return S_FALSE; // don't skip breakpoint
+    return S_OK;
 }
 
 } // namespace dncdbg::BreakpointUtils

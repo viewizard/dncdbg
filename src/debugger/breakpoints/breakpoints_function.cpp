@@ -229,7 +229,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
     for (auto &entry : fbpResolved)
     {
         IfFailRet(BreakpointUtils::SkipBreakpoint(entry.first, entry.second, m_justMyCode));
-        if (Status == S_OK) // S_FALSE - don't skip breakpoint
+        if (Status == S_SKIP)
         {
             return S_OK;
         }

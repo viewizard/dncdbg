@@ -89,7 +89,7 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         }
 
         IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken, justMyCode));
-        if (Status == S_OK) // S_FALSE - don't skip breakpoint
+        if (Status == S_SKIP)
         {
             continue;
         }
