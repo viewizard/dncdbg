@@ -1322,21 +1322,21 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
     const size_t typeArgsCount = evalStack.front().trGenericTypeCache.size();
     const uint32_t realArgsCount = Int + (isInstance ? 1 : 0);
-    std::vector<ICorDebugType *> iCorTypeArgs;
-    std::vector<ICorDebugValue *> iCorValueArgs;
-    iCorValueArgs.reserve(realArgsCount);
-    iCorTypeArgs.reserve(typeArgsCount);
+    std::vector<ICorDebugType *> pTypeArgs;
+    std::vector<ICorDebugValue *> pValueArgs;
+    pValueArgs.reserve(realArgsCount);
+    pTypeArgs.reserve(typeArgsCount);
 
     // Place instance value ("this") if extension or not static method
     if (isInstance)
     {
-        iCorValueArgs.emplace_back(trValue.GetPtr());
+        pValueArgs.emplace_back(trValue.GetPtr());
     }
 
     // Add arguments values
     for (int32_t i = 0; i < Int; i++)
     {
-        iCorValueArgs.emplace_back(trArgs[i].GetPtr());
+        pValueArgs.emplace_back(trArgs[i].GetPtr());
     }
 
     // Collect type(class)'s generic types if any
@@ -1347,20 +1347,20 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         ULONG fetched = 0;
         while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
-            iCorTypeArgs.emplace_back(curType);
+            pTypeArgs.emplace_back(curType);
         }
     }
 
     // Add method's generic types if any
     for (size_t i = typeArgsCount; i > 0; i--)
     {
-        iCorTypeArgs.emplace_back(evalStack.front().trGenericTypeCache[i - 1].GetPtr());
+        pTypeArgs.emplace_back(evalStack.front().trGenericTypeCache[i - 1].GetPtr());
     }
 
     evalStack.front().ResetEntry();
     Status = ed.pEvalHelpers->EvalGenericFunction(
-        ed.pThread, trFunc, iCorTypeArgs.data(), static_cast<uint32_t>(iCorTypeArgs.size()), iCorValueArgs.data(),
-        static_cast<uint32_t>(iCorValueArgs.size()), &evalStack.front().trValue);
+        ed.pThread, trFunc, pTypeArgs.data(), static_cast<uint32_t>(pTypeArgs.size()), pValueArgs.data(),
+        static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is
     // void.
@@ -1411,7 +1411,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         for (int32_t i = Int - 1; i >= 0; i--)
         {
             uint32_t result_index = 0;
-            // TODO implicitly convert iCorValue to int, if type not int
+            // TODO implicitly convert ICorValue to int, if type not int
             // at this moment GetElementIndex() work with integer types only
             IfFailRet(GetElementIndex(trIndexValues[i], result_index));
             indexes.insert(indexes.begin(), result_index);
@@ -1527,7 +1527,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         for (int32_t i = Int - 1; i >= 0; i--)
         {
             uint32_t result_index = 0;
-            // TODO implicitly convert iCorValue to int, if type not int
+            // TODO implicitly convert ICorValue to int, if type not int
             // at this moment GetElementIndex() work with integer types only
             IfFailRet(GetElementIndex(trIndexValues[i], result_index));
             indexes.insert(indexes.begin(), result_index);

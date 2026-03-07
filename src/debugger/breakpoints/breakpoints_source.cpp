@@ -29,9 +29,9 @@ HRESULT EnableOneICorBreakpointForLine(std::list<SourceBreakpoints::ManagedSourc
             continue;
         }
 
-        for (const auto &iCorFuncBreakpoint : it.trFuncBreakpoints)
+        for (const auto &trFuncBreakpoint : it.trFuncBreakpoints)
         {
-            const HRESULT ret = iCorFuncBreakpoint->Activate(needEnable);
+            const HRESULT ret = trFuncBreakpoint->Activate(needEnable);
             Status = FAILED(ret) ? ret : Status;
         }
         needEnable = FALSE;

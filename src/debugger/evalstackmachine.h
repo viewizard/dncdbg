@@ -40,7 +40,7 @@ struct EvalStackEntry
     // Resolved to value identifiers.
     ToRelease<ICorDebugValue> trValue;
     // Generic types cache. Note, finally we need the method's generic types only, i.e. the last element of
-    // identifiers vector. The other type(class)'s generics can easily be got from the corresponding iCorDebugType
+    // identifiers vector. The other type(class)'s generics can easily be got from the corresponding ICorDebugType
     std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
     // Prevent future binding in case of conditional access with nulled object (`a?.b`, `a?[1]`, ...).
     // Note, this state could be related to trValue only (trValue must be checked for null first).

@@ -89,10 +89,10 @@ class FunctionBreakpoints
 
         ~ManagedFunctionBreakpoint()
         {
-            for (auto &iCorFuncBreakpoint : trFuncBreakpoints)
+            for (auto &trFuncBreakpoint : trFuncBreakpoints)
             {
-                if (iCorFuncBreakpoint)
-                    iCorFuncBreakpoint->Activate(FALSE);
+                if (trFuncBreakpoint)
+                    trFuncBreakpoint->Activate(FALSE);
             }
         }
 
