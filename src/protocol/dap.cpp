@@ -149,25 +149,43 @@ std::string ReadData(std::istream &cin)
 
 json FormJsonForExceptionDetails(const ExceptionDetails &details)
 {
-    json result{{"typeName", details.typeName},
-                {"fullTypeName", details.fullTypeName},
-                {"evaluateName", details.evaluateName},
-                {"stackTrace", details.stackTrace},
-                {"formattedDescription", details.formattedDescription},
-                {"source", details.source}};
+    std::list<const ExceptionDetails *> reverseExceptions;
 
-    if (!details.message.empty())
+    const ExceptionDetails *current = &details;
+    while (current != nullptr)
     {
-        result["message"] = details.message;
+        reverseExceptions.push_front(current);
+        current = current->innerException.get();
     }
 
-    if (details.innerException)
+    json result;
+    while (!reverseExceptions.empty())
     {
-        // Note, DAP have "innerException" field as array, but in real we don't have array with inner
-        // exceptions here, since exception object have only one exeption object reference in InnerException field.
-        json arr = json::array();
-        arr.push_back(FormJsonForExceptionDetails(*details.innerException));
-        result["innerException"] = arr;
+        current = reverseExceptions.front();
+        reverseExceptions.pop_front();
+
+        json tmp{{"typeName", current->typeName},
+                 {"fullTypeName", current->fullTypeName},
+                 {"evaluateName", current->evaluateName},
+                 {"stackTrace", current->stackTrace},
+                 {"formattedDescription", current->formattedDescription},
+                 {"source", current->source}};
+
+        result.swap(tmp);
+
+        if (!current->message.empty())
+        {
+            result["message"] = current->message;
+        }
+
+        if (current->innerException)
+        {
+            // Note, DAP have "innerException" field as array, but in real we don't have array with inner
+            // exceptions here, since exception object have only one exeption object reference in InnerException field.
+            json arr = json::array();
+            arr.push_back(tmp);
+            result["innerException"] = arr;
+        }
     }
 
     return result;
