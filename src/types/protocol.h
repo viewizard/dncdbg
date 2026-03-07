@@ -369,13 +369,15 @@ struct SourceBreakpoint
     int line;
     // column?: number;
     std::string condition;
-    // hitCondition?: string;
+    std::string hitCondition;
     // logMessage?: string;
     // mode?: string;
 
-    SourceBreakpoint(int linenum, const std::string &cond = std::string())
+    SourceBreakpoint(int linenum, const std::string &cond = std::string(),
+                     const std::string &hitCond = std::string())
         : line(linenum),
-          condition(cond)
+          condition(cond),
+          hitCondition(hitCond)
     {
     }
 };
@@ -386,13 +388,14 @@ struct FunctionBreakpoint
     std::string func;  // name -> func(params)
     std::string params;// name -> func(params)
     std::string condition;
-    // hitCondition?: string;
+    std::string hitCondition;
 
     FunctionBreakpoint(const std::string &func, const std::string &params,
-                   const std::string &cond = std::string())
+                       const std::string &cond = std::string(), const std::string &hitCond = std::string())
         : func(func),
           params(params),
-          condition(cond)
+          condition(cond),
+          hitCondition(hitCond)
     {
     }
 };

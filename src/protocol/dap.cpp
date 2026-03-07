@@ -305,7 +305,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<SourceBreakpoint> sourceBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
-                    sourceBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()));
+                    sourceBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()),
+                                                   b.value("hitCondition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;
@@ -618,7 +619,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         name.erase(openBrace, closeBrace);
                     }
 
-                    functionBreakpoints.emplace_back(name, params, b.value("condition", std::string()));
+                    functionBreakpoints.emplace_back(name, params, b.value("condition", std::string()),
+                                                     b.value("hitCondition", std::string()));
                 }
 
                 std::vector<Breakpoint> breakpoints;

@@ -100,26 +100,56 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 continue;
             }
 
-            std::string output;
-            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(fbp.condition, m_sharedVariables.get(), pThread, output)) ||
-                Status == S_FALSE)
+            if (!fbp.condition.empty())
             {
-                continue;
-            }
+                std::string output;
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(fbp.condition, m_sharedVariables.get(), pThread, output)) ||
+                    Status == S_FALSE)
+                {
+                    continue;
+                }
 
-            if (!output.empty())
-            {
-                Breakpoint breakpoint;
-                fbp.ToBreakpoint(breakpoint);
-                std::ostringstream ss;
-                ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
-                   << fbp.condition << "'. The error returned was '" << output << "'. - "
-                   << fbp.name << "(" << fbp.params << ")\n";
-                breakpoint.message = ss.str();
-                bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                if (!output.empty())
+                {
+                    Breakpoint breakpoint;
+                    fbp.ToBreakpoint(breakpoint);
+                    std::ostringstream ss;
+                    ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
+                    << fbp.condition << "'. The error returned was '" << output << "'. - "
+                    << fbp.name << "(" << fbp.params << ")\n";
+                    breakpoint.message = ss.str();
+                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    fbp.condition.clear();
+                }
             }
 
             ++fbp.hitCount;
+
+            if (!fbp.hitCondition.empty())
+            {
+                std::string output;
+                std::ostringstream condstream;
+                condstream << fbp.hitCount << ">" << fbp.hitCondition;
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(condstream.str(), m_sharedVariables.get(), pThread, output)) ||
+                    Status == S_FALSE)
+                {
+                    continue;
+                }
+
+                if (!output.empty())
+                {
+                    Breakpoint breakpoint;
+                    fbp.ToBreakpoint(breakpoint);
+                    std::ostringstream ss;
+                    ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate. The hitCondition was '"
+                    << fbp.hitCondition << "'. The error returned was '" << output << "'. - "
+                    << fbp.name << "(" << fbp.params << ")\n";
+                    breakpoint.message = ss.str();
+                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    fbp.hitCondition.clear();
+                }
+            }
+
             hitBreakpointIds.emplace_back(fbp.id);
         }
     }
@@ -193,6 +223,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
             fbp.name = fb.func;
             fbp.params = fb.params;
             fbp.condition = fb.condition;
+            fbp.hitCondition = fb.hitCondition;
 
             if (haveProcess)
             {
@@ -207,6 +238,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
             ManagedFunctionBreakpoint &fbp = b->second;
 
             fbp.condition = fb.condition;
+            fbp.hitCondition = fb.hitCondition;
             fbp.ToBreakpoint(breakpoint);
         }
 

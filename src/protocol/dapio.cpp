@@ -121,6 +121,7 @@ void DAPIO::AddCapabilitiesTo(json &capabilities)
     }
     capabilities["exceptionBreakpointFilters"] = excFilters;
     capabilities["supportsExceptionOptions"] = false; // TODO add implementation
+    capabilities["supportsHitConditionalBreakpoints"] = true;
 }
 
 void DAPIO::SetupProtocolLogging(const std::string &path)

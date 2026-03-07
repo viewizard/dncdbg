@@ -74,6 +74,7 @@ class FunctionBreakpoints
         std::string name;
         std::string params;
         uint32_t hitCount;
+        std::string hitCondition;
         std::string condition;
         std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 

@@ -198,26 +198,56 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 continue;
             }
 
-            std::string output;
-            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(b.condition, m_sharedVariables.get(), pThread, output)) ||
-                Status == S_FALSE)
+            if (!b.condition.empty())
             {
-                continue;
-            }
+                std::string output;
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(b.condition, m_sharedVariables.get(), pThread, output)) ||
+                    Status == S_FALSE)
+                {
+                    continue;
+                }
 
-            if (!output.empty())
-            {
-                Breakpoint breakpoint;
-                b.ToBreakpoint(breakpoint, sp.document);
-                std::ostringstream ss;
-                ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
-                   << b.condition << "'. The error returned was '" << output << "'. - "
-                   << sp.document << ":" << b.linenum << "\n";
-                breakpoint.message = ss.str();
-                bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                if (!output.empty())
+                {
+                    Breakpoint breakpoint;
+                    b.ToBreakpoint(breakpoint, sp.document);
+                    std::ostringstream ss;
+                    ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
+                    << b.condition << "'. The error returned was '" << output << "'. - "
+                    << sp.document << ":" << b.linenum << "\n";
+                    breakpoint.message = ss.str();
+                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    b.condition.clear();
+                }
             }
 
             ++b.hitCount;
+
+            if (!b.hitCondition.empty())
+            {
+                std::string output;
+                std::ostringstream condstream;
+                condstream << b.hitCount << ">" << b.hitCondition;
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(condstream.str(), m_sharedVariables.get(), pThread, output)) ||
+                    Status == S_FALSE)
+                {
+                    continue;
+                }
+
+                if (!output.empty())
+                {
+                    Breakpoint breakpoint;
+                    b.ToBreakpoint(breakpoint, sp.document);
+                    std::ostringstream ss;
+                    ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
+                    << b.hitCondition << "'. The error returned was '" << output << "'. - "
+                    << sp.document << ":" << b.linenum << "\n";
+                    breakpoint.message = ss.str();
+                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    b.hitCondition.clear();
+                }
+            }
+
             hitBreakpointIds.emplace_back(b.id);
         }
     }
@@ -243,6 +273,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
             bp.linenum = initialBreakpoint.breakpoint.line;
             bp.endLine = initialBreakpoint.breakpoint.line;
             bp.condition = initialBreakpoint.breakpoint.condition;
+            bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             unsigned resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
@@ -377,6 +408,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             bp.linenum = line;
             bp.endLine = line;
             bp.condition = initialBreakpoint.breakpoint.condition;
+            bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             unsigned resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
@@ -411,6 +443,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         {
             ManagedSourceBreakpointMapping &initialBreakpoint = *b->second;
             initialBreakpoint.breakpoint.condition = sb.condition;
+            initialBreakpoint.breakpoint.hitCondition = sb.hitCondition;
 
             if (initialBreakpoint.resolved_linenum != 0)
             {
@@ -435,6 +468,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
 
                     // Existing breakpoint
                     bp.condition = initialBreakpoint.breakpoint.condition;
+                    bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                     std::string resolved_fullname;
                     m_sharedDebugInfo->GetSourceFullPathByIndex(initialBreakpoint.resolved_fullname_index, resolved_fullname);
                     bp.ToBreakpoint(breakpoint, resolved_fullname);
@@ -449,6 +483,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 bp.linenum = line;
                 bp.endLine = line;
                 bp.condition = initialBreakpoint.breakpoint.condition;
+                bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                 bp.ToBreakpoint(breakpoint, filename);
                 if (!haveProcess)
                 {

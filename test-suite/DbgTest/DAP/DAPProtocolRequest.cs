@@ -151,10 +151,11 @@ public class SetBreakpointsArguments
 
 public class SourceBreakpoint
 {
-    public SourceBreakpoint(int bpLine, string Condition = null)
+    public SourceBreakpoint(int bpLine, string Condition = null, string HitCondition = null)
     {
         line = bpLine;
         condition = Condition;
+        hitCondition = HitCondition;
     }
     public int line;
     public int? column;
@@ -197,10 +198,11 @@ public class SetFunctionBreakpointsArguments
 
 public class FunctionBreakpoint
 {
-    public FunctionBreakpoint(string funcName, string Condition = null)
+    public FunctionBreakpoint(string funcName, string Condition = null, string HitCondition = null)
     {
         name = funcName;
         condition = Condition;
+        hitCondition = HitCondition;
     }
     public string name;
     public string condition;

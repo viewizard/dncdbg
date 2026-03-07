@@ -65,10 +65,7 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
 
 HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables, ICorDebugThread *pThread, std::string &output)
 {
-    if (condition.empty())
-    {
-        return S_OK;
-    }
+    assert(!condition.empty());
 
     HRESULT Status = S_OK;
     DWORD threadId = 0;

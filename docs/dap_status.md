@@ -385,7 +385,7 @@
 +   supportsConfigurationDoneRequest?: boolean;
 +   supportsFunctionBreakpoints?: boolean;
 +   supportsConditionalBreakpoints?: boolean;
--   supportsHitConditionalBreakpoints?: boolean;
++   supportsHitConditionalBreakpoints?: boolean;
 -   supportsEvaluateForHovers?: boolean;
 +   exceptionBreakpointFilters?: ExceptionBreakpointsFilter[];
 -   supportsStepBack?: boolean;
@@ -510,7 +510,7 @@
 +   line: number;
 +   column?: number;
 +   condition?: string;
--   hitCondition?: string;
++   hitCondition?: string;
 -   logMessage?: string;
 -   mode?: string;
 ```
@@ -518,7 +518,7 @@
 ```diff
 +   name: string;
 +   condition?: string;
--   hitCondition?: string;
++   hitCondition?: string;
 ```
 #### Breakpoint
 ```diff

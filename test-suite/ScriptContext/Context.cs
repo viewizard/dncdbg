@@ -205,14 +205,14 @@ class Context
         Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void AddBreakpoint(string caller_trace, string bpName, string Condition = null)
+    public void AddBreakpoint(string caller_trace, string bpName, string Condition = null, string hitCondition = null)
     {
         Breakpoint bp = ControlInfo.Breakpoints[bpName];
         Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
         var lbp = (LineBreakpoint)bp;
 
         BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition));
+        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition, hitCondition));
         BreakpointLines.Add(lbp.NumLine);
     }
 
@@ -368,9 +368,9 @@ class Context
         }
     }
 
-    public void AddFunctionBreakpoint(string funcName, string Condition = null)
+    public void AddFunctionBreakpoint(string funcName, string Condition = null, string HitCondition = null)
     {
-        FunctionBreakpointList.Add(new FunctionBreakpoint(funcName, Condition));
+        FunctionBreakpointList.Add(new FunctionBreakpoint(funcName, Condition, HitCondition));
     }
 
     public void RemoveFunctionBreakpoint(string funcName)

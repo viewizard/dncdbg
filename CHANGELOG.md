@@ -13,6 +13,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added active CLR internal frames output in stacktrace.
 - Added proper Just My Code enabled stacktrace.
 - Added `hitBreakpointIds` support in Stopped Event.
+- Added `hitCondition` support for SourceBreakpoint and FunctionBreakpoint.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

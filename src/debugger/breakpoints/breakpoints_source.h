@@ -70,6 +70,7 @@ class SourceBreakpoints
         int linenum;
         int endLine;
         uint32_t hitCount;
+        std::string hitCondition;
         std::string condition;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
         // For example, `MyType obj = new MyType(1);` code will be added to all class constructors).
