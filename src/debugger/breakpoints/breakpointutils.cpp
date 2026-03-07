@@ -86,7 +86,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
             output = "unknown error";
         }
 
-        return Status;
+        return S_OK; // some evaluation issue - ignore condition, stop at breakpoint
     }
     if (variable.type != "bool")
     {
@@ -95,7 +95,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
             output = "The breakpoint condition must evaluate to a boolean operation, result type is " + variable.type;
         }
 
-        return E_FAIL;
+        return S_OK; // wrong type - ignore condition, stop at breakpoint
     }
 
     return variable.value == "true" ? S_OK : S_FALSE;

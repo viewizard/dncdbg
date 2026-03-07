@@ -72,7 +72,7 @@
 -   preserveFocusHint?: boolean;
 +   text?: string;
 +   allThreadsStopped?: boolean;
--   hitBreakpointIds?: number[];
++   hitBreakpointIds?: number[];
 ```
 #### ContinuedEvent
 ```diff

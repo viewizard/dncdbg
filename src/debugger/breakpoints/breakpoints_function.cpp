@@ -28,6 +28,7 @@ void FunctionBreakpoints::DeleteAll()
 }
 
 HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                                std::vector<uint32_t> &hitBreakpointIds,
                                                 std::vector<BreakpointEvent> &bpChangeEvents)
 {
     if (m_funcBreakpoints.empty())
@@ -93,44 +94,37 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
 
         for (auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
         {
-            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint));
-            if (Status == S_FALSE)
+            if (FAILED(Status = BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
+                Status == S_FALSE)
             {
                 continue;
             }
 
             std::string output;
-            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(fbp.condition, m_sharedVariables.get(), pThread, output)))
-            {
-                if (output.empty())
-                {
-                    return Status;
-                }
-            }
-            if (Status == S_FALSE)
+            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(fbp.condition, m_sharedVariables.get(), pThread, output)) ||
+                Status == S_FALSE)
             {
                 continue;
             }
-
-            ++fbp.hitCount;
 
             if (!output.empty())
             {
                 Breakpoint breakpoint;
                 fbp.ToBreakpoint(breakpoint);
                 std::ostringstream ss;
-                ss << "Breakpoint error: The condition for a breakpoint failed to execute. The condition was '"
+                ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
                    << fbp.condition << "'. The error returned was '" << output << "'. - "
                    << fbp.name << "(" << fbp.params << ")\n";
                 breakpoint.message = ss.str();
                 bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 
-            return S_OK;
+            ++fbp.hitCount;
+            hitBreakpointIds.emplace_back(fbp.id);
         }
     }
 
-    return S_FALSE; // Stopped at break, but breakpoint not found.
+    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
 }
 
 HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)

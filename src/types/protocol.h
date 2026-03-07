@@ -182,12 +182,20 @@ struct StoppedEvent
     // preserveFocusHint?: boolean;
     std::string text;
     bool allThreadsStopped;
-    // hitBreakpointIds?: number[];
+    std::vector<uint32_t> hitBreakpointIds;
 
     StoppedEvent(StoppedEventReason reason, ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true)
+    {
+    }
+
+    StoppedEvent(StoppedEventReason reason, std::vector<uint32_t> &&bpIds, ThreadId threadId = ThreadId::Invalid)
+        : reason(reason),
+          threadId(threadId),
+          allThreadsStopped(true),
+          hitBreakpointIds(bpIds)
     {
     }
 };

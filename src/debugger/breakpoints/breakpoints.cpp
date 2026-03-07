@@ -123,6 +123,7 @@ HRESULT Breakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &e
 }
 
 HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                               std::vector<uint32_t> &hitBreakpointIds,
                                                std::vector<BreakpointEvent> &bpChangeEvents, bool &atEntry)
 {
     // CheckBreakpointHit return:
@@ -156,13 +157,13 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         return S_IGNORE; // breakpoint in not user code, continue process execution
     }
 
-    if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
+    if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         return S_OK;
     }
 
-    if (SUCCEEDED(Status = m_funcBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, bpChangeEvents)) &&
+    if (SUCCEEDED(Status = m_funcBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         return S_OK;

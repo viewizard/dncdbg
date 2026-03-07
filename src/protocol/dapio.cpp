@@ -178,6 +178,11 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
     body["threadId"] = static_cast<int>(event.threadId);
     body["allThreadsStopped"] = event.allThreadsStopped;
 
+    if (!event.hitBreakpointIds.empty())
+    {
+        body["hitBreakpointIds"] = event.hitBreakpointIds;
+    }
+
     // vsdbg shows additional info, but it is not a part of the protocol
     // body["line"] = event.frame.line;
     // body["column"] = event.frame.column;

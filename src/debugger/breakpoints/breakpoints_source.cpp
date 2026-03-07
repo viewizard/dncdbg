@@ -144,6 +144,7 @@ void SourceBreakpoints::DeleteAll()
 }
 
 HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                              std::vector<uint32_t> &hitBreakpointIds,
                                               std::vector<BreakpointEvent> &bpChangeEvents)
 {
     HRESULT Status = S_OK;
@@ -186,49 +187,42 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
-    // Same logic as provide vsdbg - only one breakpoint is active for one line, find first active in the list.
+    // Same logic as provide vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
     for (auto &b : bList)
     {
-        for (const auto &iCorFuncBreakpoint : b.trFuncBreakpoints)
+        for (const auto &trFuncBreakpoint : b.trFuncBreakpoints)
         {
-            IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, iCorFuncBreakpoint));
-            if (Status == S_FALSE)
+            if (FAILED(Status = BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
+                Status == S_FALSE)
             {
                 continue;
             }
 
             std::string output;
-            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(b.condition, m_sharedVariables.get(), pThread, output)))
-            {
-                if (output.empty())
-                {
-                    return Status;
-                }
-            }
-            if (Status == S_FALSE)
+            if (FAILED(Status = BreakpointUtils::IsEnableByCondition(b.condition, m_sharedVariables.get(), pThread, output)) ||
+                Status == S_FALSE)
             {
                 continue;
             }
-
-            ++b.hitCount;
 
             if (!output.empty())
             {
                 Breakpoint breakpoint;
                 b.ToBreakpoint(breakpoint, sp.document);
                 std::ostringstream ss;
-                ss << "Breakpoint error: The condition for a breakpoint failed to execute. The condition was '"
+                ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
                    << b.condition << "'. The error returned was '" << output << "'. - "
                    << sp.document << ":" << b.linenum << "\n";
                 breakpoint.message = ss.str();
                 bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
             }
 
-            return S_OK;
+            ++b.hitCount;
+            hitBreakpointIds.emplace_back(b.id);
         }
     }
 
-    return S_FALSE; // Stopped at break, but breakpoint not found.
+    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
 }
 
 HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
