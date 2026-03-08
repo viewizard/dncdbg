@@ -265,6 +265,11 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
         module["isOptimized"] = event.module.isOptimized;
         module["isUserCode"] = event.module.isUserCode;
 
+        if (!event.module.symbolFilePath.empty())
+        {
+            module["symbolFilePath"] = event.module.symbolFilePath;
+        }
+
         switch (event.module.symbolStatus)
         {
         case SymbolStatus::Skipped:

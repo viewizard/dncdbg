@@ -66,14 +66,16 @@ public class SymbolReader
     {
         public readonly MetadataReaderProvider Provider;
         public readonly MetadataReader Reader;
+        public readonly string PDBPath;
 
-        public OpenedReader(MetadataReaderProvider provider, MetadataReader reader)
+        public OpenedReader(MetadataReaderProvider provider, MetadataReader reader, string pdbPath)
         {
             Debug.Assert(provider != null);
             Debug.Assert(reader != null);
 
             Provider = provider;
             Reader = reader;
+            PDBPath = pdbPath;
         }
 
         public void Dispose() => Provider.Dispose();
@@ -198,8 +200,10 @@ public class SymbolReader
     internal static IntPtr LoadSymbolsForModule([MarshalAs(UnmanagedType.LPWStr)] string assemblyPath,
                                                 bool isFileLayout, ulong loadedPeAddress, int loadedPeSize,
                                                 ulong inMemoryPdbAddress, int inMemoryPdbSize,
-                                                ReadMemoryDelegate readMemory)
+                                                ReadMemoryDelegate readMemory, out IntPtr pdbName)
     {
+        pdbName = IntPtr.Zero;
+
         try
         {
             TargetStream peStream = null;
@@ -215,6 +219,10 @@ public class SymbolReader
             OpenedReader openedReader = GetReader(assemblyPath, isFileLayout, peStream, pdbStream);
             if (openedReader != null)
             {
+                if (!string.IsNullOrEmpty(openedReader.PDBPath))
+                {
+                    pdbName = Marshal.StringToBSTR(openedReader.PDBPath);
+                }
                 GCHandle gch = GCHandle.Alloc(openedReader);
                 return GCHandle.ToIntPtr(gch);
             }
@@ -1085,7 +1093,7 @@ public class SymbolReader
         {
             pdbStream.Position = 0;
             provider = MetadataReaderProvider.FromPortablePdbStream(pdbStream);
-            result = new OpenedReader(provider, provider.GetMetadataReader());
+            result = new OpenedReader(provider, provider.GetMetadataReader(), null);
         }
         catch (Exception e) when (e is BadImageFormatException || e is IOException)
         {
@@ -1235,7 +1243,7 @@ public class SymbolReader
             if (data.Age == 1 &&
                 new BlobContentId(reader.DebugMetadataHeader.Id) == new BlobContentId(data.Guid, codeViewEntry.Stamp))
             {
-                result = new OpenedReader(provider, reader);
+                result = new OpenedReader(provider, reader, pdbPath);
             }
         }
         catch (Exception e) when (e is BadImageFormatException || e is IOException)
@@ -1263,7 +1271,7 @@ public class SymbolReader
             // TODO: We might want to cache this provider globally (across stack traces),
             // since decompressing embedded PDB takes some time.
             provider = peReader.ReadEmbeddedPortablePdbDebugDirectoryData(embeddedPdbEntry);
-            result = new OpenedReader(provider, provider.GetMetadataReader());
+            result = new OpenedReader(provider, provider.GetMetadataReader(), null);
         }
         catch (Exception e) when (e is BadImageFormatException || e is IOException)
         {

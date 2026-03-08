@@ -443,7 +443,7 @@
 +   isUserCode?: boolean;
 -   version?: string;
 +   symbolStatus?: string;
--   symbolFilePath?: string;
++   symbolFilePath?: string;
 -   dateTimeStamp?: string;
 -   addressRange?: string;
 ```

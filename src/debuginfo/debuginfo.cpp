@@ -181,7 +181,7 @@ std::string GetFileName(const std::string &path)
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
-HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
+HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::string &pdbPath)
 {
     HRESULT Status = S_OK;
     BOOL isDynamic = FALSE;
@@ -224,7 +224,8 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
         peSize,
         0,          // inMemoryPdbAddress
         0,          // inMemoryPdbSize
-        ppSymbolReaderHandle
+        ppSymbolReaderHandle,
+        pdbPath
     );
 }
 
@@ -490,7 +491,7 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
     module.name = GetFileName(module.path);
 
     void *pSymbolReaderHandle = nullptr;
-    LoadSymbols(pModule, &pSymbolReaderHandle);
+    LoadSymbols(pModule, &pSymbolReaderHandle, module.symbolFilePath);
     module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
     if (module.symbolStatus == SymbolStatus::Loaded)

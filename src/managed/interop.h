@@ -90,8 +90,8 @@ void Init(const std::string &coreClrPath);
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
 void Shutdown();
 
-HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
-                                  uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle);
+HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress, uint64_t peSize,
+                                  uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle, std::string &pdbPath);
 void DisposeSymbols(void *pSymbolReaderHandle);
 HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
 HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,

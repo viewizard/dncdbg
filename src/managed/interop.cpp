@@ -257,7 +257,7 @@ coreclr_shutdown_ptr shutdownCoreClr = nullptr;
 // Important! In case of usage pointer to variable as delegate arg, make sure it have proper size for CoreCLR!
 // For example, native code "int" != managed code "int", since managed code "int" is 4 byte fixed size.
 using ReadMemoryDelegate = int (*)(uint64_t, char *, int32_t);
-using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate);
+using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate, BSTR *);
 using DisposeDelegate = void (*)(void *);
 using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
 using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
@@ -317,7 +317,7 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
 
 HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
                                   uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize,
-                                  void **ppSymbolReaderHandle)
+                                  void **ppSymbolReaderHandle, std::string &pdbPath)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((loadSymbolsForModuleDelegate == nullptr) || (ppSymbolReaderHandle == nullptr))
@@ -332,13 +332,20 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
     {
         szModuleName = wModulePath.c_str();
     }
+    BSTR pdbPathBSTR = nullptr;
 
     *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, static_cast<int>(peSize), inMemoryPdbAddress,
-                                                         static_cast<int>(inMemoryPdbSize), ReadMemoryForSymbols);
+                                                         static_cast<int>(inMemoryPdbSize), ReadMemoryForSymbols, &pdbPathBSTR);
 
     if (*ppSymbolReaderHandle == nullptr)
     {
         return E_FAIL;
+    }
+
+    if (pdbPathBSTR != nullptr)
+    {
+        pdbPath = to_utf8(pdbPathBSTR);
+        SysFreeString(pdbPathBSTR);
     }
 
     return S_OK;

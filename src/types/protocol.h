@@ -155,7 +155,7 @@ struct Module
     bool isUserCode;
     // version?: string;
     SymbolStatus symbolStatus;
-    // symbolFilePath?: string;
+    std::string symbolFilePath;
     // dateTimeStamp?: string;
     // addressRange?: string;
 
