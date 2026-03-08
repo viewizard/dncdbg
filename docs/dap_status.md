@@ -439,7 +439,7 @@
 +   id: number | string;
 +   name: string;
 +   path?: string;
--   isOptimized?: boolean;
++   isOptimized?: boolean;
 -   isUserCode?: boolean;
 -   version?: string;
 +   symbolStatus?: string;

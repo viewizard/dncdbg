@@ -552,6 +552,14 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
         }
     }
 
+    ToRelease<ICorDebugModule2> trModule2;
+    DWORD dwFlags = 0;
+    if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))) &&
+        SUCCEEDED(trModule2->GetJITCompilerFlags(&dwFlags)))
+    {
+        module.isOptimized = (dwFlags & 2UL) == 0;
+    }
+
     IfFailRet(GetModuleId(pModule, module.id));
 
     CORDB_ADDRESS baseAddress = 0;

@@ -151,7 +151,7 @@ struct Module
     std::string id;
     std::string name;
     std::string path;
-    // isOptimized?: boolean;
+    bool isOptimized;
     // isUserCode?: boolean;
     // version?: string;
     SymbolStatus symbolStatus;
@@ -159,7 +159,9 @@ struct Module
     // dateTimeStamp?: string;
     // addressRange?: string;
 
-    Module() : symbolStatus(SymbolStatus::Skipped)
+    Module()
+        : isOptimized(true),
+          symbolStatus(SymbolStatus::Skipped)
     {
     }
 };

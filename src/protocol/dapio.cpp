@@ -262,6 +262,8 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
 
     if (event.reason != ModuleEventReason::Removed)
     {
+        module["isOptimized"] = event.module.isOptimized;
+
         switch (event.module.symbolStatus)
         {
         case SymbolStatus::Skipped:
