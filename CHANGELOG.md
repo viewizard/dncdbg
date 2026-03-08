@@ -15,6 +15,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added `hitBreakpointIds` support in Stopped Event.
 - Added `hitCondition` support for SourceBreakpoint and FunctionBreakpoint.
 - Added `isOptimized` support in Module.
+- Added `isUserCode` support in Module.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

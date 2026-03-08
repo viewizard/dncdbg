@@ -263,6 +263,7 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
     if (event.reason != ModuleEventReason::Removed)
     {
         module["isOptimized"] = event.module.isOptimized;
+        module["isUserCode"] = event.module.isUserCode;
 
         switch (event.module.symbolStatus)
         {

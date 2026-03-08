@@ -503,9 +503,12 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
                 trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
             }
 
+            // Note, JMC status should be set for any needJMC value.
             if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
                                                                                // disable JMC on module's types/methods.
             {
+                module.isUserCode = true;
+
                 // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
                 // since this is the only way provide good speed for stepping in case "JMC disabled".
                 // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.

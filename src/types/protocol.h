@@ -152,7 +152,7 @@ struct Module
     std::string name;
     std::string path;
     bool isOptimized;
-    // isUserCode?: boolean;
+    bool isUserCode;
     // version?: string;
     SymbolStatus symbolStatus;
     // symbolFilePath?: string;
@@ -161,6 +161,7 @@ struct Module
 
     Module()
         : isOptimized(true),
+          isUserCode(false),
           symbolStatus(SymbolStatus::Skipped)
     {
     }
