@@ -91,6 +91,33 @@ void to_json(json &j, const Variable &v)
     }
 }
 
+void to_json(json &j, const Module &m)
+{
+    j = json{{"id", m.id},
+             {"name", m.name},
+             {"path", m.path},
+             {"isOptimized", m.isOptimized},
+             {"isUserCode", m.isUserCode}};
+
+    if (!m.symbolFilePath.empty())
+    {
+        j["symbolFilePath"] = m.symbolFilePath;
+    }
+
+    switch (m.symbolStatus)
+    {
+    case SymbolStatus::Skipped:
+        j["symbolStatus"] = "Skipped loading symbols.";
+        break;
+    case SymbolStatus::Loaded:
+        j["symbolStatus"] = "Symbols loaded.";
+        break;
+    case SymbolStatus::NotFound:
+        j["symbolStatus"] = "Symbols not found.";
+        break;
+    }
+}
+
 const std::unordered_map<std::string, ExceptionBreakpointFilter> &DAPIO::GetExceptionFilters()
 {
     static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
@@ -255,34 +282,7 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
         break;
     }
 
-    json &module = body["module"];
-    module["id"] = event.module.id;
-    module["name"] = event.module.name;
-    module["path"] = event.module.path;
-
-    if (event.reason != ModuleEventReason::Removed)
-    {
-        module["isOptimized"] = event.module.isOptimized;
-        module["isUserCode"] = event.module.isUserCode;
-
-        if (!event.module.symbolFilePath.empty())
-        {
-            module["symbolFilePath"] = event.module.symbolFilePath;
-        }
-
-        switch (event.module.symbolStatus)
-        {
-        case SymbolStatus::Skipped:
-            module["symbolStatus"] = "Skipped loading symbols.";
-            break;
-        case SymbolStatus::Loaded:
-            module["symbolStatus"] = "Symbols loaded.";
-            break;
-        case SymbolStatus::NotFound:
-            module["symbolStatus"] = "Symbols not found.";
-            break;
-        }
-    }
+    body["module"] = event.module;
 
     EmitEvent("module", body);
 }
