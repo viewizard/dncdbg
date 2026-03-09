@@ -1,6 +1,15 @@
 ## [Unreleased]
 Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 codebase.
 
+#### DAP
+- Added `allowImplicitFuncEval` configuration option support in Launch Request (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+- Added `hitBreakpointIds` support in Stopped Event.
+- Added `hitCondition` support for SourceBreakpoint and FunctionBreakpoint.
+- Added `isOptimized` support in Module.
+- Added `isUserCode` support in Module.
+- Added `symbolFilePath` support in Module.
+- Fixed Cancel Request, `requestId` is optional parameter now.
+
 #### Added
 - Added TestStdIO.
 - Added shrinked [diagnostics](https://github.com/dotnet/diagnostics) sources v9.0.661903, dbgshim library build now during debugger build.
@@ -8,15 +17,9 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added cppcheck checks.
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
-- Added `allowImplicitFuncEval` configuration option support (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
 - Added methods parameters output in stacktrace.
 - Added active CLR internal frames output in stacktrace.
 - Added proper Just My Code enabled stacktrace.
-- Added `hitBreakpointIds` support in Stopped Event.
-- Added `hitCondition` support for SourceBreakpoint and FunctionBreakpoint.
-- Added `isOptimized` support in Module.
-- Added `isUserCode` support in Module.
-- Added `symbolFilePath` support in Module.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).
@@ -64,5 +67,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed bug in corhost related logic (TPA list creation).
 - Fixed some methods `void *&` (`PVOID &`) parameters to `void **`.
 - Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
-- Fixed Cancel Request, `requestId` is optional parameter now.
 - Fixed exception type name fail handling logic in GetExceptionDetails().
