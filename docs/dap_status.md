@@ -121,9 +121,9 @@
 +   name: string;
 +   systemProcessId?: number;
 +   isLocalProcess?: boolean;
-+   startMethod?: 'launch' 
--               | 'attach' | 'attachForSuspendedLaunch';
--   pointerSize?: number;
++   startMethod?: 'launch' | 'attach'
+-               | 'attachForSuspendedLaunch';
++   pointerSize?: number;
 ```
 #### CapabilitiesEvent
 ```diff

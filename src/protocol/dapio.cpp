@@ -168,6 +168,7 @@ void DAPIO::EmitProcessEvent(PID pid, const std::string &name, StartMethod start
     body["name"] = name;
     body["systemProcessId"] = PID::ScalarType(pid);
     body["isLocalProcess"] = true;
+    body["pointerSize"] = sizeof(void *) * CHAR_BIT;
 
     assert(startMethod != StartMethod::None);
 
