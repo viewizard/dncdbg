@@ -9,6 +9,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added `isUserCode` support in Module.
 - Added `symbolFilePath` support in Module.
 - Added Module Event with `removed` reason on module unload.
+- Added Process Event with `attach` start method on attach to debuggee process.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added

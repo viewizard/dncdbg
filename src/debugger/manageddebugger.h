@@ -44,13 +44,6 @@ enum class ProcessAttachedState
     Unattached
 };
 
-enum class StartMethod
-{
-    None,
-    Launch,
-    Attach
-};
-
 enum class DisconnectAction
 {
     Default, // Attach -> Detach, Launch -> Terminate

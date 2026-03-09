@@ -161,14 +161,26 @@ void DAPIO::SetupProtocolLogging(const std::string &path)
     m_protocolLog.open(path);
 }
 
-void DAPIO::EmitProcessEvent(PID pid, const std::string &argv0)
+void DAPIO::EmitProcessEvent(PID pid, const std::string &name, StartMethod startMethod)
 {
     json body;
 
-    body["name"] = argv0;
+    body["name"] = name;
     body["systemProcessId"] = PID::ScalarType(pid);
     body["isLocalProcess"] = true;
-    body["startMethod"] = "launch";
+
+    assert(startMethod != StartMethod::None);
+
+    switch (startMethod)
+    {
+    case StartMethod::Attach:
+        body["startMethod"] = "attach";
+        break;
+    case StartMethod::Launch:
+    default:
+        body["startMethod"] = "launch";
+        break;
+    }
 
     EmitEvent("process", body);
 }

@@ -682,7 +682,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         return E_FAIL;
     }
 
-    DAPIO::EmitProcessEvent(PID{m_processId}, fileExec);
+    DAPIO::EmitProcessEvent(PID{m_processId}, fileExec, m_startMethod);
 
     return S_OK;
 }
@@ -835,6 +835,8 @@ HRESULT ManagedDebugger::AttachToProcess()
 
     m_unregisterToken = nullptr;
     IfFailRet(Startup(trCordb));
+
+    DAPIO::EmitProcessEvent(PID{m_processId}, "dotnet", m_startMethod);
 
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,

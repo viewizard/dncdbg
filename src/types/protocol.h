@@ -167,6 +167,13 @@ struct Module
     }
 };
 
+enum class StartMethod
+{
+    None,
+    Launch,
+    Attach
+};
+
 enum class StoppedEventReason
 {
     Step,
