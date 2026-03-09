@@ -8,6 +8,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added `isOptimized` support in Module.
 - Added `isUserCode` support in Module.
 - Added `symbolFilePath` support in Module.
+- Added Module Event with `removed` reason on module unload.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added

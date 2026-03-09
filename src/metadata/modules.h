@@ -28,6 +28,7 @@ class Modules
     // Note, methods below must be called from ManagedCallback only,
     // since we don't provide any synchronization for m_moduleList.
     Module &GetNewModuleRef();
+    HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
 
   private:
 

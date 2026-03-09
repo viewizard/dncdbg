@@ -93,4 +93,27 @@ Module &Modules::GetNewModuleRef()
     return m_moduleList.back();
 }
 
+HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
+{
+    HRESULT Status = S_OK;
+    std::string id;
+    IfFailRet(GetModuleId(pModule, id));
+
+    for (auto it = m_moduleList.begin(); it != m_moduleList.end();)
+    {
+        if (it->id == id)
+        {
+            removedModule = *it;
+            m_moduleList.erase(it);
+            return S_OK;
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    return E_INVALIDARG;
+}
+
 } // namespace dncdbg
