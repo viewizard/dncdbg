@@ -24,6 +24,7 @@ class Modules
 
     static HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id);
     static std::string GetModuleFileName(ICorDebugModule *pModule);
+    static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &errorText);
 
     // Note, methods below must be called from ManagedCallback only,
     // since we don't provide any synchronization for m_moduleList.

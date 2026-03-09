@@ -5,7 +5,6 @@
 
 #include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
-#include "metadata/jmc.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/filesystem.h"
@@ -402,97 +401,36 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     return S_OK;
 }
 
-HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
+void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, std::string &errorText)
 {
-    HRESULT Status = S_OK;
-
-    module.path = Modules::GetModuleFileName(pModule);
-    module.name = GetFileName(module.path);
-
     void *pSymbolReaderHandle = nullptr;
     LoadSymbols(pModule, &pSymbolReaderHandle, module.symbolFilePath);
     module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
-        ToRelease<ICorDebugModule2> trModule2;
-        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
-        {
-            if (!needJMC)
-            {
-                trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
-            }
-
-            // Note, JMC status should be set for any needJMC value.
-            if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
-                                                                               // disable JMC on module's types/methods.
-            {
-                module.isUserCode = true;
-
-                // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
-                // since this is the only way provide good speed for stepping in case "JMC disabled".
-                // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.
-
-                // https://docs.microsoft.com/en-us/visualstudio/debugger/just-my-code
-                // The .NET debugger considers optimized binaries and non-loaded .pdb files to be non-user code.
-                // Three compiler attributes also affect what the .NET debugger considers to be user code:
-                // * DebuggerNonUserCodeAttribute tells the debugger that the code it's applied to isn't user code.
-                // * DebuggerHiddenAttribute hides the code from the debugger, even if Just My Code is turned off.
-                // * DebuggerStepThroughAttribute tells the debugger to step through the code it's applied to, rather
-                // than step into the code. The .NET debugger considers all other code to be user code.
-                if (needJMC)
-                {
-                    DisableJMCByAttributes(pModule);
-                }
-            }
-            else if (Status == CORDBG_E_CANT_SET_TO_JMC)
-            {
-                if (needJMC)
-                {
-                    outputText = "You are debugging a Release build of " + module.name +
-                                 ". Using Just My Code with Release builds using compiler optimizations results in a "
-                                 "degraded debugging experience (e.g. breakpoints will not be hit).";
-                }
-                else
-                {
-                    outputText = "You are debugging a Release build of " + module.name +
-                                 ". Without Just My Code Release builds try not to use compiler optimizations, but in "
-                                 "some cases (e.g. attach) this still results in a degraded debugging experience (e.g. "
-                                 "breakpoints will not be hit).";
-                }
-            }
-        }
-
         ToRelease<IUnknown> trUnknown;
         ToRelease<IMetaDataImport> trMDImport;
         if (FAILED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
             FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) ||
             FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
         {
-            outputText = "Could not load source lines related info from PDB file. Could produce failures during "
-                         "breakpoint's source path resolve in future.";
+            errorText += "Could not load source lines related info from PDB file. Could produce failures during "
+                         "breakpoint's source path resolve in future.\n";
         }
     }
 
-    ToRelease<ICorDebugModule2> trModule2;
-    DWORD dwFlags = 0;
-    if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))) &&
-        SUCCEEDED(trModule2->GetJITCompilerFlags(&dwFlags)))
-    {
-        module.isOptimized = (dwFlags & 2UL) == 0;
-    }
-
-    IfFailRet(Modules::GetModuleId(pModule, module.id));
-
     CORDB_ADDRESS baseAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&baseAddress));
+    if (FAILED(pModule->GetBaseAddress(&baseAddress)))
+    {
+        errorText += "Could not find module base address.\n";
+        return;
+    }
 
     pModule->AddRef();
     PDBInfo mdInfo{pSymbolReaderHandle, pModule};
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
     m_debugInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
-
-    return S_OK;
 }
 
 HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,

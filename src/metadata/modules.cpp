@@ -4,6 +4,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/modules.h"
+#include "metadata/jmc.h"
+#include "utils/filesystem.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
@@ -85,6 +87,77 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
     std::ostringstream ss;
     ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());
     return ss.str();
+}
+
+void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &errorText)
+{
+    module.path = Modules::GetModuleFileName(pModule);
+    module.name = GetFileName(module.path);
+
+    if (module.symbolStatus == SymbolStatus::Loaded)
+    {
+        ToRelease<ICorDebugModule2> trModule2;
+        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
+        {
+            if (!needJMC)
+            {
+                trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
+            }
+
+            HRESULT Status = S_OK;
+            // Note, JMC status should be set for any needJMC value.
+            if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
+                                                                               // disable JMC on module's types/methods.
+            {
+                module.isUserCode = true;
+
+                // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
+                // since this is the only way provide good speed for stepping in case "JMC disabled".
+                // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.
+
+                // https://docs.microsoft.com/en-us/visualstudio/debugger/just-my-code
+                // The .NET debugger considers optimized binaries and non-loaded .pdb files to be non-user code.
+                // Three compiler attributes also affect what the .NET debugger considers to be user code:
+                // * DebuggerNonUserCodeAttribute tells the debugger that the code it's applied to isn't user code.
+                // * DebuggerHiddenAttribute hides the code from the debugger, even if Just My Code is turned off.
+                // * DebuggerStepThroughAttribute tells the debugger to step through the code it's applied to, rather
+                // than step into the code. The .NET debugger considers all other code to be user code.
+                if (needJMC)
+                {
+                    DisableJMCByAttributes(pModule);
+                }
+            }
+            else if (Status == CORDBG_E_CANT_SET_TO_JMC)
+            {
+                if (needJMC)
+                {
+                    errorText += "You are debugging a Release build of " + module.name +
+                                 ". Using Just My Code with Release builds using compiler optimizations results in a "
+                                 "degraded debugging experience (e.g. breakpoints will not be hit).";
+                }
+                else
+                {
+                    errorText += "You are debugging a Release build of " + module.name +
+                                 ". Without Just My Code Release builds try not to use compiler optimizations, but in "
+                                 "some cases (e.g. attach) this still results in a degraded debugging experience (e.g. "
+                                 "breakpoints will not be hit).";
+                }
+            }
+        }
+    }
+
+    ToRelease<ICorDebugModule2> trModule2;
+    DWORD dwFlags = 0;
+    if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))) &&
+        SUCCEEDED(trModule2->GetJITCompilerFlags(&dwFlags)))
+    {
+        module.isOptimized = (dwFlags & 2UL) == 0;
+    }
+
+    if (FAILED(Modules::GetModuleId(pModule, module.id)))
+    {
+        errorText += "Could not calculate module ID for module" + module.name + ".";
+    }
 }
 
 Module &Modules::GetNewModuleRef()

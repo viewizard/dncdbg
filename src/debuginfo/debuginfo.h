@@ -78,7 +78,7 @@ class DebugInfo
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 
-    HRESULT TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText);
+    void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, std::string &errorText);
 
     void Cleanup();
 
