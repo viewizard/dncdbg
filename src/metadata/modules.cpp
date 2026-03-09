@@ -99,10 +99,8 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
         ToRelease<ICorDebugModule2> trModule2;
         if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
         {
-            if (!needJMC)
-            {
-                trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
-            }
+            // Try to disable optimization for all modules with debug info.
+            trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
 
             HRESULT Status = S_OK;
             // Note, JMC status should be set for any needJMC value.
@@ -129,19 +127,9 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
             }
             else if (Status == CORDBG_E_CANT_SET_TO_JMC)
             {
-                if (needJMC)
-                {
-                    errorText += "You are debugging a Release build of " + module.name +
-                                 ". Using Just My Code with Release builds using compiler optimizations results in a "
-                                 "degraded debugging experience (e.g. breakpoints will not be hit).";
-                }
-                else
-                {
-                    errorText += "You are debugging a Release build of " + module.name +
-                                 ". Without Just My Code Release builds try not to use compiler optimizations, but in "
-                                 "some cases (e.g. attach) this still results in a degraded debugging experience (e.g. "
-                                 "breakpoints will not be hit).";
-                }
+                errorText += "You are debugging a Release build of " + module.name + ". Disabling JIT "
+                             "optimizations failed, in some cases (e.g. attach) this results in a "
+                             "degraded debugging experience (e.g. breakpoints will not be hit).\n";
             }
         }
     }
@@ -156,7 +144,7 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
 
     if (FAILED(Modules::GetModuleId(pModule, module.id)))
     {
-        errorText += "Could not calculate module ID for module" + module.name + ".";
+        errorText += "Could not calculate module ID for module " + module.name + ".\n";
     }
 }
 
