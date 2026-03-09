@@ -8,7 +8,6 @@
 #include "metadata/jmc.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
-#include "utils/logger.h"
 #include <array>
 #include <vector>
 
@@ -470,14 +469,13 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
         }
 
         ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        if (FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
+        if (FAILED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
+            FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) ||
+            FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
         {
-            LOGE("Could not load source lines related info from PDB file. Could produce failures during breakpoint's "
-                 "source path resolve in future.");
+            outputText = "Could not load source lines related info from PDB file. Could produce failures during "
+                         "breakpoint's source path resolve in future.";
         }
     }
 
