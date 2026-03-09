@@ -6,6 +6,7 @@
 #include "debuginfo/debuginfo_sources.h"
 #include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
+#include "utils/filesystem.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>
@@ -304,12 +305,6 @@ HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandl
 
     inputData.reset(static_cast<module_methods_data_t *>(data));
     return S_OK;
-}
-
-std::string GetFileName(const std::string &path)
-{
-    const std::size_t i = path.find_last_of("/\\");
-    return i == std::string::npos ? path : path.substr(i + 1);
 }
 
 } // unnamed namespace

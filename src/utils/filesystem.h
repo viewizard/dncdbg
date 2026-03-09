@@ -52,4 +52,6 @@ std::string_view GetTempDir();
 // if argument is not the file name, but the path which includes directory names.
 bool IsFullPath(const std::string &path);
 
+std::string GetFileName(const std::string &path);
+
 } // namespace dncdbg

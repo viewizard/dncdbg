@@ -48,6 +48,7 @@ set(dncdbg_SRC
     metadata/typeprinter.cpp
     protocol/dap.cpp
     protocol/dapio.cpp
+    types/protocol.cpp
     types/types.cpp
     utils/dynlibs_unix.cpp
     utils/dynlibs_win32.cpp

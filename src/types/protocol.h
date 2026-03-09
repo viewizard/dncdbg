@@ -39,24 +39,12 @@ struct Source
     // adapterData?: any;
     // checksums?: Checksum[];
 
-    Source(const std::string &path = {}) 
-      : name(GetFileName(path)),
-        path(path)
-    {
-    }
+    Source(const std::string &path = {});
+
     bool IsNull() const
     {
         return name.empty() && path.empty();
     }
-
-private:
-
-    std::string GetFileName(const std::string &path)
-    {
-        const std::size_t i = path.find_last_of("/\\");
-        return i == std::string::npos ? path : path.substr(i + 1);
-    }
-
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_StackFrame

@@ -23,4 +23,10 @@ bool IsFullPath(const std::string &path)
     return pos != std::string::npos;
 }
 
+std::string GetFileName(const std::string &path)
+{
+    const std::size_t i = path.find_last_of("/\\");
+    return i == std::string::npos ? path : path.substr(i + 1);
+}
+
 } // namespace dncdbg

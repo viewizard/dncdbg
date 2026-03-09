@@ -8,6 +8,7 @@
 #include "metadata/jmc.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
+#include "utils/filesystem.h"
 #include <array>
 #include <vector>
 
@@ -171,12 +172,6 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
         };
 
     return ForEachMethod(pModule, functor);
-}
-
-std::string GetFileName(const std::string &path)
-{
-    const std::size_t i = path.find_last_of("/\\");
-    return i == std::string::npos ? path : path.substr(i + 1);
 }
 
 HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::string &pdbPath)
