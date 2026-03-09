@@ -6,6 +6,7 @@
 #include "debugger/breakpoints/breakpoint_entry.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "utils/utf.h"
 #include <array>
 #include <string>
@@ -201,7 +202,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     }
 
     HRESULT Status = S_OK;
-    mdMethodDef entryPointToken = GetEntryPointTokenFromFile(GetModuleFileName(pModule));
+    mdMethodDef entryPointToken = GetEntryPointTokenFromFile(Modules::GetModuleFileName(pModule));
     // Note, by some reason, in CoreCLR 6.0 System.Private.CoreLib.dll have Token "0" as entry point RVA.
     if (entryPointToken == mdMethodDefNil ||
         TypeFromToken(entryPointToken) != mdtMethodDef)

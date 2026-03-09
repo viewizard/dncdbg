@@ -6,11 +6,10 @@
 #include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
 #include "metadata/jmc.h"
+#include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include <array>
-#include <iomanip>
-#include <sstream>
 #include <vector>
 
 namespace dncdbg
@@ -217,7 +216,7 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
     }
 
     return Interop::LoadSymbolsForPortablePDB(
-        GetModuleFileName(pModule),
+        Modules::GetModuleFileName(pModule),
         isInMemory,
         isInMemory, // isFileLayout
         peBufAddress,
@@ -243,45 +242,6 @@ void DebugInfo::Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
     m_debugInfo.clear();
-}
-
-std::string GetModuleFileName(ICorDebugModule *pModule)
-{
-    std::array<WCHAR, mdNameLen> name{};
-    uint32_t name_len = 0;
-
-    if (FAILED(pModule->GetName(mdNameLen, &name_len, name.data())))
-    {
-        return {};
-    }
-
-    std::string moduleName = to_utf8(name.data());
-
-    // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
-    // This path is invalid in debugger process, we should change `self` to `<debugee process id>`
-    static const std::string selfPrefix("/proc/self/");
-
-    if (moduleName.compare(0, selfPrefix.size(), selfPrefix) != 0)
-    {
-        return moduleName;
-    }
-
-    ToRelease<ICorDebugProcess> trProcess;
-    if (FAILED(pModule->GetProcess(&trProcess)))
-    {
-        return {};
-    }
-
-    DWORD pid = 0;
-
-    if (FAILED(trProcess->GetID(&pid)))
-    {
-        return {};
-    }
-
-    std::ostringstream ss;
-    ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());
-    return ss.str();
 }
 
 HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
@@ -448,46 +408,11 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     return S_OK;
 }
 
-HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-    GUID mvid;
-    IfFailRet(trMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
-
-    static constexpr uint32_t widthMvid8 = 8;
-    static constexpr uint32_t widthMvid4 = 4;
-    static constexpr uint32_t widthMvid2 = 2;
-    static constexpr int mvidMask = 0xFF;
-    std::ostringstream ss;
-    ss << std::hex
-    << std::setfill('0') << std::setw(widthMvid8) << mvid.Data1 << "-"
-    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data2 << "-"
-    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data3 << "-"
-    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[0]) & mvidMask)
-    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[1]) & mvidMask)
-    << "-";
-    static constexpr uint32_t startChar = 2;
-    static constexpr uint32_t endChar = 8;
-    for (int i = startChar; i < endChar; i++)
-    {
-        ss << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask);
-    }
-
-    id = ss.str();
-
-    return S_OK;
-}
-
 HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &outputText)
 {
     HRESULT Status = S_OK;
 
-    module.path = GetModuleFileName(pModule);
+    module.path = Modules::GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
 
     void *pSymbolReaderHandle = nullptr;
@@ -564,7 +489,7 @@ HRESULT DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module
         module.isOptimized = (dwFlags & 2UL) == 0;
     }
 
-    IfFailRet(GetModuleId(pModule, module.id));
+    IfFailRet(Modules::GetModuleId(pModule, module.id));
 
     CORDB_ADDRESS baseAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&baseAddress));
@@ -631,7 +556,7 @@ HRESULT DebugInfo::GetModuleWithName(const std::string &name, ICorDebugModule **
     {
         const PDBInfo &mdInfo = info_pair.second;
 
-        const std::string path = GetModuleFileName(mdInfo.m_trModule);
+        const std::string path = Modules::GetModuleFileName(mdInfo.m_trModule);
 
         if (GetFileName(path) == name)
         {

@@ -293,7 +293,7 @@ enum class ModuleEventReason
 struct ModuleEvent
 {
     ModuleEventReason reason;
-    Module module;
+    const Module &module;
 
     ModuleEvent(ModuleEventReason reason, const Module &module)
         : reason(reason),

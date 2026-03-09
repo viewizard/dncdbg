@@ -16,6 +16,7 @@
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "managed/interop.h"
+#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "protocol/dapio.h"
 #include "utils/logger.h"
 #include "utils/waitpid.h"
@@ -285,7 +286,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
-    Module module;
+    Module &module = m_debugger.m_sharedModules->GetNewModuleRef();
     std::string outputText;
     m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module, m_debugger.IsJustMyCode(), outputText);
     if (!outputText.empty())

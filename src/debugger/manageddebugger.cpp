@@ -21,6 +21,7 @@
 #include "debugger/variables.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
 #include "utils/waitpid.h"
@@ -323,6 +324,7 @@ ManagedDebugger::ManagedDebugger()
       m_isConfigurationDone(false),
       m_sharedThreads(new Threads),
       m_sharedDebugInfo(new DebugInfo),
+      m_sharedModules(new Modules),
       m_sharedEvalWaiter(new EvalWaiter),
       m_sharedEvalHelpers(new EvalHelpers(m_sharedDebugInfo, m_sharedEvalWaiter)),
       m_sharedEvalStackMachine(new EvalStackMachine),
@@ -905,7 +907,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
         stackFrame.endColumn = sp.endColumn;
     }
 
-    IfFailRet(GetModuleId(trModule, stackFrame.moduleId));
+    IfFailRet(Modules::GetModuleId(trModule, stackFrame.moduleId));
 
     return S_OK;
 }

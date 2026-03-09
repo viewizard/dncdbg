@@ -23,9 +23,6 @@
 namespace dncdbg
 {
 
-HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id);
-std::string GetModuleFileName(ICorDebugModule *pModule);
-
 struct PDBInfo
 {
     void *m_symbolReaderHandle = nullptr;

@@ -7,6 +7,7 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "utils/logger.h"
 #include <sstream>
 #include <unordered_set>
@@ -83,8 +84,8 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         {
             LOGW("During breakpoint resolve, multiple modules with same source file path was detected.");
             LOGW("File name: %s", bp_fullname.c_str());
-            LOGW("Breakpoint activated in module: %s", GetModuleFileName(resolvedPoints[0].trModule).c_str());
-            LOGW("Ignored module: %s", GetModuleFileName(resolvedBP.trModule).c_str());
+            LOGW("Breakpoint activated in module: %s", Modules::GetModuleFileName(resolvedPoints[0].trModule).c_str());
+            LOGW("Ignored module: %s", Modules::GetModuleFileName(resolvedBP.trModule).c_str());
             continue;
         }
 
