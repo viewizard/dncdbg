@@ -540,7 +540,8 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         if (FAILED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalHelpers.get(), &trValue)) ||
             FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_trHandleValueAsyncId))) ||
             FAILED(m_asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
-            handleType != CorDebugHandleType::HANDLE_STRONG) // Note, we need only strong handle here, that will not invalidated on continue-break.
+            // Note, we need only strong or pinned handle here, that will not invalidated on continue-break.
+            handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
         {
             m_asyncStep->m_trHandleValueAsyncId.Free();
             LOGE("Could not setup handle with async ID for await block");

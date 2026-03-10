@@ -298,7 +298,8 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
 
     CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
     if (FAILED(trHandleValue->GetHandleType(&handleType)) ||
-        handleType != CorDebugHandleType::HANDLE_STRONG)
+        // Note, we need only strong or pinned handle here, that will not invalidated on continue-break.
+        handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
     {
         return E_FAIL;
     }
