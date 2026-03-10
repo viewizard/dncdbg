@@ -7,7 +7,7 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestNoJMCNoFilterStepping
+namespace TestStepping_NoJMCNoFilter
 {
 public readonly struct Digit
 {

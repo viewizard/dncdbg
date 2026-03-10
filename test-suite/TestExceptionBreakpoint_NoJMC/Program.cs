@@ -7,7 +7,7 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestNoJMCExceptionBreakpoint
+namespace TestExceptionBreakpoint_NoJMC
 {
 class inside_user_code
 {

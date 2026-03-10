@@ -9,7 +9,7 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestNoJMCAsyncStepping
+namespace TestAsyncStepping_NoJMC
 {
 class Program
 {

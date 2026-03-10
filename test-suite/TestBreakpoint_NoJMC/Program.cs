@@ -7,7 +7,7 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestNoJMCBreakpoint
+namespace TestBreakpoint_NoJMC
 {
 class Program
 {
