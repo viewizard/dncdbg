@@ -2,7 +2,9 @@
 
 ALL_TEST_NAMES=(
     "TestBreakpoint"
+    "TestBreakpoint_Release"
     "TestBreakpoint_NoJMC"
+    "TestBreakpoint_NoJMC_Release"
     "TestFuncBreak"
     "TestAttach"
     "TestPause"
@@ -51,7 +53,15 @@ test_count=0
 test_list=""
 
 for TEST_NAME in $TEST_NAMES; do
-    dotnet build $TEST_NAME || {
+
+    BUILD_TYPE=Debug
+
+    if  [[ $TEST_NAME == *_Release ]] ;
+    then
+        BUILD_TYPE=Release
+    fi
+
+    dotnet build -c $BUILD_TYPE $TEST_NAME || {
         echo "$TEST_NAME: build error." >&2
         test_fail=$(($test_fail + 1))
         test_list="$test_list$TEST_NAME ... failed: build error\n"
@@ -67,7 +77,7 @@ for TEST_NAME in $TEST_NAMES; do
         --local $DNCDBG \
         --test $TEST_NAME \
         --sources "$SOURCE_FILES" \
-        --assembly $TEST_NAME/bin/Debug/net10.0/$TEST_NAME.dll
+        --assembly $TEST_NAME/bin/$BUILD_TYPE/net10.0/$TEST_NAME.dll
 
     if [ "$?" -ne "0" ]; then
         test_fail=$(($test_fail + 1))

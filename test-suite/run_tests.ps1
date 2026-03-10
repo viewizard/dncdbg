@@ -8,7 +8,9 @@ $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Obj
 
 $ALL_TEST_NAMES = @(
     "TestBreakpoint"
+    "TestBreakpoint_Release"
     "TestBreakpoint_NoJMC"
+    "TestBreakpoint_NoJMC_Release"
     "TestFuncBreak"
     "TestAttach"
     "TestPause"
@@ -61,7 +63,13 @@ $test_list = ""
 
 # Build, push and run tests
 foreach ($TEST_NAME in $TEST_NAMES) {
-    dotnet build $TEST_NAME
+
+    $BUILD_TYPE = "Debug"
+    if ($TEST_NAME.EndsWith("_Release")) {
+        $BUILD_TYPE = "Release"
+    }
+
+    dotnet build -c $BUILD_TYPE $TEST_NAME
     if ($lastexitcode -ne 0) {
         $test_fail++
         $test_list = "$test_list$TEST_NAME ... failed: build error`n"
@@ -79,7 +87,7 @@ foreach ($TEST_NAME in $TEST_NAMES) {
         --local $DNCDBG `
         --test $TEST_NAME `
         --sources $SOURCE_FILES `
-        --assembly $TEST_NAME/bin/Debug/net10.0/$TEST_NAME.dll
+        --assembly $TEST_NAME/bin/$BUILD_TYPE/net10.0/$TEST_NAME.dll
 
     if($?)
     {
