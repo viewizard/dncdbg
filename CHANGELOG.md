@@ -11,6 +11,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added Module Event with `removed` reason on module unload.
 - Added Process Event with `attach` start method on attach to debuggee process.
 - Added `pointerSize` support in Process Event.
+- Added `addressRange` support in Module.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added

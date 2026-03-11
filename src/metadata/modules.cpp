@@ -145,6 +145,23 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
     {
         errorText += "Could not calculate module ID for module " + module.name + ".\n";
     }
+
+    CORDB_ADDRESS moduleBaseAddress = 0;
+    uint32_t moduleSize = 0;
+    if (SUCCEEDED(pModule->GetBaseAddress(&moduleBaseAddress)) &&
+        SUCCEEDED(pModule->GetSize(&moduleSize)))
+    {
+        static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
+        std::ostringstream ss;
+        ss << "0x" << std::hex << std::setfill('0')
+           << std::setw(addrSize) << moduleBaseAddress << "-0x"
+           << std::setw(addrSize) << moduleBaseAddress + moduleSize;
+        module.addressRange = ss.str();
+    }
+    else
+    {
+        errorText += "Could not calculate module address range.\n";
+    }
 }
 
 Module &Modules::GetNewModuleRef()

@@ -445,7 +445,7 @@
 +   symbolStatus?: string;
 +   symbolFilePath?: string;
 -   dateTimeStamp?: string;
--   addressRange?: string;
++   addressRange?: string;
 ```
 #### Thread
 ```diff

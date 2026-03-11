@@ -104,6 +104,11 @@ void to_json(json &j, const Module &m)
         j["symbolFilePath"] = m.symbolFilePath;
     }
 
+    if (!m.addressRange.empty())
+    {
+        j["addressRange"] = m.addressRange;
+    }
+
     switch (m.symbolStatus)
     {
     case SymbolStatus::Skipped:

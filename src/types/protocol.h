@@ -145,7 +145,7 @@ struct Module
     SymbolStatus symbolStatus;
     std::string symbolFilePath;
     // dateTimeStamp?: string;
-    // addressRange?: string;
+    std::string addressRange;
 
     Module()
         : isOptimized(true),
