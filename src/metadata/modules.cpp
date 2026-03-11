@@ -31,18 +31,17 @@ HRESULT Modules::GetModuleId(ICorDebugModule *pModule, std::string &id)
     static constexpr uint32_t widthMvid2 = 2;
     static constexpr int mvidMask = 0xFF;
     std::ostringstream ss;
-    ss << std::hex
-    << std::setfill('0') << std::setw(widthMvid8) << mvid.Data1 << "-"
-    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data2 << "-"
-    << std::setfill('0') << std::setw(widthMvid4) << mvid.Data3 << "-"
-    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[0]) & mvidMask)
-    << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[1]) & mvidMask)
-    << "-";
+    ss << std::hex << std::setfill('0')
+       << std::setw(widthMvid8) << mvid.Data1 << "-"
+       << std::setw(widthMvid4) << mvid.Data2 << "-"
+       << std::setw(widthMvid4) << mvid.Data3 << "-"
+       << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[0]) & mvidMask)
+       << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[1]) & mvidMask) << "-";
     static constexpr uint32_t startChar = 2;
     static constexpr uint32_t endChar = 8;
     for (int i = startChar; i < endChar; i++)
     {
-        ss << std::setfill('0') << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask);
+        ss << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask);
     }
 
     id = ss.str();
