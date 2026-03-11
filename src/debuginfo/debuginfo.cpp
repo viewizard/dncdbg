@@ -421,16 +421,17 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, s
     }
 
     CORDB_ADDRESS baseAddress = 0;
-    if (FAILED(pModule->GetBaseAddress(&baseAddress)))
+    if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
+    {
+        pModule->AddRef();
+        PDBInfo mdInfo{pSymbolReaderHandle, pModule};
+        const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+        m_debugInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
+    }
+    else
     {
         errorText += "Could not find module base address.\n";
-        return;
     }
-
-    pModule->AddRef();
-    PDBInfo mdInfo{pSymbolReaderHandle, pModule};
-    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-    m_debugInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
 }
 
 HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
