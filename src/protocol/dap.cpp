@@ -193,20 +193,20 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
 } // unnamed namespace
 
-HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body)
+HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
-    using CommandCallback = std::function<HRESULT(const json &arguments, json &body)>;
+    using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
     static std::unordered_map<std::string, CommandCallback> commands{
-        {"initialize", [&](const json &/*arguments*/, json &body)
+        {"initialize", [&](const json &/*arguments*/, json &responseBody)
             {
                 m_sharedDebugger->Initialize();
                 // clientID, clientName, adapterID - not in use now
 
-                DAPIO::AddCapabilitiesTo(body);
+                DAPIO::AddCapabilitiesTo(responseBody);
 
                 return S_OK;
             }},
-        {"setExceptionBreakpoints", [&](const json &arguments, json &/*body*/)
+        {"setExceptionBreakpoints", [&](const json &arguments, json &/*responseBody*/)
             {
                 const std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
                 std::vector<std::map<std::string, std::string>> filterOptions =
@@ -276,29 +276,29 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
-                // TODO form body with breakpoints (optional output, MS vsdbg don't provide it for VSCode IDE now)
-                // body["breakpoints"] = breakpoints;
+                // TODO form responseBody with breakpoints (optional output, MS vsdbg don't provide it for VSCode IDE now)
+                // responseBody["breakpoints"] = breakpoints;
 
                 return S_OK;
             }},
-        {"configurationDone", [&](const json &/*arguments*/, json &/*body*/)
+        {"configurationDone", [&](const json &/*arguments*/, json &/*responseBody*/)
             {
                 return m_sharedDebugger->ConfigurationDone(); 
             }},
-        {"exceptionInfo", [&](const json &arguments, json &body)
+        {"exceptionInfo", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
                 IfFailRet(m_sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
 
-                body["exceptionId"] = exceptionInfo.exceptionId;
-                body["description"] = exceptionInfo.description;
-                body["breakMode"] = exceptionInfo.breakMode;
-                body["details"] = FormJsonForExceptionDetails(exceptionInfo.details);
+                responseBody["exceptionId"] = exceptionInfo.exceptionId;
+                responseBody["description"] = exceptionInfo.description;
+                responseBody["breakMode"] = exceptionInfo.breakMode;
+                responseBody["details"] = FormJsonForExceptionDetails(exceptionInfo.details);
                 return S_OK;
             }},
-        {"setBreakpoints", [&](const json &arguments, json &body)
+        {"setBreakpoints", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -312,11 +312,11 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetSourceBreakpoints(arguments.at("source").at("path"), sourceBreakpoints, breakpoints));
 
-                body["breakpoints"] = breakpoints;
+                responseBody["breakpoints"] = breakpoints;
 
                 return S_OK;
             }},
-        {"launch", [&](const json &arguments, json &/*body*/)
+        {"launch", [&](const json &arguments, json &/*responseBody*/)
             {
                 auto cwdIt = arguments.find("cwd");
                 const std::string cwd(cwdIt != arguments.end() ? cwdIt.value().get<std::string>() : std::string{});
@@ -366,17 +366,17 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     return m_sharedDebugger->Launch(program, args, env, cwd, arguments.value("stopAtEntry", false));
                 }
             }},
-        {"threads", [&](const json &/*arguments*/, json &body)
+        {"threads", [&](const json &/*arguments*/, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Thread> threads;
                 IfFailRet(m_sharedDebugger->GetThreads(threads));
 
-                body["threads"] = threads;
+                responseBody["threads"] = threads;
 
                 return S_OK;
             }},
-        {"disconnect", [&](const json &arguments, json &/*body*/)
+        {"disconnect", [&](const json &arguments, json &/*responseBody*/)
             {
                 auto terminateArgIter = arguments.find("terminateDebuggee");
                 DisconnectAction action = DisconnectAction::Default;
@@ -394,12 +394,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"terminate", [&](const json &/*arguments*/, json &/*body*/)
+        {"terminate", [&](const json &/*arguments*/, json &/*responseBody*/)
             {
                 m_sharedDebugger->Disconnect(DisconnectAction::Terminate);
                 return S_OK;
             }},
-        {"stackTrace", [&](const json &arguments, json &body)
+        {"stackTrace", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -409,52 +409,52 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
                                                           static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
-                body["stackFrames"] = stackFrames;
-                body["totalFrames"] = stackFrames.size();
+                responseBody["stackFrames"] = stackFrames;
+                responseBody["totalFrames"] = stackFrames.size();
 
                 return S_OK;
             }},
-        {"continue", [&](const json &arguments, json &body)
+        {"continue", [&](const json &arguments, json &responseBody)
             {
-                body["allThreadsContinued"] = true;
+                responseBody["allThreadsContinued"] = true;
 
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                body["threadId"] = static_cast<int>(threadId);
+                responseBody["threadId"] = static_cast<int>(threadId);
                 return m_sharedDebugger->Continue(threadId);
             }},
-        {"pause", [&](const json &arguments, json &body)
+        {"pause", [&](const json &arguments, json &responseBody)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                body["threadId"] = static_cast<int>(threadId);
+                responseBody["threadId"] = static_cast<int>(threadId);
                 return m_sharedDebugger->Pause(threadId);
             }},
-        {"next", [&](const json &arguments, json &/*body*/)
+        {"next", [&](const json &arguments, json &/*responseBody*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                      StepType::STEP_OVER);
             }},
-        {"stepIn", [&](const json &arguments, json &/*body*/)
+        {"stepIn", [&](const json &arguments, json &/*responseBody*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                      StepType::STEP_IN);
             }},
-        {"stepOut", [&](const json &arguments, json &/*body*/)
+        {"stepOut", [&](const json &arguments, json &/*responseBody*/)
             {
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                      StepType::STEP_OUT);
             }},
-        {"scopes", [&](const json &arguments, json &body)
+        {"scopes", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
                 const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
                 IfFailRet(m_sharedDebugger->GetScopes(frameId, scopes));
 
-                body["scopes"] = scopes;
+                responseBody["scopes"] = scopes;
 
                 return S_OK;
             }},
-        {"variables", [&](const json &arguments, json &body)
+        {"variables", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 const std::string filterName = arguments.value("filter", "");
@@ -473,11 +473,11 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                                          arguments.value("start", 0), arguments.value("count", 0),
                                                          variables));
 
-                body["variables"] = variables;
+                responseBody["variables"] = variables;
 
                 return S_OK;
             }},
-        {"evaluate", [&](const json &arguments, json &body)
+        {"evaluate", [&](const json &arguments, json &responseBody)
             {
                 const std::string expression = arguments.at("expression");
                 const FrameId frameId([&]()
@@ -503,27 +503,27 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         std::stringstream stream;
                         stream << "error: 0x" << std::hex << Status;
-                        body["message"] = stream.str();
+                        responseBody["message"] = stream.str();
                     }
                     else
                     {
-                        body["message"] = output;
+                        responseBody["message"] = output;
                     }
 
                     return Status;
                 }
 
-                body["result"] = variable.value;
-                body["type"] = variable.type;
-                body["variablesReference"] = variable.variablesReference;
+                responseBody["result"] = variable.value;
+                responseBody["type"] = variable.type;
+                responseBody["variablesReference"] = variable.variablesReference;
                 if (variable.variablesReference > 0)
                 {
-                    body["namedVariables"] = variable.namedVariables;
+                    responseBody["namedVariables"] = variable.namedVariables;
                     // indexedVariables
                 }
                 return S_OK;
             }},
-        {"setExpression", [&](const json &arguments, json &body)
+        {"setExpression", [&](const json &arguments, json &responseBody)
             {
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
@@ -549,20 +549,20 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         std::stringstream stream;
                         stream << "error: 0x" << std::hex << Status;
-                        body["message"] = stream.str();
+                        responseBody["message"] = stream.str();
                     }
                     else
                     {
-                        body["message"] = output;
+                        responseBody["message"] = output;
                     }
 
                     return Status;
                 }
 
-                body["value"] = output;
+                responseBody["value"] = output;
                 return S_OK;
             }},
-        {"attach", [&](const json &arguments, json &/*body*/)
+        {"attach", [&](const json &arguments, json &/*responseBody*/)
             {
                 int processId = 0;
 
@@ -582,7 +582,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return m_sharedDebugger->Attach(processId);
             }},
-        {"setVariable", [&](const json &arguments, json &body)
+        {"setVariable", [&](const json &arguments, json &responseBody)
             {
                 const std::string name = arguments.at("name");
                 const std::string value = arguments.at("value");
@@ -592,15 +592,15 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::string output;
                 if (FAILED(Status = m_sharedDebugger->SetVariable(name, value, ref, output)))
                 {
-                    body["message"] = output;
+                    responseBody["message"] = output;
                     return Status;
                 }
 
-                body["value"] = output;
+                responseBody["value"] = output;
 
                 return S_OK;
             }},
-        {"setFunctionBreakpoints", [&](const json &arguments, json &body)
+        {"setFunctionBreakpoints", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -626,19 +626,19 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
-                body["breakpoints"] = breakpoints;
+                responseBody["breakpoints"] = breakpoints;
 
                 return Status;
             }},
-        {"modules", [&](const json &arguments, json &body)
+        {"modules", [&](const json &arguments, json &responseBody)
             {
                 size_t totalModules = 0;
                 std::vector<Module> modules;
                 m_sharedDebugger->GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
                                              modules, totalModules);
 
-                body["modules"] = modules;
-                body["totalModules"] = totalModules;
+                responseBody["modules"] = modules;
+                responseBody["totalModules"] = totalModules;
 
                 return S_OK;
             }}};
@@ -654,19 +654,19 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         return E_NOTIMPL;
     }
 
-    return command_it->second(arguments, body);
+    return command_it->second(arguments, responseBody);
 }
 
-HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body)
+HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
     try
     {
-        return HandleCommand(command, arguments, body);
+        return HandleCommand(command, arguments, responseBody);
     }
     catch (nlohmann::detail::exception &ex)
     {
         LOGE("JSON error: %s", ex.what());
-        body["message"] = std::string("can't parse: ") + ex.what();
+        responseBody["message"] = std::string("can't parse: ") + ex.what();
     }
 
     return E_FAIL;
@@ -699,10 +699,10 @@ void DAP::CommandsWorker()
             break;
         }
 
-        json body = json::object();
+        json responseBody = json::object();
         std::future<HRESULT> future = std::async(std::launch::async, [&]()
             {
-                return HandleCommandJSON(c.command, c.arguments, body);
+                return HandleCommandJSON(c.command, c.arguments, responseBody);
             });
         HRESULT Status = S_OK;
         // Note, CommandsWorker() loop should never hangs, but even in case some command execution is timed out,
@@ -723,7 +723,7 @@ void DAP::CommandsWorker()
         const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
         if (timeoutStatus == std::future_status::timeout)
         {
-            body["message"] = "Command execution timed out.";
+            responseBody["message"] = "Command execution timed out.";
             Status = COR_E_TIMEOUT;
         }
         else
@@ -734,11 +734,11 @@ void DAP::CommandsWorker()
         if (SUCCEEDED(Status))
         {
             c.response["success"] = true;
-            c.response["body"] = body;
+            c.response["body"] = responseBody;
         }
         else
         {
-            if (body.find("message") == body.end())
+            if (responseBody.find("message") == responseBody.end())
             {
                 static constexpr uint32_t hexNumberWidth = 8;
                 std::ostringstream ss;
@@ -748,7 +748,7 @@ void DAP::CommandsWorker()
             }
             else
             {
-                c.response["message"] = body["message"];
+                c.response["message"] = responseBody["message"];
             }
 
             c.response["success"] = false;
@@ -791,11 +791,13 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 void DAP::CommandLoop()
 {
 #ifdef DEBUG
+{
     // nlohmann/json have internal dump serializer and care about escaped characters, test it
-    nlohmann::json body;
-    body["test"] = std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n");
+    nlohmann::json j;
+    j["test"] = std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n");
     const std::string expected(R"({"test":"te\u0013st\nte\u0013st\nte\u0013st\nte\u0013st\nte\u0013st234\n"})");
-    assert(body.dump() == expected);
+    assert(j.dump() == expected);
+}
 #endif // DEBUG
 
     CreateManagedDebugger();
