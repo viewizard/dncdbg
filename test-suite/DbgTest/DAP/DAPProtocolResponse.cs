@@ -204,4 +204,29 @@ public class PauseResponseBody
 {
     public int threadId;
 }
+
+public class Module
+{
+  public string id;
+  public string name;
+  public string? path;
+  public bool? isOptimized;
+  public bool? isUserCode;
+  public string? version;
+  public string? symbolStatus;
+  public string? symbolFilePath;
+  public string? dateTimeStamp;
+  public string? addressRange;
+}
+
+public class ModulesResponse : Response
+{
+    public ModulesResponseBody body;
+}
+
+public class ModulesResponseBody
+{
+    public List<Module> modules;
+    public int? totalModules;
+}
 }

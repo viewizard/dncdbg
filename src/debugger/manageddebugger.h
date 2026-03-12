@@ -99,6 +99,7 @@ class ManagedDebugger
     HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output);
     HRESULT SetExpression(FrameId frameId, const std::string &expression, const std::string &value, std::string &output);
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
+    void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
   private:
 

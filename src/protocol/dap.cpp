@@ -629,6 +629,18 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 body["breakpoints"] = breakpoints;
 
                 return Status;
+            }},
+        {"modules", [&](const json &arguments, json &body)
+            {
+                size_t totalModules = 0;
+                std::vector<Module> modules;
+                m_sharedDebugger->GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
+                                             modules, totalModules);
+
+                body["modules"] = modules;
+                body["totalModules"] = totalModules;
+
+                return S_OK;
             }}};
 
     if (m_sharedDebugger == nullptr)

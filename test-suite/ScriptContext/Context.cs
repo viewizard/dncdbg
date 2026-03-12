@@ -1203,6 +1203,38 @@ class Context
         Assert.True(DAPDebugger.IsNotStopEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public void TestModules(string caller_trace, int startModule, int moduleCount, bool checkMainDLLExistenceInList)
+    {
+        ModulesRequest modulesRequest = new ModulesRequest();
+        modulesRequest.arguments.startModule = startModule;
+        modulesRequest.arguments.moduleCount = moduleCount;
+        var ret = DAPDebugger.Request(modulesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        ModulesResponse modulesResponse = JsonConvert.DeserializeObject<ModulesResponse>(ret.ResponseStr);
+        string AbsolutePathToAssembly = Path.GetFullPath(ControlInfo.TargetAssemblyPath);
+
+        foreach (Module module in modulesResponse.body.modules)
+        {
+            if (AbsolutePathToAssembly == module.path)
+            {
+                if (checkMainDLLExistenceInList)
+                {
+                    return;
+                }
+                else
+                {
+                    throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+                }
+            }
+        }
+
+        if (checkMainDLLExistenceInList)
+        {
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        }
+    }
+
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;

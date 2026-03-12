@@ -1291,4 +1291,9 @@ void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::
     DAPIO::EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()}));
 }
 
+void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
+{
+    m_sharedModules->GetModules(startModule, moduleCount, modules, totalModules);
+}
+
 } // namespace dncdbg

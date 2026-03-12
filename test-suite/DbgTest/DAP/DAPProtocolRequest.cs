@@ -437,4 +437,19 @@ public class SetExpressionArguments
     public int? frameId;
     public ValueFormat? format;
 }
+
+public class ModulesRequest : Request
+{
+    public ModulesRequest()
+    {
+        command = "modules";
+    }
+    public ModulesArguments arguments = new ModulesArguments();
+}
+
+public class ModulesArguments
+{
+    public int? startModule;
+    public int? moduleCount;
+}
 }

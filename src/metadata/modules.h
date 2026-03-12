@@ -13,7 +13,9 @@
 
 #include "types/protocol.h"
 #include <list>
+#include <mutex>
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -26,13 +28,13 @@ class Modules
     static std::string GetModuleFileName(ICorDebugModule *pModule);
     static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &errorText);
 
-    // Note, methods below must be called from ManagedCallback only,
-    // since we don't provide any synchronization for m_moduleList.
     Module &GetNewModuleRef();
     HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
+    void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
   private:
 
+    std::mutex m_moduleMutex;
     std::list<Module> m_moduleList;
 };
 

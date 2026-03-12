@@ -12,10 +12,12 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added Process Event with `attach` start method on attach to debuggee process.
 - Added `pointerSize` support in Process Event.
 - Added `addressRange` support in Module.
+- Added Modules Request support.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added
 - Added TestStdIO.
+- Added TestModules.
 - Added tests for Release build.
 - Added shrinked [diagnostics](https://github.com/dotnet/diagnostics) sources v9.0.661903, dbgshim library build now during debugger build.
 - Added clang-tidy checks.

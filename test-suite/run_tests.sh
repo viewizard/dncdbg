@@ -33,6 +33,7 @@ ALL_TEST_NAMES=(
     "TestBreakpointWithoutStop"
     "TestUnhandledException"
     "TestStdIO"
+    "TestModules"
 )
 
 TEST_NAMES="$@"

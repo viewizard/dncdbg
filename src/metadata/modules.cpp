@@ -166,6 +166,8 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
 
 Module &Modules::GetNewModuleRef()
 {
+    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
+
     m_moduleList.emplace_back();
     return m_moduleList.back();
 }
@@ -175,6 +177,8 @@ HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     HRESULT Status = S_OK;
     std::string id;
     IfFailRet(GetModuleId(pModule, id));
+
+    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
 
     for (auto it = m_moduleList.begin(); it != m_moduleList.end();)
     {
@@ -191,6 +195,31 @@ HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     }
 
     return E_INVALIDARG;
+}
+
+void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
+{
+    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
+
+    totalModules = m_moduleList.size();
+
+    if (startModule >= m_moduleList.size())
+    {
+        return;
+    }
+
+    auto startIt = std::next(m_moduleList.begin(), startModule);
+    auto endIt = m_moduleList.end();
+    if (moduleCount != 0 &&
+        startModule + moduleCount < m_moduleList.size())
+    {
+        endIt = std::next(startIt, moduleCount);
+    }
+
+    for (auto it = startIt; it != endIt; it = std::next(it))
+    {
+        modules.emplace_back(*it);
+    }
 }
 
 } // namespace dncdbg
