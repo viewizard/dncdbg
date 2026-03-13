@@ -994,7 +994,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 mdMethodDef mdGetter = mdMethodDefNil;
                 mdMethodDef mdSetter = mdMethodDefNil;
                 std::array<WCHAR, mdNameLen> propertyName{};
-                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen,
+                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen, // NOLINT(readability-suspicious-call-argument)
                                                            &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
                                                            &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                 {

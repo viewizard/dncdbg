@@ -150,7 +150,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
         ULONG propertyNameLen = 0;
         std::array<WCHAR, mdNameLen> propertyName{};
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen,
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen, // NOLINT(readability-suspicious-call-argument)
                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
                                                 nullptr, 0, nullptr)))
         {
