@@ -66,7 +66,6 @@ class SourceBreakpoints
     {
         uint32_t id;
         std::string module;
-        CORDB_ADDRESS modAddress = 0;
         int linenum;
         int endLine;
         uint32_t hitCount;
@@ -83,7 +82,6 @@ class SourceBreakpoints
 
         ManagedSourceBreakpoint()
             : id(0),
-              modAddress(0),
               linenum(0),
               endLine(0),
               hitCount(0)

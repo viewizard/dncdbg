@@ -121,7 +121,6 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
     // same for multiple breakpoint resolve for one module
     bp.linenum = resolvedPoints[0].startLine;
     bp.endLine = resolvedPoints[0].endLine;
-    bp.modAddress = modAddress;
 
     return S_OK;
 }
