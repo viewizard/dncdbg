@@ -243,9 +243,25 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
         {
             ManagedFunctionBreakpoint &fbp = b->second;
 
+            const bool changedCondition = fbp.condition != fb.condition;
+            const bool changedHitCondition = fbp.hitCondition != fb.hitCondition;
             fbp.condition = fb.condition;
             fbp.hitCondition = fb.hitCondition;
             fbp.ToBreakpoint(breakpoint);
+            if (changedCondition || changedHitCondition)
+            {
+                if (changedCondition)
+                {
+                    breakpoint.message = "Breakpoint condition changed.";
+                }
+                else
+                {
+                    breakpoint.message = "Breakpoint hitCondition changed.";
+                }
+                const BreakpointEvent event(BreakpointEventReason::Changed, breakpoint);
+                DAPIO::EmitBreakpointEvent(event);
+                breakpoint.message.clear();
+            }
         }
 
         breakpoints.push_back(breakpoint);

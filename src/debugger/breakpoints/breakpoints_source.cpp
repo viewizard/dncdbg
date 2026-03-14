@@ -484,11 +484,27 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                     }
 
                     // Existing breakpoint
+                    const bool changedCondition = bp.condition != initialBreakpoint.breakpoint.condition;
+                    const bool changedHitCondition = bp.hitCondition != initialBreakpoint.breakpoint.hitCondition;
                     bp.condition = initialBreakpoint.breakpoint.condition;
                     bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                     std::string resolved_fullname;
                     m_sharedDebugInfo->GetSourceFullPathByIndex(initialBreakpoint.resolved_fullname_index, resolved_fullname);
                     bp.ToBreakpoint(breakpoint, resolved_fullname);
+                    if (changedCondition || changedHitCondition)
+                    {
+                        if (changedCondition)
+                        {
+                            breakpoint.message = "Breakpoint condition changed.";
+                        }
+                        else
+                        {
+                            breakpoint.message = "Breakpoint hitCondition changed.";
+                        }
+                        const BreakpointEvent event(BreakpointEventReason::Changed, breakpoint);
+                        DAPIO::EmitBreakpointEvent(event);
+                        breakpoint.message.clear();
+                    }
                     break;
                 }
             }

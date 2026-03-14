@@ -14,6 +14,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added `addressRange` support in Module.
 - Added Modules Request support.
 - Added `removed` reason support in Breakpoint Event.
+- Added Breakpoint Event on changed breakpoint `condition` or `hitCondition`.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added
