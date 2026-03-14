@@ -124,6 +124,8 @@ add_custom_target(buildinfo ALL COMMAND
 add_executable_clr(dncdbg ${dncdbg_SRC})
 # Define "DEBUG" only when the configuration is "Debug"
 target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG>)
+# Define "DEBUG_INTERNAL_TESTS" only when the configuration is "Debug"
+target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG_INTERNAL_TESTS>)
 
 if (WIN32)
     target_link_libraries(dncdbg corguids wsock32 ws2_32)

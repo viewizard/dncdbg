@@ -616,4 +616,26 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     return S_OK;
 }
 
+#ifdef DEBUG_INTERNAL_TESTS
+size_t SourceBreakpoints::GetBreakpointsCount()
+{
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
+    size_t count = 0;
+
+    for (auto &fileResolvedBreakpoints : m_sourceResolvedBreakpoints)
+    {
+        for (auto &lineResolvedBreakpoints : fileResolvedBreakpoints.second)
+        {
+            for (auto &managedSourceBreakpoint : lineResolvedBreakpoints.second)
+            {
+                count += managedSourceBreakpoint.trFuncBreakpoints.size();
+            }
+        }
+    }
+
+    return count;
+}
+#endif // DEBUG_INTERNAL_TESTS
+
 } // namespace dncdbg

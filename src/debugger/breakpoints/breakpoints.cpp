@@ -198,4 +198,12 @@ HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)
     return m_exceptionBreakpoints->ManagedCallbackExitThread(pThread);
 }
 
+#ifdef DEBUG_INTERNAL_TESTS
+size_t Breakpoints::GetBreakpointsCount()
+{
+    return m_funcBreakpoints->GetBreakpointsCount() +
+           m_sourceBreakpoints->GetBreakpointsCount();
+}
+#endif // DEBUG_INTERNAL_TESTS
+
 } // namespace dncdbg

@@ -54,6 +54,10 @@ class FunctionBreakpoints
                                std::vector<uint32_t> &hitBreakpointIds,
                                std::vector<BreakpointEvent> &bpChangeEvents);
 
+#ifdef DEBUG_INTERNAL_TESTS
+    size_t GetBreakpointsCount();
+#endif // DEBUG_INTERNAL_TESTS
+
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
     // Bad :

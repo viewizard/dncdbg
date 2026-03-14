@@ -382,4 +382,20 @@ HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *
     return AddFunctionBreakpoint(fbp, fbpResolved);
 }
 
+#ifdef DEBUG_INTERNAL_TESTS
+size_t FunctionBreakpoints::GetBreakpointsCount()
+{
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
+    size_t count = 0;
+
+    for (auto &functionBreakpoints : m_funcBreakpoints)
+    {
+        count += functionBreakpoints.second.trFuncBreakpoints.size();
+    }
+
+    return count;
+}
+#endif // DEBUG_INTERNAL_TESTS
+
 } // namespace dncdbg

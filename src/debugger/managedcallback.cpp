@@ -299,12 +299,22 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
+#ifdef DEBUG_INTERNAL_TESTS
+        const size_t bpCountBeforeLoad = m_debugger.m_uniqueBreakpoints->GetBreakpointsCount();
+#endif // DEBUG_INTERNAL_TESTS
         std::vector<BreakpointEvent> events;
         m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
         for (const BreakpointEvent &event : events)
         {
             DAPIO::EmitBreakpointEvent(event);
         }
+#ifdef DEBUG_INTERNAL_TESTS
+        const size_t bpCountAfterLoad = m_debugger.m_uniqueBreakpoints->GetBreakpointsCount();
+        m_debugger.m_uniqueBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+        assert(bpCountBeforeLoad == m_debugger.m_uniqueBreakpoints->GetBreakpointsCount());
+        m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
+        assert(bpCountAfterLoad == m_debugger.m_uniqueBreakpoints->GetBreakpointsCount());
+#endif // DEBUG_INTERNAL_TESTS
     }
 
     // enable Debugger.NotifyOfCrossThreadDependency after System.Private.CoreLib.dll loaded (trigger for 1 time call only)
