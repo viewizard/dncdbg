@@ -180,6 +180,13 @@ HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::ve
     return S_OK;
 }
 
+HRESULT Breakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+{
+    m_funcBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+    m_sourceBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+    return S_OK;
+}
+
 HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType,
                                               const std::string &excModule)
 {

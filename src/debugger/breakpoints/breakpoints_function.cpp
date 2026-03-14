@@ -179,6 +179,53 @@ HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule,
     return S_OK;
 }
 
+HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+{
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    for (auto &functionBreakpoints : m_funcBreakpoints)
+    {
+        ManagedFunctionBreakpoint &fb = functionBreakpoints.second;
+
+        if (!fb.IsVerified())
+        {
+            continue;
+        }
+
+        for (auto it = fb.trFuncBreakpoints.begin(); it != fb.trFuncBreakpoints.end();)
+        {
+            CORDB_ADDRESS brModAddress = 0;
+            if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(*it, brModAddress)) ||
+                modAddress != brModAddress)
+            {
+                ++it;
+            }
+            else
+            {
+                (*it)->Activate(FALSE);
+                it = fb.trFuncBreakpoints.erase(it);
+            }
+        }
+
+        if (!fb.IsVerified())
+        {
+            fb.hitCount = 0;
+
+            Breakpoint breakpoint;
+            breakpoint.id = fb.id;
+            breakpoint.verified = false;
+            breakpoint.message = "Breakpoint reset at module unload.";
+            events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+        }
+    }
+
+    return S_OK;
+}
+
 HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                                     std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {

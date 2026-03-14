@@ -61,6 +61,7 @@ class SourceBreakpoints
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
+    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
 
     struct ManagedSourceBreakpoint
     {
@@ -116,7 +117,7 @@ class SourceBreakpoints
         SourceBreakpoint breakpoint;
         uint32_t id;
         unsigned resolved_fullname_index;
-        int resolved_linenum; // if 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
+        int resolved_linenum; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
         ManagedSourceBreakpointMapping()
             : breakpoint(0, ""),
@@ -132,7 +133,7 @@ class SourceBreakpoints
     // Resolved line breakpoints:
     // Mapped in order to fast search with mapping data (see container below):
     // resolved source full path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
-    std::unordered_map<unsigned, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_lineResolvedBreakpoints;
+    std::unordered_map<unsigned, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_sourceResolvedBreakpoints;
     // Mapping for input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
     // Note, instead of FunctionBreakpoint for resolved breakpoint we could have changed source path and/or line number.
     // In this way we could connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.

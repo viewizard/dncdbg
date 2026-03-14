@@ -29,6 +29,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added methods parameters output in stacktrace.
 - Added active CLR internal frames output in stacktrace.
 - Added proper Just My Code enabled stacktrace.
+- Added source and function breakpoints reset during module unload.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

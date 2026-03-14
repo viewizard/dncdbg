@@ -319,6 +319,13 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
+    std::vector<BreakpointEvent> events;
+    m_debugger.m_uniqueBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+    for (const BreakpointEvent &event : events)
+    {
+        DAPIO::EmitBreakpointEvent(event);
+    }
+
     Module removedModule;
     if (SUCCEEDED(m_debugger.m_sharedModules->RemoveModule(pModule, removedModule)))
     {

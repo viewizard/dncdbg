@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <list>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -61,6 +62,7 @@ class FunctionBreakpoints
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
+    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
 
   private:
 
@@ -76,7 +78,7 @@ class FunctionBreakpoints
         uint32_t hitCount;
         std::string hitCondition;
         std::string condition;
-        std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
+        std::list<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 
         bool IsVerified() const
         {

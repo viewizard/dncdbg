@@ -139,7 +139,7 @@ void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakp
 void SourceBreakpoints::DeleteAll()
 {
     m_breakpointsMutex.lock();
-    m_lineResolvedBreakpoints.clear();
+    m_sourceResolvedBreakpoints.clear();
     m_sourceBreakpointMapping.clear();
     m_breakpointsMutex.unlock();
 }
@@ -166,8 +166,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     unsigned filenameIndex = 0;
     IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.document, filenameIndex));
 
-    auto breakpoints = m_lineResolvedBreakpoints.find(filenameIndex);
-    if (breakpoints == m_lineResolvedBreakpoints.end())
+    auto breakpoints = m_sourceResolvedBreakpoints.find(filenameIndex);
+    if (breakpoints == m_sourceResolvedBreakpoints.end())
     {
         return E_FAIL;
     }
@@ -295,8 +295,89 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
             initialBreakpoint.resolved_fullname_index = resolved_fullname_index;
             initialBreakpoint.resolved_linenum = bp.linenum;
 
-            m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
-            EnableOneICorBreakpointForLine(m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
+            m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
+            EnableOneICorBreakpointForLine(m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+{
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    std::unordered_set<uint32_t> removedIds;
+
+    for (auto fit = m_sourceResolvedBreakpoints.begin(); fit != m_sourceResolvedBreakpoints.end();)
+    {
+        std::unordered_map<int, std::list<ManagedSourceBreakpoint>> &fileResolvedBreakpoints = fit->second;
+
+        for (auto lit = fileResolvedBreakpoints.begin(); lit != fileResolvedBreakpoints.end();)
+        {
+            std::list<ManagedSourceBreakpoint> &lineResolvedBreakpoints = lit->second;
+
+            for (auto it = lineResolvedBreakpoints.begin(); it != lineResolvedBreakpoints.end();)
+            {
+                ManagedSourceBreakpoint &managedSourceBreakpoint = *it;
+
+                assert(!managedSourceBreakpoint.trFuncBreakpoints.empty());
+
+                CORDB_ADDRESS brModAddress = 0;
+                // Check only first element, see ActivateSourceBreakpoint() code,
+                // debugger don't support breakpoint with same source name in different modules.
+                if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints[0], brModAddress)) ||
+                    modAddress != brModAddress)
+                {
+                    ++it;
+                }
+                else
+                {
+                    removedIds.emplace(managedSourceBreakpoint.id);
+                    it = lineResolvedBreakpoints.erase(it);
+                }
+            }
+
+            if (lineResolvedBreakpoints.empty())
+            {
+                lit = fileResolvedBreakpoints.erase(lit);
+            }
+            else
+            {
+                ++lit;
+            }
+        }
+
+        if (fileResolvedBreakpoints.empty())
+        {
+            fit = m_sourceResolvedBreakpoints.erase(fit);
+        }
+        else
+        {
+            ++fit;
+        }
+    }
+
+    // Reset removed resolved breakpoints.
+    for (auto &sourceBreakpoins : m_sourceBreakpointMapping)
+    {
+        for (auto &bp : sourceBreakpoins.second)
+        {
+            if (removedIds.find(bp.id) != removedIds.end())
+            {
+                bp.resolved_fullname_index = 0;
+                bp.resolved_linenum = 0;
+
+                Breakpoint breakpoint;
+                breakpoint.id = bp.id;
+                breakpoint.verified = false;
+                breakpoint.message = "Breakpoint reset at module unload.";
+                events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+            }
         }
     }
 
@@ -311,13 +392,13 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
         {
-            if (initialBreakpoint.resolved_linenum == 0) // if 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
+            if (initialBreakpoint.resolved_linenum == 0) // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
             {
                 return S_OK;
             }
 
-            auto bMap_it = m_lineResolvedBreakpoints.find(initialBreakpoint.resolved_fullname_index);
-            if (bMap_it == m_lineResolvedBreakpoints.end())
+            auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolved_fullname_index);
+            if (bMap_it == m_sourceResolvedBreakpoints.end())
             {
                 return E_FAIL;
             }
@@ -438,8 +519,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 std::string resolved_fullname;
                 m_sharedDebugInfo->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
                 bp.ToBreakpoint(breakpoint, resolved_fullname);
-                m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
-                EnableOneICorBreakpointForLine(m_lineResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
+                m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
+                EnableOneICorBreakpointForLine(m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
             }
             else
             {
@@ -464,8 +545,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
 
             if (initialBreakpoint.resolved_linenum != 0)
             {
-                auto bMap_it = m_lineResolvedBreakpoints.find(initialBreakpoint.resolved_fullname_index);
-                if (bMap_it == m_lineResolvedBreakpoints.end())
+                auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolved_fullname_index);
+                if (bMap_it == m_sourceResolvedBreakpoints.end())
                 {
                     return E_FAIL;
                 }

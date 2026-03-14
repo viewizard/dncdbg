@@ -63,6 +63,24 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
     return S_OK;
 }
 
+HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress)
+{
+    HRESULT Status = S_OK;
+
+    if (pBreakpoint == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pBreakpoint->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    return S_OK;
+}
+
 HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables, ICorDebugThread *pThread, std::string &output)
 {
     assert(!condition.empty());
