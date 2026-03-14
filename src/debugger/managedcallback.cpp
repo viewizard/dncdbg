@@ -278,7 +278,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
         m_debugger.InvalidateLastStoppedThreadId();
     }
 
-    m_debugger.m_uniqueBreakpoints->ManagedCallbackExitThread(pThread);
+    m_debugger.m_sharedBreakpoints->ManagedCallbackExitThread(pThread);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -300,20 +300,20 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
 #ifdef DEBUG_INTERNAL_TESTS
-        const size_t bpCountBeforeLoad = m_debugger.m_uniqueBreakpoints->GetBreakpointsCount();
+        const size_t bpCountBeforeLoad = m_debugger.m_sharedBreakpoints->GetBreakpointsCount();
 #endif // DEBUG_INTERNAL_TESTS
         std::vector<BreakpointEvent> events;
-        m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
+        m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModule(pModule, events);
         for (const BreakpointEvent &event : events)
         {
             DAPIO::EmitBreakpointEvent(event);
         }
 #ifdef DEBUG_INTERNAL_TESTS
-        const size_t bpCountAfterLoad = m_debugger.m_uniqueBreakpoints->GetBreakpointsCount();
-        m_debugger.m_uniqueBreakpoints->ManagedCallbackUnloadModule(pModule, events);
-        assert(bpCountBeforeLoad == m_debugger.m_uniqueBreakpoints->GetBreakpointsCount());
-        m_debugger.m_uniqueBreakpoints->ManagedCallbackLoadModule(pModule, events);
-        assert(bpCountAfterLoad == m_debugger.m_uniqueBreakpoints->GetBreakpointsCount());
+        const size_t bpCountAfterLoad = m_debugger.m_sharedBreakpoints->GetBreakpointsCount();
+        m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+        assert(bpCountBeforeLoad == m_debugger.m_sharedBreakpoints->GetBreakpointsCount());
+        m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModule(pModule, events);
+        assert(bpCountAfterLoad == m_debugger.m_sharedBreakpoints->GetBreakpointsCount());
 #endif // DEBUG_INTERNAL_TESTS
     }
 
@@ -330,7 +330,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     std::vector<BreakpointEvent> events;
-    m_debugger.m_uniqueBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+    m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule, events);
     for (const BreakpointEvent &event : events)
     {
         DAPIO::EmitBreakpointEvent(event);

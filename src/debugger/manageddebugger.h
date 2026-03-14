@@ -137,7 +137,7 @@ class ManagedDebugger
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<Variables> m_sharedVariables;
     std::unique_ptr<Steppers> m_uniqueSteppers;
-    std::shared_ptr<Breakpoints> m_uniqueBreakpoints;
+    std::shared_ptr<Breakpoints> m_sharedBreakpoints;
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;
 

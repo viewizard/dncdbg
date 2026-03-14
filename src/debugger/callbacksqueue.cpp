@@ -31,7 +31,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     bool atEntry = false;
     std::vector<BreakpointEvent> bpChangeEvents;
     std::vector<uint32_t> hitBreakpointIds;
-    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents, atEntry))
+    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents, atEntry))
     {
         // Breakpoints related break (for example, breakpoint's condition failed or stop in not user code
         // with enabled JMC), don't emit breakpoint stop event and continue execution.
@@ -73,7 +73,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
     {
         // Break related (for example, stop at `Debugger.Break()` in not user code with enabled JMC),
         // don't emit break stop event and continue execution.
@@ -94,7 +94,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               ExceptionCallbackType eventType, const std::string &excModule)
 {
-    if (S_IGNORE == m_debugger.m_uniqueBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
+    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
     {
         // Exception related break (for example, catch handler or filtered thrown exception),
         // don't emit stop event and continue execution.

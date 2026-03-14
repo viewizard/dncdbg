@@ -287,7 +287,7 @@ void ManagedDebugger::NotifyProcessExited()
 void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
     m_uniqueSteppers->DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
-    m_uniqueBreakpoints->DeleteAll();
+    m_sharedBreakpoints->DeleteAll();
     dncdbg::Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
@@ -303,7 +303,7 @@ void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
 
     const ReadLock r_lock(m_debugProcessRWLock);
 
-    m_uniqueBreakpoints->SetLastStoppedIlOffset(m_trProcess, m_lastStoppedThreadId);
+    m_sharedBreakpoints->SetLastStoppedIlOffset(m_trProcess, m_lastStoppedThreadId);
 }
 
 void ManagedDebugger::InvalidateLastStoppedThreadId()
@@ -331,7 +331,7 @@ ManagedDebugger::ManagedDebugger()
       m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
       m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
       m_uniqueSteppers(new Steppers(m_sharedDebugInfo, m_sharedEvalHelpers)),
-      m_uniqueBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
+      m_sharedBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_justMyCode(true),
@@ -400,7 +400,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
     m_execArgs = execArgs;
     m_cwd = cwd;
     m_env = env;
-    m_uniqueBreakpoints->SetStopAtEntry(stopAtEntry);
+    m_sharedBreakpoints->SetStopAtEntry(stopAtEntry);
     return RunIfReady();
 }
 
@@ -856,13 +856,13 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
-    return m_uniqueBreakpoints->GetExceptionInfo(trThread, exceptionInfo);
+    return m_sharedBreakpoints->GetExceptionInfo(trThread, exceptionInfo);
 }
 
 HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                                  std::vector<Breakpoint> &breakpoints)
 {
-    return m_uniqueBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
+    return m_sharedBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
@@ -870,14 +870,14 @@ HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
                                               std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
-    return m_uniqueBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
+    return m_sharedBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                                 std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
-    return m_uniqueBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
+    return m_sharedBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level,
@@ -1272,7 +1272,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
 {
     m_justMyCode = enable;
     m_uniqueSteppers->SetJustMyCode(enable);
-    m_uniqueBreakpoints->SetJustMyCode(enable);
+    m_sharedBreakpoints->SetJustMyCode(enable);
 }
 
 void ManagedDebugger::SetStepFiltering(bool enable)
