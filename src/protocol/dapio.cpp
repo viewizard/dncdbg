@@ -25,15 +25,23 @@ void to_json(json &j, const Source &s)
 void to_json(json &j, const Breakpoint &b)
 {
     j = json{{"id",       b.id},
-             {"line",     b.line},
              {"verified", b.verified}};
+
+    if (b.line != 0)
+    {
+        j["line"] = b.line;
+    }
+
     if (!b.message.empty())
     {
         j["message"] = b.message;
     }
     if (b.verified)
     {
-        j["endLine"] = b.endLine;
+        if (b.endLine != 0)
+        {
+            j["endLine"] = b.endLine;
+        }
         if (!b.source.IsNull())
         {
             j["source"] = b.source;
