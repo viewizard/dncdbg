@@ -383,6 +383,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     for (auto it = breakpointsInSource.begin(); it != breakpointsInSource.end();)
     {
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
+        // Note, we don't remove breakpoint in case changed `condition` or `hitCondition`,
+        // only change this fields in resolved breakpoint.
         if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.end())
         {
             Breakpoint breakpoint;
@@ -396,6 +398,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         }
         else
         {
+            // Note, debugger assume, that IDE can provide only one breakpoint for one line.
+            assert(breakpointsInSourceMap.find(initialBreakpoint.breakpoint.line) == breakpointsInSourceMap.end());
             breakpointsInSourceMap[initialBreakpoint.breakpoint.line] = &initialBreakpoint;
             ++it;
         }
