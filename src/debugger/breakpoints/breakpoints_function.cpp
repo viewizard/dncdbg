@@ -8,6 +8,7 @@
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
+#include "protocol/dapio.h"
 #include <sstream>
 #include <unordered_set>
 
@@ -194,6 +195,11 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
     {
         if (funcBreakpointFuncs.find(it->first) == funcBreakpointFuncs.end())
         {
+            Breakpoint breakpoint;
+            it->second.ToBreakpoint(breakpoint);
+            const BreakpointEvent event(BreakpointEventReason::Removed, breakpoint);
+            DAPIO::EmitBreakpointEvent(event);
+
             it = m_funcBreakpoints.erase(it);
         }
         else

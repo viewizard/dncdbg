@@ -13,6 +13,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added `pointerSize` support in Process Event.
 - Added `addressRange` support in Module.
 - Added Modules Request support.
+- Added `removed` reason support in Breakpoint Event.
 - Fixed Cancel Request, `requestId` is optional parameter now.
 
 #### Added

@@ -8,6 +8,7 @@
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
+#include "protocol/dapio.h"
 #include "utils/logger.h"
 #include <sstream>
 #include <unordered_set>
@@ -311,7 +312,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
         {
-            if (initialBreakpoint.resolved_linenum == 0)
+            if (initialBreakpoint.resolved_linenum == 0) // if 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
             {
                 return S_OK;
             }
@@ -358,6 +359,12 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         {
             for (auto &initialBreakpoint : it->second)
             {
+                Breakpoint breakpoint;
+                breakpoint.id = initialBreakpoint.id;
+                breakpoint.verified = initialBreakpoint.resolved_linenum != 0;
+                const BreakpointEvent event(BreakpointEventReason::Removed, breakpoint);
+                DAPIO::EmitBreakpointEvent(event);
+
                 IfFailRet(RemoveResolvedByInitialBreakpoint(initialBreakpoint));
             }
             m_sourceBreakpointMapping.erase(it);
@@ -379,6 +386,12 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
         if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.end())
         {
+            Breakpoint breakpoint;
+            breakpoint.id = initialBreakpoint.id;
+            breakpoint.verified = initialBreakpoint.resolved_linenum != 0;
+            const BreakpointEvent event(BreakpointEventReason::Removed, breakpoint);
+            DAPIO::EmitBreakpointEvent(event);
+
             IfFailRet(RemoveResolvedByInitialBreakpoint(initialBreakpoint));
             it = breakpointsInSource.erase(it);
         }

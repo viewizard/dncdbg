@@ -118,7 +118,7 @@ class SourceBreakpoints
         SourceBreakpoint breakpoint;
         uint32_t id;
         unsigned resolved_fullname_index;
-        int resolved_linenum; // if int is 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
+        int resolved_linenum; // if 0 - no resolved breakpoint available in m_lineResolvedBreakpoints
 
         ManagedSourceBreakpointMapping()
             : breakpoint(0, ""),
