@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef PROTOCOL__DAPIO_H
-#define PROTOCOL__DAPIO_H
+#ifndef PROTOCOL_DAPIO_H
+#define PROTOCOL_DAPIO_H
 
 #include "types/types.h"
 #include "types/protocol.h"
@@ -68,4 +68,4 @@ class DAPIO
 
 } // namespace dncdbg
 
-#endif // PROTOCOL__DAPIO_H
+#endif // PROTOCOL_DAPIO_H

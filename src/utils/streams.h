@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__STREAMS_H
-#define UTILS__STREAMS_H
+#ifndef UTILS_STREAMS_H
+#define UTILS_STREAMS_H
 
 #include "utils/iosystem.h"
 #include <cstddef>
@@ -539,4 +539,4 @@ class CountingStream : private StreamsInternal::BufferOwner<CountingStreamBuf>, 
 
 } // namespace dncdbg
 
-#endif // UTILS__STREAMS_H
+#endif // UTILS_STREAMS_H

@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__PLATFORM_H
-#define UTILS__PLATFORM_H
+#ifndef UTILS_PLATFORM_H
+#define UTILS_PLATFORM_H
 
 #ifdef _MSC_VER
 #define W(s) L##s
@@ -40,4 +40,4 @@ char **GetSystemEnvironment();
 
 } // namespace dncdbg
 
-#endif // UTILS__PLATFORM_H
+#endif // UTILS_PLATFORM_H

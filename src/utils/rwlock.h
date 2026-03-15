@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__RWLOCK_H
-#define UTILS__RWLOCK_H
+#ifndef UTILS_RWLOCK_H
+#define UTILS_RWLOCK_H
 
 #include <mutex>
 #include <shared_mutex>
@@ -16,4 +16,4 @@ using ReadLock = std::shared_lock<RWLock>;
 
 } // namespace dncdbg
 
-#endif // UTILS__RWLOCK_H
+#endif // UTILS_RWLOCK_H

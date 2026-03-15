@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef METADATA__SIGPARSE_H
-#define METADATA__SIGPARSE_H
+#ifndef METADATA_SIGPARSE_H
+#define METADATA_SIGPARSE_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -64,4 +64,4 @@ HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, S
 
 } // namespace dncdbg
 
-#endif // METADATA__SIGPARSE_H
+#endif // METADATA_SIGPARSE_H

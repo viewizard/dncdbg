@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__BREAKPOINTS__BREAKPOINTS_H
-#define DEBUGGER__BREAKPOINTS__BREAKPOINTS_H
+#ifndef DEBUGGER_BREAKPOINTS_BREAKPOINTS_H
+#define DEBUGGER_BREAKPOINTS_BREAKPOINTS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -86,4 +86,4 @@ class Breakpoints
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__BREAKPOINTS__BREAKPOINTS_H
+#endif // DEBUGGER_BREAKPOINTS_BREAKPOINTS_H

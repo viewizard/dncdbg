@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__IOSYSTEM_INTERNAL_H
-#define UTILS__IOSYSTEM_INTERNAL_H
+#ifndef UTILS_IOSYSTEM_INTERNAL_H
+#define UTILS_IOSYSTEM_INTERNAL_H
 
 #include "utils/platform.h"
 #include <chrono>
@@ -294,4 +294,4 @@ namespace dncdbg
 using IOSystem = IOSystemImpl<IOSystemTraits<PlatformTag>>;
 } // namespace dncdbg
 
-#endif // UTILS__IOSYSTEM_INTERNAL_H
+#endif // UTILS_IOSYSTEM_INTERNAL_H

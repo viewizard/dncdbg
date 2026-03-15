@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__VALUEPRINT_H
-#define DEBUGGER__VALUEPRINT_H
+#ifndef DEBUGGER_VALUEPRINT_H
+#define DEBUGGER_VALUEPRINT_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -24,4 +24,4 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__VALUEPRINT_H
+#endif // DEBUGGER_VALUEPRINT_H

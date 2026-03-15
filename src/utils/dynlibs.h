@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__DYNLIBS_H
-#define UTILS__DYNLIBS_H
+#ifndef UTILS_DYNLIBS_H
+#define UTILS_DYNLIBS_H
 
 #include <string>
 #include <string_view>
@@ -30,4 +30,4 @@ bool DLClose(DLHandle handle);
 
 } // namespace dncdbg
 
-#endif // UTILS__DYNLIBS_H
+#endif // UTILS_DYNLIBS_H

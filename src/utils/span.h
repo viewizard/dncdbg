@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__SPAN_H
-#define UTILS__SPAN_H
+#ifndef UTILS_SPAN_H
+#define UTILS_SPAN_H
 
 #include <cassert>
 #include <iterator>
@@ -213,4 +213,4 @@ template <typename T> class span
 } // namespace Utility
 } // namespace dncdbg
 
-#endif // UTILS__SPAN_H
+#endif // UTILS_SPAN_H

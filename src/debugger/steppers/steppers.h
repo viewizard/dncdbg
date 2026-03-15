@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__STEPPERS__STEPPERS_H
-#define DEBUGGER__STEPPERS__STEPPERS_H
+#ifndef DEBUGGER_STEPPERS_STEPPERS_H
+#define DEBUGGER_STEPPERS_STEPPERS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -65,4 +65,4 @@ class Steppers
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__STEPPERS__STEPPERS_H
+#endif // DEBUGGER_STEPPERS_STEPPERS_H

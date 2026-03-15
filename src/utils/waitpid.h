@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__WAITPID_H
-#define UTILS__WAITPID_H
+#ifndef UTILS_WAITPID_H
+#define UTILS_WAITPID_H
 
 #ifdef FEATURE_PAL
 
@@ -51,4 +51,4 @@ hook::waitpid_t &GetWaitpid();
 
 #endif // FEATURE_PAL
 
-#endif // UTILS__WAITPID_H
+#endif // UTILS_WAITPID_H

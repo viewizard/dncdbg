@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__EVALUATOR_H
-#define DEBUGGER__EVALUATOR_H
+#ifndef DEBUGGER_EVALUATOR_H
+#define DEBUGGER_EVALUATOR_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -123,4 +123,4 @@ class Evaluator
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__EVALUATOR_H
+#endif // DEBUGGER_EVALUATOR_H

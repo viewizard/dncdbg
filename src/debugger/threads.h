@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__THREADS_H
-#define DEBUGGER__THREADS_H
+#ifndef DEBUGGER_THREADS_H
+#define DEBUGGER_THREADS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -44,4 +44,4 @@ class Threads
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__THREADS_H
+#endif // DEBUGGER_THREADS_H

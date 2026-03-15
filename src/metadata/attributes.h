@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef METADATA__ATTRIBUTES_H
-#define METADATA__ATTRIBUTES_H
+#ifndef METADATA_ATTRIBUTES_H
+#define METADATA_ATTRIBUTES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -41,4 +41,4 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std
 
 } // namespace dncdbg
 
-#endif // METADATA__ATTRIBUTES_H
+#endif // METADATA_ATTRIBUTES_H

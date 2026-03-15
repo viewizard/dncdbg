@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGINFO__ASYNC_INFO_H
-#define DEBUGINFO__ASYNC_INFO_H
+#ifndef DEBUGINFO_ASYNC_INFO_H
+#define DEBUGINFO_ASYNC_INFO_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -82,4 +82,4 @@ class AsyncInfo
 
 } // namespace dncdbg
 
-#endif // DEBUGINFO__ASYNC_INFO_H
+#endif // DEBUGINFO_ASYNC_INFO_H

@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__MANAGEDDEBUGGER_H
-#define DEBUGGER__MANAGEDDEBUGGER_H
+#ifndef DEBUGGER_MANAGEDDEBUGGER_H
+#define DEBUGGER_MANAGEDDEBUGGER_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -185,4 +185,4 @@ class ManagedDebugger
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__MANAGEDDEBUGGER_H
+#endif // DEBUGGER_MANAGEDDEBUGGER_H

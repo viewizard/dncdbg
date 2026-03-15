@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__VARIABLES_H
-#define DEBUGGER__VARIABLES_H
+#ifndef DEBUGGER_VARIABLES_H
+#define DEBUGGER_VARIABLES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -127,4 +127,4 @@ class Variables
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__VARIABLES_H
+#endif // DEBUGGER_VARIABLES_H

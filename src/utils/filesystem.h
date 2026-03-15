@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__FILESYSTEM_H
-#define UTILS__FILESYSTEM_H
+#ifndef UTILS_FILESYSTEM_H
+#define UTILS_FILESYSTEM_H
 
 #include <string>
 #include <string_view>
@@ -57,4 +57,4 @@ std::string GetFileName(const std::string &path);
 
 } // namespace dncdbg
 
-#endif // UTILS__FILESYSTEM_H
+#endif // UTILS_FILESYSTEM_H

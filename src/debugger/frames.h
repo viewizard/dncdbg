@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER__FRAMES_H
-#define DEBUGGER__FRAMES_H
+#ifndef DEBUGGER_FRAMES_H
+#define DEBUGGER_FRAMES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -34,4 +34,4 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb);
 
 } // namespace dncdbg
 
-#endif // DEBUGGER__FRAMES_H
+#endif // DEBUGGER_FRAMES_H

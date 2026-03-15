@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__LOGGER_H
-#define UTILS__LOGGER_H
+#ifndef UTILS_LOGGER_H
+#define UTILS_LOGGER_H
 
 #include <stdarg.h>
 #include <cstddef>
@@ -70,8 +70,8 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...) /
 } // namespace LogInternal
 
 // Following macros shouldn't be used directly, it is intendent for internal use.
-#define LOG_S__(str) #str
-#define LOG_S_(str) LOG_S__(str)
+#define LOG_S_(str) #str
+#define LOG_S(str) LOG_S_(str)
 
 // With Visual Studio's compiler arguments checking performed via (eliminated from code) call to printf.
 #ifdef _MSC_VER
@@ -86,7 +86,7 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...) /
         log_print(prio, "%.*s: %.*s(%.*s) > " fmt, \
             static_cast<int>(sizeof(__FILE__) - LogInternal::path_len(__FILE__)), &__FILE__[LogInternal::path_len(__FILE__)], \
             static_cast<int>(LogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
-            static_cast<int>(sizeof(LOG_S_(__LINE))), LOG_S_(__LINE__), \
+            static_cast<int>(sizeof(LOG_S(__LINE))), LOG_S(__LINE__), \
             ##__VA_ARGS__))
 
 #ifdef DEBUG
@@ -100,4 +100,4 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...) /
 #define LOGE(fmt, ...) LOG_(LogPriority::ERR, fmt, ##__VA_ARGS__)
 #define LOGF(fmt, ...) LOG_(LogPriority::FTL, fmt, ##__VA_ARGS__)
 
-#endif // UTILS__LOGGER_H
+#endif // UTILS_LOGGER_H

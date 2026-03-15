@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS__DBGSHIM_H
-#define UTILS__DBGSHIM_H
+#ifndef UTILS_DBGSHIM_H
+#define UTILS_DBGSHIM_H
 
 #include <cor.h>
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
@@ -119,4 +119,4 @@ struct dbgshim_t
 
 } // namespace dncdbg
 
-#endif // UTILS__DBGSHIM_H
+#endif // UTILS_DBGSHIM_H

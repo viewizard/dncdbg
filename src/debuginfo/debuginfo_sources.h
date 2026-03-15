@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGINFO__DEBUGINFO_SOURCES_H
-#define DEBUGINFO__DEBUGINFO_SOURCES_H
+#ifndef DEBUGINFO_DEBUGINFO_SOURCES_H
+#define DEBUGINFO_DEBUGINFO_SOURCES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -155,4 +155,4 @@ class DebugInfoSources
 
 } // namespace dncdbg
 
-#endif // DEBUGINFO__DEBUGINFO_SOURCES_H
+#endif // DEBUGINFO_DEBUGINFO_SOURCES_H
