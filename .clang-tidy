@@ -10,7 +10,6 @@ Checks: >
   -bugprone-throwing-static-initialization,
   -bugprone-macro-parentheses,
   -bugprone-crtp-constructor-accessibility,
-  -bugprone-use-after-move,
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-non-const-global-variables,

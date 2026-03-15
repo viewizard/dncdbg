@@ -91,7 +91,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
 
     // Class is movable.
     InStreamBuf(InStreamBuf &&other) noexcept
-        : FileOwner(std::move(other)), std::streambuf(other), inbuf(std::move(other.inbuf))
+        : FileOwner(std::move(other)), std::streambuf(other), inbuf(std::move(other.inbuf)) // NOLINT(bugprone-use-after-move)
     {
     }
 
@@ -179,7 +179,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
 
     // Class is movable.
     OutStreamBuf(OutStreamBuf &&other) noexcept
-        : FileOwner(std::move(other)), std::streambuf(other), outbuf(std::move(other.outbuf))
+        : FileOwner(std::move(other)), std::streambuf(other), outbuf(std::move(other.outbuf)) // NOLINT(bugprone-use-after-move)
     {
     }
 
@@ -277,8 +277,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
 
     // Class is movable.
     StreamBuf(StreamBuf &&other) noexcept
-        : FileOwner(std::move(other)), std::streambuf(other), InStreamBuf(std::move(other)),
-          OutStreamBuf(std::move(other))
+        : FileOwner(std::move(other)), std::streambuf(other), InStreamBuf(std::move(other)), OutStreamBuf(std::move(other)) // NOLINT(bugprone-use-after-move)
     {
     }
 
@@ -516,7 +515,7 @@ class CountingStream : private StreamsInternal::BufferOwner<CountingStreamBuf>, 
     CountingStream(const CountingStream &) = delete;
 
     // Class is movable.
-    CountingStream(CountingStream &&other) noexcept : BufferOwner(std::move(other)), std::ostream(other.rdbuf())
+    CountingStream(CountingStream &&other) noexcept : BufferOwner(std::move(other)), std::ostream(other.rdbuf()) // NOLINT(bugprone-use-after-move)
     {
     }
 
