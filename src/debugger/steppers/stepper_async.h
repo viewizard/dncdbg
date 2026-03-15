@@ -27,7 +27,7 @@ class AsyncStepper
 {
   public:
 
-    AsyncStepper(std::shared_ptr<SimpleStepper> simpleStepper, std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+    AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper, std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
         : m_simpleStepper(simpleStepper),
           m_uniqueAsyncInfo(new AsyncInfo(sharedDebugInfo)),
           m_sharedEvalHelpers(sharedEvalHelpers),

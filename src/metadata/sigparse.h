@@ -30,7 +30,7 @@ struct SigElementType
           varNum(0)
     {}
 
-    SigElementType(CorElementType t, std::string n)
+    SigElementType(CorElementType t, const std::string &n)
     {
         corType = t;
         typeName = n;

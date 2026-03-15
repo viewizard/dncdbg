@@ -217,7 +217,7 @@ template <typename Traits> struct IOSystemImpl
     // This function allows to wait until one of the specified asynchronous operations
     // is finished, or until timeout expired. Function returns `true` if at least one
     // asynchronous operation is finished.
-    static bool async_wait(AsyncHandleIterator begin, AsyncHandleIterator end, std::chrono::milliseconds timeout)
+    static bool async_wait(const AsyncHandleIterator &begin, const AsyncHandleIterator &end, std::chrono::milliseconds timeout)
     {
         return Traits::async_wait(begin, end, timeout);
     }
