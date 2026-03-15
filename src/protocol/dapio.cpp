@@ -13,7 +13,6 @@ namespace dncdbg
 {
 
 std::mutex DAPIO::m_outMutex;
-std::ofstream DAPIO::m_protocolLog; // NOLINT(cert-err58-cpp)
 uint64_t DAPIO::m_seqCounter = 1;
 
 void to_json(json &j, const Source &s)
@@ -172,7 +171,7 @@ void DAPIO::SetupProtocolLogging(const std::string &path)
         return;
     }
 
-    m_protocolLog.open(path);
+    GetProtocolLog().open(path);
 }
 
 void DAPIO::EmitProcessEvent(PID pid, const std::string &name, StartMethod startMethod)
@@ -412,12 +411,12 @@ void DAPIO::EmitEvent(const std::string &name, const nlohmann::json &body)
 // Caller must care about m_outMutex.
 void DAPIO::LogInternal(const std::string_view &prefix, const std::string &text)
 {
-    if (!m_protocolLog.is_open())
+    if (!GetProtocolLog().is_open())
     {
         return;
     }
     
-    m_protocolLog << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
+    GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 
 void DAPIO::Log(const std::string_view &prefix, const std::string &text)

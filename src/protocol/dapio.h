@@ -57,8 +57,14 @@ class DAPIO
 
   private:
 
+    // Prevent undefined behavior with static std::ofstream field usage, since it can throw in constructor.
+    static std::ofstream &GetProtocolLog()
+    {
+        static std::ofstream protocolLog;
+        return protocolLog;
+    }
+
     static std::mutex m_outMutex;
-    static std::ofstream m_protocolLog;
     static uint64_t m_seqCounter; // Note, this counter must be covered by m_outMutex.
 
     static void EmitMessage(nlohmann::json &message, std::string &output);

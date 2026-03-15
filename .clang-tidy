@@ -7,7 +7,6 @@ Checks: >
   bugprone-*,
   -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
-  -bugprone-throwing-static-initialization,
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-non-const-global-variables,
