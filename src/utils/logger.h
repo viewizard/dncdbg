@@ -61,7 +61,7 @@ template <size_t N> constexpr size_t funcname_len(const char (&sig)[N], size_t p
 }
 
 #ifndef _MSC_VER
-inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...)
+inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...) // NOLINT(cert-dcl50-cpp,modernize-avoid-variadic-functions)
 {
     return 0;
 }
