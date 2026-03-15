@@ -126,7 +126,7 @@ struct Breakpoint
     }
 };
 
-enum class SymbolStatus
+enum class SymbolStatus : uint8_t
 {
     Skipped, // "Skipped loading symbols."
     Loaded,  // "Symbols loaded."
@@ -155,14 +155,14 @@ struct Module
     }
 };
 
-enum class StartMethod
+enum class StartMethod : uint8_t
 {
     None,
     Launch,
     Attach
 };
 
-enum class StoppedEventReason
+enum class StoppedEventReason : uint8_t
 {
     Step,
     Breakpoint,
@@ -198,7 +198,7 @@ struct StoppedEvent
     }
 };
 
-enum class BreakpointEventReason
+enum class BreakpointEventReason : uint8_t
 {
     Changed,
     New,
@@ -228,7 +228,7 @@ struct ExitedEvent
     }
 };
 
-enum class ThreadEventReason
+enum class ThreadEventReason : uint8_t
 {
     Started,
     Exited
@@ -247,7 +247,7 @@ struct ThreadEvent
     }
 };
 
-enum class OutputCategory
+enum class OutputCategory : uint8_t
 {
     Console,
     StdOut,
@@ -277,7 +277,7 @@ struct OutputEvent
     }
 };
 
-enum class ModuleEventReason
+enum class ModuleEventReason : uint8_t
 {
     New,
     Changed,
@@ -400,7 +400,7 @@ struct FunctionBreakpoint
 
 // Based on CorDebugExceptionCallbackType, but include info about JMC status in catch handler.
 // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebugexceptioncallbacktype-enumeration
-enum class ExceptionCallbackType
+enum class ExceptionCallbackType : uint8_t
 {
     UNKNOWN = 0,
     FIRST_CHANCE,
@@ -410,7 +410,7 @@ enum class ExceptionCallbackType
     UNHANDLED
 };
 
-enum class ExceptionBreakMode
+enum class ExceptionBreakMode : uint8_t
 {
     NEVER,          // never stopped on this exception
     THROW,          // stopped on throw
@@ -444,7 +444,7 @@ struct ExceptionInfo
     ExceptionDetails details;
 };
 
-enum class ExceptionBreakpointFilter : size_t
+enum class ExceptionBreakpointFilter : uint8_t
 {
     THROW                = 0,
     USER_UNHANDLED       = 1,
@@ -453,7 +453,7 @@ enum class ExceptionBreakpointFilter : size_t
     Size                 = 4
 };
 
-enum class ExceptionCategory
+enum class ExceptionCategory : uint8_t
 {
     CLR,
     MDA,

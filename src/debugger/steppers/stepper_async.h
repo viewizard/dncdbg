@@ -55,7 +55,7 @@ class AsyncStepper
     std::unique_ptr<AsyncInfo> m_uniqueAsyncInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
 
-    enum class asyncStepStatus
+    enum class asyncStepStatus : uint8_t
     {
         yield_offset_breakpoint,
         resume_offset_breakpoint

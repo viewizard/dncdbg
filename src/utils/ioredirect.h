@@ -20,7 +20,7 @@
 namespace dncdbg
 {
 
-enum class AsyncResult
+enum class AsyncResult : uint8_t
 {
     Canceled, // function canceled due to debugger interruption
     Error,    // IO error

@@ -117,7 +117,7 @@ class ThreadId : public CustomScalarType<ThreadId>
 
   private:
 
-    enum SpecialValues
+    enum SpecialValues // NOLINT(performance-enum-size)
     {
         InvalidValue = 0,
         AllThreadsValue = -1
@@ -200,7 +200,7 @@ class FrameId : public CustomScalarType<FrameId>
 };
 
 // https://learn.microsoft.com/en-us/visualstudio/extensibility/debugger/reference/evalflags?view=visualstudio&tabs=cpp
-enum enum_EVALFLAGS : uint32_t
+enum enum_EVALFLAGS : uint32_t // NOLINT(performance-enum-size)
 {
     EVAL_RETURNVALUE = 0x0002,
     EVAL_NOSIDEEFFECTS = 0x0004,
@@ -213,14 +213,14 @@ enum enum_EVALFLAGS : uint32_t
 
 constexpr uint32_t defaultEvalFlags = 0;
 
-enum class VariablesFilter
+enum class VariablesFilter : uint8_t
 {
     Named,
     Indexed,
     Both
 };
 
-enum class StepType
+enum class StepType : uint8_t
 {
     STEP_IN = 0,
     STEP_OVER,
@@ -237,7 +237,7 @@ struct SequencePoint
     std::string document;
 };
 
-enum class ValueKind
+enum class ValueKind : uint8_t
 {
     Scope,
     Class,

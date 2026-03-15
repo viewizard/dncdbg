@@ -17,7 +17,7 @@
 namespace dncdbg
 {
 
-enum class FrameType
+enum class FrameType : uint8_t
 {
     Unknown,
     CLRNative,

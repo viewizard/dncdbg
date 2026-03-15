@@ -38,13 +38,13 @@ class Breakpoints;
 class DebugInfo;
 class Modules;
 
-enum class ProcessAttachedState
+enum class ProcessAttachedState : uint8_t
 {
     Attached,
     Unattached
 };
 
-enum class DisconnectAction
+enum class DisconnectAction : uint8_t
 {
     Default, // Attach -> Detach, Launch -> Terminate
     Terminate,

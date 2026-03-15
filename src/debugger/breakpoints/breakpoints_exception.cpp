@@ -102,12 +102,12 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     // Remove old breakpoints
-    std::vector<std::unordered_set<std::string>> expBreakpoints((size_t)ExceptionBreakpointFilter::Size);
+    std::vector<std::unordered_set<std::string>> expBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size));
     for (const auto &expb : exceptionBreakpoints)
     {
-        expBreakpoints[(size_t)expb.filterId].insert(CalculateExceptionBreakpointHash(expb));
+        expBreakpoints[static_cast<size_t>(expb.filterId)].insert(CalculateExceptionBreakpointHash(expb));
     }
-    for (size_t filter = 0; filter < (size_t)ExceptionBreakpointFilter::Size; ++filter)
+    for (size_t filter = 0; filter < static_cast<size_t>(ExceptionBreakpointFilter::Size); ++filter)
     {
         for (auto it = m_exceptionBreakpoints[filter].begin(); it != m_exceptionBreakpoints[filter].end();)
         {

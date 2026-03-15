@@ -36,7 +36,7 @@ class ManagedDebugger;
 // event and then calls ICorDebugController::Continue, the second debugging event for thread X will be dispatched
 // although the thread has been suspended.
 
-enum class CallbackQueueCall
+enum class CallbackQueueCall : uint8_t
 {
     FinishWorker = 0,
     Breakpoint,

@@ -28,7 +28,7 @@ class EvalWaiter;
 
 struct EvalStackEntry
 {
-    enum class ResetLiteralStatus
+    enum class ResetLiteralStatus : uint8_t
     {
         No = 0,
         Yes = 1

@@ -31,7 +31,7 @@ class ExceptionBreakpoints
     ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
         : m_sharedEvaluator(sharedEvaluator),
           m_justMyCode(true),
-          m_exceptionBreakpoints((size_t)ExceptionBreakpointFilter::Size)
+          m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
     {}
 
     void SetJustMyCode(bool enable)
