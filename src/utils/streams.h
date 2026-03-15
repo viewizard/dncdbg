@@ -216,7 +216,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     }
 
     // Function returns the pointer one past the end of the free space in the buffer.
-    char *epptr() const
+    char *epptr() const // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return std::streambuf::epptr();
     }
@@ -283,7 +283,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     }
 
     // Function returns file handle which is used for reading/writing data.
-    FileHandle get_file_handle() const
+    FileHandle get_file_handle() const // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return FileOwner::get_file_handle();
     }
@@ -328,7 +328,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     }
 
     // Function advances the next pointer in the input sequence.
-    void gbump(int count)
+    void gbump(int count) // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return std::streambuf::gbump(count);
     }
@@ -346,7 +346,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     }
 
     // Function function advances free space pointer by `count` characters.
-    void pbump(int count)
+    void pbump(int count) // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return std::streambuf::pbump(count);
     }
