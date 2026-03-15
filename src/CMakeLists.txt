@@ -1,17 +1,18 @@
-# Include diagnostics headers
+# Include third_party headers as SYSTEM.
+# This ensures the compiler and clang-tidy recognize it as external, non-user code.
 
 if (NOT WIN32)
-    include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc)
-    include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt)
+    include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc)
+    include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt)
 endif()
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native/)
+include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc)
+include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc)
+include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc)
+include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native/)
+include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party)
 
 # Build native part of the debugger
 
-include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(dncdbg_SRC
