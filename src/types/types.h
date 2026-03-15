@@ -58,6 +58,11 @@ template <typename T> struct CustomScalarType
         return static_cast<typename T::ScalarType>(static_cast<const T &>(*this)) <
                static_cast<typename T::ScalarType>(static_cast<const T &>(other));
     }
+
+  private:
+
+    CustomScalarType() = default;
+    friend T;
 };
 
 // Process identifier.

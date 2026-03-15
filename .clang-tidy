@@ -8,8 +8,6 @@ Checks: >
   -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
   -bugprone-throwing-static-initialization,
-  -bugprone-macro-parentheses,
-  -bugprone-crtp-constructor-accessibility,
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-non-const-global-variables,
