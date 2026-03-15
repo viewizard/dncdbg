@@ -82,6 +82,10 @@ template <typename T> class span
 #endif
     span &operator=(const span &other) noexcept
     {
+        if (&other == this)
+        {
+            return *this;
+        }
         return *new (this) span(other);
     }
 #ifndef _MSC_VER
