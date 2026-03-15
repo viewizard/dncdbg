@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__WAITPID_H
+#define UTILS__WAITPID_H
 
 #ifdef FEATURE_PAL
 
@@ -49,3 +50,5 @@ hook::waitpid_t &GetWaitpid();
 } // namespace dncdbg
 
 #endif // FEATURE_PAL
+
+#endif // UTILS__WAITPID_H

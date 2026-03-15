@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef TYPES__TYPES_H
+#define TYPES__TYPES_H
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
@@ -245,3 +246,5 @@ enum class ValueKind : uint8_t
 };
 
 } // namespace dncdbg
+
+#endif // TYPES__TYPES_H

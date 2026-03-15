@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef METADATA__MODULES_H
+#define METADATA__MODULES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -39,3 +40,5 @@ class Modules
 };
 
 } // namespace dncdbg
+
+#endif // METADATA__MODULES_H

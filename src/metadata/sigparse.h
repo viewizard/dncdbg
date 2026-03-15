@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef METADATA__SIGPARSE_H
+#define METADATA__SIGPARSE_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -62,3 +63,5 @@ HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigEl
 HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg);
 
 } // namespace dncdbg
+
+#endif // METADATA__SIGPARSE_H

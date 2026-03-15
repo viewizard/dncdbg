@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__UTF_H
+#define UTILS__UTF_H
 
 #include <string>
 
@@ -36,3 +37,5 @@ template <typename CharT, size_t Size> bool str_equal(const CharT *left, const C
 }
 
 } // namespace dncdbg
+
+#endif // UTILS__UTF_H

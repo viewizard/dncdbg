@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__STEPPERS__STEPPER_ASYNC_H
+#define DEBUGGER__STEPPERS__STEPPER_ASYNC_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -111,3 +112,5 @@ class AsyncStepper
 };
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__STEPPERS__STEPPER_ASYNC_H

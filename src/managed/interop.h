@@ -7,7 +7,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef MANAGED__INTEROP_H
+#define MANAGED__INTEROP_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -120,3 +121,5 @@ void SysFreeString(BSTR ptrBSTR);
 void CoTaskMemFree(void *ptr);
 
 } // namespace dncdbg::Interop
+
+#endif // MANAGED__INTEROP_H

@@ -2,8 +2,10 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
+#ifndef UTILS__IOSYSTEM_UNIX_H
+#define UTILS__IOSYSTEM_UNIX_H
+
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#pragma once
 
 #include "utils/iosystem_internal.h"
 #include "utils/platform.h"
@@ -151,3 +153,5 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 };
 
 #endif // __unix__
+
+#endif // UTILS__IOSYSTEM_UNIX_H

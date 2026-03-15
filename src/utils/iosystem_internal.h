@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__IOSYSTEM_INTERNAL_H
+#define UTILS__IOSYSTEM_INTERNAL_H
 
 #include "utils/platform.h"
 #include <chrono>
@@ -292,3 +293,5 @@ namespace dncdbg
 // IOSystem class represents IOSystemImpl<T> for current platform.
 using IOSystem = IOSystemImpl<IOSystemTraits<PlatformTag>>;
 } // namespace dncdbg
+
+#endif // UTILS__IOSYSTEM_INTERNAL_H

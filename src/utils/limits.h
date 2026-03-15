@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__LIMITS_H
+#define UTILS__LIMITS_H
 
 // avoid bug with limit.h and clang-6.x
 #ifdef __linux__
@@ -17,3 +18,5 @@
 #ifndef LINE_MAX
 #define LINE_MAX (2048)
 #endif
+
+#endif // UTILS__LIMITS_H

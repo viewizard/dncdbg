@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__DYNLIBS_H
+#define UTILS__DYNLIBS_H
 
 #include <string>
 #include <string_view>
@@ -28,3 +29,5 @@ void *DLSym(DLHandle handle, const std::string_view &symbol);
 bool DLClose(DLHandle handle);
 
 } // namespace dncdbg
+
+#endif // UTILS__DYNLIBS_H

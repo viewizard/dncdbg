@@ -5,7 +5,8 @@
 // Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
 // Copyright (c) 2026 Mikhail Kurinnoi
 
-#pragma once
+#ifndef UTILS__TORELEASE_H
+#define UTILS__TORELEASE_H
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
@@ -129,3 +130,5 @@ constexpr HRESULT S_SKIP = 0x00777005L;
 constexpr uint32_t mdNameLen = 2048;
 
 } // namespace dncdbg
+
+#endif // UTILS__TORELEASE_H

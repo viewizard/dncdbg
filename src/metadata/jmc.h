@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef METADATA__JMC_H
+#define METADATA__JMC_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -20,3 +21,5 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule);
 HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_set<mdMethodDef> &methodTokens);
 
 } // namespace dncdbg
+
+#endif // METADATA__JMC_H

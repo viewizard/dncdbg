@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__PLATFORM_H
+#define UTILS__PLATFORM_H
 
 #ifdef _MSC_VER
 #define W(s) L##s
@@ -38,3 +39,5 @@ void USleep(unsigned long usec);
 char **GetSystemEnvironment();
 
 } // namespace dncdbg
+
+#endif // UTILS__PLATFORM_H

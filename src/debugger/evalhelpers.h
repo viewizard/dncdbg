@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__EVALHELPERS_H
+#define DEBUGGER__EVALHELPERS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -94,3 +95,5 @@ class EvalHelpers
 };
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__EVALHELPERS_H

@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__FRAMES_H
+#define DEBUGGER__FRAMES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -32,3 +33,5 @@ const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
 HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb);
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__FRAMES_H

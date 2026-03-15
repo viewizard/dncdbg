@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__FILESYSTEM_H
+#define UTILS__FILESYSTEM_H
 
 #include <string>
 #include <string_view>
@@ -55,3 +56,5 @@ bool IsFullPath(const std::string &path);
 std::string GetFileName(const std::string &path);
 
 } // namespace dncdbg
+
+#endif // UTILS__FILESYSTEM_H

@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__LOGGER_H
+#define UTILS__LOGGER_H
 
 #include <stdarg.h>
 #include <cstddef>
@@ -98,3 +99,5 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char *, ...)
 #define LOGW(fmt, ...) LOG_(LogPriority::WRN, fmt, ##__VA_ARGS__)
 #define LOGE(fmt, ...) LOG_(LogPriority::ERR, fmt, ##__VA_ARGS__)
 #define LOGF(fmt, ...) LOG_(LogPriority::FTL, fmt, ##__VA_ARGS__)
+
+#endif // UTILS__LOGGER_H

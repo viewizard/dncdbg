@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef METADATA__TYPEPRINTER_H
+#define METADATA__TYPEPRINTER_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -33,3 +34,5 @@ std::string RenameToSystem(const std::string &typeName);
 std::string RenameToCSharp(const std::string &typeName);
 
 } // namespace dncdbg::TypePrinter
+
+#endif // METADATA__TYPEPRINTER_H

@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef PROTOCOL__DAP_H
+#define PROTOCOL__DAP_H
 
 #include "types/types.h"
 #include "types/protocol.h"
@@ -67,3 +68,5 @@ class DAP
 };
 
 } // namespace dncdbg
+
+#endif // PROTOCOL__DAP_H

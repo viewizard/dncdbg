@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__IOREDIRECT_H
+#define UTILS__IOREDIRECT_H
 
 #include "utils/iosystem.h"
 #include "utils/platform.h"
@@ -134,3 +135,5 @@ class IORedirectHelper
 };
 
 } // namespace dncdbg
+
+#endif // UTILS__IOREDIRECT_H

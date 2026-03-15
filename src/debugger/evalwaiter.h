@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__EVALWAITER_H
+#define DEBUGGER__EVALWAITER_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -92,3 +93,5 @@ class EvalWaiter
 };
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__EVALWAITER_H

@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifdef _WIN32
-#pragma once
+#ifndef UTILS__IOSYSTEM_WIN32_H
+#define UTILS__IOSYSTEM_WIN32_H
 
+#ifdef _WIN32
 #include <cassert>
 #include <tuple>
 #include <memory>
@@ -132,3 +133,5 @@ template <> struct IOSystemTraits<Win32PlatformTag>
 
 } // namespace dncdbg
 #endif // _WIN32
+
+#endif // UTILS__IOSYSTEM_WIN32_H

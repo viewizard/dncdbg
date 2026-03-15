@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef TYPES__PROTOCOL_H
+#define TYPES__PROTOCOL_H
 
 #include "types/types.h"
 #include <cstdint>
@@ -481,3 +482,5 @@ struct ExceptionBreakpoint
 };
 
 } // namespace dncdbg
+
+#endif // TYPES__PROTOCOL_H

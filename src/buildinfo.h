@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef BUILDINFO_H
+#define BUILDINFO_H
 
 #include <string_view>
 
@@ -21,3 +22,5 @@ extern const std::string_view date;
 extern const std::string_view time;            // Date and time of the build.
 
 } // namespace BuildInfo
+
+#endif // BUILDINFO_H

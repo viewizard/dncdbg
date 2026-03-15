@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__EVALUTILS_H
+#define DEBUGGER__EVALUTILS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -32,3 +33,5 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName);
 
 } // namespace dncdbg::EvalUtils
+
+#endif // DEBUGGER__EVALUTILS_H

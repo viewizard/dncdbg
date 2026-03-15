@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__EVALSTACKMACHINE_H
+#define DEBUGGER__EVALSTACKMACHINE_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -144,3 +145,5 @@ class EvalStackMachine
 };
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__EVALSTACKMACHINE_H

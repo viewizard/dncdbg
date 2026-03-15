@@ -2,9 +2,12 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef UTILS__IOSYSTEM_H
+#define UTILS__IOSYSTEM_H
 
 #include "utils/iosystem_internal.h"
 // include here all platform specific implementations of IOSystemTraits<T> classes
 #include "utils/iosystem_unix.h"
 #include "utils/iosystem_win32.h"
+
+#endif // UTILS__IOSYSTEM_H

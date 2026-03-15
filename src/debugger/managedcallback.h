@@ -3,7 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#pragma once
+#ifndef DEBUGGER__MANAGEDCALLBACK_H
+#define DEBUGGER__MANAGEDCALLBACK_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -109,3 +110,5 @@ class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedC
 };
 
 } // namespace dncdbg
+
+#endif // DEBUGGER__MANAGEDCALLBACK_H
