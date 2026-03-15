@@ -54,7 +54,7 @@ template <class T> class ToRelease
 
     T *operator->() const
     {
-        assert(m_ptr != 0); // accessing nullptr pointer
+        assert(m_ptr != nullptr); // accessing nullptr pointer
         return m_ptr;
     }
 
@@ -65,7 +65,7 @@ template <class T> class ToRelease
 
     T **operator&()
     {
-        assert(m_ptr == 0); // make sure, that previously stored value of type `T' isn't lost
+        assert(m_ptr == nullptr); // make sure, that previously stored value of type `T' isn't lost
         return &m_ptr;
     }
 

@@ -34,7 +34,6 @@ Checks: >
   -modernize-make-unique,
   -modernize-use-equals-delete,
   -modernize-use-nodiscard,
-  -modernize-use-nullptr,
   -modernize-use-default-member-init,
   -modernize-pass-by-value,
   -modernize-use-override,
