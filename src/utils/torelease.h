@@ -100,7 +100,7 @@ template <class T> class ToRelease
     {
         that.m_ptr = nullptr;
     }
-    ToRelease &operator=(ToRelease &&that)
+    ToRelease &operator=(ToRelease &&that) noexcept
     {
         if (m_ptr != nullptr)
             m_ptr->Release();

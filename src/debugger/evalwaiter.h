@@ -68,7 +68,10 @@ class EvalWaiter
               promiseValue(std::move(promiseValue_))
         {
         }
-        evalResult_t(evalResult_t &&B) : threadId(B.threadId), pEval(B.pEval), promiseValue(std::move(B.promiseValue))
+        evalResult_t(evalResult_t &&B) noexcept
+            : threadId(B.threadId),
+              pEval(B.pEval),
+              promiseValue(std::move(B.promiseValue))
         {
         }
 

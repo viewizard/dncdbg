@@ -58,10 +58,12 @@ struct SequencePoint
     {
         other.document = nullptr;
     }
-    SequencePoint &operator=(SequencePoint &&other)
+    SequencePoint &operator=(SequencePoint &&other) noexcept
     {
         if (this == std::addressof(other))
+        {
             return *this;
+        }
         startLine = other.startLine;
         startColumn = other.startColumn;
         endLine = other.endLine;

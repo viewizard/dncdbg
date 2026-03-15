@@ -83,14 +83,17 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             return result;
         }
 
-        AsyncHandle(AsyncHandle &&other) : traits(other.traits)
+        AsyncHandle(AsyncHandle &&other) noexcept
+            : traits(other.traits)
         {
             if (other)
+            {
                 traits->move(other.data, data);
+            }
             other.traits = nullptr;
         }
 
-        AsyncHandle &operator=(AsyncHandle &&other)
+        AsyncHandle &operator=(AsyncHandle &&other) // NOLINT(performance-noexcept-move-constructor)
         {
             this->~AsyncHandle();
             return *new (this) AsyncHandle(std::move(other));
@@ -99,7 +102,9 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         ~AsyncHandle()
         {
             if (*this)
+            {
                 traits->destr(data);
+            }
         }
     };
 
@@ -123,15 +128,19 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         StdIOSwap(const StdFiles &);
         ~StdIOSwap();
 
-        StdIOSwap(StdIOSwap &&other)
+        StdIOSwap(StdIOSwap &&other) noexcept
         {
             m_valid = other.m_valid;
             if (!m_valid)
+            {
                 return;
+            }
 
             other.m_valid = false;
             for (unsigned n = 0; n < std::tuple_size<StdFiles>::value; n++)
+            {
                 m_orig_fd[n] = other.m_orig_fd[n];
+            }
         }
 
         bool m_valid;

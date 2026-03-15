@@ -110,7 +110,7 @@ template <> struct IOSystemTraits<Win32PlatformTag>
         StdIOSwap(const StdFiles &);
         ~StdIOSwap();
 
-        StdIOSwap(StdIOSwap &&other)
+        StdIOSwap(StdIOSwap &&other) noexcept
         {
             m_valid = other.m_valid;
             if (!m_valid)
