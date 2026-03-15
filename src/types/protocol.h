@@ -84,7 +84,7 @@ struct StackFrame
 
     StackFrame(ThreadId threadId, FrameLevel level_, std::string &&name_)
         : id(FrameId(threadId, level_)),
-          name(name_),
+          name(std::move(name_)),
           line(0),
           column(0),
           endLine(0),
@@ -194,7 +194,7 @@ struct StoppedEvent
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true),
-          hitBreakpointIds(bpIds)
+          hitBreakpointIds(std::move(bpIds))
     {
     }
 };
