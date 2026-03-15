@@ -2,12 +2,6 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-// This file implements interface of Tizen's logger for linux/windows.
-// See Tizen's documentation and source code for details.
-//
-// Note: this file should be excluded from build on Tizen -- in this
-// case Tizen's logger function should be linked.
-
 #include "utils/logger.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include <array>
@@ -120,7 +114,7 @@ FILE *open_log_file()
 // |              ` log level         ` file name               ` line number
 // `--- time sec.msec
 //
-extern "C" int dlog_vprint(log_priority prio, const char *fmt, va_list ap)
+extern "C" int log_vprint(LogPriority prio, const char *fmt, va_list ap)
 {
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -128,21 +122,21 @@ extern "C" int dlog_vprint(log_priority prio, const char *fmt, va_list ap)
     static std::mutex mutex;
     const std::scoped_lock<std::mutex> lock(mutex);
 
-    if (prio == DLOG_DEFAULT)
+    if (prio == LogPriority::DEF)
     {
-        prio = DLOG_INFO;
+        prio = LogPriority::INF;
     }
 
     char level = 'I';
-    if (prio >= DLOG_DEBUG && prio <= DLOG_FATAL)
+    if (prio >= LogPriority::DBG && prio <= LogPriority::FTL)
     {
-        level = "DIWEF"[prio - DLOG_DEBUG];
+        level = "DIWEF"[static_cast<uint8_t>(prio) - static_cast<uint8_t>(LogPriority::DBG)];
     }
 
     static FILE *log_file = open_log_file();
     if (log_file == nullptr || (ferror(log_file) != 0))
     {
-        return DLOG_ERROR_NOT_PERMITTED;
+        return LOG_ERROR_NOT_PERMITTED;
     }
 
     const int len = fprintf(log_file, "%li.%03i %c(P%4u, T%4u): ", static_cast<long>(ts.tv_sec & 0x7fffff),
@@ -152,18 +146,18 @@ extern "C" int dlog_vprint(log_priority prio, const char *fmt, va_list ap)
     if (r < 0)
     {
         static_cast<void>(fputc('\n', log_file));
-        return DLOG_ERROR_INVALID_PARAMETER;
+        return LOG_ERROR_INVALID_PARAMETER;
     }
 
     static_cast<void>(fputc('\n', log_file));
-    return fflush(log_file) < 0 ? DLOG_ERROR_NOT_PERMITTED : len + r + 1;
+    return fflush(log_file) < 0 ? LOG_ERROR_NOT_PERMITTED : len + r + 1;
 }
 
-extern "C" int dlog_print(log_priority prio, const char *fmt, ...)
+extern "C" int log_print(LogPriority prio, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    dlog_vprint(prio, fmt, args);
+    log_vprint(prio, fmt, args);
     va_end(args);
     return 0;
 }
