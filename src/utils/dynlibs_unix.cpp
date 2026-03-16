@@ -49,7 +49,7 @@ void *DLSym(DLHandle handle, const std::string_view &symbol)
 
     ::dlerror(); // Clear any existing error
 
-    void *tmpPointer = ::dlsym(handle, str.data()); // NOLINT(misc-const-correctness)
+    void *tmpPointer = ::dlsym(handle, str.data());
 
     const char *err = ::dlerror();
     if (err != nullptr)

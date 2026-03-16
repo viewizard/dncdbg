@@ -61,13 +61,13 @@ struct dbgshim_t
           CreateDebuggingInterfaceFromVersionEx(nullptr),
           m_module(nullptr)
     {
-        std::string exe = GetExeAbsPath();
+        const std::string exe = GetExeAbsPath();
         if (exe.empty())
         {
             throw std::runtime_error("Unable to detect exe path");
         }
 
-        std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_STR_A);
+        const std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_STR_A);
         if (dirSepIndex == std::string::npos)
         {
             return;
@@ -98,15 +98,15 @@ struct dbgshim_t
         CreateVersionStringFromModule = reinterpret_cast<CreateVersionStringFromModule_t>(DLSym(m_module, "CreateVersionStringFromModule"));
         CreateDebuggingInterfaceFromVersionEx = reinterpret_cast<CreateDebuggingInterfaceFromVersionEx_t>(DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx"));
 
-        bool dlsym_ok = CreateProcessForLaunch != nullptr &&
-                        ResumeProcess != nullptr &&
-                        CloseResumeHandle != nullptr &&
-                        RegisterForRuntimeStartup != nullptr &&
-                        UnregisterForRuntimeStartup != nullptr &&
-                        EnumerateCLRs != nullptr &&
-                        CloseCLREnumeration != nullptr &&
-                        CreateVersionStringFromModule != nullptr &&
-                        CreateDebuggingInterfaceFromVersionEx != nullptr;
+        const bool dlsym_ok = CreateProcessForLaunch != nullptr &&
+                              ResumeProcess != nullptr &&
+                              CloseResumeHandle != nullptr &&
+                              RegisterForRuntimeStartup != nullptr &&
+                              UnregisterForRuntimeStartup != nullptr &&
+                              EnumerateCLRs != nullptr &&
+                              CloseCLREnumeration != nullptr &&
+                              CreateVersionStringFromModule != nullptr &&
+                              CreateDebuggingInterfaceFromVersionEx != nullptr;
 
         if (!dlsym_ok)
         {

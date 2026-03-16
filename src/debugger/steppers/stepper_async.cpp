@@ -332,7 +332,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return S_OK;
     }
 
-    AsyncInfo::AwaitInfo *awaitInfo = nullptr; // NOLINT(misc-const-correctness)
+    AsyncInfo::AwaitInfo *awaitInfo = nullptr;
     if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, &awaitInfo))
     {
         // We have step inside async function with await, setup breakpoint at closest await's yield_offset.

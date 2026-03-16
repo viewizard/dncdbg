@@ -118,7 +118,7 @@ std::string ReadData(std::istream &cin)
                 LOGW("protocol violation: duplicate '%s'", line.c_str());
             }
 
-            char *p = nullptr; // NOLINT(misc-const-correctness)
+            char *p = nullptr;
             errno = 0;
             static constexpr int base = 10;
             content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));

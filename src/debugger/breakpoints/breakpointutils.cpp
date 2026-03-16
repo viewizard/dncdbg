@@ -93,7 +93,7 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
     ToRelease<ICorDebugProcess> trProcess;
     IfFailRet(pThread->GetProcess(&trProcess));
 
-    Variable variable; // NOLINT(misc-const-correctness)
+    Variable variable;
     if (FAILED(Status = pVariables->Evaluate(trProcess, frameId, condition, variable, output)))
     {
         if (output.empty())

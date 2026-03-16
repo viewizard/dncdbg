@@ -48,7 +48,6 @@ Checks: >
   -misc-unconventional-assign-operator,
   -misc-unused-parameters,
   -misc-override-with-different-visibility,
-  -misc-const-correctness,
   -misc-non-private-member-variables-in-classes,
   readability-*,
   -readability-function-cognitive-complexity,

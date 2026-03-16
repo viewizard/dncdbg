@@ -88,7 +88,7 @@ HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThrea
     HRESULT Status = S_OK;
     for (const auto &p : params)
     {
-        ICorDebugType *tmpType = nullptr; // NOLINT(misc-const-correctness)
+        ICorDebugType *tmpType = nullptr;
         IfFailRet(GetType(p, pThread, pDebugInfo, &tmpType));
         trTypes.emplace_back(tmpType);
     }

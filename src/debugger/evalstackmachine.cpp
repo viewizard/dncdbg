@@ -1343,7 +1343,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     ToRelease<ICorDebugTypeEnum> trTypeEnum;
     if (SUCCEEDED(trType->EnumerateTypeParameters(&trTypeEnum)))
     {
-        ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
+        ICorDebugType *curType = nullptr;
         ULONG fetched = 0;
         while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {

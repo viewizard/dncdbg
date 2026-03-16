@@ -178,7 +178,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         ToRelease<ICorDebugTypeEnum> trTypeEnum;
         if (SUCCEEDED(ppArgsType[i]->EnumerateTypeParameters(&trTypeEnum)))
         {
-            ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
+            ICorDebugType *curType = nullptr;
             ULONG fetched = 0;
             while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
             {
@@ -345,7 +345,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     ToRelease<ICorDebugTypeEnum> trTypeEnum;
     if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
     {
-        ICorDebugType *curType = nullptr; // NOLINT(misc-const-correctness)
+        ICorDebugType *curType = nullptr;
         ULONG fetched = 0;
         while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
@@ -412,7 +412,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
     }
 
     CorSigUncompressCallingConv(pSignatureBlob);
-    CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
+    CorElementType underlyingType = ELEMENT_TYPE_MAX;
     CorSigUncompressElementType(pSignatureBlob, &underlyingType);
 
     ToRelease<IUnknown> trUnknown;

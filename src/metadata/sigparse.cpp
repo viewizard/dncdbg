@@ -246,7 +246,7 @@ PCCOR_SIGNATURE TypeNameFromSig(PCCOR_SIGNATURE typePtr, const std::vector<std::
     case ELEMENT_TYPE_GENERICINST:
     {
         // typePtr = TypeNameFromSig(typePtr, args, pMDImport, out, appendix);
-        CorElementType underlyingType = ELEMENT_TYPE_MAX; // NOLINT(misc-const-correctness)
+        CorElementType underlyingType = ELEMENT_TYPE_MAX;
         typePtr += CorSigUncompressElementType(typePtr, &underlyingType);
         typePtr += CorSigUncompressToken(typePtr, &tk);
 

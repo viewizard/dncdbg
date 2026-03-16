@@ -79,17 +79,19 @@ class IORedirectHelper
     template <typename Func, typename... Args>
     typename std::invoke_result<Func, Args...>::type exec(Func func, Args &&...args)
     {
-        IOSystem::StdIOSwap file_descriptors({std::get<IOSystem::Stdin>(m_pipes), std::get<IOSystem::Stdout>(m_pipes),
-                                              std::get<IOSystem::Stderr>(m_pipes)});
+        const IOSystem::StdIOSwap file_descriptors({std::get<IOSystem::Stdin>(m_pipes),
+                                                    std::get<IOSystem::Stdout>(m_pipes),
+                                                    std::get<IOSystem::Stderr>(m_pipes)});
 
         // close "remote" pipe ends
-        auto on_exit = [&](void *) {
+        auto on_exit = [&](void *)
+        {
             IOSystem::close(std::get<IOSystem::Stdin>(m_pipes));
             IOSystem::close(std::get<IOSystem::Stdout>(m_pipes));
             IOSystem::close(std::get<IOSystem::Stderr>(m_pipes));
         };
 
-        std::unique_ptr<void, decltype(on_exit)> defer{this, on_exit};
+        const std::unique_ptr<void, decltype(on_exit)> defer{this, on_exit};
         return func(std::forward<Args>(args)...);
     }
 
