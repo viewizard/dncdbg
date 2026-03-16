@@ -21,7 +21,7 @@ struct Thread
     ThreadId id;
     std::string name;
 
-    Thread(ThreadId id_, const std::string &name_, bool running_)
+    Thread(ThreadId id_, const std::string &name_)
         : id(id_),
           name(name_)
     {

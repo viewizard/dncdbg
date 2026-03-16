@@ -112,20 +112,14 @@ void Threads::Remove(const ThreadId &threadId)
     m_userThreads.erase(it);
 }
 
-// Caller should guarantee, that pProcess is not null.
-HRESULT Threads::GetThreadsWithState(ICorDebugProcess *pProcess, std::vector<Thread> &threads)
+HRESULT Threads::GetThreads(std::vector<Thread> &threads)
 {
     const ReadLock r_lock(m_userThreadsRWLock);
-
-    HRESULT Status = S_OK;
-    BOOL procRunning = FALSE;
-    IfFailRet(pProcess->IsRunning(&procRunning));
 
     threads.reserve(m_userThreads.size());
     for (const auto &userThread : m_userThreads)
     {
-        // ICorDebugThread::GetUserState not available for running thread.
-        threads.emplace_back(userThread.first, userThread.second, procRunning == TRUE);
+        threads.emplace_back(userThread.first, userThread.second);
     }
 
     return S_OK;

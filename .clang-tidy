@@ -45,7 +45,6 @@ Checks: >
   -misc-use-internal-linkage,
   -misc-multiple-inheritance,
   -misc-unconventional-assign-operator,
-  -misc-unused-parameters,
   -misc-override-with-different-visibility,
   -misc-non-private-member-variables-in-classes,
   readability-*,

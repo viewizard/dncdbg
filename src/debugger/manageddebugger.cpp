@@ -537,11 +537,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 
 HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status = S_OK;
-    IfFailRet(CheckDebugProcess());
-
-    return m_sharedThreads->GetThreadsWithState(m_trProcess, threads);
+    return m_sharedThreads->GetThreads(threads);
 }
 
 void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr)
