@@ -10,10 +10,7 @@
 #include <new>
 #include <type_traits>
 
-namespace dncdbg
-{
-
-namespace Utility
+namespace dncdbg::Utility
 {
 
 // Class similar to std::span from c++20, but it not implements some other features.
@@ -210,7 +207,6 @@ template <typename T> class span
     T *_first, *_beyond_last;
 };
 
-} // namespace Utility
-} // namespace dncdbg
+} // namespace dncdbg::Utility
 
 #endif // UTILS_SPAN_H
