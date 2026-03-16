@@ -128,7 +128,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     // Function advances the next pointer in the input sequence.
     void gbump(int count)
     {
-        return std::streambuf::gbump(count);
+        std::streambuf::gbump(count);
     }
 
     // Function returns pointer beyond last byte of the buffer.
@@ -230,13 +230,13 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     // Function function advances free space pointer by `count` characters.
     void pbump(int count)
     {
-        return std::streambuf::pbump(count);
+        std::streambuf::pbump(count);
     }
 
     // Function clears the buffer (pptr = pbase).
     void clear()
     {
-        return std::streambuf::setp(pbase(), epptr());
+        std::streambuf::setp(pbase(), epptr());
     }
 
   private:
@@ -329,7 +329,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     // Function advances the next pointer in the input sequence.
     void gbump(int count) // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
-        return std::streambuf::gbump(count);
+        std::streambuf::gbump(count);
     }
 
     // Function returns the pointer to the beginning of free space in the buffer.
@@ -347,7 +347,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     // Function function advances free space pointer by `count` characters.
     void pbump(int count) // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
-        return std::streambuf::pbump(count);
+        std::streambuf::pbump(count);
     }
 };
 
