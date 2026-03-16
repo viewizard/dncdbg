@@ -58,8 +58,8 @@ template <typename Traits> struct IOSystemImpl
 
         // Iterator might be created from any other iterator or pointer type,
         // for which `operator*` returns reference to `AsyncHandle`.
-        template <typename Iterator, typename = typename std::enable_if<std::is_convertible<
-                                         decltype(*std::declval<Iterator>()), AsyncHandle &>::value>::type>
+        template <typename Iterator, typename =
+            typename std::enable_if_t<std::is_convertible_v<decltype(*std::declval<Iterator>()), AsyncHandle &>>>
 #if defined(_WIN32) && defined(_TARGET_X86_)
         AsyncHandleIterator(Iterator it) : ops(OpsImpl<Iterator>::ops), data(data_align_tmp.data)
         {

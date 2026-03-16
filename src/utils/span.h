@@ -20,13 +20,13 @@ template <typename T> class span
   private:
 
     // Checks, that input argument is STL-containers like std::array, std::string or similar classes.
-    template <typename Container, typename Value = typename std::remove_reference<decltype(*std::declval<Container>().data())>::type>
-    using is_container = typename std::enable_if<std::is_same<Value, typename std::remove_const<T>::type>::value>;
+    template <typename Container, typename Value = typename std::remove_reference_t<decltype(*std::declval<Container>().data())>>
+    using is_container = typename std::enable_if<std::is_same_v<Value, typename std::remove_const_t<T>>>;
 
   public:
 
     using element_type = T;
-    using value_type = typename std::remove_cv<T>::type;
+    using value_type = typename std::remove_cv_t<T>;
     using pointer = T *;
     using const_pointer = const T *;
     using reference = T &;

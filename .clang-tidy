@@ -40,7 +40,6 @@ Checks: >
   -modernize-pass-by-value,
   -modernize-use-override,
   -modernize-use-equals-default,
-  -modernize-type-traits,
   misc-*,
   -misc-no-recursion,
   -misc-use-internal-linkage,

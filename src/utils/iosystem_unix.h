@@ -139,14 +139,14 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             }
 
             other.m_valid = false;
-            for (unsigned n = 0; n < std::tuple_size<StdFiles>::value; n++)
+            for (unsigned n = 0; n < std::tuple_size_v<StdFiles>; n++)
             {
                 m_orig_fd[n] = other.m_orig_fd[n];
             }
         }
 
         bool m_valid;
-        int m_orig_fd[std::tuple_size<StdFiles>::value];
+        int m_orig_fd[std::tuple_size_v<StdFiles>];
     };
 
     static IOSystem::StdFiles get_std_files();

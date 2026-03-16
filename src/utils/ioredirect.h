@@ -77,7 +77,7 @@ class IORedirectHelper
     // Note: this function closes files, so it can be called only once!
     //
     template <typename Func, typename... Args>
-    typename std::invoke_result<Func, Args...>::type exec(Func func, Args &&...args)
+    typename std::invoke_result_t<Func, Args...> exec(Func func, Args &&...args)
     {
         const IOSystem::StdIOSwap file_descriptors({std::get<IOSystem::Stdin>(m_pipes),
                                                     std::get<IOSystem::Stdout>(m_pipes),
