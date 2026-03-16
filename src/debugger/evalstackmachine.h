@@ -68,7 +68,9 @@ struct EvalStackEntry
         trGenericTypeCache.clear();
         preventBinding = false;
         if (resetLiteral == ResetLiteralStatus::Yes)
+        {
             literal = false;
+        }
         editable = false;
         setterData.reset();
     }

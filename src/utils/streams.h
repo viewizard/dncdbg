@@ -48,7 +48,9 @@ class FileOwner
     ~FileOwner()
     {
         if (file_handle)
+        {
             IOSystem::close(file_handle);
+        }
     }
 
     FileHandle file_handle;
@@ -376,7 +378,9 @@ class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::
     {
         const auto *ptr = dynamic_cast<InStreamBuf *>(rdbuf());
         if (ptr == nullptr)
+        {
             throw std::runtime_error("dynamic_cast fail");
+        }
         return ptr->get_file_handle();
     }
 };
@@ -405,7 +409,9 @@ class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std
     {
         const auto *ptr = dynamic_cast<OutStreamBuf *>(rdbuf());
         if (ptr == nullptr)
+        {
             throw std::runtime_error("dynamic_cast fail");
+        }
         return ptr->get_file_handle();
     }
 };
@@ -435,7 +441,9 @@ class IOStream : private StreamsInternal::BufferOwner<StreamBuf>, public std::io
     {
         const auto *ptr = dynamic_cast<StreamBuf *>(rdbuf());
         if (ptr == nullptr)
+        {
             throw std::runtime_error("dynamic_cast fail");
+        }
         return ptr->get_file_handle();
     }
 };
@@ -488,7 +496,9 @@ class CountingStreamBuf : public std::streambuf
         sync();
 
         if (!traits_type::eq_int_type(c, traits_type::eof()))
+        {
             ++count;
+        }
 
         return traits_type::not_eof(c);
     }

@@ -104,7 +104,9 @@ template <class T> class ToRelease
     ToRelease &operator=(ToRelease &&that) noexcept
     {
         if (m_ptr != nullptr)
+        {
             m_ptr->Release();
+        }
 
         m_ptr = that.m_ptr;
         that.m_ptr = nullptr;
