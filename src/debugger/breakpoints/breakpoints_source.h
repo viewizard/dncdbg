@@ -98,8 +98,10 @@ class SourceBreakpoints
         {
             for (auto &trFuncBreakpoint : trFuncBreakpoints)
             {
-                if (trFuncBreakpoint)
+                if (trFuncBreakpoint != nullptr)
+                {
                     trFuncBreakpoint->Activate(FALSE);
+                }
             }
         }
 

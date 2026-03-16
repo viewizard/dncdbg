@@ -48,16 +48,22 @@ class Evaluator
 
         void Set(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
         {
-            if (pValue)
+            if (pValue != nullptr)
+            {
                 pValue->AddRef();
+            }
             trThisValue = pValue;
 
-            if (pType)
+            if (pType != nullptr)
+            {
                 pType->AddRef();
+            }
             trPropertyType = pType;
 
-            if (pFunction)
+            if (pFunction != nullptr)
+            {
                 pFunction->AddRef();
+            }
             trSetterFunction = pFunction;
         }
     };

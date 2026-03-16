@@ -78,8 +78,10 @@ class AsyncStepper
 
         ~asyncBreakpoint_t()
         {
-            if (trFuncBreakpoint)
+            if (trFuncBreakpoint != nullptr)
+            {
                 trFuncBreakpoint->Activate(FALSE);
+            }
         }
     };
 

@@ -63,11 +63,15 @@ struct dbgshim_t
     {
         std::string exe = GetExeAbsPath();
         if (exe.empty())
+        {
             throw std::runtime_error("Unable to detect exe path");
+        }
 
         std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_STR_A);
         if (dirSepIndex == std::string::npos)
+        {
             return;
+        }
         std::string libName = exe.substr(0, dirSepIndex + 1);
 
 #ifdef _WIN32
@@ -79,8 +83,10 @@ struct dbgshim_t
 #endif
 
         m_module = DLOpen(libName);
-        if (!m_module)
+        if (m_module == nullptr)
+        {
             throw std::invalid_argument("Unable to load " + libName);
+        }
 
         CreateProcessForLaunch = reinterpret_cast<CreateProcessForLaunch_t>(DLSym(m_module, "CreateProcessForLaunch"));
         ResumeProcess = reinterpret_cast<ResumeProcess_t>(DLSym(m_module, "ResumeProcess"));
@@ -92,24 +98,28 @@ struct dbgshim_t
         CreateVersionStringFromModule = reinterpret_cast<CreateVersionStringFromModule_t>(DLSym(m_module, "CreateVersionStringFromModule"));
         CreateDebuggingInterfaceFromVersionEx = reinterpret_cast<CreateDebuggingInterfaceFromVersionEx_t>(DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx"));
 
-        bool dlsym_ok = CreateProcessForLaunch &&
-                        ResumeProcess &&
-                        CloseResumeHandle &&
-                        RegisterForRuntimeStartup &&
-                        UnregisterForRuntimeStartup &&
-                        EnumerateCLRs &&
-                        CloseCLREnumeration &&
-                        CreateVersionStringFromModule &&
-                        CreateDebuggingInterfaceFromVersionEx;
+        bool dlsym_ok = CreateProcessForLaunch != nullptr &&
+                        ResumeProcess != nullptr &&
+                        CloseResumeHandle != nullptr &&
+                        RegisterForRuntimeStartup != nullptr &&
+                        UnregisterForRuntimeStartup != nullptr &&
+                        EnumerateCLRs != nullptr &&
+                        CloseCLREnumeration != nullptr &&
+                        CreateVersionStringFromModule != nullptr &&
+                        CreateDebuggingInterfaceFromVersionEx != nullptr;
 
         if (!dlsym_ok)
+        {
             throw std::invalid_argument("Unable to dlsym for dbgshim module");
+        }
     }
 
     ~dbgshim_t()
     {
-        if (m_module)
+        if (m_module != nullptr)
+        {
             DLClose(m_module);
+        }
     }
 
   private:

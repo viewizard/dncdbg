@@ -67,7 +67,6 @@ Checks: >
   -readability-avoid-const-params-in-decls,
   -readability-math-missing-parentheses,
   -readability-magic-numbers,
-  -readability-implicit-bool-conversion,
   -readability-avoid-return-with-void-value,
   -readability-redundant-typename
 CheckOptions:
