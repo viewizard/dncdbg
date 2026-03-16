@@ -18,7 +18,7 @@
 
 template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 {
-    using IOSystem = typename dncdbg::IOSystemImpl<IOSystemTraits<UnixPlatformTag>>;
+    using IOSystem = dncdbg::IOSystemImpl<IOSystemTraits<UnixPlatformTag>>;
     using IOResult = IOSystem::IOResult;
 
     struct FileHandle

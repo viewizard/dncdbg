@@ -67,8 +67,7 @@ Checks: >
   -readability-avoid-const-params-in-decls,
   -readability-math-missing-parentheses,
   -readability-magic-numbers,
-  -readability-avoid-return-with-void-value,
-  -readability-redundant-typename
+  -readability-avoid-return-with-void-value
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: 'true'
