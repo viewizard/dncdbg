@@ -98,7 +98,7 @@ HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPW
 
     while (numTries < tryCount)
     {
-        hr = dbgshim.EnumerateCLRs(pid, ppHandleArray, ppStringArray, pdwArrayLength);
+        hr = dbgshim.GetEnumerateCLRs()(pid, ppHandleArray, ppStringArray, pdwArrayLength);
 
         // From dbgshim.cpp:
         // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or
@@ -121,7 +121,7 @@ HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPW
                     return hr;
                 }
                 // Clean up memory allocated in EnumerateCLRs since this path it succeeded
-                dbgshim.CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
+                dbgshim.GetCloseCLREnumeration()(*ppHandleArray, *ppStringArray, *pdwArrayLength);
 
                 *ppHandleArray = nullptr;
                 *ppStringArray = nullptr;
@@ -161,7 +161,7 @@ std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
 
     std::string result = to_utf8(pStringArray[0]);
 
-    dbgshim.CloseCLREnumeration(pHandleArray, pStringArray, dwArrayLength);
+    dbgshim.GetCloseCLREnumeration()(pHandleArray, pStringArray, dwArrayLength);
 
     return result;
 }
@@ -566,7 +566,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
 
     if (self->m_unregisterToken != nullptr)
     {
-        self->m_dbgshim.UnregisterForRuntimeStartup(self->m_unregisterToken);
+        self->m_dbgshim.GetUnregisterForRuntimeStartup()(self->m_unregisterToken);
         self->m_unregisterToken = nullptr;
     }
 }
@@ -646,7 +646,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     }
 
     Status = m_ioredirect.exec([&]() -> HRESULT {
-            IfFailRet(m_dbgshim.CreateProcessForLaunch(
+            IfFailRet(m_dbgshim.GetCreateProcessForLaunch()(
                 reinterpret_cast<WCHAR *>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : outEnv.data(),
@@ -664,11 +664,11 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     GetWaitpid().SetupTrackingPID(static_cast<pid_t>(m_processId));
 #endif // FEATURE_PAL
 
-    IfFailRet(m_dbgshim.RegisterForRuntimeStartup(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
+    IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
 
     // Resume the process so that StartupCallback can run
-    IfFailRet(m_dbgshim.ResumeProcess(resumeHandle));
-    m_dbgshim.CloseResumeHandle(resumeHandle);
+    IfFailRet(m_dbgshim.GetResumeProcess()(resumeHandle));
+    m_dbgshim.GetCloseResumeHandle()(resumeHandle);
 
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
@@ -823,11 +823,11 @@ HRESULT ManagedDebugger::AttachToProcess()
     static constexpr uint32_t bufSize = 100;
     std::array<WCHAR, bufSize> pBuffer{};
     DWORD dwLength = 0;
-    IfFailRet(m_dbgshim.CreateVersionStringFromModule(
+    IfFailRet(m_dbgshim.GetCreateVersionStringFromModule()(
         m_processId, reinterpret_cast<const WCHAR *>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
 
     ToRelease<IUnknown> trCordb;
-    IfFailRet(m_dbgshim.CreateDebuggingInterfaceFromVersionEx(CorDebugVersion_4_0, pBuffer.data(), &trCordb));
+    IfFailRet(m_dbgshim.GetCreateDebuggingInterfaceFromVersionEx()(CorDebugVersion_4_0, pBuffer.data(), &trCordb));
 
     m_unregisterToken = nullptr;
     IfFailRet(Startup(trCordb));

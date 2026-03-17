@@ -53,7 +53,7 @@ class FileOwner
         }
     }
 
-    FileHandle file_handle;
+    FileHandle file_handle; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 
 // This class isn't intendent for direct use and is used by InStreamBuf,

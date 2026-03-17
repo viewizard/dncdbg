@@ -27,8 +27,10 @@ namespace dncdbg
 {
 
 // Based on coreclr/src/dlls/dbgshim/dbgshim.h
-struct dbgshim_t
+class dbgshim_t
 {
+  public:
+
     using PSTARTUP_CALLBACK = void (*)(IUnknown *, void *, HRESULT);
     using CreateProcessForLaunch_t = HRESULT (*)(WCHAR *, BOOL, void *, const WCHAR *, DWORD *, HANDLE *);
     using ResumeProcess_t = HRESULT (*)(HANDLE);
@@ -39,15 +41,6 @@ struct dbgshim_t
     using CloseCLREnumeration_t = HRESULT (*)(HANDLE *, LPWSTR *, DWORD );
     using CreateVersionStringFromModule_t = HRESULT (*)(DWORD, const WCHAR *, WCHAR *, DWORD, DWORD *);
     using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, const WCHAR *, IUnknown **);
-    CreateProcessForLaunch_t CreateProcessForLaunch;
-    ResumeProcess_t ResumeProcess;
-    CloseResumeHandle_t CloseResumeHandle;
-    RegisterForRuntimeStartup_t RegisterForRuntimeStartup;
-    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup;
-    EnumerateCLRs_t EnumerateCLRs;
-    CloseCLREnumeration_t CloseCLREnumeration;
-    CreateVersionStringFromModule_t CreateVersionStringFromModule;
-    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx;
 
     dbgshim_t()
         : CreateProcessForLaunch(nullptr),
@@ -114,6 +107,51 @@ struct dbgshim_t
         }
     }
 
+    const CreateProcessForLaunch_t &GetCreateProcessForLaunch()
+    {
+        return CreateProcessForLaunch;
+    }
+
+    const ResumeProcess_t &GetResumeProcess()
+    {
+        return ResumeProcess;
+    }
+
+    const CloseResumeHandle_t &GetCloseResumeHandle()
+    {
+        return CloseResumeHandle;
+    }
+
+    const RegisterForRuntimeStartup_t &GetRegisterForRuntimeStartup()
+    {
+        return RegisterForRuntimeStartup;
+    }
+
+    const UnregisterForRuntimeStartup_t &GetUnregisterForRuntimeStartup()
+    {
+        return UnregisterForRuntimeStartup;
+    }
+
+    const EnumerateCLRs_t &GetEnumerateCLRs()
+    {
+        return EnumerateCLRs;
+    }
+
+    const CloseCLREnumeration_t &GetCloseCLREnumeration()
+    {
+        return CloseCLREnumeration;
+    }
+
+    const CreateVersionStringFromModule_t &GetCreateVersionStringFromModule()
+    {
+        return CreateVersionStringFromModule;
+    }
+
+    const CreateDebuggingInterfaceFromVersionEx_t &GetCreateDebuggingInterfaceFromVersionEx()
+    {
+        return CreateDebuggingInterfaceFromVersionEx;
+    }
+
     ~dbgshim_t()
     {
         if (m_module != nullptr)
@@ -123,6 +161,16 @@ struct dbgshim_t
     }
 
   private:
+
+    CreateProcessForLaunch_t CreateProcessForLaunch;
+    ResumeProcess_t ResumeProcess;
+    CloseResumeHandle_t CloseResumeHandle;
+    RegisterForRuntimeStartup_t RegisterForRuntimeStartup;
+    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup;
+    EnumerateCLRs_t EnumerateCLRs;
+    CloseCLREnumeration_t CloseCLREnumeration;
+    CreateVersionStringFromModule_t CreateVersionStringFromModule;
+    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx;
 
     DLHandle m_module;
 };

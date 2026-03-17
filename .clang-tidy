@@ -28,7 +28,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-special-member-functions,
   -cppcoreguidelines-explicit-virtual-functions,
-  -cppcoreguidelines-non-private-member-variables-in-classes,
   modernize-*,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-style-cast,
