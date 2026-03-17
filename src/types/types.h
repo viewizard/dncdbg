@@ -56,7 +56,7 @@ template <typename T> struct CustomScalarType
     bool operator<(const T &other) const
     {
         return static_cast<typename T::ScalarType>(static_cast<const T &>(*this)) <
-               static_cast<typename T::ScalarType>(static_cast<const T &>(other));
+               static_cast<typename T::ScalarType>(other);
     }
 
   private:

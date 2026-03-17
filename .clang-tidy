@@ -51,7 +51,6 @@ Checks: >
   -readability-named-parameter,
   -readability-use-concise-preprocessor-directives,
   -readability-avoid-nested-conditional-operator,
-  -readability-redundant-casting,
   -readability-redundant-inline-specifier,
   -readability-make-member-function-const,
   -readability-avoid-const-params-in-decls,
