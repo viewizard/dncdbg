@@ -72,8 +72,8 @@ struct VariableMember
     {
     }
 
-    VariableMember(VariableMember &&that) = default;
-    VariableMember(const VariableMember &that) = delete;
+    VariableMember(VariableMember &&) = default;
+    VariableMember(const VariableMember &) = delete;
     VariableMember &operator=(VariableMember &&) = delete;
     VariableMember &operator=(const VariableMember &) = delete;
     ~VariableMember() = default;

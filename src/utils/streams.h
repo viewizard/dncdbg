@@ -38,12 +38,13 @@ class FileOwner
     {
     }
 
-    FileOwner(const FileOwner &) = delete;
-
     FileOwner(FileOwner &&other) noexcept : file_handle(other.file_handle)
     {
         other.file_handle = FileHandle();
     }
+    FileOwner(const FileOwner &) = delete;
+    FileOwner &operator=(FileOwner &&) = delete;
+    FileOwner &operator=(const FileOwner &) = delete;
 
     ~FileOwner()
     {
@@ -90,16 +91,16 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
 
     // Class isn't copyable.
     InStreamBuf(const InStreamBuf &) = delete;
+    InStreamBuf &operator=(const InStreamBuf &) = delete;
 
     // Class is movable.
     InStreamBuf(InStreamBuf &&other) noexcept
         : FileOwner(std::move(other)), std::streambuf(other), inbuf(std::move(other.inbuf)) // NOLINT(bugprone-use-after-move)
     {
     }
+    InStreamBuf &operator=(InStreamBuf &&) = delete;
 
-    ~InStreamBuf() override
-    {
-    }
+    ~InStreamBuf() override = default;
 
     // Function returns file handle which is used for writing data.
     FileHandle get_file_handle() const
@@ -178,12 +179,14 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
 
     // Class isn't copyable.
     OutStreamBuf(const OutStreamBuf &) = delete;
+    OutStreamBuf &operator=(const OutStreamBuf &) = delete;
 
     // Class is movable.
     OutStreamBuf(OutStreamBuf &&other) noexcept
         : FileOwner(std::move(other)), std::streambuf(other), outbuf(std::move(other.outbuf)) // NOLINT(bugprone-use-after-move)
     {
     }
+    OutStreamBuf &operator=(OutStreamBuf &&) = delete;
 
     ~OutStreamBuf() override
     {
@@ -276,12 +279,16 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
 
     // Class isn't copyable.
     StreamBuf(const StreamBuf &) = delete;
+    StreamBuf &operator=(const StreamBuf &) = delete;
 
     // Class is movable.
     StreamBuf(StreamBuf &&other) noexcept
         : FileOwner(std::move(other)), std::streambuf(other), InStreamBuf(std::move(other)), OutStreamBuf(std::move(other)) // NOLINT(bugprone-use-after-move)
     {
     }
+    StreamBuf &operator=(StreamBuf &&) = delete;
+
+    ~StreamBuf() override = default;
 
     // Function returns file handle which is used for reading/writing data.
     FileHandle get_file_handle() const // NOLINT(bugprone-derived-method-shadowing-base-method)
@@ -367,11 +374,15 @@ class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::
 
     // Class is not copyable.
     InStream(const InStream &) = delete;
+    InStream &operator=(const InStream &) = delete;
 
     // Class is moveable.
     InStream(InStream &&other) noexcept : BufferOwner{std::move(other.buffer)}, std::istream(&buffer)
     {
     }
+    InStream &operator=(InStream &&) = delete;
+
+    ~InStream() override = default;
 
     // Function returns file handle which is used for reading data.
     IOSystem::FileHandle get_file_handle() const
@@ -398,11 +409,15 @@ class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std
 
     // Class isn't copyable.
     OutStream(const OutStream &) = delete;
+    OutStream &operator=(const OutStream &) = delete;
 
     // Class is movable.
     OutStream(OutStream &&other) noexcept : BufferOwner{std::move(other.buffer)}, std::ostream(&buffer)
     {
     }
+    OutStream &operator=(OutStream &&) = delete;
+
+    ~OutStream() override = default;
 
     // Function returns file handle which is used for writing data.
     IOSystem::FileHandle get_file_handle() const
@@ -430,11 +445,15 @@ class IOStream : private StreamsInternal::BufferOwner<StreamBuf>, public std::io
 
     // Class isn't copyable.
     IOStream(const IOStream &) = delete;
+    IOStream &operator=(const IOStream &) = delete;
 
     // Class is movable.
     IOStream(IOStream &&other) noexcept : BufferOwner{std::move(other.buffer)}, std::iostream(&buffer)
     {
     }
+    IOStream &operator=(IOStream &&) = delete;
+
+    ~IOStream() override = default;
 
     // Function returns file handle which is used for reading/writing data.
     IOSystem::FileHandle get_file_handle() const
@@ -463,11 +482,15 @@ class CountingStreamBuf : public std::streambuf
 
     // Class isn't copyable.
     CountingStreamBuf(const CountingStreamBuf &) = delete;
+    CountingStreamBuf &operator=(const CountingStreamBuf &) = delete;
 
     // Class is movable.
     CountingStreamBuf(CountingStreamBuf &&other) noexcept : std::streambuf(other), count(other.count)
     {
     }
+    CountingStreamBuf &operator=(CountingStreamBuf &&) = delete;
+
+    ~CountingStreamBuf() override = default;
 
     // This function resets number of counted characters.
     void reset()
@@ -523,11 +546,15 @@ class CountingStream : private StreamsInternal::BufferOwner<CountingStreamBuf>, 
 
     // Class isn't copyable.
     CountingStream(const CountingStream &) = delete;
+    CountingStream &operator=(const CountingStream &) = delete;
 
     // Class is movable.
     CountingStream(CountingStream &&other) noexcept : BufferOwner(std::move(other)), std::ostream(other.rdbuf()) // NOLINT(bugprone-use-after-move)
     {
     }
+    CountingStream &operator=(CountingStream &&) = delete;
+
+    ~CountingStream() override = default;
 
     // Function resets numbed of counted characters.
     void reset()

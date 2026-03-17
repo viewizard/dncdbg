@@ -99,8 +99,11 @@ class Variables
             return valueKind == ValueKind::Scope;
         }
 
-        VariableReference(VariableReference &&that) = default;
-        VariableReference(const VariableReference &that) = delete;
+        VariableReference(VariableReference &&) = default;
+        VariableReference(const VariableReference &) = delete;
+        VariableReference &operator=(VariableReference &&) = delete;
+        VariableReference &operator=(const VariableReference &) = delete;
+        ~VariableReference() = default;
     };
 
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;

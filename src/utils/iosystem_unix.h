@@ -101,6 +101,9 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             return *new (this) AsyncHandle(std::move(other));
         }
 
+        AsyncHandle(const AsyncHandle &) = delete;
+        AsyncHandle &operator=(const AsyncHandle &) = delete;
+
         ~AsyncHandle()
         {
             if (*this)
@@ -144,6 +147,10 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
                 m_orig_fd[n] = other.m_orig_fd[n];
             }
         }
+
+        StdIOSwap(const StdIOSwap &) = delete;
+        StdIOSwap &operator=(StdIOSwap &&) = delete;
+        StdIOSwap &operator=(const StdIOSwap &) = delete;
 
         bool m_valid;
         int m_orig_fd[std::tuple_size_v<StdFiles>];

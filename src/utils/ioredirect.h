@@ -58,6 +58,11 @@ class IORedirectHelper
     IORedirectHelper(const Pipes &, const InputCallback &, size_t input_bufsize = DefaultBufferSize,
                      size_t output_bufsize = DefaultBufferSize);
 
+    IORedirectHelper(IORedirectHelper &&) = delete;
+    IORedirectHelper(const IORedirectHelper &) = delete;
+    IORedirectHelper &operator=(IORedirectHelper &&) = delete;
+    IORedirectHelper &operator=(const IORedirectHelper &) = delete;
+                     
     ~IORedirectHelper();
 
     // This function allows to write some data to pipe, which represents stdin stream.

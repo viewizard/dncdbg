@@ -46,6 +46,12 @@ class Evaluator
             Set(setterData.trThisValue.GetPtr(), setterData.trPropertyType.GetPtr(), setterData.trSetterFunction.GetPtr());
         };
 
+        SetterData(SetterData &&) = delete;
+        SetterData(const SetterData &) = delete;
+        SetterData &operator=(SetterData &&) = delete;
+        SetterData &operator=(const SetterData &) = delete;
+        ~SetterData() = default;
+
         void Set(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
         {
             if (pValue != nullptr)

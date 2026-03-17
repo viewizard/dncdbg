@@ -107,10 +107,10 @@ class SourceBreakpoints
 
         void ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const;
 
-        ManagedSourceBreakpoint(ManagedSourceBreakpoint &&that) = default;
-        ManagedSourceBreakpoint(const ManagedSourceBreakpoint &that) = delete;
-        ManagedSourceBreakpoint &operator=(ManagedSourceBreakpoint &&that) = default;
-        ManagedSourceBreakpoint &operator=(const ManagedSourceBreakpoint &that) = delete;
+        ManagedSourceBreakpoint(ManagedSourceBreakpoint &&) = default;
+        ManagedSourceBreakpoint(const ManagedSourceBreakpoint &) = delete;
+        ManagedSourceBreakpoint &operator=(ManagedSourceBreakpoint &&) = default;
+        ManagedSourceBreakpoint &operator=(const ManagedSourceBreakpoint &) = delete;
     };
 
   private:
@@ -133,6 +133,12 @@ class SourceBreakpoints
               resolved_linenum(0)
         {
         }
+
+        ManagedSourceBreakpointMapping(ManagedSourceBreakpointMapping &&) = default;
+        ManagedSourceBreakpointMapping(const ManagedSourceBreakpointMapping &) = delete;
+        ManagedSourceBreakpointMapping &operator=(ManagedSourceBreakpointMapping &&) = delete;
+        ManagedSourceBreakpointMapping &operator=(const ManagedSourceBreakpointMapping &) = delete;
+        
         ~ManagedSourceBreakpointMapping() = default;
     };
 

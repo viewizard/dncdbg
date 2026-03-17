@@ -57,6 +57,10 @@ class ManagedDebugger
   public:
 
     ManagedDebugger();
+    ManagedDebugger(ManagedDebugger &&) = delete;
+    ManagedDebugger(const ManagedDebugger &) = delete;
+    ManagedDebugger &operator=(ManagedDebugger &&) = delete;
+    ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
     bool IsJustMyCode() const

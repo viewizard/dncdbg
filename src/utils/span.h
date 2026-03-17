@@ -89,6 +89,10 @@ template <typename T> class span
 #pragma GCC diagnostic pop
 #endif
 
+    span(span &&) = default;
+    span &operator=(span &&) = delete;
+    ~span() = default;
+
     // Checks if the sequence is empty.
     bool empty() const
     {

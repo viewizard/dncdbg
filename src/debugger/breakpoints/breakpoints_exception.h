@@ -93,10 +93,11 @@ class ExceptionBreakpoints
 
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
-        ManagedExceptionBreakpoint(ManagedExceptionBreakpoint &&that) = default;
-        ManagedExceptionBreakpoint(const ManagedExceptionBreakpoint &that) = delete;
-        ManagedExceptionBreakpoint &operator=(ManagedExceptionBreakpoint &&that) = default;
-        ManagedExceptionBreakpoint &operator=(const ManagedExceptionBreakpoint &that) = delete;
+        ManagedExceptionBreakpoint(ManagedExceptionBreakpoint &&) = default;
+        ManagedExceptionBreakpoint(const ManagedExceptionBreakpoint &) = delete;
+        ManagedExceptionBreakpoint &operator=(ManagedExceptionBreakpoint &&) = default;
+        ManagedExceptionBreakpoint &operator=(const ManagedExceptionBreakpoint &) = delete;
+        ~ManagedExceptionBreakpoint() = default;
     };
 
     std::mutex m_breakpointsMutex;

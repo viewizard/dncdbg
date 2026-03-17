@@ -107,6 +107,11 @@ class dbgshim_t
         }
     }
 
+    dbgshim_t(dbgshim_t &&) = delete;
+    dbgshim_t(const dbgshim_t &) = delete;
+    dbgshim_t &operator=(dbgshim_t &&) = delete;
+    dbgshim_t &operator=(const dbgshim_t &) = delete;
+
     const CreateProcessForLaunch_t &GetCreateProcessForLaunch()
     {
         return CreateProcessForLaunch;

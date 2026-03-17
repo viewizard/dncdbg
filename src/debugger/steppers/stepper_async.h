@@ -76,6 +76,11 @@ class AsyncStepper
               ilOffset(0)
         {}
 
+        asyncBreakpoint_t(asyncBreakpoint_t &&) = delete;
+        asyncBreakpoint_t(const asyncBreakpoint_t &) = delete;
+        asyncBreakpoint_t &operator=(asyncBreakpoint_t &&) = delete;
+        asyncBreakpoint_t &operator=(const asyncBreakpoint_t &) = delete;
+
         ~asyncBreakpoint_t()
         {
             if (trFuncBreakpoint != nullptr)

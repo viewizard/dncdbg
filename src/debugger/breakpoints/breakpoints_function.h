@@ -108,10 +108,10 @@ class FunctionBreakpoints
 
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
-        ManagedFunctionBreakpoint(ManagedFunctionBreakpoint &&that) = default;
-        ManagedFunctionBreakpoint(const ManagedFunctionBreakpoint &that) = delete;
-        ManagedFunctionBreakpoint &operator=(ManagedFunctionBreakpoint &&that) = default;
-        ManagedFunctionBreakpoint &operator=(const ManagedFunctionBreakpoint &that) = delete;
+        ManagedFunctionBreakpoint(ManagedFunctionBreakpoint &&) = default;
+        ManagedFunctionBreakpoint(const ManagedFunctionBreakpoint &) = delete;
+        ManagedFunctionBreakpoint &operator=(ManagedFunctionBreakpoint &&) = default;
+        ManagedFunctionBreakpoint &operator=(const ManagedFunctionBreakpoint &) = delete;
     };
 
     std::mutex m_breakpointsMutex;

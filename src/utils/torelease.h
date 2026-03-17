@@ -97,25 +97,25 @@ template <class T> class ToRelease
         }
     }
 
-    ToRelease(ToRelease &&that) noexcept : m_ptr(that.m_ptr)
+    ToRelease(ToRelease &&other) noexcept : m_ptr(other.m_ptr)
     {
-        that.m_ptr = nullptr;
+        other.m_ptr = nullptr;
     }
-    ToRelease &operator=(ToRelease &&that) noexcept
+    ToRelease &operator=(ToRelease &&other) noexcept
     {
         if (m_ptr != nullptr)
         {
             m_ptr->Release();
         }
 
-        m_ptr = that.m_ptr;
-        that.m_ptr = nullptr;
+        m_ptr = other.m_ptr;
+        other.m_ptr = nullptr;
     }
 
   private:
 
-    ToRelease(const ToRelease &that) = delete;
-    ToRelease &operator=(const ToRelease &that) = delete;
+    ToRelease(const ToRelease &) = delete;
+    ToRelease &operator=(const ToRelease &) = delete;
     T *m_ptr;
 };
 

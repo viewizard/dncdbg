@@ -37,7 +37,9 @@ class waitpid_t
     int exitCode = 0; // same behaviour as CoreCLR have, by default exit code is 0
     std::recursive_mutex interlock;
 
+    waitpid_t(waitpid_t &&) = delete;
     waitpid_t(const waitpid_t &) = delete;
+    waitpid_t &operator=(waitpid_t &&) = delete;
     waitpid_t &operator=(const waitpid_t &) = delete;
 
     void init() noexcept;

@@ -72,6 +72,11 @@ template <typename Traits> struct IOSystemImpl
         }
 #endif
 
+        AsyncHandleIterator(AsyncHandleIterator &&) = delete;
+        AsyncHandleIterator(const AsyncHandleIterator &) = default;
+        AsyncHandleIterator &operator=(AsyncHandleIterator &&) = delete;
+        AsyncHandleIterator &operator=(const AsyncHandleIterator &) = delete;
+
         ~AsyncHandleIterator()
         {
             ops.destr(data);
@@ -273,7 +278,11 @@ template <typename Traits> struct IOSystemImpl
         {
         }
 
+        StdIOSwap(StdIOSwap &&) = delete;
         StdIOSwap(const StdIOSwap &) = delete;
+        StdIOSwap &operator=(StdIOSwap &&) = delete;
+        StdIOSwap &operator=(const StdIOSwap &) = delete;
+        ~StdIOSwap() = default;
     };
 
 }; // struct IOSystemImpl

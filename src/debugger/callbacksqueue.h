@@ -57,6 +57,10 @@ class CallbacksQueue
           m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this}
     {
     }
+    CallbacksQueue(CallbacksQueue &&) = delete;
+    CallbacksQueue(const CallbacksQueue &) = delete;
+    CallbacksQueue &operator=(CallbacksQueue &&) = delete;
+    CallbacksQueue &operator=(const CallbacksQueue &) = delete;
     ~CallbacksQueue();
 
     // Called from ManagedDebugger by protocol request (Continue/Pause).
