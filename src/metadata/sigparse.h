@@ -41,11 +41,11 @@ struct SigElementType
 
     static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
     bool areEqual(const SigElementType &arg) const;
-    inline bool operator==(const SigElementType &arg)
+    bool operator==(const SigElementType &arg)
     {
         return areEqual(arg);
     }
-    inline bool operator!=(const SigElementType &arg)
+    bool operator!=(const SigElementType &arg)
     {
         return !areEqual(arg);
     }
