@@ -97,7 +97,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     {
     }
 
-    virtual ~InStreamBuf()
+    ~InStreamBuf() override
     {
     }
 
@@ -113,7 +113,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     // This functions fills input buffer (it should made at least one character be
     // available in the buffer). Return value is traits_type::eof() in case of error,
     // or the code of next available symbol.
-    virtual int underflow() override;
+    int underflow() override;
 
     // Function returns pointer to the next available character.
     char *gptr() const
@@ -185,7 +185,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     {
     }
 
-    virtual ~OutStreamBuf()
+    ~OutStreamBuf() override
     {
         OutStreamBuf::sync();
     }
@@ -202,11 +202,11 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     // Function writes data from a buffer to the file. Function ensures, that
     // after return there is space in the buffer for at least one character.
     // Function returns Traits::eof() on failure (write error).
-    virtual int overflow(int c) override;
+    int overflow(int c) override;
 
     // Function flushes the buffer to the underlying file
     // (user code should use `pubsync` function for such purpose).
-    virtual int sync() override;
+    int sync() override;
 
     // Following functions exposed to enable direct access of the buffer.
   public:
@@ -292,7 +292,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     // This functions fills input buffer (it should made at least one character be
     // available in the buffer). Return value is traits_type::eof() in case of error,
     // or the code of next available symbol.
-    virtual int underflow() override
+    int underflow() override
     {
         return InStreamBuf::underflow();
     }
@@ -302,14 +302,14 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     // Function writes data from a buffer to the file. Function ensures, that
     // after return there is space in the buffer for at least one character.
     // Function returns Traits::eof() on failure (write error).
-    virtual int overflow(int c) override
+    int overflow(int c) override
     {
         return OutStreamBuf::overflow(c);
     }
 
     // Flushes buffer to the underlying file
     // (user code should use `pubsync` function for such purpose).
-    virtual int sync() override
+    int sync() override
     {
         return OutStreamBuf::sync();
     }
@@ -484,14 +484,14 @@ class CountingStreamBuf : public std::streambuf
     // functions which should be implemented for std::streambuf
   protected:
 
-    virtual int sync() override
+    int sync() override
     {
         count += pptr() - pbase();
         setp(pbase(), epptr());
         return 0;
     }
 
-    virtual int overflow(int c) override
+    int overflow(int c) override
     {
         sync();
 
