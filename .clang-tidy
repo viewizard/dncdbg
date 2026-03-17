@@ -29,7 +29,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-style-cast,
   -modernize-avoid-c-arrays,
-  -modernize-use-equals-delete,
   -modernize-use-nodiscard,
   -modernize-use-default-member-init,
   -modernize-pass-by-value,

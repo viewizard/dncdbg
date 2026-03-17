@@ -111,11 +111,11 @@ template <class T> class ToRelease
         m_ptr = other.m_ptr;
         other.m_ptr = nullptr;
     }
+    ToRelease(const ToRelease &) = delete;
+    ToRelease &operator=(const ToRelease &) = delete;
 
   private:
 
-    ToRelease(const ToRelease &) = delete;
-    ToRelease &operator=(const ToRelease &) = delete;
     T *m_ptr;
 };
 

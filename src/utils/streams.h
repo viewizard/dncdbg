@@ -32,6 +32,10 @@ class FileOwner
         return file_handle;
     }
 
+    FileOwner(const FileOwner &) = delete;
+    FileOwner &operator=(FileOwner &&) = delete;
+    FileOwner &operator=(const FileOwner &) = delete;
+
   protected:
 
     FileOwner(const FileHandle &fh) : file_handle(fh)
@@ -42,9 +46,6 @@ class FileOwner
     {
         other.file_handle = FileHandle();
     }
-    FileOwner(const FileOwner &) = delete;
-    FileOwner &operator=(FileOwner &&) = delete;
-    FileOwner &operator=(const FileOwner &) = delete;
 
     ~FileOwner()
     {
