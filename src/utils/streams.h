@@ -475,7 +475,7 @@ class CountingStreamBuf : public std::streambuf
   public:
 
     // Default class constructor.
-    CountingStreamBuf() : count(0)
+    CountingStreamBuf() : count(0) // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
         setp(buf, buf + BufSize - OverflowChars);
     }
@@ -485,7 +485,8 @@ class CountingStreamBuf : public std::streambuf
     CountingStreamBuf &operator=(const CountingStreamBuf &) = delete;
 
     // Class is movable.
-    CountingStreamBuf(CountingStreamBuf &&other) noexcept : std::streambuf(other), count(other.count)
+    CountingStreamBuf(CountingStreamBuf &&other) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)
+        : std::streambuf(other), count(other.count)
     {
     }
     CountingStreamBuf &operator=(CountingStreamBuf &&) = delete;

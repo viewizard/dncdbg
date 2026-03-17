@@ -32,7 +32,7 @@ template <typename Traits> struct IOSystemImpl
             Pending  // operation can't be completed in non-blocked mode (will block)
         };
 
-        Status status; // operation result
+        Status status = Success; // operation result
         size_t size = 0;   // amount of written/read data in bytes
     };
 
@@ -66,7 +66,7 @@ template <typename Traits> struct IOSystemImpl
             new (data) Iterator(it);
         }
 #else
-        AsyncHandleIterator(Iterator it) : ops(OpsImpl<Iterator>::ops)
+        AsyncHandleIterator(Iterator it) : ops(OpsImpl<Iterator>::ops) // NOLINT(cppcoreguidelines-pro-type-member-init)
         {
             new (data) Iterator(it);
         }

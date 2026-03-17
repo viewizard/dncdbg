@@ -241,6 +241,15 @@ struct SequencePoint
     int32_t endColumn;
     int32_t offset;
     std::string document;
+
+    SequencePoint()
+        : startLine(0),
+          startColumn(0),
+          endLine(0),
+          endColumn(0),
+          offset(0)
+    {
+    }
 };
 
 enum class ValueKind : uint8_t

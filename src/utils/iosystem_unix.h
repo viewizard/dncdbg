@@ -72,7 +72,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             return traits->poll(data, read, write, except);
         }
 
-        AsyncHandle() : traits(nullptr)
+        AsyncHandle() : traits(nullptr) // NOLINT(cppcoreguidelines-pro-type-member-init)
         {
         }
 
@@ -85,7 +85,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             return result;
         }
 
-        AsyncHandle(AsyncHandle &&other) noexcept
+        AsyncHandle(AsyncHandle &&other) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)
             : traits(other.traits)
         {
             if (other)
@@ -133,7 +133,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         StdIOSwap(const StdFiles &);
         ~StdIOSwap();
 
-        StdIOSwap(StdIOSwap &&other) noexcept
+        StdIOSwap(StdIOSwap &&other) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)
         {
             m_valid = other.m_valid;
             if (!m_valid)
