@@ -288,7 +288,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
                out_stream->pptr() <= out_stream->epptr());
 
         LOGD("sent %u bytes", static_cast<int>(result.size));
-        assert(result.size <= size_t(m_unsent - m_sent));
+        assert(result.size <= static_cast<size_t>(m_unsent - m_sent));
         m_sent += result.size;
 
         out_handle = {}; // can issue next read request
@@ -347,7 +347,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
         {
             // update buffer
             LOGD("read %u bytes", static_cast<int>(result.size));
-            assert(result.size <= size_t(stream->endp() - stream->gptr()));
+            assert(result.size <= static_cast<size_t>(stream->endp() - stream->gptr()));
             stream->setegptr(stream->egptr() + result.size);
 
             async_handles[n] = {}; // can issue next read request
@@ -494,7 +494,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
                 assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
 
                 LOGD("read %u bytes from stdin", static_cast<int>(result.size));
-                assert(result.size <= size_t(out->epptr() - out->pptr()));
+                assert(result.size <= static_cast<size_t>(out->epptr() - out->pptr()));
                 out->pbump(static_cast<int>(result.size));
 
                 read_lock.unlock();

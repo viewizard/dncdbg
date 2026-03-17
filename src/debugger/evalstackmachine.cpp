@@ -496,7 +496,7 @@ HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, b
 
     ToRelease<ICorDebugGenericValue> trGenericValue2;
     IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue2)));
-    T2 value2 = (T2)value1; // NOLINT(cert-str34-c,bugprone-signed-char-misuse)
+    T2 value2 = static_cast<T2>(value1); // NOLINT(cert-str34-c,bugprone-signed-char-misuse)
     return trGenericValue2->SetValue(&value2);
 }
 
@@ -1009,7 +1009,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
         SUCCEEDED(Status = Interop::Calculation(valueData1, valueType1, valueData2, valueType2,
                                                 static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
-        Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().trValue, ed);
+        Status = GetValueByOperandDataType(resultData, static_cast<BasicTypes>(resultType), &evalStack.front().trValue, ed);
         if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
         {
             Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
@@ -1085,7 +1085,7 @@ HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &eva
         SUCCEEDED(Status = Interop::Calculation(valueData1, valueType1, &fakeValueData2, static_cast<int32_t>(BasicTypes::TypeInt64),
                                                 static_cast<int32_t>(opType), resultType, &resultData, output)))
     {
-        Status = GetValueByOperandDataType(resultData, (BasicTypes)resultType, &evalStack.front().trValue, ed);
+        Status = GetValueByOperandDataType(resultData, static_cast<BasicTypes>(resultType), &evalStack.front().trValue, ed);
         if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
         {
             Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));

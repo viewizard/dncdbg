@@ -47,7 +47,7 @@ void InStreamBuf::setegptr(char *egptr)
 
 size_t InStreamBuf::min_read_size() const
 {
-    return std::max(size_t(endp() - eback()) / 4, size_t(LINE_MAX));
+    return std::max(static_cast<size_t>(endp() - eback()) / 4, static_cast<size_t>(LINE_MAX));
 }
 
 void InStreamBuf::compactify()
@@ -61,9 +61,9 @@ void InStreamBuf::compactify()
     // data from the file.
     if (free < min_read_size())
     {
-        if (size_t(in_avail()) <= MaxMoveSize) // tail is not too big
+        if (static_cast<size_t>(in_avail()) <= MaxMoveSize) // tail is not too big
         {
-            memmove(eback() + UngetChars, gptr(), size_t(in_avail()));
+            memmove(eback() + UngetChars, gptr(), static_cast<size_t>(in_avail()));
             setg(eback(), eback() + UngetChars, eback() + UngetChars + in_avail());
         }
     }
@@ -120,7 +120,7 @@ OutStreamBuf::OutStreamBuf(const FileHandle &fh, size_t buf_size)
     setp(outbuf.data(), outbuf.data() + outbuf.size() - OverflowChars);
 
     assert(pptr() == pbase());
-    assert(size_t(epptr() - pbase() + OverflowChars) == buf_size);
+    assert(static_cast<size_t>(epptr() - pbase() + OverflowChars) == buf_size);
 }
 
 // Function writes data from a buffer to the file. Function ensures, that

@@ -381,7 +381,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     ULONG corType = 0;
     mdToken tk = mdTokenNil;
     *ppSig += CorSigUncompressData(*ppSig, &corType);
-    sigElementType.corType = (CorElementType)corType;
+    sigElementType.corType = static_cast<CorElementType>(corType);
     ULONG argNum = 0;
 
     switch (sigElementType.corType)
@@ -415,13 +415,13 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
 
     case ELEMENT_TYPE_SZARRAY:
         IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
-        sigElementType.corType = (CorElementType)corType;
+        sigElementType.corType = static_cast<CorElementType>(corType);
         sigElementType.typeName += "[]";
         break;
     case ELEMENT_TYPE_ARRAY:
     {
         IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
-        sigElementType.corType = (CorElementType)corType;
+        sigElementType.corType = static_cast<CorElementType>(corType);
         // Parse for the rank
         ULONG rank = 0;
         *ppSig += CorSigUncompressData(*ppSig, &rank);

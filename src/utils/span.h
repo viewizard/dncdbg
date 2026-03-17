@@ -139,11 +139,11 @@ template <typename T> class span
 
     // Obtains a span that is a view over the `count' elements of this span starting at `offset'.
     // The behavior is undefined if either `offset' or `count' is out of range.
-    span subspan(size_t offset, size_t count = size_t(-1)) const noexcept
+    span subspan(size_t offset, size_t count = static_cast<size_t>(-1)) const noexcept
     {
         assert(offset <= size());
-        assert(count == size_t(-1) || offset + count <= size());
-        return span(_first + offset, count == size_t(-1) ? _beyond_last - (_first + offset) : count);
+        assert(count == static_cast<size_t>(-1) || offset + count <= size());
+        return span(_first + offset, count == static_cast<size_t>(-1) ? _beyond_last - (_first + offset) : count);
     }
 
     // Obtains a subspan consisting of the first N elements of the sequence.

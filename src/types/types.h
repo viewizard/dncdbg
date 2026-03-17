@@ -77,7 +77,7 @@ class PID : public CustomScalarType<PID>
     }
     explicit operator ScalarType() const
     {
-        return m_pid;
+        return static_cast<ScalarType>(m_pid);
     }
 
   private:

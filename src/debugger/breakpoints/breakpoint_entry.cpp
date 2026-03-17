@@ -67,7 +67,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 
         static constexpr LONG lLONG_MAX = 2147483647;
         LONG pos = VAL32(dosHeader.e_lfanew);
-        if (pos < 0 || size_t(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
+        if (pos < 0 || static_cast<size_t>(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
         {
             return mdMethodDefNil;
         }

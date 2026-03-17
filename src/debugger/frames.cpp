@@ -150,8 +150,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     bool ctxUnmanagedChainValid = false;
     CONTEXT currentCtx;
     uint32_t contextSize = 0;
-    memset((void *)(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
-    memset((void *)&currentCtx, 0, sizeof(CONTEXT));
+    memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
+    memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
 
     std::list<ToRelease<ICorDebugInternalFrame2>> trInternalFrames;
     GetActiveInternalFrames(trThread3, trInternalFrames);
@@ -204,10 +204,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
         {
             // We've hit a native frame, we need to store the CONTEXT
-            memset((void *)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
+            memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
             if (FAILED(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&ctxUnmanagedChain))))
             {
-                memset((void *)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
+                memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
             }
             ctxUnmanagedChainValid = true;
             continue;
@@ -233,10 +233,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
         }
 
         // We need to store the CONTEXT when we're at a managed frame.
-        memset((void *)&currentCtx, 0, sizeof(CONTEXT));
+        memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
         if (FAILED(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&currentCtx))))
         {
-            memset((void *)&currentCtx, 0, sizeof(CONTEXT));
+            memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
         }
         // Note, we don't change top managed frame FP in case we don't have SP (for example, registers context related issue)
         // or CoreCLR was able to restore it. This case could happens only with "managed" top frame (`GetFrame()` return `S_OK`),
@@ -253,7 +253,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, &currentCtx, cb);
             level++;
             // Clear out the CONTEXT
-            memset((void *)&ctxUnmanagedChain, 0, sizeof(CONTEXT));
+            memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
             ctxUnmanagedChainValid = false;
         }
 

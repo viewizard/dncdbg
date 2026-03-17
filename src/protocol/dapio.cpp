@@ -179,7 +179,7 @@ void DAPIO::EmitProcessEvent(PID pid, const std::string &name, StartMethod start
     json body;
 
     body["name"] = name;
-    body["systemProcessId"] = PID::ScalarType(pid);
+    body["systemProcessId"] = PID::ScalarType(pid); // NOLINT(modernize-avoid-c-style-cast)
     body["isLocalProcess"] = true;
     body["pointerSize"] = sizeof(void *) * CHAR_BIT;
 

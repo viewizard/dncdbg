@@ -63,10 +63,10 @@ struct AsyncRead
             }
 
             std::cerr << "select error " << errno << "\n";
-            return {Class::IOResult::Error, size_t(result)};
+            return {Class::IOResult::Error, static_cast<size_t>(result)};
         }
 
-        return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, size_t(result)};
+        return {result == 0 ? Class::IOResult::Eof : Class::IOResult::Success, static_cast<size_t>(result)};
     }
 
     int poll(fd_set *read, fd_set */*unused*/, fd_set *except) const noexcept
@@ -115,10 +115,10 @@ struct AsyncWrite
             }
 
             std::cerr << "select error " << errno << "\n";
-            return {Class::IOResult::Error, size_t(result)};
+            return {Class::IOResult::Error, static_cast<size_t>(result)};
         }
 
-        return {Class::IOResult::Success, size_t(result)};
+        return {Class::IOResult::Success, static_cast<size_t>(result)};
     }
 
     int poll(fd_set */*unused*/, fd_set *write, fd_set */*unused*/) const noexcept
@@ -247,7 +247,7 @@ Class::IOResult Class::read(const FileHandle &fh, void *buf, size_t count)
     }
     else
     {
-        return {(rsize == 0 ? IOResult::Eof : IOResult::Success), size_t(rsize)};
+        return {(rsize == 0 ? IOResult::Eof : IOResult::Success), static_cast<size_t>(rsize)};
     }
 }
 
@@ -261,7 +261,7 @@ Class::IOResult Class::write(const FileHandle &fh, const void *buf, size_t count
     }
     else
     {
-        return {IOResult::Success, size_t(wsize)};
+        return {IOResult::Success, static_cast<size_t>(wsize)};
     }
 }
 
