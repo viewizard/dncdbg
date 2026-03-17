@@ -65,26 +65,6 @@ template <typename T> struct CustomScalarType
     friend T;
 };
 
-// Process identifier.
-class PID : public CustomScalarType<PID>
-{
-  public:
-
-    using ScalarType = DWORD;
-
-    explicit PID(ScalarType n) : m_pid{static_cast<int>(n)}
-    {
-    }
-    explicit operator ScalarType() const
-    {
-        return static_cast<ScalarType>(m_pid);
-    }
-
-  private:
-
-    int m_pid;
-};
-
 // Data type dedicated to carry thread id.
 class ThreadId : public CustomScalarType<ThreadId>
 {

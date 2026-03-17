@@ -174,12 +174,12 @@ void DAPIO::SetupProtocolLogging(const std::string &path)
     GetProtocolLog().open(path);
 }
 
-void DAPIO::EmitProcessEvent(PID pid, const std::string &name, StartMethod startMethod)
+void DAPIO::EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod)
 {
     json body;
 
     body["name"] = name;
-    body["systemProcessId"] = PID::ScalarType(pid); // NOLINT(modernize-avoid-c-style-cast)
+    body["systemProcessId"] = processId;
     body["isLocalProcess"] = true;
     body["pointerSize"] = sizeof(void *) * CHAR_BIT;
 
