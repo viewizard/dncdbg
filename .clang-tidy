@@ -54,7 +54,6 @@ Checks: >
   -readability-redundant-casting,
   -readability-redundant-inline-specifier,
   -readability-make-member-function-const,
-  -readability-redundant-member-init,
   -readability-avoid-const-params-in-decls,
   -readability-magic-numbers
 CheckOptions:

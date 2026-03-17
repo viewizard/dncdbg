@@ -64,8 +64,7 @@ struct StackFrame
     // presentationHint?: 'normal' | 'label' | 'subtle';
 
     StackFrame()
-        : id(),
-          line(0),
+        : line(0),
           column(0),
           endLine(0),
           endColumn(0)
@@ -271,7 +270,6 @@ struct OutputEvent
     OutputEvent(OutputCategory category_, const std::string &output_)
         : category(category_),
           output(output_),
-          source(),
           line(0),
           column(0)
     {

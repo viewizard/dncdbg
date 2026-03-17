@@ -68,7 +68,6 @@ class AsyncInfo
           : modAddress(0),
             methodToken(mdMethodDefNil),
             retCode(S_OK),
-            awaits(),
             lastIlOffset(0)
         {
         };
