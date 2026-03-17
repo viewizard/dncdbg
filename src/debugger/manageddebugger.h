@@ -162,7 +162,7 @@ class ManagedDebugger
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    static void InputCallback(IORedirectHelper::StreamType, Utility::span<char> text);
+    static void InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

@@ -115,22 +115,22 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
 
     static std::pair<FileHandle, FileHandle> unnamed_pipe();
     static FileHandle listen_socket(unsigned tcp_port);
-    static IOResult set_inherit(const FileHandle &, bool);
-    static IOResult read(const FileHandle &, void *buf, size_t count);
-    static IOResult write(const FileHandle &, const void *buf, size_t count);
-    static AsyncHandle async_read(const FileHandle &, void *buf, size_t count);
-    static AsyncHandle async_write(const FileHandle &, const void *buf, size_t count);
+    static IOResult set_inherit(const FileHandle &fh, bool inherit);
+    static IOResult read(const FileHandle &fh, void *buf, size_t count);
+    static IOResult write(const FileHandle &fh, const void *buf, size_t count);
+    static AsyncHandle async_read(const FileHandle &fh, void *buf, size_t count);
+    static AsyncHandle async_write(const FileHandle &fh, const void *buf, size_t count);
     static bool async_wait(const IOSystem::AsyncHandleIterator &begin,
-                           const IOSystem::AsyncHandleIterator &end, std::chrono::milliseconds);
-    static IOResult async_cancel(AsyncHandle &);
-    static IOResult async_result(AsyncHandle &);
-    static IOResult close(const FileHandle &);
+                           const IOSystem::AsyncHandleIterator &end, std::chrono::milliseconds timeout);
+    static IOResult async_cancel(AsyncHandle &handle);
+    static IOResult async_result(AsyncHandle &handle);
+    static IOResult close(const FileHandle &fh);
 
     struct StdIOSwap
     {
         using StdFiles = IOSystem::StdFiles;
         using StdFileType = IOSystem::StdFileType;
-        StdIOSwap(const StdFiles &);
+        StdIOSwap(const StdFiles &files);
         ~StdIOSwap();
 
         StdIOSwap(StdIOSwap &&other) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)

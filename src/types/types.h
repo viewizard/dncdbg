@@ -183,8 +183,8 @@ class FrameId : public CustomScalarType<FrameId>
     FrameId() : m_id(-1)
     {
     }
-    FrameId(ThreadId, FrameLevel);
-    FrameId(int);
+    FrameId(ThreadId thread, FrameLevel level);
+    FrameId(int n);
 
     explicit operator ScalarType() const noexcept
     {

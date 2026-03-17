@@ -40,7 +40,7 @@ class DAPIO
     static const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters();
     static void AddCapabilitiesTo(nlohmann::json &capabilities);
 
-    static void EmitProcessEvent(PID, const std::string &name, StartMethod startMethod);
+    static void EmitProcessEvent(PID pid, const std::string &name, StartMethod startMethod);
     static void EmitStoppedEvent(const StoppedEvent &event);
     static void EmitExitedEvent(const ExitedEvent &event);
     static void EmitTerminatedEvent();

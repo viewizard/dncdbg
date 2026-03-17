@@ -48,7 +48,6 @@ Checks: >
   -readability-duplicate-include,
   -readability-else-after-return,
   -readability-container-contains,
-  -readability-named-parameter,
   -readability-use-concise-preprocessor-directives,
   -readability-avoid-nested-conditional-operator,
   -readability-make-member-function-const,
