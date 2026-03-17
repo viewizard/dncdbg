@@ -39,7 +39,7 @@ std::u16string utf8_to_utf16(const std::string &utf8_str)
     char *out_ptr = out_buf.data();
     const size_t original_out_bytes = out_bytes;
 
-    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == (size_t)-1)
+    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == static_cast<size_t>(-1))
     {
         iconv_close(conv);
         return {};
@@ -71,7 +71,7 @@ std::string utf16_to_utf8(const std::u16string &utf16_str)
     char *out_ptr = out_buf.data();
     const size_t original_out_bytes = out_bytes;
 
-    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == (size_t)-1)
+    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == static_cast<size_t>(-1))
     {
         iconv_close(conv);
         return {};

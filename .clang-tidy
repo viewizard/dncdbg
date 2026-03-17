@@ -56,7 +56,6 @@ Checks: >
   -readability-make-member-function-const,
   -readability-redundant-member-init,
   -readability-avoid-const-params-in-decls,
-  -readability-math-missing-parentheses,
   -readability-magic-numbers
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'

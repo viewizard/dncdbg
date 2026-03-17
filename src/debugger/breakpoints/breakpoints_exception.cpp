@@ -134,8 +134,8 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
 
         Breakpoint breakpoint;
 
-        auto b = m_exceptionBreakpoints[(size_t)expb.filterId].find(expHash);
-        if (b == m_exceptionBreakpoints[(size_t)expb.filterId].end())
+        auto b = m_exceptionBreakpoints[static_cast<size_t>(expb.filterId)].find(expHash);
+        if (b == m_exceptionBreakpoints[static_cast<size_t>(expb.filterId)].end())
         {
             // New breakpoint
             ManagedExceptionBreakpoint bp;
@@ -145,7 +145,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
             bp.negativeCondition = expb.negativeCondition;
 
             bp.ToBreakpoint(breakpoint);
-            m_exceptionBreakpoints[(size_t)expb.filterId].insert(std::make_pair(expHash, std::move(bp)));
+            m_exceptionBreakpoints[static_cast<size_t>(expb.filterId)].insert(std::make_pair(expHash, std::move(bp)));
         }
         else
         {
@@ -167,7 +167,7 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
     assert(excCategory != ExceptionCategory::ANY); // caller must know category: CLR = Exception() callback, MDA = MDANotification() callback
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
-    for (auto &expb : m_exceptionBreakpoints[(size_t)filterId])
+    for (auto &expb : m_exceptionBreakpoints[static_cast<size_t>(filterId)])
     {
         if (expb.second.categoryHint != excCategory &&
             expb.second.categoryHint != ExceptionCategory::ANY)
