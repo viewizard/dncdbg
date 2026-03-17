@@ -23,7 +23,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     DWORD threadId = 0;
     pThread->GetID(&threadId);
 
-    std::unique_ptr<evalResultData_t> ppEvalResult(new evalResultData_t);
+    std::unique_ptr<evalResultData_t> ppEvalResult = std::make_unique<evalResultData_t>();
     if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
