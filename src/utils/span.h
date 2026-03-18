@@ -53,7 +53,7 @@ template <typename T> class span
     }
 
     // Constructs a span from array.
-    template <size_t N> span(element_type (&arr)[N]) noexcept : _first(arr), _beyond_last(&arr[N])
+    template <size_t N> span(element_type (&arr)[N]) noexcept : _first(arr), _beyond_last(&arr[N]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     {
     }
 

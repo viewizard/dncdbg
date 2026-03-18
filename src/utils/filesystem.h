@@ -25,12 +25,12 @@ namespace FileSystem
 static constexpr size_t PathMax = PATH_MAX;
 static constexpr size_t NameMax = NAME_MAX;
 static constexpr char PathSeparator = '/';
-static constexpr char PathSeparatorSymbols[] = "/";
+static constexpr std::string_view PathSeparatorSymbols("/");
 #elif _WIN32
 static constexpr size_t PathMax = MAX_PATH;
 static constexpr size_t NameMax = MAX_PATH - 1; // not include terminal null.
 static constexpr char PathSeparator = '\\';
-static constexpr char PathSeparatorSymbols[] = "/\\";
+static constexpr std::string_view PathSeparatorSymbols("/\\");
 #endif
 } // namespace FileSystem
 

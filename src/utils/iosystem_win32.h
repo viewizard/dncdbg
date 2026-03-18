@@ -6,6 +6,7 @@
 #define UTILS_IOSYSTEM_WIN32_H
 
 #ifdef _WIN32
+#include <array>
 #include <cassert>
 #include <tuple>
 #include <memory>
@@ -126,8 +127,8 @@ template <> struct IOSystemTraits<Win32PlatformTag>
         }
 
         bool m_valid;
-        HANDLE m_orig_handle[std::tuple_size_v<StdFiles>];
-        int m_orig_fd[std::tuple_size_v<StdFiles>];
+        std::array<HANDLE, std::tuple_size_v<StdFiles>> m_orig_handle;
+        std::array<int, std::tuple_size_v<StdFiles>> m_orig_fd;
     };
 };
 

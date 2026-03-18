@@ -6,6 +6,7 @@
 #define UTILS_STREAMS_H
 
 #include "utils/iosystem.h"
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -478,7 +479,7 @@ class CountingStreamBuf : public std::streambuf
     // Default class constructor.
     CountingStreamBuf() : count(0) // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
-        setp(buf, buf + BufSize - OverflowChars);
+        setp(buf.data(), buf.data() + BufSize - OverflowChars);
     }
 
     // Class isn't copyable.
@@ -532,7 +533,7 @@ class CountingStreamBuf : public std::streambuf
 
     static constexpr size_t BufSize = 256;
     static constexpr size_t OverflowChars = 1;
-    char buf[BufSize];
+    std::array<char, BufSize> buf;
     uintmax_t count;
 };
 

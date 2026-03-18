@@ -26,12 +26,12 @@ using WSTRING = std::wstring;
 std::string to_utf8(const WCHAR *wstr);
 WSTRING to_utf16(const std::string &utf8);
 
-template <typename CharT, size_t Size> bool starts_with(const CharT *left, const CharT (&right)[Size])
+template <typename CharT, size_t Size> bool starts_with(const CharT *left, const CharT (&right)[Size]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     return std::char_traits<CharT>::compare(left, right, Size - 1) == 0;
 }
 
-template <typename CharT, size_t Size> bool str_equal(const CharT *left, const CharT (&right)[Size])
+template <typename CharT, size_t Size> bool str_equal(const CharT *left, const CharT (&right)[Size]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     return std::char_traits<CharT>::compare(left, right, Size) == 0;
 }

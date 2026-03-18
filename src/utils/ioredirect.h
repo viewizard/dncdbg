@@ -111,7 +111,7 @@ class IORedirectHelper
     bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
                                       IOSystem::AsyncHandle &out_handle);
     static bool ProcessFinishedReadRequests(const std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
-                                            IOSystem::AsyncHandle async_handles[]);
+                                            IOSystem::AsyncHandle async_handles[]); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 
     // remote side of the pipes
     const std::tuple<IOSystem::FileHandle, IOSystem::FileHandle, IOSystem::FileHandle> m_pipes;

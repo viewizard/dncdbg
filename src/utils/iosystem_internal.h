@@ -137,7 +137,7 @@ template <typename Traits> struct IOSystemImpl
         data_align_t data_align_tmp;
         char *const data;
 #else
-        mutable char data alignas(alignof(std::max_align_t))[MaxIteratorSize];
+        mutable char data alignas(alignof(std::max_align_t))[MaxIteratorSize]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 #endif
     };
 

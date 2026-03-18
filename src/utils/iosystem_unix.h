@@ -9,6 +9,7 @@
 
 #include "utils/iosystem_internal.h"
 #include "utils/platform.h"
+#include <array>
 #include <cassert>
 #include <cstdlib>
 #include <new>
@@ -53,7 +54,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         };
 
         const Traits *traits;
-        mutable char data alignas(__BIGGEST_ALIGNMENT__)[sizeof(void *) * 4];
+        mutable char data alignas(__BIGGEST_ALIGNMENT__)[sizeof(void *) * 4]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 
         explicit operator bool() const
         {
@@ -153,7 +154,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         StdIOSwap &operator=(const StdIOSwap &) = delete;
 
         bool m_valid;
-        int m_orig_fd[std::tuple_size_v<StdFiles>];
+        std::array<int, std::tuple_size_v<StdFiles>> m_orig_fd;
     };
 
     static IOSystem::StdFiles get_std_files();
