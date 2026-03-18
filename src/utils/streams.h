@@ -76,7 +76,7 @@ template <typename T> struct BufferOwner
 // `gptr`, `egptr` and `gbump`) which allows to read and process data
 // in place, without copying.
 //
-class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::streambuf
+class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::streambuf // NOLINT(misc-multiple-inheritance)
 {
   public:
 
@@ -164,7 +164,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
 // `pptr`, `epptr` and `pbump`) which allows to generate data directly
 // in the buffer and avoid unnecessary copying.
 //
-class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::streambuf
+class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::streambuf // NOLINT(misc-multiple-inheritance)
 {
   public:
 
@@ -259,7 +259,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
 // to generate or parse data directly in the buffer, without unnecessary copying.
 // (See description of InStreamBuf or OutStreamBuf classes for details).
 //
-class StreamBuf : virtual StreamsInternal::FileOwner,
+class StreamBuf : virtual StreamsInternal::FileOwner, // NOLINT(misc-multiple-inheritance)
                   virtual public std::streambuf,
                   public InStreamBuf,
                   public OutStreamBuf
@@ -365,7 +365,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
 // This class is similar to std::ifstream, but allows to work with any file
 // descriptors (sockets, pipes, etc...) and allows to get file handle of
 // underlying file.
-class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::istream
+class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::istream // NOLINT(misc-multiple-inheritance)
 {
   public:
 
@@ -401,7 +401,7 @@ class InStream : private StreamsInternal::BufferOwner<InStreamBuf>, public std::
 // This class is similar to std::ofstream, but allows to work with any file
 // descriptors (sockets, pipes, etc...) and allows to get file handle of
 // underlying file.
-class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std::ostream
+class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std::ostream // NOLINT(misc-multiple-inheritance)
 {
   public:
     // Underlying `OutStreamBuf` buffer should be created separately and passed by rvalue reference.
@@ -436,7 +436,7 @@ class OutStream : private StreamsInternal::BufferOwner<OutStreamBuf>, public std
 // This class is similar to std::fstream, but allows to work with any file
 // descriptors (sockets, pipes, etc...) and allows to get file handle of
 // underlying file.
-class IOStream : private StreamsInternal::BufferOwner<StreamBuf>, public std::iostream
+class IOStream : private StreamsInternal::BufferOwner<StreamBuf>, public std::iostream // NOLINT(misc-multiple-inheritance)
 {
   public:
 
@@ -538,7 +538,7 @@ class CountingStreamBuf : public std::streambuf
 };
 
 // This is dummy output stream object which can be used to count number of printed characters.
-class CountingStream : private StreamsInternal::BufferOwner<CountingStreamBuf>, public std::ostream
+class CountingStream : private StreamsInternal::BufferOwner<CountingStreamBuf>, public std::ostream // NOLINT(misc-multiple-inheritance)
 {
   public:
 
