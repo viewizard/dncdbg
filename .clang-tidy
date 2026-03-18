@@ -29,7 +29,6 @@ Checks: >
   -modernize-pass-by-value,
   misc-*,
   -misc-no-recursion,
-  -misc-use-internal-linkage,
   -misc-multiple-inheritance,
   -misc-override-with-different-visibility,
   -misc-non-private-member-variables-in-classes,

@@ -14,6 +14,9 @@
 namespace dncdbg
 {
 
+namespace
+{
+
 // This class implements container, which hold elements of type `T', where
 // elements addressed by integral value of type `Key'. The `Key' can take
 // values from 0 to `Max' inclusively. The value of `Key' is not provided
@@ -182,6 +185,8 @@ template <typename T> struct Singleton
         return val;
     }
 };
+
+} // unnamed namespace
 
 // ThreadId == 0 is invalid for Win32 API and PAL library.
 const ThreadId ThreadId::Invalid{InvalidValue};
