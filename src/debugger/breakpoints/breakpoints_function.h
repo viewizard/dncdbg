@@ -85,7 +85,7 @@ class FunctionBreakpoints
         std::string condition;
         std::list<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 
-        bool IsVerified() const
+        [[nodiscard]] bool IsVerified() const
         {
             return !trFuncBreakpoints.empty();
         }

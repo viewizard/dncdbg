@@ -175,8 +175,8 @@ class FrameId : public CustomScalarType<FrameId>
         return m_id != -1;
     }
 
-    ThreadId getThread() const noexcept;
-    FrameLevel getLevel() const noexcept;
+    [[nodiscard]] ThreadId getThread() const noexcept;
+    [[nodiscard]] FrameLevel getLevel() const noexcept;
 
     static void invalidate();
 

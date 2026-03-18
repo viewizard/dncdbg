@@ -81,7 +81,7 @@ class SourceBreakpoints
         // For example, `MyType obj = new MyType(1);` code will be added to all class constructors).
         std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
 
-        bool IsVerified() const
+        [[nodiscard]] bool IsVerified() const
         {
             return !trFuncBreakpoints.empty();
         }

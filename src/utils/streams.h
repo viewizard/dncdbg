@@ -28,7 +28,7 @@ class FileOwner
 
     using FileHandle = IOSystem::FileHandle;
 
-    FileHandle get_file_handle() const
+    [[nodiscard]] FileHandle get_file_handle() const
     {
         return file_handle;
     }
@@ -105,7 +105,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     ~InStreamBuf() override = default;
 
     // Function returns file handle which is used for writing data.
-    FileHandle get_file_handle() const
+    [[nodiscard]] FileHandle get_file_handle() const
     {
         return FileOwner::get_file_handle();
     }
@@ -119,13 +119,13 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     int underflow() override;
 
     // Function returns pointer to the next available character.
-    char *gptr() const
+    [[nodiscard]] char *gptr() const
     {
         return std::streambuf::gptr();
     }
 
     // Function returns the pointer one past the end of the buffer.
-    char *egptr() const
+    [[nodiscard]] char *egptr() const
     {
         return std::streambuf::egptr();
     }
@@ -137,7 +137,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     }
 
     // Function returns pointer beyond last byte of the buffer.
-    char *endp() const
+    [[nodiscard]] char *endp() const
     {
         return eback() + inbuf.size();
     }
@@ -151,7 +151,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
 
   private:
 
-    size_t min_read_size() const;
+    [[nodiscard]] size_t min_read_size() const;
 
     std::vector<char> inbuf; // underlying storage for the input buffer
 };
@@ -196,7 +196,7 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     }
 
     // Function returns file handle which is used for writing data.
-    FileHandle get_file_handle() const
+    [[nodiscard]] FileHandle get_file_handle() const
     {
         return FileOwner::get_file_handle();
     }
@@ -217,19 +217,19 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
   public:
 
     // Function returns the pointer to the beginning of free space in the buffer.
-    char *pptr() const
+    [[nodiscard]] char *pptr() const
     {
         return std::streambuf::pptr();
     }
 
     // Function returns the pointer one past the end of the free space in the buffer.
-    char *epptr() const // NOLINT(bugprone-derived-method-shadowing-base-method)
+    [[nodiscard]] char *epptr() const // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return std::streambuf::epptr();
     }
 
     // Function returns the pointer to beginning of the buffer.
-    char *pbase() const
+    [[nodiscard]] char *pbase() const
     {
         return std::streambuf::pbase();
     }
@@ -293,7 +293,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner,
     ~StreamBuf() override = default;
 
     // Function returns file handle which is used for reading/writing data.
-    FileHandle get_file_handle() const // NOLINT(bugprone-derived-method-shadowing-base-method)
+    [[nodiscard]] FileHandle get_file_handle() const // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         return FileOwner::get_file_handle();
     }

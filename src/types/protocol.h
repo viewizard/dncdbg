@@ -42,7 +42,7 @@ struct Source
 
     Source(const std::string &path = {});
 
-    bool IsNull() const
+    [[nodiscard]] bool IsNull() const
     {
         return name.empty() && path.empty();
     }

@@ -70,7 +70,7 @@ struct method_data_t
                startColumn == other.startColumn && endColumn == other.endColumn;
     }
 
-    bool NestedInto(const method_data_t &other) const
+    [[nodiscard]] bool NestedInto(const method_data_t &other) const
     {
         return (startLine > other.startLine || (startLine == other.startLine && startColumn >= other.startColumn)) &&
                (endLine < other.endLine || (endLine == other.endLine && endColumn <= other.endColumn));

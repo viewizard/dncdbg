@@ -25,7 +25,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   modernize-*,
   -modernize-use-trailing-return-type,
-  -modernize-use-nodiscard,
   -modernize-use-default-member-init,
   -modernize-pass-by-value,
   misc-*,

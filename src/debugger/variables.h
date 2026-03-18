@@ -94,7 +94,7 @@ class Variables
               frameId(frameId)
         {}
 
-        bool IsScope() const
+        [[nodiscard]] bool IsScope() const
         {
             return valueKind == ValueKind::Scope;
         }

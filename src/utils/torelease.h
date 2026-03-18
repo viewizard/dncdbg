@@ -77,7 +77,7 @@ template <class T> class ToRelease
         return &m_ptr;
     }
 
-    T *GetPtr() const
+    [[nodiscard]] T *GetPtr() const
     {
         return m_ptr;
     }
