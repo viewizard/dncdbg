@@ -83,7 +83,7 @@ template <typename T> class span
         {
             return *this;
         }
-        return *new (this) span(other);
+        return *new (this) span(other); // NOLINT(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
     }
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop

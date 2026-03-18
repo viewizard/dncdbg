@@ -45,11 +45,12 @@ template <class T> class ToRelease
         Free();
     }
 
-    void operator=(T *ptr)
+    ToRelease &operator=(T *ptr)
     {
         Free();
 
         m_ptr = ptr;
+        return *this;
     }
 
     T *operator->() const
