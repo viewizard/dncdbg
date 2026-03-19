@@ -21,7 +21,7 @@ namespace dncdbg
 class ManagedDebugger;
 class CallbacksQueue;
 
-class ManagedCallback final : public ICorDebugManagedCallback, ICorDebugManagedCallback2, ICorDebugManagedCallback3
+class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugManagedCallback2, public ICorDebugManagedCallback3
 {
   public:
 

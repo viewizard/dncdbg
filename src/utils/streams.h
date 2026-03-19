@@ -116,7 +116,7 @@ class InStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::stre
     // This functions fills input buffer (it should made at least one character be
     // available in the buffer). Return value is traits_type::eof() in case of error,
     // or the code of next available symbol.
-    int underflow() override;
+    int underflow() override; // NOLINT(misc-override-with-different-visibility)
 
     // Function returns pointer to the next available character.
     [[nodiscard]] char *gptr() const
@@ -301,7 +301,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner, // NOLINT(misc-multiple-in
     // This functions fills input buffer (it should made at least one character be
     // available in the buffer). Return value is traits_type::eof() in case of error,
     // or the code of next available symbol.
-    int underflow() override
+    int underflow() override // NOLINT(misc-override-with-different-visibility)
     {
         return InStreamBuf::underflow();
     }

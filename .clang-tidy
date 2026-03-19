@@ -27,7 +27,6 @@ Checks: >
   -modernize-pass-by-value,
   misc-*,
   -misc-no-recursion,
-  -misc-override-with-different-visibility,
   -misc-non-private-member-variables-in-classes,
   readability-*,
   -readability-function-cognitive-complexity,
