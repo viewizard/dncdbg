@@ -103,7 +103,7 @@ class ThreadId : public CustomScalarType<ThreadId>
 
   private:
 
-    enum SpecialValues // NOLINT(performance-enum-size)
+    enum SpecialValues // NOLINT(performance-enum-size,cppcoreguidelines-use-enum-class)
     {
         InvalidValue = 0,
         AllThreadsValue = -1
@@ -186,7 +186,7 @@ class FrameId : public CustomScalarType<FrameId>
 };
 
 // https://learn.microsoft.com/en-us/visualstudio/extensibility/debugger/reference/evalflags?view=visualstudio&tabs=cpp
-enum enum_EVALFLAGS : uint32_t // NOLINT(performance-enum-size)
+enum enum_EVALFLAGS : uint32_t // NOLINT(performance-enum-size,cppcoreguidelines-use-enum-class)
 {
     EVAL_RETURNVALUE = 0x0002,
     EVAL_NOSIDEEFFECTS = 0x0004,

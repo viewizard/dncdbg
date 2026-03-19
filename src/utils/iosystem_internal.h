@@ -24,7 +24,7 @@ template <typename Traits> struct IOSystemImpl
     // Structure represents result of read or write operation:
     struct IOResult
     {
-        enum Status // NOLINT(performance-enum-size)
+        enum Status // NOLINT(performance-enum-size,cppcoreguidelines-use-enum-class)
         {
             Success, // operaion was completed successfully, see `size' field.
             Error,   // IO error, reading side of socket or pipe was closed (when writing)
@@ -251,7 +251,7 @@ template <typename Traits> struct IOSystemImpl
     }
 
     // This enumeration represents standard IO files.
-    enum StdFileType // NOLINT(performance-enum-size)
+    enum StdFileType // NOLINT(performance-enum-size,cppcoreguidelines-use-enum-class)
     {
         Stdin = 0, // Note: numbers here is fixed and shouldn't be changed.
         Stdout = 1,
