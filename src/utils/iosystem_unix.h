@@ -96,7 +96,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             other.traits = nullptr;
         }
 
-        AsyncHandle &operator=(AsyncHandle &&other) // NOLINT(performance-noexcept-move-constructor)
+        AsyncHandle &operator=(AsyncHandle &&other) noexcept
         {
             this->~AsyncHandle();
             return *new (this) AsyncHandle(std::move(other)); // NOLINT(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
