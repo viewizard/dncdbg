@@ -25,7 +25,7 @@ public partial class Evaluation
             return new BlittableChar { Value = value };
         }
 
-        public static implicit operator char(BlittableChar value)
+        public static implicit operator char (BlittableChar value)
         {
             return value.Value;
         }
@@ -37,10 +37,12 @@ public partial class Evaluation
 
         public bool Value
         {
-            get {
+            get
+            {
                 return Convert.ToBoolean(byteValue);
             }
-            set {
+            set
+            {
                 byteValue = Convert.ToByte(value);
             }
         }
@@ -50,7 +52,7 @@ public partial class Evaluation
             return new BlittableBoolean { Value = value };
         }
 
-        public static implicit operator bool(BlittableBoolean value)
+        public static implicit operator bool (BlittableBoolean value)
         {
             return value.Value;
         }
@@ -68,20 +70,50 @@ public partial class Evaluation
             BlittableChar c = (BlittableChar)((char)value);
             size = Marshal.SizeOf(c);
             data = Marshal.AllocCoTaskMem(size);
-            Marshal.StructureToPtr(c, data, false);
+            try
+            {
+                Marshal.StructureToPtr(c, data, false);
+            }
+            catch
+            {
+                Marshal.FreeCoTaskMem(data);
+                data = IntPtr.Zero;
+                size = 0;
+                throw;
+            }
         }
         else if (value is bool)
         {
             BlittableBoolean b = (BlittableBoolean)((bool)value);
             size = Marshal.SizeOf(b);
             data = Marshal.AllocCoTaskMem(size);
-            Marshal.StructureToPtr(b, data, false);
+            try
+            {
+                Marshal.StructureToPtr(b, data, false);
+            }
+            catch
+            {
+                Marshal.FreeCoTaskMem(data);
+                data = IntPtr.Zero;
+                size = 0;
+                throw;
+            }
         }
         else
         {
             size = Marshal.SizeOf(value);
             data = Marshal.AllocCoTaskMem(size);
-            Marshal.StructureToPtr(value, data, false);
+            try
+            {
+                Marshal.StructureToPtr(value, data, false);
+            }
+            catch
+            {
+                Marshal.FreeCoTaskMem(data);
+                data = IntPtr.Zero;
+                size = 0;
+                throw;
+            }
         }
     }
 
@@ -104,7 +136,8 @@ public partial class Evaluation
         ULongKeyword
     }
 
-    static readonly Dictionary<Type, ePredefinedType> TypeAlias = new Dictionary<Type, ePredefinedType> {
+    static readonly Dictionary<Type, ePredefinedType> TypeAlias = new Dictionary<Type, ePredefinedType>
+    {
         { typeof(bool), ePredefinedType.BoolKeyword },
         { typeof(byte), ePredefinedType.ByteKeyword },
         { typeof(char), ePredefinedType.CharKeyword },
@@ -122,7 +155,8 @@ public partial class Evaluation
         { typeof(ulong), ePredefinedType.ULongKeyword }
     };
 
-    static readonly Dictionary<SyntaxKind, ePredefinedType> TypeKindAlias = new Dictionary<SyntaxKind, ePredefinedType> {
+    static readonly Dictionary<SyntaxKind, ePredefinedType> TypeKindAlias = new Dictionary<SyntaxKind, ePredefinedType>
+    {
         { SyntaxKind.BoolKeyword,    ePredefinedType.BoolKeyword },
         { SyntaxKind.ByteKeyword,    ePredefinedType.ByteKeyword },
         { SyntaxKind.CharKeyword,    ePredefinedType.CharKeyword },
@@ -196,7 +230,8 @@ public partial class Evaluation
         ThisExpression
     }
 
-        static readonly Dictionary<SyntaxKind, eOpCode> KindAlias = new Dictionary<SyntaxKind, eOpCode> {
+    static readonly Dictionary<SyntaxKind, eOpCode> KindAlias = new Dictionary<SyntaxKind, eOpCode>
+    {
             { SyntaxKind.IdentifierName,                eOpCode.IdentifierName },
             { SyntaxKind.GenericName,                   eOpCode.GenericName },
             { SyntaxKind.InvocationExpression,          eOpCode.InvocationExpression },
@@ -254,12 +289,44 @@ public partial class Evaluation
     internal const int S_OK = 0;
     internal const int E_INVALIDARG = unchecked((int)0x80070057);
 
-    public abstract class ICommand
+    public abstract class ICommand : IDisposable
     {
         public eOpCode OpCode { get; protected set; }
         protected uint Flags;
         protected IntPtr argsStructPtr;
+        private bool disposed = false;
+
         public abstract IntPtr GetStructPtr();
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                // Clean up managed resources
+                if (disposing)
+                {
+                }
+                
+                // Clean up unmanaged resources
+                if (argsStructPtr != IntPtr.Zero)
+                {
+                    Marshal.FreeCoTaskMem(argsStructPtr);
+                    argsStructPtr = IntPtr.Zero;
+                }
+                disposed = true;
+            }
+        }
+
+        ~ICommand()
+        {
+            Dispose(false);
+        }
     }
 
     public class NoOperandsCommand : ICommand
@@ -275,12 +342,6 @@ public partial class Evaluation
             OpCode = KindAlias[kind];
             Flags = flags;
             argsStructPtr = IntPtr.Zero;
-        }
-
-        ~NoOperandsCommand()
-        {
-            if (argsStructPtr != IntPtr.Zero)
-                Marshal.FreeCoTaskMem(argsStructPtr);
         }
 
         public override IntPtr GetStructPtr()
@@ -321,6 +382,8 @@ public partial class Evaluation
 
         dynamic Argument;
         dynamic argsStruct;
+        private bool stringAllocated = false;
+        private bool disposed = false;
 
         public OneOperandCommand(SyntaxKind kind, uint flags, dynamic arg)
         {
@@ -330,17 +393,28 @@ public partial class Evaluation
             argsStructPtr = IntPtr.Zero;
         }
 
-        ~OneOperandCommand()
+        protected override void Dispose(bool disposing)
         {
-            if (argsStructPtr == IntPtr.Zero)
-                return;
-
-            if (argsStruct.GetType() == typeof(FormatFS))
+            if (!disposed)
             {
-                Marshal.FreeBSTR(argsStruct.String);
-            }
+                // Clean up managed resources if needed
+                if (disposing)
+                {
+                }
 
-            Marshal.FreeCoTaskMem(argsStructPtr);
+                // Clean up unmanaged resources
+                if (argsStructPtr != IntPtr.Zero)
+                {
+                    if (stringAllocated && argsStruct.GetType() == typeof(FormatFS))
+                    {
+                        Marshal.FreeBSTR(argsStruct.String);
+                    }
+                    Marshal.FreeCoTaskMem(argsStructPtr);
+                    argsStructPtr = IntPtr.Zero;
+                }
+                disposed = true;
+            }
+            base.Dispose(disposing);
         }
 
         public override IntPtr GetStructPtr()
@@ -353,6 +427,7 @@ public partial class Evaluation
                 argsStruct = new FormatFS();
                 argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFS>());
                 argsStruct.String = Marshal.StringToBSTR(Argument.ToString());
+                stringAllocated = true;
             }
             else if (Argument.GetType() == typeof(int) || Argument.GetType() == typeof(ePredefinedType))
             {
@@ -398,6 +473,9 @@ public partial class Evaluation
 
         dynamic[] Arguments;
         dynamic argsStruct;
+        private bool stringAllocated = false;
+        private bool ptrAllocated = false;
+        private bool disposed = false;
 
         public TwoOperandCommand(SyntaxKind kind, uint flags, params dynamic[] args)
         {
@@ -407,21 +485,32 @@ public partial class Evaluation
             argsStructPtr = IntPtr.Zero;
         }
 
-        ~TwoOperandCommand()
+        protected override void Dispose(bool disposing)
         {
-            if (argsStructPtr == IntPtr.Zero)
-                return;
-
-            if (argsStruct.GetType() == typeof(FormatFIS))
+            if (!disposed)
             {
-                Marshal.FreeBSTR(argsStruct.String);
-            }
-            else if (argsStruct.GetType() == typeof(FormatFIP))
-            {
-                Marshal.FreeCoTaskMem(argsStruct.Ptr);
-            }
+                // Clean up managed resources
+                if (disposing)
+                {
+                }
 
-            Marshal.FreeCoTaskMem(argsStructPtr);
+                // Clean up unmanaged resources
+                if (argsStructPtr != IntPtr.Zero)
+                {
+                    if (stringAllocated && argsStruct.GetType() == typeof(FormatFIS))
+                    {
+                        Marshal.FreeBSTR(argsStruct.String);
+                    }
+                    else if (ptrAllocated && argsStruct.GetType() == typeof(FormatFIP))
+                    {
+                        Marshal.FreeCoTaskMem(argsStruct.Ptr);
+                    }
+                    Marshal.FreeCoTaskMem(argsStructPtr);
+                    argsStructPtr = IntPtr.Zero;
+                }
+                disposed = true;
+            }
+            base.Dispose(disposing);
         }
 
         public override IntPtr GetStructPtr()
@@ -435,6 +524,7 @@ public partial class Evaluation
                 argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFIS>());
                 argsStruct.String = Marshal.StringToBSTR(Arguments[0].ToString());
                 argsStruct.Int = (int)Arguments[1];
+                stringAllocated = true;
             }
             else if (Arguments[0].GetType() == typeof(ePredefinedType))
             {
@@ -445,11 +535,11 @@ public partial class Evaluation
                 IntPtr data = IntPtr.Zero;
                 MarshalValue(Arguments[1], out size, out data);
                 argsStruct.Ptr = data;
+                ptrAllocated = true;
             }
             else
             {
-                throw new NotImplementedException(Arguments[0].GetType() + " + " + Arguments[1].GetType() +
-                                                  " pair not implemented in TwoOperandCommand!");
+                throw new NotImplementedException(Arguments[0].GetType() + " + " + Arguments[1].GetType() + " pair not implemented in TwoOperandCommand!");
             }
 
             argsStruct.Flags = Flags;
@@ -484,11 +574,13 @@ public partial class Evaluation
         {
         }
 
-        public SyntaxKindNotImplementedException(string message) : base(message)
+        public SyntaxKindNotImplementedException(string message)
+            : base(message)
         {
         }
 
-        public SyntaxKindNotImplementedException(string message, Exception inner) : base(message, inner)
+        public SyntaxKindNotImplementedException(string message, Exception inner)
+            : base(message, inner)
         {
         }
     }
@@ -595,8 +687,7 @@ public partial class Evaluation
                     {
                         throw new ArgumentOutOfRangeException(node.Kind() + " must have at least one type!");
                     }
-                    stackMachineProgram.Commands.Add(new TwoOperandCommand(
-                        node.Kind(), CurrentScopeFlags.Peek(), node.GetFirstToken().Value, GenericNameArgs));
+                    stackMachineProgram.Commands.Add(new TwoOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), node.GetFirstToken().Value, GenericNameArgs));
                     break;
 
                 case SyntaxKind.InvocationExpression:
@@ -657,14 +748,11 @@ public partial class Evaluation
 
                 case SyntaxKind.NumericLiteralExpression:
                 case SyntaxKind.CharacterLiteralExpression: // 1 wchar
-                    stackMachineProgram.Commands.Add(new TwoOperandCommand(
-                        node.Kind(), CurrentScopeFlags.Peek(), TypeAlias[node.GetFirstToken().Value.GetType()],
-                        node.GetFirstToken().Value));
+                    stackMachineProgram.Commands.Add(new TwoOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), TypeAlias[node.GetFirstToken().Value.GetType()], node.GetFirstToken().Value));
                     break;
 
                 case SyntaxKind.PredefinedType:
-                    stackMachineProgram.Commands.Add(new OneOperandCommand(node.Kind(), CurrentScopeFlags.Peek(),
-                                                                           TypeKindAlias[node.GetFirstToken().Kind()]));
+                    stackMachineProgram.Commands.Add(new OneOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), TypeKindAlias[node.GetFirstToken().Kind()]));
                     break;
 
                 // skip, in case of stack machine program creation we don't use this kinds directly
@@ -747,22 +835,19 @@ public partial class Evaluation
 #if DEBUG_STACKMACHINE
         public string GenerateDebugText()
         {
-            // We cannot derive from sealed type 'StringBuilder' and it use platform-dependant Environment.NewLine for
-            // new line. Use '\n' directly, since dncdbg use only '\n' for new line.
-            StringBuilder sb = new StringBuilder();
-            sb.Append("=======================================\n");
-            sb.Append("Source tree:\n");
-            foreach (var line in ST)
-            {
-                sb.AppendFormat("{0}\n", line);
-            }
-            sb.Append("=======================================\n");
-            sb.Append("Stack machine commands:\n");
+            // We cannot derive from sealed type 'StringBuilder' and it use platform-dependant Environment.NewLine for new line.
+            // Use '\n' directly, since dncdbg use only '\n' for new line.
+            var lines = new List<string>();
+            lines.Add("=======================================");
+            lines.Add("Source tree:");
+            lines.AddRange(ST);
+            lines.Add("=======================================");
+            lines.Add("Stack machine commands:");
             foreach (var command in stackMachineProgram.Commands)
             {
-                sb.AppendFormat("    {0}\n", command.ToString());
+                lines.Add($"    {command.ToString()}");
             }
-            return sb.ToString();
+            return string.Join("\n", lines);
         }
 #endif
     }
@@ -786,17 +871,17 @@ public partial class Evaluation
             var tree = CSharpSyntaxTree.ParseText(expression, parseOptions);
 
             var parseErrors = tree.GetDiagnostics(tree.GetRoot());
-            StringBuilder sbTextOutput = new StringBuilder();
+            var errorMessages = new List<string>();
             bool errorDetected = false;
             foreach (var error in parseErrors)
             {
-                sbTextOutput.AppendFormat("error {0}: {1}\n", error.Id, error.GetMessage());
+                errorMessages.Add($"error {error.Id}: {error.GetMessage()}");
                 errorDetected = true;
             }
 
             if (errorDetected)
             {
-                textOutput = Marshal.StringToBSTR(sbTextOutput.ToString());
+                textOutput = Marshal.StringToBSTR(string.Join("\n", errorMessages));
                 return E_INVALIDARG;
             }
 
@@ -814,8 +899,7 @@ public partial class Evaluation
             }
             else if (treeWalker.ExpressionStatementCount > 1)
             {
-                textOutput = Marshal.StringToBSTR("error: only one expression must be provided, expressions found: " +
-                                                  treeWalker.ExpressionStatementCount);
+                textOutput = Marshal.StringToBSTR($"error: only one expression must be provided, expressions found: {treeWalker.ExpressionStatementCount}");
                 return E_INVALIDARG;
             }
             else
@@ -826,7 +910,7 @@ public partial class Evaluation
         }
         catch (Exception e)
         {
-            textOutput = Marshal.StringToBSTR(e.GetType().ToString() + ": " + e.Message);
+            textOutput = Marshal.StringToBSTR($"{e.GetType()}: {e.Message}");
             return e.HResult;
         }
     }
@@ -852,9 +936,8 @@ public partial class Evaluation
 
     /// <summary>
     /// Return next stack program command and pointer to argument's structure.
-    /// Note, managed part will release Arguments unmanaged memory at object finalizer call after
-    /// ReleaseStackMachineProgram() call. Native part must not release Arguments memory, allocated by managed part in
-    /// this method.
+    /// Note, managed part will release Arguments unmanaged memory at object finalizer call after ReleaseStackMachineProgram() call.
+    /// Native part must not release Arguments memory, allocated by managed part in this method.
     /// </summary>
     /// <param name="StackProgram">stack machine program handle returned by GenerateStackMachineProgram()</param>
     /// <param name="Command">next stack machine program command return</param>
@@ -898,7 +981,7 @@ public partial class Evaluation
         }
         catch (Exception e)
         {
-            textOutput = Marshal.StringToBSTR(e.GetType().ToString() + ": " + e.Message);
+            textOutput = Marshal.StringToBSTR($"{e.GetType()}: {e.Message}");
             return e.HResult;
         }
     }
