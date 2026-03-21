@@ -81,7 +81,9 @@ struct method_data_t_hash
 {
     size_t operator()(const method_data_t &p) const
     {
-        return static_cast<size_t>(p.methodDef) + static_cast<size_t>(p.startLine * 100) + static_cast<size_t>(p.endLine * 1000);
+        static constexpr size_t hash_factor1 = 100;
+        static constexpr size_t hash_factor2 = 1000;
+        return static_cast<size_t>(p.methodDef) + static_cast<size_t>(p.startLine * hash_factor1) + static_cast<size_t>(p.endLine * hash_factor2);
     }
 };
 

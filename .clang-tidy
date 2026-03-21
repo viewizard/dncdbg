@@ -18,7 +18,6 @@ Checks: >
   -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
-  -cppcoreguidelines-avoid-magic-numbers,
   modernize-*,
   -modernize-use-trailing-return-type,
   -modernize-pass-by-value,
@@ -33,8 +32,7 @@ Checks: >
   -readability-container-contains,
   -readability-use-concise-preprocessor-directives,
   -readability-avoid-nested-conditional-operator,
-  -readability-avoid-const-params-in-decls,
-  -readability-magic-numbers
+  -readability-avoid-const-params-in-decls
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: 'true'
