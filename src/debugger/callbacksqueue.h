@@ -20,6 +20,7 @@
 #include <list>
 #include <thread>
 #include <string>
+#include <utility>
 
 namespace dncdbg
 {
@@ -100,14 +101,14 @@ class CallbacksQueue
                            ICorDebugBreakpoint *pBreakpoint,
                            CorDebugStepReason reason,
                            ExceptionCallbackType eventType,
-                           const std::string &excModule = "")
+                           std::string excModule = std::string())
             : Call(call),
               trAppDomain(pAppDomain),
               trThread(pThread),
               trBreakpoint(pBreakpoint),
               Reason(reason),
               EventType(eventType),
-              ExcModule(excModule)
+              ExcModule(std::move(excModule))
         {}
 
     };

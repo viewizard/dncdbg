@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 
 namespace dncdbg
 {
@@ -21,9 +22,9 @@ struct Thread
     ThreadId id;
     std::string name;
 
-    Thread(ThreadId id_, const std::string &name_)
+    Thread(ThreadId id_, std::string name_)
         : id(id_),
-          name(name_)
+          name(std::move(name_))
     {
     }
 };
@@ -195,9 +196,9 @@ struct BreakpointEvent
     BreakpointEventReason reason;
     Breakpoint breakpoint;
 
-    BreakpointEvent(const BreakpointEventReason &reason, const Breakpoint &breakpoint)
+    BreakpointEvent(const BreakpointEventReason &reason, Breakpoint breakpoint)
         : reason(reason),
-          breakpoint(breakpoint)
+          breakpoint(std::move(breakpoint))
     {
     }
 };
@@ -251,9 +252,9 @@ struct OutputEvent
     // data?: any;
     // locationReference?: number;
 
-    OutputEvent(OutputCategory category_, const std::string &output_)
+    OutputEvent(OutputCategory category_, std::string output_)
         : category(category_),
-          output(output_)
+          output(std::move(output_))
     {
     }
 };
@@ -307,8 +308,8 @@ struct Scope
     {
     }
 
-    Scope(uint32_t variablesReference, const std::string &name, int namedVariables)
-        : name(name),
+    Scope(uint32_t variablesReference, std::string name, int namedVariables)
+        : name(std::move(name)),
           variablesReference(variablesReference),
           namedVariables(namedVariables),
           indexedVariables(0),
@@ -351,11 +352,11 @@ struct SourceBreakpoint
     // logMessage?: string;
     // mode?: string;
 
-    SourceBreakpoint(int linenum, const std::string &cond = std::string(),
-                     const std::string &hitCond = std::string())
+    SourceBreakpoint(int linenum, std::string cond = std::string(),
+                     std::string hitCond = std::string())
         : line(linenum),
-          condition(cond),
-          hitCondition(hitCond)
+          condition(std::move(cond)),
+          hitCondition(std::move(hitCond))
     {
     }
 };
@@ -368,12 +369,12 @@ struct FunctionBreakpoint
     std::string condition;
     std::string hitCondition;
 
-    FunctionBreakpoint(const std::string &func, const std::string &params,
-                       const std::string &cond = std::string(), const std::string &hitCond = std::string())
-        : func(func),
-          params(params),
-          condition(cond),
-          hitCondition(hitCond)
+    FunctionBreakpoint(std::string func, std::string params,
+                       std::string cond = std::string(), std::string hitCond = std::string())
+        : func(std::move(func)),
+          params(std::move(params)),
+          condition(std::move(cond)),
+          hitCondition(std::move(hitCond))
     {
     }
 };

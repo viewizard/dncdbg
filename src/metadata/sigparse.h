@@ -14,6 +14,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 
 namespace dncdbg
 {
@@ -26,9 +27,9 @@ struct SigElementType
     ULONG varNum{0};
 
     SigElementType() = default;
-    SigElementType(CorElementType t, const std::string &n)
+    SigElementType(CorElementType t, std::string n)
         : corType(t),
-          typeName(n)
+          typeName(std::move(n))
     {
     }
 

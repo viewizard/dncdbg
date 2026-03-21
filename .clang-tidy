@@ -19,7 +19,6 @@ Checks: >
   -cppcoreguidelines-macro-usage,
   modernize-*,
   -modernize-use-trailing-return-type,
-  -modernize-pass-by-value,
   misc-*,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
