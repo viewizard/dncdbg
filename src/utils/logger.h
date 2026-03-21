@@ -46,15 +46,14 @@ namespace LogInternal
 {
 
 // This function computes file path (directory component) length at compile time.
-template <size_t N> constexpr size_t path_len(const char (&path)[N], size_t pos = N - 1) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+template <size_t N> constexpr size_t path_len(const char (&path)[N]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
-    if (path[pos] == '/' || path[pos] == '\\')
+    for (size_t pos = N - 1; pos > 0; --pos)
     {
-        return pos + 1;
-    }
-    else if (pos != 0)
-    {
-        return path_len(path, pos - 1);
+        if (path[pos] == '/' || path[pos] == '\\')
+        {
+            return pos + 1;
+        }
     }
 
     return 0;
