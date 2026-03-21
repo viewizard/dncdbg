@@ -28,8 +28,7 @@ Checks: >
   -readability-duplicate-include,
   -readability-else-after-return,
   -readability-use-concise-preprocessor-directives,
-  -readability-avoid-nested-conditional-operator,
-  -readability-avoid-const-params-in-decls
+  -readability-avoid-nested-conditional-operator
 CheckOptions:
   misc-include-cleaner.MissingIncludes: 'false'
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: 'true'

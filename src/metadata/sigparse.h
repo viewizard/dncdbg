@@ -33,7 +33,7 @@ struct SigElementType
     {
     }
 
-    static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);
+    static bool isAlias(CorElementType type1, CorElementType type2, const std::string &name2);
     [[nodiscard]] bool areEqual(const SigElementType &arg) const;
     bool operator==(const SigElementType &arg) const
     {

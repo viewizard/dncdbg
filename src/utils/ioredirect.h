@@ -106,9 +106,9 @@ class IORedirectHelper
     void wake_reader() const;
 
     void worker(); // worker thread function
-    void StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *const out_stream,
+    void StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *out_stream,
                                IOSystem::AsyncHandle &out_handle);
-    bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
+    bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *out_stream,
                                       IOSystem::AsyncHandle &out_handle);
     static bool ProcessFinishedReadRequests(const std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
                                             IOSystem::AsyncHandle async_handles[]); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
