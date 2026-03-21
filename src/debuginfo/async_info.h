@@ -56,21 +56,13 @@ class AsyncInfo
 
     struct AsyncMethodInfo
     {
-        CORDB_ADDRESS modAddress = 0;
-        mdMethodDef methodToken = mdMethodDefNil;
-        HRESULT retCode = S_OK;
+        CORDB_ADDRESS modAddress{0};
+        mdMethodDef methodToken{mdMethodDefNil};
+        HRESULT retCode{S_OK};
 
         std::vector<AwaitInfo> awaits;
         // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
-        uint32_t lastIlOffset = 0;
-
-        AsyncMethodInfo()
-          : modAddress(0),
-            methodToken(mdMethodDefNil),
-            retCode(S_OK),
-            lastIlOffset(0)
-        {
-        };
+        uint32_t lastIlOffset{0};
     };
 
     AsyncMethodInfo asyncMethodSteppingInfo;

@@ -113,7 +113,7 @@ class ManagedDebugger
 
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
     std::condition_variable m_processAttachedCV;
-    ProcessAttachedState m_processAttachedState;
+    ProcessAttachedState m_processAttachedState{ProcessAttachedState::Unattached};
 
     void NotifyProcessCreated();
     void NotifyProcessExited();
@@ -126,12 +126,12 @@ class ManagedDebugger
     void SetLastStoppedThreadId(ThreadId threadId);
     void InvalidateLastStoppedThreadId();
 
-    StartMethod m_startMethod;
+    StartMethod m_startMethod{StartMethod::None};
     std::string m_execPath;
     std::vector<std::string> m_execArgs;
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
-    bool m_isConfigurationDone;
+    bool m_isConfigurationDone{false};
 
     std::shared_ptr<Threads> m_sharedThreads;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
@@ -150,11 +150,11 @@ class ManagedDebugger
     ToRelease<ICorDebug> m_trDebug;
     ToRelease<ICorDebugProcess> m_trProcess;
 
-    bool m_justMyCode;
-    bool m_stepFiltering;
+    bool m_justMyCode{true};
+    bool m_stepFiltering{true};
 
-    void *m_unregisterToken;
-    DWORD m_processId;
+    void *m_unregisterToken{nullptr};
+    DWORD m_processId{0};
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
     IORedirectHelper m_ioredirect;
@@ -171,14 +171,14 @@ class ManagedDebugger
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                  std::vector<StackFrame> &stackFrames);
 
-    CORDB_ADDRESS PrivateCoreLibModAddress;
-    mdMethodDef ExceptionDispatchInfoThrowMethodDef;
+    CORDB_ADDRESS PrivateCoreLibModAddress{0};
+    mdMethodDef ExceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
     HRESULT FindExceptionDispatchInfoThrow(CORDB_ADDRESS &modAddress, mdMethodDef &methodDef);
     bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
     HRESULT GetExceptionStackTrace(ICorDebugThread *pThread, std::string &stackTrace);
 
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
-    HRESULT StartupCallbackHR;
+    HRESULT StartupCallbackHR{S_OK};
     HRESULT Startup(IUnknown *punk);
     HRESULT RunIfReady();
     HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs);

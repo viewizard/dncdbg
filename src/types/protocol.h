@@ -104,26 +104,17 @@ struct StackFrame
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_Breakpoint
 struct Breakpoint
 {
-    uint32_t id;
-    bool verified;
+    uint32_t id{0};
+    bool verified{false};
     std::string message;
     Source source;
-    int line;
+    int line{0};
     // column?: number;
-    int endLine;
+    int endLine{0};
     // endColumn?: number;
-
     // instructionReference?: string;
     // offset?: number;
     // reason?: 'pending' | 'failed';
-
-    Breakpoint()
-        : id(0),
-          verified(false),
-          line(0),
-          endLine(0)
-    {
-    }
 };
 
 enum class SymbolStatus : uint8_t
@@ -139,20 +130,13 @@ struct Module
     std::string id;
     std::string name;
     std::string path;
-    bool isOptimized;
-    bool isUserCode;
+    bool isOptimized{true};
+    bool isUserCode{false};
     // version?: string;
-    SymbolStatus symbolStatus;
+    SymbolStatus symbolStatus{SymbolStatus::Skipped};
     std::string symbolFilePath;
     // dateTimeStamp?: string;
     std::string addressRange;
-
-    Module()
-        : isOptimized(true),
-          isUserCode(false),
-          symbolStatus(SymbolStatus::Skipped)
-    {
-    }
 };
 
 enum class StartMethod : uint8_t
@@ -262,16 +246,14 @@ struct OutputEvent
     // group?: 'start' | 'startCollapsed' | 'end';
     // variablesReference?: number;
     Source source;
-    int line;
-    int column;
+    int line{0};
+    int column{0};
     // data?: any;
     // locationReference?: number;
 
     OutputEvent(OutputCategory category_, const std::string &output_)
         : category(category_),
-          output(output_),
-          line(0),
-          column(0)
+          output(output_)
     {
     }
 };
@@ -345,19 +327,12 @@ struct Variable
     std::string type;
     VariablePresentationHint presentationHint;
     std::string evaluateName;
-    uint32_t variablesReference;
-    int namedVariables;
-    int indexedVariables;
+    uint32_t variablesReference{0};
+    int namedVariables{0};
+    int indexedVariables{0};
     // memoryReference?: string;
     // declarationLocationReference?: number;
     // valueLocationReference?: number;
-
-    Variable()
-        : variablesReference(0),
-          namedVariables(0),
-          indexedVariables(0)
-    {
-    }
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_SourceBreakpoint
@@ -464,12 +439,11 @@ struct ExceptionBreakpoint
     ExceptionCategory categoryHint;
     ExceptionBreakpointFilter filterId;
     std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
-    bool negativeCondition;
+    bool negativeCondition{false};
 
     ExceptionBreakpoint(ExceptionCategory category, ExceptionBreakpointFilter filterId)
         : categoryHint(category),
-          filterId(filterId),
-          negativeCondition(false)
+          filterId(filterId)
     {
     }
 

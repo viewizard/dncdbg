@@ -65,17 +65,11 @@ class AsyncStepper
     struct asyncBreakpoint_t
     {
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        CORDB_ADDRESS modAddress = 0;
-        mdMethodDef methodToken = mdMethodDefNil;
-        uint32_t ilOffset = 0;
+        CORDB_ADDRESS modAddress{0};
+        mdMethodDef methodToken{mdMethodDefNil};
+        uint32_t ilOffset{0};
 
-        asyncBreakpoint_t()
-            : trFuncBreakpoint(nullptr),
-              modAddress(0),
-              methodToken(0),
-              ilOffset(0)
-        {}
-
+        asyncBreakpoint_t() = default;
         asyncBreakpoint_t(asyncBreakpoint_t &&) = delete;
         asyncBreakpoint_t(const asyncBreakpoint_t &) = delete;
         asyncBreakpoint_t &operator=(asyncBreakpoint_t &&) = delete;
@@ -92,21 +86,12 @@ class AsyncStepper
 
     struct asyncStep_t
     {
-        ThreadId m_threadId;
-        StepType m_initialStepType;
-        uint32_t m_resume_offset;
-        asyncStepStatus m_stepStatus;
+        ThreadId m_threadId{ThreadId::Invalid};
+        StepType m_initialStepType{StepType::STEP_OVER};
+        uint32_t m_resume_offset{0};
+        asyncStepStatus m_stepStatus{asyncStepStatus::yield_offset_breakpoint};
         std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
         ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
-
-        asyncStep_t()
-            : m_threadId(ThreadId::Invalid),
-              m_initialStepType(StepType::STEP_OVER),
-              m_resume_offset(0),
-              m_stepStatus(asyncStepStatus::yield_offset_breakpoint),
-              m_Breakpoint(nullptr),
-              m_trHandleValueAsyncId(nullptr)
-        {}
     };
 
     std::mutex m_asyncStepMutex;

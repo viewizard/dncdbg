@@ -81,7 +81,7 @@ class Breakpoints
     std::shared_ptr<SourceBreakpoints> m_sourceBreakpoints;
 
     std::mutex m_nextBreakpointIdMutex;
-    uint32_t m_nextBreakpointId;
+    uint32_t m_nextBreakpointId{1};
 };
 
 } // namespace dncdbg

@@ -477,7 +477,7 @@ class CountingStreamBuf : public std::streambuf
   public:
 
     // Default class constructor.
-    CountingStreamBuf() : count(0) // NOLINT(cppcoreguidelines-pro-type-member-init)
+    CountingStreamBuf() // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
         setp(buf.data(), buf.data() + BufSize - OverflowChars);
     }
@@ -534,7 +534,7 @@ class CountingStreamBuf : public std::streambuf
     static constexpr size_t BufSize = 256;
     static constexpr size_t OverflowChars = 1;
     std::array<char, BufSize> buf;
-    uintmax_t count;
+    uintmax_t count{0};
 };
 
 // This is dummy output stream object which can be used to count number of printed characters.

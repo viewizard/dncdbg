@@ -215,21 +215,12 @@ enum class StepType : uint8_t
 
 struct SequencePoint
 {
-    int32_t startLine;
-    int32_t startColumn;
-    int32_t endLine;
-    int32_t endColumn;
-    int32_t offset;
+    int32_t startLine{0};
+    int32_t startColumn{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
+    int32_t offset{0};
     std::string document;
-
-    SequencePoint()
-        : startLine(0),
-          startColumn(0),
-          endLine(0),
-          endColumn(0),
-          offset(0)
-    {
-    }
 };
 
 enum class ValueKind : uint8_t

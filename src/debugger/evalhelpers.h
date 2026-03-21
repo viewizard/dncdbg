@@ -32,8 +32,7 @@ class EvalHelpers
 
     EvalHelpers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedEvalWaiter(sharedEvalWaiter),
-          m_evalFlags(defaultEvalFlags)
+          m_sharedEvalWaiter(sharedEvalWaiter)
     {}
 
     HRESULT CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
@@ -68,7 +67,7 @@ class EvalHelpers
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
-    uint32_t m_evalFlags;
+    uint32_t m_evalFlags{defaultEvalFlags};
 
     std::mutex m_trSuppressFinalizeMutex;
     ToRelease<ICorDebugFunction> m_trSuppressFinalize;

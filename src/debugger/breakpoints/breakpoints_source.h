@@ -34,8 +34,7 @@ class SourceBreakpoints
 
     SourceBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Variables> &sharedVariables)
         : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedVariables(sharedVariables),
-          m_justMyCode(true)
+          m_sharedVariables(sharedVariables)
     {
     }
 
@@ -70,11 +69,11 @@ class SourceBreakpoints
 
     struct ManagedSourceBreakpoint
     {
-        uint32_t id;
+        uint32_t id{0};
         std::string module;
-        int linenum;
-        int endLine;
-        uint32_t hitCount;
+        int linenum{0};
+        int endLine{0};
+        uint32_t hitCount{0};
         std::string hitCondition;
         std::string condition;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
@@ -86,14 +85,7 @@ class SourceBreakpoints
             return !trFuncBreakpoints.empty();
         }
 
-        ManagedSourceBreakpoint()
-            : id(0),
-              linenum(0),
-              endLine(0),
-              hitCount(0)
-        {
-        }
-
+        ManagedSourceBreakpoint() = default;
         ~ManagedSourceBreakpoint()
         {
             for (auto &trFuncBreakpoint : trFuncBreakpoints)
@@ -117,23 +109,16 @@ class SourceBreakpoints
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Variables> m_sharedVariables;
-    bool m_justMyCode;
+    bool m_justMyCode{true};
 
     struct ManagedSourceBreakpointMapping
     {
-        SourceBreakpoint breakpoint;
-        uint32_t id;
-        unsigned resolved_fullname_index;
-        int resolved_linenum; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
+        SourceBreakpoint breakpoint{0, ""};
+        uint32_t id{0};
+        unsigned resolved_fullname_index{0};
+        int resolved_linenum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
-        ManagedSourceBreakpointMapping()
-            : breakpoint(0, ""),
-              id(0),
-              resolved_fullname_index(0),
-              resolved_linenum(0)
-        {
-        }
-
+        ManagedSourceBreakpointMapping() = default;
         ManagedSourceBreakpointMapping(ManagedSourceBreakpointMapping &&) = default;
         ManagedSourceBreakpointMapping(const ManagedSourceBreakpointMapping &) = delete;
         ManagedSourceBreakpointMapping &operator=(ManagedSourceBreakpointMapping &&) = delete;

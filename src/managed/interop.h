@@ -30,21 +30,14 @@ constexpr int HiddenLine = 0xfeefee;
 
 struct SequencePoint
 {
-    int32_t startLine;
-    int32_t startColumn;
-    int32_t endLine;
-    int32_t endColumn;
-    int32_t offset;
-    BSTR document;
-    SequencePoint()
-        : startLine(0),
-          startColumn(0),
-          endLine(0),
-          endColumn(0),
-          offset(0),
-          document(nullptr)
-    {
-    }
+    int32_t startLine{0};
+    int32_t startColumn{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
+    int32_t offset{0};
+    BSTR document{nullptr};
+
+    SequencePoint() = default;
     ~SequencePoint() noexcept;
 
     SequencePoint(const SequencePoint &) = delete;
@@ -78,13 +71,9 @@ struct SequencePoint
 
 struct AsyncAwaitInfoBlock
 {
-    uint32_t yield_offset;
-    uint32_t resume_offset;
-    uint32_t token; // note, this is internal token number, runtime method token for module should be calculated as "mdMethodDefNil + token"
-
-    AsyncAwaitInfoBlock() : yield_offset(0), resume_offset(0), token(0)
-    {
-    }
+    uint32_t yield_offset{0};
+    uint32_t resume_offset{0};
+    uint32_t token{0}; // note, this is internal token number, runtime method token for module should be calculated as "mdMethodDefNil + token"
 };
 
 // WARNING! Due to CoreCLR limitations, Init() / Shutdown() sequence can be used only once during process execution.

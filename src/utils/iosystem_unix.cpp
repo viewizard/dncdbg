@@ -357,7 +357,7 @@ dncdbg::IOSystem::StdFiles Class::get_std_files()
 
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
 // Substitution exists only during life time of StsIOSwap instance.
-Class::StdIOSwap::StdIOSwap(const StdFiles &files) : m_valid(true) // NOLINT(cppcoreguidelines-pro-type-member-init)
+Class::StdIOSwap::StdIOSwap(const StdFiles &files) // NOLINT(cppcoreguidelines-pro-type-member-init)
 {
     static constexpr unsigned NFD = std::tuple_size_v<StdFiles>;
     static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};

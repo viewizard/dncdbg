@@ -31,7 +31,6 @@ class ExceptionBreakpoints
 
     ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
         : m_sharedEvaluator(sharedEvaluator),
-          m_justMyCode(true),
           m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
     {}
 
@@ -58,16 +57,12 @@ class ExceptionBreakpoints
   private:
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
-    bool m_justMyCode;
+    bool m_justMyCode{true};
 
     struct ExceptionStatus
     {
-        ExceptionCallbackType m_lastEvent;
+        ExceptionCallbackType m_lastEvent{ExceptionCallbackType::FIRST_CHANCE};
         std::string m_excModule;
-
-        ExceptionStatus()
-            : m_lastEvent(ExceptionCallbackType::FIRST_CHANCE)
-        {}
     };
 
     std::mutex m_threadsExceptionMutex;
@@ -79,18 +74,12 @@ class ExceptionBreakpoints
 
     struct ManagedExceptionBreakpoint
     {
-        uint32_t id;
-        ExceptionCategory categoryHint;
+        uint32_t id{0};
+        ExceptionCategory categoryHint{ExceptionCategory::ANY};
         std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
-        bool negativeCondition;
+        bool negativeCondition{false};
 
-        ManagedExceptionBreakpoint()
-            : id(0),
-              categoryHint(ExceptionCategory::ANY),
-              negativeCondition(false)
-        {
-        }
-
+        ManagedExceptionBreakpoint() = default;
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
         ManagedExceptionBreakpoint(ManagedExceptionBreakpoint &&) = default;

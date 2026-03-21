@@ -53,7 +53,6 @@ class CallbacksQueue
 
     CallbacksQueue(ManagedDebugger &debugger)
         : m_debugger(debugger),
-          m_stopEventInProcess(false),
           m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this}
     {
     }
@@ -116,7 +115,7 @@ class CallbacksQueue
     std::mutex m_callbacksMutex;
     std::condition_variable m_callbacksCV;
     std::list<CallbackQueueEntry> m_callbacksQueue; // Make sure this one initialized before m_callbacksWorker.
-    bool m_stopEventInProcess;                      // Make sure this one initialized before m_callbacksWorker.
+    bool m_stopEventInProcess{false};               // Make sure this one initialized before m_callbacksWorker.
     std::thread m_callbacksWorker;
 
     void CallbacksWorker();

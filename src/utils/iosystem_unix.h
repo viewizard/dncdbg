@@ -38,7 +38,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         int fd;
     };
 
-    struct AsyncHandle
+    struct AsyncHandle // NOLINT(cppcoreguidelines-pro-type-member-init)
     {
         struct Traits
         {
@@ -53,7 +53,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             static struct Traits traits;
         };
 
-        const Traits *traits;
+        const Traits *traits{nullptr};
         mutable char data alignas(__BIGGEST_ALIGNMENT__)[sizeof(void *) * 4]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 
         explicit operator bool() const
@@ -73,9 +73,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             return traits->poll(data, read, write, except);
         }
 
-        AsyncHandle() : traits(nullptr) // NOLINT(cppcoreguidelines-pro-type-member-init)
-        {
-        }
+        AsyncHandle() = default; // NOLINT(cppcoreguidelines-pro-type-member-init)
 
         template <typename InstanceType, typename... Args> static AsyncHandle create(Args &&...args)
         {
@@ -135,8 +133,8 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         ~StdIOSwap();
 
         StdIOSwap(StdIOSwap &&other) noexcept // NOLINT(cppcoreguidelines-pro-type-member-init)
+            : m_valid(other.m_valid)
         {
-            m_valid = other.m_valid;
             if (!m_valid)
             {
                 return;
@@ -153,7 +151,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         StdIOSwap &operator=(StdIOSwap &&) = delete;
         StdIOSwap &operator=(const StdIOSwap &) = delete;
 
-        bool m_valid;
+        bool m_valid{true};
         std::array<int, std::tuple_size_v<StdFiles>> m_orig_fd;
     };
 

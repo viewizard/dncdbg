@@ -50,11 +50,8 @@ IORedirectHelper::IORedirectHelper(
       m_callback(callback),
       m_sent(get_streams_pptr(m_streams)),
       m_unsent(m_sent),
-      m_eof(),
       m_worker_pipe(IOSystem::unnamed_pipe()),
       m_input_pipe(IOSystem::unnamed_pipe()),
-      m_cancel(),
-      m_finish(),
       m_thread{&IORedirectHelper::worker, this}
 {
     assert(std::get<IOSystem::Stdin>(pipes).first);

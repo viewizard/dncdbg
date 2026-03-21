@@ -26,8 +26,7 @@ class EntryBreakpoint
   public:
 
     EntryBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-        : m_sharedDebugInfo(sharedDebugInfo),
-          m_stopAtEntry(false)
+        : m_sharedDebugInfo(sharedDebugInfo)
     {
     }
 
@@ -56,7 +55,7 @@ class EntryBreakpoint
     std::mutex m_entryMutex;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     ToRelease<ICorDebugFunctionBreakpoint> m_trFuncBreakpoint;
-    bool m_stopAtEntry;
+    bool m_stopAtEntry{false};
 };
 
 } // namespace dncdbg

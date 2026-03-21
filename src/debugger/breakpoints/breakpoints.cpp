@@ -21,8 +21,7 @@ Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::share
           m_entryBreakpoint(new EntryBreakpoint(sharedDebugInfo)),
           m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
           m_funcBreakpoints(new FunctionBreakpoints(sharedDebugInfo, sharedVariables)),
-          m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedVariables)),
-          m_nextBreakpointId(1)
+          m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedVariables))
     {}
 
 void Breakpoints::SetJustMyCode(bool enable)

@@ -26,8 +26,7 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
   public:
 
     ManagedCallback(ManagedDebugger &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue)
-        : m_refCount(0),
-          m_debugger(debugger),
+        : m_debugger(debugger),
           m_sharedCallbacksQueue(sharedCallbacksQueue)
     {
     }
@@ -104,7 +103,7 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
   private:
 
     std::mutex m_refCountMutex;
-    ULONG m_refCount;
+    ULONG m_refCount{0};
     ManagedDebugger &m_debugger;
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
 };

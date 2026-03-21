@@ -43,16 +43,6 @@ class dbgshim_t
     using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, const WCHAR *, IUnknown **);
 
     dbgshim_t()
-        : CreateProcessForLaunch(nullptr),
-          ResumeProcess(nullptr),
-          CloseResumeHandle(nullptr),
-          RegisterForRuntimeStartup(nullptr),
-          UnregisterForRuntimeStartup(nullptr),
-          EnumerateCLRs(nullptr),
-          CloseCLREnumeration(nullptr),
-          CreateVersionStringFromModule(nullptr),
-          CreateDebuggingInterfaceFromVersionEx(nullptr),
-          m_module(nullptr)
     {
         const std::string exe = GetExeAbsPath();
         if (exe.empty())
@@ -167,17 +157,17 @@ class dbgshim_t
 
   private:
 
-    CreateProcessForLaunch_t CreateProcessForLaunch;
-    ResumeProcess_t ResumeProcess;
-    CloseResumeHandle_t CloseResumeHandle;
-    RegisterForRuntimeStartup_t RegisterForRuntimeStartup;
-    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup;
-    EnumerateCLRs_t EnumerateCLRs;
-    CloseCLREnumeration_t CloseCLREnumeration;
-    CreateVersionStringFromModule_t CreateVersionStringFromModule;
-    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx;
+    CreateProcessForLaunch_t CreateProcessForLaunch{nullptr};
+    ResumeProcess_t ResumeProcess{nullptr};
+    CloseResumeHandle_t CloseResumeHandle{nullptr};
+    RegisterForRuntimeStartup_t RegisterForRuntimeStartup{nullptr};
+    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup{nullptr};
+    EnumerateCLRs_t EnumerateCLRs{nullptr};
+    CloseCLREnumeration_t CloseCLREnumeration{nullptr};
+    CreateVersionStringFromModule_t CreateVersionStringFromModule{nullptr};
+    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx{nullptr};
 
-    DLHandle m_module;
+    DLHandle m_module{nullptr};
 };
 
 } // namespace dncdbg

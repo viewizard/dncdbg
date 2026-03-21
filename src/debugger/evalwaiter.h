@@ -25,11 +25,6 @@ class EvalWaiter
 
     using WaitEvalResultCallback = std::function<HRESULT(ICorDebugEval *)>;
 
-    EvalWaiter()
-        : m_evalCanceled(false), m_evalCrossThreadDependency(false)
-    {
-    }
-
     bool IsEvalRunning();
     void CancelEvalRunning();
     ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread);
@@ -43,8 +38,8 @@ class EvalWaiter
 
   private:
 
-    bool m_evalCanceled;
-    bool m_evalCrossThreadDependency;
+    bool m_evalCanceled{false};
+    bool m_evalCrossThreadDependency{false};
 
     ToRelease<ICorDebugClass> m_trCrossThreadDependencyNotification;
     HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable);

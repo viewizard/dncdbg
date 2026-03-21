@@ -20,23 +20,16 @@ namespace dncdbg
 
 struct SigElementType
 {
-    CorElementType corType;
+    CorElementType corType{ELEMENT_TYPE_MAX};
     std::string typeName;
-    int elementType;
-    ULONG varNum;
+    int elementType{ELEMENT_TYPE_END};
+    ULONG varNum{0};
 
-    SigElementType()
-        : corType(ELEMENT_TYPE_MAX),
-          elementType(ELEMENT_TYPE_END),
-          varNum(0)
-    {}
-
+    SigElementType() = default;
     SigElementType(CorElementType t, const std::string &n)
+        : corType(t),
+          typeName(n)
     {
-        corType = t;
-        typeName = n;
-        elementType = ELEMENT_TYPE_END;
-        varNum = 0;
     }
 
     static bool isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2);

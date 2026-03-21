@@ -126,7 +126,7 @@ class IORedirectHelper
     char *m_sent;   // start of region for which async. write request issued
     char *m_unsent; // end of such region, start region of unwritten data.
 
-    bool m_eof; // EOF reached in async_input, worker should close writing end of pipe
+    bool m_eof{false}; // EOF reached in async_input, worker should close writing end of pipe
 
     // Synchronize access of async_input function and worker thread to
     // stdin's output buffer and two pointers listed above (m_sent and m_unsent).
@@ -135,8 +135,8 @@ class IORedirectHelper
     PipePair m_worker_pipe; // pipe to wake worker thread
     PipePair m_input_pipe;  // pipe to wake thread sleeping in async_input
 
-    std::atomic<bool> m_cancel; // atomic flag which prevents multiple calls to async_cancel()
-    volatile bool m_finish;     // exit request for worker thread
+    std::atomic<bool> m_cancel{false}; // atomic flag which prevents multiple calls to async_cancel()
+    volatile bool m_finish{false}; // exit request for worker thread
 
     std::thread m_thread; // worker threead (which monitors received data)
 };

@@ -36,8 +36,7 @@ class FunctionBreakpoints
 
     FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Variables> &sharedVariables)
         : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedVariables(sharedVariables),
-          m_justMyCode(true)
+          m_sharedVariables(sharedVariables)
     {}
 
     void SetJustMyCode(bool enable)
@@ -73,14 +72,14 @@ class FunctionBreakpoints
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Variables> m_sharedVariables;
-    bool m_justMyCode;
+    bool m_justMyCode{true};
 
     struct ManagedFunctionBreakpoint
     {
-        uint32_t id;
+        uint32_t id{0};
         std::string name;
         std::string params;
-        uint32_t hitCount;
+        uint32_t hitCount{0};
         std::string hitCondition;
         std::string condition;
         std::list<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
@@ -90,11 +89,7 @@ class FunctionBreakpoints
             return !trFuncBreakpoints.empty();
         }
 
-        ManagedFunctionBreakpoint()
-            : id(0),
-              hitCount(0)
-        {}
-
+        ManagedFunctionBreakpoint() = default;
         ~ManagedFunctionBreakpoint()
         {
             for (auto &trFuncBreakpoint : trFuncBreakpoints)

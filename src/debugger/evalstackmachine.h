@@ -45,21 +45,14 @@ struct EvalStackEntry
     std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
     // Prevent future binding in case of conditional access with nulled object (`a?.b`, `a?[1]`, ...).
     // Note, this state could be related to trValue only (trValue must be checked for null first).
-    bool preventBinding;
+    bool preventBinding{false};
     // This is literal entry (value was created from literal).
-    bool literal;
+    bool literal{false};
     // This entry is real variable (not literal, not result of expression calculation, not result of function call, ...).
-    bool editable;
+    bool editable{false};
     // In case trValue is editable and property, we need extra data in order to set value.
     // Note, this data directly connected with `trValue` and could be available only in case `editable` is true.
     std::unique_ptr<Evaluator::SetterData> setterData;
-
-    EvalStackEntry()
-        : preventBinding(false),
-          literal(false),
-          editable(false)
-    {
-    }
 
     void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
     {
@@ -78,10 +71,10 @@ struct EvalStackEntry
 
 struct EvalData
 {
-    ICorDebugThread *pThread;
-    Evaluator *pEvaluator;
-    EvalHelpers *pEvalHelpers;
-    EvalWaiter *pEvalWaiter;
+    ICorDebugThread *pThread{nullptr};
+    Evaluator *pEvaluator{nullptr};
+    EvalHelpers *pEvalHelpers{nullptr};
+    EvalWaiter *pEvalWaiter{nullptr};
     // In case of NumericLiteralExpression with Decimal, NewParameterizedObjectNoConstructor() are used.
     // Proper ICorDebugClass must be provided for Decimal (will be found during FindPredefinedTypes() call).
     ToRelease<ICorDebugClass> trDecimalClass;
@@ -89,13 +82,6 @@ struct EvalData
     ToRelease<ICorDebugClass> trVoidClass;
     std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> trElementToValueClassMap;
     FrameLevel frameLevel;
-
-    EvalData()
-        : pThread(nullptr),
-          pEvaluator(nullptr),
-          pEvalHelpers(nullptr),
-          pEvalWaiter(nullptr)
-    {}
 };
 
 class EvalStackMachine

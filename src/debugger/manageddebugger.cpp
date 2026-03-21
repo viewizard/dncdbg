@@ -318,10 +318,7 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 }
 
 ManagedDebugger::ManagedDebugger()
-    : m_processAttachedState(ProcessAttachedState::Unattached),
-      m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_startMethod(StartMethod::None),
-      m_isConfigurationDone(false),
+    : m_lastStoppedThreadId(ThreadId::AllThreads),
       m_sharedThreads(new Threads),
       m_sharedDebugInfo(new DebugInfo),
       m_sharedModules(new Modules),
@@ -334,18 +331,11 @@ ManagedDebugger::ManagedDebugger()
       m_sharedBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
-      m_justMyCode(true),
-      m_stepFiltering(true),
-      m_unregisterToken(nullptr),
-      m_processId(0),
       m_ioredirect({IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe()},
             [](auto &&PH1, auto &&PH2)
             {
                 InputCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
-            }),
-      PrivateCoreLibModAddress(0),
-      ExceptionDispatchInfoThrowMethodDef(mdMethodDefNil),
-      StartupCallbackHR(S_OK)
+            })
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
 }
