@@ -27,7 +27,6 @@ Checks: >
   -readability-identifier-length,
   -readability-duplicate-include,
   -readability-else-after-return,
-  -readability-container-contains,
   -readability-use-concise-preprocessor-directives,
   -readability-avoid-nested-conditional-operator,
   -readability-avoid-const-params-in-decls

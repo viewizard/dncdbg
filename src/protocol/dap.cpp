@@ -738,7 +738,7 @@ void DAP::CommandsWorker()
         }
         else
         {
-            if (responseBody.find("message") == responseBody.end())
+            if (!responseBody.contains("message"))
             {
                 static constexpr uint32_t hexNumberWidth = 8;
                 std::ostringstream ss;
