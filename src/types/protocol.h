@@ -276,6 +276,12 @@ struct ModuleEvent
           module(module)
     {
     }
+
+    ModuleEvent(ModuleEvent &&) = delete;
+    ModuleEvent(const ModuleEvent &) = delete;
+    ModuleEvent &operator=(ModuleEvent &&) = delete;
+    ModuleEvent &operator=(const ModuleEvent &) = delete;
+    ~ModuleEvent() = default;
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_Scope

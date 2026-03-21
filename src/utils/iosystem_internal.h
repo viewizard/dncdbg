@@ -124,7 +124,7 @@ template <typename Traits> struct IOSystemImpl
 
         static constexpr size_t MaxIteratorSize = sizeof(void *) * 2;
 
-        const Operations &ops;
+        const Operations &ops; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
 #if defined(_WIN32) && defined(_TARGET_X86_)
         // Note, we can't use `alignas(alignof(std::max_align_t))` here, since at least MSVC 32bit (VS2019) compiler
