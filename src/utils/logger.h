@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstring>
 #include <cstdint>
+#include <string_view>
 
 #ifdef _MSC_VER
 #include <cstdio>
@@ -46,13 +47,13 @@ namespace LogInternal
 {
 
 // This function computes file path (directory component) length at compile time.
-template <size_t N> constexpr size_t path_len(const char (&path)[N]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr size_t path_len(std::string_view path)
 {
-    for (size_t pos = N - 1; pos > 0; --pos)
+    for (size_t pos = path.size(); pos > 0; --pos)
     {
-        if (path[pos] == '/' || path[pos] == '\\')
+        if (path[pos - 1] == '/' || path[pos - 1] == '\\')
         {
-            return pos + 1;
+            return pos;
         }
     }
 
