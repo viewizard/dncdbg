@@ -108,10 +108,10 @@ FILE *open_log_file()
 
 // Function should form output line like this:
 //
-// 1500636976.777 I(P 2293, T 2293): udev.c: uevent_control_cb(62) > Set udev monitor buffer size 131072
-// ^              ^    ^       ^      ^       ^                 ^     ^
-// |              |    `pid    ` tid  |       ` function name   |     ` user provided message
-// |              ` log level         ` file name               ` line number
+// 1500636976.777 I(P 2293, T 2293): udev.c:64 uevent_control_cb() > Set udev monitor buffer size 131072
+// ^              ^    ^       ^      ^     ^              ^          ^
+// |              |    ` pid   ` tid  |     ` line number  |          ` user provided message
+// |              ` log level         ` file name          ` function name
 // `--- time sec.msec
 //
 extern "C" int log_vprint(LogPriority prio, const char *fmt, va_list ap)

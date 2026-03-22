@@ -99,10 +99,10 @@ constexpr int check_args(const char */*fmt*/, Args&&... /*args*/) noexcept
 // Following macros shouldn't be used directly, it is intendent for internal use.
 #define LOG_(prio, fmt, ...) \
         (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
-        log_print(prio, "%.*s: %.*s(%.*s) > " fmt, \
+        log_print(prio, "%.*s:%.*s %.*s() > " fmt, \
             static_cast<int>(sizeof(__FILE__) - LogInternal::path_len(__FILE__)), &__FILE__[LogInternal::path_len(__FILE__)], \
-            static_cast<int>(LogInternal::funcname_len(__func__)), __func__, \
             static_cast<int>(sizeof(LOG_S(__LINE))), LOG_S(__LINE__), \
+            static_cast<int>(LogInternal::funcname_len(__func__)), __func__, \
             ##__VA_ARGS__))
 
 #ifdef DEBUG
