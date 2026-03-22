@@ -61,12 +61,15 @@ constexpr size_t path_len(std::string_view path)
 }
 
 // This function computes length of function name only for given function signature.
-template <size_t N> constexpr size_t funcname_len(const char (&sig)[N], size_t pos = 0) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr size_t funcname_len(const char *sig)
 {
-    return (sig[pos] >= 'A' && sig[pos] <= 'Z') || (sig[pos] >= 'a' && sig[pos] <= 'z') ||
-                   (sig[pos] >= '0' && sig[pos] <= '9') || sig[pos] == '_' || sig[pos] == '$' || sig[pos] == ':'
-               ? funcname_len(sig, pos + 1)
-               : pos;
+    size_t pos = 0;
+    while (sig[pos] != '\0' && ((sig[pos] >= 'A' && sig[pos] <= 'Z') || (sig[pos] >= 'a' && sig[pos] <= 'z') ||
+                                (sig[pos] >= '0' && sig[pos] <= '9') || sig[pos] == '_' || sig[pos] == '$' || sig[pos] == ':'))
+    {
+        ++pos;
+    }
+    return pos;
 }
 
 #ifndef _MSC_VER
