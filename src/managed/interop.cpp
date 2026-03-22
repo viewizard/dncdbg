@@ -535,7 +535,7 @@ void Shutdown()
     HRESULT Status = S_OK;
     if (FAILED(Status = shutdownCoreClr(hostHandle, domainId)))
     {
-        LOGE("coreclr_shutdown failed - status: 0x%08x", Status);
+        LOGE(log << "coreclr_shutdown failed - status: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
 
     shutdownCoreClr = nullptr;

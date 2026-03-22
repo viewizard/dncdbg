@@ -73,7 +73,7 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
     auto f = p.get_future();
     if (!f.valid())
     {
-        LOGE("get_future() returns not valid promise object");
+        LOGE(log << "get_future() returns not valid promise object");
     }
 
     DWORD threadId = 0;
@@ -87,12 +87,12 @@ std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(H
     // try setup eval only if all is OK right before we run process.
     if (FAILED(Status = cbSetupEval(pEval)))
     {
-        LOGE("Setup eval failed, %0x", Status);
+        LOGE(log << "Setup eval failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         m_evalResult.reset(nullptr);
     }
     else if (FAILED(Status = pProcess->Continue(0)))
     {
-        LOGE("Continue() failed, %0x", Status);
+        LOGE(log << "Continue() failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         m_evalResult.reset(nullptr);
     }
 
@@ -147,12 +147,12 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             {
                 if (state == THREAD_SUSPEND)
                 {
-                    LOGW("%s %s", "SetDebugState(THREAD_SUSPEND) during eval setup failed.",
-                            "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
+                    LOGW(log << "SetDebugState(THREAD_SUSPEND) during eval setup failed. "
+                             << "This may change the state of the process and any breakpoints and exceptions encountered will be skipped.");
                 }
                 else
                 {
-                    LOGW("SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
+                    LOGW(log << "SetDebugState(THREAD_RUN) during eval failed. Process state was not restored.");
                 }
             }
             trThread.Free();
@@ -188,9 +188,9 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(normalEvalTimeout));
             if (timeoutStatus == std::future_status::timeout)
             {
-                LOGW("Evaluation timed out.");
-                LOGW("%s %s", "To prevent an unsafe abort when evaluating, all threads were allowed to run.",
-                     "This may have changed the state of the process and any breakpoints and exceptions encountered have been skipped.");
+                LOGW(log << "Evaluation timed out.");
+                LOGW(log << "To prevent an unsafe abort when evaluating, all threads were allowed to run. "
+                         << "This may have changed the state of the process and any breakpoints and exceptions encountered have been skipped.");
 
                 // NOTE
                 // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
@@ -223,7 +223,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 m_evalResultMutex.lock();
                 m_evalResult.reset(nullptr);
                 m_evalResultMutex.unlock();
-                LOGE("Fatal error, eval abort failed.");
+                LOGE(log << "Fatal error, eval abort failed.");
                 return E_UNEXPECTED;
             }
 
@@ -293,7 +293,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
         (FAILED(Status = pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) ||
          FAILED(Status = trEval2->RudeAbort())))
     {
-        LOGE("Can't abort evaluation in custom notification callback, %0x", Status);
+        LOGE(log << "Can't abort evaluation in custom notification callback, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         return Status;
     }
 

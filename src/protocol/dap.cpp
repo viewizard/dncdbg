@@ -86,11 +86,11 @@ std::string ReadData(std::istream &cin)
         {
             if (cin.eof())
             {
-                LOGI("EOF");
+                LOGI(log << "EOF");
             }
             else
             {
-                LOGE("input stream reading error");
+                LOGE(log << "input stream reading error");
             }
             return {};
         }
@@ -104,7 +104,7 @@ std::string ReadData(std::istream &cin)
         {
             if (content_len < 0)
             {
-                LOGE("protocol error: no 'Content Length:' field!");
+                LOGE(log << "protocol error: no 'Content Length:' field!");
                 return {};
             }
             break; // header and content delimiter
@@ -115,7 +115,7 @@ std::string ReadData(std::istream &cin)
         {
             if (content_len >= 0)
             {
-                LOGW("protocol violation: duplicate '%s'", line.c_str());
+                LOGW(log << "protocol violation: duplicate '" << line.c_str() << "'");
             }
 
             char *p = nullptr;
@@ -124,7 +124,7 @@ std::string ReadData(std::istream &cin)
             content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));
             if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
             {
-                LOGE("protocol violation: '%s'", line.c_str());
+                LOGE(log << "protocol violation: '" << line.c_str() << "'");
                 return {};
             }
         }
@@ -135,11 +135,11 @@ std::string ReadData(std::istream &cin)
     {
         if (cin.eof())
         {
-            LOGE("Unexpected EOF!");
+            LOGE(log << "Unexpected EOF!");
         }
         else
         {
-            LOGE("input stream reading error");
+            LOGE(log << "input stream reading error");
         }
         return {};
     }
@@ -327,7 +327,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
                 catch (std::exception &ex)
                 {
-                    LOGI("exception '%s'", ex.what());
+                    LOGI(log << "exception '" << ex.what() << "'");
                     // If we catch inconsistent state on the interrupted reading
                     env.clear();
                 }
@@ -502,7 +502,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     if (output.empty())
                     {
                         std::stringstream stream;
-                        stream << "error: 0x" << std::hex << Status;
+                        stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
                         responseBody["message"] = stream.str();
                     }
                     else
@@ -548,7 +548,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     if (output.empty())
                     {
                         std::stringstream stream;
-                        stream << "error: 0x" << std::hex << Status;
+                        stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
                         responseBody["message"] = stream.str();
                     }
                     else
@@ -665,7 +665,7 @@ HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json 
     }
     catch (nlohmann::detail::exception &ex)
     {
-        LOGE("JSON error: %s", ex.what());
+        LOGE(log << "JSON error: " << ex.what());
         responseBody["message"] = std::string("can't parse: ") + ex.what();
     }
 
@@ -740,10 +740,9 @@ void DAP::CommandsWorker()
         {
             if (!responseBody.contains("message"))
             {
-                static constexpr uint32_t hexNumberWidth = 8;
                 std::ostringstream ss;
                 ss << "Failed command '" << c.command << "' : "
-                   << "0x" << std::setw(hexNumberWidth) << std::setfill('0') << std::hex << Status;
+                   << "0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
                 c.response["message"] = ss.str();
             }
             else
@@ -936,14 +935,14 @@ void DAP::CommandLoop()
         }
         catch (nlohmann::detail::exception &ex)
         {
-            LOGE("JSON error: %s", ex.what());
+            LOGE(log << "JSON error: " << ex.what());
             queueEntry.response["type"] = "response";
             queueEntry.response["success"] = false;
             queueEntry.response["message"] = std::string("can't parse: ") + ex.what();
         }
         catch (bad_format &ex)
         {
-            LOGE("JSON error: %s", ex.what());
+            LOGE(log << "JSON error: " << ex.what());
             queueEntry.response["type"] = "response";
             queueEntry.response["success"] = false;
             queueEntry.response["message"] = std::string("can't parse: ") + ex.what();

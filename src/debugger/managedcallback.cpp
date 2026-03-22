@@ -224,7 +224,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProces
 {
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
-        LOGW("The target process exited while evaluating the function.");
+        LOGW(log << "The target process exited while evaluating the function.");
     }
 
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(nullptr, nullptr);
@@ -257,7 +257,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
 {
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
-        LOGW("Thread was created by user code during evaluation with implicit user code execution.");
+        LOGW(log << "Thread was created by user code during evaluation with implicit user code execution.");
     }
 
     const ThreadId threadId(getThreadId(pThread));

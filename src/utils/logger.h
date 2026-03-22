@@ -5,11 +5,10 @@
 #ifndef UTILS_LOGGER_H
 #define UTILS_LOGGER_H
 
-#include <stdarg.h>
-#include <cstddef>
-#include <cstring>
 #include <cstdint>
 #include <string_view>
+#include <functional>
+#include <iomanip>
 
 #ifdef _MSC_VER
 #include <cstdio>
@@ -31,13 +30,6 @@ enum class LogPriority : uint8_t
     FTL      // FATAL
 };
 
-// this function writes log message with given priority
-void log_print(LogPriority prio, const char *fmt, ...)
-#ifndef _MSC_VER
-    __attribute__((format(printf, 2, 3))) // check printf arguments (GCC/Clang only)
-#endif
-    ;
-
 // All definitions in this namespace intendent only for internal usage.
 namespace LogInternal
 {
@@ -56,60 +48,26 @@ constexpr size_t path_len(std::string_view path)
     return 0;
 }
 
-// This function computes length of function name only for given function signature.
-constexpr size_t funcname_len(const char *sig)
-{
-    size_t pos = 0;
-    while (sig[pos] != '\0' && ((sig[pos] >= 'A' && sig[pos] <= 'Z') || (sig[pos] >= 'a' && sig[pos] <= 'z') ||
-                                (sig[pos] >= '0' && sig[pos] <= '9') || sig[pos] == '_' || sig[pos] == '$' || sig[pos] == ':'))
-    {
-        ++pos;
-    }
-    return pos;
-}
-
-#ifndef _MSC_VER
-template<typename... Args>
-constexpr int check_args(const char */*fmt*/, Args&&... /*args*/) noexcept
-{
-    // This function is used for compile-time format string checking.
-    // The actual implementation is not needed since it's only used in a false condition.
-    // The compiler will still validate the format string against the arguments.
-    return 0;
-}
-#endif
-
 } // namespace LogInternal
 
-// Following macros shouldn't be used directly, it is intendent for internal use.
-#define LOG_S_(str) #str
-#define LOG_S(str) LOG_S_(str)
+using LoggerCallback = std::function<void(std::ostream &stream)>;
 
-// With Visual Studio's compiler arguments checking performed via (eliminated from code) call to printf.
-#ifdef _MSC_VER
-#define LOG_CHECK_ARGS_(fmt, ...) (false ? printf(fmt, ##__VA_ARGS__) : 0)
-#else
-#define LOG_CHECK_ARGS_(fmt, ...) (false ? LogInternal::check_args(fmt, ##__VA_ARGS__) : 0)
-#endif
+void log_print(LogPriority prio, const char *file, int line, const char *func, const LoggerCallback &cb);
 
 // Following macros shouldn't be used directly, it is intendent for internal use.
-#define LOG_(prio, fmt, ...) \
-        (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
-        log_print(prio, "%.*s:%.*s %.*s() > " fmt, \
-            static_cast<int>(sizeof(__FILE__) - LogInternal::path_len(__FILE__)), &__FILE__[LogInternal::path_len(__FILE__)], \
-            static_cast<int>(sizeof(LOG_S(__LINE))), LOG_S(__LINE__), \
-            static_cast<int>(LogInternal::funcname_len(__func__)), __func__, \
-            ##__VA_ARGS__))
+#define LOG_(prio, cbLog) log_print(prio, &__FILE__[LogInternal::path_len(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; })
 
 #ifdef DEBUG
-#define LOGD(fmt, ...) LOG_(LogPriority::DBG, fmt, ##__VA_ARGS__)
+#define LOGD(cbLog) LOG_(LogPriority::DBG, cbLog)
 #else
-#define LOGD(fmt, ...) LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__)
+#define LOGD(cbLog)
 #endif
 
-#define LOGI(fmt, ...) LOG_(LogPriority::INF, fmt, ##__VA_ARGS__)
-#define LOGW(fmt, ...) LOG_(LogPriority::WRN, fmt, ##__VA_ARGS__)
-#define LOGE(fmt, ...) LOG_(LogPriority::ERR, fmt, ##__VA_ARGS__)
-#define LOGF(fmt, ...) LOG_(LogPriority::FTL, fmt, ##__VA_ARGS__)
+#define LOGI(cbLog) LOG_(LogPriority::INF, cbLog)
+#define LOGW(cbLog) LOG_(LogPriority::WRN, cbLog)
+#define LOGE(cbLog) LOG_(LogPriority::ERR, cbLog)
+#define LOGF(cbLog) LOG_(LogPriority::FTL, cbLog)
+
+constexpr uint32_t hexErrWidth = 8;
 
 #endif // UTILS_LOGGER_H

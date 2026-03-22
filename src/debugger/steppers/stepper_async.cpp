@@ -437,7 +437,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         trFrame == nullptr ||
         FAILED(trFrame->GetFunctionToken(&methodToken)))
     {
-        LOGE("Failed receive function token for async step");
+        LOGE(log << "Failed receive function token for async step");
         return E_FAIL;
     }
     CORDB_ADDRESS modAddress = 0;
@@ -447,7 +447,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         FAILED(trFunc->GetModule(&trModule)) ||
         FAILED(trModule->GetBaseAddress(&modAddress)))
     {
-        LOGE("Failed receive module address for async step");
+        LOGE(log << "Failed receive module address for async step");
         return E_FAIL;
     }
 
@@ -493,7 +493,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
-        LOGE("Failed receive current IP offset for async step");
+        LOGE(log << "Failed receive current IP offset for async step");
         return E_FAIL;
     }
 
@@ -527,7 +527,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             FAILED(trCode->CreateBreakpoint(m_asyncStep->m_resume_offset, &trFuncBreakpoint)) ||
             FAILED(trFuncBreakpoint->Activate(TRUE)))
         {
-            LOGE("Could not setup second breakpoint (resume_offset) for await block");
+            LOGE(log << "Could not setup second breakpoint (resume_offset) for await block");
             return S_OK;
         }
 
@@ -544,7 +544,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
         {
             m_asyncStep->m_trHandleValueAsyncId.Free();
-            LOGE("Could not setup handle with async ID for await block");
+            LOGE(log << "Could not setup handle with async ID for await block");
         }
     }
     else
@@ -571,7 +571,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
         else
         {
-            LOGE("Could not calculate current async ID for await block");
+            LOGE(log << "Could not calculate current async ID for await block");
         }
 
         CORDB_ADDRESS prevAsyncId = 0;
@@ -585,7 +585,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
         else
         {
-            LOGE("Could not calculate previous async ID for await block");
+            LOGE(log << "Could not calculate previous async ID for await block");
         }
 
         // Note, 'currentAsyncId' and 'prevAsyncId' is 64 bit addresses, in our case can't be 0.

@@ -425,7 +425,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
     case DisconnectAction::Detach:
         if (m_startMethod != StartMethod::Attach)
         {
-            LOGE("Can't detach debugger form child process.\n");
+            LOGE(log << "Can't detach debugger form child process.\n");
             return E_INVALIDARG;
         }
         terminate = false;
@@ -457,13 +457,13 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     if (m_sharedEvalWaiter->IsEvalRunning())
     {
         // Important! Abort all evals before 'Step' in protocol, during eval we have inconsistent thread state.
-        LOGE("Can't 'Step' during running evaluation.");
+        LOGE(log << "Can't 'Step' during running evaluation.");
         return E_UNEXPECTED;
     }
 
     if (m_sharedCallbacksQueue->IsRunning())
     {
-        LOGW("Can't 'Step', process already running.");
+        LOGW(log << "Can't 'Step', process already running.");
         return E_FAIL;
     }
 
@@ -478,7 +478,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
     {
-        LOGE("Continue failed: 0x%08x", Status);
+        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
 
     return Status;
@@ -493,13 +493,13 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     if (m_sharedEvalWaiter->IsEvalRunning())
     {
         // Important! Abort all evals before 'Continue' in protocol, during eval we have inconsistent thread state.
-        LOGE("Can't 'Continue' during running evaluation.");
+        LOGE(log << "Can't 'Continue' during running evaluation.");
         return E_UNEXPECTED;
     }
 
     if (m_sharedCallbacksQueue->IsRunning())
     {
-        LOGI("Can't 'Continue', process already running.");
+        LOGI(log << "Can't 'Continue', process already running.");
         return S_OK; // Send 'OK' response, but don't generate continue event.
     }
 
@@ -510,7 +510,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
     {
-        LOGE("Continue failed: 0x%08x", Status);
+        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
 
     return Status;
@@ -536,9 +536,8 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
 
     if (FAILED(hr))
     {
-        static constexpr uint32_t hexNumberWidth = 8;
         std::ostringstream ss;
-        ss << "Error: 0x" << std::setw(hexNumberWidth) << std::setfill('0') << std::hex << hr;
+        ss << "Error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << hr;
         if (CORDBG_E_DEBUG_COMPONENT_MISSING == hr)
         {
             ss << " component that is necessary for CLR debugging cannot be located.";
@@ -720,7 +719,7 @@ HRESULT ManagedDebugger::DetachFromProcess()
         HRESULT Status = S_OK;
         if (FAILED(Status = m_trProcess->Detach()))
         {
-            LOGE("Process detach failed: 0x%08x", Status);
+            LOGE(log << "Process detach failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         }
 
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
@@ -761,7 +760,7 @@ HRESULT ManagedDebugger::TerminateProcess()
             break;
         }
 
-        LOGE("Process terminate failed: 0x%08x", Status);
+        LOGE(log << "Process terminate failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
     } while (false);
 
@@ -792,7 +791,7 @@ void ManagedDebugger::Cleanup()
 
     if (m_uniqueManagedCallback->GetRefCount() > 0)
     {
-        LOGW("ManagedCallback was not properly released by ICorDebug");
+        LOGW(log << "ManagedCallback was not properly released by ICorDebug");
     }
     m_uniqueManagedCallback.reset(nullptr);
     m_sharedCallbacksQueue = nullptr;

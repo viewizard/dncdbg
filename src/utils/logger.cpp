@@ -4,18 +4,15 @@
 
 #include "utils/logger.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
-#include <array>
-#include <cassert>
 #include <mutex>
-#include <cstdio>
-#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
-#include <vector>
 
 #ifdef _WIN32
+#include <cassert>
 #include <windows.h>
 #endif
 
@@ -26,8 +23,6 @@
 
 namespace
 {
-std::array<char, static_cast<std::size_t>(2 * LINE_MAX)> log_buffer{};
-
 constexpr long MAX_TIMESTAMP_SECONDS = 0x7fffff;
 constexpr long NSEC_TO_MSEC = 1000000;
 
@@ -113,6 +108,8 @@ std::ostream &open_log_stream()
     return log_file;
 }
 
+} // namespace
+
 // Function should form output line like this:
 //
 // 1500636976.777 I(P 2293, T 2293): udev.c:64 uevent_control_cb() > Set udev monitor buffer size 131072
@@ -121,7 +118,7 @@ std::ostream &open_log_stream()
 // |              ` log level         ` file name          ` function name
 // `--- time sec.msec
 //
-void log_vprint(LogPriority prio, const char *fmt, va_list ap)
+void log_print(LogPriority prio, const char *file, int line, const char *func, const LoggerCallback &cb)
 {
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -147,51 +144,20 @@ void log_vprint(LogPriority prio, const char *fmt, va_list ap)
         return;
     }
 
-    log_stream << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.' 
-               << std::setfill('0') << std::setw(3) << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
-               << level << "(P" << std::setw(4) << get_pid() 
-               << ", T" << std::setw(4) << get_tid() << "): ";
+    log_stream << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.'
+               << std::dec << std::setfill('0') << std::setw(3)
+               << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
+               << level << "(P" << std::setw(4) << get_pid()
+               << ", T" << std::setw(4) << get_tid() << "): "
+               << file << ":" << line << " " << func << "() > ";
 
-    // Format message using vsnprintf with a dynamic buffer
-    va_list ap_copy;
-    va_copy(ap_copy, ap);
-
-    // Determine the required buffer size
-    const int msg_len = vsnprintf(nullptr, 0, fmt, ap_copy);
-    va_end(ap_copy);
-
-    if (msg_len < 0)
-    {
-        return;
-    }
-
-    // Allocate buffer and format the message
-    std::vector<char> buffer(msg_len + 1);
-    const int result = vsnprintf(buffer.data(), buffer.size(), fmt, ap);
-
-    if (result < 0)
-    {
-        return;
-    }
-
-    const std::string message(buffer.data(), msg_len);
-
-    log_stream << message << '\n';
+    cb(log_stream);
 
     if (log_stream.fail())
     {
         return;
     }
 
+    log_stream << '\n';
     log_stream.flush();
-}
-
-} // namespace
-
-void log_print(LogPriority prio, const char *fmt, ...) // NOLINT(cert-dcl50-cpp,modernize-avoid-variadic-functions)
-{
-    va_list args;
-    va_start(args, fmt);
-    log_vprint(prio, fmt, args);
-    va_end(args);
 }

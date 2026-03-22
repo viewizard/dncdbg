@@ -29,7 +29,7 @@ void waitpid_t::init() noexcept
     auto *ret = dlsym(RTLD_NEXT, "waitpid");
     if (ret == nullptr)
     {
-        LOGE("Could not find original function waitpid");
+        LOGE(log << "Could not find original function waitpid");
         abort();
     }
     original = reinterpret_cast<Signature>(ret);
@@ -89,7 +89,7 @@ extern "C" pid_t waitpid(pid_t pid, int *status, int options) // NOLINT(readabil
         }
         else if (WIFSIGNALED(*status))
         {
-            LOGW("Process terminated without exiting, can't get exit code. Killed by signal %d. Assuming EXIT_FAILURE.", WTERMSIG(*status));
+            LOGW(log << "Process terminated without exiting, can't get exit code. Killed by signal " << WTERMSIG(*status) << ". Assuming EXIT_FAILURE.");
             dncdbg::hook::waitpid.SetExitCode(pid, EXIT_FAILURE);
         }
     }

@@ -27,7 +27,7 @@ char *get_streams_pptr(std::tuple<OutStream, InStream, InStream> &m_streams)
     const auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
     if (out == nullptr)
     {
-        LOGE("dynamic_cast fail");
+        LOGE(log << "dynamic_cast fail");
         return nullptr;
     }
     return out->pptr();
@@ -75,7 +75,7 @@ IORedirectHelper::IORedirectHelper(
 
 IORedirectHelper::~IORedirectHelper()
 {
-    LOGD("request worker to exit");
+    LOGD(log << "request worker to exit");
     m_finish = true; // signal worker thread to stop
     wake_worker();
     m_thread.join();
@@ -83,13 +83,13 @@ IORedirectHelper::~IORedirectHelper()
 
 void IORedirectHelper::wake_worker() const
 {
-    LOGD("waking worker");
+    LOGD(log << "waking worker");
     IOSystem::write(m_worker_pipe.second, "", 1);
 }
 
 void IORedirectHelper::wake_reader() const
 {
-    LOGD("waking reader");
+    LOGD(log << "waking reader");
     IOSystem::write(m_input_pipe.second, "", 1);
 }
 
@@ -120,7 +120,7 @@ void IORedirectHelper::worker()
     auto *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types[0]>(m_streams).rdbuf());
     if (out_stream == nullptr)
     {
-        LOGE("dynamic_cast fail");
+        LOGE(log << "dynamic_cast fail");
         return;
     }
 
@@ -140,7 +140,7 @@ void IORedirectHelper::worker()
                 }
             }
 
-            LOGI("IORedirectHelper::worker: terminated");
+            LOGI(log << "IORedirectHelper::worker: terminated");
         };
 
     const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
@@ -150,7 +150,7 @@ void IORedirectHelper::worker()
     pipe_handle = IOSystem::async_read(m_worker_pipe.first, &dummybuf, 1);
     assert(pipe_handle);
 
-    LOGI("%s started", __func__);
+    LOGI(log << "started");
 
     ReadLock read_lock(m_rwlock, std::defer_lock_t{});
 
@@ -176,7 +176,7 @@ void IORedirectHelper::worker()
             const size_t avail = stream->egptr() - stream->gptr();
             if (avail != 0U)
             {
-                LOGD("push %u bytes to callback", static_cast<int>(avail));
+                LOGD(log << "push "<< avail << " bytes to callback");
                 m_callback(stream_types[n], Utility::span<char>(stream->gptr(), avail));
                 stream->gbump(static_cast<int>(avail));
                 stream->compactify();
@@ -186,12 +186,12 @@ void IORedirectHelper::worker()
             if (!async_handles[n])
             {
                 const size_t free_size = stream->endp() - stream->egptr();
-                LOGD("requesting %u bytes to read", static_cast<int>(free_size));
+                LOGD(log << "requesting " << free_size << " bytes to read");
                 async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
 
                 if (!async_handles[n])
                 {
-                    LOGE("can't issue async read request!");
+                    LOGE(log << "can't issue async read request!");
                     return;
                 }
             }
@@ -199,7 +199,7 @@ void IORedirectHelper::worker()
 
         // check if data available for reading or write operation is finished
         IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], WaitForever);
-        LOGD("%s: wake", __func__);
+        LOGD(log << "wake");
 
         // check if termination requested
         const IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
@@ -207,7 +207,7 @@ void IORedirectHelper::worker()
         {
             if (result.status != IOSystem::IOResult::Success)
             {
-                LOGE("control pipe read error");
+                LOGE(log << "control pipe read error");
                 return;
             }
 
@@ -246,12 +246,12 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, const OutStrea
     const size_t bytes = out_stream->pptr() - m_unsent;
     if (bytes != 0U)
     {
-        LOGD("have %u bytes unsent", static_cast<int>(bytes));
+        LOGD(log << "have " << bytes << " bytes unsent");
         out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
 
         if (!out_handle)
         {
-            LOGE("can't issue async write request!");
+            LOGE(log << "can't issue async write request!");
             return;
         }
 
@@ -264,7 +264,7 @@ void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, const OutStrea
         // if all previously received data is completely sent.
         if (m_eof)
         {
-            LOGD("closing writing end of stdin's pipe");
+            LOGD(log << "closing writing end of stdin's pipe");
             auto forgetme = std::move(std::get<IOSystem::Stdin>(m_streams));
         }
 
@@ -283,7 +283,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
         assert(out_stream->pbase() <= m_sent && m_sent <= m_unsent && m_unsent <= out_stream->pptr() &&
                out_stream->pptr() <= out_stream->epptr());
 
-        LOGD("sent %u bytes", static_cast<int>(result.size));
+        LOGD(log << "sent " << result.size << " bytes");
         assert(result.size <= static_cast<size_t>(m_unsent - m_sent));
         m_sent += result.size;
 
@@ -320,7 +320,7 @@ bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStre
     else if (result.status != IOSystem::IOResult::Pending)
     { // fatal error
         out_handle = {};
-        LOGE("child process stdin writing error");
+        LOGE(log << "child process stdin writing error");
         return false;
     }
 
@@ -342,7 +342,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
         if (result.status == IOSystem::IOResult::Success)
         {
             // update buffer
-            LOGD("read %u bytes", static_cast<int>(result.size));
+            LOGD(log << "read " << result.size << " bytes");
             assert(result.size <= static_cast<size_t>(stream->endp() - stream->gptr()));
             stream->setegptr(stream->egptr() + result.size);
 
@@ -351,7 +351,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
         else if (result.status != IOSystem::IOResult::Pending)
         { // fatal error
             async_handles[n] = {};
-            LOGE("child process stdout/stderr reading error");
+            LOGE(log << "child process stdout/stderr reading error");
             return false;
         }
     }
@@ -361,7 +361,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
 
 void IORedirectHelper::async_cancel()
 {
-    LOGD("canceling reading of real stdin");
+    LOGD(log << "canceling reading of real stdin");
     bool expected = false;
     if (m_cancel.compare_exchange_strong(expected, true))
     {
@@ -379,7 +379,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
     auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
     if (out == nullptr)
     {
-        LOGE("dynamic_cast fail");
+        LOGE(log << "dynamic_cast fail");
         return AsyncResult::Error;
     }
 
@@ -399,7 +399,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
         bool expected = true;
         if (m_cancel.compare_exchange_strong(expected, false))
         {
-            LOGD("async_input: canceled");
+            LOGD(log << "async_input: canceled");
         }
     };
 
@@ -410,14 +410,14 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
     pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
     if (!pipe_handle)
     {
-        LOGE("%s: control pipe reading error", __func__);
+        LOGE(log << "control pipe reading error");
         return AsyncResult::Error;
     }
 
     ReadLock read_lock(m_rwlock, std::defer_lock_t{});
 
     // loop until termination request
-    LOGD("async_input: entering in loop");
+    LOGD(log << "async_input: entering in loop");
     while (true)
     {
         // issue new read request if no async read performed currenly
@@ -431,12 +431,12 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
             const size_t avail = out->epptr() - out->pptr();
             if (avail != 0U)
             {
-                LOGD("requesting %u bytes to read", static_cast<int>(avail));
+                LOGD(log << "requesting " << avail << " bytes to read");
                 input_handle = IOSystem::async_read(instream.get_file_handle(), out->pptr(), avail);
 
                 if (!input_handle)
                 {
-                    LOGE("can't issue read request for real stdin");
+                    LOGE(log << "can't issue read request for real stdin");
                     return AsyncResult::Error;
                 }
             }
@@ -456,7 +456,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
 #endif
         if (IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], PollPeriod))
         {
-            LOGD("%s: wake", __func__);
+            LOGD(log << "wake");
         }
 
         // check if cancellation requested
@@ -465,7 +465,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
         {
             if (result.status != IOSystem::IOResult::Success)
             {
-                LOGE("control pipe read error");
+                LOGE(log << "control pipe read error");
                 return AsyncResult::Error;
             }
 
@@ -489,7 +489,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
                 assert(read_lock);
                 assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
 
-                LOGD("read %u bytes from stdin", static_cast<int>(result.size));
+                LOGD(log << "read " << result.size << " bytes from stdin");
                 assert(result.size <= static_cast<size_t>(out->epptr() - out->pptr()));
                 out->pbump(static_cast<int>(result.size));
 
@@ -499,7 +499,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
             else if (result.status == IOSystem::IOResult::Eof)
             {
                 // instruct worker to close writing end of pipe
-                LOGD("EOF reached");
+                LOGD(log << "EOF reached");
                 m_eof = true;
                 wake_worker();
                 return AsyncResult::Eof;
@@ -507,7 +507,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
             else if (result.status == IOSystem::IOResult::Error)
             { // fatal error
                 input_handle = {};
-                LOGE("real stdin read error");
+                LOGE(log << "real stdin read error");
                 return AsyncResult::Canceled;
             }
         }

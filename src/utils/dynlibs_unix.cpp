@@ -29,7 +29,7 @@ DLHandle DLOpen(const std::string &path)
     {
         const char *err = ::dlerror();
         std::cerr << "dlopen() error: " << err << "\n";
-        LOGE("dlopen() error: %s", err);
+        LOGE(log << "dlopen() error: " << err);
     }
     return reinterpret_cast<DLHandle>(tmpPointer);
 }
@@ -55,7 +55,7 @@ void *DLSym(DLHandle handle, const std::string_view &symbol)
     if (err != nullptr)
     {
         std::cerr << "dlsym() error: " << err << "\n";
-        LOGE("dlsym() error: %s", err);
+        LOGE(log << "dlsym() error: " << err);
     }
 
     return tmpPointer;
@@ -70,7 +70,7 @@ bool DLClose(DLHandle handle)
     {
         const char *err = ::dlerror();
         std::cerr << "dlclose() error: " << err << "\n";
-        LOGE("dlclose() error: %s", err);
+        LOGE(log << "dlclose() error: " << err);
     }
 
     return (ret != 0);

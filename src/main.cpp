@@ -135,9 +135,9 @@ int
         }
     }
 
-    LOGI("DNCDbg started");
+    LOGI(log << "DNCDbg started");
     // Note: there is no possibility to know which exception caused call to std::terminate
-    std::set_terminate([] { LOGF("DNCDbg is terminated due to call to std::terminate: see stderr..."); });
+    std::set_terminate([] { LOGF(log << "DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);

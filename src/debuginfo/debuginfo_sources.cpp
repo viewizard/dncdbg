@@ -291,7 +291,7 @@ HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandl
     if (sizeof(std::size_t) > sizeof(uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max() ||
                                                    normalTokens.size() > std::numeric_limits<uint32_t>::max()))
     {
-        LOGE("Too big token arrays.");
+        LOGE(log << "Too big token arrays.");
         return E_FAIL;
     }
 
@@ -596,7 +596,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
 
         if (static_cast<int32_t>(Tokens.size()) > std::numeric_limits<int32_t>::max())
         {
-            LOGE("Too big token arrays.");
+            LOGE(log << "Too big token arrays.");
             return E_FAIL;
         }
 
