@@ -9,6 +9,7 @@
 #include "metadata/modules.h"
 #include "utils/utf.h"
 #include <array>
+#include <fstream>
 #include <string>
 
 #ifdef _MSC_VER
@@ -23,94 +24,83 @@ namespace
 
 mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 {
-    FILE *pFile = nullptr;
-
 #ifdef _WIN32
-    if (_wfopen_s(&pFile, to_utf16(path).c_str(), L"rb") != 0)
-        return mdMethodDefNil;
+    std::ifstream file(to_utf16(path).c_str(), std::ios::binary);
 #else
-    pFile = fopen(path.c_str(), "rb"); // NOLINT(cppcoreguidelines-owning-memory)
+    std::ifstream file(path, std::ios::binary);
 #endif // _WIN32
-
-    if (pFile == nullptr)
+    if (!file.is_open())
     {
         return mdMethodDefNil;
     }
 
-    auto getEntryPointToken = [&]() -> mdMethodDef
+    IMAGE_DOS_HEADER dosHeader;
+    IMAGE_NT_HEADERS32 ntHeaders;
+
+    if (!file.read(reinterpret_cast<char*>(&dosHeader), sizeof(dosHeader)) ||
+        !file.seekg(VAL32(dosHeader.e_lfanew), std::ios::beg) ||
+        !file.read(reinterpret_cast<char*>(&ntHeaders), sizeof(ntHeaders)))
     {
-        IMAGE_DOS_HEADER dosHeader;
-        IMAGE_NT_HEADERS32 ntHeaders;
-
-        if ((fread(&dosHeader, sizeof(dosHeader), 1, pFile) != 1) ||
-            (fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) ||
-            (fread(&ntHeaders, sizeof(ntHeaders), 1, pFile) != 1))
-        {
-            return mdMethodDefNil;
-        }
-
-        ULONG corRVA = 0;
-        if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
-        {
-            corRVA = VAL32(ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
-        }
-        else
-        {
-            IMAGE_NT_HEADERS64 ntHeaders64;
-            if ((fseek(pFile, VAL32(dosHeader.e_lfanew), SEEK_SET) != 0) ||
-                (fread(&ntHeaders64, sizeof(ntHeaders64), 1, pFile) != 1))
-            {
-                return mdMethodDefNil;
-            }
-            corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
-        }
-
-        static constexpr LONG lLONG_MAX = 2147483647;
-        LONG pos = VAL32(dosHeader.e_lfanew);
-        if (pos < 0 || static_cast<size_t>(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
-        {
-            return mdMethodDefNil;
-        }
-        pos += static_cast<LONG>(sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader));
-
-        if (fseek(pFile, pos, SEEK_SET) != 0)
-        {
-            return mdMethodDefNil;
-        }
-
-        for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
-        {
-            IMAGE_SECTION_HEADER sectionHeader;
-
-            if (fread(&sectionHeader, sizeof(sectionHeader), 1, pFile) != 1)
-            {
-                return mdMethodDefNil;
-            }
-
-            if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
-                corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
-            {
-                IMAGE_COR20_HEADER corHeader;
-                const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
-                if ((offset > static_cast<ULONG>(lLONG_MAX)) ||
-                    (fseek(pFile, offset, SEEK_SET) != 0) ||
-                    (fread(&corHeader, sizeof(corHeader), 1, pFile) != 1) ||
-
-                    (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT) != 0U)
-                {
-                    return mdMethodDefNil;
-                }
-
-                return VAL32(corHeader.EntryPointToken); // NOLINT(cppcoreguidelines-pro-type-union-access)
-            }
-        }
         return mdMethodDefNil;
-    };
+    }
 
-    const mdMethodDef res = getEntryPointToken();
-    static_cast<void>(fclose(pFile)); // NOLINT(cppcoreguidelines-owning-memory)
+    ULONG corRVA = 0;
+    if (ntHeaders.OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC))
+    {
+        corRVA = VAL32(ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
+    }
+    else
+    {
+        IMAGE_NT_HEADERS64 ntHeaders64;
+        if (!file.seekg(VAL32(dosHeader.e_lfanew), std::ios::beg) ||
+            !file.read(reinterpret_cast<char*>(&ntHeaders64), sizeof(ntHeaders64)))
+        {
+            return mdMethodDefNil;
+        }
+        corRVA = VAL32(ntHeaders64.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COMHEADER].VirtualAddress);
+    }
 
-    return res;
+    static constexpr LONG lLONG_MAX = 2147483647;
+    LONG pos = VAL32(dosHeader.e_lfanew);
+    if (pos < 0 || static_cast<size_t>(lLONG_MAX - pos) < sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader))
+    {
+        return mdMethodDefNil;
+    }
+    pos += static_cast<LONG>(sizeof(ntHeaders.Signature) + sizeof(ntHeaders.FileHeader) + VAL16(ntHeaders.FileHeader.SizeOfOptionalHeader));
+
+    if (!file.seekg(pos, std::ios::beg))
+    {
+        return mdMethodDefNil;
+    }
+
+    for (int i = 0; i < VAL16(ntHeaders.FileHeader.NumberOfSections); i++)
+    {
+        IMAGE_SECTION_HEADER sectionHeader;
+
+        if (!file.read(reinterpret_cast<char*>(&sectionHeader), sizeof(sectionHeader)))
+        {
+            return mdMethodDefNil;
+        }
+
+        if (corRVA >= VAL32(sectionHeader.VirtualAddress) &&
+            corRVA < VAL32(sectionHeader.VirtualAddress) + VAL32(sectionHeader.SizeOfRawData))
+        {
+            IMAGE_COR20_HEADER corHeader;
+            const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
+            if ((offset > static_cast<ULONG>(lLONG_MAX)) ||
+                !file.seekg(offset, std::ios::beg) ||
+                !file.read(reinterpret_cast<char*>(&corHeader), sizeof(corHeader)) ||
+
+                (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT) != 0U)
+            {
+                return mdMethodDefNil;
+            }
+
+            return VAL32(corHeader.EntryPointToken); // NOLINT(cppcoreguidelines-pro-type-union-access)
+        }
+    }
+
+    return mdMethodDefNil;
 }
 
 // Try to setup proper entry breakpoint method token and IL offset for async Main method.
