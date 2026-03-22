@@ -55,7 +55,7 @@ class IORedirectHelper
     //  * three pair of pipes which represent stdin/stdout/sterr files;
     //  * callback functor, which is called when some data became available in stdout/stderr;
     //  * optionally: input (for stdout/stderr) and output (for writing to stdin) buffers sizes.
-    IORedirectHelper(const Pipes &pipes, const InputCallback &callback, size_t input_bufsize = DefaultBufferSize,
+    IORedirectHelper(const Pipes &pipes, InputCallback callback, size_t input_bufsize = DefaultBufferSize,
                      size_t output_bufsize = DefaultBufferSize);
 
     IORedirectHelper(IORedirectHelper &&) = delete;
