@@ -10,6 +10,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,6 +27,9 @@
 namespace
 {
 std::array<char, static_cast<std::size_t>(2 * LINE_MAX)> log_buffer{};
+
+constexpr long MAX_TIMESTAMP_SECONDS = 0x7fffff;
+constexpr long NSEC_TO_MSEC = 1000000;
 
 // Implementation clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
 #ifdef _WIN32
@@ -76,35 +83,35 @@ unsigned get_pid()
 
 // This function opens log file, log file name is determined
 // by contents of environment variable "LOG_OUTPUT".
-FILE *open_log_file()
+std::ostream &open_log_stream()
 {
     const char *env = getenv("LOG_OUTPUT");
     if (env == nullptr)
     {
-        return nullptr; // log disabled
+        static std::ostream null_stream(nullptr);
+        return null_stream;
     }
 
     if (strcmp("stdout", env) == 0)
     {
-        return stdout;
+        return std::cout;
     }
 
     if (strcmp("stderr", env) == 0)
     {
-        return stderr;
+        return std::cerr;
     }
 
-    FILE *result = fopen(env, "a"); // NOLINT(cppcoreguidelines-owning-memory)
-    if (result == nullptr)
+    static std::ofstream log_file;
+    log_file.open(env, std::ios::app);
+    if (!log_file.is_open())
     {
-        perror(env);
-        return nullptr;
+        static std::ostream null_stream(nullptr);
+        return null_stream;
     }
 
-    static_cast<void>(setvbuf(result, log_buffer.data(), _IOFBF, log_buffer.size()));
-    return result;
+    return log_file;
 }
-} // namespace
 
 // Function should form output line like this:
 //
@@ -114,7 +121,7 @@ FILE *open_log_file()
 // |              ` log level         ` file name          ` function name
 // `--- time sec.msec
 //
-extern "C" int log_vprint(LogPriority prio, const char *fmt, va_list ap)
+void log_vprint(LogPriority prio, const char *fmt, va_list ap)
 {
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -133,31 +140,58 @@ extern "C" int log_vprint(LogPriority prio, const char *fmt, va_list ap)
         level = "DIWEF"[static_cast<uint8_t>(prio) - static_cast<uint8_t>(LogPriority::DBG)];
     }
 
-    static FILE *log_file = open_log_file();
-    if (log_file == nullptr || (ferror(log_file) != 0))
+    static std::ostream &log_stream = open_log_stream();
+
+    if (!log_stream.good())
     {
-        return LOG_ERROR_NOT_PERMITTED;
+        return;
     }
 
-    const int len = fprintf(log_file, "%li.%03i %c(P%4u, T%4u): ", static_cast<long>(ts.tv_sec & 0x7fffff),
-                            static_cast<int>(ts.tv_nsec / 1000000), level, get_pid(), get_tid());
+    log_stream << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.' 
+               << std::setfill('0') << std::setw(3) << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
+               << level << "(P" << std::setw(4) << get_pid() 
+               << ", T" << std::setw(4) << get_tid() << "): ";
 
-    const int r = vfprintf(log_file, fmt, ap);
-    if (r < 0)
+    // Format message using vsnprintf with a dynamic buffer
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+
+    // Determine the required buffer size
+    const int msg_len = vsnprintf(nullptr, 0, fmt, ap_copy);
+    va_end(ap_copy);
+
+    if (msg_len < 0)
     {
-        static_cast<void>(fputc('\n', log_file));
-        return LOG_ERROR_INVALID_PARAMETER;
+        return;
     }
 
-    static_cast<void>(fputc('\n', log_file));
-    return fflush(log_file) < 0 ? LOG_ERROR_NOT_PERMITTED : len + r + 1;
+    // Allocate buffer and format the message
+    std::vector<char> buffer(msg_len + 1);
+    const int result = vsnprintf(buffer.data(), buffer.size(), fmt, ap);
+
+    if (result < 0)
+    {
+        return;
+    }
+
+    const std::string message(buffer.data(), msg_len);
+
+    log_stream << message << '\n';
+
+    if (log_stream.fail())
+    {
+        return;
+    }
+
+    log_stream.flush();
 }
 
-extern "C" int log_print(LogPriority prio, const char *fmt, ...)
+} // namespace
+
+void log_print(LogPriority prio, const char *fmt, ...) // NOLINT(cert-dcl50-cpp,modernize-avoid-variadic-functions)
 {
     va_list args;
     va_start(args, fmt);
     log_vprint(prio, fmt, args);
     va_end(args);
-    return 0;
 }

@@ -32,15 +32,11 @@ enum class LogPriority : uint8_t
 };
 
 // this function writes log message with given priority
-extern "C" int log_print(LogPriority prio, const char *fmt, ...)
+void log_print(LogPriority prio, const char *fmt, ...)
 #ifndef _MSC_VER
     __attribute__((format(printf, 2, 3))) // check printf arguments (GCC/Clang only)
 #endif
     ;
-
-// Possible results of log_print() function call.
-constexpr int LOG_ERROR_INVALID_PARAMETER = -1;
-constexpr int LOG_ERROR_NOT_PERMITTED  = -2;
 
 // All definitions in this namespace intendent only for internal usage.
 namespace LogInternal
