@@ -1140,7 +1140,7 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, void *pArguments, std:
             IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
         }
         TypePrinter::GetTypeOfValue(trType, genericType);
-        generics = "," + genericType + generics; // NOLINT(performance-inefficient-string-concatenation)
+        generics.insert(0, "," + genericType);
         trGenericValues.emplace_back(trType.Detach());
         evalStack.pop_front();
     }

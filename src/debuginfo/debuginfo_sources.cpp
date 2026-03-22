@@ -446,7 +446,7 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
     }
     for (const auto &dir : pathDirs)
     {
-        result = dir + '/' + result; // NOLINT(performance-inefficient-string-concatenation)
+        result.insert(0, dir + '/');
     }
 
     // The problem is - we could have several assemblies that could have same source file name with different path's

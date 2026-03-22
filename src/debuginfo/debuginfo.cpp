@@ -113,7 +113,8 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                 fullName += "<" + genParams + ">";
             }
 
-            if (!functor(typeName + "." + fullName, mdMethod)) // NOLINT(performance-inefficient-string-concatenation)
+            fullName.insert(0, typeName + '.');
+            if (!functor(fullName, mdMethod))
             {
                 trMDImport->CloseEnum(fFuncEnum);
                 trMDImport->CloseEnum(fTypeEnum);

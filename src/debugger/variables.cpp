@@ -260,7 +260,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
     return m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
         [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
-            ++currentIndex; // NOLINT(bugprone-inc-dec-in-conditions)
+            ++currentIndex;
 
             if (currentIndex < start)
             {
