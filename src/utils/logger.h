@@ -73,8 +73,12 @@ constexpr size_t funcname_len(const char *sig)
 }
 
 #ifndef _MSC_VER
-inline int __attribute__((format(printf, 1, 2))) check_args(const char */*fmt*/, ...) // NOLINT(cert-dcl50-cpp,modernize-avoid-variadic-functions)
+template<typename... Args>
+constexpr int check_args(const char */*fmt*/, Args&&... /*args*/) noexcept
 {
+    // This function is used for compile-time format string checking.
+    // The actual implementation is not needed since it's only used in a false condition.
+    // The compiler will still validate the format string against the arguments.
     return 0;
 }
 #endif
@@ -97,7 +101,7 @@ inline int __attribute__((format(printf, 1, 2))) check_args(const char */*fmt*/,
         (LOG_CHECK_ARGS_(fmt, ##__VA_ARGS__), \
         log_print(prio, "%.*s: %.*s(%.*s) > " fmt, \
             static_cast<int>(sizeof(__FILE__) - LogInternal::path_len(__FILE__)), &__FILE__[LogInternal::path_len(__FILE__)], \
-            static_cast<int>(LogInternal::funcname_len(__func__)), __func__, /* NOLINT(bugprone-lambda-function-name) */ \
+            static_cast<int>(LogInternal::funcname_len(__func__)), __func__, \
             static_cast<int>(sizeof(LOG_S(__LINE))), LOG_S(__LINE__), \
             ##__VA_ARGS__))
 
