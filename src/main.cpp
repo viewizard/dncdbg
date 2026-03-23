@@ -118,7 +118,7 @@ int
             protocolLogFilePath = argv[i] + strlen("--logProtocol="); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         }},
         {"--log=", [&](int i) {
-            setenv("LOG_OUTPUT", argv[i] + strlen("--log="), 1); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+            dncdbg::Logger::OpenLogStream(argv[i] + strlen("--log=")); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         }}
     };
 

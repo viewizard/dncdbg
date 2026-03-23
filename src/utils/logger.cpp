@@ -4,12 +4,7 @@
 
 #include "utils/logger.h"
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
-#include <mutex>
-#include <cstring>
 #include <ctime>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
 
 #ifdef _WIN32
 #include <cassert>
@@ -20,6 +15,11 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #endif
+
+namespace dncdbg
+{
+
+std::mutex Logger::m_logMutex;
 
 namespace
 {
@@ -76,39 +76,12 @@ unsigned get_pid()
     return process_id;
 }
 
-// This function opens log file, log file name is determined
-// by contents of environment variable "LOG_OUTPUT".
-std::ostream &open_log_stream()
-{
-    const char *env = getenv("LOG_OUTPUT");
-    if (env == nullptr)
-    {
-        static std::ostream null_stream(nullptr);
-        return null_stream;
-    }
-
-    if (strcmp("stdout", env) == 0)
-    {
-        return std::cout;
-    }
-
-    if (strcmp("stderr", env) == 0)
-    {
-        return std::cerr;
-    }
-
-    static std::ofstream log_file;
-    log_file.open(env, std::ios::app);
-    if (!log_file.is_open())
-    {
-        static std::ostream null_stream(nullptr);
-        return null_stream;
-    }
-
-    return log_file;
-}
-
 } // namespace
+
+void Logger::OpenLogStream(const char *fileName)
+{
+    GetLogStream().open(fileName, std::ios::app);
+}
 
 // Function should form output line like this:
 //
@@ -118,13 +91,12 @@ std::ostream &open_log_stream()
 // |              ` log level         ` file name          ` function name
 // `--- time sec.msec
 //
-void log_print(LogPriority prio, const char *file, int line, const char *func, const LoggerCallback &cb)
+void Logger::LogPrint(LogPriority prio, const char *file, int line, const char *func, const LoggerCallback &cb)
 {
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
-    static std::mutex mutex;
-    const std::scoped_lock<std::mutex> lock(mutex);
+    const std::scoped_lock<std::mutex> lock(m_logMutex);
 
     if (prio == LogPriority::DEF)
     {
@@ -137,27 +109,27 @@ void log_print(LogPriority prio, const char *file, int line, const char *func, c
         level = "DIWEF"[static_cast<uint8_t>(prio) - static_cast<uint8_t>(LogPriority::DBG)];
     }
 
-    static std::ostream &log_stream = open_log_stream();
-
-    if (!log_stream.good())
+    if (!GetLogStream().good())
     {
         return;
     }
 
-    log_stream << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.'
-               << std::dec << std::setfill('0') << std::setw(3)
-               << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
-               << level << "(P" << std::setw(4) << get_pid()
-               << ", T" << std::setw(4) << get_tid() << "): "
-               << file << ":" << line << " " << func << "() > ";
+    GetLogStream() << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.'
+                   << std::dec << std::setfill('0') << std::setw(3)
+                   << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
+                   << level << "(P" << std::setw(4) << get_pid()
+                   << ", T" << std::setw(4) << get_tid() << "): "
+                   << file << ":" << line << " " << func << "() > ";
 
-    cb(log_stream);
+    cb(GetLogStream());
 
-    if (log_stream.fail())
+    if (GetLogStream().fail())
     {
         return;
     }
 
-    log_stream << '\n';
-    log_stream.flush();
+    GetLogStream() << '\n';
+    GetLogStream().flush();
 }
+
+} // namespace dncdbg
