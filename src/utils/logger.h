@@ -25,16 +25,12 @@ namespace dncdbg
 
 constexpr uint32_t hexErrWidth = 8;
 
-// Log levels.
-enum class LogPriority : uint8_t
+enum class LogLevel : uint8_t
 {
-    UNK = 0, // UNKNOWN
-    DEF,     // DEFAULT
     DBG,     // DEBUG
     INF,     // INFO
     WRN,     // WARNING
-    ERR,     // ERROR
-    FTL      // FATAL
+    ERR      // ERROR
 };
 
 class Logger
@@ -43,12 +39,14 @@ class Logger
 
     using LoggerCallback = std::function<void(std::ostream &log)>;
 
-    static void LogPrint(LogPriority prio, const char *file, int line, const char *func, const LoggerCallback &cb);
+    static void LogPrint(LogLevel level, const char *file, int line, const char *func, const LoggerCallback &cb);
     static void OpenLogStream(const char *fileName);
+    static void SetLogLevel(const char *level);
 
   private:
 
     static std::mutex m_logMutex;
+    static LogLevel m_logLevel;
 
     static std::ofstream &GetLogStream()
     {
@@ -77,14 +75,13 @@ constexpr size_t PathLen(std::string_view path)
 #define LOG_(prio, cbLog) dncdbg::Logger::LogPrint(prio, &__FILE__[dncdbg::PathLen(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; })
 
 #ifdef DEBUG
-#define LOGD(cbLog) LOG_(dncdbg::LogPriority::DBG, cbLog)
+#define LOGD(cbLog) LOG_(dncdbg::LogLevel::DBG, cbLog)
 #else
 #define LOGD(cbLog)
 #endif
 
-#define LOGI(cbLog) LOG_(dncdbg::LogPriority::INF, cbLog)
-#define LOGW(cbLog) LOG_(dncdbg::LogPriority::WRN, cbLog)
-#define LOGE(cbLog) LOG_(dncdbg::LogPriority::ERR, cbLog)
-#define LOGF(cbLog) LOG_(dncdbg::LogPriority::FTL, cbLog)
+#define LOGI(cbLog) LOG_(dncdbg::LogLevel::INF, cbLog)
+#define LOGW(cbLog) LOG_(dncdbg::LogLevel::WRN, cbLog)
+#define LOGE(cbLog) LOG_(dncdbg::LogLevel::ERR, cbLog)
 
 #endif // UTILS_LOGGER_H

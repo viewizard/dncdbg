@@ -35,6 +35,12 @@ void print_help()
               << "--buildinfo                              Print build info.\n"
               << "--logProtocol=<path to log file>         Enable protocol interaction logging to file.\n"
               << "--log=<path to log file>                 Enable debugger logging to file.\n"
+              << "--loglevel=number/level                  Minimal logging level:\n"
+              << "                                         0 or DEBUG (available for debug build only)\n"
+              << "                                         1 or INFO\n"
+              << "                                         2 or WARNING\n"
+              << "                                         3 or ERROR\n"
+              << "                                         by default, set to INFO.\n"
               << "--version                                Displays the current version.\n";
 }
 
@@ -119,6 +125,9 @@ int
         }},
         {"--log=", [&](int i) {
             dncdbg::Logger::OpenLogStream(argv[i] + strlen("--log=")); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+        }},
+        {"--loglevel=", [&](int i) {
+            dncdbg::Logger::SetLogLevel(argv[i] + strlen("--loglevel=")); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
         }}
     };
 
@@ -137,7 +146,7 @@ int
 
     LOGI(log << "DNCDbg started");
     // Note: there is no possibility to know which exception caused call to std::terminate
-    std::set_terminate([] { LOGF(log << "DNCDbg is terminated due to call to std::terminate: see stderr..."); });
+    std::set_terminate([] { LOGE(log << "DNCDbg is terminated due to call to std::terminate: see stderr..."); });
 
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);
