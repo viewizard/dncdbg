@@ -6,7 +6,6 @@
 #include "metadata/jmc.h"
 #include "metadata/attributes.h"
 #include "utils/torelease.h"
-#include <array>
 #include <iterator>
 #include <vector>
 
@@ -42,16 +41,6 @@ HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMDImport, mdTypeDef typeDef
     mdMethodDef methodDef = mdMethodDefNil;
     while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
-        mdTypeDef memTypeDef = mdTypeDefNil;
-        ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> szFunctionName{};
-
-        if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
         if (HasAttribute(pMDImport, methodDef, GetMethodAttrNames()))
         {
             excludeMethods.push_back(methodDef);
