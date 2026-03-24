@@ -8,7 +8,6 @@
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "utils/utf.h"
-#include <array>
 #include <fstream>
 #include <string>
 
@@ -133,11 +132,13 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
             continue;
         }
 
-        DWORD flags = 0;
-        std::array<WCHAR, mdNameLen> className{};
         ULONG classNameLen = 0;
-        IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), mdNameLen, &classNameLen, &flags, nullptr));
-        if (!starts_with(className.data(), W("<Main>d__")))
+        IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &classNameLen, nullptr, nullptr));
+
+        DWORD flags = 0;
+        WSTRING className(classNameLen - 1, '\0'); // classNameLen - string size + null terminated symbol
+        IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), classNameLen, nullptr, &flags, nullptr));
+        if (className.find(W("<Main>d__")) != 0)
         {
             continue;
         }

@@ -105,10 +105,10 @@ HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, 
 }
 
 // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
-bool IsSynthesizedLocalName(WCHAR *mdName, ULONG nameLen)
+bool IsSynthesizedLocalName(const WSTRING &mdName)
 {
-    return (nameLen > 1 && starts_with(mdName, W("<"))) ||
-           (nameLen > 4 && starts_with(mdName, W("CS$<")));
+    return mdName.find(W('<')) == 0 ||
+           mdName.find(W("CS$<")) == 0;
 }
 
 enum class GeneratedCodeKind : uint8_t
@@ -121,10 +121,11 @@ enum class GeneratedCodeKind : uint8_t
 HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
     HRESULT Status = S_OK;
-    std::array<WCHAR, mdNameLen> name{};
     ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), mdNameLen, &nameLen, nullptr, nullptr));
-    const WSTRING typeName(name.data());
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+
+    WSTRING typeName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, typeName.data(), nameLen, nullptr, nullptr, nullptr));
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
     //  Parse the generated name. Returns true for names of the form
@@ -223,9 +224,12 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
     Status = ForEachFields(pMDImport, typeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
-            std::array<WCHAR, mdNameLen> mdName{};
             ULONG nameLen = 0;
-            if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+            IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+            WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
@@ -236,7 +240,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     return S_OK;
                 };
 
-                const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+                const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
                 if (generatedNameKind == GeneratedNameKind::ThisProxyField)
                 {
                     IfFailRet(getValue(ppResultValue));
@@ -308,11 +312,11 @@ HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
 HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
 {
     WSTRING::size_type nameStartOffset = 0;
-    if (mdName.length() > 1 && starts_with(mdName.data(), W("<")))
+    if (mdName.find(W('<')) == 0)
     {
         nameStartOffset = 1;
     }
-    else if (mdName.length() > 4 && starts_with(mdName.data(), W("CS$<")))
+    else if (mdName.find(W("CS$<")) == 0)
     {
         nameStartOffset = 4;
     }
@@ -369,14 +373,17 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
     return ForEachFields(pMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
-            std::array<WCHAR, mdNameLen> mdName{};
             ULONG nameLen = 0;
+            IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+            WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
             DWORD fieldAttr = 0;
-            if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
+            if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                 &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
                 (fieldAttr & fdStatic) != 0 ||
                 (fieldAttr & fdLiteral) != 0 ||
-                usedNames.find(mdName.data()) != usedNames.end())
+                usedNames.find(mdName) != usedNames.end())
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -392,7 +399,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 return S_OK;
             };
 
-            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName.data());
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
             if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
             {
                 ToRelease<ICorDebugValue> trDisplayClassValue;
@@ -422,7 +429,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 // Check, that hoisted local is in scope.
                 // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
                 int32_t index = 0;
-                if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName.data(), index)) &&
+                if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
                     hoistedLocalScopesCount > index &&
                     (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
                     currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
@@ -431,12 +438,12 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 }
 
                 WSTRING wLocalName;
-                if (FAILED(TryParseHoistedLocalName(mdName.data(), wLocalName)))
+                if (FAILED(TryParseHoistedLocalName(mdName, wLocalName)))
                 {
                     return S_OK; // Return with success to continue walk.
                 }
 
-                IfFailRet(cb(to_utf8(wLocalName.data()), getValue));
+                IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT; // Fast exit from cycle
@@ -444,14 +451,14 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 usedNames.insert(wLocalName);
             }
             // Ignore any other compiler generated fields, show only normal fields.
-            else if (!IsSynthesizedLocalName(mdName.data(), nameLen))
+            else if (!IsSynthesizedLocalName(mdName))
             {
-                IfFailRet(cb(to_utf8(mdName.data()), getValue));
+                IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT; // Fast exit from cycle
                 }
-                usedNames.insert(mdName.data());
+                usedNames.insert(mdName);
             }
             return S_OK; // Return with success to continue walk.
         });
@@ -906,13 +913,16 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             [&](mdFieldDef fieldDef) -> HRESULT
             {
                 ULONG nameLen = 0;
+                IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                                                    nullptr, nullptr, nullptr, nullptr, nullptr));
+
                 DWORD fieldAttr = 0;
-                std::array<WCHAR, mdNameLen> mdName{};
+                WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
                 PCCOR_SIGNATURE pSignatureBlob = nullptr;
                 ULONG sigBlobLength = 0;
                 UVCP_CONSTANT pRawValue = nullptr;
                 ULONG rawValueLength = 0;
-                if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+                if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                         &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
                 {
                     // Prevent access to internal compiler added fields (without visible name).
@@ -920,7 +930,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     // More about compiler generated names in Roslyn sources:
                     // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
                     // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-                    if (IsSynthesizedLocalName(mdName.data(), nameLen))
+                    if (IsSynthesizedLocalName(mdName))
                     {
                         return S_OK; // Return with success to continue walk.
                     }
@@ -931,7 +941,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         return S_OK; // Return with success to continue walk.
                     }
 
-                    const std::string name = to_utf8(mdName.data());
+                    const std::string name = to_utf8(mdName.c_str());
 
                     auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
                     {
@@ -1212,10 +1222,12 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     do
     {
         ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
-        IfFailRet(trMDImport->GetTypeDefProps(typeDef, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr));
+        IfFailRet(trMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
 
-        if (!IsSynthesizedLocalName(mdName.data(), nameLen))
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        IfFailRet(trMDImport->GetTypeDefProps(typeDef, mdName.data(), nameLen, nullptr, nullptr, nullptr));
+
+        if (!IsSynthesizedLocalName(mdName))
         {
             break;
         }
