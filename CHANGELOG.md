@@ -65,6 +65,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Removed escaped string code (nlohmann/json have it implemented now).
 - Removed wrong assertion `startLine != other.startLine || startColumn != other.startColumn' (C# record classes related issue).
 - Removed Utility::Size() implementation (switched to std::size()).
+- Removed span implementation (switched to gsl::span).
 
 #### Fixed
 - Fixed extra qualification on Evaluator methods.

@@ -8,8 +8,8 @@
 #include "utils/iosystem.h"
 #include "utils/platform.h"
 #include "utils/rwlock.h"
-#include "utils/span.h"
 #include "utils/streams.h"
+#include <gsl/span>
 #include <atomic>
 #include <cstddef>
 #include <functional>
@@ -45,7 +45,7 @@ class IORedirectHelper
     // Arguments of the callback functor are following:
     //  * `StreamType` defines the stream: IOSystem::Stdout or IOSystem::Stderr;
     //  * `span<char>` represents portion of the data (text).
-    using InputCallback = std::function<void(StreamType, Utility::span<char>)>;
+    using InputCallback = std::function<void(StreamType, gsl::span<char>)>;
 
     // This constant represents default buffers size for input/output.
     // Typically buffer with default size can hold few lines of text.

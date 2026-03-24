@@ -1271,9 +1271,9 @@ void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
     m_sharedEvalHelpers->SetEvalFlags(evalFlags);
 }
 
-void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text)
+void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, gsl::span<char> text)
 {
-    DAPIO::EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.begin(), text.size()}));
+    DAPIO::EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
 }
 
 void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)

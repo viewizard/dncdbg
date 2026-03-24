@@ -17,8 +17,8 @@
 #include "utils/ioredirect.h"
 #include "utils/dbgshim.h"
 #include "utils/rwlock.h"
-#include "utils/span.h"
 #include "utils/torelease.h"
+#include <gsl/span>
 #include <condition_variable>
 #include <map>
 #include <vector>
@@ -162,7 +162,7 @@ class ManagedDebugger
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    static void InputCallback(IORedirectHelper::StreamType type, Utility::span<char> text);
+    static void InputCallback(IORedirectHelper::StreamType type, gsl::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();
