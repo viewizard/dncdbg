@@ -20,7 +20,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   misc-*,
   -misc-no-recursion,
-  -misc-non-private-member-variables-in-classes,
   readability-*,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
