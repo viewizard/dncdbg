@@ -9,7 +9,6 @@
 #include "utils/filesystem.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
-#include <array>
 #include <algorithm>
 #include <list>
 #include <map>
@@ -267,15 +266,22 @@ HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandl
                 continue;
             }
 
-            std::array<WCHAR, mdNameLen> funcName{};
             ULONG funcNameLen = 0;
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), mdNameLen, &funcNameLen,
+            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
-            if (str_equal(funcName.data(), W(".ctor")) || str_equal(funcName.data(), W(".cctor")))
+            WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            if (funcName == W(".ctor") ||
+                funcName == W(".cctor"))
             {
                 constrTokens.emplace_back(methodDef);
             }

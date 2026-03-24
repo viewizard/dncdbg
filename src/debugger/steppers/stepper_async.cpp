@@ -80,14 +80,20 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     while (SUCCEEDED(trMDImport_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
-        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, nullptr, nullptr,
+        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(mdName.data(), W("<>t__builder")))
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr, nullptr,
+                                                  nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if (mdName != W("<>t__builder"))
         {
             continue;
         }
@@ -148,16 +154,23 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
     while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         ULONG propertyNameLen = 0;
-        std::array<WCHAR, mdNameLen> propertyName{};
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen, // NOLINT(readability-suspicious-call-argument)
+                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                nullptr, 0, nullptr)))
+        {
+            continue;
+        }
+
+        WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), mdNameLen, &propertyNameLen, // NOLINT(readability-suspicious-call-argument)
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr, // NOLINT(readability-suspicious-call-argument)
                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
                                                 nullptr, 0, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(propertyName.data(), W("ObjectIdForDebugger")))
+        if (propertyName != W("ObjectIdForDebugger"))
         {
             continue;
         }
@@ -212,16 +225,22 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     mdMethodDef setNotifDef = mdMethodDefNil;
     while (SUCCEEDED(trMDImport->EnumMethods(&hEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
-        mdTypeDef memTypeDef = mdTypeDefNil;
         ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> szFunctionName{};
-        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
+        if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
                                               nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
 
-        if (!str_equal(szFunctionName.data(), W("SetNotificationForWaitCompletion")))
+        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        mdTypeDef memTypeDef = mdTypeDefNil;
+        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
+                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if (szFunctionName != W("SetNotificationForWaitCompletion"))
         {
             continue;
         }

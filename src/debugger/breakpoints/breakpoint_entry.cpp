@@ -147,16 +147,22 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            mdTypeDef memTypeDef = mdTypeDefNil;
-            std::array<WCHAR, mdNameLen> funcName{};
             ULONG funcNameLen = 0;
-            if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, funcName.data(), mdNameLen, &funcNameLen,
+            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
-            if (str_equal(funcName.data(), W("MoveNext")))
+            mdTypeDef memTypeDef = mdTypeDefNil;
+            WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+            if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, funcName.data(), funcNameLen, nullptr,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            if (funcName == W("MoveNext"))
             {
                 resultToken = methodDef;
                 break;
@@ -201,24 +207,31 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     }
 
     uint32_t entryPointOffset = 0;
-    ToRelease<IUnknown> trUnknown;
-    ToRelease<IMetaDataImport> trMDImport;
-    mdTypeDef mdMainClass = mdTypeDefNil;
-    std::array<WCHAR, mdNameLen> funcName{};
-    ULONG funcNameLen = 0;
-    // If we can't setup entry point correctly for async method, leave it "as is".
-    if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) &&
-        SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) &&
-        SUCCEEDED(trMDImport->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), mdNameLen, &funcNameLen,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr)) &&
+    auto setupAsyncEntryBreakpoint = [&]() -> HRESULT
+    {
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        ULONG funcNameLen = 0;
+        IfFailRet(trMDImport->GetMethodProps(entryPointToken, nullptr, nullptr, 0, &funcNameLen,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr));
+        mdTypeDef mdMainClass = mdTypeDefNil;
+        WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+        IfFailRet(trMDImport->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), funcNameLen, nullptr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr));
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/main-and-command-args/
         // In case of async method as entry method, GetEntryPointTokenFromFile() should return compiler's generated method `<Main>`, plus,
         // this should be method without user code.
-        str_equal(funcName.data(), W("<Main>")))
-    {
-        TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
-    }
+        if (funcName == W("<Main>"))
+        {
+            TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
+        }
+        return S_OK;
+    };
+    // If we can't setup entry point correctly for async method, leave it "as is".
+    setupAsyncEntryBreakpoint();
 
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(pModule->GetFunctionFromToken(entryPointToken, &trFunction));

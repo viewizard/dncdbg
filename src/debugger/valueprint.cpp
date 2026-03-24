@@ -762,21 +762,29 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     while (SUCCEEDED(trMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
-        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen,
-                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
-            // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
-            if (str_equal(mdName.data(), W("value")))
-            {
-                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppValueValue));
-            }
+            continue;
+        }
 
-            // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
-            if (str_equal(mdName.data(), W("hasValue")))
-            {
-                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppHasValueValue));
-            }
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
+        if (mdName == W("value"))
+        {
+            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppValueValue));
+        }
+
+        // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
+        if (mdName == W("hasValue"))
+        {
+            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppHasValueValue));
         }
     }
 
