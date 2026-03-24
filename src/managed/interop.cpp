@@ -20,11 +20,9 @@
 #endif
 
 #include "utils/logger.h"
-#include "utils/torelease.h"
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
 #include "utils/rwlock.h"
-#include "utils/utf.h"
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -610,16 +608,17 @@ HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef 
 }
 
 HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
-                                      WCHAR *localName, uint32_t localNameLen, int32_t *pIlStart, int32_t *pIlEnd)
+                                      WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {
     ReadLock read_lock(CLRrwlock);
     if ((getLocalVariableNameAndScopeDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
-        (localName == nullptr) || (pIlStart == nullptr) || (pIlEnd == nullptr))
+        (pIlStart == nullptr) || (pIlEnd == nullptr))
     {
         return E_FAIL;
     }
 
-    BSTR wszLocalName = Interop::SysAllocStringLen(mdNameLen);
+    static constexpr uint32_t mdNameLen = 2048;
+    BSTR wszLocalName = Interop::SysAllocStringLen(static_cast<int32_t>(mdNameLen));
     if (SysStringLen(wszLocalName) == 0)
     {
         return E_OUTOFMEMORY;
@@ -635,7 +634,7 @@ HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef met
         return E_FAIL;
     }
 
-    wcscpy_s(localName, localNameLen, wszLocalName);
+    localName = wszLocalName;
     Interop::SysFreeString(wszLocalName);
 
     return S_OK;

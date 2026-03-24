@@ -141,11 +141,17 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
     while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
+        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
         DWORD fieldAttr = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
-        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                 nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
         {
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
@@ -158,7 +164,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
             if (currentConstValue == curValue)
             {
                 trMDImport->CloseEnum(fEnum);
-                output = to_utf8(mdName.data());
+                output = to_utf8(mdName.c_str());
 
                 return S_OK;
             }
@@ -173,7 +179,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string
                 if ((currentConstValue == remainingValue) ||
                     ((currentConstValue != 0) && ((currentConstValue & remainingValue) == currentConstValue)))
                 {
-                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.data()));
+                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.c_str()));
                     remainingValue &= ~currentConstValue;
                 }
             }
@@ -353,9 +359,15 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
     while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         ULONG nameLen = 0;
+        if(FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                                            nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
         DWORD fieldAttr = 0;
-        std::array<WCHAR, mdNameLen> mdName{};
-        if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), mdNameLen, &nameLen, &fieldAttr,
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             if (((fieldAttr & fdLiteral) != 0U) ||
@@ -369,7 +381,7 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
             ToRelease<ICorDebugValue> trFieldVal;
             IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, &trFieldVal));
 
-            const std::string name = to_utf8(mdName.data());
+            const std::string name = to_utf8(mdName.c_str());
 
             if (name == "hi" || name == "_hi32")
             {

@@ -21,7 +21,6 @@
 #include "utils/logger.h"
 #include "utils/waitpid.h"
 #include "utils/utf.h"
-#include <array>
 
 namespace dncdbg
 {
@@ -50,10 +49,11 @@ HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    std::array<WCHAR, mdNameLen> mdName{};
     ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetScopeProps(mdName.data(), mdNameLen, &nameLen, nullptr));
-    excModule = to_utf8(mdName.data());
+    IfFailRet(trMDImport->GetScopeProps(nullptr, 0, &nameLen, nullptr));
+    WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    IfFailRet(trMDImport->GetScopeProps(mdName.data(), nameLen, nullptr, nullptr));
+    excModule = to_utf8(mdName.c_str());
 
     return S_OK;
 }

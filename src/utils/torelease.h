@@ -130,8 +130,6 @@ constexpr HRESULT S_USE_SIMPLE_STEPPER = 0x00777003L;
 constexpr HRESULT S_IGNORE = 0x00777004L;
 constexpr HRESULT S_SKIP = 0x00777005L;
 
-constexpr uint32_t mdNameLen = 2048;
-
 } // namespace dncdbg
 
 #endif // UTILS_TORELEASE_H

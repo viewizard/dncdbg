@@ -17,6 +17,7 @@
 #endif
 
 #include "utils/platform.h"
+#include "utils/utf.h"
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -89,7 +90,7 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef Method
 HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
                                 uint32_t &ilNextOffset, bool *noUserCodeFound);
 HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
-                                      WCHAR *localName, uint32_t localNameLen, int32_t *pIlStart, int32_t *pIlEnd);
+                                      WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
 HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount);
 HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset);
 HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,

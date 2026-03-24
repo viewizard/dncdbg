@@ -10,7 +10,6 @@
 #include "metadata/attributes.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
-#include <array>
 #include <unordered_set>
 
 namespace dncdbg
@@ -156,11 +155,17 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         }
 
         ULONG nameLen = 0;
-        std::array<WCHAR, mdNameLen> szFunctionName{};
-        if (SUCCEEDED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), mdNameLen, &nameLen,
+        if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            return false;
+        }
+
+        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        if (SUCCEEDED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
-            if (g_operatorMethodNames.find(szFunctionName.data()) != g_operatorMethodNames.end())
+            if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.end())
             {
                 return true;
             }

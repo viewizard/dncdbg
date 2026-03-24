@@ -8,7 +8,6 @@
 #include "utils/filesystem.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
-#include <array>
 #include <iomanip>
 #include <sstream>
 
@@ -51,15 +50,19 @@ HRESULT Modules::GetModuleId(ICorDebugModule *pModule, std::string &id)
 
 std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
 {
-    std::array<WCHAR, mdNameLen> name{};
-    uint32_t name_len = 0;
-
-    if (FAILED(pModule->GetName(mdNameLen, &name_len, name.data())))
+    uint32_t nameLen = 0;
+    if (FAILED(pModule->GetName(0, &nameLen, nullptr)))
     {
         return {};
     }
 
-    std::string moduleName = to_utf8(name.data());
+    WSTRING wModName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    if (FAILED(pModule->GetName(nameLen, nullptr, wModName.data())))
+    {
+        return {};
+    }
+
+    std::string moduleName = to_utf8(wModName.c_str());
 
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`

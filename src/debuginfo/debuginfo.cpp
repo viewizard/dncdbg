@@ -8,7 +8,6 @@
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/filesystem.h"
-#include <array>
 #include <vector>
 
 namespace dncdbg
@@ -68,11 +67,16 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
 
         while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
         {
-            mdTypeDef memTypeDef = mdTypeDefNil;
             ULONG nameLen = 0;
-            std::array<WCHAR, mdNameLen> szFuncName{};
+            if (FAILED(trMDImport->GetMethodProps(mdMethod, nullptr, nullptr, 0, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
 
-            if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
+            mdTypeDef memTypeDef = mdTypeDefNil;
+            WSTRING szFuncName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
@@ -89,23 +93,27 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
 
             while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
             {
-                mdMethodDef memMethodDef = mdMethodDefNil;
-                std::array<WCHAR, mdNameLen> szGenName{};
                 ULONG genNameLen = 0;
+                if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                {
+                    continue;
+                }
 
+                mdMethodDef memMethodDef = mdMethodDefNil;
+                WSTRING szGenName(genNameLen - 1, '\0'); // genNameLen - string size + null terminated symbol
                 if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
-                                                             szGenName.data(), mdNameLen, &genNameLen)))
+                                                             szGenName.data(), genNameLen, nullptr)))
                 {
                     continue;
                 }
 
                 // Add comma for each element. The last one will be stripped later.
-                genParams += to_utf8(szGenName.data()) + ",";
+                genParams += to_utf8(szGenName.c_str()) + ",";
             }
 
             trMDImport2->CloseEnum(fGenEnum);
 
-            std::string fullName = to_utf8(szFuncName.data());
+            std::string fullName = to_utf8(szFuncName.c_str());
             if (!genParams.empty())
             {
                 // Last symbol is comma and it is useless, so remove
@@ -443,8 +451,6 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    std::array<WCHAR, mdNameLen> wLocalName{};
-
     IfFailRet(GetPDBInfo(modAddress,
         [&](PDBInfo &mdInfo) -> HRESULT
         {
@@ -454,10 +460,8 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
             }
 
             return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandle, methodToken, localIndex,
-                                                          wLocalName.data(), mdNameLen, pIlStart, pIlEnd);
+                                                          localName, pIlStart, pIlEnd);
         }));
-
-    localName = wLocalName.data();
 
     return S_OK;
 }

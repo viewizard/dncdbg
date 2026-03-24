@@ -645,14 +645,20 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            mdTypeDef memTypeDef = mdTypeDefNil;
             ULONG nameLen = 0;
-            std::array<WCHAR, mdNameLen> szFunctionName{};
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            mdTypeDef memTypeDef = mdTypeDefNil;
+            WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
             DWORD methodAttr = 0;
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), mdNameLen, &nameLen,
-                                                &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
+                                                  &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
             {
                 continue;
             }
@@ -689,7 +695,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
                 return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
 
-            IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            IfFailRet(cb(is_static, to_utf8(szFunctionName.c_str()), returnElementType, argElementTypes, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 *ppResultType = trInputType.Detach();
@@ -996,16 +1002,19 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
             {
-                mdTypeDef propertyClass = mdTypeDefNil;
-
                 ULONG propertyNameLen = 0;
+                IfFailRet(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
+                                                       nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                       nullptr, nullptr, nullptr, nullptr, 0, nullptr));
+
+                mdTypeDef propertyClass = mdTypeDefNil;
                 UVCP_CONSTANT pDefaultValue;
                 ULONG cchDefaultValue;
                 mdMethodDef mdGetter = mdMethodDefNil;
                 mdMethodDef mdSetter = mdMethodDefNil;
-                std::array<WCHAR, mdNameLen> propertyName{};
-                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), mdNameLen, // NOLINT(readability-suspicious-call-argument)
-                                                           &propertyNameLen, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
+                WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
+                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), propertyNameLen, // NOLINT(readability-suspicious-call-argument)
+                                                           nullptr, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
                                                            &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                 {
                     DWORD getterAttr = 0;
@@ -1074,7 +1083,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         return S_OK; // Return with success to continue walk.
                     }
 
-                    const std::string name = to_utf8(propertyName.data());
+                    const std::string name = to_utf8(propertyName.c_str());
 
                     auto getValue =
                         [&](ICorDebugValue **ppResultValue, bool ignoreEvalFlags) -> HRESULT
@@ -1178,10 +1187,13 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(trFunction->GetToken(&methodDef));
 
-    DWORD methodAttr = 0;
-    std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &szMethodLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    DWORD methodAttr = 0;
+    WSTRING szMethod(szMethodLen - 1, '\0'); // szMethodLen - string size + null terminated symbol
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), szMethodLen, nullptr,
                                          &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     ToRelease<ICorDebugClass> trClass;
@@ -1202,7 +1214,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
-    IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod.data(), typeDef, generatedCodeKind));
+    IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
     {
         return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
@@ -1300,10 +1312,13 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     // 3. "real" local variables.
     // 4. async/lambda object fields.
 
-    DWORD methodAttr = 0;
-    std::array<WCHAR, mdNameLen> szMethod{};
     ULONG szMethodLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), mdNameLen, &szMethodLen,
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &szMethodLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    DWORD methodAttr = 0;
+    WSTRING szMethod(szMethodLen - 1, '\0'); // szMethodLen - string size + null terminated symbol
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), szMethodLen, nullptr,
                                          &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
@@ -1315,7 +1330,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         IfFailRet(trFunction->GetClass(&trClass));
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(trClass->GetToken(&typeDef));
-        IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod.data(), typeDef, generatedCodeKind));
+        IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
         IfFailRet(trILFrame->GetArgument(0, &trCurrentThis));
 
         ToRelease<ICorDebugValue> trUserThis;
@@ -1359,13 +1374,19 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
         // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
         // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
-        const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
-        std::array<WCHAR, mdNameLen> wParamName{};
         ULONG paramNameLen = 0;
         mdParamDef paramDef = mdParamDefNil;
+        const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
         if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-            FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), mdNameLen,
-                                             &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0, &paramNameLen,
+                                             nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        WSTRING wParamName(paramNameLen - 1, '\0'); // paramNameLen - string size + null terminated symbol
+        if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
         }
@@ -1383,12 +1404,12 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             return trILFrame->GetArgument(i, ppResultValue);
         };
 
-        IfFailRet(cb(to_utf8(wParamName.data()), getValue));
+        IfFailRet(cb(to_utf8(wParamName.c_str()), getValue));
         if (Status == S_CAN_EXIT)
         {
             return S_OK;
         }
-        usedNames.insert(wParamName.data());
+        usedNames.insert(wParamName);
         // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
         trFrame.Free();
         trILFrame.Free();
@@ -1775,20 +1796,25 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
 
             while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
             {
-                mdTypeDef memTypeDef = mdTypeDefNil;
                 ULONG nameLen = 0;
-                std::array<WCHAR, mdNameLen> szFuncName{};
+                if (FAILED(trMDImport->GetMethodProps(mdMethod, nullptr, nullptr, 0, &nameLen,
+                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+                {
+                    continue;
+                }
+
+                mdTypeDef memTypeDef = mdTypeDefNil;
+                WSTRING szFuncName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
-
-                if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), mdNameLen, &nameLen,
+                if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,
                                                       nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
                     !HasAttribute(trMDImport, mdMethod, attributeName))
                 {
                     continue;
                 }
 
-                const std::string fullName = to_utf8(szFuncName.data());
+                const std::string fullName = to_utf8(szFuncName.c_str());
                 if (fullName != methodName)
                 {
                     continue;
