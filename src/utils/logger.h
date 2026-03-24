@@ -16,10 +16,6 @@
 #include <cstdio>
 #endif
 
-#ifndef __cplusplus
-#error "This file applicable only in C++ source code, plain C not supported."
-#endif
-
 namespace dncdbg
 {
 

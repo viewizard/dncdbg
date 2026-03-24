@@ -78,7 +78,7 @@ unsigned get_pid()
     return process_id;
 }
 
-} // namespace
+} // unnamed namespace
 
 void Logger::OpenLogStream(const char *fileName)
 {
