@@ -121,7 +121,7 @@ template <class T> class ToRelease
 };
 
 #ifndef IfFailRet
-#define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { return (Status); } } while (0)
+#define IfFailRet(EXPR) do { Status = (EXPR); if(FAILED(Status)) { return (Status); } } while (0) // NOLINT(cppcoreguidelines-macro-usage)
 #endif
 
 constexpr HRESULT S_CAN_EXIT = 0x00777001L;

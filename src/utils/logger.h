@@ -68,16 +68,16 @@ constexpr size_t PathLen(std::string_view path)
 } // namespace dncdbg
 
 // Following macros shouldn't be used directly, it is intendent for internal use.
-#define LOG_(prio, cbLog) dncdbg::Logger::LogPrint(prio, &__FILE__[dncdbg::PathLen(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; })
+#define LOG_(prio, cbLog) dncdbg::Logger::LogPrint(prio, &__FILE__[dncdbg::PathLen(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; }) // NOLINT(cppcoreguidelines-macro-usage)
 
 #ifdef DEBUG
-#define LOGD(cbLog) LOG_(dncdbg::LogLevel::DBG, cbLog)
+#define LOGD(cbLog) LOG_(dncdbg::LogLevel::DBG, cbLog) // NOLINT(cppcoreguidelines-macro-usage)
 #else
 #define LOGD(cbLog)
 #endif
 
-#define LOGI(cbLog) LOG_(dncdbg::LogLevel::INF, cbLog)
-#define LOGW(cbLog) LOG_(dncdbg::LogLevel::WRN, cbLog)
-#define LOGE(cbLog) LOG_(dncdbg::LogLevel::ERR, cbLog)
+#define LOGI(cbLog) LOG_(dncdbg::LogLevel::INF, cbLog) // NOLINT(cppcoreguidelines-macro-usage)
+#define LOGW(cbLog) LOG_(dncdbg::LogLevel::WRN, cbLog) // NOLINT(cppcoreguidelines-macro-usage)
+#define LOGE(cbLog) LOG_(dncdbg::LogLevel::ERR, cbLog) // NOLINT(cppcoreguidelines-macro-usage)
 
 #endif // UTILS_LOGGER_H

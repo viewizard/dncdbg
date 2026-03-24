@@ -16,7 +16,6 @@ Checks: >
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
-  -cppcoreguidelines-macro-usage,
   modernize-*,
   -modernize-use-trailing-return-type,
   misc-*,
