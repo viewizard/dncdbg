@@ -368,14 +368,14 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) // NOLINT(cppcoreguidelines-p
 
     for (unsigned n = 0; n < NFD; n++)
     {
-        m_orig_fd[n] = ::dup(oldfd[n]);
-        if (m_orig_fd[n] == -1)
+        m_orig_fd[n] = ::dup(oldfd[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        if (m_orig_fd[n] == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             std::cerr << "dup error " << errno << "\n";
             throw std::runtime_error("dup error");
         }
 
-        if (::dup2(newfd[n], oldfd[n]) == -1)
+        if (::dup2(newfd[n], oldfd[n]) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             std::cerr << "dup2 error " << errno << "\n";
             throw std::runtime_error("dup2 error");
@@ -394,12 +394,12 @@ Class::StdIOSwap::~StdIOSwap()
     static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
     for (unsigned n = 0; n < NFD; n++)
     {
-        if (::dup2(m_orig_fd[n], oldfd[n]) == -1)
+        if (::dup2(m_orig_fd[n], oldfd[n]) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             abort();
         }
 
-        ::close(m_orig_fd[n]);
+        ::close(m_orig_fd[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 }
 

@@ -40,7 +40,7 @@ HRESULT Modules::GetModuleId(ICorDebugModule *pModule, std::string &id)
     static constexpr uint32_t endChar = 8;
     for (int i = startChar; i < endChar; i++)
     {
-        ss << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask);
+        ss << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 
     id = ss.str();

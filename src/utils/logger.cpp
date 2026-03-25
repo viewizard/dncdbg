@@ -137,9 +137,10 @@ void Logger::LogPrint(LogLevel level, const char *file, int line, const char *fu
     const std::scoped_lock<std::mutex> lock(m_logMutex);
 
     char levelSymb = 'I';
+    static constexpr std::string_view levelSymbol("DIWE");
     if (level >= LogLevel::DBG && level <= LogLevel::ERR)
     {
-        levelSymb = "DIWE"[static_cast<uint8_t>(level)];
+        levelSymb = levelSymbol.at(static_cast<uint8_t>(level));
     }
 
     GetLogStream() << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.'

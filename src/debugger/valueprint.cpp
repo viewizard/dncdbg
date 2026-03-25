@@ -443,26 +443,26 @@ void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &re
     remainder = 0;
     for (int i = 2; i >= 0; i--)
     {
-        const uint64_t partial_dividend = Make_64(remainder, divident[i]);
+        const uint64_t partial_dividend = Make_64(remainder, divident.at(i));
         if (partial_dividend == 0)
         {
-            divident[i] = 0;
+            divident.at(i) = 0;
             remainder = 0;
         }
         else if (partial_dividend < divisor)
         {
-            divident[i] = 0;
+            divident.at(i) = 0;
             remainder = Lo_32(partial_dividend);
         }
         else if (partial_dividend == divisor)
         {
-            divident[i] = 1;
+            divident.at(i) = 1;
             remainder = 0;
         }
         else
         {
-            divident[i] = Lo_32(partial_dividend / divisor);
-            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(divident[i]) * divisor));
+            divident.at(i) = Lo_32(partial_dividend / divisor);
+            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(divident.at(i)) * divisor));
         }
     }
 }
@@ -476,7 +476,7 @@ std::string uint96_to_string(std::array<uint32_t, 3> &v)
     {
         uint32_t rem = 0;
         udivrem96(v, divisor, rem);
-        result.insert(0, 1, digits[rem]);
+        result.insert(0, 1, digits.at(rem));
     } while (!uint96_is_zero(v));
     return result;
 }

@@ -127,7 +127,7 @@ void IORedirectHelper::worker()
     // currently existing asyncchronous io requests
     IOSystem::AsyncHandle async_handles[std::size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     auto &out_handle = async_handles[0];
-    auto &pipe_handle = async_handles[std::size(stream_types)];
+    auto &pipe_handle = async_handles[std::size(stream_types)]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 
     // at exit: cancel all unfinished io requests
     auto on_exit = [&](void *)
@@ -166,7 +166,7 @@ void IORedirectHelper::worker()
         // process data available in buffer for input in_streams
         for (unsigned n = 0; n < std::size(stream_types); n++)
         {
-            InStreamBuf *const stream = in_streams[n];
+            InStreamBuf *const stream = in_streams[n]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             if (stream == nullptr)
             {
                 continue;
@@ -177,19 +177,19 @@ void IORedirectHelper::worker()
             if (avail != 0U)
             {
                 LOGD(log << "push "<< avail << " bytes to callback");
-                m_callback(stream_types[n], gsl::span<char>(stream->gptr(), avail));
+                m_callback(stream_types[n], gsl::span<char>(stream->gptr(), avail)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
                 stream->gbump(static_cast<int>(avail));
                 stream->compactify();
             }
 
             // request to read more data
-            if (!async_handles[n])
+            if (!async_handles[n]) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             {
                 const size_t free_size = stream->endp() - stream->egptr();
                 LOGD(log << "requesting " << free_size << " bytes to read");
-                async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size);
+                async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 
-                if (!async_handles[n])
+                if (!async_handles[n]) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
                 {
                     LOGE(log << "can't issue async read request!");
                     return;
@@ -332,13 +332,13 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
 {
     for (size_t n = 0; n < stream_types_cout; n++)
     {
-        InStreamBuf *const stream = in_streams[n];
+        InStreamBuf *const stream = in_streams[n]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         if (stream == nullptr)
         {
             continue;
         }
 
-        const IOSystem::IOResult result = IOSystem::async_result(async_handles[n]);
+        const IOSystem::IOResult result = IOSystem::async_result(async_handles[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         if (result.status == IOSystem::IOResult::Success)
         {
             // update buffer

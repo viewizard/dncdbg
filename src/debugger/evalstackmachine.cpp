@@ -705,14 +705,14 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
     static ImplicitCastMap_t implicitCastMap = InitImplicitCastMap();
     static ImplicitCastMap_t implicitCastLiteralMap = InitImplicitCastLiteralMap();
 
-    if (srcLiteral && implicitCastLiteralMap[elemType1][elemType2] != nullptr)
+    if (srcLiteral && implicitCastLiteralMap.at(elemType1).at(elemType2) != nullptr)
     {
-        return implicitCastLiteralMap[elemType1][elemType2](trRealValue1, trRealValue2, true);
+        return implicitCastLiteralMap.at(elemType1).at(elemType2)(trRealValue1, trRealValue2, true);
     }
 
-    if (implicitCastMap[elemType1][elemType2] != nullptr)
+    if (implicitCastMap.at(elemType1).at(elemType2) != nullptr)
     {
-        return implicitCastMap[elemType1][elemType2](trRealValue1, trRealValue2, false);
+        return implicitCastMap.at(elemType1).at(elemType2)(trRealValue1, trRealValue2, false);
     }
 
     return E_INVALIDARG;
@@ -1626,13 +1626,13 @@ HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pAr
 
     evalStack.emplace_front();
     evalStack.front().literal = true;
-    if (BasicTypesAlias[Int] == ELEMENT_TYPE_VALUETYPE)
+    if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_VALUETYPE)
     {
         return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, Ptr);
     }
     else
     {
-        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias[Int], Ptr);
+        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(Int), Ptr);
     }
 }
 
@@ -1679,17 +1679,17 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, void *pArguments, s
 
     evalStack.emplace_front();
 
-    if (BasicTypesAlias[Int] == ELEMENT_TYPE_VALUETYPE)
+    if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_VALUETYPE)
     {
         return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, nullptr);
     }
-    else if (BasicTypesAlias[Int] == ELEMENT_TYPE_STRING)
+    else if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_STRING)
     {
         return ed.pEvalHelpers->CreateString(ed.pThread, String, &evalStack.front().trValue);
     }
     else
     {
-        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias[Int], nullptr);
+        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(Int), nullptr);
     }
 }
 

@@ -45,7 +45,7 @@ void *DLSym(DLHandle handle, const std::string_view &symbol)
     }
 
     symbol.copy(str.data(), symbol.size());
-    str[symbol.size()] = 0;
+    str.at(symbol.size()) = 0;
 
     ::dlerror(); // Clear any existing error
 
