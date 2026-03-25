@@ -64,13 +64,13 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         IOResult operator()()
         {
             assert(*this);
-            return traits->oper(data);
+            return traits->oper(data); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
 
         int poll(fd_set *read, fd_set *write, fd_set *except)
         {
             assert(*this);
-            return traits->poll(data, read, write, except);
+            return traits->poll(data, read, write, except); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
 
         AsyncHandle() = default; // NOLINT(cppcoreguidelines-pro-type-member-init)
@@ -80,7 +80,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             static_assert(sizeof(InstanceType) <= sizeof(data), "insufficiend data size");
             AsyncHandle result;
             result.traits = &TraitsImpl<InstanceType>::traits;
-            new (result.data) InstanceType(std::forward<Args>(args)...);
+            new (result.data) InstanceType(std::forward<Args>(args)...); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
             return result;
         }
 
@@ -89,7 +89,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         {
             if (other)
             {
-                traits->move(other.data, data);
+                traits->move(other.data, data); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
             }
             other.traits = nullptr;
         }
@@ -107,7 +107,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
         {
             if (*this)
             {
-                traits->destr(data);
+                traits->destr(data); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
             }
         }
     };

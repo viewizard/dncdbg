@@ -198,7 +198,7 @@ void IORedirectHelper::worker()
         }
 
         // check if data available for reading or write operation is finished
-        IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], WaitForever);
+        IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], WaitForever); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         LOGD(log << "wake");
 
         // check if termination requested
@@ -227,7 +227,7 @@ void IORedirectHelper::worker()
         }
 
         // process finished read requests
-        if (!ProcessFinishedReadRequests(in_streams, std::size(stream_types), async_handles))
+        if (!ProcessFinishedReadRequests(in_streams, std::size(stream_types), async_handles)) // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         {
             return;
         }
@@ -454,7 +454,7 @@ AsyncResult IORedirectHelper::async_input(InStream &instream)
 #else
         const auto &PollPeriod = WaitForever;
 #endif
-        if (IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], PollPeriod))
+        if (IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], PollPeriod)) // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         {
             LOGD(log << "wake");
         }

@@ -68,7 +68,7 @@ template <typename Traits> struct IOSystemImpl
 #else
         AsyncHandleIterator(Iterator it) : ops(OpsImpl<Iterator>::ops) // NOLINT(cppcoreguidelines-pro-type-member-init)
         {
-            new (data) Iterator(it);
+            new (data) Iterator(it); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
 #endif
 
@@ -79,13 +79,13 @@ template <typename Traits> struct IOSystemImpl
 
         ~AsyncHandleIterator()
         {
-            ops.destr(data);
+            ops.destr(data); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
 
         // Access to `AsyncHandle` values.
         AsyncHandle &operator*() const
         {
-            return ops.get(data);
+            return ops.get(data); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
         AsyncHandle *operator->() const
         {
@@ -105,7 +105,7 @@ template <typename Traits> struct IOSystemImpl
         // Advance to next `AsyncHandle` value.
         AsyncHandleIterator &operator++()
         {
-            return ops.next(data), *this;
+            return ops.next(data), *this; // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         }
 
       private:

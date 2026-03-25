@@ -90,7 +90,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
                 fullFilename.append(directory);
                 fullFilename += FileSystem::PathSeparator;
-                fullFilename.append(entry->d_name);
+                fullFilename.append(entry->d_name); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
                 struct stat sb{};
                 if ((stat(fullFilename.c_str(), &sb) == -1) ||
@@ -105,7 +105,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
                 continue;
             }
 
-            const std::string filename(entry->d_name);
+            const std::string filename(entry->d_name); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
             if (ext.length() >= filename.length())
             {
