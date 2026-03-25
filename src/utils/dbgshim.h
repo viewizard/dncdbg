@@ -65,7 +65,7 @@ class dbgshim_t
         libName += "libdbgshim.so";
 #endif
 
-        m_module = DLOpen(libName);
+        m_module = DLOpen(libName.c_str());
         if (m_module == nullptr)
         {
             throw std::invalid_argument("Unable to load " + libName);

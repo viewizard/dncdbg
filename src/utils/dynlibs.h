@@ -5,9 +5,6 @@
 #ifndef UTILS_DYNLIBS_H
 #define UTILS_DYNLIBS_H
 
-#include <string>
-#include <string_view>
-
 namespace dncdbg
 {
 struct DLHandleRef;
@@ -18,11 +15,11 @@ using DLHandle = DLHandleRef *;
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).
 // In case of error function returns nullptr.
-DLHandle DLOpen(const std::string &path);
+DLHandle DLOpen(const char *path);
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns nullptr.
-void *DLSym(DLHandle handle, const std::string_view &symbol);
+void *DLSym(DLHandle handle, const char *symbol);
 
 // This function unloads previously loadded library, specified by handle.
 // In case of error this function returns `false'.

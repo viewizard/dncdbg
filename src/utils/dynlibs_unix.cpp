@@ -13,7 +13,6 @@
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include <dlfcn.h>
-#include <array>
 #include <iostream>
 
 namespace dncdbg
@@ -22,9 +21,9 @@ namespace dncdbg
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).
 // In case of error function returns nullptr.
-DLHandle DLOpen(const std::string &path)
+DLHandle DLOpen(const char *path)
 {
-    void *tmpPointer = ::dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOW);
+    void *tmpPointer = ::dlopen(path, RTLD_GLOBAL | RTLD_NOW);
     if (tmpPointer == nullptr)
     {
         const char *err = ::dlerror();
@@ -36,20 +35,11 @@ DLHandle DLOpen(const std::string &path)
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns nullptr.
-void *DLSym(DLHandle handle, const std::string_view &symbol)
+void *DLSym(DLHandle handle, const char *symbol)
 {
-    std::array<char, LINE_MAX> str{};
-    if (symbol.size() >= str.size())
-    {
-        return {};
-    }
-
-    symbol.copy(str.data(), symbol.size());
-    str.at(symbol.size()) = 0;
-
     ::dlerror(); // Clear any existing error
 
-    void *tmpPointer = ::dlsym(handle, str.data());
+    void *tmpPointer = ::dlsym(handle, symbol);
 
     const char *err = ::dlerror();
     if (err != nullptr)

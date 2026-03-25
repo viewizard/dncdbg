@@ -405,13 +405,13 @@ void Init(const std::string &coreClrPath)
     // Pin the module - CoreCLR.so/dll does not support being unloaded.
     // "CoreCLR does not support reinitialization or unloading. Do not call `coreclr_initialize` again or unload the
     // CoreCLR library." https://docs.microsoft.com/en-us/dotnet/core/tutorials/netcore-hosting
-    DLHandle coreclrLib = DLOpen(coreClrPath);
+    DLHandle coreclrLib = DLOpen(coreClrPath.c_str());
     if (coreclrLib == nullptr)
     {
         throw std::invalid_argument("Failed to load coreclr path=" + coreClrPath);
     }
 
-    coreclr_initialize_ptr initializeCoreCLR = reinterpret_cast<coreclr_initialize_ptr>(DLSym(coreclrLib, "coreclr_initialize"));
+    auto initializeCoreCLR = reinterpret_cast<coreclr_initialize_ptr>(DLSym(coreclrLib, "coreclr_initialize"));
     if (initializeCoreCLR == nullptr)
     {
         throw std::invalid_argument("coreclr_initialize not found in lib, CoreCLR path=" + coreClrPath);
@@ -458,7 +458,7 @@ void Init(const std::string &coreClrPath)
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));
     }
 
-    coreclr_create_delegate_ptr createDelegate = reinterpret_cast<coreclr_create_delegate_ptr>(DLSym(coreclrLib, "coreclr_create_delegate"));
+    auto createDelegate = reinterpret_cast<coreclr_create_delegate_ptr>(DLSym(coreclrLib, "coreclr_create_delegate"));
     if (createDelegate == nullptr)
     {
         throw std::runtime_error("coreclr_create_delegate not found");

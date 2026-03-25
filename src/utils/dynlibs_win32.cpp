@@ -6,7 +6,6 @@
 #include "utils/dynlibs.h"
 #include "utils/limits.h"
 #include <windows.h>
-#include <array>
 
 namespace dncdbg
 {
@@ -14,24 +13,16 @@ namespace dncdbg
 // This functon load specified library and returns handle (which then
 // can be passed to DLSym and DLCLose functions).
 // In case of error function returns nullptr.
-DLHandle DLOpen(const std::string &path)
+DLHandle DLOpen(const char *path)
 {
-    return reinterpret_cast<DLHandle>(::LoadLibraryExA(path.c_str(), nullptr, 0));
+    return reinterpret_cast<DLHandle>(::LoadLibraryExA(path, nullptr, 0));
 }
 
 // This function resolves symbol address within library specified by handle,
 // and returns it's address, in case of error function returns nullptr.
-void *DLSym(DLHandle handle, const std::string_view &symbol)
+void *DLSym(DLHandle handle, const char *symbol)
 {
-    std::array<char, LINE_MAX> str{};
-    if (symbol.size() >= str.size())
-    {
-        return {};
-    }
-
-    symbol.copy(str.data(), symbol.size());
-    str[symbol.size()] = 0;
-    return ::GetProcAddress((HMODULE)handle, str.data());
+    return ::GetProcAddress((HMODULE)handle, symbol);
 }
 
 // This function unloads previously loadded library, specified by handle.
