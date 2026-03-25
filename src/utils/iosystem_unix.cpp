@@ -214,7 +214,7 @@ Class::FileHandle Class::listen_socket(unsigned port)
 // Enable/disable handle inheritance for child processes.
 Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
 {
-    int flags = fcntl(fh.fd, F_GETFD);
+    int flags = fcntl(fh.fd, F_GETFD); // NOLINT(cppcoreguidelines-pro-type-vararg)
     if (flags < 0)
     {
         return {IOResult::Error, 0};
@@ -229,7 +229,7 @@ Class::IOResult Class::set_inherit(const FileHandle &fh, bool inherit)
         flags |= FD_CLOEXEC;
     }
 
-    if (fcntl(fh.fd, F_SETFD, flags) < 0)
+    if (fcntl(fh.fd, F_SETFD, flags) < 0) // NOLINT(cppcoreguidelines-pro-type-vararg)
     {
         return {IOResult::Error, 0};
     }

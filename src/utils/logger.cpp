@@ -12,9 +12,13 @@
 #include <windows.h>
 #endif
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#include <sys/syscall.h>
+#ifdef __unix__
 #include <unistd.h>
+#endif
+
+#if (defined(__APPLE__) && defined(__MACH__))
+#include <unistd.h>
+include <pthread.h>
 #endif
 
 namespace dncdbg
@@ -59,8 +63,18 @@ unsigned get_tid()
 {
 #ifdef _WIN32
     static const thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
+#elif defined(__unix__)
+    static const thread_local unsigned thread_id = ::gettid();
+#elif (defined(__APPLE__) && defined(__MACH__))
+    auto getTID = []() -> unsigned
+    {
+        uint64_t tid;
+        pthread_threadid_np(NULL, &tid);
+        return static_cast<unsigned>(tid)
+    };
+    static const thread_local unsigned thread_id = getTID();
 #else
-    static const thread_local unsigned thread_id = syscall(SYS_gettid);
+#error "Unsupported platform"
 #endif
 
     return thread_id;

@@ -13,7 +13,6 @@ Checks: >
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-type-reinterpret-cast,
-  -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   modernize-*,
   -modernize-use-trailing-return-type,
