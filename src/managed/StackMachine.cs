@@ -15,6 +15,8 @@ namespace DNCDbg
 {
 public partial class Evaluation
 {
+    // WARNING: BlittableChar and BlittableBoolean must have the same binary layout as expected by the C++ code
+    // in src/debugger/evalstackmachine.cpp. BlittableChar is a 2-byte Unicode character, BlittableBoolean is a 1-byte boolean.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct BlittableChar
     {
@@ -31,20 +33,15 @@ public partial class Evaluation
         }
     }
 
+    // WARNING: This struct layout must match C++ expectations. See src/debugger/evalstackmachine.cpp
     public struct BlittableBoolean
     {
         private byte byteValue;
 
         public bool Value
         {
-            get
-            {
-                return Convert.ToBoolean(byteValue);
-            }
-            set
-            {
-                byteValue = Convert.ToByte(value);
-            }
+            get => byteValue != 0;
+            set => byteValue = (byte)(value ? 1 : 0);
         }
 
         public static explicit operator BlittableBoolean(bool value)
@@ -117,6 +114,9 @@ public partial class Evaluation
         }
     }
 
+    // WARNING: The order and values of this enum must be kept in sync with the BasicTypesAlias arrays
+    // in src/debugger/evalstackmachine.cpp (see NumericLiteralExpression and PredefinedType handlers).
+    // These values are used as array indices.
     enum ePredefinedType
     {
         BoolKeyword,
@@ -136,6 +136,8 @@ public partial class Evaluation
         ULongKeyword
     }
 
+    // WARNING: This dictionary maps .NET types to ePredefinedType. The ePredefinedType values must be kept in sync
+    // with the BasicTypesAlias arrays in src/debugger/evalstackmachine.cpp.
     static readonly Dictionary<Type, ePredefinedType> TypeAlias = new Dictionary<Type, ePredefinedType>
     {
         { typeof(bool), ePredefinedType.BoolKeyword },
@@ -155,6 +157,8 @@ public partial class Evaluation
         { typeof(ulong), ePredefinedType.ULongKeyword }
     };
 
+    // WARNING: This dictionary maps Roslyn SyntaxKind to ePredefinedType. Keep in sync with ePredefinedType enum
+    // and BasicTypesAlias in src/debugger/evalstackmachine.cpp.
     static readonly Dictionary<SyntaxKind, ePredefinedType> TypeKindAlias = new Dictionary<SyntaxKind, ePredefinedType>
     {
         { SyntaxKind.BoolKeyword,    ePredefinedType.BoolKeyword },
@@ -174,6 +178,8 @@ public partial class Evaluation
         { SyntaxKind.ULongKeyword,   ePredefinedType.ULongKeyword }
     };
 
+    // WARNING: The order and values of this enum must be kept in sync with the CommandImplementation array
+    // in src/debugger/evalstackmachine.cpp. Changing this order will break the stack machine execution.
     public enum eOpCode
     {
         IdentifierName,
@@ -230,6 +236,9 @@ public partial class Evaluation
         ThisExpression
     }
 
+    // WARNING: This dictionary maps Roslyn SyntaxKind to eOpCode. All syntax kinds used in TreeWalker.Visit
+    // must be present and map to the correct eOpCode value. Keep in sync with eOpCode enum and the
+    // CommandImplementation array in src/debugger/evalstackmachine.cpp.
     static readonly Dictionary<SyntaxKind, eOpCode> KindAlias = new Dictionary<SyntaxKind, eOpCode>
     {
             { SyntaxKind.IdentifierName,                eOpCode.IdentifierName },
@@ -294,7 +303,7 @@ public partial class Evaluation
         public eOpCode OpCode { get; protected set; }
         protected uint Flags;
         protected IntPtr argsStructPtr;
-        private bool disposed = false;
+        protected bool _disposed = false;
 
         public abstract IntPtr GetStructPtr();
 
@@ -306,20 +315,14 @@ public partial class Evaluation
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposed)
+            if (!_disposed)
             {
-                // Clean up managed resources
-                if (disposing)
-                {
-                }
-                
-                // Clean up unmanaged resources
                 if (argsStructPtr != IntPtr.Zero)
                 {
                     Marshal.FreeCoTaskMem(argsStructPtr);
                     argsStructPtr = IntPtr.Zero;
                 }
-                disposed = true;
+                _disposed = true;
             }
         }
 
@@ -346,11 +349,16 @@ public partial class Evaluation
 
         public override IntPtr GetStructPtr()
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(NoOperandsCommand));
+
             if (argsStructPtr != IntPtr.Zero)
                 return argsStructPtr;
 
-            FormatF argsStruct;
-            argsStruct.Flags = Flags;
+            var argsStruct = new FormatF
+            {
+                Flags = Flags
+            };
             argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatF>());
             Marshal.StructureToPtr(argsStruct, argsStructPtr, false);
             return argsStructPtr;
@@ -380,12 +388,10 @@ public partial class Evaluation
             public int Int;
         }
 
-        dynamic Argument;
-        dynamic argsStruct;
+        object Argument;
         private bool stringAllocated = false;
-        private bool disposed = false;
 
-        public OneOperandCommand(SyntaxKind kind, uint flags, dynamic arg)
+        public OneOperandCommand(SyntaxKind kind, uint flags, object arg)
         {
             OpCode = KindAlias[kind];
             Flags = flags;
@@ -395,53 +401,57 @@ public partial class Evaluation
 
         protected override void Dispose(bool disposing)
         {
-            if (!disposed)
+            if (!_disposed)
             {
-                // Clean up managed resources if needed
-                if (disposing)
+                if (argsStructPtr != IntPtr.Zero && stringAllocated)
                 {
-                }
-
-                // Clean up unmanaged resources
-                if (argsStructPtr != IntPtr.Zero)
-                {
-                    if (stringAllocated && argsStruct.GetType() == typeof(FormatFS))
+                    // The argsStructPtr points to a FormatFS struct (when stringAllocated is true)
+                    // We need to extract the BSTR from the struct's String field and free it
+                    var fs = Marshal.PtrToStructure<FormatFS>(argsStructPtr);
+                    if (fs.String != IntPtr.Zero)
                     {
-                        Marshal.FreeBSTR(argsStruct.String);
+                        Marshal.FreeBSTR(fs.String);
                     }
-                    Marshal.FreeCoTaskMem(argsStructPtr);
-                    argsStructPtr = IntPtr.Zero;
                 }
-                disposed = true;
+                // Let base class free argsStructPtr itself
+                base.Dispose(disposing);
             }
-            base.Dispose(disposing);
         }
 
         public override IntPtr GetStructPtr()
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(OneOperandCommand));
+
             if (argsStructPtr != IntPtr.Zero)
                 return argsStructPtr;
 
-            if (Argument.GetType() == typeof(string) || Argument.GetType() == typeof(char))
+            if (Argument is string || Argument is char)
             {
-                argsStruct = new FormatFS();
+                var fs = new FormatFS
+                {
+                    Flags = Flags,
+                    String = Marshal.StringToBSTR(Argument.ToString())
+                };
                 argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFS>());
-                argsStruct.String = Marshal.StringToBSTR(Argument.ToString());
+                Marshal.StructureToPtr(fs, argsStructPtr, false);
                 stringAllocated = true;
             }
-            else if (Argument.GetType() == typeof(int) || Argument.GetType() == typeof(ePredefinedType))
+            else if (Argument is int || Argument is ePredefinedType)
             {
-                argsStruct = new FormatFI();
+                var fi = new FormatFI
+                {
+                    Flags = Flags,
+                    Int = (int)Argument
+                };
                 argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFI>());
-                argsStruct.Int = (int)Argument; // Note, enum must be explicitly converted to int.
+                Marshal.StructureToPtr(fi, argsStructPtr, false);
             }
             else
             {
                 throw new NotImplementedException(Argument.GetType() + " type not implemented in OneOperandCommand!");
             }
 
-            argsStruct.Flags = Flags;
-            Marshal.StructureToPtr(argsStruct, argsStructPtr, false);
             return argsStructPtr;
         }
 
@@ -471,13 +481,13 @@ public partial class Evaluation
             public IntPtr Ptr;
         }
 
-        dynamic[] Arguments;
-        dynamic argsStruct;
+        // WARNING: The following structs (FormatF, FormatFS, FormatFI, FormatFIS, FormatFIP) must match the layout
+        // of the corresponding C++ structs in src/debugger/evalstackmachine.cpp exactly. Do not change field types, order, or names.
+        object[] Arguments;
         private bool stringAllocated = false;
         private bool ptrAllocated = false;
-        private bool disposed = false;
 
-        public TwoOperandCommand(SyntaxKind kind, uint flags, params dynamic[] args)
+        public TwoOperandCommand(SyntaxKind kind, uint flags, params object[] args)
         {
             OpCode = KindAlias[kind];
             Flags = flags;
@@ -487,54 +497,65 @@ public partial class Evaluation
 
         protected override void Dispose(bool disposing)
         {
-            if (!disposed)
+            if (!_disposed)
             {
-                // Clean up managed resources
-                if (disposing)
-                {
-                }
-
-                // Clean up unmanaged resources
                 if (argsStructPtr != IntPtr.Zero)
                 {
-                    if (stringAllocated && argsStruct.GetType() == typeof(FormatFIS))
+                    if (stringAllocated)
                     {
-                        Marshal.FreeBSTR(argsStruct.String);
+                        var fs = Marshal.PtrToStructure<FormatFIS>(argsStructPtr);
+                        if (fs.String != IntPtr.Zero)
+                        {
+                            Marshal.FreeBSTR(fs.String);
+                        }
                     }
-                    else if (ptrAllocated && argsStruct.GetType() == typeof(FormatFIP))
+                    else if (ptrAllocated)
                     {
-                        Marshal.FreeCoTaskMem(argsStruct.Ptr);
+                        var fp = Marshal.PtrToStructure<FormatFIP>(argsStructPtr);
+                        if (fp.Ptr != IntPtr.Zero)
+                        {
+                            Marshal.FreeCoTaskMem(fp.Ptr);
+                        }
                     }
-                    Marshal.FreeCoTaskMem(argsStructPtr);
-                    argsStructPtr = IntPtr.Zero;
                 }
-                disposed = true;
+                // Let base class free argsStructPtr itself
+                base.Dispose(disposing);
             }
-            base.Dispose(disposing);
         }
 
         public override IntPtr GetStructPtr()
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TwoOperandCommand));
+
             if (argsStructPtr != IntPtr.Zero)
                 return argsStructPtr;
 
-            if (Arguments[0].GetType() == typeof(string) && Arguments[1].GetType() == typeof(int))
+            if (Arguments[0] is string && Arguments[1] is int)
             {
-                argsStruct = new FormatFIS();
+                var fis = new FormatFIS
+                {
+                    Flags = Flags,
+                    String = Marshal.StringToBSTR(Arguments[0].ToString()),
+                    Int = (int)Arguments[1]
+                };
                 argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFIS>());
-                argsStruct.String = Marshal.StringToBSTR(Arguments[0].ToString());
-                argsStruct.Int = (int)Arguments[1];
+                Marshal.StructureToPtr(fis, argsStructPtr, false);
                 stringAllocated = true;
             }
-            else if (Arguments[0].GetType() == typeof(ePredefinedType))
+            else if (Arguments[0] is ePredefinedType)
             {
-                argsStruct = new FormatFIP();
-                argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFIP>());
-                argsStruct.Int = (int)Arguments[0]; // Note, enum must be explicitly converted to int.
                 int size = 0;
                 IntPtr data = IntPtr.Zero;
                 MarshalValue(Arguments[1], out size, out data);
-                argsStruct.Ptr = data;
+                var fip = new FormatFIP
+                {
+                    Flags = Flags,
+                    Int = (int)Arguments[0],
+                    Ptr = data
+                };
+                argsStructPtr = Marshal.AllocCoTaskMem(Marshal.SizeOf<FormatFIP>());
+                Marshal.StructureToPtr(fip, argsStructPtr, false);
                 ptrAllocated = true;
             }
             else
@@ -542,8 +563,6 @@ public partial class Evaluation
                 throw new NotImplementedException(Arguments[0].GetType() + " + " + Arguments[1].GetType() + " pair not implemented in TwoOperandCommand!");
             }
 
-            argsStruct.Flags = Flags;
-            Marshal.StructureToPtr(argsStruct, argsStructPtr, false);
             return argsStructPtr;
         }
 
@@ -559,13 +578,30 @@ public partial class Evaluation
         }
     }
 
-    public class StackMachineProgram
+    // WARNING: StackMachineProgram must match C++ expectations in src/debugger/evalstackmachine.cpp.
+    // This class is passed across the managed/unmanaged boundary.
+    public class StackMachineProgram : IDisposable
     {
         public static readonly int ProgramInProgress = 0;
         public static readonly int ProgramFinished = -1;
         public static readonly int BeforeFirstCommand = -2;
-        public int CurrentPosition = BeforeFirstCommand;
-        public List<ICommand> Commands = new List<ICommand>();
+        public int CurrentPosition { get; set; } = BeforeFirstCommand;
+        public List<ICommand> Commands { get; } = new List<ICommand>();
+        private bool _disposed = false;
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                foreach (var cmd in Commands)
+                {
+                    cmd?.Dispose();
+                }
+                Commands.Clear();
+                _disposed = true;
+                GC.SuppressFinalize(this);
+            }
+        }
     }
 
     public class SyntaxKindNotImplementedException : NotImplementedException
@@ -926,6 +962,10 @@ public partial class Evaluation
         try
         {
             GCHandle gch = GCHandle.FromIntPtr(StackProgram);
+            if (gch.Target is StackMachineProgram program)
+            {
+                program.Dispose();
+            }
             gch.Free();
         }
         catch
