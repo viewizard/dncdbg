@@ -262,12 +262,12 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     IfFailRet(trEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &trNewBoolean));
     uint32_t cbSize = 0;
     IfFailRet(trNewBoolean->GetSize(&cbSize));
-    std::vector<BYTE> rgbValue(cbSize, 0);
+    std::vector<uint8_t> boolValue(cbSize, 0);
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(rgbValue.data())));
-    rgbValue[0] = 1; // TRUE
-    IfFailRet(trGenericValue->SetValue(static_cast<void *>(rgbValue.data())));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(boolValue.data())));
+    boolValue.at(0) = 1; // TRUE
+    IfFailRet(trGenericValue->SetValue(static_cast<void *>(boolValue.data())));
 
     // Call this.<>t__builder.SetNotificationForWaitCompletion(TRUE).
     ToRelease<ICorDebugFunction> trFunc;

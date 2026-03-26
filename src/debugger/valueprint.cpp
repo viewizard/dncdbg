@@ -16,7 +16,6 @@
 #include <cstring>
 #include <type_traits>
 #include <vector>
-#include <arrayholder.h>
 
 namespace dncdbg
 {
@@ -49,7 +48,7 @@ bool IsEnum(ICorDebugValue *pInputValue)
     return baseTypeName == "System.Enum";
 }
 
-HRESULT PrintEnumValue(ICorDebugValue *pInputValue, BYTE *enumValue, std::string &output)
+HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -730,12 +729,12 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     IfFailRet(trStringValue->GetLength(&cchValue));
     cchValue++; // Allocate one more for null terminator
 
-    ArrayHolder<WCHAR> str = new WCHAR[cchValue];
+    std::vector<WCHAR> str(cchValue, '\0');
 
     uint32_t cchValueReturned = 0;
-    IfFailRet(trStringValue->GetString(cchValue, &cchValueReturned, str));
+    IfFailRet(trStringValue->GetString(cchValue, &cchValueReturned, str.data()));
 
-    output = to_utf8(str);
+    output = to_utf8(str.data());
 
     return S_OK;
 }
@@ -819,13 +818,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     uint32_t cbSize = 0;
     IfFailRet(trValue->GetSize(&cbSize));
-    ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
-    if (rgbValue == nullptr)
-    {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+    std::vector<uint8_t> genericValue(cbSize, 0);
 
     CorElementType corElemType = ELEMENT_TYPE_MAX;
     IfFailRet(trValue->GetType(&corElemType));
@@ -855,11 +848,11 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(genericValue.data())));
 
     if (IsEnum(trValue))
     {
-        return PrintEnumValue(trValue, rgbValue, output);
+        return PrintEnumValue(trValue, genericValue.data(), output);
     }
 
     static constexpr uint32_t floatPrecision = 8;
@@ -911,18 +904,13 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
             uint32_t cbSize = 0;
             IfFailRet(trHasValueValue->GetSize(&cbSize));
-            ArrayHolder<BYTE> rgbValue = new (std::nothrow) BYTE[cbSize];
-            if (rgbValue == nullptr)
-            {
-                return E_OUTOFMEMORY;
-            }
-            memset(rgbValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+            std::vector<uint8_t> boolValue(cbSize, 0);
 
             ToRelease<ICorDebugGenericValue> trGenericValue;
             IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->GetValue(static_cast<void *>(&rgbValue[0])));
+            IfFailRet(trGenericValue->GetValue(static_cast<void *>(boolValue.data())));
             // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-            if (rgbValue[0] != 0)
+            if (boolValue.at(0) == 1) // TRUE
             {
                 std::string val;
                 PrintValue(trValueValue, val, true);
@@ -941,12 +929,12 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     break;
 
     case ELEMENT_TYPE_BOOLEAN:
-        ss << (rgbValue[0] == 0 ? "false" : "true");
+        ss << (genericValue.at(0) == 0 ? "false" : "true");
         break;
 
     case ELEMENT_TYPE_CHAR:
     {
-        const WSTRING wstr{*reinterpret_cast<WCHAR *>(&rgbValue[0]) , '\0'};
+        const WSTRING wstr{*reinterpret_cast<WCHAR *>(genericValue.data()) , '\0'};
         std::string printableVal = to_utf8(wstr.c_str());
         if (!escape)
         {
@@ -959,45 +947,45 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
     break;
 
     case ELEMENT_TYPE_I1:
-        ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(&rgbValue[0]));
+        ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
         break;
 
     case ELEMENT_TYPE_U1:
-        ss << static_cast<uint32_t>(rgbValue[0]);
+        ss << static_cast<uint32_t>(genericValue.at(0));
         break;
 
     case ELEMENT_TYPE_I2:
-        ss << *reinterpret_cast<int16_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<int16_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_U2:
-        ss << *reinterpret_cast<uint16_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<uint16_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_I:
     case ELEMENT_TYPE_I4:
-        ss << *reinterpret_cast<int32_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<int32_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_U:
     case ELEMENT_TYPE_U4:
-        ss << *reinterpret_cast<uint32_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<uint32_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_I8:
-        ss << *reinterpret_cast<int64_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<int64_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_U8:
-        ss << *reinterpret_cast<uint64_t *>(&rgbValue[0]);
+        ss << *reinterpret_cast<uint64_t *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_R4:
-        ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(&rgbValue[0]);
+        ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_R8:
-        ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(&rgbValue[0]);
+        ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(genericValue.data());
         break;
 
     case ELEMENT_TYPE_OBJECT:

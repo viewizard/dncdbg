@@ -13,9 +13,9 @@
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>
-#include <arrayholder.h>
 #include <functional>
 #include <sstream>
+#include <vector>
 #include <utility>
 
 namespace dncdbg
@@ -165,17 +165,13 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
 
     uint32_t cbSize = 0;
     IfFailRet((*ppValue)->GetSize(&cbSize));
-    std::vector<BYTE> valueData(cbSize, 0);
-    if (valueData.data() == nullptr)
-    {
-        return E_OUTOFMEMORY;
-    }
+    std::vector<uint8_t> valueData(cbSize, 0);
 
     ToRelease<ICorDebugGenericValue> trGenValue;
     IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
 
     IfFailRet(trGenValue->GetValue(static_cast<void *>(valueData.data())));
-    valueData[0] = 1; // TRUE
+    valueData.at(0) = 1; // TRUE
 
     return trGenValue->SetValue(static_cast<void *>(valueData.data()));
 }
@@ -235,17 +231,11 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
 
     uint32_t cbSize = 0;
     IfFailRet(trValue->GetSize(&cbSize));
-    ArrayHolder<BYTE> indexValue = new (std::nothrow) BYTE[cbSize];
-    if (indexValue == nullptr)
-    {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(indexValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+    std::vector<uint8_t> indexValue(cbSize, 0);
 
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&indexValue[0])));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(indexValue.data())));
 
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(trValue->GetType(&elemType));
@@ -254,7 +244,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     {
     case ELEMENT_TYPE_I1:
     {
-        const int8_t tmp = *reinterpret_cast<int8_t *>(&indexValue[0]);
+        const int8_t tmp = *reinterpret_cast<int8_t *>(indexValue.data());
         if (tmp < 0)
         {
             return E_INVALIDARG;
@@ -264,12 +254,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U1:
     {
-        index = static_cast<uint32_t>(indexValue[0]);
+        index = static_cast<uint32_t>(indexValue.at(0));
         break;
     }
     case ELEMENT_TYPE_I2:
     {
-        const int16_t tmp = *reinterpret_cast<int16_t *>(&indexValue[0]);
+        const int16_t tmp = *reinterpret_cast<int16_t *>(indexValue.data());
         if (tmp < 0)
         {
             return E_INVALIDARG;
@@ -279,12 +269,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U2:
     {
-        index = static_cast<uint32_t>(*reinterpret_cast<uint16_t *>(&indexValue[0]));
+        index = static_cast<uint32_t>(*reinterpret_cast<uint16_t *>(indexValue.data()));
         break;
     }
     case ELEMENT_TYPE_I4:
     {
-        const int32_t tmp = *reinterpret_cast<int32_t *>(&indexValue[0]);
+        const int32_t tmp = *reinterpret_cast<int32_t *>(indexValue.data());
         if (tmp < 0)
         {
             return E_INVALIDARG;
@@ -294,12 +284,12 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U4:
     {
-        index = *reinterpret_cast<uint32_t *>(&indexValue[0]);
+        index = *reinterpret_cast<uint32_t *>(indexValue.data());
         break;
     }
     case ELEMENT_TYPE_I8:
     {
-        const int64_t tmp = *reinterpret_cast<int64_t *>(&indexValue[0]);
+        const int64_t tmp = *reinterpret_cast<int64_t *>(indexValue.data());
         if (tmp < 0)
         {
             return E_INVALIDARG;
@@ -309,7 +299,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U8:
     {
-        index = static_cast<uint32_t>(*reinterpret_cast<uint64_t *>(&indexValue[0]));
+        index = static_cast<uint32_t>(*reinterpret_cast<uint64_t *>(indexValue.data()));
         break;
     }
     default:
@@ -624,21 +614,15 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
     {
         uint32_t cbSize = 0;
         IfFailRet(pSrcValue->GetSize(&cbSize));
-        ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
-        if (elemValue == nullptr)
-        {
-            return E_OUTOFMEMORY;
-        }
-
-        memset(elemValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+        std::vector<uint8_t> elemValue(cbSize, 0);
 
         ToRelease<ICorDebugGenericValue> trGenericValue;
         IfFailRet(pSrcValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-        IfFailRet(trGenericValue->GetValue(static_cast<void *>(&elemValue[0])));
+        IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
         trGenericValue.Free();
         IfFailRet(pDstValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-        return trGenericValue->SetValue(elemValue.GetPtr());
+        return trGenericValue->SetValue(elemValue.data());
     }
 
     return E_NOTIMPL;
@@ -1231,20 +1215,14 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         {
             uint32_t cbSize = 0;
             IfFailRet(trValue->GetSize(&cbSize));
-            ArrayHolder<BYTE> elemValue = new (std::nothrow) BYTE[cbSize];
-            if (elemValue == nullptr)
-            {
-                return E_OUTOFMEMORY;
-            }
-
-            memset(elemValue.GetPtr(), 0, cbSize * sizeof(BYTE));
+            std::vector<uint8_t> elemValue(cbSize, 0);
 
             ToRelease<ICorDebugGenericValue> trGenericValue;
             IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->GetValue(static_cast<void *>(&elemValue[0])));
+            IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
             trValue.Free();
-            IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, entry->second, &trValue, elemValue.GetPtr()));
+            IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, entry->second, &trValue, elemValue.data()));
         }
 
         ToRelease<ICorDebugValue2> trValue2;
