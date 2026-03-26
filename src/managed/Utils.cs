@@ -14,8 +14,11 @@ namespace DNCDbg
 {
 /// <summary>
 /// Return codes for interop methods.
-/// Must match the RetCode enum in interop.cpp.
 /// </summary>
+/// <remarks>
+/// WARNING: Must match the RetCode enum in src/managed/interop.cpp.
+/// Values are used for communication between managed and unmanaged code.
+/// </remarks>
 internal enum RetCode : int
 {
     OK = 0,
@@ -23,8 +26,25 @@ internal enum RetCode : int
     Exception = 2
 }
 
+/// <summary>
+/// Utility class providing interop helper methods for memory and string management.
+/// </summary>
+/// <remarks>
+/// This class provides managed wrappers for common operations that need to be
+/// coordinated with the C++ side via delegates defined in interop.cpp.
+/// </remarks>
 public static class Utils
 {
+    #region String and Memory Operations
+
+    // ============================================================================
+    // WARNING: SYNCHRONIZATION REQUIRED WITH C++ CODE
+    // ============================================================================
+    // File: src/managed/interop.cpp
+    // The following methods are called from C++ via delegates. Their signatures
+    // and behavior must match the C++ delegate definitions exactly.
+    // ============================================================================
+
     /// <summary>
     /// Converts the source string to uppercase using invariant culture and returns it as a BSTR.
     /// The caller is responsible for freeing the returned BSTR using SysFreeString.
@@ -108,5 +128,7 @@ public static class Utils
 
         Marshal.FreeCoTaskMem(ptr);
     }
+
+    #endregion // String and Memory Operations
 }
 }

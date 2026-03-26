@@ -15,8 +15,24 @@ namespace DNCDbg
 {
 public partial class Evaluation
 {
-    // WARNING: BlittableChar and BlittableBoolean must have the same binary layout as expected by the C++ code
-    // in src/debugger/evalstackmachine.cpp. BlittableChar is a 2-byte Unicode character, BlittableBoolean is a 1-byte boolean.
+    #region Blittable Types
+
+    // ============================================================================
+    // WARNING: SYNCHRONIZATION REQUIRED WITH C++ CODE
+    // ============================================================================
+    // File: src/debugger/evalstackmachine.cpp
+    // These blittable structs must match the C++ expectations exactly for proper
+    // marshaling between managed and unmanaged code. Any changes to layout, size,
+    // or field types must be synchronized with the C++ implementation.
+    // ============================================================================
+
+    /// <summary>
+    /// Blittable character struct for interop with C++ code.
+    /// Represents a 2-byte Unicode character matching C++ wchar_t expectations.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Must be kept in sync with C++ code in src/debugger/evalstackmachine.cpp.
+    /// </remarks>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct BlittableChar
     {
@@ -55,21 +71,35 @@ public partial class Evaluation
         }
     }
 
+    #endregion
+
+    #region Value Marshaling
+
+    /// <summary>
+    /// Marshals a value to unmanaged memory for interop with C++ code.
+    /// </summary>
+    /// <param name="value">The value to marshal.</param>
+    /// <param name="size">Output: size of the marshaled data.</param>
+    /// <param name="data">Output: pointer to unmanaged memory.</param>
+    /// <remarks>
+    /// WARNING: Memory management is critical here. The caller is responsible for freeing
+    /// the returned data pointer using Marshal.FreeCoTaskMem or the appropriate method.
+    /// </remarks>
     static void MarshalValue(object value, out int size, out IntPtr data)
     {
-        if (value is string)
+        if (value is string stringValue)
         {
-            data = Marshal.StringToBSTR(value as string);
+            data = Marshal.StringToBSTR(stringValue);
             size = 0;
         }
         else if (value is char)
         {
-            BlittableChar c = (BlittableChar)((char)value);
-            size = Marshal.SizeOf(c);
+            BlittableChar charValue = (BlittableChar)((char)value);
+            size = Marshal.SizeOf(charValue);
             data = Marshal.AllocCoTaskMem(size);
             try
             {
-                Marshal.StructureToPtr(c, data, false);
+                Marshal.StructureToPtr(charValue, data, false);
             }
             catch
             {
@@ -114,9 +144,27 @@ public partial class Evaluation
         }
     }
 
-    // WARNING: The order and values of this enum must be kept in sync with the BasicTypesAlias arrays
-    // in src/debugger/evalstackmachine.cpp (see NumericLiteralExpression and PredefinedType handlers).
-    // These values are used as array indices.
+    #endregion
+
+    #region Type Definitions
+
+    // ============================================================================
+    // WARNING: SYNCHRONIZATION REQUIRED WITH C++ CODE
+    // ============================================================================
+    // File: src/debugger/evalstackmachine.cpp
+    // The following enums and dictionaries must be kept in sync with their C++
+    // counterparts. The ePredefinedType enum values are used as indices into
+    // BasicTypesAlias arrays in the C++ code. The eOpCode enum values are used
+    // as indices into the CommandImplementation array.
+    // ============================================================================
+
+    /// <summary>
+    /// Maps C# predefined type keywords to internal type identifiers.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Order and values must match BasicTypesAlias arrays in src/debugger/evalstackmachine.cpp.
+    /// Used as array indices - DO NOT change order or values.
+    /// </remarks>
     enum ePredefinedType
     {
         BoolKeyword,
@@ -1025,5 +1073,7 @@ public partial class Evaluation
             return e.HResult;
         }
     }
+
+    #endregion // Type Definitions
 }
 }

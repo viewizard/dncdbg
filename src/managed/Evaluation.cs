@@ -15,10 +15,28 @@ namespace DNCDbg
 {
 /// <summary>
 /// Provides evaluation capabilities for expressions, particularly arithmetic operations.
+/// This partial class works in conjunction with StackMachine.cs for expression evaluation.
 /// </summary>
 public partial class Evaluation
 {
-    // WARNING: Keep this enum in sync with BasicTypes in src/debugger/evalstackmachine.cpp.
+    #region Type Definitions
+
+    // ============================================================================
+    // WARNING: SYNCHRONIZATION REQUIRED WITH C++ CODE
+    // ============================================================================
+    // File: src/debugger/evalstackmachine.cpp
+    // The following enums and dictionaries must be kept in sync with their C++
+    // counterparts. The enum values are used for type identification across the
+    // managed/unmanaged boundary. Changing values or order will break interop.
+    // ============================================================================
+
+    /// <summary>
+    /// Maps primitive types to integer identifiers for interop with C++ code.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Values must match BasicTypes enum in src/debugger/evalstackmachine.cpp.
+    /// Note: Values start at 1 (not 0) to match C++ enum.
+    /// </remarks>
     internal enum BasicTypes
     {
         TypeBoolean = 1,
@@ -393,5 +411,7 @@ public partial class Evaluation
     {
         return -first;
     }
+
+    #endregion // Type Definitions
 }
 }

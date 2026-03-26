@@ -18,10 +18,18 @@ using System.Runtime.InteropServices;
 
 namespace DNCDbg
 {
+/// <summary>
+/// Provides symbol reading capabilities for PDB files and debug information.
+/// This class handles reading sequence points, local variables, and method information
+/// from portable PDB files for use by the debugger.
+/// </summary>
 public class SymbolReader
 {
+    #region Resource Management
+
     /// <summary>
-    /// Helper class to safely manage allocated resources
+    /// Helper class to safely manage allocated resources for interop.
+    /// Tracks both CoTaskMem allocations and BSTR allocations for proper cleanup.
     /// </summary>
     private class ResourceTracker : IDisposable
     {
@@ -1521,5 +1529,7 @@ public class SymbolReader
             }
         }
     }
+
+    #endregion // Resource Management
 }
 }
