@@ -105,31 +105,8 @@ public class SymbolReader
         return TryGetReader(symbolReaderHandle, out reader);
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct DebugInfo
-    {
-        public int lineNumber;
-        public int ilOffset;
-        public string fileName;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct LocalVarInfo
-    {
-        public int startOffset;
-        public int endOffset;
-        public string name;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct MethodDebugInfo
-    {
-        public IntPtr points;
-        public int size;
-        public IntPtr locals;
-        public int localsSize;
-    }
-
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct SequencePoint)
+    // Note: C++ side uses SequencePoint, C# uses DbgSequencePoint to avoid confusion with MetadataReader.SequencePoint.
     [StructLayout(LayoutKind.Sequential)]
     internal struct DbgSequencePoint
     {
@@ -169,50 +146,42 @@ public class SymbolReader
     /// <summary>
     /// Stream implementation to read debugger target memory for in-memory PDBs
     /// </summary>
-    private class TargetStream : Stream
+    private sealed class TargetStream : Stream
     {
-        readonly ulong _address;
-        readonly ReadMemoryDelegate _readMemory;
+        private readonly ulong _address;
+        private readonly ReadMemoryDelegate _readMemory;
 
         public override long Position { get; set; }
         public override long Length { get; }
-        public override bool CanSeek
-        {
-            get
-            {
-                return true;
-            }
-        }
-        public override bool CanRead
-        {
-            get
-            {
-                return true;
-            }
-        }
-        public override bool CanWrite
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public override bool CanSeek => true;
+        public override bool CanRead => true;
+        public override bool CanWrite => false;
 
         public TargetStream(ulong address, int size, ReadMemoryDelegate readMemory)
             : base()
         {
             _address = address;
-            _readMemory = readMemory;
+            _readMemory = readMemory ?? throw new ArgumentNullException(nameof(readMemory));
             Length = size;
             Position = 0;
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be non-negative");
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative");
+            if (offset + count > buffer.Length)
+                throw new ArgumentException("Offset plus count exceeds buffer length");
+
             if (Position + count > Length)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(count), "Requested read goes beyond stream length");
             }
+
             unsafe
             {
                 fixed (byte *p = &buffer[offset])
@@ -247,27 +216,27 @@ public class SymbolReader
 
         public override void SetLength(long value)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 
     /// <summary>
     /// Quick fix for Path.GetFileName which incorrectly handles Windows-style paths on Linux
     /// </summary>
-    /// <param name="pathName"> File path to be processed </param>
+    /// <param name="pathName">File path to be processed</param>
     /// <returns>Last component of path</returns>
     private static string GetFileName(string pathName)
     {
-        int pos = pathName.LastIndexOfAny(new char[] { '/', '\\' });
-        if (pos < 0)
-            return pathName;
+        if (pathName == null)
+            throw new ArgumentNullException(nameof(pathName));
 
-        return pathName.Substring(pos + 1);
+        int pos = pathName.LastIndexOfAny(new[] { '/', '\\' });
+        return pos < 0 ? pathName : pathName.Substring(pos + 1);
     }
 
     /// <summary>
@@ -318,7 +287,6 @@ public class SymbolReader
                         IntPtr allocatedBSTR = resourceTracker.TrackBSTR(Marshal.StringToBSTR(openedReader.PDBPath));
                         pdbName = allocatedBSTR;
 
-                        // Success - transfer ownership to caller
                         resourceTracker.TransferOwnership();
                     }
                     gch = GCHandle.Alloc(openedReader);
@@ -444,7 +412,7 @@ public class SymbolReader
 
                 SequencePointCollection sequencePoints = GetSequencePointCollection(methodToken, reader);
 
-                SequencePoint nearestPoint = sequencePoints.GetEnumerator().Current;
+                SequencePoint nearestPoint = default;
                 bool found = false;
 
                 foreach (SequencePoint point in sequencePoints)
@@ -470,9 +438,7 @@ public class SymbolReader
                 sequencePoint.endLine = nearestPoint.EndLine;
                 sequencePoint.endColumn = nearestPoint.EndColumn;
                 sequencePoint.offset = nearestPoint.Offset;
-                fileName = null;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
@@ -526,6 +492,7 @@ public class SymbolReader
         }
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct method_data_t)
     [StructLayout(LayoutKind.Sequential)]
     internal struct method_data_t
     {
@@ -576,6 +543,7 @@ public class SymbolReader
         }
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct file_methods_data_t)
     [StructLayout(LayoutKind.Sequential)]
     internal struct file_methods_data_t
     {
@@ -584,6 +552,7 @@ public class SymbolReader
         public IntPtr methodsData; // method_data_t*
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct module_methods_data_t)
     [StructLayout(LayoutKind.Sequential)]
     internal struct module_methods_data_t
     {
@@ -614,13 +583,12 @@ public class SymbolReader
                 if (!TryGetReaderWithValidation(symbolReaderHandle, out MetadataReader reader))
                     return RetCode.Fail;
 
-                Dictionary<DocumentHandle, List<method_data_t>> ModuleData = new Dictionary<DocumentHandle, List<method_data_t>>();
+                Dictionary<DocumentHandle, List<method_data_t>> moduleData = new Dictionary<DocumentHandle, List<method_data_t>>();
 
-                int elementSize = 4;
                 // Make sure we add constructors related data first, since this data can't be nested for sure.
-                for (int i = 0; i < constrNum * elementSize; i += elementSize)
+                for (int i = 0; i < constrNum; i++)
                 {
-                    int methodToken = Marshal.ReadInt32(constrTokens, i);
+                    int methodToken = Marshal.ReadInt32(constrTokens, i * 4);
                     method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0, 1);
 
                     foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))
@@ -628,18 +596,18 @@ public class SymbolReader
                         if (p.StartLine == 0 || p.StartLine == SequencePoint.HiddenLine)
                             continue;
 
-                        if (!ModuleData.ContainsKey(p.Document))
-                            ModuleData[p.Document] = new List<method_data_t>();
+                        if (!moduleData.ContainsKey(p.Document))
+                            moduleData[p.Document] = new List<method_data_t>();
 
                         currentData.SetRange(p.StartLine, p.EndLine, p.StartColumn, p.EndColumn);
-                        ModuleData[p.Document].Add(currentData);
+                        moduleData[p.Document].Add(currentData);
                     }
                 }
 
-                for (int i = 0; i < normalNum * elementSize; i += elementSize)
+                for (int i = 0; i < normalNum; i++)
                 {
-                    int methodToken = Marshal.ReadInt32(normalTokens, i);
-                    method_data_t currentData = new method_data_t(methodToken,0, 0, 0, 0, 0);
+                    int methodToken = Marshal.ReadInt32(normalTokens, i * 4);
+                    method_data_t currentData = new method_data_t(methodToken, 0, 0, 0, 0, 0);
                     DocumentHandle currentDocHandle = new DocumentHandle();
 
                     foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))
@@ -660,23 +628,23 @@ public class SymbolReader
 
                     if (currentData.startLine != 0)
                     {
-                        if (!ModuleData.ContainsKey(currentDocHandle))
-                            ModuleData[currentDocHandle] = new List<method_data_t>();
+                        if (!moduleData.ContainsKey(currentDocHandle))
+                            moduleData[currentDocHandle] = new List<method_data_t>();
 
-                        ModuleData[currentDocHandle].Add(currentData);
+                        moduleData[currentDocHandle].Add(currentData);
                     }
                 }
 
-                if (ModuleData.Count == 0)
+                if (moduleData.Count == 0)
                     return RetCode.OK;
 
                 int structModuleMethodsDataSize = Marshal.SizeOf<file_methods_data_t>();
                 module_methods_data_t managedData;
-                managedData.fileNum = ModuleData.Count;
-                managedData.moduleMethodsData = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(ModuleData.Count * structModuleMethodsDataSize));
+                managedData.fileNum = moduleData.Count;
+                managedData.moduleMethodsData = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(moduleData.Count * structModuleMethodsDataSize));
                 IntPtr currentModuleMethodsDataPtr = managedData.moduleMethodsData;
 
-                foreach (KeyValuePair<DocumentHandle, List<method_data_t>> fileData in ModuleData)
+                foreach (KeyValuePair<DocumentHandle, List<method_data_t>> fileData in moduleData)
                 {
                     int structMethodDataSize = Marshal.SizeOf<method_data_t>();
                     file_methods_data_t fileMethodData;
@@ -699,7 +667,6 @@ public class SymbolReader
                 Marshal.StructureToPtr(managedData, resultPtr, false);
                 data = resultPtr;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
@@ -710,6 +677,7 @@ public class SymbolReader
         }
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct resolved_bp_t)
     [StructLayout(LayoutKind.Sequential)]
     internal struct resolved_bp_t
     {
@@ -777,7 +745,8 @@ public class SymbolReader
                 {
                     // Note, SequencePoints ordered by IL offsets, not by line numbers.
                     // For example, infinite loop `while(true)` will have IL offset after cycle body's code.
-                    SequencePoint nearestSP = new SequencePoint();
+                    SequencePoint nearestSP = default;
+                    bool found = false;
 
                     foreach (SequencePoint p in GetSequencePointCollection(methodToken, _reader))
                     {
@@ -790,10 +759,10 @@ public class SymbolReader
                         if (fileName != sourcePath)
                             continue;
 
-                        // first access, assign to first user code sequence point
-                        if (nearestSP.StartLine == 0)
+                        if (!found)
                         {
                             nearestSP = p;
+                            found = true;
                             continue;
                         }
 
@@ -801,13 +770,17 @@ public class SymbolReader
                         {
                             if ((reqPos == Position.First && p.EndLine < nearestSP.EndLine) ||
                                 (reqPos == Position.Last && p.EndLine > nearestSP.EndLine))
+                            {
                                 nearestSP = p;
+                            }
                         }
                         else
                         {
                             if ((reqPos == Position.First && p.EndColumn < nearestSP.EndColumn) ||
                                 (reqPos == Position.Last && p.EndColumn > nearestSP.EndColumn))
+                            {
                                 nearestSP = p;
+                            }
                         }
                     }
 
@@ -815,10 +788,9 @@ public class SymbolReader
                 }
 
                 var list = new List<resolved_bp_t>();
-                int elementSize = 4;
                 for (int i = 0; i < tokenNum; i++)
                 {
-                    int methodToken = Marshal.ReadInt32(Tokens, i * elementSize);
+                    int methodToken = Marshal.ReadInt32(Tokens, i * 4);
                     SequencePoint current_p = SequencePointForSourceLine(Position.First, ref reader, methodToken);
                     // Note, we don't check that current_p was found or not, since we know for sure, that sourceLine could be resolved in method.
                     // Same idea for nested_p below, if we have nestedToken - it will be resolved for sure.
@@ -873,7 +845,6 @@ public class SymbolReader
                 data = allocatedMemory;
                 Count = list.Count;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
@@ -958,14 +929,12 @@ public class SymbolReader
         {
             try
             {
-                string localVar = null;
-                if (!GetLocalVariableAndScopeByIndex(symbolReaderHandle, methodToken, localIndex, out localVar, out ilStartOffset, out ilEndOffset))
+                if (!GetLocalVariableAndScopeByIndex(symbolReaderHandle, methodToken, localIndex, out string localVar, out ilStartOffset, out ilEndOffset))
                     return RetCode.Fail;
 
                 IntPtr allocatedBSTR = resourceTracker.TrackBSTR(Marshal.StringToBSTR(localVar));
                 localVarName = allocatedBSTR;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
@@ -1053,7 +1022,7 @@ public class SymbolReader
                 // https://github.com/dotnet/roslyn/blob/afd10305a37c0ffb2cfb2c2d8446154c68cfa87a/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L14
                 Guid stateMachineHoistedLocalScopes = new Guid("6DA9A61E-F8C7-4874-BE62-68BC5630DF71");
 
-                var HoistedLocalScopes = new List<UInt32>();
+                var hoistedLocalScopes = new List<uint>();
                 foreach (var cdiHandle in reader.GetCustomDebugInformation(entityHandle))
                 {
                     var cdi = reader.GetCustomDebugInformation(cdiHandle);
@@ -1067,26 +1036,25 @@ public class SymbolReader
 
                         while (blobReader.Offset < blobReader.Length)
                         {
-                            HoistedLocalScopes.Add(blobReader.ReadUInt32()); // StartOffset
-                            HoistedLocalScopes.Add(blobReader.ReadUInt32()); // Length
+                            hoistedLocalScopes.Add(blobReader.ReadUInt32()); // StartOffset
+                            hoistedLocalScopes.Add(blobReader.ReadUInt32()); // Length
                         }
                     }
                 }
 
-                if (HoistedLocalScopes.Count == 0)
+                if (hoistedLocalScopes.Count == 0)
                     return RetCode.Fail;
 
-                IntPtr allocatedMemory = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(HoistedLocalScopes.Count * 4));
+                IntPtr allocatedMemory = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(hoistedLocalScopes.Count * 4));
                 IntPtr dataPtr = allocatedMemory;
-                foreach (var p in HoistedLocalScopes)
+                foreach (var p in hoistedLocalScopes)
                 {
                     Marshal.StructureToPtr(p, dataPtr, false);
                     dataPtr += 4;
                 }
                 data = allocatedMemory;
-                hoistedLocalScopesCount = HoistedLocalScopes.Count / 2;
+                hoistedLocalScopesCount = hoistedLocalScopes.Count / 2;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
@@ -1113,15 +1081,12 @@ public class SymbolReader
         {
             try
             {
-                string localVar = null;
-                if (!GetLocalVariableByIndex(symbolReaderHandle, methodToken, localIndex, out localVar))
+                if (!GetLocalVariableByIndex(symbolReaderHandle, methodToken, localIndex, out string localVar))
                     return false;
 
                 IntPtr allocatedBSTR = resourceTracker.TrackBSTR(Marshal.StringToBSTR(localVar));
                 localVarName = allocatedBSTR;
-                localVar = null;
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return true;
             }
@@ -1246,12 +1211,17 @@ public class SymbolReader
             return null;
 
         PEStreamOptions options = isFileLayout ? PEStreamOptions.Default : PEStreamOptions.IsLoadedImage;
+        Stream streamToDispose = null;
+        bool createdStream = false;
+
         if (peStream == null)
         {
             peStream = TryOpenFile(assemblyPath);
             if (peStream == null)
                 return null;
 
+            streamToDispose = peStream;
+            createdStream = true;
             options = PEStreamOptions.Default;
         }
 
@@ -1283,6 +1253,13 @@ public class SymbolReader
         catch (Exception e) when (e is BadImageFormatException || e is IOException)
         {
             // nop
+        }
+        finally
+        {
+            if (createdStream)
+            {
+                streamToDispose?.Dispose();
+            }
         }
 
         return null;
@@ -1327,7 +1304,7 @@ public class SymbolReader
             {
                 try
                 {
-                    pdbPath = Path.Combine(Path.GetDirectoryName(assemblyPath), GetFileName(pdbPath));
+                    pdbPath = Path.Combine(Path.GetDirectoryName(assemblyPath), GetFileName(data.Path));
                 }
                 catch
                 {
@@ -1349,7 +1326,7 @@ public class SymbolReader
                         return null;
                     }
                     string tmpPath = assemblyPath.Substring(0, tmpLastIndex);
-                    pdbPath = Path.Combine(Path.GetDirectoryName(tmpPath), GetFileName(pdbPath));
+                    pdbPath = Path.Combine(Path.GetDirectoryName(tmpPath), GetFileName(data.Path));
                 }
                 catch
                 {
@@ -1417,7 +1394,7 @@ public class SymbolReader
 
     private static Stream TryOpenFile(string path)
     {
-        if (!File.Exists(path))
+        if (string.IsNullOrEmpty(path))
         {
             return null;
         }
@@ -1431,6 +1408,7 @@ public class SymbolReader
         }
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct AsyncAwaitInfoBlock)
     [StructLayout(LayoutKind.Sequential)]
     internal struct AsyncAwaitInfoBlock
     {
@@ -1534,7 +1512,6 @@ public class SymbolReader
                     return RetCode.Fail;
                 }
 
-                // Success - transfer ownership to caller
                 resourceTracker.TransferOwnership();
                 return RetCode.OK;
             }
