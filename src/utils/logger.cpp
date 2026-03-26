@@ -6,6 +6,8 @@
 #include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include <ctime>
 #include <cstring>
+#include <algorithm>
+#include <cctype>
 
 #ifdef _WIN32
 #include <cassert>
@@ -106,19 +108,45 @@ void Logger::SetLogLevel(const char *level)
         return;
     }
 
-    if (strcmp(level, "0") == 0 || strcmp(level, "DEBUG") == 0)
+    if (strcmp(level, "0") == 0)
+    {
+        m_logLevel = LogLevel::DBG;
+        return;
+    }
+    if (strcmp(level, "1") == 0)
+    {
+        m_logLevel = LogLevel::INF;
+        return;
+    }
+    if (strcmp(level, "2") == 0)
+    {
+        m_logLevel = LogLevel::WRN;
+        return;
+    }
+    if (strcmp(level, "3") == 0)
+    {
+        m_logLevel = LogLevel::ERR;
+        return;
+    }
+
+    // Convert to uppercase for case-insensitive comparison
+    std::string levelUpper(level);
+    std::transform(levelUpper.begin(), levelUpper.end(), levelUpper.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+    if (levelUpper == "DEBUG")
     {
         m_logLevel = LogLevel::DBG;
     }
-    else if (strcmp(level, "1") == 0 || strcmp(level, "INFO") == 0)
+    else if (levelUpper == "INFO")
     {
         m_logLevel = LogLevel::INF;
     }
-    else if (strcmp(level, "2") == 0 || strcmp(level, "WARNING") == 0)
+    else if (levelUpper == "WARNING")
     {
         m_logLevel = LogLevel::WRN;
     }
-    else if (strcmp(level, "3") == 0 || strcmp(level, "ERROR") == 0)
+    else if (levelUpper == "ERROR")
     {
         m_logLevel = LogLevel::ERR;
     }
