@@ -293,30 +293,6 @@ SysAllocStringLenDelegate sysAllocStringLenDelegate = nullptr;
 SysFreeStringDelegate sysFreeStringDelegate = nullptr;
 CalculationDelegate calculationDelegate = nullptr;
 
-const std::string &GetManagedPartDllNameStr()
-{
-    static const std::string ManagedPartDllNameStr = "ManagedPart";
-    return ManagedPartDllNameStr;
-}
-
-const std::string &GetSymbolReaderClassNameStr()
-{
-    static const std::string SymbolReaderClassNameStr = "DNCDbg.SymbolReader";
-    return SymbolReaderClassNameStr;
-}
-
-const std::string &GetEvaluationClassNameStr()
-{
-    static const std::string EvaluationClassNameStr = "DNCDbg.Evaluation";
-    return EvaluationClassNameStr;
-}
-
-const std::string &GetUtilsClassNameStr()
-{
-    static const std::string UtilsClassNameStr = "DNCDbg.Utils";
-    return UtilsClassNameStr;
-}
-
 // Pass to managed helper code to read in-memory PEs/PDBs
 // Returns the number of bytes read.
 int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
@@ -470,25 +446,30 @@ void Init(const std::string &coreClrPath)
         throw std::runtime_error("coreclr_shutdown not found");
     }
 
+    static const char *managedPartDllName = "ManagedPart";
+    static const char *symbolReaderClassName = "DNCDbg.SymbolReader";
+    static const char *evaluationClassName = "DNCDbg.Evaluation";
+    static const char *utilsClassName = "DNCDbg.Utils";
+
     const bool allDelegatesCreated = 
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetHoistedLocalScopes", reinterpret_cast<void **>(&getHoistedLocalScopesDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetSymbolReaderClassNameStr().c_str(), "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetEvaluationClassNameStr().c_str(), "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetEvaluationClassNameStr().c_str(), "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetEvaluationClassNameStr().c_str(), "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetEvaluationClassNameStr().c_str(), "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetUtilsClassNameStr().c_str(), "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetUtilsClassNameStr().c_str(), "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetUtilsClassNameStr().c_str(), "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, GetManagedPartDllNameStr().c_str(), GetUtilsClassNameStr().c_str(), "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetHoistedLocalScopes", reinterpret_cast<void **>(&getHoistedLocalScopesDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
 
     if (!allDelegatesCreated)
     {
