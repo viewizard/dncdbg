@@ -13,9 +13,12 @@ using System.Runtime.InteropServices;
 
 namespace DNCDbg
 {
+/// <summary>
+/// Provides evaluation capabilities for expressions, particularly arithmetic operations.
+/// </summary>
 public partial class Evaluation
 {
-    // BasicTypes enum must be sync with enum from native part
+    // WARNING: Keep this enum in sync with BasicTypes in src/debugger/evalstackmachine.cpp.
     internal enum BasicTypes
     {
         TypeBoolean = 1,
@@ -33,7 +36,7 @@ public partial class Evaluation
         TypeString,
     }
 
-    // OperationType enum must be sync with enum from native part
+    // WARNING: Keep this enum in sync with OperationType in src/debugger/evalstackmachine.cpp.
     internal enum OperationType
     {
         AddExpression = 1,
@@ -60,85 +63,70 @@ public partial class Evaluation
         UnaryMinusExpression
     }
 
-    internal static Dictionary<OperationType, Func<object, object, object>> operationTypesMap =
+    /// <summary>
+    /// Maps operation types to their corresponding C# operation functions.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Keep this dictionary in sync with the operation implementations in
+    /// src/debugger/evalstackmachine.cpp (CalculateTwoOparands and CalculateOneOparand).
+    /// </remarks>
+    internal static readonly Dictionary<OperationType, Func<object, object, object>> operationTypesMap =
         new Dictionary<OperationType, Func<object, object, object>>
         {
-            { OperationType.AddExpression, (object firstOp, object secondOp) =>
-                                           { return AddExpression(firstOp, secondOp); } },
-            { OperationType.DivideExpression, (object firstOp, object secondOp) =>
-                                              { return DivideExpression(firstOp, secondOp); } },
-            { OperationType.MultiplyExpression, (object firstOp, object secondOp) =>
-                                                { return MultiplyExpression(firstOp, secondOp); } },
-            { OperationType.ModuloExpression, (object firstOp, object secondOp) =>
-                                              { return ModuloExpression(firstOp, secondOp); } },
-            { OperationType.SubtractExpression, (object firstOp, object secondOp) =>
-                                                { return SubtractExpression(firstOp, secondOp); } },
-            { OperationType.RightShiftExpression, (object firstOp, object secondOp) =>
-                                                  { return RightShiftExpression(firstOp, secondOp); } },
-            { OperationType.LeftShiftExpression, (object firstOp, object secondOp) =>
-                                                 { return LeftShiftExpression(firstOp, secondOp); } },
-            { OperationType.BitwiseNotExpression, (object firstOp, object secondOp) =>
-                                                  { return BitwiseNotExpression(firstOp); } },
-            { OperationType.LogicalAndExpression, (object firstOp, object secondOp) =>
-                                                  { return LogicalAndExpression(firstOp, secondOp); } },
-            { OperationType.LogicalOrExpression, (object firstOp, object secondOp) =>
-                                                 { return LogicalOrExpression(firstOp, secondOp); } },
-            { OperationType.ExclusiveOrExpression, (object firstOp, object secondOp) =>
-                                                   { return ExclusiveOrExpression(firstOp, secondOp); } },
-            { OperationType.BitwiseAndExpression, (object firstOp, object secondOp) =>
-                                                  { return BitwiseAndExpression(firstOp, secondOp); } },
-            { OperationType.BitwiseOrExpression, (object firstOp, object secondOp) =>
-                                                 { return BitwiseOrExpression(firstOp, secondOp); } },
-            { OperationType.LogicalNotExpression, (object firstOp, object secondOp) =>
-                                                  { return LogicalNotExpression(firstOp); } },
-            { OperationType.EqualsExpression, (object firstOp, object secondOp) =>
-                                              { return EqualsExpression(firstOp, secondOp); } },
-            { OperationType.NotEqualsExpression, (object firstOp, object secondOp) =>
-                                                 { return NotEqualsExpression(firstOp, secondOp); } },
-            { OperationType.LessThanExpression, (object firstOp, object secondOp) =>
-                                                { return LessThanExpression(firstOp, secondOp); } },
-            { OperationType.GreaterThanExpression, (object firstOp, object secondOp) =>
-                                                   { return GreaterThanExpression(firstOp, secondOp); } },
-            { OperationType.LessThanOrEqualExpression, (object firstOp, object secondOp) =>
-                                                       { return LessThanOrEqualExpression(firstOp, secondOp); } },
-            { OperationType.GreaterThanOrEqualExpression, (object firstOp, object secondOp) =>
-                                                          { return GreaterThanOrEqualExpression(firstOp, secondOp); } },
-            { OperationType.UnaryPlusExpression, (object firstOp, object secondOp) =>
-                                                 { return UnaryPlusExpression(firstOp); } },
-            { OperationType.UnaryMinusExpression, (object firstOp, object secondOp) =>
-                                                  { return UnaryMinusExpression(firstOp); } }
+            { OperationType.AddExpression, (object firstOp, object secondOp) => AddExpression(firstOp, secondOp) },
+            { OperationType.DivideExpression, (object firstOp, object secondOp) => DivideExpression(firstOp, secondOp) },
+            { OperationType.MultiplyExpression, (object firstOp, object secondOp) => MultiplyExpression(firstOp, secondOp) },
+            { OperationType.ModuloExpression, (object firstOp, object secondOp) => ModuloExpression(firstOp, secondOp) },
+            { OperationType.SubtractExpression, (object firstOp, object secondOp) => SubtractExpression(firstOp, secondOp) },
+            { OperationType.RightShiftExpression, (object firstOp, object secondOp) => RightShiftExpression(firstOp, secondOp) },
+            { OperationType.LeftShiftExpression, (object firstOp, object secondOp) => LeftShiftExpression(firstOp, secondOp) },
+            { OperationType.BitwiseNotExpression, (object firstOp, object secondOp) => BitwiseNotExpression(firstOp) },
+            { OperationType.LogicalAndExpression, (object firstOp, object secondOp) => LogicalAndExpression(firstOp, secondOp) },
+            { OperationType.LogicalOrExpression, (object firstOp, object secondOp) => LogicalOrExpression(firstOp, secondOp) },
+            { OperationType.ExclusiveOrExpression, (object firstOp, object secondOp) => ExclusiveOrExpression(firstOp, secondOp) },
+            { OperationType.BitwiseAndExpression, (object firstOp, object secondOp) => BitwiseAndExpression(firstOp, secondOp) },
+            { OperationType.BitwiseOrExpression, (object firstOp, object secondOp) => BitwiseOrExpression(firstOp, secondOp) },
+            { OperationType.LogicalNotExpression, (object firstOp, object secondOp) => LogicalNotExpression(firstOp) },
+            { OperationType.EqualsExpression, (object firstOp, object secondOp) => EqualsExpression(firstOp, secondOp) },
+            { OperationType.NotEqualsExpression, (object firstOp, object secondOp) => NotEqualsExpression(firstOp, secondOp) },
+            { OperationType.LessThanExpression, (object firstOp, object secondOp) => LessThanExpression(firstOp, secondOp) },
+            { OperationType.GreaterThanExpression, (object firstOp, object secondOp) => GreaterThanExpression(firstOp, secondOp) },
+            { OperationType.LessThanOrEqualExpression, (object firstOp, object secondOp) => LessThanOrEqualExpression(firstOp, secondOp) },
+            { OperationType.GreaterThanOrEqualExpression, (object firstOp, object secondOp) => GreaterThanOrEqualExpression(firstOp, secondOp) },
+            { OperationType.UnaryPlusExpression, (object firstOp, object secondOp) => UnaryPlusExpression(firstOp) },
+            { OperationType.UnaryMinusExpression, (object firstOp, object secondOp) => UnaryMinusExpression(firstOp) }
         };
 
-    internal static Dictionary<BasicTypes, Func<byte[], object>> typesMap =
+    /// <summary>
+    /// Maps BasicTypes to conversion functions from byte arrays.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Keep this dictionary in sync with BasicTypesMap in src/debugger/evalstackmachine.cpp.
+    /// </remarks>
+    internal static readonly Dictionary<BasicTypes, Func<byte[], object>> typesMap =
         new Dictionary<BasicTypes, Func<byte[], object>>
         {
-            { BasicTypes.TypeBoolean, (byte[] values) =>
-                                      { return BitConverter.ToBoolean(values, 0); } },
-            { BasicTypes.TypeByte, (byte[] values) =>
-                                   { return values[0]; } },
-            { BasicTypes.TypeChar, (byte[] values) =>
-                                   { return BitConverter.ToChar(values, 0); } },
-            { BasicTypes.TypeDouble, (byte[] values) =>
-                                     { return BitConverter.ToDouble(values, 0); } },
-            { BasicTypes.TypeInt16, (byte[] values) =>
-                                    { return BitConverter.ToInt16(values, 0); } },
-            { BasicTypes.TypeInt32, (byte[] values) =>
-                                    { return BitConverter.ToInt32(values, 0); } },
-            { BasicTypes.TypeInt64, (byte[] values) =>
-                                    { return BitConverter.ToInt64(values, 0); } },
-            { BasicTypes.TypeSByte, (byte[] values) =>
-                                    { return (sbyte)values[0]; } },
-            { BasicTypes.TypeSingle, (byte[] values) =>
-                                     { return BitConverter.ToSingle(values, 0); } },
-            { BasicTypes.TypeUInt16, (byte[] values) =>
-                                     { return BitConverter.ToUInt16(values, 0); } },
-            { BasicTypes.TypeUInt32, (byte[] values) =>
-                                     { return BitConverter.ToUInt32(values, 0); } },
-            { BasicTypes.TypeUInt64, (byte[] values) =>
-                                     { return BitConverter.ToUInt64(values, 0); } }
+            { BasicTypes.TypeBoolean, (byte[] values) => BitConverter.ToBoolean(values, 0) },
+            { BasicTypes.TypeByte, (byte[] values) => values[0] },
+            { BasicTypes.TypeChar, (byte[] values) => BitConverter.ToChar(values, 0) },
+            { BasicTypes.TypeDouble, (byte[] values) => BitConverter.ToDouble(values, 0) },
+            { BasicTypes.TypeInt16, (byte[] values) => BitConverter.ToInt16(values, 0) },
+            { BasicTypes.TypeInt32, (byte[] values) => BitConverter.ToInt32(values, 0) },
+            { BasicTypes.TypeInt64, (byte[] values) => BitConverter.ToInt64(values, 0) },
+            { BasicTypes.TypeSByte, (byte[] values) => (sbyte)values[0] },
+            { BasicTypes.TypeSingle, (byte[] values) => BitConverter.ToSingle(values, 0) },
+            { BasicTypes.TypeUInt16, (byte[] values) => BitConverter.ToUInt16(values, 0) },
+            { BasicTypes.TypeUInt32, (byte[] values) => BitConverter.ToUInt32(values, 0) },
+            { BasicTypes.TypeUInt64, (byte[] values) => BitConverter.ToUInt64(values, 0) }
         };
 
-    internal static Dictionary<Type, BasicTypes> basicTypesMap = new Dictionary<Type, BasicTypes>
+    /// <summary>
+    /// Maps managed Type objects to BasicTypes for result type determination.
+    /// </summary>
+    /// <remarks>
+    /// WARNING: Keep this dictionary in sync with the type mappings in src/debugger/evalstackmachine.cpp.
+    /// </remarks>
+    internal static readonly Dictionary<Type, BasicTypes> basicTypesMap = new Dictionary<Type, BasicTypes>
     {
         { typeof(Boolean), BasicTypes.TypeBoolean },
         { typeof(Byte), BasicTypes.TypeByte },
@@ -156,11 +144,17 @@ public partial class Evaluation
     };
 
     /// <summary>
-    /// Converts value ​​to a IntPtr to IntPtr
+    /// Converts a managed value to an unmanaged pointer.
     /// </summary>
-    /// <param name="value">source value</param>
-    /// <returns></returns>
-    private static IntPtr valueToPtr(object value)
+    /// <param name="value">The value to convert.</param>
+    /// <returns>An unmanaged pointer to the value data.</returns>
+    /// <remarks>
+    /// WARNING: Keep this method in sync with value handling in src/debugger/evalstackmachine.cpp.
+    /// The caller is responsible for freeing the returned pointer using appropriate interop functions:
+    /// - SysFreeString (from interop.cpp) for strings
+    /// - CoTaskMemFree (from interop.cpp) for other types
+    /// </remarks>
+    private static IntPtr ValueToPtr(object value)
     {
         if (value.GetType() == typeof(string))
             return Marshal.StringToBSTR(value as string);
@@ -175,9 +169,20 @@ public partial class Evaluation
         return ptr;
     }
 
-    private static object ptrToValue(IntPtr ptr, int type)
+    /// <summary>
+    /// Converts an unmanaged pointer back to a managed object based on the specified type.
+    /// </summary>
+    /// <param name="ptr">Pointer to the unmanaged data.</param>
+    /// <param name="type">The BasicType of the data.</param>
+    /// <returns>The converted managed object.</returns>
+    /// <exception cref="ArgumentException">Thrown when the BasicType is not supported.</exception>
+    /// <remarks>
+    /// WARNING: Keep this method in sync with GetValueByOperandDataType in src/debugger/evalstackmachine.cpp.
+    /// </remarks>
+    private static object PtrToValue(IntPtr ptr, int type)
     {
-        if ((BasicTypes)type == BasicTypes.TypeString)
+        var basicType = (BasicTypes)type;
+        if (basicType == BasicTypes.TypeString)
         {
             if (ptr == IntPtr.Zero)
                 return String.Empty;
@@ -185,11 +190,42 @@ public partial class Evaluation
                 return Marshal.PtrToStringBSTR(ptr);
         }
 
+        if (!typesMap.TryGetValue(basicType, out var converter))
+        {
+            throw new ArgumentException($"Invalid BasicTypes value: {basicType}");
+        }
+
         var intValue = Marshal.ReadInt64(ptr);
         var bytesArray = BitConverter.GetBytes(intValue);
-        return typesMap[(BasicTypes)type](bytesArray);
+        return converter(bytesArray);
     }
 
+    /// <summary>
+    /// Performs a calculation on two operands using the specified operation.
+    /// </summary>
+    /// <param name="firstOpPtr">Pointer to the first operand's data in unmanaged memory.</param>
+    /// <param name="firstType">The type of the first operand (BasicTypes).</param>
+    /// <param name="secondOpPtr">Pointer to the second operand's data in unmanaged memory.</param>
+    /// <param name="secondType">The type of the second operand (BasicTypes).</param>
+    /// <param name="operation">The operation to perform (OperationType).</param>
+    /// <param name="resultType">The resulting type (BasicTypes) on success.</param>
+    /// <param name="result">
+    /// Pointer to the result in unmanaged memory. The caller must free this using:
+    /// - SysFreeString (from interop.cpp) for string results (BasicTypes.TypeString)
+    /// - CoTaskMemFree (from interop.cpp) for other primitive types.
+    /// </param>
+    /// <param name="errorText">
+    /// Error message if the operation fails. The caller must free this using SysFreeString.
+    /// </param>
+    /// <returns>
+    /// RetCode.OK on success; 
+    /// RetCode.Fail for invalid parameters (unknown operation type or unsupported operand/result type);
+    /// RetCode.Exception for errors during execution (e.g., arithmetic overflow, invalid cast).
+    /// </returns>
+    /// <remarks>
+    /// WARNING: This method is called from C++ (see src/debugger/evalstackmachine.cpp via CalculationDelegate).
+    /// The signature and error handling must remain consistent with the C++ side.
+    /// </remarks>
     internal static RetCode Calculation(IntPtr firstOpPtr, int firstType, IntPtr secondOpPtr, int secondType,
                                         int operation, out int resultType, out IntPtr result, out IntPtr errorText)
     {
@@ -197,15 +233,49 @@ public partial class Evaluation
         result = IntPtr.Zero;
         errorText = IntPtr.Zero;
 
+        // Validate operation code
+        if (!Enum.IsDefined(typeof(OperationType), operation))
+        {
+            errorText = Marshal.StringToBSTR("error: invalid operation code");
+            return RetCode.Fail;
+        }
+        var op = (OperationType)operation;
+
+        // Validate operand types (strings are handled specially, others must be in typesMap)
+        var firstBasic = (BasicTypes)firstType;
+        var secondBasic = (BasicTypes)secondType;
+        if (firstBasic != BasicTypes.TypeString && !typesMap.ContainsKey(firstBasic))
+        {
+            errorText = Marshal.StringToBSTR("error: invalid first operand type");
+            return RetCode.Fail;
+        }
+        if (secondBasic != BasicTypes.TypeString && !typesMap.ContainsKey(secondBasic))
+        {
+            errorText = Marshal.StringToBSTR("error: invalid second operand type");
+            return RetCode.Fail;
+        }
+
+        // Ensure the operation is supported
+        if (!operationTypesMap.TryGetValue(op, out var opFunc))
+        {
+            errorText = Marshal.StringToBSTR("error: operation not supported");
+            return RetCode.Fail;
+        }
+
         try
         {
-            var firstOp = ptrToValue(firstOpPtr, firstType);
-            var secondOp = ptrToValue(secondOpPtr, secondType);
-            object operationResult = operationTypesMap[(OperationType)operation](firstOp, secondOp);
-            resultType = (int)basicTypesMap[operationResult.GetType()];
-            result = valueToPtr(operationResult);
+            var firstOp = PtrToValue(firstOpPtr, firstType);
+            var secondOp = PtrToValue(secondOpPtr, secondType);
+            object operationResult = opFunc(firstOp, secondOp);
+            if (!basicTypesMap.TryGetValue(operationResult.GetType(), out var resultBasic))
+            {
+                errorText = Marshal.StringToBSTR("error: result type not supported");
+                return RetCode.Fail;
+            }
+            resultType = (int)resultBasic;
+            result = ValueToPtr(operationResult);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             errorText = Marshal.StringToBSTR("error: " + ex.Message);
             return RetCode.Exception;
