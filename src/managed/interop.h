@@ -24,10 +24,6 @@
 
 namespace dncdbg::Interop
 {
-// 0xfeefee is a magic number for "#line hidden" directive.
-// https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/preprocessor-directives/preprocessor-line
-// https://docs.microsoft.com/en-us/archive/blogs/jmstall/line-hidden-and-0xfeefee-sequence-points
-constexpr int HiddenLine = 0xfeefee;
 
 struct SequencePoint
 {
