@@ -1,16 +1,16 @@
 ## C++ types usage in code.
 
-C++ standard fixed width integer types and STL containers usage in code preferable.
+C++ standard fixed-width integer types and STL containers are preferred in code.
 
-**For interaction with MS API (in order to support MSVS build on Windows) allowed limited MS type set:**
+**For interaction with MS API (in order to support MSVS build on Windows), a limited MS type set is allowed:**
 `BOOL`, `BOOLEAN`, `BYTE`, `SHORT`, `USHORT`, `INT`, `UINT`, `LONG`, `ULONG`, `LONGLONG`, `ULONGLONG`, `WORD`, `DWORD`, `DWORDLONG`, `CHAR`, `UCHAR`, `WCHAR`, `SIZE_T` , `SSIZE_T`.
 As an exception, `LPWSTR` usage allowed in order to prevent `WCHAR ***` (`LPWSTR **`) MS API function parameters.
-***Note, MS types should not used out of MS API related code.***
+***Note, MS types should not be used outside of MS API-related code.***
 
 **Not allowed in code:**
-- all MS pointer types (usually have prefix `P` or `LP`), should be replaced with normal type with pointer `*`.
-- all MS const types (have `C` letter in name), should be replaced with normal type and `const` keyword.
-- all MS fixed width integer types, should be replaced with C++ standard fixed width integer types.
+- all MS pointer types (usually have a prefix `P` or `LP`), should be replaced with normal type with pointer `*`.
+- all MS const types (have a `C` letter in name), should be replaced with normal type and `const` keyword.
+- all MS fixed-width integer types, should be replaced with C++ standard fixed-width integer types.
 
 **Conversion for not allowed MS types:**
 

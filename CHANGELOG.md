@@ -21,7 +21,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added TestStdIO.
 - Added TestModules.
 - Added tests for Release build.
-- Added shrinked [diagnostics](https://github.com/dotnet/diagnostics) sources v9.0.661903, dbgshim library build now during debugger build.
+- Added shrunk [diagnostics](https://github.com/dotnet/diagnostics) sources v9.0.661903, dbgshim library build now during debugger build.
 - Added clang-tidy checks.
 - Added cppcheck checks.
 - Added StartupCallback error processing code.

@@ -1,6 +1,6 @@
 # VSCode IDE, local debugging, Windows OS
 
-1. Install `C#` extention from Microsoft
+1. Install `C#` extension from Microsoft
 2. Switch to `Run and Debug` panel
 3. Click on `Generate C# Assets for Build and Debug` button
 5. Open created file inside your project `.vscode/launch.json`
