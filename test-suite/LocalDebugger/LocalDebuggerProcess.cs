@@ -1,9 +1,10 @@
+using System;
 using System.IO;
 using System.Diagnostics;
 
 namespace LocalDebugger
 {
-public class LocalDebuggerProcess
+public class LocalDebuggerProcess : IDisposable
 {
     public LocalDebuggerProcess(string debuggerPath, string debuggerArg)
     {
@@ -34,6 +35,27 @@ public class LocalDebuggerProcess
         DebuggerProcess.Dispose();
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                if (!CloseCalled)
+                {
+                    Close();
+                }
+            }
+            _disposed = true;
+        }
+    }
+
     void DebuggerProcess_Exited(object sender, System.EventArgs e)
     {
         if (!CloseCalled && DebuggerProcess.ExitCode != 0)
@@ -44,10 +66,11 @@ public class LocalDebuggerProcess
         }
     }
 
-    bool CloseCalled = false;
+    private bool CloseCalled = false;
+    private bool _disposed = false;
 
-    public StreamWriter Input;
-    public StreamReader Output;
-    public Process DebuggerProcess;
+    public StreamWriter Input { get; private set; }
+    public StreamReader Output { get; private set; }
+    public Process DebuggerProcess { get; }
 }
 }

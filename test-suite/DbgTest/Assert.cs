@@ -6,8 +6,8 @@ public static class Assert
     {
         bool areEqual;
 
-        if (expected == null || actual == null)
-            areEqual = (expected == null && actual == null);
+        if (expected is null || actual is null)
+            areEqual = (expected is null && actual is null);
         else
             areEqual = expected.Equals(actual);
 
@@ -19,8 +19,8 @@ public static class Assert
     {
         bool areEqual;
 
-        if (expected == null || actual == null)
-            areEqual = (expected == null && actual == null);
+        if (expected is null || actual is null)
+            areEqual = (expected is null && actual is null);
         else
             areEqual = expected.Equals(actual);
 
@@ -42,7 +42,7 @@ public static class Assert
 
     public static void NotNull<T>(T expected, string stacktrace)
     {
-        if (expected == null)
+        if (expected is null)
             throw new ResultNotNullException(stacktrace);
     }
 }

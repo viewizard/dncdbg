@@ -27,7 +27,7 @@ public class DbgTestException : System.Exception
         }
     }
 
-    string UserMessage;
+    private string UserMessage { get; }
     public override string Message => UserMessage;
 }
 
@@ -50,8 +50,8 @@ public class ResultEqualException : System.Exception
     public ResultEqualException(object expected, object actual, string stacktrace)
     {
         UserMessage = "\n Expected:  " + expected.ToString() +
-                        "\n Actual:    " + actual.ToString() + 
-                        "\n Stack Trace:" ;
+                      "\n Actual:    " + actual.ToString() + 
+                      "\n Stack Trace:" ;
 
         foreach (string line in stacktrace.Split('\n'))
         {
@@ -59,7 +59,7 @@ public class ResultEqualException : System.Exception
         }
     }
 
-    string UserMessage;
+    private string UserMessage { get; }
     public override string Message => UserMessage;
 }
 
@@ -68,8 +68,8 @@ public class ResultNotEqualException : System.Exception
     public ResultNotEqualException(object expected, object actual, string stacktrace)
     {
         UserMessage = "\n Expected:  Not " + expected.ToString() +
-                        "\n Actual:    " + actual.ToString() + 
-                        "\n Stack Trace:";
+                      "\n Actual:    " + actual.ToString() + 
+                      "\n Stack Trace:";
 
         foreach (string line in stacktrace.Split('\n'))
         {
@@ -77,7 +77,7 @@ public class ResultNotEqualException : System.Exception
         }
     }
 
-    string UserMessage;
+    private string UserMessage { get; }
     public override string Message => UserMessage;
 }
 
@@ -100,7 +100,7 @@ public class ResultNotNullException : System.Exception
     public ResultNotNullException(string stacktrace)
     {
         UserMessage = "Assert.NotNull() Failure" +
-                        "\n Stack Trace:" ;
+                      "\n Stack Trace:" ;
 
         foreach (string line in stacktrace.Split('\n'))
         {
@@ -108,7 +108,7 @@ public class ResultNotNullException : System.Exception
         }
     }
 
-    string UserMessage;
+    private string UserMessage { get; }
     public override string Message => UserMessage;
 }
 }

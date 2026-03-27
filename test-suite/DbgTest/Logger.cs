@@ -2,14 +2,14 @@ using System;
 
 namespace DbgTest
 {
-class Logger
+internal static class Logger
 {
-    public void LogLine(string line)
+    public static void LogLine(string line)
     {
         Console.WriteLine(line);
     }
 
-    public void LogError(string error)
+    public static void LogError(string error)
     {
         Console.Error.WriteLine(error);
     }

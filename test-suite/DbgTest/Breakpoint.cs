@@ -16,8 +16,8 @@ public class Breakpoint
         Type = type;
     }
 
-    public string Name;
-    public BreakpointType Type;
+    public string Name { get; }
+    public BreakpointType Type { get; }
 }
 
 public class LineBreakpoint : Breakpoint
@@ -29,7 +29,7 @@ public class LineBreakpoint : Breakpoint
         NumLine = numLine;
     }
 
-    public string FileName;
-    public int NumLine;
+    public string FileName { get; }
+    public int NumLine { get; }
 }
 }

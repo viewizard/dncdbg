@@ -25,7 +25,7 @@ class Program
             return 1;
         }
 
-        if (cli.ClientInfo == null)
+        if (cli.ClientInfo is null)
         {
             Console.Error.WriteLine("Please define client type");
             return 1;
@@ -78,7 +78,7 @@ class Program
 
         try
         {
-            new ControlPart().Run(script, debugger, cli.Environment);
+            ControlPart.Run(script, debugger, cli.Environment);
             Console.WriteLine("Success: Test case \"{0}\" is passed!!!", cli.Environment.TestName);
         }
         catch (System.Exception e)
@@ -254,9 +254,9 @@ options:
     ");
     }
 
-    public bool NeedHelp = false;
-    public DbgTestCore.Environment Environment;
-    public LocalClientInfo ClientInfo;
+    public bool NeedHelp { get; } = false;
+    public DbgTestCore.Environment Environment { get; }
+    public LocalClientInfo ClientInfo { get; private set; }
 }
 
 class LocalClientInfo
@@ -266,6 +266,6 @@ class LocalClientInfo
         DebuggerPath = debuggerPath;
     }
 
-    public string DebuggerPath;
+    public string DebuggerPath { get; }
 }
 }

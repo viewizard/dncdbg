@@ -30,7 +30,7 @@ public class DAPResult : Tuple<bool, string>
 
 public class DAPDebugger
 {
-    public bool isResponseContainProperty(string stringJSON, string testField, string testValue)
+    public bool IsResponseContainProperty(string stringJSON, string testField, string testValue)
     {
         JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
         while (reader.Read())
@@ -76,14 +76,10 @@ public class DAPDebugger
 
         while (true)
         {
-            string[] response = DebuggerClient.Receive(timeout);
-            if (response == null)
-            {
-                throw new DebuggerNotResponses();
-            }
+            string[] response = DebuggerClient.Receive(timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
 
-            if (isResponseContainProperty(line, "type", "response"))
+            if (IsResponseContainProperty(line, "type", "response"))
             {
                 Logger.LogLine("<- (R) " + line);
                 if ((Int64)GetResponsePropertyValue(line, "request_seq") == command.seq)
@@ -99,7 +95,7 @@ public class DAPDebugger
                 bool stopEvent = false;
                 foreach (var Event in StopEvents)
                 {
-                    if (isResponseContainProperty(line, "event", Event))
+                    if (IsResponseContainProperty(line, "event", Event))
                     {
                         stopEvent = true;
                     }
@@ -115,11 +111,7 @@ public class DAPDebugger
     {
         while (true)
         {
-            string[] response = DebuggerClient.Receive(timeout);
-            if (response == null)
-            {
-                throw new DebuggerNotResponses();
-            }
+            string[] response = DebuggerClient.Receive(timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
 
             Logger.LogLine("<- (E) " + line);
@@ -127,7 +119,7 @@ public class DAPDebugger
 
             foreach (var Event in StopEvents)
             {
-                if (isResponseContainProperty(line, "event", Event))
+                if (IsResponseContainProperty(line, "event", Event))
                 {
                     return;
                 }
@@ -178,9 +170,8 @@ public class DAPDebugger
 
     Queue<string> EventQueue = new Queue<string>();
     List<string> NotStopEventList = new List<string>();
-    Logger Logger = new Logger();
-    DebuggerClient DebuggerClient;
-    static string[] StopEvents = { "stopped", "terminated" };
+    readonly DebuggerClient DebuggerClient;
+    static readonly string[] StopEvents = { "stopped", "terminated" };
     int RequestSeq = 1;
 }
 }

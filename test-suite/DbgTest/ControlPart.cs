@@ -6,18 +6,17 @@ namespace DbgTestCore
 {
 public class ControlPart
 {
-    public void Run(ControlScript script, DebuggerClient debugger, DbgTestCore.Environment env)
+    public static void Run(ControlScript script, DebuggerClient debugger, DbgTestCore.Environment env)
     {
-        ControlInfo info = new ControlInfo(script, env);
-        script.ExecuteCheckPoints(info, debugger);
+        script.ExecuteCheckPoints(new ControlInfo(script, env), debugger);
     }
 }
 
 public class Environment
 {
-    public string TestName = null;
-    public string SourceFilesPath = null;
-    public string TargetAssemblyPath = null;
-    public string CorerunPath = "dotnet";
+    public string TestName { get; set; } = null;
+    public string SourceFilesPath { get; set; } = null;
+    public string TargetAssemblyPath { get; set; } = null;
+    public string CorerunPath { get; set; } = "dotnet";
 }
 }

@@ -49,7 +49,7 @@ public class ScriptNotBuiltException : Exception
         return sb.ToString();
     }
 
-    EmitResult Result;
+    private EmitResult Result { get; }
 }
 
 public class ControlScript
@@ -251,10 +251,10 @@ namespace DbgTestCore
         }
     }
 
-    Type generatedScriptClass = null;
-    TestLabelsInfo TestLabelsInfo = null;
-    SyntaxList<MemberDeclarationSyntax> ScriptDeclarations;
-    string ControlScriptDummyText;
+    readonly Type generatedScriptClass = null;
+    readonly TestLabelsInfo TestLabelsInfo = null;
+    readonly SyntaxList<MemberDeclarationSyntax> ScriptDeclarations;
+    readonly string ControlScriptDummyText;
 }
 
 public class TestLabelsInfo
@@ -265,8 +265,8 @@ public class TestLabelsInfo
         Breakpoints = new Dictionary<string, Breakpoint>();
     }
 
-    public Dictionary<string, Tuple<string, InvocationExpressionSyntax>> CheckPointInvokes;
-    public Dictionary<string, Breakpoint> Breakpoints;
+    public Dictionary<string, Tuple<string, InvocationExpressionSyntax>> CheckPointInvokes { get; }
+    public Dictionary<string, Breakpoint> Breakpoints { get; }
 }
 
 public class TestLabelsInfoCollector : CSharpSyntaxWalker
@@ -308,8 +308,8 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
         base.VisitInvocationExpression(node);
     }
 
-    public TestLabelsInfo TestLabelsInfo;
-    Type TypeClassBP;
+    public TestLabelsInfo TestLabelsInfo { get; }
+    private Type TypeClassBP { get; }
 }
 
 public class GeneratedScriptInvokesBuilder : CSharpSyntaxRewriter
@@ -369,15 +369,12 @@ public class GeneratedScriptInvokesBuilder : CSharpSyntaxRewriter
         return node.WithBody(SyntaxFactory.Block(statements.ToArray()));
     }
 
-    TestLabelsInfo TestLabelsInfo;
+    private TestLabelsInfo TestLabelsInfo { get; }
 }
 
 public class ScriptDeclarationsCollector : CSharpSyntaxWalker
 {
-    public ScriptDeclarationsCollector()
-    {
-        ScriptDeclarations = new SyntaxList<MemberDeclarationSyntax>(new List<MemberDeclarationSyntax>());
-    }
+    public SyntaxList<MemberDeclarationSyntax> ScriptDeclarations { get; private set; }
 
     public override void VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
     {
@@ -392,8 +389,6 @@ public class ScriptDeclarationsCollector : CSharpSyntaxWalker
             this.Visit(subNode);
         }
     }
-
-    public SyntaxList<MemberDeclarationSyntax> ScriptDeclarations;
 }
 
 public class GeneratedScriptDeclarationsBuilder : CSharpSyntaxRewriter
@@ -413,6 +408,6 @@ public class GeneratedScriptDeclarationsBuilder : CSharpSyntaxRewriter
         return node;
     }
 
-    SyntaxList<MemberDeclarationSyntax> ScriptDeclarations;
+    private SyntaxList<MemberDeclarationSyntax> ScriptDeclarations { get; }
 }
 }

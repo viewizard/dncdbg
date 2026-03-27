@@ -125,8 +125,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -141,8 +141,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "entry"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -165,13 +165,13 @@ class Context
 
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "exited"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "exited"))
             {
                 wasExited = true;
                 ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON);
                 exitCode = exitedEvent.body.exitCode;
             }
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "terminated"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "terminated"))
             {
                 wasTerminated = true;
             }
@@ -249,8 +249,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -402,8 +402,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "step"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "step"))
             {
 
                 // In case of async method, thread could be changed, care about this.
@@ -441,8 +441,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -478,8 +478,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -543,8 +543,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "pause"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -594,8 +594,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "pause"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
             {
                 PauseResponse pauseResponse = JsonConvert.DeserializeObject<PauseResponse>(resJSON);
                 if (pauseResponse.body.threadId == threadId)
@@ -1050,8 +1050,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -1091,8 +1091,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -1124,8 +1124,8 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.isResponseContainProperty(resJSON, "reason", "exception"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
             {
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
@@ -1175,7 +1175,7 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "output"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "output"))
             {
                 OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON);
                 if (outputEvent.body.category == category && outputEvent.body.output == output)
@@ -1191,7 +1191,7 @@ class Context
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.isResponseContainProperty(resJSON, "event", "output"))
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "output"))
             {
                 OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON);
                 if (outputEvent.body.category == category && outputEvent.body.output == output)

@@ -16,8 +16,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
         DebuggerOutput = output;
         GetInput = new AutoResetEvent(false);
         GotInput = new AutoResetEvent(false);
-        InputThread = new Thread(ReaderThread);
-        InputThread.IsBackground = true;
+        InputThread = new Thread(ReaderThread) { IsBackground = true };
         InputThread.Start();
     }
 
@@ -39,11 +38,11 @@ public class DAPLocalDebuggerClient : DebuggerClient
     public override string[] Receive(int timeout)
     {
         string line = ReceiveOutputLine(timeout);
-        if (line == null)
+        if (line is null)
         {
             return null;
         }
-        return new string[1] { line };
+        return [line];
     }
 
     public override void Close()
@@ -124,7 +123,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
             throw new DebuggerNotResponses();
         }
 
-        if (InputString == null)
+        if (InputString is null)
         {
             return null;
         }
@@ -132,12 +131,12 @@ public class DAPLocalDebuggerClient : DebuggerClient
         return InputString;
     }
 
-    StreamWriter DebuggerInput;
-    StreamReader DebuggerOutput;
-    Thread InputThread;
-    AutoResetEvent GetInput, GotInput;
+    readonly StreamWriter DebuggerInput;
+    readonly StreamReader DebuggerOutput;
+    readonly Thread InputThread;
+    readonly AutoResetEvent GetInput, GotInput;
     string InputString;
-    static string TWO_CRLF = "\r\n\r\n";
-    static string CONTENT_LENGTH = "Content-Length: ";
+    static readonly string TWO_CRLF = "\r\n\r\n";
+    static readonly string CONTENT_LENGTH = "Content-Length: ";
 }
 }
