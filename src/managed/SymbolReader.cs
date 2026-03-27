@@ -166,7 +166,6 @@ public class SymbolReader
         public override bool CanWrite => false;
 
         public TargetStream(ulong address, int size, ReadMemoryDelegate readMemory)
-            : base()
         {
             _address = address;
             _readMemory = readMemory ?? throw new ArgumentNullException(nameof(readMemory));
@@ -176,23 +175,21 @@ public class SymbolReader
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (buffer == null)
+            if (buffer is null)
                 throw new ArgumentNullException(nameof(buffer));
             if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be non-negative");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count), "Count must be non-negative");
+                throw new ArgumentOutOfRangeException(nameof(count));
             if (offset + count > buffer.Length)
-                throw new ArgumentException("Offset plus count exceeds buffer length");
+                throw new ArgumentException("Offset plus count exceeds buffer length", nameof(offset));
 
             if (Position + count > Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), "Requested read goes beyond stream length");
-            }
+                throw new ArgumentOutOfRangeException(nameof(count));
 
             unsafe
             {
-                fixed (byte *p = &buffer[offset])
+                fixed (byte* p = &buffer[offset])
                 {
                     int read = _readMemory(_address + (ulong)Position, p, count);
                     Position += read;
@@ -240,7 +237,7 @@ public class SymbolReader
     /// <returns>Last component of path</returns>
     private static string GetFileName(string pathName)
     {
-        if (pathName == null)
+        if (pathName is null)
             throw new ArgumentNullException(nameof(pathName));
 
         int pos = pathName.LastIndexOfAny(new[] { '/', '\\' });
@@ -279,7 +276,7 @@ public class SymbolReader
         {
             try
             {
-                if (assemblyPath == null && loadedPeAddress != 0)
+                if (assemblyPath is null && loadedPeAddress != 0)
                 {
                     peStream = new TargetStream(loadedPeAddress, loadedPeSize, readMemory);
                 }
@@ -1204,7 +1201,7 @@ public class SymbolReader
         }
         finally
         {
-            if (result == null)
+            if (result is null)
             {
                 provider?.Dispose();
             }
@@ -1215,17 +1212,17 @@ public class SymbolReader
 
     private static OpenedReader TryOpenReaderFromAssembly(string assemblyPath, bool isFileLayout, Stream peStream)
     {
-        if (assemblyPath == null && peStream == null)
+        if (assemblyPath is null && peStream is null)
             return null;
 
         PEStreamOptions options = isFileLayout ? PEStreamOptions.Default : PEStreamOptions.IsLoadedImage;
         Stream streamToDispose = null;
         bool createdStream = false;
 
-        if (peStream == null)
+        if (peStream is null)
         {
             peStream = TryOpenFile(assemblyPath);
-            if (peStream == null)
+            if (peStream is null)
                 return null;
 
             streamToDispose = peStream;
@@ -1322,7 +1319,7 @@ public class SymbolReader
             }
 
             var pdbStream = TryOpenFile(pdbPath);
-            if (pdbStream == null && assemblyPath != null)
+            if (pdbStream is null && assemblyPath != null)
             {
                 // workaround, since NI file could be generated in `.native_image` subdirectory
                 // NOTE this is temporary solution until we add option for specifying pdb path
@@ -1344,7 +1341,7 @@ public class SymbolReader
 
                 pdbStream = TryOpenFile(pdbPath);
             }
-            if (pdbStream == null)
+            if (pdbStream is null)
             {
                 return null;
             }
@@ -1364,7 +1361,7 @@ public class SymbolReader
         }
         finally
         {
-            if (result == null)
+            if (result is null)
             {
                 provider?.Dispose();
             }
@@ -1391,7 +1388,7 @@ public class SymbolReader
         }
         finally
         {
-            if (result == null)
+            if (result is null)
             {
                 provider?.Dispose();
             }

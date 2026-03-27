@@ -57,7 +57,7 @@ public static class Utils
     {
         dstString = IntPtr.Zero;
 
-        if (srcString == null)
+        if (srcString is null)
         {
             return RetCode.Fail;
         }

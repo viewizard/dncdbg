@@ -91,28 +91,28 @@ public partial class Evaluation
     internal static readonly Dictionary<OperationType, Func<object, object, object>> operationTypesMap =
         new Dictionary<OperationType, Func<object, object, object>>
         {
-            { OperationType.AddExpression, (object firstOp, object secondOp) => AddExpression(firstOp, secondOp) },
-            { OperationType.DivideExpression, (object firstOp, object secondOp) => DivideExpression(firstOp, secondOp) },
-            { OperationType.MultiplyExpression, (object firstOp, object secondOp) => MultiplyExpression(firstOp, secondOp) },
-            { OperationType.ModuloExpression, (object firstOp, object secondOp) => ModuloExpression(firstOp, secondOp) },
-            { OperationType.SubtractExpression, (object firstOp, object secondOp) => SubtractExpression(firstOp, secondOp) },
-            { OperationType.RightShiftExpression, (object firstOp, object secondOp) => RightShiftExpression(firstOp, secondOp) },
-            { OperationType.LeftShiftExpression, (object firstOp, object secondOp) => LeftShiftExpression(firstOp, secondOp) },
-            { OperationType.BitwiseNotExpression, (object firstOp, object secondOp) => BitwiseNotExpression(firstOp) },
-            { OperationType.LogicalAndExpression, (object firstOp, object secondOp) => LogicalAndExpression(firstOp, secondOp) },
-            { OperationType.LogicalOrExpression, (object firstOp, object secondOp) => LogicalOrExpression(firstOp, secondOp) },
-            { OperationType.ExclusiveOrExpression, (object firstOp, object secondOp) => ExclusiveOrExpression(firstOp, secondOp) },
-            { OperationType.BitwiseAndExpression, (object firstOp, object secondOp) => BitwiseAndExpression(firstOp, secondOp) },
-            { OperationType.BitwiseOrExpression, (object firstOp, object secondOp) => BitwiseOrExpression(firstOp, secondOp) },
-            { OperationType.LogicalNotExpression, (object firstOp, object secondOp) => LogicalNotExpression(firstOp) },
-            { OperationType.EqualsExpression, (object firstOp, object secondOp) => EqualsExpression(firstOp, secondOp) },
-            { OperationType.NotEqualsExpression, (object firstOp, object secondOp) => NotEqualsExpression(firstOp, secondOp) },
-            { OperationType.LessThanExpression, (object firstOp, object secondOp) => LessThanExpression(firstOp, secondOp) },
-            { OperationType.GreaterThanExpression, (object firstOp, object secondOp) => GreaterThanExpression(firstOp, secondOp) },
-            { OperationType.LessThanOrEqualExpression, (object firstOp, object secondOp) => LessThanOrEqualExpression(firstOp, secondOp) },
-            { OperationType.GreaterThanOrEqualExpression, (object firstOp, object secondOp) => GreaterThanOrEqualExpression(firstOp, secondOp) },
-            { OperationType.UnaryPlusExpression, (object firstOp, object secondOp) => UnaryPlusExpression(firstOp) },
-            { OperationType.UnaryMinusExpression, (object firstOp, object secondOp) => UnaryMinusExpression(firstOp) }
+            { OperationType.AddExpression, AddExpression },
+            { OperationType.DivideExpression, DivideExpression },
+            { OperationType.MultiplyExpression, MultiplyExpression },
+            { OperationType.ModuloExpression, ModuloExpression },
+            { OperationType.SubtractExpression, SubtractExpression },
+            { OperationType.RightShiftExpression, RightShiftExpression },
+            { OperationType.LeftShiftExpression, LeftShiftExpression },
+            { OperationType.BitwiseNotExpression, (firstOp, _) => BitwiseNotExpression(firstOp) },
+            { OperationType.LogicalAndExpression, (firstOp, secondOp) => LogicalAndExpression(firstOp, secondOp) },
+            { OperationType.LogicalOrExpression, (firstOp, secondOp) => LogicalOrExpression(firstOp, secondOp) },
+            { OperationType.ExclusiveOrExpression, ExclusiveOrExpression },
+            { OperationType.BitwiseAndExpression, BitwiseAndExpression },
+            { OperationType.BitwiseOrExpression, BitwiseOrExpression },
+            { OperationType.LogicalNotExpression, (firstOp, _) => LogicalNotExpression(firstOp) },
+            { OperationType.EqualsExpression, (firstOp, secondOp) => EqualsExpression(firstOp, secondOp) },
+            { OperationType.NotEqualsExpression, (firstOp, secondOp) => NotEqualsExpression(firstOp, secondOp) },
+            { OperationType.LessThanExpression, (firstOp, secondOp) => LessThanExpression(firstOp, secondOp) },
+            { OperationType.GreaterThanExpression, (firstOp, secondOp) => GreaterThanExpression(firstOp, secondOp) },
+            { OperationType.LessThanOrEqualExpression, (firstOp, secondOp) => LessThanOrEqualExpression(firstOp, secondOp) },
+            { OperationType.GreaterThanOrEqualExpression, (firstOp, secondOp) => GreaterThanOrEqualExpression(firstOp, secondOp) },
+            { OperationType.UnaryPlusExpression, (firstOp, _) => UnaryPlusExpression(firstOp) },
+            { OperationType.UnaryMinusExpression, (firstOp, _) => UnaryMinusExpression(firstOp) }
         };
 
     /// <summary>
@@ -124,18 +124,18 @@ public partial class Evaluation
     internal static readonly Dictionary<BasicTypes, Func<byte[], object>> typesMap =
         new Dictionary<BasicTypes, Func<byte[], object>>
         {
-            { BasicTypes.TypeBoolean, (byte[] values) => BitConverter.ToBoolean(values, 0) },
-            { BasicTypes.TypeByte, (byte[] values) => values[0] },
-            { BasicTypes.TypeChar, (byte[] values) => BitConverter.ToChar(values, 0) },
-            { BasicTypes.TypeDouble, (byte[] values) => BitConverter.ToDouble(values, 0) },
-            { BasicTypes.TypeInt16, (byte[] values) => BitConverter.ToInt16(values, 0) },
-            { BasicTypes.TypeInt32, (byte[] values) => BitConverter.ToInt32(values, 0) },
-            { BasicTypes.TypeInt64, (byte[] values) => BitConverter.ToInt64(values, 0) },
-            { BasicTypes.TypeSByte, (byte[] values) => (sbyte)values[0] },
-            { BasicTypes.TypeSingle, (byte[] values) => BitConverter.ToSingle(values, 0) },
-            { BasicTypes.TypeUInt16, (byte[] values) => BitConverter.ToUInt16(values, 0) },
-            { BasicTypes.TypeUInt32, (byte[] values) => BitConverter.ToUInt32(values, 0) },
-            { BasicTypes.TypeUInt64, (byte[] values) => BitConverter.ToUInt64(values, 0) }
+            { BasicTypes.TypeBoolean, values => BitConverter.ToBoolean(values, 0) },
+            { BasicTypes.TypeByte, values => values[0] },
+            { BasicTypes.TypeChar, values => BitConverter.ToChar(values, 0) },
+            { BasicTypes.TypeDouble, values => BitConverter.ToDouble(values, 0) },
+            { BasicTypes.TypeInt16, values => BitConverter.ToInt16(values, 0) },
+            { BasicTypes.TypeInt32, values => BitConverter.ToInt32(values, 0) },
+            { BasicTypes.TypeInt64, values => BitConverter.ToInt64(values, 0) },
+            { BasicTypes.TypeSByte, values => (sbyte)values[0] },
+            { BasicTypes.TypeSingle, values => BitConverter.ToSingle(values, 0) },
+            { BasicTypes.TypeUInt16, values => BitConverter.ToUInt16(values, 0) },
+            { BasicTypes.TypeUInt32, values => BitConverter.ToUInt32(values, 0) },
+            { BasicTypes.TypeUInt64, values => BitConverter.ToUInt64(values, 0) }
         };
 
     /// <summary>

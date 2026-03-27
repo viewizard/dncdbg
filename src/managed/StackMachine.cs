@@ -85,21 +85,20 @@ public partial class Evaluation
     /// WARNING: Memory management is critical here. The caller is responsible for freeing
     /// the returned data pointer using Marshal.FreeCoTaskMem or the appropriate method.
     /// </remarks>
-    static void MarshalValue(object value, out int size, out IntPtr data)
+    private static void MarshalValue(object value, out int size, out IntPtr data)
     {
         if (value is string stringValue)
         {
             data = Marshal.StringToBSTR(stringValue);
             size = 0;
         }
-        else if (value is char)
+        else if (value is char charValue)
         {
-            BlittableChar charValue = (BlittableChar)((char)value);
-            size = Marshal.SizeOf(charValue);
+            size = Marshal.SizeOf<BlittableChar>();
             data = Marshal.AllocCoTaskMem(size);
             try
             {
-                Marshal.StructureToPtr(charValue, data, false);
+                Marshal.StructureToPtr((BlittableChar)charValue, data, false);
             }
             catch
             {
@@ -109,14 +108,13 @@ public partial class Evaluation
                 throw;
             }
         }
-        else if (value is bool)
+        else if (value is bool boolValue)
         {
-            BlittableBoolean b = (BlittableBoolean)((bool)value);
-            size = Marshal.SizeOf(b);
+            size = Marshal.SizeOf<BlittableBoolean>();
             data = Marshal.AllocCoTaskMem(size);
             try
             {
-                Marshal.StructureToPtr(b, data, false);
+                Marshal.StructureToPtr((BlittableBoolean)boolValue, data, false);
             }
             catch
             {
@@ -165,7 +163,7 @@ public partial class Evaluation
     /// WARNING: Order and values must match BasicTypesAlias arrays in src/debugger/evalstackmachine.cpp.
     /// Used as array indices - DO NOT change order or values.
     /// </remarks>
-    enum ePredefinedType
+    internal enum ePredefinedType
     {
         BoolKeyword,
         ByteKeyword,
@@ -228,7 +226,7 @@ public partial class Evaluation
 
     // WARNING: The order and values of this enum must be kept in sync with the CommandImplementation array
     // in src/debugger/evalstackmachine.cpp. Changing this order will break the stack machine execution.
-    public enum eOpCode
+    internal enum eOpCode
     {
         IdentifierName,
         GenericName,
@@ -348,7 +346,7 @@ public partial class Evaluation
 
     public abstract class ICommand : IDisposable
     {
-        public eOpCode OpCode { get; protected set; }
+        internal eOpCode OpCode { get; private protected set; }
         protected uint Flags;
         protected IntPtr argsStructPtr;
         protected bool _disposed = false;
@@ -414,9 +412,7 @@ public partial class Evaluation
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("{0}    flags={1}", OpCode, Flags);
-            return sb.ToString();
+            return $"{OpCode}    flags={Flags}";
         }
     }
 
@@ -436,7 +432,7 @@ public partial class Evaluation
             public int Int;
         }
 
-        object Argument;
+        private readonly object Argument;
         private bool stringAllocated = false;
 
         public OneOperandCommand(SyntaxKind kind, uint flags, object arg)
@@ -497,7 +493,7 @@ public partial class Evaluation
             }
             else
             {
-                throw new NotImplementedException(Argument.GetType() + " type not implemented in OneOperandCommand!");
+                throw new NotImplementedException($"{Argument.GetType()} type not implemented in {nameof(OneOperandCommand)}!");
             }
 
             return argsStructPtr;
@@ -505,9 +501,7 @@ public partial class Evaluation
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("{0}    flags={1}    {2}", OpCode, Flags, Argument);
-            return sb.ToString();
+            return $"{OpCode}    flags={Flags}    {Argument}";
         }
     }
 
@@ -531,7 +525,7 @@ public partial class Evaluation
 
         // WARNING: The following structs (FormatF, FormatFS, FormatFI, FormatFIS, FormatFIP) must match the layout
         // of the corresponding C++ structs in src/debugger/evalstackmachine.cpp exactly. Do not change field types, order, or names.
-        object[] Arguments;
+        private readonly object[] Arguments;
         private bool stringAllocated = false;
         private bool ptrAllocated = false;
 
@@ -608,7 +602,7 @@ public partial class Evaluation
             }
             else
             {
-                throw new NotImplementedException(Arguments[0].GetType() + " + " + Arguments[1].GetType() + " pair not implemented in TwoOperandCommand!");
+                throw new NotImplementedException($"{Arguments[0].GetType()} + {Arguments[1].GetType()} pair not implemented in {nameof(TwoOperandCommand)}!");
             }
 
             return argsStructPtr;
@@ -616,11 +610,11 @@ public partial class Evaluation
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("{0}    flags={1}", OpCode, Flags);
+            var sb = new StringBuilder();
+            sb.Append($"{OpCode}    flags={Flags}");
             foreach (var arg in Arguments)
             {
-                sb.AppendFormat("    {0}", arg);
+                sb.Append($"    {arg}");
             }
             return sb.ToString();
         }
@@ -639,16 +633,29 @@ public partial class Evaluation
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
             if (!_disposed)
             {
-                foreach (var cmd in Commands)
+                if (disposing)
                 {
-                    cmd?.Dispose();
+                    foreach (var cmd in Commands)
+                    {
+                        cmd?.Dispose();
+                    }
+                    Commands.Clear();
                 }
-                Commands.Clear();
                 _disposed = true;
-                GC.SuppressFinalize(this);
             }
+        }
+
+        ~StackMachineProgram()
+        {
+            Dispose(false);
         }
     }
 
@@ -671,34 +678,34 @@ public partial class Evaluation
 
     public class TreeWalker : CSharpSyntaxWalker
     {
-        bool ExpressionStatementBody = false;
-        public int ExpressionStatementCount = 0;
+        private bool isInExpressionStatement = false;
+        public int ExpressionStatementCount { get; private set; } = 0;
 #if DEBUG_STACKMACHINE
         // Gather AST data for DebugText.
-        List<string> ST = new List<string>();
-        int CurrentNodeDepth = 0;
+        private List<string> ST = new List<string>();
+        private int CurrentNodeDepth = 0;
 #endif
 
         // CheckedExpression/UncheckedExpression syntax kind related
-        static readonly uint maskChecked = 0xFFFFFFFE;
-        static readonly uint flagChecked = 0x00000001;
-        static readonly uint flagUnchecked = 0x00000000;
+        private static readonly uint maskChecked = 0xFFFFFFFE;
+        private static readonly uint flagChecked = 0x00000001;
+        private static readonly uint flagUnchecked = 0x00000000;
         // Tracking current AST scope flags.
-        static readonly uint defaultScopeFlags = flagUnchecked;
-        Stack<uint> CurrentScopeFlags = new Stack<uint>();
+        private static readonly uint defaultScopeFlags = flagUnchecked;
+        private Stack<uint> CurrentScopeFlags = new Stack<uint>();
 
-        public StackMachineProgram stackMachineProgram = new StackMachineProgram();
+        internal StackMachineProgram stackMachineProgram = new StackMachineProgram();
 
         public override void Visit(SyntaxNode node)
         {
             if (Microsoft.CodeAnalysis.CSharpExtensions.IsKind(node, SyntaxKind.ExpressionStatement))
             {
                 ExpressionStatementCount++;
-                ExpressionStatementBody = true;
+                isInExpressionStatement = true;
                 base.Visit(node);
-                ExpressionStatementBody = false;
+                isInExpressionStatement = false;
             }
-            else if (ExpressionStatementBody)
+            else if (isInExpressionStatement)
             {
                 // Setup flags before base.Visit() call, since all nested Kinds must have proper flags.
                 if (CurrentScopeFlags.Count == 0)
@@ -767,9 +774,9 @@ public partial class Evaluation
                             GenericNameArgs++;
                         }
                     }
-                    if (GenericNameArgs == null || (GenericNameArgs < 1 && !OmittedTypeArg))
+                    if (!GenericNameArgs.HasValue || (GenericNameArgs.Value < 1 && !OmittedTypeArg))
                     {
-                        throw new ArgumentOutOfRangeException(node.Kind() + " must have at least one type!");
+                        throw new ArgumentOutOfRangeException(nameof(node), $"{node.Kind()} must have at least one type!");
                     }
                     stackMachineProgram.Commands.Add(new TwoOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), node.GetFirstToken().Value, GenericNameArgs));
                     break;
@@ -785,7 +792,7 @@ public partial class Evaluation
                         if (!Microsoft.CodeAnalysis.CSharpExtensions.IsKind(child, SyntaxKind.ArgumentList))
                             continue;
 
-                        ArgsCount = new int();
+                        ArgsCount = 0;
 
                         foreach (var ArgumentListChild in child.ChildNodes())
                         {
@@ -795,9 +802,9 @@ public partial class Evaluation
                             ArgsCount++;
                         }
                     }
-                    if (ArgsCount == null)
+                    if (!ArgsCount.HasValue)
                     {
-                        throw new ArgumentOutOfRangeException(node.Kind() + " must have at least one argument!");
+                        throw new ArgumentOutOfRangeException(nameof(node), $"{node.Kind()} must have at least one argument!");
                     }
                     stackMachineProgram.Commands.Add(new OneOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), ArgsCount));
                     break;
@@ -813,7 +820,7 @@ public partial class Evaluation
                         if (!Microsoft.CodeAnalysis.CSharpExtensions.IsKind(child, SyntaxKind.BracketedArgumentList))
                             continue;
 
-                        ElementAccessArgs = new int();
+                        ElementAccessArgs = 0;
 
                         foreach (var ArgumentListChild in child.ChildNodes())
                         {
@@ -823,9 +830,9 @@ public partial class Evaluation
                             ElementAccessArgs++;
                         }
                     }
-                    if (ElementAccessArgs == null)
+                    if (!ElementAccessArgs.HasValue)
                     {
-                        throw new ArgumentOutOfRangeException(node.Kind() + " must have at least one argument!");
+                        throw new ArgumentOutOfRangeException(nameof(node), $"{node.Kind()} must have at least one argument!");
                     }
                     stackMachineProgram.Commands.Add(new OneOperandCommand(node.Kind(), CurrentScopeFlags.Peek(), ElementAccessArgs));
                     break;
@@ -904,7 +911,7 @@ public partial class Evaluation
                     break;
 
                 default:
-                    throw new SyntaxKindNotImplementedException(node.Kind() + " not implemented!");
+                    throw new SyntaxKindNotImplementedException($"{node.Kind()} not implemented!");
                 }
 
                 CurrentScopeFlags.Pop();
