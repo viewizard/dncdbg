@@ -4,14 +4,14 @@
 //
 // Note: this file should be compiled with following C-preprocessor macros defined:
 //
-//   * VERSION -- version for displaing (like x.y.z, short string);
+//   * VERSION -- version for displaying (like x.y.z, short string);
 //
 //   * BUILD_TYPE -- Debug, Release...
 //
 //   * DNCDBG_VCS_INFO -- should contain GIT revision hash,
 //     tag name, SVN revision number, etc... might be empty, if revision isn't known;
 //
-//   * OS_NAME should constain OS name for which project was build;
+//   * OS_NAME should contain OS name for which project was build;
 //
 //   * CPU_ARCH should contain name of the CPU architecture;
 //

@@ -887,7 +887,7 @@ bool SupportedByCalculationType(CorElementType elemType)
     return supportedElementTypes.find(elemType) != supportedElementTypes.end();
 }
 
-HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT CalculateTwoOperands(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue2;
@@ -1017,7 +1017,7 @@ HRESULT CalculateTwoOparands(OperationType opType, std::list<EvalStackEntry> &ev
     return Status;
 }
 
-HRESULT CalculateOneOparand(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT CalculateOneOperand(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
@@ -1773,92 +1773,92 @@ HRESULT AsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArgument
 
 HRESULT AddExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::AddExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::AddExpression, evalStack, output, ed);
 }
 
 HRESULT MultiplyExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::MultiplyExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::MultiplyExpression, evalStack, output, ed);
 }
 
 HRESULT SubtractExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::SubtractExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::SubtractExpression, evalStack, output, ed);
 }
 
 HRESULT DivideExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::DivideExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::DivideExpression, evalStack, output, ed);
 }
 
 HRESULT ModuloExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::ModuloExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::ModuloExpression, evalStack, output, ed);
 }
 
 HRESULT LeftShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::LeftShiftExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::LeftShiftExpression, evalStack, output, ed);
 }
 
 HRESULT RightShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::RightShiftExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::RightShiftExpression, evalStack, output, ed);
 }
 
 HRESULT BitwiseAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::BitwiseAndExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::BitwiseAndExpression, evalStack, output, ed);
 }
 
 HRESULT BitwiseOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::BitwiseOrExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::BitwiseOrExpression, evalStack, output, ed);
 }
 
 HRESULT ExclusiveOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
 }
 
 HRESULT LogicalAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::LogicalAndExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::LogicalAndExpression, evalStack, output, ed);
 }
 
 HRESULT LogicalOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::LogicalOrExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::LogicalOrExpression, evalStack, output, ed);
 }
 
 HRESULT EqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::EqualsExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::EqualsExpression, evalStack, output, ed);
 }
 
 HRESULT NotEqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::NotEqualsExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::NotEqualsExpression, evalStack, output, ed);
 }
 
 HRESULT GreaterThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::GreaterThanExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::GreaterThanExpression, evalStack, output, ed);
 }
 
 HRESULT LessThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::LessThanExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::LessThanExpression, evalStack, output, ed);
 }
 
 HRESULT GreaterThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
 }
 
 HRESULT LessThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateTwoOparands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
+    return CalculateTwoOperands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
 }
 
 HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
@@ -1869,22 +1869,22 @@ HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArgument
 
 HRESULT UnaryPlusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateOneOparand(OperationType::UnaryPlusExpression, evalStack, output, ed);
+    return CalculateOneOperand(OperationType::UnaryPlusExpression, evalStack, output, ed);
 }
 
 HRESULT UnaryMinusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateOneOparand(OperationType::UnaryMinusExpression, evalStack, output, ed);
+    return CalculateOneOperand(OperationType::UnaryMinusExpression, evalStack, output, ed);
 }
 
 HRESULT LogicalNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateOneOparand(OperationType::LogicalNotExpression, evalStack, output, ed);
+    return CalculateOneOperand(OperationType::LogicalNotExpression, evalStack, output, ed);
 }
 
 HRESULT BitwiseNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
 {
-    return CalculateOneOparand(OperationType::BitwiseNotExpression, evalStack, output, ed);
+    return CalculateOneOperand(OperationType::BitwiseNotExpression, evalStack, output, ed);
 }
 
 HRESULT TrueLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)

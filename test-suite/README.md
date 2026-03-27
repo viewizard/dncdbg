@@ -18,16 +18,16 @@
     $ powershell.exe -executionpolicy bypass -File run_tests.ps1 <test-name> [<test-name>]
 ```
 
-# How to add new test
+# How to add a new test
 
-- move to test-suite directory;
+- move to the test-suite directory;
 
-- create new project in test-suite folder:
+- create a new project in the test-suite folder:
 ```
     $ dotnet new console -o NewTest
 ```
 
-- add reference to DbgTest library and `Context.cs` file to `ItemGroup` section by edit `NewTest.csproj` file, for example:
+- add a reference to the DbgTest library and `Context.cs` file to the `ItemGroup` section by editing the `NewTest.csproj` file, for example:
 ```
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
@@ -41,4 +41,4 @@
 </Project>
 ```
 
-- add test name into ALL_TEST_NAMES list in `run_tests.sh` and `run_tests.ps1` scripts.
+- add the test name to the ALL_TEST_NAMES list in the `run_tests.sh` and `run_tests.ps1` scripts.

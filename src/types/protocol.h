@@ -408,7 +408,7 @@ struct ExceptionDetails
     std::string evaluateName;
     std::string stackTrace;
     // Note, DAP have "innerException" field as array, but in real we don't have array with inner exceptions
-    // here, since exception object have only one exeption object reference in InnerException field.
+    // here, since exception object have only one exception object reference in InnerException field.
     std::unique_ptr<ExceptionDetails> innerException;
 
     // not part of DAP specification, but send by vsdbg in `exceptionInfo` response in VSCode IDE

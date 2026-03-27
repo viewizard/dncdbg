@@ -60,7 +60,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp5", "i>10 || z==0");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
 
-                // change condition to already setted bp
+                // change condition to already set bp
                 Context.RemoveBreakpoint(@"__FILE__:__LINE__", "bp4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp4", "i>10");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");

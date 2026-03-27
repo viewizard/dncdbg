@@ -86,7 +86,7 @@ public partial class Evaluation
     /// </summary>
     /// <remarks>
     /// WARNING: Keep this dictionary in sync with the operation implementations in
-    /// src/debugger/evalstackmachine.cpp (CalculateTwoOparands and CalculateOneOparand).
+    /// src/debugger/evalstackmachine.cpp (CalculateTwoOperands and CalculateOneOperand).
     /// </remarks>
     internal static readonly Dictionary<OperationType, Func<object, object, object>> operationTypesMap =
         new Dictionary<OperationType, Func<object, object, object>>

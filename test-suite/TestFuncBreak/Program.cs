@@ -27,7 +27,7 @@ class Program
                 Context.AddFunctionBreakpoint("TestFuncBreak.Program.funcbrackpoint7", "z<10");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
 
-                // change condition to already setted bp
+                // change condition to already set bp
                 Context.RemoveFunctionBreakpoint("funcbrackpoint6(int)");
                 Context.AddFunctionBreakpoint("funcbrackpoint6(int)", "i>10");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");

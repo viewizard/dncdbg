@@ -2,7 +2,7 @@
 
 **DNCDbg** is an acronym of .NET Core (dot net core) Debugger. The DNCDbg debugger implements [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/), allowing the debugging of .NET apps under the .NET Core runtime.
 
-Initially DNCDbg based on [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 source code, but in contrast to NetCoreDbg, development fully based on GitHub to be more collaborative and flexible.
+Initially DNCDbg was based on [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 source code, but in contrast to NetCoreDbg, development is fully based on GitHub to be more collaborative and flexible.
 
 **Project goals:** implement close to MSVS C# debugger functionality (excluding related to MSVS IDE and not DAP supported features), complete [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) support, low memory consumption and high performance.
 

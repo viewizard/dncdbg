@@ -42,13 +42,13 @@ class IndexedStorage
     // Data type, which combines key with element stored in container.
     using value_type = std::pair<key_type, mapped_type>;
 
-    // These definitions needed for standard library algoithms.
+    // These definitions needed for standard library algorithms.
     using size_type = size_t;
     using difference_type = ptrdiff_t;
     using reference = value_type &;
     using pointer = value_type *;
 
-    // This class implemens at lest input-iterator
+    // This class implements at least input-iterator
     // which allows to iterate over all elements stored in container.
     using iterator = typename std::vector<value_type>::const_iterator;
 
@@ -174,7 +174,7 @@ class IndexedStorage
 // This is helper class which simplifies implementation of singleton classes.
 //
 // Usage example:
-//   1) define dictinct type of singleton: using YourSingleton = Singleton<YourType>;
+//   1) define distinct type of singleton: using YourSingleton = Singleton<YourType>;
 //   2) to access your singleton use expression: YourSingleton::instance().operations...
 //
 template <typename T> struct Singleton

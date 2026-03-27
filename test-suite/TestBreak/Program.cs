@@ -28,7 +28,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test, that debugger stop at Debugger.Break() in managed code.
+        // Test that debugger stops at Debugger.Break() in managed code.
         Console.WriteLine("Start test.");
         Debugger.Break();                                             Label.Breakpoint("break_test1");
 
@@ -40,7 +40,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test, that debugger ignore Debugger.Break() on continue in case it already stop at breakpoint at this code line.
+        // Test that debugger ignores Debugger.Break() on continue in case it already stopped at breakpoint at this code line.
         Debugger.Break();                                             Label.Breakpoint("break_test2");
 
         Label.Checkpoint("break_test2", "break_test3",
@@ -51,7 +51,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test, that debugger ignore Debugger.Break() on step in case it already stop at breakpoint at this code line.
+        // Test that debugger ignores Debugger.Break() on step in case it already stopped at breakpoint at this code line.
         Debugger.Break();                                             Label.Breakpoint("break_test3");
         Console.WriteLine("Next Line");                               Label.Breakpoint("break_test3_nextline");
 
@@ -65,8 +65,8 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test, that debugger ignore Debugger.Break() on step in case it already stop at step at this code.
-        // Note, since test framework can't operate with columns in code line, we test that debugger stop at
+        // Test that debugger ignores Debugger.Break() on step in case it already stopped at step at this code.
+        // Note, since test framework can't operate with columns in code line, we test that debugger stops at
         // step-step-step instead of step-step-break-step.
         int i = 0; Debugger.Break(); i++;                             Label.Breakpoint("break_test4");
         Console.WriteLine("Next Line i=" + i.ToString());             Label.Breakpoint("break_test4_nextline");
@@ -85,7 +85,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test, that debugger stop at Debugger.Break() in managed code during step-over and reset step.
+        // Test that debugger stops at Debugger.Break() in managed code during step-over and reset step.
         test_func();                                                  Label.Breakpoint("break_test5");
 
         Label.Checkpoint("break_test5", "break_test5_func",
