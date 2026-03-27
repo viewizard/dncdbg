@@ -20,7 +20,7 @@
 
 #if (defined(__APPLE__) && defined(__MACH__))
 #include <unistd.h>
-include <pthread.h>
+#include <pthread.h>
 #endif
 
 namespace dncdbg
@@ -72,7 +72,7 @@ unsigned get_tid()
     {
         uint64_t tid;
         pthread_threadid_np(NULL, &tid);
-        return static_cast<unsigned>(tid)
+        return static_cast<unsigned>(tid);
     };
     static const thread_local unsigned thread_id = getTID();
 #else
