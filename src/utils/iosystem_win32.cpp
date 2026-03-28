@@ -84,7 +84,7 @@ struct Initializer
 
 static Initializer initializer;
 
-#if 0 
+#if 0
     // assuming domain=AF_UNIX, type=SOCK_STREAM, protocol=0
     int wsa_socketpair(int domain, int type, int protocol, SOCKET sv[2])
     {
@@ -102,7 +102,7 @@ static Initializer initializer;
         SOCKADDR_UN sa;
         sa.sun_family = domain;
         assert(namelen <= sizeof(sa.sun_path));
-        memcpy(sa.sun_path, name, namelen); 
+        memcpy(sa.sun_path, name, namelen);
         if (::bind(serv, (struct sockaddr*)&sa, sizeof(sa)) == SOCKET_ERROR)
         {
             auto err = WSAGetLastError();

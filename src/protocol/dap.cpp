@@ -283,7 +283,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"configurationDone", [&](const json &/*arguments*/, json &/*responseBody*/)
             {
-                return m_sharedDebugger->ConfigurationDone(); 
+                return m_sharedDebugger->ConfigurationDone();
             }},
         {"exceptionInfo", [&](const json &arguments, json &responseBody)
             {

@@ -62,7 +62,7 @@ class IORedirectHelper
     IORedirectHelper(const IORedirectHelper &) = delete;
     IORedirectHelper &operator=(IORedirectHelper &&) = delete;
     IORedirectHelper &operator=(const IORedirectHelper &) = delete;
-                     
+
     ~IORedirectHelper();
 
     // This function allows to write some data to pipe, which represents stdin stream.

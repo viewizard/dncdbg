@@ -50,7 +50,7 @@ public class ResultEqualException : System.Exception
     public ResultEqualException(object expected, object actual, string stacktrace)
     {
         UserMessage = "\n Expected:  " + expected.ToString() +
-                      "\n Actual:    " + actual.ToString() + 
+                      "\n Actual:    " + actual.ToString() +
                       "\n Stack Trace:" ;
 
         foreach (string line in stacktrace.Split('\n'))
@@ -68,7 +68,7 @@ public class ResultNotEqualException : System.Exception
     public ResultNotEqualException(object expected, object actual, string stacktrace)
     {
         UserMessage = "\n Expected:  Not " + expected.ToString() +
-                      "\n Actual:    " + actual.ToString() + 
+                      "\n Actual:    " + actual.ToString() +
                       "\n Stack Trace:";
 
         foreach (string line in stacktrace.Split('\n'))

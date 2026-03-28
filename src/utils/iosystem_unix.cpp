@@ -350,7 +350,7 @@ Class::IOResult Class::close(const FileHandle &fh)
 // This function returns triplet of currently selected standard files.
 dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
-    static const std::array<IOSystem::FileHandle, std::tuple_size_v<IOSystem::StdFiles>> handles{ 
+    static const std::array<IOSystem::FileHandle, std::tuple_size_v<IOSystem::StdFiles>> handles{
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
     return {handles[0], handles[1], handles[2]};
 }

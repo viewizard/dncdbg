@@ -230,10 +230,10 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
         }; void nested_func10() { };                                            Label.Breakpoint("bp18");
         nested_func9();
 
-        void nested_func11() { void nested_func12() { void nested_func13() { 
+        void nested_func11() { void nested_func12() { void nested_func13() {
                                                                                 Label.Breakpoint("bp19");
         };                                                                      Label.Breakpoint("resloved_bp19");
-        nested_func13(); }; 
+        nested_func13(); };
         nested_func12(); };
         nested_func11();
 

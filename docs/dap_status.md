@@ -95,7 +95,7 @@
 #### OutputEvent
 ```diff
 +   category?: 'console' | 'stdout' | 'stderr'
--              | 'important' | 'telemetry' 
+-              | 'important' | 'telemetry'
 +              | string;
 +   output: string;
 -   group?: 'start' | 'startCollapsed' | 'end';
@@ -230,7 +230,7 @@
 +   threadId: number;
 -   singleThread?: boolean;
 ```
-#### ContinueResponse 
+#### ContinueResponse
 ```diff
 +   allThreadsContinued?: boolean;
 @@ VSCode IDE additional field: @@

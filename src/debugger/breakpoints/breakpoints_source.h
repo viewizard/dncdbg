@@ -123,7 +123,7 @@ class SourceBreakpoints
         ManagedSourceBreakpointMapping(const ManagedSourceBreakpointMapping &) = delete;
         ManagedSourceBreakpointMapping &operator=(ManagedSourceBreakpointMapping &&) = delete;
         ManagedSourceBreakpointMapping &operator=(const ManagedSourceBreakpointMapping &) = delete;
-        
+
         ~ManagedSourceBreakpointMapping() = default;
     };
 

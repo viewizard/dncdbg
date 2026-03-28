@@ -451,7 +451,7 @@ void Init(const std::string &coreClrPath)
     static const char *evaluationClassName = "DNCDbg.Evaluation";
     static const char *utilsClassName = "DNCDbg.Utils";
 
-    const bool allDelegatesCreated = 
+    const bool allDelegatesCreated =
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&

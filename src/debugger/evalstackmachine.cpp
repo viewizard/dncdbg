@@ -438,7 +438,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if (!is_static || methodArgs.size() != 1 || opName != methodName || 
+            if (!is_static || methodArgs.size() != 1 || opName != methodName ||
                 elemRetType != methodRet.corType || typeRetName != methodRet.typeName ||
                 elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
             {

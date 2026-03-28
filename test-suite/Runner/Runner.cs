@@ -249,8 +249,8 @@ options:
     --test name             Test name
     --sources path[;path]   Semicolon separated paths to source files
     --assembly path         Path to target assambly file
-    
-    
+
+
     ");
     }
 

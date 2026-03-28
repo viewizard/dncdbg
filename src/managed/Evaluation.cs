@@ -236,7 +236,7 @@ public partial class Evaluation
     /// Error message if the operation fails. The caller must free this using SysFreeString.
     /// </param>
     /// <returns>
-    /// RetCode.OK on success; 
+    /// RetCode.OK on success;
     /// RetCode.Fail for invalid parameters (unknown operation type or unsupported operand/result type);
     /// RetCode.Exception for errors during execution (e.g., arithmetic overflow, invalid cast).
     /// </returns>

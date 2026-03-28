@@ -415,7 +415,7 @@ void DAPIO::LogInternal(const std::string_view &prefix, const std::string &text)
     {
         return;
     }
-    
+
     GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 

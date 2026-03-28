@@ -1712,7 +1712,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return S_OK;
         }
 
-        if ((ppResultType != nullptr) && 
+        if ((ppResultType != nullptr) &&
             SUCCEEDED(FollowNestedFindType(pThread, methodClass, identifiers, ppResultType)))
         {
             return S_OK;
