@@ -287,6 +287,141 @@ PCCOR_SIGNATURE TypeNameFromSig(PCCOR_SIGNATURE typePtr, const std::vector<std::
     return typePtr;
 }
 
+// Skip array shape data in the signature (rank, sizes, lower bounds).
+void SkipArrayShape(PCCOR_SIGNATURE *ppSig)
+{
+    ULONG rank = 0;
+    *ppSig += CorSigUncompressData(*ppSig, &rank);
+    if (rank != 0)
+    {
+        ULONG sizeDim = 0;
+        ULONG ulTemp = 0;
+        *ppSig += CorSigUncompressData(*ppSig, &sizeDim);
+        while ((sizeDim--) != 0U)
+        {
+            *ppSig += CorSigUncompressData(*ppSig, &ulTemp);
+        }
+        ULONG lowerBound = 0;
+        int iTemp = 0;
+        *ppSig += CorSigUncompressData(*ppSig, &lowerBound);
+        while ((lowerBound--) != 0U)
+        {
+            *ppSig += CorSigUncompressSignedInt(*ppSig, &iTemp);
+        }
+    }
+}
+
+// Advance the signature pointer past one element type without building a result.
+// This is used to skip generic arguments in GENERICINST that are not needed.
+void SkipElementType(PCCOR_SIGNATURE *ppSig)
+{
+    // Work items: positive value N means "skip N element types";
+    // negative value -1 means "skip array shape data".
+    constexpr int SKIP_ARRAY_SHAPE = -1;
+    std::vector<int> work;
+    work.push_back(1); // skip one element type
+
+    while (!work.empty())
+    {
+        int &top = work.back();
+        if (top == SKIP_ARRAY_SHAPE)
+        {
+            work.pop_back();
+            SkipArrayShape(ppSig);
+            continue;
+        }
+        if (top <= 0)
+        {
+            work.pop_back();
+            continue;
+        }
+        --top;
+
+        ULONG corType = 0;
+        *ppSig += CorSigUncompressData(*ppSig, &corType);
+
+        switch (corType)
+        {
+        // Primitive types — no additional data to skip.
+        case ELEMENT_TYPE_VOID:
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_STRING:
+        case ELEMENT_TYPE_OBJECT:
+        case ELEMENT_TYPE_U:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_TYPEDBYREF:
+            break;
+
+        // Token-based types — skip the compressed token.
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+        {
+            mdToken tk = mdTokenNil;
+            *ppSig += CorSigUncompressToken(*ppSig, &tk);
+            break;
+        }
+
+        // Generic parameter references — skip the compressed number.
+        case ELEMENT_TYPE_VAR:
+        case ELEMENT_TYPE_MVAR:
+        {
+            ULONG num = 0;
+            *ppSig += CorSigUncompressData(*ppSig, &num);
+            break;
+        }
+
+        // Single-dimensional zero-based array — wraps one inner type.
+        case ELEMENT_TYPE_SZARRAY:
+            work.push_back(1); // skip the inner element type
+            break;
+
+        // Multi-dimensional array — wraps one inner type, followed by array shape.
+        case ELEMENT_TYPE_ARRAY:
+            // Push array shape skip first (will be processed after inner type).
+            work.push_back(SKIP_ARRAY_SHAPE);
+            // Then push inner element type skip (will be processed first — LIFO).
+            work.push_back(1);
+            break;
+
+        // Generic instantiation — skip underlying type token + N generic arguments.
+        case ELEMENT_TYPE_GENERICINST:
+        {
+            ULONG innerCorType = 0;
+            mdToken token = mdTokenNil;
+            ULONG number = 0;
+            *ppSig += CorSigUncompressData(*ppSig, &innerCorType);
+            *ppSig += CorSigUncompressToken(*ppSig, &token);
+            *ppSig += CorSigUncompressData(*ppSig, &number);
+            work.push_back(static_cast<int>(number)); // skip N generic arg element types
+            break;
+        }
+
+        // Modifier types that wrap one inner type.
+        case ELEMENT_TYPE_PTR:
+        case ELEMENT_TYPE_BYREF:
+        case ELEMENT_TYPE_PINNED:
+        case ELEMENT_TYPE_CMOD_REQD:
+        case ELEMENT_TYPE_CMOD_OPT:
+            work.push_back(1);
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
 } // unnamed namespace
 
 bool SigElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2)
@@ -378,125 +513,157 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
-    ULONG corType = 0;
-    mdToken tk = mdTokenNil;
-    *ppSig += CorSigUncompressData(*ppSig, &corType);
-    sigElementType.corType = static_cast<CorElementType>(corType);
-    ULONG argNum = 0;
 
-    switch (sigElementType.corType)
+    // Collect array/wrapper suffixes iteratively instead of recursing.
+    // Each entry: { outerCorType, suffix } where suffix is appended after the base type is resolved.
+    struct Wrapper
     {
-    case ELEMENT_TYPE_VOID:
-    case ELEMENT_TYPE_BOOLEAN:
-    case ELEMENT_TYPE_CHAR:
-    case ELEMENT_TYPE_I1:
-    case ELEMENT_TYPE_U1:
-    case ELEMENT_TYPE_I2:
-    case ELEMENT_TYPE_U2:
-    case ELEMENT_TYPE_I4:
-    case ELEMENT_TYPE_U4:
-    case ELEMENT_TYPE_I8:
-    case ELEMENT_TYPE_U8:
-    case ELEMENT_TYPE_R4:
-    case ELEMENT_TYPE_R8:
-    case ELEMENT_TYPE_STRING:
-    case ELEMENT_TYPE_OBJECT:
-        if (addCorTypeName)
+        CorElementType outerCorType;
+        std::string suffix;
+    };
+    std::vector<Wrapper> wrappers;
+
+    // Peel off wrapping element types (SZARRAY, ARRAY) that would otherwise recurse
+    // to parse their inner element type, then post-process the result.
+    for (;;)
+    {
+        CorElementType corType = ELEMENT_TYPE_MAX;
+        *ppSig += CorSigUncompressElementType(*ppSig, &corType);
+        sigElementType.corType = corType;
+
+        if (corType == ELEMENT_TYPE_SZARRAY)
         {
-            GetCorTypeName(sigElementType.corType, sigElementType.typeName);
+            // The recursive version parsed the inner type first, then set corType back to SZARRAY
+            // and appended "[]". We record this and continue the loop to parse the inner type.
+            wrappers.push_back({corType, "[]"});
+            // addCorTypeName must be true for inner types (matches original recursive call).
+            addCorTypeName = true;
+            continue;
         }
-        break;
 
-    case ELEMENT_TYPE_VALUETYPE:
-    case ELEMENT_TYPE_CLASS:
-        *ppSig += CorSigUncompressToken(*ppSig, &tk);
-        IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
-        break;
-
-    case ELEMENT_TYPE_SZARRAY:
-        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
-        sigElementType.corType = static_cast<CorElementType>(corType);
-        sigElementType.typeName += "[]";
-        break;
-    case ELEMENT_TYPE_ARRAY:
-    {
-        IfFailRet(ParseElementType(pMDImport, ppSig, sigElementType, true));
-        sigElementType.corType = static_cast<CorElementType>(corType);
-        // Parse for the rank
-        ULONG rank = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &rank);
-        // if rank == 0, we are done
-        if (rank == 0)
+        if (corType == ELEMENT_TYPE_ARRAY)
         {
+            // We need to read the inner type first (handled by continuing the loop),
+            // but the array shape data follows the inner type in the signature.
+            // Record a placeholder suffix; we'll fill it in after the loop.
+            wrappers.push_back({corType, {}});
+            addCorTypeName = true;
+            continue;
+        }
+
+        // Not a wrapping type — handle the base element type.
+        ULONG argNum = 0;
+        mdToken tk = mdTokenNil;
+
+        switch (sigElementType.corType)
+        {
+        case ELEMENT_TYPE_VOID:
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_STRING:
+        case ELEMENT_TYPE_OBJECT:
+            if (addCorTypeName)
+            {
+                GetCorTypeName(sigElementType.corType, sigElementType.typeName);
+            }
+            break;
+
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+            *ppSig += CorSigUncompressToken(*ppSig, &tk);
+            IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
+            break;
+
+        case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
+            *ppSig += CorSigUncompressData(*ppSig, &argNum);
+            sigElementType.elementType = ELEMENT_TYPE_VAR;
+            sigElementType.varNum = argNum;
+            break;
+
+        case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
+            *ppSig += CorSigUncompressData(*ppSig, &argNum);
+            sigElementType.elementType = ELEMENT_TYPE_MVAR;
+            sigElementType.varNum = argNum;
+            break;
+
+        case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
+        {
+            ULONG innerCorType = 0;
+            ULONG number = 0;
+            mdToken token = mdTokenNil;
+            *ppSig += CorSigUncompressData(*ppSig, &innerCorType);
+            if (innerCorType != ELEMENT_TYPE_CLASS && innerCorType != ELEMENT_TYPE_VALUETYPE)
+            {
+                return E_NOTIMPL;
+            }
+            *ppSig += CorSigUncompressToken(*ppSig, &token);
+            sigElementType.corType = static_cast<CorElementType>(innerCorType);
+            IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
+            *ppSig += CorSigUncompressData(*ppSig, &number);
+            for (ULONG i = 0; i < number; i++)
+            {
+                SkipElementType(ppSig); // Not needed at the moment, just advance past each generic arg
+            }
             break;
         }
-        // any size of dimension specified?
-        ULONG sizeDim = 0;
-        ULONG ulTemp = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &sizeDim);
-        while ((sizeDim--) != 0U)
-        {
-            *ppSig += CorSigUncompressData(*ppSig, &ulTemp);
-        }
-        // any lower bound specified?
-        ULONG lowerBound = 0;
-        int iTemp = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &lowerBound);
-        while ((lowerBound--) != 0U)
-        {
-            *ppSig += CorSigUncompressSignedInt(*ppSig, &iTemp);
-        }
-        sigElementType.typeName += "[" + std::string(rank - 1, ',') + "]";
-        break;
-    }
 
-    case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
-        *ppSig += CorSigUncompressData(*ppSig, &argNum);
-        sigElementType.elementType = ELEMENT_TYPE_VAR;
-        sigElementType.varNum = argNum;
-        break;
-
-    case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
-        *ppSig += CorSigUncompressData(*ppSig, &argNum);
-        sigElementType.elementType = ELEMENT_TYPE_MVAR;
-        sigElementType.varNum = argNum;
-        break;
-
-    case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
-    {
-        ULONG number = 0;
-        mdToken token = mdTokenNil;
-        *ppSig += CorSigUncompressData(*ppSig, &corType);
-        if (corType != ELEMENT_TYPE_CLASS && corType != ELEMENT_TYPE_VALUETYPE)
-        {
+            // TODO
+        case ELEMENT_TYPE_U: // "nuint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
+                             // *unsupported*. To use Preview features, use the 'preview' language version.
+        case ELEMENT_TYPE_I: // "nint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
+                             // *unsupported*. To use Preview features, use the 'preview' language version.
+        case ELEMENT_TYPE_TYPEDBYREF:
+        case ELEMENT_TYPE_PTR:   // int* ptr (unsafe code only)
+        case ELEMENT_TYPE_BYREF: // ref, in, out
+        case ELEMENT_TYPE_CMOD_REQD:
+        case ELEMENT_TYPE_CMOD_OPT:
             return E_NOTIMPL;
+
+        default:
+            return E_INVALIDARG;
         }
-        *ppSig += CorSigUncompressToken(*ppSig, &token);
-        sigElementType.corType = static_cast<CorElementType>(corType);
-        IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
-        *ppSig += CorSigUncompressData(*ppSig, &number);
-        for (ULONG i = 0; i < number; i++)
-        {
-            SigElementType tmp; // Not needed at the moment
-            IfFailRet(ParseElementType(pMDImport, ppSig, tmp, true));
-        }
+
+        // Base type resolved, exit the peeling loop.
         break;
     }
 
-        // TODO
-    case ELEMENT_TYPE_U: // "nuint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
-                         // *unsupported*. To use Preview features, use the 'preview' language version.
-    case ELEMENT_TYPE_I: // "nint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
-                         // *unsupported*. To use Preview features, use the 'preview' language version.
-    case ELEMENT_TYPE_TYPEDBYREF:
-    case ELEMENT_TYPE_PTR:   // int* ptr (unsafe code only)
-    case ELEMENT_TYPE_BYREF: // ref, in, out
-    case ELEMENT_TYPE_CMOD_REQD:
-    case ELEMENT_TYPE_CMOD_OPT:
-        return E_NOTIMPL;
+    // Apply the collected wrappers in reverse order (innermost wrapper was pushed last).
+    // Wrappers are collected outermost-first, and the array shape data in the signature
+    // appears right after the inner type. We process wrappers in reverse order to match
+    // the signature layout.
+    for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
+    {
+        if (it->outerCorType == ELEMENT_TYPE_ARRAY)
+        {
+            // Parse array shape from the signature and build the suffix.
+            // Save position to read rank before skipping.
+            PCCOR_SIGNATURE rankPtr = *ppSig;
+            ULONG rank = 0;
+            CorSigUncompressData(rankPtr, &rank);
+            // Skip the entire array shape data.
+            SkipArrayShape(ppSig);
+            if (rank != 0)
+            {
+                it->suffix = "[" + std::string(rank - 1, ',') + "]";
+            }
+        }
+        sigElementType.typeName += it->suffix;
+    }
 
-    default:
-        return E_INVALIDARG;
+    // Set the outermost corType if there were any wrappers.
+    if (!wrappers.empty())
+    {
+        sigElementType.corType = wrappers.front().outerCorType;
     }
 
     return S_OK;
