@@ -292,7 +292,7 @@ template <typename IteratorType>
 const typename IOSystemImpl<Traits>::AsyncHandleIterator::Operations
     IOSystemImpl<Traits>::AsyncHandleIterator::OpsImpl<IteratorType>::ops = {
         [](void *thiz) { ++*reinterpret_cast<IteratorType *>(thiz); },
-        [](void *thiz) -> typename IOSystemImpl<Traits>::AsyncHandle & { return **reinterpret_cast<IteratorType *>(thiz); },
+        [](void *thiz) -> IOSystemImpl<Traits>::AsyncHandle & { return **reinterpret_cast<IteratorType *>(thiz); },
         [](void *thiz) { reinterpret_cast<IteratorType *>(thiz)->~IteratorType(); }};
 
 } // namespace dncdbg
