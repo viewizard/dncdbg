@@ -248,7 +248,6 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
 HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
                                      std::vector<Variable> &variables)
 {
-    HRESULT Status = S_OK;
     int currentIndex = -1;
     Variable var;
     if (SUCCEEDED(GetExceptionVariable(frameId, pThread, var)))
@@ -275,11 +274,15 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             var.name = name;
             var.evaluateName = var.name;
             ToRelease<ICorDebugValue> trValue;
-            IfFailRet(getValue(&trValue, false));
-            IfFailRet(TypePrinter::GetTypeOfValue(trValue, var.type));
-            IfFailRet(PrintValue(trValue, var.value));
+            // If we fail to parse one variable, don't skip parsing the remaining variables.
+            if (FAILED(getValue(&trValue, false)) ||
+                FAILED(TypePrinter::GetTypeOfValue(trValue, var.type)) ||
+                FAILED(PrintValue(trValue, var.value)) ||
+                FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
+            {
+                return S_OK;
+            }
 
-            IfFailRet(AddVariableReference(var, frameId, trValue, ValueKind::Variable));
             variables.push_back(var);
             return S_OK;
         });
