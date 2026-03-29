@@ -1490,7 +1490,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
-                    return m_sharedEvalHelpers->CreateLiteralValue(pThread, pSig, pSigEnd, ppResultValue);
+                    return m_sharedEvalHelpers->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue);
                 };
 
                 IfFailRet(cb(to_utf8(constant.name.c_str()), getValue));

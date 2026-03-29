@@ -50,8 +50,8 @@ class EvalHelpers
     HRESULT GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                           UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
-    HRESULT CreateLiteralValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                               ICorDebugValue **ppLiteralValue);
+    HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                    ICorDebugValue **ppLiteralValue);
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
@@ -93,6 +93,8 @@ class EvalHelpers
 
     HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult);
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
+    HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, CorElementType underlyingType, UVCP_CONSTANT pRawValue,
+                                   ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 };
 
 } // namespace dncdbg
