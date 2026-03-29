@@ -953,8 +953,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     {
                         if (fieldAttr & fdLiteral)
                         {
-                            IfFailRet(m_sharedEvalHelpers->GetLiteralFieldValue(pThread, trModule, pSig, pSig + cbSig,
-                                                                                pRawValue, rawValueLength, ppResultValue));
+                            IfFailRet(m_sharedEvalHelpers->GetLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                                rawValueLength, ppResultValue));
                         }
                         else if (fieldAttr & fdStatic)
                         {

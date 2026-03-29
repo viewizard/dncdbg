@@ -47,9 +47,8 @@ class EvalHelpers
                                 uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
                                 ICorDebugValue **ppEvalResult);
 
-    HRESULT GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
-                                 PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
-                                 ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
+    HRESULT GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                          UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
     HRESULT CreateLiteralValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                ICorDebugValue **ppLiteralValue);

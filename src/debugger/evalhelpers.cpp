@@ -397,9 +397,8 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     return S_OK;
 }
 
-HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
-                                          PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
-                                          ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                          UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -417,11 +416,6 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugMod
     IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     switch (underlyingType)
     {
@@ -451,15 +445,25 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugMod
         }
         case ELEMENT_TYPE_STRING:
         {
-            IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppLiteralValue,
-                [&](ICorDebugEval *pEval) -> HRESULT
-                {
-                    // Note, this code execution protected by EvalWaiter mutex.
-                    ToRelease<ICorDebugEval2> trEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-                    IfFailRet(trEval2->NewStringWithLength(reinterpret_cast<const WCHAR *>(pRawValue), rawValueLength));
-                    return S_OK;
-                }));
+            if (rawValueLength == 0)
+            {
+                // FIXME create reference to proper type instead of object
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            }
+            else
+            {
+                IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppLiteralValue,
+                    [&](ICorDebugEval *pEval) -> HRESULT
+                    {
+                        // Note, this code execution protected by EvalWaiter mutex.
+                        ToRelease<ICorDebugEval2> trEval2;
+                        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+                        IfFailRet(trEval2->NewStringWithLength(reinterpret_cast<const WCHAR *>(pRawValue), rawValueLength));
+                        return S_OK;
+                    }));
+            }
             break;
         }
         case ELEMENT_TYPE_BOOLEAN:
