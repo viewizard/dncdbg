@@ -88,6 +88,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         {
             if ((fieldAttr & fdStatic) == 0)
             {
+                // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we sure this is field.
                 IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSig + cbSig));
                 IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSig + cbSig, enumUnderlyingType));
                 break;

@@ -397,9 +397,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     return S_OK;
 }
 
-HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
-                                     PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
-                                     ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
+                                          PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
+                                          ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -413,6 +413,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *
         return E_INVALIDARG;
     }
 
+    // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we sure this is field.
     IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
