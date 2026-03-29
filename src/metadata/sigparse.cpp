@@ -188,8 +188,8 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         // Generic instantiation — skip underlying type token + N generic arguments.
         case ELEMENT_TYPE_GENERICINST:
         {
-            ULONG innerCorType = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, innerCorType));
+            CorElementType innerCorType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerCorType));
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             ULONG number = 0;
@@ -392,17 +392,18 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 
         case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
         {
-            ULONG innerCorType = 0;
-            ULONG number = 0;
-            mdToken token = mdTokenNil;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, innerCorType));
-            if (innerCorType != ELEMENT_TYPE_CLASS && innerCorType != ELEMENT_TYPE_VALUETYPE)
+            CorElementType innerCorType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerCorType));
+            if (innerCorType != ELEMENT_TYPE_CLASS &&
+                innerCorType != ELEMENT_TYPE_VALUETYPE)
             {
                 return E_NOTIMPL;
             }
+            mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            sigElementType.corType = static_cast<CorElementType>(innerCorType);
+            sigElementType.corType = innerCorType;
             IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
+            ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             for (ULONG i = 0; i < number; i++)
             {
