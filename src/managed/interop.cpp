@@ -265,6 +265,7 @@ using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, u
 using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
 using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
 using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
+using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
 using CalculationDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, void **, BSTR *);
 using GenerateStackMachineProgramDelegate = int (*)(const WCHAR *, void **, BSTR *);
 using ReleaseStackMachineProgramDelegate = void (*)(void *);
@@ -284,6 +285,7 @@ GetStepRangesFromIPDelegate getStepRangesFromIPDelegate = nullptr;
 GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate = nullptr;
 ResolveBreakPointsDelegate resolveBreakPointsDelegate = nullptr;
 GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate = nullptr;
+GetLocalConstantsDelegate getLocalConstantsDelegate = nullptr;
 GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate = nullptr;
 ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate = nullptr;
 NextStackCommandDelegate nextStackCommandDelegate = nullptr;
@@ -462,6 +464,7 @@ void Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
+        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
@@ -486,6 +489,7 @@ void Init(const std::string &coreClrPath)
                                     (getModuleMethodsRangesDelegate != nullptr) &&
                                     (resolveBreakPointsDelegate != nullptr) &&
                                     (getAsyncMethodSteppingInfoDelegate != nullptr) &&
+                                    (getLocalConstantsDelegate != nullptr) &&
                                     (generateStackMachineProgramDelegate != nullptr) &&
                                     (releaseStackMachineProgramDelegate != nullptr) &&
                                     (nextStackCommandDelegate != nullptr) &&
@@ -528,6 +532,7 @@ void Shutdown()
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     getAsyncMethodSteppingInfoDelegate = nullptr;
+    getLocalConstantsDelegate = nullptr;
     stringToUpperDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
@@ -718,6 +723,27 @@ HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef method
     AsyncAwaitInfo.assign(allocatedAsyncInfo, allocatedAsyncInfo + asyncInfoCount);
 
     Interop::CoTaskMemFree(allocatedAsyncInfo);
+    return S_OK;
+}
+
+HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                          void **data, int32_t &constantCount)
+{
+    ReadLock read_lock(CLRrwlock);
+    if ((getLocalConstantsDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (data == nullptr))
+    {
+        return E_FAIL;
+    }
+
+    const RetCode retCode = getLocalConstantsDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
+                                                      ilOffset, data, &constantCount);
+    read_lock.unlock();
+
+    if (retCode != RetCode::OK)
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 

@@ -403,7 +403,7 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugMod
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
-    // with a null value. User-defined types, including classes, structs, and arrays, cannot be const. 
+    // with a null value. User-defined types, including classes, structs, and arrays, cannot be const.
 
     HRESULT Status = S_OK;
 
@@ -488,6 +488,113 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, ICorDebugMod
         default:
             return E_INVALIDARG;
     }
+    return S_OK;
+}
+
+HRESULT EvalHelpers::CreateLiteralValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                        ICorDebugValue **ppLiteralValue)
+{
+    // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
+    // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
+    // with a null value. User-defined types, including classes, structs, and arrays, cannot be const.
+
+    // For local constants, the value is encoded in the signature
+    // The signature format is: CustomMod* Type Value
+
+    HRESULT Status = S_OK;
+
+    if (pThread == nullptr ||
+        pSig == nullptr ||
+        pSigEnd == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    CorElementType underlyingType = ELEMENT_TYPE_MAX;
+    IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
+
+    const UVCP_CONSTANT pRawValue = pSig;
+    const ULONG rawValueLength = pSigEnd - pSig;
+
+    switch (underlyingType)
+    {
+        case ELEMENT_TYPE_OBJECT:
+        {
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            break;
+        }
+        case ELEMENT_TYPE_CLASS:
+        {
+            // FIXME create reference to proper type instead of object
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            break;
+        }
+        case ELEMENT_TYPE_ARRAY:
+        case ELEMENT_TYPE_SZARRAY:
+        {
+            // FIXME create reference to proper type instead of object
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            break;
+        }
+        case ELEMENT_TYPE_STRING:
+        {
+            static constexpr uint8_t nullStringMarker = 0xFF;
+            if (*reinterpret_cast<const uint8_t *>(pRawValue) == nullStringMarker)
+            {
+                // FIXME create reference to proper type instead of object
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            }
+            else
+            {
+                const auto *strValue = reinterpret_cast<const WCHAR *>(pRawValue);
+                const ULONG strLen = rawValueLength / sizeof(WCHAR);
+                IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppLiteralValue,
+                    [&](ICorDebugEval *pEval) -> HRESULT
+                    {
+                        // Note, this code execution protected by EvalWaiter mutex.
+                        ToRelease<ICorDebugEval2> trEval2;
+                        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+                        IfFailRet(trEval2->NewStringWithLength(strValue, strLen));
+                        return S_OK;
+                    }));
+            }
+            break;
+        }
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        {
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(trEval->CreateValue(underlyingType, nullptr, &trValue));
+            ToRelease<ICorDebugGenericValue> trGenericValue;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+            *ppLiteralValue = trValue.Detach();
+            break;
+        }
+        default:
+            return E_INVALIDARG;
+    }
+
     return S_OK;
 }
 

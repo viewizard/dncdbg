@@ -32,6 +32,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added source and function breakpoints reset during module unload.
 - Added `--loglevel` launch option for setup minimal log level output.
 - Added end-pointer bounds checking to metadata signature parsing.
+- Added local constant (literal) variable evaluation implementation.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).
@@ -82,4 +83,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
 - Fixed exception type name fail handling logic in GetExceptionDetails().
 - Fixed disable JIT optimization related logic.
-- Fixed litteral evaluation logic.
+- Fixed constant field (literal) evaluation logic.

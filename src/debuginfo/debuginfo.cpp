@@ -612,4 +612,42 @@ HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, unsigne
     return m_debugInfoSources.GetIndexBySourceFullPath(fullPath, index);
 }
 
+HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                     std::vector<LocalConstantInfo> &constants)
+{
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    return GetPDBInfo(modAddress, [&](PDBInfo &pdbInfo) -> HRESULT {
+        void *data = nullptr;
+        int32_t constantCount = 0;
+        IfFailRet(Interop::GetLocalConstants(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, &data, constantCount));
+
+        if (constantCount > 0 && data != nullptr)
+        {
+            auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
+            for (int32_t i = 0; i < constantCount; i++)
+            {
+                LocalConstantInfo info;
+                if (interopConstants[i].name != nullptr)
+                {
+                    info.name = interopConstants[i].name;
+                    Interop::SysFreeString(interopConstants[i].name);
+                }
+                if (interopConstants[i].signature != nullptr && interopConstants[i].signatureSize > 0)
+                {
+                    info.signature = std::vector<uint8_t>(
+                        interopConstants[i].signature,
+                        interopConstants[i].signature + interopConstants[i].signatureSize);
+                    Interop::CoTaskMemFree(interopConstants[i].signature);
+                }
+                constants.push_back(std::move(info));
+            }
+            Interop::CoTaskMemFree(data);
+        }
+        return S_OK;
+    });
+}
+
 } // namespace dncdbg

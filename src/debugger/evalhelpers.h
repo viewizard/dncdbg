@@ -51,6 +51,9 @@ class EvalHelpers
                                  PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
                                  ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
+    HRESULT CreateLiteralValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                               ICorDebugValue **ppLiteralValue);
+
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
     HRESULT FindMethodInModule(const std::string &moduleName, const WSTRING &className, const WSTRING &methodName,

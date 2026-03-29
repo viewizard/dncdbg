@@ -950,6 +950,105 @@ public class SymbolReader
         }
     }
 
+    // WARNING: Keep this struct in sync with src/managed/interop.h (struct LocalConstantInfo)
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LocalConstantInfo
+    {
+        public IntPtr name;
+        public IntPtr signature; // pointer to signature blob
+        public int signatureSize;
+    }
+
+    /// <summary>
+    /// Returns local constants for a method within the specified IL offset range.
+    /// </summary>
+    /// <param name="symbolReaderHandle">symbol reader handle returned by LoadSymbolsForModule</param>
+    /// <param name="methodToken">method token</param>
+    /// <param name="ilOffset">IL offset to filter constants in scope</param>
+    /// <param name="constants">pointer to memory with local constant info array</param>
+    /// <param name="constantCount">number of constants returned</param>
+    /// <returns>"Ok" if information is available</returns>
+    internal static RetCode GetLocalConstants(IntPtr symbolReaderHandle, int methodToken, uint ilOffset,
+                                              out IntPtr constants, out int constantCount)
+    {
+        constants = IntPtr.Zero;
+        constantCount = 0;
+
+        using (var resourceTracker = new ResourceTracker())
+        {
+            try
+            {
+                if (!TryGetReaderWithValidation(symbolReaderHandle, out MetadataReader reader))
+                    return RetCode.Fail;
+
+                Handle handle = GetDeltaRelativeMethodDefinitionHandle(reader, methodToken);
+                if (handle.Kind != HandleKind.MethodDefinition)
+                    return RetCode.Fail;
+
+                MethodDebugInformationHandle methodDebugHandle = ((MethodDefinitionHandle)handle).ToDebugInformationHandle();
+                LocalScopeHandleCollection localScopes = reader.GetLocalScopes(methodDebugHandle);
+
+                var constantList = new List<LocalConstantInfo>();
+
+                foreach (LocalScopeHandle scopeHandle in localScopes)
+                {
+                    LocalScope scope = reader.GetLocalScope(scopeHandle);
+
+                    // Check if IL offset is within this scope
+                    if (ilOffset < scope.StartOffset || ilOffset >= scope.EndOffset)
+                        continue;
+
+                    // Enumerate local constants in this scope
+                    foreach (LocalConstantHandle constHandle in scope.GetLocalConstants())
+                    {
+                        LocalConstant localConst = reader.GetLocalConstant(constHandle);
+                        string constName = reader.GetString(localConst.Name);
+
+                        // Get the signature blob
+                        BlobReader signatureReader = reader.GetBlobReader(localConst.Signature);
+
+                        // Allocate memory for signature
+                        IntPtr signaturePtr = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(signatureReader.Length));
+                        byte[] signatureBytes = signatureReader.ReadBytes(signatureReader.Length);
+                        Marshal.Copy(signatureBytes, 0, signaturePtr, signatureReader.Length);
+
+                        var constInfo = new LocalConstantInfo
+                        {
+                            name = resourceTracker.TrackBSTR(Marshal.StringToBSTR(constName)),
+                            signature = signaturePtr,
+                            signatureSize = signatureReader.Length
+                        };
+
+                        constantList.Add(constInfo);
+                    }
+                }
+
+                if (constantList.Count == 0)
+                    return RetCode.OK;
+
+                int structSize = Marshal.SizeOf<LocalConstantInfo>();
+                IntPtr allocatedMemory = resourceTracker.TrackMemory(Marshal.AllocCoTaskMem(constantList.Count * structSize));
+                IntPtr dataPtr = allocatedMemory;
+
+                foreach (var constInfo in constantList)
+                {
+                    Marshal.StructureToPtr(constInfo, dataPtr, false);
+                    dataPtr += structSize;
+                }
+
+                constants = allocatedMemory;
+                constantCount = constantList.Count;
+
+                resourceTracker.TransferOwnership();
+                return RetCode.OK;
+            }
+            catch
+            {
+                return RetCode.Exception;
+            }
+        }
+    }
+
     internal static bool GetLocalVariableAndScopeByIndex(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
                                                          out string localVarName, out int ilStartOffset, out int ilEndOffset)
     {

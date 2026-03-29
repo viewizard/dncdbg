@@ -1468,6 +1468,41 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         trILFrame.Free();
     }
 
+    // Enumerate local constants from PDB
+    {
+        std::vector<LocalConstantInfo> localConstants;
+        if (SUCCEEDED(m_sharedDebugInfo->GetLocalConstants(trModule, methodDef, currentIlOffset, localConstants)))
+        {
+            for (const auto &constant : localConstants)
+            {
+                if (usedNames.find(constant.name) != usedNames.end())
+                {
+                    continue;
+                }
+
+                // Skip compiler-generated constants
+                if (IsSynthesizedLocalName(constant.name))
+                {
+                    continue;
+                }
+
+                auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+                {
+                    PCCOR_SIGNATURE pSig = constant.signature.data();
+                    PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
+                    return m_sharedEvalHelpers->CreateLiteralValue(pThread, pSig, pSigEnd, ppResultValue);
+                };
+
+                IfFailRet(cb(to_utf8(constant.name.c_str()), getValue));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_OK;
+                }
+                usedNames.insert(constant.name);
+            }
+        }
+    }
+
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
         IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));

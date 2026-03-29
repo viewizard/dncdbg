@@ -73,6 +73,13 @@ struct AsyncAwaitInfoBlock
     uint32_t token{0}; // note, this is internal token number, runtime method token for module should be calculated as "mdMethodDefNil + token"
 };
 
+struct LocalConstantInfo
+{
+    BSTR name{nullptr};
+    uint8_t *signature{nullptr};
+    int32_t signatureSize{0};
+};
+
 // WARNING! Due to CoreCLR limitations, Init() / Shutdown() sequence can be used only once during process execution.
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
 void Init(const std::string &coreClrPath);
@@ -95,6 +102,8 @@ HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *T
                            int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data);
 HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
                                    std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset);
+HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                          void **data, int32_t &constantCount);
 HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
                     int32_t &resultType, void **data, std::string &errorText);
 HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput);

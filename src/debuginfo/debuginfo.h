@@ -20,9 +20,16 @@
 #include <functional>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 namespace dncdbg
 {
+
+struct LocalConstantInfo
+{
+    WSTRING name;
+    std::vector<uint8_t> signature;
+};
 
 struct PDBInfo
 {
@@ -88,6 +95,9 @@ class DebugInfo
 
     HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
                                   int32_t &hoistedLocalScopesCount);
+
+    HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                             std::vector<LocalConstantInfo> &constants);
 
     HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                             uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);
