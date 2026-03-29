@@ -6,6 +6,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evalwaiter.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "metadata/corhelpers.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
@@ -397,7 +398,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
 }
 
 HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
-                                     PCCOR_SIGNATURE pSig, ULONG /*cbSig*/, UVCP_CONSTANT pRawValue,
+                                     PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
                                      ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
@@ -412,9 +413,9 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *
         return E_INVALIDARG;
     }
 
-    CorSigUncompressCallingConv(pSig);
+    CorSigUncompressSkipOneByte(pSig);
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
-    CorSigUncompressElementType(pSig, &underlyingType);
+    IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, &underlyingType));
 
     ToRelease<IUnknown> trUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));

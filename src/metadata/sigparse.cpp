@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/sigparse.h"
+#include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include <unordered_map>
@@ -74,33 +75,37 @@ void GetCorTypeName(ULONG corType, std::string &typeName)
 }
 
 // Skip array shape data in the signature (rank, sizes, lower bounds).
-void SkipArrayShape(PCCOR_SIGNATURE *ppSig)
+HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 {
+    HRESULT Status = S_OK;
     ULONG rank = 0;
-    *ppSig += CorSigUncompressData(*ppSig, &rank);
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &rank));
     if (rank != 0)
     {
         ULONG sizeDim = 0;
         ULONG ulTemp = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &sizeDim);
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &sizeDim));
         while ((sizeDim--) != 0U)
         {
-            *ppSig += CorSigUncompressData(*ppSig, &ulTemp);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &ulTemp));
         }
         ULONG lowerBound = 0;
         int iTemp = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &lowerBound);
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &lowerBound));
         while ((lowerBound--) != 0U)
         {
-            *ppSig += CorSigUncompressSignedInt(*ppSig, &iTemp);
+            IfFailRet(CorSigUncompressSignedInt_EndPtr(pSig, pSigEnd, &iTemp));
         }
     }
+
+    return S_OK;
 }
 
 // Advance the signature pointer past one element type without building a result.
 // This is used to skip generic arguments in GENERICINST that are not needed.
-void SkipElementType(PCCOR_SIGNATURE *ppSig)
+HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 {
+    HRESULT Status = S_OK;
     // Work items: positive value N means "skip N element types";
     // negative value -1 means "skip array shape data".
     constexpr int SKIP_ARRAY_SHAPE = -1;
@@ -113,7 +118,7 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
         if (top == SKIP_ARRAY_SHAPE)
         {
             work.pop_back();
-            SkipArrayShape(ppSig);
+            IfFailRet(SkipArrayShape(pSig, pSigEnd));
             continue;
         }
         if (top <= 0)
@@ -124,7 +129,7 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
         --top;
 
         ULONG corType = 0;
-        *ppSig += CorSigUncompressData(*ppSig, &corType);
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &corType));
 
         switch (corType)
         {
@@ -154,7 +159,7 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
         case ELEMENT_TYPE_CLASS:
         {
             mdToken tk = mdTokenNil;
-            *ppSig += CorSigUncompressToken(*ppSig, &tk);
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &tk));
             break;
         }
 
@@ -163,7 +168,7 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
         case ELEMENT_TYPE_MVAR:
         {
             ULONG num = 0;
-            *ppSig += CorSigUncompressData(*ppSig, &num);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &num));
             break;
         }
 
@@ -184,11 +189,11 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
         case ELEMENT_TYPE_GENERICINST:
         {
             ULONG innerCorType = 0;
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &innerCorType));
             mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &token));
             ULONG number = 0;
-            *ppSig += CorSigUncompressData(*ppSig, &innerCorType);
-            *ppSig += CorSigUncompressToken(*ppSig, &token);
-            *ppSig += CorSigUncompressData(*ppSig, &number);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &number));
             work.push_back(static_cast<int>(number)); // skip N generic arg element types
             break;
         }
@@ -206,6 +211,8 @@ void SkipElementType(PCCOR_SIGNATURE *ppSig)
             break;
         }
     }
+
+    return S_OK;
 }
 
 } // unnamed namespace
@@ -296,7 +303,8 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // LoBounds ::= 29-bit-encoded-integer
 // Number ::= 29-bit-encoded-integer
 
-HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, SigElementType &sigElementType, bool addCorTypeName)
+HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
+                         SigElementType &sigElementType, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
 
@@ -314,7 +322,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     for (;;)
     {
         CorElementType corType = ELEMENT_TYPE_MAX;
-        *ppSig += CorSigUncompressElementType(*ppSig, &corType);
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, &corType));
         sigElementType.corType = corType;
 
         if (corType == ELEMENT_TYPE_SZARRAY)
@@ -366,18 +374,18 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
 
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
-            *ppSig += CorSigUncompressToken(*ppSig, &tk);
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &tk));
             IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
             break;
 
         case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
-            *ppSig += CorSigUncompressData(*ppSig, &argNum);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &argNum));
             sigElementType.elementType = ELEMENT_TYPE_VAR;
             sigElementType.varNum = argNum;
             break;
 
         case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
-            *ppSig += CorSigUncompressData(*ppSig, &argNum);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &argNum));
             sigElementType.elementType = ELEMENT_TYPE_MVAR;
             sigElementType.varNum = argNum;
             break;
@@ -387,18 +395,18 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
             ULONG innerCorType = 0;
             ULONG number = 0;
             mdToken token = mdTokenNil;
-            *ppSig += CorSigUncompressData(*ppSig, &innerCorType);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &innerCorType));
             if (innerCorType != ELEMENT_TYPE_CLASS && innerCorType != ELEMENT_TYPE_VALUETYPE)
             {
                 return E_NOTIMPL;
             }
-            *ppSig += CorSigUncompressToken(*ppSig, &token);
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &token));
             sigElementType.corType = static_cast<CorElementType>(innerCorType);
             IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
-            *ppSig += CorSigUncompressData(*ppSig, &number);
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &number));
             for (ULONG i = 0; i < number; i++)
             {
-                SkipElementType(ppSig); // Not needed at the moment, just advance past each generic arg
+                IfFailRet(SkipElementType(pSig, pSigEnd)); // Not needed at the moment, just advance past each generic arg
             }
             break;
         }
@@ -433,11 +441,11 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
         {
             // Parse array shape from the signature and build the suffix.
             // Save position to read rank before skipping.
-            PCCOR_SIGNATURE rankPtr = *ppSig;
+            PCCOR_SIGNATURE rankPtr = pSig;
             ULONG rank = 0;
-            CorSigUncompressData(rankPtr, &rank);
+            IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, &rank));
             // Skip the entire array shape data.
-            SkipArrayShape(ppSig);
+            IfFailRet(SkipArrayShape(pSig, pSigEnd));
             if (rank != 0)
             {
                 it->suffix = "[" + std::string(rank - 1, ',') + "]";
@@ -455,13 +463,12 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
     return S_OK;
 }
 
-HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElementType &returnElementType,
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, SigElementType &returnElementType,
                        std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics
     ULONG cParams = 0; // Count of signature parameters.
-    ULONG elementSize = 0;
     ULONG convFlags = 0;
 
     returnElementType.corType = ELEMENT_TYPE_MAX;
@@ -470,8 +477,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElem
 
     // 1. calling convention for MethodDefSig:
     // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
-    elementSize = CorSigUncompressData(pSig, &convFlags);
-    pSig += elementSize;
+    convFlags = CorSigUncompressCallingConv(pSig);
 
     // TODO add VARARG methods support.
     if ((convFlags & SIG_METHOD_VARARG) != 0U)
@@ -482,22 +488,20 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElem
     // 2. count of generics if any
     if ((convFlags & SIG_METHOD_GENERIC) != 0U)
     {
-        elementSize = CorSigUncompressData(pSig, &gParams);
-        pSig += elementSize;
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &gParams));
     }
 
     // 3. count of params
-    elementSize = CorSigUncompressData(pSig, &cParams);
-    pSig += elementSize;
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &cParams));
 
     // 4. return type
-    IfFailRet(ParseElementType(pMDImport, &pSig, returnElementType, addCorTypeName));
+    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, returnElementType, addCorTypeName));
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMDImport, &pSig, argElementTypes[i], addCorTypeName));
+        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, argElementTypes[i], addCorTypeName));
     }
 
     return S_OK;

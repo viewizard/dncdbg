@@ -691,15 +691,16 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
 
         DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
         IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
-                                             &methodAttr, &pSig, nullptr, nullptr, nullptr));
+                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr));
 
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
         const std::vector<SigElementType> typeGenerics; // TODO fill this vector
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
         // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes, true);
+        ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)

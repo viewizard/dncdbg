@@ -31,6 +31,7 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Added proper Just My Code enabled stacktrace.
 - Added source and function breakpoints reset during module unload.
 - Added `--loglevel` launch option for setup minimal log level output.
+- Added end-pointer bounds checking to metadata signature parsing.
 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).

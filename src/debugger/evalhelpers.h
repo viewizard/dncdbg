@@ -48,7 +48,7 @@ class EvalHelpers
                                 ICorDebugValue **ppEvalResult);
 
     HRESULT GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
-                            PCCOR_SIGNATURE pSig, ULONG cbSig, UVCP_CONSTANT pRawValue,
+                            PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
                             ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);

@@ -665,7 +665,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            if (FAILED(ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes)))
+            if (FAILED(ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes)))
             {
                 continue;
             }
@@ -953,7 +953,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     {
                         if (fieldAttr & fdLiteral)
                         {
-                            IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trModule, pSig, cbSig,
+                            IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trModule, pSig, pSig + cbSig,
                                                                            pRawValue, rawValueLength, ppResultValue));
                         }
                         else if (fieldAttr & fdStatic)
@@ -1821,7 +1821,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
 
                 SigElementType returnElementType;
                 std::vector<SigElementType> argElementTypes;
-                if (FAILED(ParseMethodSig(trMDImport, pSig, returnElementType, argElementTypes)))
+                if (FAILED(ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes)))
                 {
                     continue;
                 }
@@ -1891,7 +1891,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             if (TypeFromToken(tkIface) == mdtTypeSpec)
                             {
                                 if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &cbSig)) ||
-                                    FAILED(ParseElementType(trMDImportInt, &pSig, ifaceElementType, false)))
+                                    FAILED(ParseElementType(trMDImportInt, pSig, pSig + cbSig, ifaceElementType, false)))
                                 {
                                     continue;
                                 }

@@ -5,6 +5,7 @@
 
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
+#include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -87,8 +88,8 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         {
             if ((fieldAttr & fdStatic) == 0)
             {
-                CorSigUncompressCallingConv(pSig);
-                enumUnderlyingType = CorSigUncompressElementType(pSig);
+                CorSigUncompressSkipOneByte(pSig);
+                IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSig + cbSig, &enumUnderlyingType));
                 break;
             }
         }
