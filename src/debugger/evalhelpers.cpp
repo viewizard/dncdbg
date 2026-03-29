@@ -138,7 +138,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppNewString,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution protected by EvalWaiter mutex.
+            // Note, this code execution is protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             IfFailRet(pEval->NewString(value16t.c_str()));
             return S_OK;
@@ -188,7 +188,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution protected by EvalWaiter mutex.
+            // Note, this code execution is protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
@@ -213,7 +213,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution protected by EvalWaiter mutex.
+            // Note, this code execution is protected by EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
@@ -358,7 +358,7 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trTypeObject,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution protected by EvalWaiter mutex.
+            // Note, this code execution is protected by EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
             IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
@@ -412,7 +412,7 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
     }
 
     HRESULT Status = S_OK;
-    // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we sure this is field.
+    // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we are sure this is a field.
     IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
@@ -422,7 +422,7 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
         // https://learn.microsoft.com/en-us/dotnet/core/unmanaged-api/metadata/interfaces/imetadataimport-getfieldprops-method
         // pcchValue [out] The size in chars of ppValue, or zero if no string exists.
         // In case of ELEMENT_TYPE_STRING this is WCHAR, convert to length in bytes
-        // since CreateLiteralValueImpl() count on this.
+        // since CreateLiteralValueImpl() counts on this.
         rawValueLength = rawValueLength * sizeof(WCHAR);
     }
 
@@ -492,7 +492,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, CorElement
                 IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppLiteralValue,
                     [&](ICorDebugEval *pEval) -> HRESULT
                     {
-                        // Note, this code execution protected by EvalWaiter mutex.
+                        // Note, this code execution is protected by EvalWaiter mutex.
                         ToRelease<ICorDebugEval2> trEval2;
                         IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
                         IfFailRet(trEval2->NewStringWithLength(strValue, strLen));

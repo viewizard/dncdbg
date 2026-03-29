@@ -1013,7 +1013,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "null");
 
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character need 2 wchars and not supported
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character needs 2 wchars and is not supported
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal1_int");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal1_string");
