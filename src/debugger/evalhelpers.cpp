@@ -452,7 +452,7 @@ HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIG
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
 
     const UVCP_CONSTANT pRawValue = pSig;
-    ULONG rawValueLength = pSigEnd - pSig;
+    auto rawValueLength = static_cast<ULONG>(pSigEnd - pSig);
 
     static constexpr uint8_t nullStringMarker = 0xFF;
     if (underlyingType == ELEMENT_TYPE_STRING &&
