@@ -406,11 +406,12 @@ class Program
     int int_i = 505;
     static test_nested test_nested_static_instance;
 
-    const int literal_int = 5;
-    const string literal_string = "literal";
-    const object literal_object = null;
-    const Random literal_random = null;
-    const int [] literal_array = null;
+    const int literal1_int = 5;
+    const string literal1_string = "literal";
+    const string literal1_string_null = null;
+    const object literal1_object = null;
+    const Random literal1_random = null;
+    const int [] literal1_array = null;
 
     static int stGetInt()
     {
@@ -479,6 +480,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK12");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK13");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK14");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "BP_LITERAL");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.PrepareEnd(@"__FILE__:__LINE__");
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
@@ -963,15 +965,35 @@ class Program
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.Exception}", "System.Exception", "$exception");
+                Context.Continue(@"__FILE__:__LINE__");
             });
 
         // Test literals.
+
+        {
+            const int literal2_int = 5;
+            const string literal2_string = "literal";
+            const string literal2_string_null = null;
+            const object literal2_object = null;
+            const Random literal2_random = null;
+            const int [] literal2_array = null;
+        }
+        const int literal3_int = 15;
+        const string literal3_string = "localliteral";
+        const string literal3_string_null = null;
+        const object literal3_object = null;
+        const Random literal3_random = null;
+        const int [] literal3_array = null;
+
+        int litstop = 1;                                                                             Label.Breakpoint("BP_LITERAL");
+
 
         Label.Checkpoint("literals_test", "conditional_access_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BP_LITERAL");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_LITERAL");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "\"test\"");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"$exception\"", "string", "\"$exception\"");
@@ -991,14 +1013,30 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "null");
 
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal_int");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal_string");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_object");
-                // FIXME shoud return proper type, fix after debugger will be fixed
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_random");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_array");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character need 2 wchars and not supported
 
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character need 2 whcars and not supported
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal1_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal1_string");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_object");
+                // FIXME should return proper type, fix after debugger will be fixed
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_string_null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "literal3_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"localliteral\"", "string", "literal3_string");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_object");
+                // FIXME should return proper type, fix after debugger will be fixed
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_string_null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array");
+
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_int", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_object", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string_null", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_random", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array", "error"); // not in scope
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
