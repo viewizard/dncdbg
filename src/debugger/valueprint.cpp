@@ -80,15 +80,15 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
     while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
     {
         DWORD fieldAttr = 0;
-        PCCOR_SIGNATURE pSignatureBlob = nullptr;
-        ULONG sigBlobLength = 0;
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
         if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                                &pSignatureBlob, &sigBlobLength, nullptr, nullptr, nullptr)))
+                                                &pSig, &cbSig, nullptr, nullptr, nullptr)))
         {
             if ((fieldAttr & fdStatic) == 0)
             {
-                CorSigUncompressCallingConv(pSignatureBlob);
-                enumUnderlyingType = CorSigUncompressElementType(pSignatureBlob);
+                CorSigUncompressCallingConv(pSig);
+                enumUnderlyingType = CorSigUncompressElementType(pSig);
                 break;
             }
         }

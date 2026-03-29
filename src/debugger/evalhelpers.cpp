@@ -4,11 +4,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalhelpers.h"
-#include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
-#include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "metadata/sigparse.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
@@ -399,10 +396,14 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
     return S_OK;
 }
 
-HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugModule *pModule,
-                                     PCCOR_SIGNATURE pSignatureBlob, ULONG /*sigBlobLength*/, UVCP_CONSTANT pRawValue,
+HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *pModule,
+                                     PCCOR_SIGNATURE pSig, ULONG /*cbSig*/, UVCP_CONSTANT pRawValue,
                                      ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
+    // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
+    // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
+    // with a null value. User-defined types, including classes, structs, and arrays, cannot be const. 
+
     HRESULT Status = S_OK;
 
     if (pRawValue == nullptr ||
@@ -411,9 +412,9 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         return E_INVALIDARG;
     }
 
-    CorSigUncompressCallingConv(pSignatureBlob);
+    CorSigUncompressCallingConv(pSig);
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
-    CorSigUncompressElementType(pSignatureBlob, &underlyingType);
+    CorSigUncompressElementType(pSig, &underlyingType);
 
     ToRelease<IUnknown> trUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
@@ -431,101 +432,19 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
         }
         case ELEMENT_TYPE_CLASS:
         {
-            // Get token and create null reference
-            mdTypeDef tk = mdTypeDefNil;
-            CorSigUncompressElementType(pSignatureBlob);
-            CorSigUncompressToken(pSignatureBlob, &tk);
-
-            ToRelease<ICorDebugClass> trValueClass;
-            IfFailRet(pModule->GetClassFromToken(tk, &trValueClass));
-
+            // FIXME create reference to proper type instead of object
             ToRelease<ICorDebugEval> trEval;
             IfFailRet(pThread->CreateEval(&trEval));
-            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trValueClass, ppLiteralValue));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
             break;
         }
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            // Get type name from signature and get its ICorDebugType
-            std::string typeName;
-            TypeNameFromSig(pSignatureBlob, pType, trMDImport, typeName);
-            ToRelease<ICorDebugType> trElementType;
-            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trElementType));
-
-            // We can not directly create null value of specific array type.
-            // Instead, we create one element array with element type set to our specific array type.
-            // Since array elements are initialized to null, we get our null value from the first array item.
-
-            uint32_t dims = 1;
-            uint32_t bounds = 0;
-            ToRelease<ICorDebugValue> trTmpArrayValue;
-            IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trTmpArrayValue,
-                [&](ICorDebugEval *pEval) -> HRESULT
-                {
-                    // Note, this code execution protected by EvalWaiter mutex.
-                    ToRelease<ICorDebugEval2> trEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-                    IfFailRet(trEval2->NewParameterizedArray(trElementType, 1, &dims, &bounds));
-                    return S_OK;
-                }));
-
-            BOOL isNull = FALSE;
-            ToRelease<ICorDebugValue> trUnboxedResult;
-            IfFailRet(DereferenceAndUnboxValue(trTmpArrayValue, &trUnboxedResult, &isNull));
-
-            ToRelease<ICorDebugArrayValue> trArray;
-            IfFailRet(trUnboxedResult->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArray)));
-            IfFailRet(trArray->GetElementAtPosition(0, ppLiteralValue));
-            break;
-        }
-        case ELEMENT_TYPE_GENERICINST:
-        {
-            // Get type name from signature and get its ICorDebugType
-            std::string typeName;
-            TypeNameFromSig(pSignatureBlob, pType, trMDImport, typeName);
-            ToRelease<ICorDebugType> trValueType;
-            IfFailRet(EvalUtils::GetType(typeName, pThread, m_sharedDebugInfo.get(), &trValueType));
-
-            // Create value from ICorDebugType
+            // FIXME create reference to proper type instead of object
             ToRelease<ICorDebugEval> trEval;
             IfFailRet(pThread->CreateEval(&trEval));
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(trEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->CreateValueForType(trValueType, ppLiteralValue));
-            break;
-        }
-        case ELEMENT_TYPE_VALUETYPE:
-        {
-            // Get type token
-            mdTypeDef tk = mdTypeDefNil;
-            CorSigUncompressElementType(pSignatureBlob);
-            CorSigUncompressToken(pSignatureBlob, &tk);
-
-            ToRelease<ICorDebugClass> trValueClass;
-            IfFailRet(pModule->GetClassFromToken(tk, &trValueClass));
-
-            // Create value (without calling a constructor)
-            ToRelease<ICorDebugValue> trValue;
-            IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trValue,
-                [&](ICorDebugEval *pEval) -> HRESULT
-                {
-                    // Note, this code execution protected by EvalWaiter mutex.
-                    ToRelease<ICorDebugEval2> trEval2;
-                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-                    IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trValueClass, 0, nullptr));
-                    return S_OK;
-                }));
-
-            // Set value
-            BOOL isNull = FALSE;
-            ToRelease<ICorDebugValue> trEditableValue;
-            IfFailRet(DereferenceAndUnboxValue(trValue, &trEditableValue, &isNull));
-
-            ToRelease<ICorDebugGenericValue> trGenericValue;
-            IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
-            *ppLiteralValue = trValue.Detach();
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
             break;
         }
         case ELEMENT_TYPE_STRING:
@@ -539,7 +458,6 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
                     IfFailRet(trEval2->NewStringWithLength(reinterpret_cast<const WCHAR *>(pRawValue), rawValueLength));
                     return S_OK;
                 }));
-
             break;
         }
         case ELEMENT_TYPE_BOOLEAN:
@@ -566,7 +484,7 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugType *pT
             break;
         }
         default:
-            return E_FAIL;
+            return E_INVALIDARG;
     }
     return S_OK;
 }

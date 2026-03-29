@@ -406,6 +406,12 @@ class Program
     int int_i = 505;
     static test_nested test_nested_static_instance;
 
+    const int literal_int = 5;
+    const string literal_string = "literal";
+    const object literal_object = null;
+    const Random literal_random = null;
+    const int [] literal_array = null;
+
     static int stGetInt()
     {
         return 111;
@@ -984,6 +990,13 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "true");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "null");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal_string");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_object");
+                // FIXME shoud return proper type, fix after debugger will be fixed
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal_array");
 
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "error CS1012"); // '𐌞' character need 2 whcars and not supported
 

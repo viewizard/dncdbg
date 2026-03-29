@@ -924,12 +924,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                 DWORD fieldAttr = 0;
                 WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
-                PCCOR_SIGNATURE pSignatureBlob = nullptr;
-                ULONG sigBlobLength = 0;
+                PCCOR_SIGNATURE pSig = nullptr;
+                ULONG cbSig = 0;
                 UVCP_CONSTANT pRawValue = nullptr;
                 ULONG rawValueLength = 0;
                 if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
-                                                        &pSignatureBlob, &sigBlobLength, nullptr, &pRawValue, &rawValueLength)))
+                                                        &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
                 {
                     // Prevent access to internal compiler added fields (without visible name).
                     // Should be accessed by debugger routine only and hidden from user/ide.
@@ -953,9 +953,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     {
                         if (fieldAttr & fdLiteral)
                         {
-                            IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trType, trModule, pSignatureBlob,
-                                                                           sigBlobLength, pRawValue, rawValueLength,
-                                                                           ppResultValue));
+                            IfFailRet(m_sharedEvalHelpers->GetLiteralValue(pThread, trModule, pSig, cbSig,
+                                                                           pRawValue, rawValueLength, ppResultValue));
                         }
                         else if (fieldAttr & fdStatic)
                         {
@@ -1883,7 +1882,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             mdTypeDef tkClass = mdTypeDefNil;
                             mdToken tkIface = mdTokenNil;
                             PCCOR_SIGNATURE pSig = nullptr;
-                            ULONG pcbSig = 0;
+                            ULONG cbSig = 0;
                             SigElementType ifaceElementType;
                             if (FAILED(trMDImportInt->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
                             {
@@ -1891,7 +1890,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                             }
                             if (TypeFromToken(tkIface) == mdtTypeSpec)
                             {
-                                if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &pcbSig)) ||
+                                if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &cbSig)) ||
                                     FAILED(ParseElementType(trMDImportInt, &pSig, ifaceElementType, false)))
                                 {
                                     continue;

@@ -81,3 +81,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
 - Fixed exception type name fail handling logic in GetExceptionDetails().
 - Fixed disable JIT optimization related logic.
+- Fixed litteral evaluation logic.

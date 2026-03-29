@@ -50,9 +50,6 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE *ppSig, Sig
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, SigElementType &returnElementType,
                        std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
 
-void TypeNameFromSig(PCCOR_SIGNATURE typePtr, ICorDebugType *pEnclosingType, IMetaDataImport *pMDImport,
-                     std::string &typeName);
-
 HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg);
 HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg);
 
