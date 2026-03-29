@@ -452,7 +452,14 @@ HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIG
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
 
     const UVCP_CONSTANT pRawValue = pSig;
-    const ULONG rawValueLength = pSigEnd - pSig;
+    ULONG rawValueLength = pSigEnd - pSig;
+
+    static constexpr uint8_t nullStringMarker = 0xFF;
+    if (underlyingType == ELEMENT_TYPE_STRING &&
+        *reinterpret_cast<const uint8_t *>(pRawValue) == nullStringMarker)
+    {
+        rawValueLength = 0;
+    }
 
     return CreateLiteralValueImpl(pThread, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
 }
@@ -476,9 +483,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, CorElement
         }
         case ELEMENT_TYPE_STRING:
         {
-            static constexpr uint8_t nullStringMarker = 0xFF;
-            if (rawValueLength == 0 ||                                             // constant field related check
-                *reinterpret_cast<const uint8_t *>(pRawValue) == nullStringMarker) // constant local related check
+            if (rawValueLength == 0)
             {
                 // FIXME create reference to proper type instead of object
                 ToRelease<ICorDebugEval> trEval;
