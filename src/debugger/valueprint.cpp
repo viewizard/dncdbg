@@ -88,8 +88,8 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         {
             if ((fieldAttr & fdStatic) == 0)
             {
-                CorSigUncompressSkipOneByte(pSig);
-                IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSig + cbSig, &enumUnderlyingType));
+                IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSig + cbSig));
+                IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSig + cbSig, enumUnderlyingType));
                 break;
             }
         }

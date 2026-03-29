@@ -19,7 +19,7 @@ namespace
 constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
 constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 
-void GetCorTypeName(ULONG corType, std::string &typeName)
+void GetCorTypeName(CorElementType corType, std::string &typeName)
 {
     switch (corType)
     {
@@ -79,22 +79,22 @@ HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 {
     HRESULT Status = S_OK;
     ULONG rank = 0;
-    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &rank));
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, rank));
     if (rank != 0)
     {
         ULONG sizeDim = 0;
         ULONG ulTemp = 0;
-        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &sizeDim));
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, sizeDim));
         while ((sizeDim--) != 0U)
         {
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &ulTemp));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, ulTemp));
         }
         ULONG lowerBound = 0;
         int iTemp = 0;
-        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &lowerBound));
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, lowerBound));
         while ((lowerBound--) != 0U)
         {
-            IfFailRet(CorSigUncompressSignedInt_EndPtr(pSig, pSigEnd, &iTemp));
+            IfFailRet(CorSigUncompressSignedInt_EndPtr(pSig, pSigEnd, iTemp));
         }
     }
 
@@ -128,8 +128,8 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         }
         --top;
 
-        ULONG corType = 0;
-        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &corType));
+        CorElementType corType = ELEMENT_TYPE_MAX;
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, corType));
 
         switch (corType)
         {
@@ -159,7 +159,7 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         case ELEMENT_TYPE_CLASS:
         {
             mdToken tk = mdTokenNil;
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &tk));
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, tk));
             break;
         }
 
@@ -168,7 +168,7 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         case ELEMENT_TYPE_MVAR:
         {
             ULONG num = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &num));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
             break;
         }
 
@@ -189,11 +189,11 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         case ELEMENT_TYPE_GENERICINST:
         {
             ULONG innerCorType = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &innerCorType));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, innerCorType));
             mdToken token = mdTokenNil;
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &token));
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             ULONG number = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &number));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             work.push_back(static_cast<int>(number)); // skip N generic arg element types
             break;
         }
@@ -322,7 +322,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     for (;;)
     {
         CorElementType corType = ELEMENT_TYPE_MAX;
-        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, &corType));
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, corType));
         sigElementType.corType = corType;
 
         if (corType == ELEMENT_TYPE_SZARRAY)
@@ -374,18 +374,18 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &tk));
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, tk));
             IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
             break;
 
         case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &argNum));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, argNum));
             sigElementType.elementType = ELEMENT_TYPE_VAR;
             sigElementType.varNum = argNum;
             break;
 
         case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &argNum));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, argNum));
             sigElementType.elementType = ELEMENT_TYPE_MVAR;
             sigElementType.varNum = argNum;
             break;
@@ -395,15 +395,15 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             ULONG innerCorType = 0;
             ULONG number = 0;
             mdToken token = mdTokenNil;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &innerCorType));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, innerCorType));
             if (innerCorType != ELEMENT_TYPE_CLASS && innerCorType != ELEMENT_TYPE_VALUETYPE)
             {
                 return E_NOTIMPL;
             }
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, &token));
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             sigElementType.corType = static_cast<CorElementType>(innerCorType);
             IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &number));
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             for (ULONG i = 0; i < number; i++)
             {
                 IfFailRet(SkipElementType(pSig, pSigEnd)); // Not needed at the moment, just advance past each generic arg
@@ -443,7 +443,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             // Save position to read rank before skipping.
             PCCOR_SIGNATURE rankPtr = pSig;
             ULONG rank = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, &rank));
+            IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, rank));
             // Skip the entire array shape data.
             IfFailRet(SkipArrayShape(pSig, pSigEnd));
             if (rank != 0)
@@ -477,7 +477,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_S
 
     // 1. calling convention for MethodDefSig:
     // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
-    convFlags = CorSigUncompressCallingConv(pSig);
+    IfFailRet(CorSigUncompressCallingConv_EndPtr(pSig, pSigEnd, convFlags));
 
     // TODO add VARARG methods support.
     if ((convFlags & SIG_METHOD_VARARG) != 0U)
@@ -488,11 +488,11 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_S
     // 2. count of generics if any
     if ((convFlags & SIG_METHOD_GENERIC) != 0U)
     {
-        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &gParams));
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, gParams));
     }
 
     // 3. count of params
-    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, &cParams));
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
 
     // 4. return type
     IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, returnElementType, addCorTypeName));

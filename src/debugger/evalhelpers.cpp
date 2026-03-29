@@ -413,9 +413,9 @@ HRESULT EvalHelpers::GetLiteralValue(ICorDebugThread *pThread, ICorDebugModule *
         return E_INVALIDARG;
     }
 
-    CorSigUncompressSkipOneByte(pSig);
+    IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
-    IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, &underlyingType));
+    IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
 
     ToRelease<IUnknown> trUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));

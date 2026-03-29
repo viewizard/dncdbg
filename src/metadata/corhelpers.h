@@ -16,94 +16,116 @@
 
 #include "utils/torelease.h"
 #include <algorithm>
-#include <cassert>
 
 namespace dncdbg
 {
 
-inline void CorSigUncompressSkipOneByte(PCCOR_SIGNATURE &pData)
+// Helper to check bounds and return error if exceeded
+inline HRESULT CheckBounds(PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd)
 {
-    pData++;
+    if (pSig >= pSigEnd)
+    {
+        return META_E_BAD_SIGNATURE;
+    }
+    return S_OK;
+}
+
+inline HRESULT CorSigUncompressSkipOneByte_EndPtr(PCCOR_SIGNATURE &pSig,
+                                                  PCCOR_SIGNATURE  pSigEnd)
+{
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
+
+    pSig++;
+    return S_OK;
+}
+
+inline HRESULT CorSigUncompressCallingConv_EndPtr(PCCOR_SIGNATURE &pSig,
+                                                  PCCOR_SIGNATURE  pSigEnd,
+                                                  ULONG           &convOut)
+{
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
+
+    // Read 'calling convention' flags as 1 byte
+    convOut = static_cast<ULONG>(*pSig);
+    pSig++;
+
+    return S_OK;
 }
 
 // part of diagnostics/src/shared/inc/corhlprpriv.h
-inline HRESULT CorSigUncompressData_EndPtr(PCCOR_SIGNATURE &pData,
-                                           PCCOR_SIGNATURE  pDataEnd,
-                                           DWORD           *pnDataOut)
+inline HRESULT CorSigUncompressData_EndPtr(PCCOR_SIGNATURE &pSig,
+                                           PCCOR_SIGNATURE  pSigEnd,
+                                           DWORD           &nDataOut)
 {
-    assert(pData <= pDataEnd);
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
 
-    intptr_t cbDataSize = pDataEnd - pData;
+    intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed integer cannot be bigger than 4 bytes
     cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
     auto dwDataSize = static_cast<DWORD>(cbDataSize);
 
-    HRESULT Status = S_OK;
     ULONG cbDataOutLength = 0;
-    IfFailRet(CorSigUncompressData(pData, dwDataSize, pnDataOut, &cbDataOutLength));
-    pData += cbDataOutLength;
+    IfFailRet(CorSigUncompressData(pSig, dwDataSize, &nDataOut, &cbDataOutLength));
+    pSig += cbDataOutLength;
 
     return S_OK;
 }
 
 // part of diagnostics/src/shared/inc/corhlprpriv.h
-inline HRESULT CorSigUncompressElementType_EndPtr(PCCOR_SIGNATURE &pData,
-                                                  PCCOR_SIGNATURE  pDataEnd,
-                                                  CorElementType  *pTypeOut)
+inline HRESULT CorSigUncompressElementType_EndPtr(PCCOR_SIGNATURE &pSig,
+                                                  PCCOR_SIGNATURE  pSigEnd,
+                                                  CorElementType  &typeOut)
 {
-    assert(pData <= pDataEnd);
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
 
-    if (pData >= pDataEnd)
-    {   // No data
-        return META_E_BAD_SIGNATURE;
-    }
     // Read 'type' as 1 byte
-    *pTypeOut = static_cast<CorElementType>(*pData);
-    pData++;
+    typeOut = static_cast<CorElementType>(*pSig);
+    pSig++;
 
     return S_OK;
 }
 
 // part of diagnostics/src/shared/inc/corhlprpriv.h
-inline HRESULT CorSigUncompressToken_EndPtr(PCCOR_SIGNATURE &pData,
-                                            PCCOR_SIGNATURE  pDataEnd,
-                                            mdToken         *ptkTokenOut)
+inline HRESULT CorSigUncompressToken_EndPtr(PCCOR_SIGNATURE &pSig,
+                                            PCCOR_SIGNATURE  pSigEnd,
+                                            mdToken         &tkTokenOut)
 {
-    assert(pData <= pDataEnd);
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
 
-    INT_PTR cbDataSize = pDataEnd - pData;
+    intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed token cannot be bigger than 4 bytes
     cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
     const auto dwDataSize = static_cast<DWORD>(cbDataSize);
 
-    HRESULT Status = S_OK;
     uint32_t cbTokenOutLength = 0;
-    IfFailRet(CorSigUncompressToken(pData, dwDataSize, ptkTokenOut, &cbTokenOutLength));
-    pData += cbTokenOutLength;
+    IfFailRet(CorSigUncompressToken(pSig, dwDataSize, &tkTokenOut, &cbTokenOutLength));
+    pSig += cbTokenOutLength;
 
     return S_OK;
 }
 
-inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pData,
-                                                PCCOR_SIGNATURE  pDataEnd,
-                                                int             *pInt)
+inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pSig,
+                                                PCCOR_SIGNATURE  pSigEnd,
+                                                int             &intOut)
 {
-    assert(pData <= pDataEnd);
+    HRESULT Status = S_OK;
+    IfFailRet(CheckBounds(pSig, pSigEnd));
 
     ULONG cbDataOutLength = 0;
     ULONG iData = 0;
 
-    intptr_t cbDataSize = pDataEnd - pData;
+    intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed integer cannot be bigger than 4 bytes
     cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
     auto dwDataSize = static_cast<DWORD>(cbDataSize);
 
-    if (FAILED(CorSigUncompressData(pData, dwDataSize, &iData, &cbDataOutLength)))
-    {
-        *pInt = 0;
-        return META_E_BAD_SIGNATURE;
-    }
-    pData += cbDataOutLength;
+    IfFailRet(CorSigUncompressData(pSig, dwDataSize, &iData, &cbDataOutLength));
+    pSig += cbDataOutLength;
 
     const ULONG ulSigned = iData & 0x1;
     iData = iData >> 1;
@@ -122,7 +144,7 @@ inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pData,
             iData |= SIGN_MASK_FOURBYTE;
         }
     }
-    *pInt = static_cast<int>(iData);
+    intOut = static_cast<int>(iData);
     return S_OK;
 }
 
