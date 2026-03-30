@@ -558,12 +558,14 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                         continue;
                     }
 
-                    found = true;
                     ToRelease<ICorDebugClass> trClass;
                     IfFailRet(trModuleDef->GetClassFromToken(typeDef, &trClass));
                     ToRelease<ICorDebugEval> trEval;
                     IfFailRet(pThread->CreateEval(&trEval));
                     IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+
+                    found = true;
+                    break;
                 }
                 if (!found)
                 {
