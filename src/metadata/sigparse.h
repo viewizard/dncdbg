@@ -23,7 +23,7 @@ struct SigElementType
 {
     CorElementType corType{ELEMENT_TYPE_MAX};
     std::string typeName;
-    int elementType{ELEMENT_TYPE_END};
+    CorElementType elementType{ELEMENT_TYPE_END};
     ULONG varNum{0};
 
     SigElementType() = default;
