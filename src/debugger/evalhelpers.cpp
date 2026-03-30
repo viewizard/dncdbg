@@ -515,7 +515,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 ToRelease<IMetaDataImport> trMDImport;
                 IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-                // Note, IMetaDataImport::GetTypeRefProps() return fully-qualified name.
+                // Note, IMetaDataImport::GetTypeRefProps() returns a fully-qualified name.
                 ULONG refNameSize = 0;
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &refNameSize));
                 WSTRING refFullName(refNameSize, '\0');
