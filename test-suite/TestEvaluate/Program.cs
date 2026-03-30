@@ -415,7 +415,7 @@ class Program
     const string literal1_string = "literal";
     const string literal1_string_null = null;
     const object literal1_object = null;
-    const Random literal1_random = null;
+    const System.IO.StreamReader literal1_random = null;
     const TestClass literal1_testclass = null;
     const int [] literal1_array = null;
     const TestClass [] literal1_array_testclass = null;
@@ -1040,7 +1040,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_object");
                 // FIXME should return proper type, fix after debugger will be fixed
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_string_null");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "System.IO.StreamReader", "literal1_random");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvaluate.TestClass", "literal1_testclass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array_testclass");
@@ -1053,7 +1053,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_object");
                 // FIXME should return proper type, fix after debugger will be fixed
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_string_null");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "System.Random", "literal3_random");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvaluate.TestClass", "literal3_testclass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array_testclass");

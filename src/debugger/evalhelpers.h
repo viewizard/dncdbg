@@ -35,9 +35,9 @@ class EvalHelpers
           m_sharedEvalWaiter(sharedEvalWaiter)
     {}
 
-    HRESULT CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
-                                             ICorDebugValue **ppTypeObjectResult = nullptr,
-                                             bool DetectStaticMembers = true);
+    HRESULT CreateTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
+                                              ICorDebugValue **ppTypeObjectResult = nullptr,
+                                              bool DetectStaticMembers = true);
 
     HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
                          uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,

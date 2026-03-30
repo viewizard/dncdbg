@@ -51,7 +51,7 @@ HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WS
     return pModule->GetFunctionFromToken(methodDef, ppFunction);
 }
 
-bool TypeHaveStaticMembers(ICorDebugType *pType)
+bool TypeHasStaticMembers(ICorDebugType *pType)
 {
     HRESULT Status = S_OK;
 
@@ -168,7 +168,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     }
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    // Reserve memory from the beginning, since trTypeParams will have ArgsTypeCount or more count of elements for sure.
+    // Reserve memory upfront, since trTypeParams will have ArgsTypeCount or more elements for sure.
     trTypeParams.reserve(ArgsTypeCount);
 
     for (uint32_t i = 0; i < ArgsTypeCount; i++)
@@ -318,8 +318,8 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     return S_OK;
 }
 
-HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
-                                                      ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
+HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
+                                                       ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
 {
     HRESULT Status = S_OK;
 
@@ -332,9 +332,9 @@ HRESULT EvalHelpers::CreatTypeObjectStaticConstructor(ICorDebugThread *pThread, 
         return S_OK;
     }
 
-    // Create type object only in case type have static members.
-    // Note, for some cases we have static members check outside this method.
-    if (DetectStaticMembers && !TypeHaveStaticMembers(pType))
+    // Create type object only in case type has static members.
+    // Note: for some cases, static members are checked outside this method.
+    if (DetectStaticMembers && !TypeHasStaticMembers(pType))
     {
         return S_NO_STATIC;
     }
@@ -493,27 +493,94 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
             mdToken typeToken = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, typeToken));
 
-            if (TypeFromToken(typeToken) == mdtTypeRef ||
-                TypeFromToken(typeToken) == mdtTypeSpec)
-            {
-                // FIXME create reference to proper type instead of object
-                ToRelease<ICorDebugEval> trEval;
-                IfFailRet(pThread->CreateEval(&trEval));
-                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
-                break;
-            }
-
             ToRelease<ICorDebugFrame> trFrame;
             IfFailRet(pThread->GetActiveFrame(&trFrame));
             ToRelease<ICorDebugFunction> trFunction;
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
-            ToRelease<ICorDebugClass> trClass;
-            IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
-            ToRelease<ICorDebugEval> trEval;
-            IfFailRet(pThread->CreateEval(&trEval));
-            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+
+            if (TypeFromToken(typeToken) == mdtTypeDef)
+            {
+                ToRelease<ICorDebugClass> trClass;
+                IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+            }
+            else if (TypeFromToken(typeToken) == mdtTypeRef)
+            {
+                ToRelease<IUnknown> trUnknown;
+                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+                ToRelease<IMetaDataImport> trMDImport;
+                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+                // Note, IMetaDataImport::GetTypeRefProps() return fully-qualified name.
+                ULONG refNameSize = 0;
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &refNameSize));
+                WSTRING refFullName(refNameSize, '\0');
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, refFullName.data(), refNameSize, nullptr));
+
+                ToRelease<ICorDebugProcess> trProcess;
+                IfFailRet(pThread->GetProcess(&trProcess));
+                ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
+                IfFailRet(trProcess->EnumerateAppDomains(&trAppDomainEnum));
+                // At this moment debugger support only one application domain for process.
+                ToRelease<ICorDebugAppDomain> trAppDomain;
+                ULONG domainsFetched = 0;
+                IfFailRet(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched));
+                IfFailRet(domainsFetched == 1 ? S_OK : E_FAIL);
+                ToRelease<ICorDebugAssemblyEnum> trAssemblyEnum;
+                IfFailRet(trAppDomain->EnumerateAssemblies(&trAssemblyEnum));
+
+                ICorDebugAssembly *curAssembly = nullptr;
+                ULONG assemblyFetched = 0;
+                bool found = false;
+                while (SUCCEEDED(trAssemblyEnum->Next(1, &curAssembly, &assemblyFetched)) && assemblyFetched == 1)
+                {
+                    ToRelease<ICorDebugAssembly> trAssembly(curAssembly);
+                    // Only one module for assembly supported.
+                    ToRelease<ICorDebugModuleEnum> trModuleEnum;
+                    IfFailRet(trAssembly->EnumerateModules(&trModuleEnum));
+                    ToRelease<ICorDebugModule> trModuleDef;
+                    ULONG moduleFetched = 0;
+                    IfFailRet(trModuleEnum->Next(1, &trModuleDef, &moduleFetched));
+                    IfFailRet(moduleFetched == 1 ? S_OK : E_FAIL);
+
+                    ToRelease<IUnknown> trUnknownDef;
+                    IfFailRet(trModuleDef->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
+                    ToRelease<IMetaDataImport> trMDImportDef;
+                    IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
+
+                    mdTypeDef typeDef = mdTypeDefNil;
+                    if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
+                    {
+                        continue;
+                    }
+
+                    found = true;
+                    ToRelease<ICorDebugClass> trClass;
+                    IfFailRet(trModuleDef->GetClassFromToken(typeDef, &trClass));
+                    ToRelease<ICorDebugEval> trEval;
+                    IfFailRet(pThread->CreateEval(&trEval));
+                    IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+                }
+                if (!found)
+                {
+                    return E_INVALIDARG;
+                }
+            }
+            else if (TypeFromToken(typeToken) == mdtTypeSpec)
+            {
+                // FIXME create reference to proper type instead of object
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            }
+            else
+            {
+                return E_INVALIDARG;
+            }
             break;
         }
         case ELEMENT_TYPE_STRING:
