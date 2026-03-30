@@ -404,6 +404,8 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
     // with a null value. User-defined types, including classes, structs, and arrays, cannot be const.
 
+    // The signature format is: FIELD CustomMod* Type
+
     if (pRawValue == nullptr ||
         pThread == nullptr ||
         ppLiteralValue == nullptr)
@@ -414,6 +416,9 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
     HRESULT Status = S_OK;
     // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we are sure this is a field.
     IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
+
+    // TODO care about "CustomMod*"
+
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
 
@@ -426,7 +431,7 @@ HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
         rawValueLength = rawValueLength * sizeof(WCHAR);
     }
 
-    return CreateLiteralValueImpl(pThread, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
+    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
 }
 
 HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
@@ -447,6 +452,8 @@ HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIG
         return E_INVALIDARG;
     }
 
+    // TODO care about "CustomMod*"
+
     HRESULT Status = S_OK;
     CorElementType underlyingType = ELEMENT_TYPE_MAX;
     IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, underlyingType));
@@ -461,17 +468,17 @@ HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIG
         rawValueLength = 0;
     }
 
-    return CreateLiteralValueImpl(pThread, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
+    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
 }
 
-HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, CorElementType underlyingType,
-                                            UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                            CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
+                                            ICorDebugValue **ppLiteralValue)
 {
     HRESULT Status = S_OK;
     switch (underlyingType)
     {
         case ELEMENT_TYPE_OBJECT:
-        case ELEMENT_TYPE_CLASS:
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
@@ -479,6 +486,34 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, CorElement
             ToRelease<ICorDebugEval> trEval;
             IfFailRet(pThread->CreateEval(&trEval));
             IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            break;
+        }
+        case ELEMENT_TYPE_CLASS:
+        {
+            mdToken typeToken = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, typeToken));
+
+            if (TypeFromToken(typeToken) == mdtTypeRef ||
+                TypeFromToken(typeToken) == mdtTypeSpec)
+            {
+                // FIXME create reference to proper type instead of object
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+                break;
+            }
+
+            ToRelease<ICorDebugFrame> trFrame;
+            IfFailRet(pThread->GetActiveFrame(&trFrame));
+            ToRelease<ICorDebugFunction> trFunction;
+            IfFailRet(trFrame->GetFunction(&trFunction));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trFunction->GetModule(&trModule));
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
             break;
         }
         case ELEMENT_TYPE_STRING:

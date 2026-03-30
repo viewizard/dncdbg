@@ -93,8 +93,9 @@ class EvalHelpers
 
     HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult);
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
-    HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, CorElementType underlyingType, UVCP_CONSTANT pRawValue,
-                                   ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
+    HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                   CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
+                                   ICorDebugValue **ppLiteralValue);
 };
 
 } // namespace dncdbg
