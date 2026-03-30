@@ -731,12 +731,12 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     IfFailRet(trStringValue->GetLength(&cchValue));
     cchValue++; // Allocate one more for null terminator
 
-    std::vector<WCHAR> str(cchValue, '\0');
+    WSTRING str(cchValue, '\0');
 
     uint32_t cchValueReturned = 0;
     IfFailRet(trStringValue->GetString(cchValue, &cchValueReturned, str.data()));
 
-    output = to_utf8(str.data());
+    output = to_utf8(str.c_str());
 
     return S_OK;
 }

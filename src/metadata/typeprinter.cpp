@@ -74,10 +74,10 @@ HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::str
     ULONG refNameSize = 0;
     IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
 
-    std::vector<WCHAR> refName(refNameSize + 1, 0);
+    WSTRING refName(refNameSize, 0);
     IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, refName.data(), refNameSize, nullptr));
 
-    mdName = to_utf8(refName.data());
+    mdName = to_utf8(refName.c_str());
 
     return S_OK;
 }
