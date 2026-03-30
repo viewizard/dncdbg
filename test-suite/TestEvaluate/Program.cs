@@ -401,6 +401,11 @@ public struct TestOperators3
     public static int operator <<(TestOperators3 d1, int d2) => 888;
 }
 
+class TestClass
+{
+    int i;
+};
+
 class Program
 {
     int int_i = 505;
@@ -411,7 +416,12 @@ class Program
     const string literal1_string_null = null;
     const object literal1_object = null;
     const Random literal1_random = null;
+    const TestClass literal1_testclass = null;
     const int [] literal1_array = null;
+    const TestClass [] literal1_array_testclass = null;
+    const int [,,] literal1_array2 = null;
+    const Random [,,] literal1_array2_random = null;
+    const TestClass [,,] literal1_array2_testclass = null;
 
     static int stGetInt()
     {
@@ -976,14 +986,24 @@ class Program
             const string literal2_string_null = null;
             const object literal2_object = null;
             const Random literal2_random = null;
+            const TestClass literal2_testclass = null;
             const int [] literal2_array = null;
+            const TestClass [] literal2_array_testclass = null;
+            const int [,,] literal2_array2 = null;
+            const Random [,,] literal2_array2_random = null;
+            const TestClass [,,] literal2_array2_testclass = null;
         }
         const int literal3_int = 15;
         const string literal3_string = "localliteral";
         const string literal3_string_null = null;
         const object literal3_object = null;
         const Random literal3_random = null;
+        const TestClass literal3_testclass = null;
         const int [] literal3_array = null;
+        const TestClass [] literal3_array_testclass = null;
+        const int [,,] literal3_array2 = null;
+        const Random [,,] literal3_array2_random = null;
+        const TestClass [,,] literal3_array2_testclass = null;
 
         int litstop = 1;                                                                             Label.Breakpoint("BP_LITERAL");
 
@@ -1021,7 +1041,12 @@ class Program
                 // FIXME should return proper type, fix after debugger will be fixed
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_string_null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_testclass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array_testclass");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array2");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array2_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array2_testclass");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "literal3_int");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"localliteral\"", "string", "literal3_string");
@@ -1029,14 +1054,24 @@ class Program
                 // FIXME should return proper type, fix after debugger will be fixed
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_string_null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_testclass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array_testclass");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array2");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array2_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array2_testclass");
 
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_int", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_object", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string_null", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_random", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_testclass", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array_testclass", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array2", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array2_random", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_array2_testclass", "error"); // not in scope
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
