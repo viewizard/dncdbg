@@ -82,7 +82,7 @@ for TEST_NAME in $TEST_NAMES; do
 
     if [ "$?" -ne "0" ]; then
         test_fail=$(($test_fail + 1))
-        test_list="$test_list$TEST_NAME ... failed res=$res\n"
+        test_list="$test_list$TEST_NAME ... failed res=$?\n"
     else
         test_pass=$(($test_pass + 1))
         test_list="$test_list$TEST_NAME ... passed\n"
