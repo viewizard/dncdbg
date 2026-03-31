@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluator.h"
-#include "debugger/evalhelpers.h"
+#include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
@@ -12,6 +12,7 @@
 #include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
 #include "metadata/attributes.h"
+#include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
@@ -1794,9 +1795,8 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     return S_OK;
 }
 
-HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::string &methodName,
-                                          std::vector<SigElementType> &methodArgs,
-                                          std::vector<SigElementType> &/*methodGenerics*/,
+HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pType, const std::string &methodName,
+                                          std::vector<SigElementType> &methodArgs, std::vector<SigElementType> &/*methodGenerics*/,
                                           ICorDebugFunction **ppCorFunc)
 {
     static constexpr std::string_view attributeName("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
@@ -1805,7 +1805,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
     std::vector<SigElementType> typeGenerics;
     IfFailRet(GetTypeGenerics(pType, typeGenerics));
 
-    IfFailRet(m_sharedDebugInfo->ForEachModule([&](ICorDebugModule *pModule) -> HRESULT
+    IfFailRet(Modules::ForEachModule(pThread, [&](ICorDebugModule *pModule) -> HRESULT
     {
         ULONG typesCnt = 0;
         HCORENUM fTypeEnum = nullptr;

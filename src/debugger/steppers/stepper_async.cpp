@@ -346,7 +346,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         }
 
         IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue, m_sharedEvalHelpers.get()));
-        IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion());
+        IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion(pThread));
         // Note, we don't create stepper here, since all we need in case of breakpoint is call Continue() from StepCommand().
         return S_OK;
     }
@@ -414,14 +414,14 @@ HRESULT AsyncStepper::DisableAllSteppers()
 // called at wait completion if notification was enabled by SetNotificationForWaitCompletion().
 // Note, NotifyDebuggerOfWaitCompletion() will be called only once, since notification flag
 // will be automatically disabled inside NotifyDebuggerOfWaitCompletion() method itself.
-HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion()
+HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
 {
     HRESULT Status = S_OK;
     static const std::string assemblyName("System.Private.CoreLib.dll");
     static const WSTRING className(W("System.Threading.Tasks.Task"));
     static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(m_sharedEvalHelpers->FindMethodInModule(assemblyName, className, methodName, &trFunc));
+    IfFailRet(EvalHelpers::FindMethodInModule(pThread, assemblyName, className, methodName, &trFunc));
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunc->GetModule(&trModule));

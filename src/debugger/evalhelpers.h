@@ -23,16 +23,14 @@
 namespace dncdbg
 {
 
-class DebugInfo;
 class EvalWaiter;
 
 class EvalHelpers
 {
   public:
 
-    EvalHelpers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
-        : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedEvalWaiter(sharedEvalWaiter)
+    EvalHelpers(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+        : m_sharedEvalWaiter(sharedEvalWaiter)
     {}
 
     HRESULT CreateTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
@@ -55,8 +53,8 @@ class EvalHelpers
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    HRESULT FindMethodInModule(const std::string &moduleName, const WSTRING &className, const WSTRING &methodName,
-                               ICorDebugFunction **ppFunction);
+    static HRESULT FindMethodInModule(ICorDebugThread *pThread, const std::string &moduleName, const WSTRING &className,
+                                      const WSTRING &methodName, ICorDebugFunction **ppFunction);
 
     void SetEvalFlags(uint32_t evalFlags)
     {
@@ -67,7 +65,6 @@ class EvalHelpers
 
   private:
 
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     uint32_t m_evalFlags{defaultEvalFlags};
 

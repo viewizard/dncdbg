@@ -5,8 +5,8 @@
 
 #include "debugger/evalhelpers.h"
 #include "debugger/evalwaiter.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/corhelpers.h"
+#include "metadata/modules.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
@@ -222,12 +222,12 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
         });
 }
 
-HRESULT EvalHelpers::FindMethodInModule(const std::string &moduleName, const WSTRING &className,
+HRESULT EvalHelpers::FindMethodInModule(ICorDebugThread *pThread, const std::string &moduleName, const WSTRING &className,
                                         const WSTRING &methodName, ICorDebugFunction **ppFunction)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(m_sharedDebugInfo->GetModuleWithName(moduleName, &trModule));
+    IfFailRet(Modules::GetModuleWithName(pThread, moduleName, &trModule));
     IfFailRet(FindFunction(trModule, className, methodName, ppFunction));
     return S_OK;
 }
@@ -375,7 +375,7 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
             static const std::string assemblyName("System.Private.CoreLib.dll");
             static const WSTRING gcName(W("System.GC"));
             static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
-            IfFailRet(FindMethodInModule(assemblyName, gcName, suppressFinalizeMethodName, &m_trSuppressFinalize));
+            IfFailRet(FindMethodInModule(pThread, assemblyName, gcName, suppressFinalizeMethodName, &m_trSuppressFinalize));
         }
 
         if (m_trSuppressFinalize == nullptr)
@@ -527,7 +527,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 WSTRING refFullName(refNameSize, '\0');
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, refFullName.data(), refNameSize, nullptr));
 
-                IfFailRet(m_sharedDebugInfo->ForEachModule(
+                IfFailRet(Modules::ForEachModule(pThread,
                     [&](ICorDebugModule *pModule) -> HRESULT
                     {
                         ToRelease<IUnknown> trUnknownDef;

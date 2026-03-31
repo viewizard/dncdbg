@@ -225,4 +225,70 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
     }
 }
 
+HRESULT Modules::ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pThread->GetProcess(&trProcess));
+    ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
+    IfFailRet(trProcess->EnumerateAppDomains(&trAppDomainEnum));
+    // At this moment, the debugger supports only one application domain per process.
+    ToRelease<ICorDebugAppDomain> trAppDomain;
+    ULONG domainsFetched = 0;
+    IfFailRet(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched));
+    IfFailRet(domainsFetched == 1 ? S_OK : E_FAIL);
+    ToRelease<ICorDebugAssemblyEnum> trAssemblyEnum;
+    IfFailRet(trAppDomain->EnumerateAssemblies(&trAssemblyEnum));
+
+    ICorDebugAssembly *curAssembly = nullptr;
+    ULONG assemblyFetched = 0;
+    while (SUCCEEDED(trAssemblyEnum->Next(1, &curAssembly, &assemblyFetched)) && assemblyFetched == 1)
+    {
+        ToRelease<ICorDebugAssembly> trAssembly(curAssembly);
+        // Only one module per assembly is supported.
+        ToRelease<ICorDebugModuleEnum> trModuleEnum;
+        IfFailRet(trAssembly->EnumerateModules(&trModuleEnum));
+        ToRelease<ICorDebugModule> trModule;
+        ULONG moduleFetched = 0;
+        IfFailRet(trModuleEnum->Next(1, &trModule, &moduleFetched));
+        IfFailRet(moduleFetched == 1 ? S_OK : E_FAIL);
+
+        if (FAILED(Status = cb(trModule)))
+        {
+            break;
+        }
+        else if (Status == S_CAN_EXIT)
+        {
+            Status = S_OK;
+            break;
+        }
+    }
+
+    return Status;
+}
+
+HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &name, ICorDebugModule **ppModule)
+{
+    HRESULT Status = S_OK;
+    *ppModule = nullptr;
+
+    IfFailRet(Modules::ForEachModule(pThread,
+        [&](ICorDebugModule *pModule) -> HRESULT
+        {
+            const std::string path = Modules::GetModuleFileName(pModule);
+
+            if (GetFileName(path) == name)
+            {
+                pModule->AddRef();
+                *ppModule = pModule;
+                return S_CAN_EXIT; // Fast exit from loop.
+            }
+
+            return S_OK; // Return S_OK to continue the iteration.
+        }));
+
+    return *ppModule != nullptr ? S_OK : E_FAIL;
+}
+
 } // namespace dncdbg

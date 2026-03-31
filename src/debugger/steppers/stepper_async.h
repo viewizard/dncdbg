@@ -100,7 +100,7 @@ class AsyncStepper
     // System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data, will be configured at async method step-out setup.
     std::unique_ptr<asyncBreakpoint_t> m_asyncStepNotifyDebuggerOfWaitCompletion;
 
-    HRESULT SetBreakpointIntoNotifyDebuggerOfWaitCompletion();
+    HRESULT SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread);
 };
 
 } // namespace dncdbg

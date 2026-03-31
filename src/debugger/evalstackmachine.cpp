@@ -1283,7 +1283,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
     if (trFunc == nullptr)
     {
-        if (SUCCEEDED(ed.pEvaluator->LookupExtensionMethods(trType, funcName, funcArgs, methodGenerics, &trFunc)))
+        if (SUCCEEDED(Evaluator::LookupExtensionMethods(ed.pThread, trType, funcName, funcArgs, methodGenerics, &trFunc)))
         {
             isInstance = true; // Extension methods always require "this" as their first parameter
         }

@@ -68,8 +68,6 @@ class DebugInfo
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
     HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
 
-    HRESULT GetModuleWithName(const std::string &name, ICorDebugModule **ppModule);
-
     using PDBInfoCallback = std::function<HRESULT(PDBInfo &)>;
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo);
@@ -105,8 +103,6 @@ class DebugInfo
 
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                        SequencePoint &sequencePoint);
-
-    HRESULT ForEachModule(const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
 
   private:
 

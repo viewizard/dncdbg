@@ -4,8 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalutils.h"
-#include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "metadata/typeprinter.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 
 namespace dncdbg::EvalUtils
@@ -82,8 +83,8 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     return S_OK;
 }
 
-HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread, DebugInfo *pDebugInfo,
-                          std::vector<ToRelease<ICorDebugType>> &trTypes)
+HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
+                          DebugInfo *pDebugInfo, std::vector<ToRelease<ICorDebugType>> &trTypes)
 {
     HRESULT Status = S_OK;
     for (const auto &p : params)
@@ -260,7 +261,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (trTypeModule == nullptr)
     {
-        IfFailRet(pDebugInfo->ForEachModule(
+        IfFailRet(Modules::ForEachModule(pThread,
             [&](ICorDebugModule *pModule) -> HRESULT
             {
                 if (typeToken != mdTypeDefNil) // already found

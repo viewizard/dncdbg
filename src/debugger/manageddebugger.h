@@ -173,7 +173,6 @@ class ManagedDebugger
 
     CORDB_ADDRESS PrivateCoreLibModAddress{0};
     mdMethodDef ExceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
-    HRESULT FindExceptionDispatchInfoThrow(CORDB_ADDRESS &modAddress, mdMethodDef &methodDef);
     bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
     HRESULT GetExceptionStackTrace(ICorDebugThread *pThread, std::string &stackTrace);
 

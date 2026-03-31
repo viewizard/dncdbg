@@ -13,6 +13,7 @@
 #endif
 
 #include "types/protocol.h"
+#include <functional>
 #include <list>
 #include <mutex>
 #include <string>
@@ -32,6 +33,9 @@ class Modules
     Module &GetNewModuleRef();
     HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
+
+    static HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
+    static HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &name, ICorDebugModule **ppModule);
 
   private:
 

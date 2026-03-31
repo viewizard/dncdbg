@@ -239,6 +239,29 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     }
 }
 
+HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &modAddress, mdMethodDef &methodDef)
+{
+    HRESULT Status = S_OK;
+    static const std::string assemblyName("System.Private.CoreLib.dll");
+    static const WSTRING className(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
+    static const WSTRING methodName(W("Throw"));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(EvalHelpers::FindMethodInModule(pThread, assemblyName, className, methodName, &trFunction));
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+
+    if (FAILED(Status = trModule->GetBaseAddress(&modAddress)) ||
+        FAILED(Status = trFunction->GetToken(&methodDef)))
+    {
+        modAddress = 0;
+        methodDef = mdMethodDefNil;
+        return Status;
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 // Caller must care about m_debugProcessRWLock.
@@ -323,7 +346,7 @@ ManagedDebugger::ManagedDebugger()
       m_sharedDebugInfo(new DebugInfo),
       m_sharedModules(new Modules),
       m_sharedEvalWaiter(new EvalWaiter),
-      m_sharedEvalHelpers(new EvalHelpers(m_sharedDebugInfo, m_sharedEvalWaiter)),
+      m_sharedEvalHelpers(new EvalHelpers(m_sharedEvalWaiter)),
       m_sharedEvalStackMachine(new EvalStackMachine),
       m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers, m_sharedEvalStackMachine)),
       m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
@@ -899,33 +922,10 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     return S_OK;
 }
 
-HRESULT ManagedDebugger::FindExceptionDispatchInfoThrow(CORDB_ADDRESS &modAddress, mdMethodDef &methodDef)
-{
-    HRESULT Status = S_OK;
-    static const std::string assemblyName("System.Private.CoreLib.dll");
-    static const WSTRING className(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
-    static const WSTRING methodName(W("Throw"));
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(m_sharedEvalHelpers->FindMethodInModule(assemblyName, className, methodName, &trFunction));
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunction->GetModule(&trModule));
-
-    if (FAILED(Status = trModule->GetBaseAddress(&modAddress)) ||
-        FAILED(Status = trFunction->GetToken(&methodDef)))
-    {
-        modAddress = 0;
-        methodDef = mdMethodDefNil;
-        return Status;
-    }
-
-    return S_OK;
-}
-
 bool ManagedDebugger::IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread)
 {
     if ((PrivateCoreLibModAddress == 0 || ExceptionDispatchInfoThrowMethodDef == mdMethodDefNil) &&
-        FAILED(FindExceptionDispatchInfoThrow(PrivateCoreLibModAddress, ExceptionDispatchInfoThrowMethodDef)))
+        FAILED(FindExceptionDispatchInfoThrow(pThread, PrivateCoreLibModAddress, ExceptionDispatchInfoThrowMethodDef)))
     {
         return false;
     }
