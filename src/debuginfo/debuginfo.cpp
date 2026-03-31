@@ -443,6 +443,16 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, s
     }
 }
 
+void DebugInfo::UnloadModuleSymbols(ICorDebugModule *pModule)
+{
+    CORDB_ADDRESS baseAddress = 0;
+    if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
+    {
+        const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+        m_debugInfo.erase(baseAddress);
+    }
+}
+
 HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
                                               WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {

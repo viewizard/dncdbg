@@ -87,6 +87,7 @@ class DebugInfo
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);
 
     void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, std::string &errorText);
+    void UnloadModuleSymbols(ICorDebugModule *pModule);
 
     void Cleanup();
 

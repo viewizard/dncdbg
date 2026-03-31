@@ -342,6 +342,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pApp
         DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::Removed, removedModule));
     }
 
+    m_debugger.m_sharedDebugInfo->UnloadModuleSymbols(pModule);
+
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 
