@@ -11,6 +11,16 @@ endif(POLICY CMP0177)
 
 project(dncdbg)
 
+# Require Clang compiler on non-Windows platforms
+if(NOT WIN32)
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+        message(FATAL_ERROR "Clang compiler is required. Current C compiler: ${CMAKE_C_COMPILER_ID}")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        message(FATAL_ERROR "Clang C++ compiler is required. Current C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endif()
+
 set(DOTNET_DIR "" CACHE FILEPATH "Path to .NET SDK directory")
 set(DOTNET_CHANNEL "10.0" CACHE STRING ".NET SDK channel")
 
