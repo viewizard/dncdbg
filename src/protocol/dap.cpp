@@ -689,8 +689,8 @@ void DAP::CommandsWorker()
         m_commandsQueue.pop_front();
         lockCommandsMutex.unlock();
 
-        // Check for ncdbg internal commands.
-        if (c.command == "ncdbg_disconnect")
+        // Check for dncdbg internal commands.
+        if (c.command == "dncdbg_disconnect")
         {
             if (m_sharedDebugger != nullptr)
             {
@@ -809,8 +809,9 @@ void DAP::CommandLoop()
         const std::string requestText = ReadData(std::cin);
         if (requestText.empty())
         {
+            // Input read failed for some reason, initiate forced disconnect.
             CommandQueueEntry queueEntry;
-            queueEntry.command = "ncdbg_disconnect";
+            queueEntry.command = "dncdbg_disconnect";
             const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
             m_commandsQueue.clear();
             m_commandsQueue.emplace_back(std::move(queueEntry));
