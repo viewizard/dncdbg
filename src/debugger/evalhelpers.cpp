@@ -397,8 +397,8 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
     return S_OK;
 }
 
-HRESULT EvalHelpers::GetLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                          UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalHelpers::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                             UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized

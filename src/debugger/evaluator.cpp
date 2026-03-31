@@ -953,8 +953,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     {
                         if (fieldAttr & fdLiteral)
                         {
-                            IfFailRet(m_sharedEvalHelpers->GetLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                rawValueLength, ppResultValue));
+                            IfFailRet(m_sharedEvalHelpers->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                                   rawValueLength, ppResultValue));
                         }
                         else if (fieldAttr & fdStatic)
                         {
@@ -1468,7 +1468,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         trILFrame.Free();
     }
 
-    // Enumerate local constants from PDB
+    // Enumerate local constants (literals) from PDB
     {
         std::vector<LocalConstantInfo> localConstants;
         if (SUCCEEDED(m_sharedDebugInfo->GetLocalConstants(trModule, methodDef, currentIlOffset, localConstants)))
