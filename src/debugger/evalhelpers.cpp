@@ -500,13 +500,19 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
 
-            if (TypeFromToken(typeToken) == mdtTypeDef)
+            auto createTypeDef = [&](mdTypeDef typeDef, ICorDebugModule *pModule) -> HRESULT
             {
                 ToRelease<ICorDebugClass> trClass;
-                IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+                IfFailRet(pModule->GetClassFromToken(typeDef, &trClass));
                 ToRelease<ICorDebugEval> trEval;
                 IfFailRet(pThread->CreateEval(&trEval));
                 IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+                return S_OK;
+            };
+
+            if (TypeFromToken(typeToken) == mdtTypeDef)
+            {
+                IfFailRet(createTypeDef(typeToken, trModule));
             }
             else if (TypeFromToken(typeToken) == mdtTypeRef)
             {
@@ -521,56 +527,23 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 WSTRING refFullName(refNameSize, '\0');
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, refFullName.data(), refNameSize, nullptr));
 
-                ToRelease<ICorDebugProcess> trProcess;
-                IfFailRet(pThread->GetProcess(&trProcess));
-                ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
-                IfFailRet(trProcess->EnumerateAppDomains(&trAppDomainEnum));
-                // At this moment debugger supports only one application domain for process.
-                ToRelease<ICorDebugAppDomain> trAppDomain;
-                ULONG domainsFetched = 0;
-                IfFailRet(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched));
-                IfFailRet(domainsFetched == 1 ? S_OK : E_FAIL);
-                ToRelease<ICorDebugAssemblyEnum> trAssemblyEnum;
-                IfFailRet(trAppDomain->EnumerateAssemblies(&trAssemblyEnum));
-
-                ICorDebugAssembly *curAssembly = nullptr;
-                ULONG assemblyFetched = 0;
-                bool found = false;
-                while (SUCCEEDED(trAssemblyEnum->Next(1, &curAssembly, &assemblyFetched)) && assemblyFetched == 1)
-                {
-                    ToRelease<ICorDebugAssembly> trAssembly(curAssembly);
-                    // Only one module for assembly supported.
-                    ToRelease<ICorDebugModuleEnum> trModuleEnum;
-                    IfFailRet(trAssembly->EnumerateModules(&trModuleEnum));
-                    ToRelease<ICorDebugModule> trModuleDef;
-                    ULONG moduleFetched = 0;
-                    IfFailRet(trModuleEnum->Next(1, &trModuleDef, &moduleFetched));
-                    IfFailRet(moduleFetched == 1 ? S_OK : E_FAIL);
-
-                    ToRelease<IUnknown> trUnknownDef;
-                    IfFailRet(trModuleDef->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
-                    ToRelease<IMetaDataImport> trMDImportDef;
-                    IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
-
-                    mdTypeDef typeDef = mdTypeDefNil;
-                    if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
+                IfFailRet(m_sharedDebugInfo->ForEachModule(
+                    [&](ICorDebugModule *pModule) -> HRESULT
                     {
-                        continue;
-                    }
+                        ToRelease<IUnknown> trUnknownDef;
+                        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
+                        ToRelease<IMetaDataImport> trMDImportDef;
+                        IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
 
-                    ToRelease<ICorDebugClass> trClass;
-                    IfFailRet(trModuleDef->GetClassFromToken(typeDef, &trClass));
-                    ToRelease<ICorDebugEval> trEval;
-                    IfFailRet(pThread->CreateEval(&trEval));
-                    IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+                        mdTypeDef typeDef = mdTypeDefNil;
+                        if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
 
-                    found = true;
-                    break;
-                }
-                if (!found)
-                {
-                    return E_INVALIDARG;
-                }
+                        IfFailRet(createTypeDef(typeDef, pModule));
+                        return S_CAN_EXIT; // Fast exit from loop.
+                    }));
             }
             else if (TypeFromToken(typeToken) == mdtTypeSpec)
             {
