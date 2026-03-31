@@ -153,7 +153,7 @@ class Context
         threadId = -1;
         Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-        Assert.True(isThredInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
+        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
                     @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
@@ -490,7 +490,7 @@ class Context
         threadId = -1;
         Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-        Assert.True(isThredInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
+        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
                     @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
@@ -515,7 +515,7 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    bool isThredInThreadsList(string caller_trace, int ThreadId)
+    bool isThreadInThreadsList(string caller_trace, int ThreadId)
     {
         if (threadId == -1)
         {

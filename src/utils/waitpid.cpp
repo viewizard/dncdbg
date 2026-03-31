@@ -49,7 +49,7 @@ void waitpid_t::SetupTrackingPID(pid_t PID)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(interlock);
     trackPID = PID;
-    exitCode = 0; // same behaviour as CoreCLR have, by default exit code is 0
+    exitCode = 0; // same behaviour as CoreCLR has, by default exit code is 0
 }
 
 int waitpid_t::GetExitCode()
@@ -75,7 +75,8 @@ hook::waitpid_t &GetWaitpid()
     return hook::waitpid;
 }
 
-// Note, we guaranty `waitpid()` hook works only during debuggee process execution, it aimed to work only for PAL's `waitpid()` calls interception.
+// Note, we guarantee `waitpid()` hook works only during debuggee process execution;
+// it is aimed to work only for PAL's `waitpid()` calls interception.
 extern "C" pid_t waitpid(pid_t pid, int *status, int options) // NOLINT(readability-inconsistent-declaration-parameter-name)
 {
     const pid_t pidWaitRetval = dncdbg::hook::waitpid(pid, status, options);

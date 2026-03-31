@@ -143,7 +143,8 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         mdToken typeToken = mdTokenNil;
         IfFailRet(trClass->GetToken(&typeToken));
 
-        // In case class have "not user code" related attribute, no reason set JMC to false for each method, set it to class will be enough.
+        // In case the class has "non-user code" related attribute, there is no reason to set JMC to false for each method;
+        // setting it on the class will be enough.
         if (HasAttribute(trMDImport, typeToken, GetTypeAttrNames()))
         {
             excludeTypeTokens.emplace(typeToken);

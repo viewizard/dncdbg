@@ -19,9 +19,9 @@ namespace dncdbg
 // Classes not designated for public use.
 namespace StreamsInternal
 {
-// This class isn't intendent for direct use and is used by InStreamBuf,
+// This class isn't intended for direct use and is used by InStreamBuf,
 // OutStreamBuf and StreamBuf classes.  This class allows to hold ownership
-// of open file during its lifetime and to close file on destruction.
+// of an open file during its lifetime and to close the file on destruction.
 class FileOwner
 {
   public:
@@ -59,9 +59,9 @@ class FileOwner
     FileHandle file_handle; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
 };
 
-// This class isn't intendent for direct use and is used by InStreamBuf,
+// This class isn't intended for direct use and is used by InStreamBuf,
 // OutStreamBuf and StreamBuf classes.  This class allows to hold ownership
-// of open file during its lifetime and to close file on destruction.
+// of an open file during its lifetime and to close the file on destruction.
 template <typename T> struct BufferOwner
 {
     T buffer;
@@ -171,11 +171,11 @@ class OutStreamBuf : virtual StreamsInternal::FileOwner, public virtual std::str
     using FileHandle = IOSystem::FileHandle;
     using traits_type = std::streambuf::traits_type;
 
-    // This constant defines default size of input buffer, which typically
-    // can hold few lines of the text.
+    // This constant defines the default size of the output buffer, which typically
+    // can hold a few lines of text.
     static const size_t DefaultBufferSize;
 
-    // Arguments are following: `fh` -- file descriptor opened for writing,
+    // Arguments are as follows: `fh` -- file descriptor opened for writing,
     // buf_size -- the size of the output buffer.
     OutStreamBuf(const FileHandle &fh, size_t buf_size = DefaultBufferSize);
 
@@ -298,9 +298,9 @@ class StreamBuf : virtual StreamsInternal::FileOwner, // NOLINT(misc-multiple-in
         return FileOwner::get_file_handle();
     }
 
-    // This functions fills input buffer (it should made at least one character be
-    // available in the buffer). Return value is traits_type::eof() in case of error,
-    // or the code of next available symbol.
+    // This function fills the input buffer (it should make at least one character
+    // available in the buffer). The return value is traits_type::eof() in case of error,
+    // or the code of the next available character.
     int underflow() override // NOLINT(misc-override-with-different-visibility)
     {
         return InStreamBuf::underflow();
@@ -355,7 +355,7 @@ class StreamBuf : virtual StreamsInternal::FileOwner, // NOLINT(misc-multiple-in
         return std::streambuf::epptr();
     }
 
-    // Function function advances free space pointer by `count` characters.
+    // Function advances the free space pointer by `count` characters.
     void pbump(int count) // NOLINT(bugprone-derived-method-shadowing-base-method)
     {
         std::streambuf::pbump(count);

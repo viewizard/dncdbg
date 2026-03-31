@@ -33,7 +33,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     std::vector<uint32_t> hitBreakpointIds;
     if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents, atEntry))
     {
-        // Breakpoints related break (for example, breakpoint's condition failed or stop in not user code
+        // Breakpoints related break (for example, breakpoint's condition failed or stop in non-user code
         // with enabled JMC), don't emit breakpoint stop event and continue execution.
         return false;
     }
@@ -75,7 +75,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 {
     if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
     {
-        // Break related (for example, stop at `Debugger.Break()` in not user code with enabled JMC),
+        // Break related (for example, stop at `Debugger.Break()` in non-user code with enabled JMC),
         // don't emit break stop event and continue execution.
         return false;
     }
@@ -311,23 +311,23 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     IfFailRet(pProcess->Stop(0));
     m_stopEventInProcess = true;
 
-    // Same logic as provide vsdbg in case of pause during stepping.
+    // Same logic as provided by vsdbg in case of pause during stepping.
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);
 
     std::vector<Thread> threads;
     m_debugger.GetThreads(threads);
 
-    // In case DAP, command provide "pause" thread id.
+    // In case of DAP, command provides "pause" thread id.
     if (std::find_if(threads.begin(), threads.end(),
                      [&](const Thread &t) { return t.id == lastStoppedThread; }) != threads.end())
     {
-        // DAP event must provide thread only (VSCode IDE count on this), even if this thread don't have user code.
+        // DAP event must provide thread only (VSCode IDE counts on this), even if this thread doesn't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);
         DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, lastStoppedThread));
         return S_OK;
     }
 
-    // Fatal error during stop (command provide wrong thread id), just fail Pause request and don't stop process.
+    // Fatal error during stop (command provides wrong thread id), just fail Pause request and don't stop process.
     m_stopEventInProcess = false;
     IfFailRet(pProcess->Continue(0));
     return E_FAIL;
@@ -341,7 +341,7 @@ CallbacksQueue::~CallbacksQueue()
     m_callbacksQueue.clear();
     m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
                                    ExceptionCallbackType::FIRST_CHANCE);
-    m_stopEventInProcess = false; // forced to proceed during brake too
+    m_stopEventInProcess = false; // forced to proceed during break too
     m_callbacksCV.notify_one();   // notify_one with lock
     lock.unlock();
     m_callbacksWorker.join();

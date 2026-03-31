@@ -415,7 +415,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_CAN_EXIT; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from loop.
         }));
     if (trFunc == nullptr)
     {
@@ -447,7 +447,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_CAN_EXIT; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from loop.
         }));
     if (trFunc == nullptr)
     {
@@ -804,7 +804,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
                     IfFailRet(getFunction(&trFunc));
 
-                    return S_CAN_EXIT; // Fast exit from cycle, since we already found trFunc.
+                    return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
                 }));
             if (trFunc == nullptr)
             {
@@ -1278,7 +1278,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
             IfFailRet(getFunction(&trFunc));
             isInstance = !is_static;
 
-            return S_CAN_EXIT; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from loop.
         }));
 
     if (trFunc == nullptr)
@@ -1435,7 +1435,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
                     }
                 }
                 IfFailRet(getFunction(&trFunc));
-                return S_CAN_EXIT; // Fast exit from cycle, since we already found trFunc.
+                return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
             }));
         if (trFunc == nullptr)
         {
@@ -1551,7 +1551,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
                         }
                     }
                     IfFailRet(getFunction(&trFunc));
-                    return S_CAN_EXIT; // Fast exit from cycle, since we already found trFunc.
+                    return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
                 }));
         if (trFunc == nullptr)
         {

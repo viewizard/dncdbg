@@ -106,7 +106,7 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
 
             HRESULT Status = S_OK;
             // Note, JMC status should be set for any needJMC value.
-            if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, no reason
+            if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, there is no reason to
                                                                                // disable JMC on module's types/methods.
             {
                 module.isUserCode = true;

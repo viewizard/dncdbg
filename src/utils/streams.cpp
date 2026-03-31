@@ -12,7 +12,7 @@
 namespace dncdbg
 {
 
-// These constant define default size of the buffer, which typically can hold few lines of the text.
+// These constants define the default size of the buffer, which typically can hold a few lines of text.
 const size_t InStreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
 const size_t OutStreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
 const size_t StreamBuf::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
@@ -30,7 +30,7 @@ constexpr size_t OutputMinBuf = OverflowChars + 1;
 constexpr size_t MaxMoveSize = sizeof(void *) * 4;
 } // namespace
 
-// Arguments are following: `fh` -- file descriptor opened for reading,
+// Arguments are as follows: `fh` -- file descriptor opened for reading,
 // buf_size -- the size of the input buffer.
 InStreamBuf::InStreamBuf(const FileHandle &fh, size_t buf_size) : FileOwner(fh), inbuf(std::max(buf_size, InputMinBuf))
 {
@@ -69,9 +69,9 @@ void InStreamBuf::compactify()
     }
 }
 
-// This functions fills input buffer (it should made at least one character be
-// available in the buffer). Return value is traits_type::eof() in case of error,
-// or the code of next available symbol.
+// This function fills the input buffer (it should make at least one character
+// available in the buffer). The return value is traits_type::eof() in case of error,
+// or the code of the next available character.
 int InStreamBuf::underflow()
 {
     compactify();
@@ -110,20 +110,20 @@ int InStreamBuf::underflow()
     return traits_type::to_int_type(*gptr());
 }
 
-// Arguments are following: `fh` -- file descriptor opened for writing,
+// Arguments are as follows: `fh` -- file descriptor opened for writing,
 // buf_size -- the size of the output buffer.
 OutStreamBuf::OutStreamBuf(const FileHandle &fh, size_t buf_size)
     : FileOwner(fh),
       outbuf(std::max(buf_size, OutputMinBuf))
 {
-    buf_size = std::max(buf_size, OutputMinBuf); // TODO govnokod
+    buf_size = std::max(buf_size, OutputMinBuf); // TODO bad code
     setp(outbuf.data(), outbuf.data() + outbuf.size() - OverflowChars);
 
     assert(pptr() == pbase());
     assert(static_cast<size_t>(epptr() - pbase() + OverflowChars) == buf_size);
 }
 
-// Function writes data from a buffer to the file. Function ensures, that
+// Function writes data from a buffer to the file. The function ensures that
 // after return there is space in the buffer for at least one character.
 // Function returns Traits::eof() on failure (write error).
 int OutStreamBuf::overflow(int c)

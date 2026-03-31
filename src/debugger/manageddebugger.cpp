@@ -206,7 +206,7 @@ bool IsDirExists(const char *const path)
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
     // We need to append the environ values with keeping the current process environment block.
-    // It works equal for any platrorms in coreclr CreateProcessW(), but not critical for Linux.
+    // It works equally for any platforms in coreclr CreateProcessW(), but is not critical for Linux.
     std::map<std::string, std::string> envMap;
     if (GetSystemEnvironmentAsMap(envMap) != -1)
     {
@@ -249,7 +249,7 @@ HRESULT ManagedDebugger::CheckDebugProcess()
         return E_FAIL;
     }
 
-    // We might have case, when process was exited/detached, but m_trProcess still not free and hold invalid object.
+    // We might have a case when the process has exited/detached, but m_trProcess is still not freed and holds an invalid object.
     // Note, we can't hold this lock, since this could deadlock execution at ICorDebugManagedCallback::ExitProcess call.
     std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
     if (m_processAttachedState == ProcessAttachedState::Unattached)
@@ -425,7 +425,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
     case DisconnectAction::Detach:
         if (m_startMethod != StartMethod::Attach)
         {
-            LOGE(log << "Can't detach debugger form child process.\n");
+            LOGE(log << "Can't detach debugger from child process.\n");
             return E_INVALIDARG;
         }
         terminate = false;
@@ -473,7 +473,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
 
     m_sharedVariables->Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
-    DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
+    DAPIO::EmitContinuedEvent(threadId); // DAP needs thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
@@ -505,7 +505,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
 
     m_sharedVariables->Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
-    DAPIO::EmitContinuedEvent(threadId); // DAP need thread ID.
+    DAPIO::EmitContinuedEvent(threadId); // DAP needs thread ID.
 
     // Note, process continue must be after event emitted, since we could get new stop event from queue here.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
@@ -544,7 +544,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         }
         else if (CORDBG_E_INCOMPATIBLE_PROTOCOL == hr)
         {
-            ss << " mscordbi or mscordaccore libs is not the same version as the target CoreCLR.";
+            ss << " mscordbi or mscordaccore libs are not the same version as the target CoreCLR.";
         }
         DAPIO::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         self->StartupCallbackHR = hr;
@@ -978,7 +978,7 @@ HRESULT ManagedDebugger::GetExceptionStackTrace(ICorDebugThread *pThread, std::s
                 PrintValue(trResultValue, stackTrace, false);
             }
 
-            return S_CAN_EXIT; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from loop.
         }));
 
     return stackTrace.empty() ? E_FAIL : S_OK;
@@ -994,7 +994,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     static const std::string FrameCLRNativeText = "[Native Frames]";
     // This frame usually indicate some fail during managed unwind
     static const std::string FrameUnknownText = "[Unknown Frame]";
-    // Not user code related frame in case of Just My Code enabled.
+    // Non-user code related frame when Just My Code is enabled.
     static const std::string ExternalCodeText = "[External Code]";
 
     // Exception rethrown with System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw() case.
@@ -1002,8 +1002,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     if (IsTopFrameExceptionDispatchInfoThrow(pThread))
     {
         // In case of async method, user code could be moved to `.NET TP Worker` thread and in case of
-        // unhandled exception in this user code, exception will be catched and retrown by not user code
-        // in initial async method code execution thread.
+        // unhandled exception in this user code, exception will be caught and rethrown by non-user code
+        // in the initial async method code execution thread.
         static constexpr int triesLimit = 3;
         for (int tryCount = 0; tryCount < triesLimit; tryCount++)
         {
@@ -1143,7 +1143,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             }
             if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
             {
-                return S_CAN_EXIT; // Fast exit from cycle.
+                return S_CAN_EXIT; // Fast exit from loop.
             }
 
             switch (frameType)

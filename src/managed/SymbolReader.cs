@@ -807,7 +807,7 @@ public class SymbolReader
                         //     {
                         //        await new HttpClient().GetAsync("https://google.com");
                         //     });
-                        // nesetedToken here is the annonymous async func, and having a breakpoing at the 1st line should
+                        // nestedToken here is the anonymous async func, and having a breakpoint at the 1st line should
                         // break on the outer call.
                         SequencePoint nested_start_p = SequencePointForSourceLine(Position.First, ref reader, nestedToken);
                         SequencePoint nested_end_p = SequencePointForSourceLine(Position.Last, ref reader, nestedToken);
@@ -1100,8 +1100,8 @@ public class SymbolReader
     /// </summary>
     /// <param name="symbolReaderHandle">symbol reader handle returned by LoadSymbolsForModule</param>
     /// <param name="methodToken">method token</param>
-    /// <param name="data">pointer to memory with histed local scopes</param>
-    /// <param name="hoistedLocalScopesCount">histed local scopes count</param>
+    /// <param name="data">pointer to memory with hoisted local scopes</param>
+    /// <param name="hoistedLocalScopesCount">hoisted local scopes count</param>
     /// <returns>"Ok" if information is available</returns>
     internal static RetCode GetHoistedLocalScopes(IntPtr symbolReaderHandle, int methodToken, out IntPtr data, out int hoistedLocalScopesCount)
     {

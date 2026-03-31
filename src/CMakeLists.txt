@@ -109,7 +109,7 @@ else()
     add_definitions(-DCASE_INSENSITIVE_FILENAME_COLLISION)
 endif()
 
-# special threatment of buildinfo.cpp -- this file rebuilds every time,
+# special treatment of buildinfo.cpp -- this file rebuilds every time,
 # whatever it changed or not (because it contains version information and
 # date/time of the build).
 string(CONCAT buildinfo_flags

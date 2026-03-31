@@ -145,7 +145,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    auto methodShouldBeFltered = [&]() -> bool
+    auto methodShouldBeFiltered = [&]() -> bool
     {
         // In case stepping by method code lines or return to caller, don't check filtering (don't need to):
         // 1) filtering check for this method was already "passed" or 2) execution was stopped at breakpoint inside method or its callee.
@@ -197,7 +197,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
-    if (m_stepFiltering && methodShouldBeFltered())
+    if (m_stepFiltering && methodShouldBeFiltered())
     {
         IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT));
         m_filteredPrevStep = true;
@@ -218,7 +218,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         {
             if (ipOffset != ilNextUserCodeOffset)
             {
-                // Step completed on some compiler generated (not user) code inside user code (for example, `finally` block related code)
+                // Step completed on some compiler generated (non-user) code inside user code (for example, `finally` block related code)
                 IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
                 return S_IGNORE;
             }

@@ -10,23 +10,23 @@
 namespace dncdbg
 {
 
-// This functon load specified library and returns handle (which then
-// can be passed to DLSym and DLCLose functions).
-// In case of error function returns nullptr.
+// This function loads the specified library and returns a handle (which then
+// can be passed to DLSym and DLClose functions).
+// In case of error, the function returns nullptr.
 DLHandle DLOpen(const char *path)
 {
     return reinterpret_cast<DLHandle>(::LoadLibraryExA(path, nullptr, 0));
 }
 
-// This function resolves symbol address within library specified by handle,
-// and returns it's address, in case of error function returns nullptr.
+// This function resolves the symbol address within the library specified by handle,
+// and returns its address; in case of error, the function returns nullptr.
 void *DLSym(DLHandle handle, const char *symbol)
 {
     return ::GetProcAddress((HMODULE)handle, symbol);
 }
 
-// This function unloads previously loadded library, specified by handle.
-// In case of error this function returns `false'.
+// This function unloads the previously loaded library specified by handle.
+// In case of error, this function returns `false`.
 bool DLClose(DLHandle handle)
 {
     return ::FreeLibrary(reinterpret_cast<HMODULE>(handle));

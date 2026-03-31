@@ -34,7 +34,7 @@ std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb)
     return ss.str();
 }
 
-void GetExceptionShorDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
+void GetExceptionShortDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
 {
     switch (breakMode)
     {
@@ -336,7 +336,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
         excModule = exceptionInfo.details.source + ".dll";
     }
 
-    GetExceptionShorDescription(findBreakMode->second, exceptionInfo.details.fullTypeName, excModule, exceptionInfo.description);
+    GetExceptionShortDescription(findBreakMode->second, exceptionInfo.details.fullTypeName, excModule, exceptionInfo.description);
 
     if (!exceptionInfo.details.message.empty())
     {

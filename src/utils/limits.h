@@ -14,7 +14,7 @@
 // include system <limits.h> file
 #include <../include/limits.h>
 
-// define LINX_MAX for windows
+// define LINE_MAX for windows
 #ifndef LINE_MAX
 #define LINE_MAX (2048)
 #endif

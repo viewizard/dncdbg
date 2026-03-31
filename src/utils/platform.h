@@ -26,9 +26,9 @@ struct Win32PlatformTag
 }; // PlatformTag for Windows (see below)
 struct UnixPlatformTag
 {
-}; // PlatformTAg for Unix and MacOS.
+}; // PlatformTag for Unix and MacOS.
 
-// PlatformTag is the type, which determines platform, for which code is currenly compilih.
+// PlatformTag is the type, which determines platform, for which code is currently compiled.
 // This tag might be used to select proper template specialization.
 using PlatformTag = PLATFORM_TAG;
 

@@ -38,7 +38,7 @@ class waitpid_t
     Signature original = nullptr;
     static constexpr pid_t notConfigured = -1;
     pid_t trackPID = notConfigured;
-    int exitCode = 0; // same behaviour as CoreCLR have, by default exit code is 0
+    int exitCode = 0; // same behaviour as CoreCLR has, by default exit code is 0
     std::recursive_mutex interlock;
 
     void init() noexcept;

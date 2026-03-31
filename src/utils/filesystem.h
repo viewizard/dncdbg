@@ -28,7 +28,7 @@ static constexpr char PathSeparator = '/';
 static constexpr std::string_view PathSeparatorSymbols("/");
 #elif _WIN32
 static constexpr size_t PathMax = MAX_PATH;
-static constexpr size_t NameMax = MAX_PATH - 1; // not include terminal null.
+static constexpr size_t NameMax = MAX_PATH - 1; // does not include terminal null character.
 static constexpr char PathSeparator = '\\';
 static constexpr std::string_view PathSeparatorSymbols("/\\");
 #endif

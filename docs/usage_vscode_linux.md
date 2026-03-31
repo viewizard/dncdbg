@@ -3,8 +3,8 @@
 1. Install `C#` extension from Microsoft
 2. Switch to `Run and Debug` panel
 3. Click on `Generate C# Assets for Build and Debug` button
-5. Open created file inside your project `.vscode/launch.json`
-6. Add `.NET Core Launch with DNCDbg` configuration:
+4. Open the created file inside your project `.vscode/launch.json`
+5. Add `.NET Core Launch with DNCDbg` configuration:
 
 ```json
         {
@@ -28,7 +28,7 @@
             "logging": {
                 "diagnosticsLog" : {
                     "ProtocolMessages": true
-                },
+                }
             },
             "pipeTransport": {
                 "pipeCwd": "${workspaceFolder}",

@@ -181,7 +181,7 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
         if (current->innerException)
         {
             // Note, DAP have "innerException" field as array, but in real we don't have array with inner
-            // exceptions here, since exception object have only one exeption object reference in InnerException field.
+            // exceptions here, since exception object have only one exception object reference in InnerException field.
             json arr = json::array();
             arr.push_back(tmp);
             result["innerException"] = arr;
@@ -226,8 +226,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         return E_INVALIDARG;
                     }
-                    // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
-                    // don't provide such information
+                    // in case of DAP, we can't set up categoryHint during breakpoint setup,
+                    // since this protocol doesn't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
                 }
 
@@ -244,8 +244,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         return E_INVALIDARG;
                     }
-                    // in case of DAP, we can't setup categoryHint during breakpoint setup, since this protocol
-                    // don't provide such information
+                    // in case of DAP, we can't set up categoryHint during breakpoint setup,
+                    // since this protocol doesn't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
 
                     auto findCondition = entry.find("condition");

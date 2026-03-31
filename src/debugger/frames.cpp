@@ -74,7 +74,7 @@ void SetFP(CONTEXT *context, uintptr_t value)
 void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
                                   CONTEXT */*pEndContext*/, const WalkFramesCallback &/*cb*/)
 {
-    // In case not interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
+    // In case of a non-interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
 }
 
 HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, std::list<ToRelease<ICorDebugInternalFrame2>> &trInternalFrames)
@@ -213,9 +213,9 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             continue;
         }
 
-        // At this point (Status == S_OK).
-        // Accordingly to CoreCLR sources, S_OK could be with nulled trFrame, that must be skipped.
-        // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition represents)
+    // At this point (Status == S_OK).
+    // According to CoreCLR sources, S_OK could be with nulled trFrame, that must be skipped.
+    // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition is represented)
         if (trFrame == nullptr)
         {
             continue;
@@ -239,7 +239,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
         }
         // Note, we don't change top managed frame FP in case we don't have SP (for example, registers context related issue)
-        // or CoreCLR was able to restore it. This case could happens only with "managed" top frame (`GetFrame()` return `S_OK`),
+        // or CoreCLR was able to restore it. This case could happen only with "managed" top frame (`GetFrame()` return `S_OK`),
         // where real top frame is native (for example, optimized managed code with inlined pinvoke or CoreCLR native frame).
         if (level == 0 && GetSP(&currentCtx) != 0 && GetFP(&currentCtx) == 0)
         {
@@ -299,8 +299,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             continue;
         }
         // If the first frame is CoreCLR native frame then we might be in a call to unmanaged code.
-        // Note, in case start unwinding from native code we get CoreCLR native frame first, not some native frame at the top,
-        // since CoreCLR debug API don't track native code execution and don't really "see" native code at the beginning of unwinding.
+        // Note, in case of starting unwinding from native code we get CoreCLR native frame first, not a native frame at the top,
+        // since CoreCLR debug API doesn't track native code execution and doesn't really "see" native code at the beginning of unwinding.
         if (level == 0)
         {
             UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb);
@@ -342,7 +342,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame)
 {
-    // Try get 0 (current active) frame in fast way, if possible.
+    // Try to get 0 (current active) frame in an efficient way, if possible.
     if (static_cast<int>(level) == 0 && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
     {
         return S_OK;
@@ -362,12 +362,12 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
             else if (currentFrame > static_cast<int>(level) ||
                     frameType != FrameType::CLRManaged)
             {
-                return S_CAN_EXIT; // Fast exit from cycle.
+                return S_CAN_EXIT; // Fast exit from loop.
             }
 
             pFrame->AddRef();
             *ppFrame = pFrame;
-            return S_CAN_EXIT; // Fast exit from cycle.
+            return S_CAN_EXIT; // Fast exit from loop.
         });
 
     return *ppFrame != nullptr ? S_OK : E_FAIL;

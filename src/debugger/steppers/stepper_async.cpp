@@ -118,7 +118,7 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
 }
 
 // Find Async ID, in our case - reference to created by builder object,
-// that could be use as unique ID for builder (state machine) on yield and resume offset breakpoints.
+// that could be used as unique ID for builder (state machine) on yield and resume offset breakpoints.
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame that used for get all info needed (function, module, etc);
 // [in] pEvalHelpers - pointer to managed debugger EvalHelpers;
@@ -486,7 +486,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         }
 
         m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
-        // Note, notification flag will be reseted automatically in NotifyDebuggerOfWaitCompletion() method,
+        // Note, notification flag will be reset automatically in NotifyDebuggerOfWaitCompletion() method,
         // no need call SetNotificationForWaitCompletion() with FALSE arg (at least, mono acts in the same way).
 
         // Update stepping request to new thread/frame_count that we are continuing on
@@ -498,8 +498,8 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
     if (modAddress != m_asyncStep->m_Breakpoint->modAddress ||
         methodToken != m_asyncStep->m_Breakpoint->methodToken)
     {
-        // Async step was breaked by another breakpoint, remove async step related breakpoint.
-        // Same behavior as MS vsdbg have for stepping interrupted by breakpoint.
+        // Async step was broken by another breakpoint, remove async step related breakpoint.
+        // Same behavior as MS vsdbg has for stepping interrupted by breakpoint.
         m_asyncStep.reset(nullptr);
         return S_OK;
     }
@@ -518,8 +518,8 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
     if (ipOffset != m_asyncStep->m_Breakpoint->ilOffset)
     {
-        // Async step was breaked by another breakpoint, remove async step related breakpoint.
-        // Same behavior as MS vsdbg have for stepping interrupted by breakpoint.
+        // Async step was broken by another breakpoint, remove async step related breakpoint.
+        // Same behavior as MS vsdbg has for stepping interrupted by breakpoint.
         m_asyncStep.reset(nullptr);
         return S_OK;
     }

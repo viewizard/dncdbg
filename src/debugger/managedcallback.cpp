@@ -199,8 +199,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
 
     // Important! Care about callback queue before NotifyProcessCreated() call.
     // In case of `attach`, NotifyProcessCreated() call will notify debugger that debuggee process attached and debugger
-    // should stop debuggee process by dirrect `Pause()` call. From another side, callback queue have bunch of asynchronous
-    // added entries and, for example, `CreateThread()` could be called after this callback and broke our debugger logic.
+    // should stop debuggee process by direct `Pause()` call. From another side, callback queue has a bunch of asynchronous
+    // added entries and, for example, `CreateThread()` could be called after this callback and break our debugger logic.
     ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
     ICorDebugAppDomain *pAppDomain = nullptr;
     ULONG domainsFetched = 0;

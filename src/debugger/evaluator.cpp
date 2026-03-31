@@ -27,7 +27,7 @@ namespace dncdbg
 namespace
 {
 
-void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
+void IncIndices(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
 {
     int i = static_cast<int32_t>(ind.size()) - 1;
 
@@ -43,7 +43,7 @@ void IncIndicies(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
     }
 }
 
-std::string IndiciesToStr(const std::vector<uint32_t> &ind, const std::vector<uint32_t> &base)
+std::string IndicesToStr(const std::vector<uint32_t> &ind, const std::vector<uint32_t> &base)
 {
     const size_t ind_size = ind.size();
     if (ind_size < 1 || base.size() != ind_size)
@@ -244,7 +244,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                 if (generatedNameKind == GeneratedNameKind::ThisProxyField)
                 {
                     IfFailRet(getValue(ppResultValue));
-                    return S_CAN_EXIT; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from loop.
                 }
                 else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
                 {
@@ -256,7 +256,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
                     if (ppResultValue != nullptr)
                     {
-                        return S_CAN_EXIT; // Fast exit from cycle
+                        return S_CAN_EXIT; // Fast exit from loop.
                     }
                 }
             }
@@ -408,7 +408,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                                                    pDebugInfo, pModule, cb));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from loop.
                 }
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
@@ -446,7 +446,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from loop.
                 }
                 usedNames.insert(wLocalName);
             }
@@ -456,7 +456,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from cycle
+                    return S_CAN_EXIT; // Fast exit from loop.
                 }
                 usedNames.insert(mdName);
             }
@@ -845,8 +845,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
 
         std::vector<uint32_t> base(nRank, 0);
-        BOOL hasBaseIndicies = FALSE;
-        if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndicies)) && (hasBaseIndicies == TRUE))
+        BOOL hasBaseIndices = FALSE;
+        if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndices)) && (hasBaseIndices == TRUE))
         {
             IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
         }
@@ -860,12 +860,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             };
 
-            IfFailRet(cb(nullptr, false, "[" + IndiciesToStr(ind, base) + "]", getValue, nullptr));
+            IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr));
             if (Status == S_CAN_EXIT)
             {
                 return S_OK;
             }
-            IncIndicies(ind, dims); // FIXME why we need this here?
+            IncIndices(ind, dims); // FIXME why we need this here?
         }
 
         return S_OK;
@@ -989,7 +989,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                     if (Status == S_CAN_EXIT)
                     {
-                        return S_CAN_EXIT; // Fast exit from cycle.
+                        return S_CAN_EXIT; // Fast exit from loop.
                     }
                 }
                 return S_OK; // Return with success to continue walk.
@@ -1111,7 +1111,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         IfFailRet(cb(trType, is_static, name, getValue, &setterData));
                         if (Status == S_CAN_EXIT)
                         {
-                            return S_CAN_EXIT; // Fast exit from cycle.
+                            return S_CAN_EXIT; // Fast exit from loop.
                         }
                     }
                     else
@@ -1119,7 +1119,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         IfFailRet(cb(trType, is_static, name, getValue, nullptr));
                         if (Status == S_CAN_EXIT)
                         {
-                            return S_CAN_EXIT; // Fast exit from cycle.
+                            return S_CAN_EXIT; // Fast exit from loop.
                         }
                     }
                 }
@@ -1271,7 +1271,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     SequencePoint sp;
     // GetFrameILAndSequencePoint() return "success" code only in case it found sequence point
     // for current IP, that mean we stop inside user code.
-    // Note, we could have request for not user code, we ignore it and this is OK.
+    // Note, we could have request for non-user code, we ignore it and this is OK.
     if (FAILED(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, currentIlOffset, sp)))
     {
         return S_OK;
@@ -1307,7 +1307,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     // Note, we use same order as vsdbg use:
     // 1. "this" (real or "this" proxy field in case async method and lambda).
-    // 2. "real" argumens.
+    // 2. "real" arguments.
     // 3. "real" local variables.
     // 4. async/lambda object fields.
 
@@ -1321,7 +1321,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                                          &methodAttr, nullptr, nullptr, nullptr, nullptr));
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
-    ToRelease<ICorDebugValue> trCurrentThis; // Current This. Note, in case async method or lambda - this is special object (not user's "this").
+    ToRelease<ICorDebugValue> trCurrentThis; // Current This. Note, in case async method or lambda - this is special object (non-user's "this").
     // In case this is static method, this is not async/lambda case for sure.
     if ((methodAttr & mdStatic) == 0)
     {
@@ -1556,7 +1556,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
                 }
 
-                return S_CAN_EXIT; // Fast exit from cycle.
+                return S_CAN_EXIT; // Fast exit from loop.
             }));
 
         if (trResultValue == nullptr)
@@ -1957,7 +1957,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                                     trMDImportInt->CloseEnum(ifEnum);
                                     trMDImport->CloseEnum(fFuncEnum);
                                     trMDImport->CloseEnum(fTypeEnum);
-                                    return S_CAN_EXIT; // Fast exit from cycle
+                                    return S_CAN_EXIT; // Fast exit from loop.
                                 }
                             }
                         }
@@ -1984,7 +1984,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugType *pType, const std::strin
                         pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
                         trMDImport->CloseEnum(fFuncEnum);
                         trMDImport->CloseEnum(fTypeEnum);
-                        return S_CAN_EXIT; // Fast exit from cycle
+                        return S_CAN_EXIT; // Fast exit from loop.
                     }
                 }
             }

@@ -153,7 +153,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
         JMCStatus == FALSE)
     {
-        return S_IGNORE; // breakpoint in not user code, continue process execution
+        return S_IGNORE; // breakpoint in non-user code, continue process execution
     }
 
     if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents)) &&

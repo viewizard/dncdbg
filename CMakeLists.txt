@@ -36,7 +36,7 @@ if (NOT "${DOTNET_DIR}" STREQUAL "")
     endif()
 endif()
 
-# Debug symbols striping form libdbgshim and dncdbg for Release build ony
+# Debug symbols stripping from libdbgshim and dncdbg for Release build only
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 0)
 else()

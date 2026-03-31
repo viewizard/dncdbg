@@ -525,7 +525,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 IfFailRet(pThread->GetProcess(&trProcess));
                 ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
                 IfFailRet(trProcess->EnumerateAppDomains(&trAppDomainEnum));
-                // At this moment debugger support only one application domain for process.
+                // At this moment debugger supports only one application domain for process.
                 ToRelease<ICorDebugAppDomain> trAppDomain;
                 ULONG domainsFetched = 0;
                 IfFailRet(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched));

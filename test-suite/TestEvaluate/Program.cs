@@ -26,7 +26,7 @@ public class test_static_class1_t
 {
     ~test_static_class1_t()
     {
-        // must be never called in this test!
+        // must never be called in this test!
         throw new System.Exception("test_static_class1_t finalizer called!");
     }
 
@@ -560,8 +560,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "401", "int", "array2[2].i");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "401", "int", "array2  [  2  ]  .  i"); // check spaces
 
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "this.int_i", "error:"); // error, Main is static method that don't have "this"
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int_i", "error:"); // error, don't have "this" (no object of type "Program" was created)
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "this.int_i", "error:"); // error, Main is a static method that doesn't have "this"
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int_i", "error:"); // error, doesn't have "this" (no object of type "Program" was created)
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "not_declared", "error:"); // error, no such variable
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "array1[]", "error CS1519:"); // error, no such variable
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[]", "error CS1519:"); // error, no such variable

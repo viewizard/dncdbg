@@ -52,7 +52,7 @@ class IORedirectHelper
     static const size_t DefaultBufferSize;
 
     // Class constructor requires following arguments:
-    //  * three pair of pipes which represent stdin/stdout/sterr files;
+    //  * three pair of pipes which represent stdin/stdout/stderr files;
     //  * callback functor, which is called when some data became available in stdout/stderr;
     //  * optionally: input (for stdout/stderr) and output (for writing to stdin) buffers sizes.
     IORedirectHelper(const Pipes &pipes, InputCallback callback, size_t input_bufsize = DefaultBufferSize,
@@ -77,7 +77,7 @@ class IORedirectHelper
     // This function allows to execute some another function `func` with substituted
     // standard input/output files. Typically function `func` should start some external
     // process, which inherits stdin/stdout/stderr files which is substituted during
-    // function invocation. Arguments `args...` just forwared to function `func`.
+    // function invocation. Arguments `args...` just forwarded to function `func`.
     //
     // Note: this function closes files, so it can be called only once!
     //
@@ -119,7 +119,7 @@ class IORedirectHelper
     // our side of the pipes
     std::tuple<OutStream, InStream, InStream> m_streams;
 
-    InputCallback m_callback; // callback function (which in called on data receiving)
+    InputCallback m_callback; // callback function (which is called on data receiving)
 
     // pointers in our side stdin's the buffer (actually output)
     // used to organize asynchronous IO
@@ -138,7 +138,7 @@ class IORedirectHelper
     std::atomic<bool> m_cancel{false}; // atomic flag which prevents multiple calls to async_cancel()
     volatile bool m_finish{false}; // exit request for worker thread
 
-    std::thread m_thread; // worker threead (which monitors received data)
+    std::thread m_thread; // worker thread (which monitors received data)
 };
 
 } // namespace dncdbg
