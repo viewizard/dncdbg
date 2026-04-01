@@ -67,6 +67,9 @@ endif()
 
 include(cmake/configurepaths.cmake)
 
+# diagnostics doesn't have related code, no reason to depend on `liblttng-ust-dev`
+set(FEATURE_EVENT_TRACE 0)
+
 ### diagnostic's CMakeList.txt part
 #
 # Note, we don't use separate cmake parts, just re-use diagnostics cmake parts with changes:
@@ -79,6 +82,8 @@ include(cmake/configurepaths.cmake)
 #   change CMAKE_C_STANDARD and CMAKE_CXX_STANDARD to 17
 # - correct `third_party/diagnostics/eng/native/functions.cmake`, change line
 #   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
+# - correct `third_party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
+#   since we disable `FEATURE_EVENT_TRACE` and diagnostics don't have `eventing_headers` project in sources
 #
 ###
 

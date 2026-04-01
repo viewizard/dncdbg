@@ -9,7 +9,7 @@
 
 ***For example, Debian/Ubuntu prerequisites installation:***
 ```
-sudo apt install cmake clang llvm build-essential liblttng-ust-dev
+sudo apt install cmake clang llvm build-essential
 ```
 
 ## Compiling
