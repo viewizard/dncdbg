@@ -475,17 +475,76 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                                             CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
                                             ICorDebugValue **ppLiteralValue)
 {
+    if (pThread == nullptr || pSig == nullptr || pSigEnd == nullptr || ppLiteralValue == nullptr)
+    {
+        return E_POINTER;
+    }
+
+    *ppLiteralValue = nullptr;
     HRESULT Status = S_OK;
+
+    auto createTypeDef = [&](mdTypeDef typeDef, ICorDebugModule *pModule) -> HRESULT
+    {
+        if (pModule == nullptr)
+        {
+            return E_POINTER;
+        }
+
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(pModule->GetClassFromToken(typeDef, &trClass));
+        ToRelease<ICorDebugEval> trEval;
+        IfFailRet(pThread->CreateEval(&trEval));
+        IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
+        return S_OK;
+    };
+
+    auto createTypeRef = [&](const WSTRING &refFullName) -> HRESULT
+    {
+        if (refFullName.empty())
+        {
+            return E_INVALIDARG;
+        }
+
+        return Modules::ForEachModule(pThread,
+            [&](ICorDebugModule *pModule) -> HRESULT
+            {
+                if (pModule == nullptr)
+                {
+                    return E_POINTER;
+                }
+
+                ToRelease<IUnknown> trUnknownDef;
+                IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
+                ToRelease<IMetaDataImport> trMDImportDef;
+                IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
+
+                mdTypeDef typeDef = mdTypeDefNil;
+                if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                IfFailRet(createTypeDef(typeDef, pModule));
+                return S_CAN_EXIT; // Fast exit from loop.
+            });
+    };
+
+    auto createNullObjectValue = [&]() -> HRESULT
+    {
+        ToRelease<ICorDebugEval> trEval;
+        IfFailRet(pThread->CreateEval(&trEval));
+        IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+        return S_OK;
+    };
+
     switch (underlyingType)
     {
         case ELEMENT_TYPE_OBJECT:
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            // FIXME create reference to proper type instead of object
-            ToRelease<ICorDebugEval> trEval;
-            IfFailRet(pThread->CreateEval(&trEval));
-            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+            // FIXME for arrays create reference to proper type instead of object
+            IfFailRet(createNullObjectValue());
             break;
         }
         case ELEMENT_TYPE_CLASS:
@@ -499,16 +558,6 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
-
-            auto createTypeDef = [&](mdTypeDef typeDef, ICorDebugModule *pModule) -> HRESULT
-            {
-                ToRelease<ICorDebugClass> trClass;
-                IfFailRet(pModule->GetClassFromToken(typeDef, &trClass));
-                ToRelease<ICorDebugEval> trEval;
-                IfFailRet(pThread->CreateEval(&trEval));
-                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
-                return S_OK;
-            };
 
             if (TypeFromToken(typeToken) == mdtTypeDef)
             {
@@ -526,31 +575,12 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &refNameSize));
                 WSTRING refFullName(refNameSize, '\0');
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, refFullName.data(), refNameSize, nullptr));
-
-                IfFailRet(Modules::ForEachModule(pThread,
-                    [&](ICorDebugModule *pModule) -> HRESULT
-                    {
-                        ToRelease<IUnknown> trUnknownDef;
-                        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
-                        ToRelease<IMetaDataImport> trMDImportDef;
-                        IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
-
-                        mdTypeDef typeDef = mdTypeDefNil;
-                        if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
-                        {
-                            return S_OK; // Return with success to continue walk.
-                        }
-
-                        IfFailRet(createTypeDef(typeDef, pModule));
-                        return S_CAN_EXIT; // Fast exit from loop.
-                    }));
+                IfFailRet(createTypeRef(refFullName));
             }
             else if (TypeFromToken(typeToken) == mdtTypeSpec)
             {
                 // FIXME create reference to proper type instead of object
-                ToRelease<ICorDebugEval> trEval;
-                IfFailRet(pThread->CreateEval(&trEval));
-                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+                IfFailRet(createNullObjectValue());
             }
             else
             {
@@ -562,10 +592,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
         {
             if (rawValueLength == 0)
             {
-                // FIXME create reference to proper type instead of object
-                ToRelease<ICorDebugEval> trEval;
-                IfFailRet(pThread->CreateEval(&trEval));
-                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppLiteralValue));
+                IfFailRet(createTypeRef(W("System.String")));
             }
             else
             {
