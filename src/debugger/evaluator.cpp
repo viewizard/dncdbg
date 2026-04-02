@@ -491,6 +491,52 @@ HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeG
     return S_OK;
 }
 
+HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
+                             std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
+{
+    HRESULT Status = S_OK;
+
+    std::vector<int> ranks;
+    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
+    int nextClassIdentifier = 0;
+    std::vector<std::string> fullpath;
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
+
+    bool trim = false;
+    while (!classIdentifiers.empty())
+    {
+        if (trim)
+        {
+            classIdentifiers.pop_back();
+        }
+
+        fullpath = classIdentifiers;
+        for (auto &identifier : identifiers)
+        {
+            fullpath.push_back(identifier);
+        }
+
+        nextClassIdentifier = 0;
+        ToRelease<ICorDebugType> trType;
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        {
+            break;
+        }
+
+        if (nextClassIdentifier == static_cast<int>(fullpath.size()))
+        {
+            *ppResultType = trType.Detach();
+            return S_OK;
+        }
+
+        trim = true;
+    }
+
+    return E_FAIL;
+}
+
 } // unnamed namespace
 
 SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
@@ -558,52 +604,6 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t>
     }
 
     return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
-}
-
-HRESULT Evaluator::FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
-                                        std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
-{
-    HRESULT Status = S_OK;
-
-    std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
-    int nextClassIdentifier = 0;
-    std::vector<std::string> fullpath;
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, nullptr, &trModule));
-
-    bool trim = false;
-    while (!classIdentifiers.empty())
-    {
-        if (trim)
-        {
-            classIdentifiers.pop_back();
-        }
-
-        fullpath = classIdentifiers;
-        for (auto &identifier : identifiers)
-        {
-            fullpath.push_back(identifier);
-        }
-
-        nextClassIdentifier = 0;
-        ToRelease<ICorDebugType> trType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), trModule, &trType)))
-        {
-            break;
-        }
-
-        if (nextClassIdentifier == static_cast<int>(fullpath.size()))
-        {
-            *ppResultType = trType.Detach();
-            return S_OK;
-        }
-
-        trim = true;
-    }
-
-    return E_FAIL;
 }
 
 HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb)
@@ -1587,7 +1587,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<std::string> fullpath;
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, nullptr, &trModule));
+    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -1605,7 +1605,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             fullpath.push_back(identifiers[i]);
         }
 
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, m_sharedDebugInfo.get(), trModule, &trType)))
+        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
         }
@@ -1768,7 +1768,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         ToRelease<ICorDebugType> trType;
-        IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, m_sharedDebugInfo.get(), nullptr, &trType));
+        IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
         IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trResolvedValue));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.

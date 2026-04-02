@@ -105,9 +105,6 @@ class Evaluator
                                           std::vector<SigElementType> &methodArgs, std::vector<SigElementType> &methodGenerics,
                                           ICorDebugFunction **ppCorFunc);
 
-    HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
-                                 std::vector<std::string> &identifiers, ICorDebugType **ppResultType);
-
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                          ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);

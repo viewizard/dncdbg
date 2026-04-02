@@ -84,13 +84,13 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
 }
 
 HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
-                          DebugInfo *pDebugInfo, std::vector<ToRelease<ICorDebugType>> &trTypes)
+                          std::vector<ToRelease<ICorDebugType>> &trTypes)
 {
     HRESULT Status = S_OK;
     for (const auto &p : params)
     {
         ICorDebugType *tmpType = nullptr;
-        IfFailRet(GetType(p, pThread, pDebugInfo, &tmpType));
+        IfFailRet(GetType(p, pThread, &tmpType));
         trTypes.emplace_back(tmpType);
     }
     return S_OK;
@@ -155,7 +155,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
     return result;
 }
 
-HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, DebugInfo *pDebugInfo, ICorDebugType **ppType)
+HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
     std::vector<int> ranks;
@@ -167,7 +167,7 @@ HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, DebugInfo
 
     ToRelease<ICorDebugType> trType;
     int nextClassIdentifier = 0;
-    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, pDebugInfo, nullptr, &trType));
+    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, &trType));
 
     if (!ranks.empty())
     {
@@ -247,7 +247,7 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
 }
 
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 DebugInfo *pDebugInfo, ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
+                 ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
 
@@ -291,7 +291,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> trTypes;
-        IfFailRet(ResolveParameters(params, pThread, pDebugInfo, trTypes));
+        IfFailRet(ResolveParameters(params, pThread, trTypes));
 
         ToRelease<ICorDebugClass> trClass;
         IfFailRet(trTypeModule->GetClassFromToken(typeToken, &trClass));
