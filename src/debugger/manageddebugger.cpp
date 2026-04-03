@@ -77,17 +77,12 @@ HRESULT GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 }
 
 // From dbgshim.cpp
-bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
+bool AreAllHandlesValid(gsl::span<HANDLE> handles)
 {
-    for (DWORD i = 0; i < arrayLength; i++)
+    return std::all_of(handles.begin(), handles.end(), [](HANDLE h)
     {
-        HANDLE h = handleArray[i];
-        if (h == INVALID_HANDLE_VALUE) // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
-        {
-            return false;
-        }
-    }
-    return true;
+        return h != INVALID_HANDLE_VALUE; // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
+    });
 }
 
 HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPWSTR **ppStringArray,
@@ -116,7 +111,7 @@ HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPW
                 // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
                 // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but
                 // before g_hContinueStartupEvent has been initialized.
-                if (AreAllHandlesValid(*ppHandleArray, *pdwArrayLength))
+                if (AreAllHandlesValid(gsl::span(*ppHandleArray, *pdwArrayLength)))
                 {
                     return hr;
                 }
