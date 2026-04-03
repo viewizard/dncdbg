@@ -84,9 +84,6 @@ set(FEATURE_EVENT_TRACE 0)
 #   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
 # - correct `third_party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
 #   since we disable `FEATURE_EVENT_TRACE` and diagnostics don't have `eventing_headers` project in sources
-# - correct `third_party/diagnostics/src/shared/pal/src/arch/amd64/debugbreak.S`, add after header lines:
-#        // Mark this file as not requiring executable stack
-#        .section .note.GNU-stack,"",@progbits
 #
 ###
 
