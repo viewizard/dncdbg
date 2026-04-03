@@ -51,16 +51,16 @@ namespace
 
 constexpr auto startupWaitTimeout = std::chrono::milliseconds(5000);
 
-int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
+HRESULT GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 {
     char *const *const pEnv = GetSystemEnvironment();
 
     if (pEnv == nullptr)
     {
-        return -1;
+        return E_FAIL;
     }
 
-    int counter = 0;
+    size_t counter = 0;
     while (pEnv[counter] != nullptr)
     {
         const std::string env = pEnv[counter];
@@ -73,7 +73,7 @@ int GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
         ++counter;
     }
 
-    return 0;
+    return S_OK;
 }
 
 // From dbgshim.cpp
@@ -208,7 +208,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     // We need to append the environ values with keeping the current process environment block.
     // It works equally for any platforms in coreclr CreateProcessW(), but is not critical for Linux.
     std::map<std::string, std::string> envMap;
-    if (GetSystemEnvironmentAsMap(envMap) != -1)
+    if (SUCCEEDED(GetSystemEnvironmentAsMap(envMap)))
     {
         // Override the system value (PATHs appending needs a complex implementation)
         for (const auto &pair : env)
