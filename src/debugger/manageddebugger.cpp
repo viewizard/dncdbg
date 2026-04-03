@@ -163,31 +163,26 @@ std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
 
 std::string EscapeShellArg(const std::string &arg)
 {
-    std::string s(arg);
+    std::string result;
+    result.reserve(arg.size() * 2); // Reserve space for worst case (all chars need escaping)
 
-    for (std::string::size_type i = 0; i < s.size(); ++i)
+    for (const char c : arg)
     {
-        std::string::size_type count = 0;
-        const char c = s.at(i);
         switch (c)
         {
         case '\"':
-            count = 1;
-            s.insert(i, count, '\\');
-            s[i + count] = '\"';
+            result += "\\\"";
             break;
         case '\\':
-            count = 1;
-            s.insert(i, count, '\\');
-            s[i + count] = '\\';
+            result += "\\\\";
             break;
         default:
+            result += c;
             break;
         }
-        i += count;
     }
 
-    return s;
+    return result;
 }
 
 bool IsDirExists(const char *const path)
