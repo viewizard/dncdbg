@@ -210,13 +210,10 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     std::map<std::string, std::string> envMap;
     if (GetSystemEnvironmentAsMap(envMap) != -1)
     {
-        auto it = env.begin();
-        auto end = env.end();
         // Override the system value (PATHs appending needs a complex implementation)
-        while (it != end)
+        for (const auto &pair : env)
         {
-            envMap[it->first] = it->second;
-            ++it;
+            envMap[pair.first] = pair.second;
         }
         for (const auto &pair : envMap)
         {
@@ -236,6 +233,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
             outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
             outEnv.push_back('\0');
         }
+        outEnv.push_back('\0');
     }
 }
 
