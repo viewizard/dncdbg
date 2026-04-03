@@ -189,8 +189,8 @@ bool IsDirExists(const char *const path)
 {
     struct stat info{};
 
-    return ((stat(path, &info) == 0) &&
-            ((info.st_mode & S_IFDIR) != 0U));
+    return stat(path, &info) == 0 &&
+           (info.st_mode & S_IFDIR) != 0U;
 }
 
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
