@@ -81,9 +81,26 @@ struct method_data_t_hash
 {
     size_t operator()(const method_data_t &p) const
     {
-        static constexpr size_t hash_factor1 = 100;
-        static constexpr size_t hash_factor2 = 1000;
-        return static_cast<size_t>(p.methodDef) + static_cast<size_t>(p.startLine * hash_factor1) + static_cast<size_t>(p.endLine * hash_factor2);
+        // Hash combining based on boost::hash_combine
+        // Golden ratio constant for better bit distribution
+        static constexpr size_t hash_golden_ratio = 0x9e3779b9;
+        static constexpr size_t hash_shift_bits = 6;
+
+        size_t seed = 0;
+        const auto hashCombine =
+            [&seed](const auto& value)
+            {
+                const std::hash<std::decay_t<decltype(value)>> hasher;
+                seed ^= hasher(value) + hash_golden_ratio + (seed << hash_shift_bits) + (seed >> hash_shift_bits);
+            };
+
+        hashCombine(p.methodDef);
+        hashCombine(p.startLine);
+        hashCombine(p.endLine);
+        hashCombine(p.startColumn);
+        hashCombine(p.endColumn);
+
+        return seed;
     }
 };
 
