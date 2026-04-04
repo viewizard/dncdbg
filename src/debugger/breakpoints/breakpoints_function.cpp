@@ -21,6 +21,14 @@ void FunctionBreakpoints::ManagedFunctionBreakpoint::ToBreakpoint(Breakpoint &br
     breakpoint.verified = this->IsVerified();
 }
 
+FunctionBreakpoints::ManagedFunctionBreakpoint::~ManagedFunctionBreakpoint()
+{
+    for (auto &trFuncBreakpoint : trFuncBreakpoints)
+    {
+        Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
+    }
+}
+
 void FunctionBreakpoints::DeleteAll()
 {
     m_breakpointsMutex.lock();
@@ -82,8 +90,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     ss << ")";
     const std::string params = ss.str();
 
-    // Note, since IsEnableByCondition() during eval execution could neutered frame, all frame-related calculation
-    // must be done before enter into this cycles.
+    // Note, since IsEnableByCondition() during eval execution could neuter frame, all frame-related calculations
+    // must be done before entering this loop.
     for (auto &fb : m_funcBreakpoints)
     {
         ManagedFunctionBreakpoint &fbp = fb.second;
@@ -206,7 +214,7 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
             }
             else
             {
-                (*it)->Activate(FALSE);
+                Breakpoints::DeactivateManagedBreakpoint((*it));
                 it = fb.trFuncBreakpoints.erase(it);
             }
         }
@@ -260,7 +268,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
         return S_OK;
     }
 
-    // Note, DAP require, that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &fb : functionBreakpoints)
     {
@@ -323,28 +331,28 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
 
     for (auto &entry : fbpResolved)
     {
-        IfFailRet(BreakpointUtils::SkipBreakpoint(entry.first, entry.second, m_justMyCode));
+        const mdMethodDef &methodToken = entry.second;
+        ICorDebugModule *pModule = entry.first;
+
+        IfFailRet(BreakpointUtils::SkipBreakpoint(pModule, methodToken, m_justMyCode));
         if (Status == S_SKIP)
         {
             return S_OK;
         }
 
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(entry.first->GetFunctionFromToken(entry.second, &trFunc));
+        IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
 
-        uint32_t ilNextOffset = 0;
-        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffsetInMethod(entry.first, entry.second, 0, ilNextOffset)))
+        uint32_t ilOffset = 0;
+        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffsetInMethod(pModule, methodToken, 0, ilOffset)))
         {
             return S_OK;
         }
 
-        ToRelease<ICorDebugCode> trCode;
-        IfFailRet(trFunc->GetILCode(&trCode));
-
+        CORDB_ADDRESS modAddress = 0;
+        IfFailRet(pModule->GetBaseAddress(&modAddress));
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        IfFailRet(trCode->CreateBreakpoint(ilNextOffset, &trFuncBreakpoint));
-        IfFailRet(trFuncBreakpoint->Activate(TRUE));
-
+        IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, methodToken, ilOffset, pModule, &trFuncBreakpoint));
         fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
     }
 

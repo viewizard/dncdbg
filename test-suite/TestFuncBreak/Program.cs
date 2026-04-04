@@ -12,13 +12,17 @@ namespace TestFuncBreak
 class Program
 {
     static void Main(string[] args)
-    {
+    {                                                                   Label.Breakpoint("bp0");
         Label.Checkpoint("init", "bp1_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.PrepareStart(null, null, @"__FILE__:__LINE__");
 
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
+                Context.SetBreakpoints(@"__FILE__:__LINE__");
+
+                Context.AddFunctionBreakpoint("Main");
                 Context.AddFunctionBreakpoint("funcbrackpoint1");
                 Context.AddFunctionBreakpoint("funcbrackpoint2(int)");
                 Context.AddFunctionBreakpoint("Program.funcbrackpoint3()");

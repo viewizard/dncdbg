@@ -90,16 +90,7 @@ class FunctionBreakpoints
         }
 
         ManagedFunctionBreakpoint() = default;
-        ~ManagedFunctionBreakpoint()
-        {
-            for (auto &trFuncBreakpoint : trFuncBreakpoints)
-            {
-                if (trFuncBreakpoint != nullptr)
-                {
-                    trFuncBreakpoint->Activate(FALSE);
-                }
-            }
-        }
+        ~ManagedFunctionBreakpoint();
 
         void ToBreakpoint(Breakpoint &breakpoint) const;
 
