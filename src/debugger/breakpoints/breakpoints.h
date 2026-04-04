@@ -14,9 +14,11 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
+#include "utils/torelease.h"
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace dncdbg
@@ -72,6 +74,10 @@ class Breakpoints
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
+    static HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
+                                             ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint);
+    static HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint);
+
   private:
 
     std::shared_ptr<BreakBreakpoint> m_breakBreakpoint;
@@ -82,6 +88,71 @@ class Breakpoints
 
     std::mutex m_nextBreakpointIdMutex;
     uint32_t m_nextBreakpointId{1};
+
+    struct BreakpointLocation
+    {
+        CORDB_ADDRESS modAddress{0};
+        uint32_t methodToken{0};
+        uint32_t ilOffset{0};
+
+        BreakpointLocation(CORDB_ADDRESS modAddress_, uint32_t methodToken_, uint32_t ilOffset_)
+            : modAddress(modAddress_),
+              methodToken(methodToken_),
+              ilOffset(ilOffset_)
+        {
+        }
+
+        bool operator==(const BreakpointLocation &other) const
+        {
+            return modAddress == other.modAddress &&
+                   methodToken == other.methodToken &&
+                   ilOffset == other.ilOffset;
+        }
+    };
+
+    struct BreakpointLocationHash
+    {
+        std::size_t operator()(const BreakpointLocation &key) const
+        {
+            const std::size_t h1 = std::hash<CORDB_ADDRESS>{}(key.modAddress);
+            const std::size_t h2 = std::hash<uint32_t>{}(key.methodToken);
+            const std::size_t h3 = std::hash<uint32_t>{}(key.ilOffset);
+            // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
+            return h1 ^ (h2 << 1) ^ (h3 << 2);
+        }
+    };
+
+    struct BreakpointData
+    {
+        ToRelease<ICorDebugFunctionBreakpoint> trBreakpoint;
+        size_t refCount{0};
+
+        BreakpointData(ICorDebugFunctionBreakpoint *pBreakpoint, size_t initialCount)
+            : trBreakpoint(pBreakpoint),
+              refCount(initialCount)
+        {
+        }
+
+        BreakpointData(BreakpointData &&) = default;
+        BreakpointData(const BreakpointData &) = delete;
+        BreakpointData &operator=(BreakpointData &&) = default;
+        BreakpointData &operator=(const BreakpointData &) = delete;
+        ~BreakpointData() = default;
+    };
+
+    static std::mutex &GetManagedBreakpointsMutex()
+    {
+        static std::mutex managedBreakpointsMutex;
+        return managedBreakpointsMutex;
+    }
+
+    using mbp_t = std::unordered_map<BreakpointLocation, BreakpointData, BreakpointLocationHash>;
+    static mbp_t &GetManagedBreakpoints()
+    {
+        static mbp_t managedBreakpoints;
+        return managedBreakpoints;
+    }
+
 };
 
 } // namespace dncdbg

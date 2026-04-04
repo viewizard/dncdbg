@@ -205,4 +205,68 @@ size_t Breakpoints::GetBreakpointsCount()
 }
 #endif // DEBUG_INTERNAL_TESTS
 
+HRESULT Breakpoints::ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
+                                               ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint)
+{
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+
+    auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
+    if (find != GetManagedBreakpoints().end())
+    {
+        find->second.trBreakpoint->AddRef();
+        find->second.refCount++;
+        *ppFuncBreakpoint = find->second.trBreakpoint;
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunc->GetILCode(&trCode));
+    IfFailRet(trCode->CreateBreakpoint(ilOffset, ppFuncBreakpoint));
+    IfFailRet((*ppFuncBreakpoint)->Activate(TRUE));
+
+    (*ppFuncBreakpoint)->AddRef();
+    GetManagedBreakpoints().emplace(BreakpointLocation(modAddress, methodToken, ilOffset), BreakpointData(*ppFuncBreakpoint, 2));
+
+    return S_OK;
+}
+
+HRESULT Breakpoints::DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint)
+{
+    HRESULT Status = S_OK;
+
+    uint32_t ilOffset = 0;
+    IfFailRet(trFuncBreakpoint->GetOffset(&ilOffset));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(trFuncBreakpoint->GetFunction(&trFunction));
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFunction->GetToken(&methodToken));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+
+    auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
+    if (find == GetManagedBreakpoints().end())
+    {
+        return E_FAIL;
+    }
+
+    trFuncBreakpoint.Free();
+    find->second.refCount--;
+
+    assert(find->second.refCount >= 1);
+
+    if (find->second.refCount == 1)
+    {
+        find->second.trBreakpoint->Activate(FALSE);
+        GetManagedBreakpoints().erase(find);
+    }
+    return S_OK;
+}
+
 } // namespace dncdbg

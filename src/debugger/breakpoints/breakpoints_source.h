@@ -86,16 +86,7 @@ class SourceBreakpoints
         }
 
         ManagedSourceBreakpoint() = default;
-        ~ManagedSourceBreakpoint()
-        {
-            for (auto &trFuncBreakpoint : trFuncBreakpoints)
-            {
-                if (trFuncBreakpoint != nullptr)
-                {
-                    trFuncBreakpoint->Activate(FALSE);
-                }
-            }
-        }
+        ~ManagedSourceBreakpoint();
 
         void ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const;
 

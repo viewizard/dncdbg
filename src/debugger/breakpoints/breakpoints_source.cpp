@@ -19,28 +19,6 @@ namespace dncdbg
 namespace
 {
 
-HRESULT EnableOneICorBreakpointForLine(std::list<SourceBreakpoints::ManagedSourceBreakpoint> &bList)
-{
-    // Same logic as provide vsdbg - only one breakpoint is active for one line.
-    BOOL needEnable = TRUE;
-    HRESULT Status = S_OK;
-    for (auto &it : bList)
-    {
-        if (it.trFuncBreakpoints.empty())
-        {
-            continue;
-        }
-
-        for (const auto &trFuncBreakpoint : it.trFuncBreakpoints)
-        {
-            const HRESULT ret = trFuncBreakpoint->Activate(needEnable);
-            Status = FAILED(ret) ? ret : Status;
-        }
-        needEnable = FALSE;
-    }
-    return Status;
-}
-
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
 HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, SourceBreakpoints::ManagedSourceBreakpoint &bp,
@@ -97,16 +75,9 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         }
 
         modAddress = modAddressTrack;
-
-        ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(resolvedBP.trModule->GetFunctionFromToken(resolvedBP.methodToken, &trFunc));
-        ToRelease<ICorDebugCode> trCode;
-        IfFailRet(trFunc->GetILCode(&trCode));
-
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        IfFailRet(trCode->CreateBreakpoint(resolvedBP.ilOffset, &trFuncBreakpoint));
-        IfFailRet(trFuncBreakpoint->Activate(TRUE));
-
+        IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, resolvedBP.methodToken, resolvedBP.ilOffset,
+                                                         resolvedBP.trModule, &trFuncBreakpoint));
         bp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
     }
 
@@ -115,10 +86,10 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         return E_FAIL;
     }
 
-    // No reason leave extra space here, since breakpoint could be setup for 1 module only (no more breakpoints will be added).
+    // No reason to leave extra space here, since breakpoint could be set up for 1 module only (no more breakpoints will be added).
     bp.trFuncBreakpoints.shrink_to_fit();
 
-    // same for multiple breakpoint resolve for one module
+    // Same for multiple breakpoint resolve for one module.
     bp.linenum = resolvedPoints[0].startLine;
     bp.endLine = resolvedPoints[0].endLine;
 
@@ -134,6 +105,14 @@ void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakp
     breakpoint.source = Source(fullname);
     breakpoint.line = this->linenum;
     breakpoint.endLine = this->endLine;
+}
+
+SourceBreakpoints::ManagedSourceBreakpoint::~ManagedSourceBreakpoint()
+{
+    for (auto &trFuncBreakpoint : trFuncBreakpoints)
+    {
+        Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
+    }
 }
 
 void SourceBreakpoints::DeleteAll()
@@ -296,7 +275,6 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
             initialBreakpoint.resolved_linenum = bp.linenum;
 
             m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
-            EnableOneICorBreakpointForLine(m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
         }
     }
 
@@ -414,7 +392,6 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 if ((*itList).id == initialBreakpoint.id)
                 {
                     itList = bList_it->second.erase(itList);
-                    EnableOneICorBreakpointForLine(bList_it->second);
                     break;
                 }
                 else
@@ -520,7 +497,6 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 m_sharedDebugInfo->GetSourceFullPathByIndex(resolved_fullname_index, resolved_fullname);
                 bp.ToBreakpoint(breakpoint, resolved_fullname);
                 m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum].push_back(std::move(bp));
-                EnableOneICorBreakpointForLine(m_sourceResolvedBreakpoints[resolved_fullname_index][initialBreakpoint.resolved_linenum]);
             }
             else
             {
