@@ -16,13 +16,16 @@
 namespace dncdbg
 {
 
-Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<Variables> &sharedVariables)
-        : m_breakBreakpoint(new BreakBreakpoint(sharedDebugInfo)),
-          m_entryBreakpoint(new EntryBreakpoint(sharedDebugInfo)),
-          m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
-          m_funcBreakpoints(new FunctionBreakpoints(sharedDebugInfo, sharedVariables)),
-          m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedVariables))
-    {}
+Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
+                         std::shared_ptr<Evaluator> &sharedEvaluator,
+                         std::shared_ptr<Variables> &sharedVariables)
+    : m_breakBreakpoint(new BreakBreakpoint(sharedDebugInfo)),
+      m_entryBreakpoint(new EntryBreakpoint(sharedDebugInfo)),
+      m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
+      m_funcBreakpoints(new FunctionBreakpoints(sharedDebugInfo, sharedVariables)),
+      m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedVariables))
+{
+}
 
 void Breakpoints::SetJustMyCode(bool enable)
 {
