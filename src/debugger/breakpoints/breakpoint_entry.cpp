@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoint_entry.h"
+#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
@@ -224,7 +225,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/main-and-command-args/
         // In case of async method as entry method, GetEntryPointTokenFromFile() should return compiler's generated method `<Main>`, plus,
-        // this should be method without user code.
+        // this should be a method without user code.
         if (funcName == W("<Main>"))
         {
             TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
@@ -234,13 +235,10 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     // If we can't setup entry point correctly for async method, leave it "as is".
     setupAsyncEntryBreakpoint();
 
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(pModule->GetFunctionFromToken(entryPointToken, &trFunction));
-    ToRelease<ICorDebugCode> trCode;
-    IfFailRet(trFunction->GetILCode(&trCode));
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
     ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-    IfFailRet(trCode->CreateBreakpoint(entryPointOffset, &trFuncBreakpoint));
-
+    IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, entryPointToken, entryPointOffset, pModule, &trFuncBreakpoint));
     m_trFuncBreakpoint = trFuncBreakpoint.Detach();
 
     return S_OK;
@@ -265,22 +263,14 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
         return S_FALSE;
     }
 
-    m_trFuncBreakpoint->Activate(FALSE);
-    m_trFuncBreakpoint.Free();
+    Breakpoints::DeactivateManagedBreakpoint(m_trFuncBreakpoint);
     return S_OK;
 }
 
 void EntryBreakpoint::Delete()
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
-
-    if (m_trFuncBreakpoint == nullptr)
-    {
-        return;
-    }
-
-    m_trFuncBreakpoint->Activate(FALSE);
-    m_trFuncBreakpoint.Free();
+    Breakpoints::DeactivateManagedBreakpoint(m_trFuncBreakpoint);
 }
 
 } // namespace dncdbg

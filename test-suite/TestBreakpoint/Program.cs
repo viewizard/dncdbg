@@ -12,13 +12,14 @@ namespace TestBreakpoint
 class Program
 {
     static void Main(string[] args)
-    {
+    {                                                                  Label.Breakpoint("bp0");
         Label.Checkpoint("init", "bp1_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.PrepareStart(null, null, @"__FILE__:__LINE__");
 
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp3");

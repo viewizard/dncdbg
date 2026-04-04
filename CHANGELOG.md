@@ -84,3 +84,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed exception type name fail handling logic in GetExceptionDetails().
 - Fixed disable JIT optimization related logic.
 - Fixed constant field (literal) evaluation logic.
+- Fixed entry breakpoint logic, will not double break in case some source breakpoint is also set to first line of Main() method.

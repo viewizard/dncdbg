@@ -235,6 +235,11 @@ HRESULT Breakpoints::ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_
 
 HRESULT Breakpoints::DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint)
 {
+    if (trFuncBreakpoint == nullptr)
+    {
+        return S_OK;
+    }
+
     HRESULT Status = S_OK;
 
     uint32_t ilOffset = 0;
