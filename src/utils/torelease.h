@@ -1,9 +1,11 @@
+// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
+// Copyright (c) 2026 Mikhail Kurinnoi
+// Distributed under the MIT License.
+// See the LICENSE file in the project root for more information.
+
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-
-// Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.
-// Copyright (c) 2026 Mikhail Kurinnoi
 
 #ifndef UTILS_TORELEASE_H
 #define UTILS_TORELEASE_H
@@ -19,7 +21,8 @@
 namespace dncdbg
 {
 
-// This class acts a smart pointer which calls the Release method on any object
+// Based on diagnostics/src/SOS/Strike/util.h `ToRelease` class code.
+// This class acts as a smart pointer which calls the Release method on any object
 // you place in it when the ToRelease class falls out of scope.  You may use it
 // just like you would a standard pointer to a COM object (including if (foo),
 // if (!foo), if (foo == 0), etc) except for two caveats:
@@ -111,6 +114,7 @@ template <class T> class ToRelease
 
         m_ptr = other.m_ptr;
         other.m_ptr = nullptr;
+        return *this;
     }
     ToRelease(const ToRelease &) = delete;
     ToRelease &operator=(const ToRelease &) = delete;
