@@ -51,10 +51,17 @@ HRESULT Breakpoints::ManagedCallbackBreak(ICorDebugThread *pThread, const Thread
 
 void Breakpoints::DeleteAll()
 {
+    // Must be called on DetachFromProcess() and TerminateProcess() only. We assume that
+    // the current debugging process will not continue after this call.
+    // Clear all breakpoint structures, no need to waste time deactivating breakpoints.
+
     m_entryBreakpoint->Delete();
     m_funcBreakpoints->DeleteAll();
     m_sourceBreakpoints->DeleteAll();
     m_exceptionBreakpoints->DeleteAll();
+
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+    GetManagedBreakpoints().clear();
 }
 
 HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)

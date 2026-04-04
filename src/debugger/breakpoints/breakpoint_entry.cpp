@@ -270,7 +270,10 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 void EntryBreakpoint::Delete()
 {
     const std::scoped_lock<std::mutex> lock(m_entryMutex);
-    Breakpoints::DeactivateManagedBreakpoint(m_trFuncBreakpoint);
+    if (m_trFuncBreakpoint != nullptr)
+    {
+        m_trFuncBreakpoint.Free();
+    }
 }
 
 } // namespace dncdbg
