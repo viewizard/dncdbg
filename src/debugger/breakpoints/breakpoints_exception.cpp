@@ -7,7 +7,8 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"
-#include <sstream>
+#include <algorithm>
+#include <functional>
 
 namespace dncdbg
 {
@@ -15,23 +16,41 @@ namespace dncdbg
 namespace
 {
 
-std::string CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb)
+// Hash combining algorithm based on boost::hash_combine
+// Provides good distribution and avalanche properties
+// Magic number 0x9e3779b9 is based on the golden ratio (phi ≈ 1.6180339887...)
+// which provides good bit distribution for hash combining
+constexpr size_t HASH_GOLDEN_RATIO = 0x9e3779b9;
+constexpr size_t HASH_SHIFT_BITS = 6;
+
+size_t HashCombine(size_t seed, size_t value) noexcept
 {
-    std::ostringstream ss;
+    return seed ^ (value + HASH_GOLDEN_RATIO + (seed << HASH_SHIFT_BITS) + (seed >> HASH_SHIFT_BITS));
+}
 
-    ss << static_cast<int>(expb.categoryHint);
+size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcept
+{
+    size_t hash = 0;
 
-    if (expb.negativeCondition)
+    // Hash categoryHint (enum value)
+    hash = HashCombine(hash, static_cast<size_t>(expb.categoryHint));
+
+    // Hash negativeCondition flag
+    hash = HashCombine(hash, static_cast<size_t>(expb.negativeCondition));
+
+    // Hash all conditions in a deterministic order
+    // Note: unordered_set iteration order is not guaranteed, so we need to sort
+    // for consistent hash values across different runs
+    std::vector<std::string> sortedConditions(expb.condition.begin(), expb.condition.end());
+    std::sort(sortedConditions.begin(), sortedConditions.end());
+
+    const std::hash<std::string> stringHasher;
+    for (const auto &entry : sortedConditions)
     {
-        ss << "!";
+        hash = HashCombine(hash, stringHasher(entry));
     }
 
-    for (const auto &entry : expb.condition)
-    {
-        ss << ":" << entry << ":";
-    }
-
-    return ss.str();
+    return hash;
 }
 
 void GetExceptionShortDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)
@@ -102,7 +121,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
     // Remove old breakpoints
-    std::vector<std::unordered_set<std::string>> expBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size));
+    std::vector<std::unordered_set<size_t>> expBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size));
     for (const auto &expb : exceptionBreakpoints)
     {
         expBreakpoints[static_cast<size_t>(expb.filterId)].insert(CalculateExceptionBreakpointHash(expb));
@@ -130,7 +149,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
     // Export exception breakpoints
     for (const auto &expb : exceptionBreakpoints)
     {
-        const std::string expHash(CalculateExceptionBreakpointHash(expb));
+        const size_t expHash = CalculateExceptionBreakpointHash(expb);
 
         Breakpoint breakpoint;
 

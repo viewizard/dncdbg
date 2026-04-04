@@ -91,7 +91,7 @@ class ExceptionBreakpoints
     };
 
     std::mutex m_breakpointsMutex;
-    std::vector<std::unordered_multimap<std::string, ManagedExceptionBreakpoint>> m_exceptionBreakpoints;
+    std::vector<std::unordered_multimap<size_t, ManagedExceptionBreakpoint>> m_exceptionBreakpoints;
 };
 
 } // namespace dncdbg
