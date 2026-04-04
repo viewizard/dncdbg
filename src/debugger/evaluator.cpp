@@ -391,7 +391,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
 
             auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
             {
-                // Get pValue again, since it could be neutered at eval call in `cb` on previous cycle.
+                // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
                 trValue.Free();
                 IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
                 ToRelease<ICorDebugObjectValue> trObjValue;
@@ -976,7 +976,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
                         else
                         {
-                            // Get trValue again, since it could be neutered at eval call in `cb` on previous cycle.
+                            // Get trValue again, since it could be neutered at eval call in `cb` on previous loop.
                             trValue.Free();
                             IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
                             ToRelease<ICorDebugObjectValue> trObjValue;

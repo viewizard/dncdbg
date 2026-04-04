@@ -220,7 +220,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
                 continue; // need check nested level (if available)
             }
         }
-        // result was found on previous cycle, check for closest nested method
+        // result was found on previous loop, check for closest nested method
         // need it in case of breakpoint setup at lines without code and before nested method, for example:
         // {
         //  <-- breakpoint at line without code (inside method)
