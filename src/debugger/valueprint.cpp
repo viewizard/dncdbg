@@ -808,200 +808,206 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 {
     HRESULT Status = S_OK;
 
-    BOOL isNull = TRUE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+    pInputValue->AddRef();
+    ToRelease<ICorDebugValue> trCurrentValue(pInputValue);
 
-    if (isNull == TRUE)
+    while (true)
     {
-        output = "null";
-        return S_OK;
-    }
+        BOOL isNull = TRUE;
+        ToRelease<ICorDebugValue> trValue;
+        IfFailRet(DereferenceAndUnboxValue(trCurrentValue, &trValue, &isNull));
 
-    uint32_t cbSize = 0;
-    IfFailRet(trValue->GetSize(&cbSize));
-    std::vector<uint8_t> genericValue(cbSize, 0);
-
-    CorElementType corElemType = ELEMENT_TYPE_MAX;
-    IfFailRet(trValue->GetType(&corElemType));
-    if (corElemType == ELEMENT_TYPE_STRING)
-    {
-        std::string raw_str;
-        IfFailRet(PrintStringValue(trValue, raw_str));
-
-        if (!escape)
+        if (isNull == TRUE)
         {
-            output = raw_str;
+            output = "null";
             return S_OK;
         }
 
-        EscapeString(raw_str, '"');
+        uint32_t cbSize = 0;
+        IfFailRet(trValue->GetSize(&cbSize));
+        std::vector<uint8_t> genericValue(cbSize, 0);
 
+        CorElementType corElemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trValue->GetType(&corElemType));
+        if (corElemType == ELEMENT_TYPE_STRING)
+        {
+            std::string raw_str;
+            IfFailRet(PrintStringValue(trValue, raw_str));
+
+            if (!escape)
+            {
+                output = raw_str;
+                return S_OK;
+            }
+
+            EscapeString(raw_str, '"');
+
+            std::ostringstream ss;
+            ss << "\"" << raw_str << "\"";
+            output = ss.str();
+            return S_OK;
+        }
+
+        if (corElemType == ELEMENT_TYPE_SZARRAY || corElemType == ELEMENT_TYPE_ARRAY)
+        {
+            return PrintArrayValue(trValue, output);
+        }
+
+        ToRelease<ICorDebugGenericValue> trGenericValue;
+        IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+        IfFailRet(trGenericValue->GetValue(static_cast<void *>(genericValue.data())));
+
+        if (IsEnum(trValue))
+        {
+            return PrintEnumValue(trValue, genericValue.data(), output);
+        }
+
+        static constexpr uint32_t floatPrecision = 8;
+        static constexpr uint32_t doublePrecision = 16;
         std::ostringstream ss;
-        ss << "\"" << raw_str << "\"";
-        output = ss.str();
-        return S_OK;
-    }
 
-    if (corElemType == ELEMENT_TYPE_SZARRAY || corElemType == ELEMENT_TYPE_ARRAY)
-    {
-        return PrintArrayValue(trValue, output);
-    }
+        switch (corElemType)
+        {
+        default:
+            ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
+            break;
 
-    ToRelease<ICorDebugGenericValue> trGenericValue;
-    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(genericValue.data())));
+        case ELEMENT_TYPE_PTR:
+            ss << "<pointer>";
+            break;
 
-    if (IsEnum(trValue))
-    {
-        return PrintEnumValue(trValue, genericValue.data(), output);
-    }
-
-    static constexpr uint32_t floatPrecision = 8;
-    static constexpr uint32_t doublePrecision = 16;
-    std::ostringstream ss;
-
-    switch (corElemType)
-    {
-    default:
-        ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
+        case ELEMENT_TYPE_FNPTR:
+        {
+            CORDB_ADDRESS addr = 0;
+            ToRelease<ICorDebugReferenceValue> trReferenceValue;
+            if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+            {
+                trReferenceValue->GetValue(&addr);
+            }
+            ss << "<function pointer 0x" << std::hex << addr << ">";
+        }
         break;
 
-    case ELEMENT_TYPE_PTR:
-        ss << "<pointer>";
-        break;
-
-    case ELEMENT_TYPE_FNPTR:
-    {
-        CORDB_ADDRESS addr = 0;
-        ToRelease<ICorDebugReferenceValue> trReferenceValue;
-        if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
         {
-            trReferenceValue->GetValue(&addr);
-        }
-        ss << "<function pointer 0x" << std::hex << addr << ">";
-    }
-    break;
-
-    case ELEMENT_TYPE_VALUETYPE:
-    case ELEMENT_TYPE_CLASS:
-    {
-        std::string typeName;
-        TypePrinter::GetTypeOfValue(trValue, typeName);
-        if (typeName == "decimal") // TODO: implement mechanism for printing custom type values
-        {
-            std::string val;
-            PrintDecimalValue(trValue, val);
-            ss << val;
-        }
-        else if (typeName == "void")
-        {
-            ss << "Expression has been evaluated and has no value";
-        }
-        else if (typeName.back() == '?') // System.Nullable<T>
-        {
-            ToRelease<ICorDebugValue> trValueValue;
-            ToRelease<ICorDebugValue> trHasValueValue;
-            IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
-
-            uint32_t cbSize = 0;
-            IfFailRet(trHasValueValue->GetSize(&cbSize));
-            std::vector<uint8_t> boolValue(cbSize, 0);
-
-            ToRelease<ICorDebugGenericValue> trGenericValue;
-            IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->GetValue(static_cast<void *>(boolValue.data())));
-            // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-            if (boolValue.at(0) == 1) // TRUE
+            std::string typeName;
+            TypePrinter::GetTypeOfValue(trValue, typeName);
+            if (typeName == "decimal") // TODO: implement mechanism for printing custom type values
             {
                 std::string val;
-                PrintValue(trValueValue, val, true);
+                PrintDecimalValue(trValue, val);
                 ss << val;
+            }
+            else if (typeName == "void")
+            {
+                ss << "Expression has been evaluated and has no value";
+            }
+            else if (typeName.back() == '?') // System.Nullable<T>
+            {
+                ToRelease<ICorDebugValue> trValueValue;
+                ToRelease<ICorDebugValue> trHasValueValue;
+                IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
+
+                uint32_t nullableCbSize = 0;
+                IfFailRet(trHasValueValue->GetSize(&nullableCbSize));
+                std::vector<uint8_t> boolValue(nullableCbSize, 0);
+
+                ToRelease<ICorDebugGenericValue> trNullableGenericValue;
+                IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trNullableGenericValue)));
+                IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(boolValue.data())));
+                // trHasValueValue is ELEMENT_TYPE_BOOLEAN
+                if (boolValue.at(0) == 1) // TRUE
+                {
+                    // Iterative handling: set trCurrentValue to the inner value and continue loop
+                    trCurrentValue = trValueValue.Detach();
+                    continue;
+                }
+                else
+                {
+                    ss << "null";
+                }
             }
             else
             {
-                ss << "null";
+                ss << '{' << typeName << '}';
             }
         }
-        else
+        break;
+
+        case ELEMENT_TYPE_BOOLEAN:
+            ss << (genericValue.at(0) == 0 ? "false" : "true");
+            break;
+
+        case ELEMENT_TYPE_CHAR:
         {
-            ss << '{' << typeName << '}';
+            const WSTRING wstr{*reinterpret_cast<WCHAR *>(genericValue.data()) , '\0'};
+            std::string printableVal = to_utf8(wstr.c_str());
+            if (!escape)
+            {
+                output = printableVal;
+                return S_OK;
+            }
+            EscapeString(printableVal, '\'');
+            ss << static_cast<unsigned int>(wstr.c_str()[0]) << " '" << printableVal << "'";
         }
-    }
-    break;
-
-    case ELEMENT_TYPE_BOOLEAN:
-        ss << (genericValue.at(0) == 0 ? "false" : "true");
         break;
 
-    case ELEMENT_TYPE_CHAR:
-    {
-        const WSTRING wstr{*reinterpret_cast<WCHAR *>(genericValue.data()) , '\0'};
-        std::string printableVal = to_utf8(wstr.c_str());
-        if (!escape)
-        {
-            output = printableVal;
-            return S_OK;
+        case ELEMENT_TYPE_I1:
+            ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
+            break;
+
+        case ELEMENT_TYPE_U1:
+            ss << static_cast<uint32_t>(genericValue.at(0));
+            break;
+
+        case ELEMENT_TYPE_I2:
+            ss << *reinterpret_cast<int16_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_U2:
+            ss << *reinterpret_cast<uint16_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_I4:
+            ss << *reinterpret_cast<int32_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_U:
+        case ELEMENT_TYPE_U4:
+            ss << *reinterpret_cast<uint32_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_I8:
+            ss << *reinterpret_cast<int64_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_U8:
+            ss << *reinterpret_cast<uint64_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_R4:
+            ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_R8:
+            ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_OBJECT:
+            ss << "object";
+            break;
+
+            // TODO: The following corElementTypes are not yet implemented here.  Array
+            // might be interesting to add, though the others may be of rather limited use:
+            //
+            // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
         }
-        EscapeString(printableVal, '\'');
-        ss << static_cast<unsigned int>(wstr.c_str()[0]) << " '" << printableVal << "'";
+
+        output = ss.str();
+        return S_OK;
     }
-    break;
-
-    case ELEMENT_TYPE_I1:
-        ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
-        break;
-
-    case ELEMENT_TYPE_U1:
-        ss << static_cast<uint32_t>(genericValue.at(0));
-        break;
-
-    case ELEMENT_TYPE_I2:
-        ss << *reinterpret_cast<int16_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_U2:
-        ss << *reinterpret_cast<uint16_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_I:
-    case ELEMENT_TYPE_I4:
-        ss << *reinterpret_cast<int32_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_U:
-    case ELEMENT_TYPE_U4:
-        ss << *reinterpret_cast<uint32_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_I8:
-        ss << *reinterpret_cast<int64_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_U8:
-        ss << *reinterpret_cast<uint64_t *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_R4:
-        ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_R8:
-        ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(genericValue.data());
-        break;
-
-    case ELEMENT_TYPE_OBJECT:
-        ss << "object";
-        break;
-
-        // TODO: The following corElementTypes are not yet implemented here.  Array
-        // might be interesting to add, though the others may be of rather limited use:
-        //
-        // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
-    }
-
-    output = ss.str();
-    return S_OK;
 }
 
 } // namespace dncdbg
