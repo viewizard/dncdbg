@@ -25,7 +25,8 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
 {
   public:
 
-    ManagedCallback(ManagedDebugger &debugger, std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue)
+    ManagedCallback(ManagedDebugger &debugger,
+                    std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue)
         : m_debugger(debugger),
           m_sharedCallbacksQueue(sharedCallbacksQueue)
     {

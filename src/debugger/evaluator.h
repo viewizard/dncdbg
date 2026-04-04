@@ -87,7 +87,8 @@ class Evaluator
         : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedEvalHelpers(sharedEvalHelpers),
           m_sharedEvalStackMachine(sharedEvalStackMachine)
-    {}
+    {
+    }
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,

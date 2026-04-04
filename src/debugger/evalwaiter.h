@@ -58,7 +58,9 @@ class EvalWaiter
         evalResult_t &operator=(const evalResult_t &B) = delete;
         evalResult_t &operator=(evalResult_t &&B) = delete;
 
-        evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, std::promise<std::unique_ptr<evalResultData_t>> &&promiseValue_)
+        evalResult_t(DWORD threadId_,
+                     ICorDebugEval *pEval_,
+                     std::promise<std::unique_ptr<evalResultData_t>> &&promiseValue_)
             : threadId(threadId_),
               pEval(pEval_),
               promiseValue(std::move(promiseValue_))

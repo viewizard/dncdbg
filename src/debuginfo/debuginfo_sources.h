@@ -44,7 +44,12 @@ struct method_data_t
     {
     }
 
-    method_data_t(mdMethodDef methodDef_, int32_t startLine_, int32_t endLine_, int32_t startColumn_, int32_t endColumn_, int32_t isCtor_)
+    method_data_t(mdMethodDef methodDef_,
+                  int32_t startLine_,
+                  int32_t endLine_,
+                  int32_t startColumn_,
+                  int32_t endColumn_,
+                  int32_t isCtor_)
         : methodDef(methodDef_),
           startLine(startLine_),
           endLine(endLine_),
@@ -119,7 +124,11 @@ class DebugInfoSources
         uint32_t methodToken;
         ToRelease<ICorDebugModule> trModule;
 
-        resolved_bp_t(int32_t startLine_, int32_t endLine_, uint32_t ilOffset_, uint32_t methodToken_, ICorDebugModule *pModule)
+        resolved_bp_t(int32_t startLine_,
+                      int32_t endLine_,
+                      uint32_t ilOffset_,
+                      uint32_t methodToken_,
+                      ICorDebugModule *pModule)
             : startLine(startLine_),
               endLine(endLine_),
               ilOffset(ilOffset_),

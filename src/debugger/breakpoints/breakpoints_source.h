@@ -32,7 +32,8 @@ class SourceBreakpoints
 {
   public:
 
-    SourceBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Variables> &sharedVariables)
+    SourceBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
+                      std::shared_ptr<Variables> &sharedVariables)
         : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedVariables(sharedVariables)
     {

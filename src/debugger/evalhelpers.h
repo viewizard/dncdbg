@@ -31,7 +31,8 @@ class EvalHelpers
 
     EvalHelpers(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedEvalWaiter(sharedEvalWaiter)
-    {}
+    {
+    }
 
     HRESULT CreateTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
                                               ICorDebugValue **ppTypeObjectResult = nullptr,

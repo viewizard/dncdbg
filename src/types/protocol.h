@@ -72,7 +72,9 @@ struct StackFrame
     {
     }
 
-    StackFrame(ThreadId threadId, FrameLevel level_, const std::string &name_)
+    StackFrame(ThreadId threadId,
+               FrameLevel level_,
+               const std::string &name_)
         : id(FrameId(threadId, level_)),
           name(name_),
           line(0),
@@ -82,7 +84,9 @@ struct StackFrame
     {
     }
 
-    StackFrame(ThreadId threadId, FrameLevel level_, std::string &&name_)
+    StackFrame(ThreadId threadId,
+               FrameLevel level_,
+               std::string &&name_)
         : id(FrameId(threadId, level_)),
           name(std::move(name_)),
           line(0),
@@ -167,14 +171,17 @@ struct StoppedEvent
     bool allThreadsStopped;
     std::vector<uint32_t> hitBreakpointIds;
 
-    StoppedEvent(StoppedEventReason reason, ThreadId threadId = ThreadId::Invalid)
+    StoppedEvent(StoppedEventReason reason,
+                 ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true)
     {
     }
 
-    StoppedEvent(StoppedEventReason reason, std::vector<uint32_t> &&bpIds, ThreadId threadId = ThreadId::Invalid)
+    StoppedEvent(StoppedEventReason reason,
+                 std::vector<uint32_t> &&bpIds,
+                 ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true),
@@ -196,7 +203,8 @@ struct BreakpointEvent
     BreakpointEventReason reason;
     Breakpoint breakpoint;
 
-    BreakpointEvent(const BreakpointEventReason &reason, Breakpoint breakpoint)
+    BreakpointEvent(const BreakpointEventReason &reason,
+                    Breakpoint breakpoint)
         : reason(reason),
           breakpoint(std::move(breakpoint))
     {
@@ -208,7 +216,8 @@ struct ExitedEvent
 {
     int exitCode;
 
-    ExitedEvent(int exitCode) : exitCode(exitCode)
+    ExitedEvent(int exitCode)
+        : exitCode(exitCode)
     {
     }
 };
@@ -225,7 +234,8 @@ struct ThreadEvent
     ThreadEventReason reason;
     ThreadId threadId;
 
-    ThreadEvent(ThreadEventReason reason_, ThreadId id_)
+    ThreadEvent(ThreadEventReason reason_,
+                ThreadId id_)
         : reason(reason_),
           threadId(id_)
     {
@@ -252,7 +262,8 @@ struct OutputEvent
     // data?: any;
     // locationReference?: number;
 
-    OutputEvent(OutputCategory category_, std::string output_)
+    OutputEvent(OutputCategory category_,
+                std::string output_)
         : category(category_),
           output(std::move(output_))
     {
@@ -272,7 +283,8 @@ struct ModuleEvent
     ModuleEventReason reason;
     const Module &module;
 
-    ModuleEvent(ModuleEventReason reason, const Module &module)
+    ModuleEvent(ModuleEventReason reason,
+                const Module &module)
         : reason(reason),
           module(module)
     {
@@ -308,7 +320,9 @@ struct Scope
     {
     }
 
-    Scope(uint32_t variablesReference, std::string name, int namedVariables)
+    Scope(uint32_t variablesReference,
+          std::string name,
+          int namedVariables)
         : name(std::move(name)),
           variablesReference(variablesReference),
           namedVariables(namedVariables),
@@ -352,7 +366,8 @@ struct SourceBreakpoint
     // logMessage?: string;
     // mode?: string;
 
-    SourceBreakpoint(int linenum, std::string cond = std::string(),
+    SourceBreakpoint(int linenum,
+                     std::string cond = std::string(),
                      std::string hitCond = std::string())
         : line(linenum),
           condition(std::move(cond)),
@@ -369,8 +384,10 @@ struct FunctionBreakpoint
     std::string condition;
     std::string hitCondition;
 
-    FunctionBreakpoint(std::string func, std::string params,
-                       std::string cond = std::string(), std::string hitCond = std::string())
+    FunctionBreakpoint(std::string func,
+                       std::string params,
+                       std::string cond = std::string(),
+                       std::string hitCond = std::string())
         : func(std::move(func)),
           params(std::move(params)),
           condition(std::move(cond)),
@@ -448,7 +465,8 @@ struct ExceptionBreakpoint
     std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
     bool negativeCondition{false};
 
-    ExceptionBreakpoint(ExceptionCategory category, ExceptionBreakpointFilter filterId)
+    ExceptionBreakpoint(ExceptionCategory category,
+                        ExceptionBreakpointFilter filterId)
         : categoryHint(category),
           filterId(filterId)
     {

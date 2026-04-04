@@ -36,7 +36,8 @@ class Variables
         : m_sharedEvalHelpers(sharedEvalHelpers),
           m_sharedEvaluator(sharedEvaluator),
           m_sharedEvalStackMachine(sharedEvalStackMachine)
-    {}
+    {
+    }
 
     HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter, int start,
                          int count, std::vector<Variable> &variables);
@@ -75,7 +76,10 @@ class Variables
         ToRelease<ICorDebugValue> trValue;
         FrameId frameId;
 
-        VariableReference(const Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
+        VariableReference(const Variable &variable,
+                          FrameId frameId,
+                          ICorDebugValue *pValue,
+                          ValueKind valueKind)
             : variablesReference(variable.variablesReference),
               namedVariables(variable.namedVariables),
               indexedVariables(variable.indexedVariables),
@@ -83,16 +87,20 @@ class Variables
               valueKind(valueKind),
               trValue(pValue),
               frameId(frameId)
-        {}
+        {
+        }
 
-        VariableReference(uint32_t variablesReference, FrameId frameId, int namedVariables)
+        VariableReference(uint32_t variablesReference,
+                          FrameId frameId,
+                          int namedVariables)
             : variablesReference(variablesReference),
               namedVariables(namedVariables),
               indexedVariables(0),
               valueKind(ValueKind::Scope),
               trValue(nullptr),
               frameId(frameId)
-        {}
+        {
+        }
 
         [[nodiscard]] bool IsScope() const
         {

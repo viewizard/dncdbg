@@ -34,10 +34,12 @@ class FunctionBreakpoints
 {
   public:
 
-    FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<Variables> &sharedVariables)
+    FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
+                        std::shared_ptr<Variables> &sharedVariables)
         : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedVariables(sharedVariables)
-    {}
+    {
+    }
 
     void SetJustMyCode(bool enable)
     {

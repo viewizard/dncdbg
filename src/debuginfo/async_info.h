@@ -25,7 +25,8 @@ class AsyncInfo
 {
   public:
 
-    AsyncInfo(std::shared_ptr<DebugInfo> &sharedDebugInfo) : m_sharedDebugInfo(sharedDebugInfo)
+    AsyncInfo(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+        : m_sharedDebugInfo(sharedDebugInfo)
     {
     }
 

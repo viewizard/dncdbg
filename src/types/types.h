@@ -78,16 +78,19 @@ class ThreadId : public CustomScalarType<ThreadId>
     // This should be used as Any/All threads sign for protocol (for Emit...Event).
     static const ThreadId AllThreads;
 
-    ThreadId() : ThreadId(Invalid)
+    ThreadId()
+        : ThreadId(Invalid)
     {
     }
 
-    explicit ThreadId(int threadId) : m_id(threadId)
+    explicit ThreadId(int threadId)
+        : m_id(threadId)
     {
         assert(threadId != InvalidValue && threadId != AllThreadsValue);
     }
 
-    explicit ThreadId(DWORD threadId) : ThreadId(static_cast<int>(threadId))
+    explicit ThreadId(DWORD threadId)
+        : ThreadId(static_cast<int>(threadId))
     {
     }
 
@@ -130,10 +133,12 @@ class FrameLevel : public CustomScalarType<FrameLevel>
     {
     }
 
-    explicit FrameLevel(unsigned n) : m_level{(assert(static_cast<int>(n) <= MaxFrameLevel), static_cast<int>(n))}
+    explicit FrameLevel(unsigned n)
+        : m_level{(assert(static_cast<int>(n) <= MaxFrameLevel), static_cast<int>(n))}
     {
     }
-    explicit FrameLevel(int n) : FrameLevel(static_cast<unsigned>(n))
+    explicit FrameLevel(int n)
+        : FrameLevel(static_cast<unsigned>(n))
     {
     }
 

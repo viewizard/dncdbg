@@ -109,7 +109,8 @@ class CallbacksQueue
               Reason(reason),
               EventType(eventType),
               ExcModule(std::move(excModule))
-        {}
+        {
+        }
 
     };
 

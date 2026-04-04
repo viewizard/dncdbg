@@ -27,7 +27,8 @@ class SimpleStepper
 
     SimpleStepper(std::shared_ptr<DebugInfo> &sharedDebugInfo)
         : m_sharedDebugInfo(sharedDebugInfo)
-    {}
+    {
+    }
 
     HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
