@@ -32,6 +32,8 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
+        Console.WriteLine("first line, entry breakpoint set on this code");
+
         Console.WriteLine("A breakpoint \"bp1\" is set on this line"); Label.Breakpoint("bp1");
 
         Label.Checkpoint("bp1_test", "bp3_test",
