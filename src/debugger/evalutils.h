@@ -25,7 +25,6 @@ class DebugInfo;
 namespace dncdbg::EvalUtils
 {
 
-HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, ICorDebugType **ppType);
 std::vector<std::string> ParseType(const std::string &expression, std::vector<int> &ranks);
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule = nullptr);

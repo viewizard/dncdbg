@@ -16,7 +16,6 @@ Checks: >
   modernize-*,
   -modernize-use-trailing-return-type,
   misc-*,
-  -misc-no-recursion,
   readability-*,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,

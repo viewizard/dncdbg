@@ -8,6 +8,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <map>
 
 namespace dncdbg::EvalUtils
 {
@@ -83,16 +84,164 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     return S_OK;
 }
 
-HRESULT ResolveParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
-                          std::vector<ToRelease<ICorDebugType>> &trTypes)
+// Helper function to create a parameterized type from a class token.
+HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToken,
+                                std::vector<ToRelease<ICorDebugType>> &trTypes,
+                                ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
-    for (const auto &p : params)
+
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(pTypeModule->GetClassFromToken(typeToken, &trClass));
+
+    ToRelease<ICorDebugClass2> trClass2;
+    IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    DWORD flags = 0;
+    ULONG nameLen = 0;
+    mdToken tkExtends = mdTokenNil;
+    IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
+
+    std::string eTypeName;
+    IfFailRet(TypePrinter::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
+
+    const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
+    const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
+
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trClass2->GetParameterizedType(et, static_cast<uint32_t>(trTypes.size()),
+                                             reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));
+
+    *ppType = trType.Detach();
+    return S_OK;
+}
+
+HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
+                              std::vector<ToRelease<ICorDebugType>> &trTypes)
+{
+    HRESULT Status = S_OK;
+
+    // Map to store resolved types by type name.
+    std::map<std::string, ToRelease<ICorDebugType>> resolvedTypes;
+    // Work queue: type names that need to be resolved.
+    std::vector<std::string> workQueue(params.begin(), params.end());
+
+    // Use a stack-based (LIFO) work queue: when a type has unresolved dependencies,
+    // re-push it after its dependencies so they get resolved first.
+    std::size_t maxIterations = (params.size() + 1) * (params.size() + 1);
+    while (!workQueue.empty())
     {
-        ICorDebugType *tmpType = nullptr;
-        IfFailRet(GetType(p, pThread, &tmpType));
-        trTypes.emplace_back(tmpType);
+        if (maxIterations-- == 0)
+        {
+            return E_FAIL; // Prevent infinite loop on circular type dependencies.
+        }
+
+        std::string currentType = std::move(workQueue.back());
+        workQueue.pop_back();
+
+        // Skip if already resolved.
+        if (resolvedTypes.find(currentType) != resolvedTypes.end())
+        {
+            continue;
+        }
+
+        std::vector<int> ranks;
+        std::vector<std::string> classIdentifiers = ParseType(currentType, ranks);
+        if (classIdentifiers.size() == 1)
+        {
+            classIdentifiers[0] = TypePrinter::RenameToSystem(classIdentifiers[0]);
+        }
+
+        int nextClassIdentifier = 0;
+        ToRelease<ICorDebugModule> trTypeModule;
+        mdTypeDef typeToken = mdTypeDefNil;
+
+        IfFailRet(Modules::ForEachModule(pThread,
+            [&](ICorDebugModule *pModule) -> HRESULT
+            {
+                if (typeToken != mdTypeDefNil)
+                {
+                    return S_CAN_EXIT;
+                }
+
+                if (SUCCEEDED(FindTypeInModule(pModule, classIdentifiers, nextClassIdentifier, typeToken)))
+                {
+                    pModule->AddRef();
+                    trTypeModule = pModule;
+                }
+                return S_OK;
+            }));
+
+        if (typeToken == mdTypeDefNil)
+        {
+            return E_FAIL;
+        }
+
+        const std::vector<std::string> nestedParams = GatherParameters(classIdentifiers, nextClassIdentifier);
+
+        // Check for unresolved nested parameters and add them to the queue.
+        bool hasUnresolved = false;
+        for (const auto &np : nestedParams)
+        {
+            if (resolvedTypes.find(np) == resolvedTypes.end())
+            {
+                workQueue.push_back(np);
+                hasUnresolved = true;
+            }
+        }
+        if (hasUnresolved)
+        {
+            workQueue.push_back(std::move(currentType));
+            continue;
+        }
+
+        // Collect resolved nested types.
+        std::vector<ToRelease<ICorDebugType>> trNestedTypes;
+        for (const auto &np : nestedParams)
+        {
+            ICorDebugType *pType = resolvedTypes.at(np).GetPtr();
+            pType->AddRef();
+            trNestedTypes.emplace_back(pType);
+        }
+
+        // Create the type.
+        ToRelease<ICorDebugType> trType;
+        IfFailRet(CreateParameterizedType(trTypeModule, typeToken, trNestedTypes, &trType));
+
+        // Handle array types.
+        if (!ranks.empty())
+        {
+            ToRelease<ICorDebugAppDomain> trAppDomain;
+            ToRelease<ICorDebugAppDomain2> trAppDomain2;
+            IfFailRet(pThread->GetAppDomain(&trAppDomain));
+            IfFailRet(trAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&trAppDomain2)));
+
+            for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
+            {
+                const ToRelease<ICorDebugType> trElementType = trType.Detach();
+                IfFailRet(trAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY,
+                                                              *irank, trElementType, &trType));
+            }
+        }
+
+        resolvedTypes[currentType] = std::move(trType);
     }
+
+    // Copy resolved types to output in original order.
+    for (const auto &param : params)
+    {
+        auto it = resolvedTypes.find(param);
+        if (it != resolvedTypes.end())
+        {
+            trTypes.push_back(std::move(it->second));
+        }
+    }
+
     return S_OK;
 }
 
@@ -153,40 +302,6 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
     }
     typeName = identifier.substr(0, start) + '`' + std::to_string(result.size());
     return result;
-}
-
-HRESULT GetType(const std::string &typeName, ICorDebugThread *pThread, ICorDebugType **ppType)
-{
-    HRESULT Status = S_OK;
-    std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = ParseType(typeName, ranks);
-    if (classIdentifiers.size() == 1)
-    {
-        classIdentifiers[0] = TypePrinter::RenameToSystem(classIdentifiers[0]);
-    }
-
-    ToRelease<ICorDebugType> trType;
-    int nextClassIdentifier = 0;
-    IfFailRet(FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, &trType));
-
-    if (!ranks.empty())
-    {
-        ToRelease<ICorDebugAppDomain> trAppDomain;
-        ToRelease<ICorDebugAppDomain2> trAppDomain2;
-        IfFailRet(pThread->GetAppDomain(&trAppDomain));
-        IfFailRet(trAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&trAppDomain2)));
-
-        for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
-        {
-            const ToRelease<ICorDebugType> trElementType(std::move(trType));
-            IfFailRet(trAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, *irank,
-                                                          trElementType,
-                                                          &trType)); // NOLINT(clang-analyzer-cplusplus.Move,bugprone-use-after-move)
-        }
-    }
-
-    *ppType = trType.Detach();
-    return S_OK;
 }
 
 std::vector<std::string> ParseType(const std::string &expression, std::vector<int> &ranks)
@@ -291,33 +406,10 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> trTypes;
-        IfFailRet(ResolveParameters(params, pThread, trTypes));
-
-        ToRelease<ICorDebugClass> trClass;
-        IfFailRet(trTypeModule->GetClassFromToken(typeToken, &trClass));
-
-        ToRelease<ICorDebugClass2> trClass2;
-        IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
-
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        DWORD flags = 0;
-        ULONG nameLen = 0;
-        mdToken tkExtends = mdTokenNil;
-        IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
-
-        std::string eTypeName;
-        IfFailRet(TypePrinter::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
-
-        const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
-        const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
+        IfFailRet(ResolveTypeParameters(params, pThread, trTypes));
 
         ToRelease<ICorDebugType> trType;
-        IfFailRet(trClass2->GetParameterizedType(et, static_cast<uint32_t>(trTypes.size()),
-                                                 reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));
+        IfFailRet(CreateParameterizedType(trTypeModule, typeToken, trTypes, &trType));
 
         *ppType = trType.Detach();
     }
