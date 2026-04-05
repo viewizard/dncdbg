@@ -125,7 +125,7 @@ HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodNa
     ULONG nameLen = 0;
     IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
 
-    WSTRING typeName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    WSTRING typeName(nameLen - 1, '\0'); // nameLen includes null terminator
     IfFailRet(pMDImport->GetTypeDefProps(typeDef, typeName.data(), nameLen, nullptr, nullptr, nullptr));
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
@@ -229,7 +229,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
             IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-            WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
             if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
@@ -378,7 +378,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-            WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
             DWORD fieldAttr = 0;
             if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                 &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
@@ -654,7 +654,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             }
 
             mdTypeDef memTypeDef = mdTypeDefNil;
-            WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
             DWORD methodAttr = 0;
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
@@ -924,7 +924,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                     nullptr, nullptr, nullptr, nullptr, nullptr));
 
                 DWORD fieldAttr = 0;
-                WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+                WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
                 UVCP_CONSTANT pRawValue = nullptr;
@@ -1236,7 +1236,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
         ULONG nameLen = 0;
         IfFailRet(trMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
         IfFailRet(trMDImport->GetTypeDefProps(typeDef, mdName.data(), nameLen, nullptr, nullptr, nullptr));
 
         if (!IsSynthesizedLocalName(mdName))
@@ -1838,7 +1838,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                 }
 
                 mdTypeDef memTypeDef = mdTypeDefNil;
-                WSTRING szFuncName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+                WSTRING szFuncName(nameLen - 1, '\0'); // nameLen includes null terminator
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
                 if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,

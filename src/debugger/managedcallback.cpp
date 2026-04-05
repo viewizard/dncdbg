@@ -51,7 +51,7 @@ HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
 
     ULONG nameLen = 0;
     IfFailRet(trMDImport->GetScopeProps(nullptr, 0, &nameLen, nullptr));
-    WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
     IfFailRet(trMDImport->GetScopeProps(mdName.data(), nameLen, nullptr, nullptr));
     excModule = to_utf8(mdName.c_str());
 

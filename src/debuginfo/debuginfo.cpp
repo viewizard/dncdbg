@@ -74,7 +74,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             }
 
             mdTypeDef memTypeDef = mdTypeDefNil;
-            WSTRING szFuncName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+            WSTRING szFuncName(nameLen - 1, '\0'); // nameLen includes null terminator
             if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr, nullptr)))
             {

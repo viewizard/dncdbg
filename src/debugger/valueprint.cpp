@@ -149,7 +149,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         }
 
         DWORD fieldAttr = 0;
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
         if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
@@ -367,7 +367,7 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
         }
 
         DWORD fieldAttr = 0;
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
         if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
@@ -781,7 +781,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
             continue;
         }
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
         if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                              nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {

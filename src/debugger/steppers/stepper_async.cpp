@@ -86,7 +86,7 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
             continue;
         }
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
         if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr)))
         {
@@ -232,7 +232,7 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
             continue;
         }
 
-        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
         mdTypeDef memTypeDef = mdTypeDefNil;
         if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
                                               nullptr, nullptr, nullptr, nullptr, nullptr)))

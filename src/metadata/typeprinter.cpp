@@ -625,7 +625,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
     mdTypeDef memTypeDef = mdTypeDefNil;
-    WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
     IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 

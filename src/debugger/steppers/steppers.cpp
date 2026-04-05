@@ -163,7 +163,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             return false;
         }
 
-        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
         if (SUCCEEDED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
         {

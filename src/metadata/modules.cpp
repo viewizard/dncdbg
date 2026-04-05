@@ -56,7 +56,7 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
         return {};
     }
 
-    WSTRING wModName(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
+    WSTRING wModName(nameLen - 1, '\0'); // nameLen includes null terminator
     if (FAILED(pModule->GetName(nameLen, nullptr, wModName.data())))
     {
         return {};
