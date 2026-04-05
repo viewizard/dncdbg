@@ -182,44 +182,58 @@ std::string RenameToCSharp(const std::string &typeName)
     return renamed != system2cs.end() ? renamed->second : typeName;
 }
 
-// From metadata.cpp
-
-/**********************************************************************\
-* Routine Description:                                                 *
-*                                                                      *
-*    This function is called to find the name of a TypeDef using       *
-*    metadata API.                                                     *
-*                                                                      *
-\**********************************************************************/
-// Caller should guard against exception
-HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args)
+HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
+                       std::string &mdName, std::list<std::string> *args)
 {
     HRESULT Status = S_OK;
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(tkTypeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+    mdTypeDef currentType = tkTypeDef;
+    // Stack to hold nested type names as we traverse up the hierarchy
+    std::vector<std::string> nameStack;
 
-    DWORD flags = 0;
-    WSTRING name(nameLen - 1, '\0'); // nameLen - string size + null terminated symbol
-    IfFailRet(pMDImport->GetTypeDefProps(tkTypeDef, name.data(), nameLen, nullptr, &flags, nullptr));
-    mdName = to_utf8(name.c_str());
-
-    if (!IsTdNested(flags))
+    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
+    while (true)
     {
-        if (args != nullptr)
+        ULONG nameLen = 0;
+        IfFailRet(pMDImport->GetTypeDefProps(currentType, nullptr, 0,
+                                             &nameLen, nullptr, nullptr));
+
+        DWORD flags = 0;
+        WSTRING name(nameLen - 1, '\0'); // nameLen includes null terminator
+        IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
+                                             nullptr, &flags, nullptr));
+
+        nameStack.push_back(to_utf8(name.c_str()));
+
+        if (!IsTdNested(flags))
         {
-            mdName = ConsumeGenericArgs(mdName, *args);
+            break; // Reached the outermost non-nested type
         }
 
-        return S_OK;
+        // Move to enclosing class
+        mdTypeDef enclosingClass = mdTypeDefNil;
+        IfFailRet(pMDImport->GetNestedClassProps(currentType, &enclosingClass));
+
+        currentType = enclosingClass;
     }
 
-    mdTypeDef tkEnclosingClass = mdTypeDefNil;
-    IfFailRet(pMDImport->GetNestedClassProps(tkTypeDef, &tkEnclosingClass));
+    // Phase 2: Build the fully-qualified name from outside-in
+    // nameStack contains: [innermost, ..., outermost]
+    // Process generic args from outermost to innermost
+    mdName.clear();
+    for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
+    {
+        if (!mdName.empty())
+        {
+            mdName += ".";
+        }
 
-    std::string enclosingName;
-    IfFailRet(NameForTypeDef(tkEnclosingClass, pMDImport, enclosingName, args));
-
-    mdName = enclosingName + "." + ((args != nullptr) ? ConsumeGenericArgs(mdName, *args) : mdName);
+        std::string currentName = *it;
+        if (args != nullptr)
+        {
+            currentName = ConsumeGenericArgs(currentName, *args);
+        }
+        mdName += currentName;
+    }
 
     return S_OK;
 }
