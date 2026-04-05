@@ -82,6 +82,354 @@ HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::str
     return S_OK;
 }
 
+// Resolve a single ICorDebugType to its element type string and array suffix.
+// For ELEMENT_TYPE_VALUETYPE/ELEMENT_TYPE_CLASS with generic type parameters,
+// the type parameters are collected into `outTypeParams` without being resolved
+// to strings. The caller is responsible for resolving them separately.
+HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::string &arrayType,
+                          std::vector<ToRelease<ICorDebugType>> &outTypeParams)
+{
+    if (pType == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugType> trCurrentType(pType);
+    trCurrentType->AddRef(); // Hold reference since we're taking ownership
+
+    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
+    std::vector<std::string> typeSuffixes;
+
+    // Helper lambda to build arrayType from accumulated suffixes
+    auto finalizeSuffixes = [&]()
+    {
+        for (const auto &suffix : typeSuffixes)
+        {
+            arrayType += suffix;
+        }
+    };
+
+    // Helper lambda to process nested type - returns true if we should continue loop
+    auto processNestedType = [&]() -> bool
+    {
+        ToRelease<ICorDebugType> trFirstParameter;
+        if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
+        {
+            trCurrentType = trFirstParameter.Detach();
+            return true; // Continue processing the inner type
+        }
+        elementType = "<unknown>";
+        for (const auto &suffix : typeSuffixes)
+        {
+            arrayType += suffix;
+        }
+        return false; // Exit loop
+    };
+
+    // Iteratively process nested types until we reach a base type
+    while (trCurrentType != nullptr)
+    {
+        CorElementType corElemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trCurrentType->GetType(&corElemType));
+
+        switch (corElemType)
+        {
+        // List of unsupported CorElementTypes:
+        // ELEMENT_TYPE_END            = 0x0,
+        // ELEMENT_TYPE_VAR            = 0x13,     // a class type variable VAR <U1>
+        // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
+        // ELEMENT_TYPE_TYPEDBYREF     = 0x16,     // TYPEDREF  (it takes no args) a typed reference to some other type
+        // ELEMENT_TYPE_MVAR           = 0x1e,     // a method type variable MVAR <U1>
+        // ELEMENT_TYPE_CMOD_REQD      = 0x1F,     // required C modifier : E_T_CMOD_REQD <mdTypeRef/mdTypeDef>
+        // ELEMENT_TYPE_CMOD_OPT       = 0x20,     // optional C modifier : E_T_CMOD_OPT <mdTypeRef/mdTypeDef>
+        // ELEMENT_TYPE_INTERNAL       = 0x21,     // INTERNAL <typehandle>
+        // ELEMENT_TYPE_MAX            = 0x22,     // first invalid element type
+        // ELEMENT_TYPE_MODIFIER       = 0x40,
+        // ELEMENT_TYPE_SENTINEL       = 0x01 | ELEMENT_TYPE_MODIFIER, // sentinel for varargs
+        // ELEMENT_TYPE_PINNED         = 0x05 | ELEMENT_TYPE_MODIFIER,
+        // ELEMENT_TYPE_R4_HFA         = 0x06 | ELEMENT_TYPE_MODIFIER, // used only internally for R4 HFA types
+        // ELEMENT_TYPE_R8_HFA         = 0x07 | ELEMENT_TYPE_MODIFIER, // used only internally for R8 HFA types
+        default:
+        {
+            std::ostringstream ss;
+            ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
+            elementType = ss.str();
+            return S_OK;
+        }
+
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+        {
+            std::ostringstream ss;
+            // Defaults in case we fail...
+            elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
+
+            mdTypeDef typeDef = mdTypeDefNil;
+            ToRelease<ICorDebugClass> trClass;
+            if (SUCCEEDED(trCurrentType->GetClass(&trClass)) &&
+                SUCCEEDED(trClass->GetToken(&typeDef)))
+            {
+                ToRelease<ICorDebugModule> trModule;
+                IfFailRet(trClass->GetModule(&trModule));
+
+                ToRelease<IUnknown> trUnknown;
+                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+                ToRelease<IMetaDataImport> trMDImport;
+                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+                // Collect generic type parameters without resolving them to strings.
+                // The caller will resolve each parameter and replace the placeholders.
+                {
+                    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+                    if (SUCCEEDED(trCurrentType->EnumerateTypeParameters(&trTypeEnum)))
+                    {
+                        ULONG fetched = 0;
+                        ToRelease<ICorDebugType> trTypeParam;
+                        while (SUCCEEDED(trTypeEnum->Next(1, &trTypeParam, &fetched)) && fetched == 1)
+                        {
+                            outTypeParams.emplace_back(trTypeParam.Detach());
+                        }
+                    }
+                }
+
+                // Build placeholder args list for NameForToken/ConsumeGenericArgs.
+                // Each placeholder "\x01{N}" will be replaced with the resolved type
+                // string by the caller after all type parameters are resolved.
+                std::list<std::string> placeholderArgs;
+                for (std::size_t i = 0; i < outTypeParams.size(); ++i)
+                {
+                    placeholderArgs.emplace_back(std::string("\x01{") + std::to_string(i) + "}");
+                }
+
+                std::string name;
+                if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), trMDImport, name, false, &placeholderArgs)))
+                {
+                    static const std::string_view nullablePattern = "System.Nullable<";
+                    if (name.rfind(nullablePattern, 0) == 0)
+                    {
+                        ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
+                    }
+                    else
+                    {
+                        ss << name;
+                    }
+                }
+            }
+            elementType = ss.str();
+            finalizeSuffixes();
+            return S_OK;
+        }
+
+        case ELEMENT_TYPE_VOID:
+            elementType = "void";
+            break;
+        case ELEMENT_TYPE_BOOLEAN:
+            elementType = "bool";
+            break;
+        case ELEMENT_TYPE_CHAR:
+            elementType = "char";
+            break;
+        case ELEMENT_TYPE_I1:
+            elementType = "sbyte";
+            break;
+        case ELEMENT_TYPE_U1:
+            elementType = "byte";
+            break;
+        case ELEMENT_TYPE_I2:
+            elementType = "short";
+            break;
+        case ELEMENT_TYPE_U2:
+            elementType = "ushort";
+            break;
+        case ELEMENT_TYPE_I4:
+            elementType = "int";
+            break;
+        case ELEMENT_TYPE_U4:
+            elementType = "uint";
+            break;
+        case ELEMENT_TYPE_I8:
+            elementType = "long";
+            break;
+        case ELEMENT_TYPE_U8:
+            elementType = "ulong";
+            break;
+        case ELEMENT_TYPE_R4:
+            elementType = "float";
+            break;
+        case ELEMENT_TYPE_R8:
+            elementType = "double";
+            break;
+        case ELEMENT_TYPE_OBJECT:
+            elementType = "object";
+            break;
+        case ELEMENT_TYPE_STRING:
+            elementType = "string";
+            break;
+        case ELEMENT_TYPE_I:
+            elementType = "IntPtr";
+            break;
+        case ELEMENT_TYPE_U:
+            elementType = "UIntPtr";
+            break;
+        case ELEMENT_TYPE_SZARRAY:
+            typeSuffixes.emplace_back("[]");
+            if (processNestedType())
+            {
+                continue;
+            }
+            return S_OK;
+        case ELEMENT_TYPE_ARRAY:
+        {
+            std::ostringstream ss;
+            uint32_t rank = 0;
+            trCurrentType->GetRank(&rank);
+            ss << "[";
+            for (uint32_t i = 0; i < rank - 1; i++)
+            {
+                ss << ",";
+            }
+            ss << "]";
+            typeSuffixes.emplace_back(ss.str());
+            if (processNestedType())
+            {
+                continue;
+            }
+            return S_OK;
+        }
+        case ELEMENT_TYPE_BYREF:
+            typeSuffixes.emplace_back(""); // BYREF doesn't add visible suffix currently
+            if (processNestedType())
+            {
+                continue;
+            }
+            return S_OK;
+        case ELEMENT_TYPE_PTR:
+            typeSuffixes.emplace_back("*");
+            if (processNestedType())
+            {
+                continue;
+            }
+            return S_OK;
+        case ELEMENT_TYPE_FNPTR:
+            elementType = "*(...)";
+            break;
+        case ELEMENT_TYPE_TYPEDBYREF:
+            elementType = "typedbyref";
+            break;
+        }
+
+        // For simple types, build arrayType from accumulated suffixes and return
+        finalizeSuffixes();
+        return S_OK;
+    }
+
+    return S_OK;
+}
+
+// Replace all placeholder occurrences "\x01{N}" in `str` with the corresponding
+// resolved type string from `resolvedParams`.
+void ReplacePlaceholders(std::string &str, const std::vector<std::string> &resolvedParams)
+{
+    for (std::size_t i = 0; i < resolvedParams.size(); ++i)
+    {
+        const std::string placeholder = std::string("\x01{") + std::to_string(i) + "}";
+        std::size_t pos = 0;
+        while ((pos = str.find(placeholder, pos)) != std::string::npos)
+        {
+            str.replace(pos, placeholder.size(), resolvedParams[i]);
+            pos += resolvedParams[i].size();
+        }
+    }
+}
+
+// Iteratively resolve an ICorDebugType to its full string representation,
+// including all nested generic type parameters. Uses an explicit work stack
+// to avoid mutual recursion between type resolution and generic arg resolution.
+HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
+{
+    if (pType == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Each frame on the stack represents a type being resolved.
+    // Processing order: resolve the base type string with placeholders,
+    // then resolve each generic type parameter, then replace placeholders.
+    struct StackFrame
+    {
+        std::string baseString;                           // elementType + arrayType with placeholders
+        std::vector<ToRelease<ICorDebugType>> typeParams; // generic type params to resolve
+        std::vector<std::string> resolvedParams;          // resolved strings for each param
+        std::size_t nextParamIdx = 0;                     // next param index to resolve
+        std::string *resultSlot = nullptr;                // where to write the final result
+    };
+
+    std::vector<StackFrame> stack;
+
+    // Push the initial type
+    {
+        StackFrame frame;
+        frame.resultSlot = &output;
+
+        std::string elementType;
+        std::string arrayType;
+        HRESULT Status = S_OK;
+        IfFailRet(ResolveSingleType(pType, elementType, arrayType, frame.typeParams));
+        frame.baseString = elementType + arrayType;
+        frame.resolvedParams.resize(frame.typeParams.size());
+        stack.push_back(std::move(frame));
+    }
+
+    while (!stack.empty())
+    {
+        StackFrame &current = stack.back();
+
+        if (current.nextParamIdx < current.typeParams.size())
+        {
+            // There are still unresolved generic type parameters.
+            // Resolve the next one by pushing a new frame.
+            const std::size_t paramIdx = current.nextParamIdx;
+            current.nextParamIdx++;
+
+            ICorDebugType *paramType = current.typeParams[paramIdx].GetPtr();
+
+            StackFrame childFrame;
+            childFrame.resultSlot = &current.resolvedParams[paramIdx];
+
+            std::string elementType;
+            std::string arrayType;
+            HRESULT Status = S_OK;
+            IfFailRet(ResolveSingleType(paramType, elementType, arrayType, childFrame.typeParams));
+            childFrame.baseString = elementType + arrayType;
+            childFrame.resolvedParams.resize(childFrame.typeParams.size());
+
+            if (childFrame.typeParams.empty())
+            {
+                // Simple type with no generic params - resolve immediately
+                *childFrame.resultSlot = childFrame.baseString;
+            }
+            else
+            {
+                // Complex type with generic params - push onto stack
+                stack.push_back(std::move(childFrame));
+            }
+        }
+        else
+        {
+            // All generic type parameters have been resolved.
+            // Replace placeholders in the base string and write the result.
+            ReplacePlaceholders(current.baseString, current.resolvedParams);
+            *current.resultSlot = current.baseString;
+            stack.pop_back();
+        }
+    }
+
+    return S_OK;
+}
+
+// Collect generic type argument strings from an ICorDebugType's type parameters.
+// Uses ResolveTypeToString internally to avoid recursion.
 HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args)
 {
     ToRelease<ICorDebugTypeEnum> trTypeEnum;
@@ -94,7 +442,7 @@ HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args)
         while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
         {
             std::string name;
-            GetTypeOfValue(trCurrentTypeParam, name);
+            ResolveTypeToString(trCurrentTypeParam, name);
             args.emplace_back(name);
             trCurrentTypeParam.Free();
         }
@@ -119,7 +467,7 @@ HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
         while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &numTypes)) && numTypes == 1)
         {
             std::string name;
-            GetTypeOfValue(trCurrentTypeParam, name);
+            ResolveTypeToString(trCurrentTypeParam, name);
             args.emplace_back(name);
             trCurrentTypeParam.Free();
         }
@@ -395,219 +743,22 @@ HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-// From strike.cpp
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType)
 {
-    if (pType == nullptr)
-    {
-        return E_INVALIDARG;
-    }
-
+    std::vector<ToRelease<ICorDebugType>> typeParams;
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugType> trCurrentType(pType);
-    trCurrentType->AddRef(); // Hold reference since we're taking ownership
+    IfFailRet(ResolveSingleType(pType, elementType, arrayType, typeParams));
 
-    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
-    std::vector<std::string> typeSuffixes;
-
-    // Helper lambda to build arrayType from accumulated suffixes
-    auto finalizeSuffixes = [&]()
+    if (!typeParams.empty())
     {
-        for (const auto &suffix : typeSuffixes)
+        // Resolve each generic type parameter using the iterative resolver
+        // and replace placeholders in the combined output string.
+        std::vector<std::string> resolvedParams(typeParams.size());
+        for (std::size_t i = 0; i < typeParams.size(); ++i)
         {
-            arrayType += suffix;
+            IfFailRet(ResolveTypeToString(typeParams[i], resolvedParams[i]));
         }
-    };
-
-    // Helper lambda to process nested type - returns true if we should continue loop
-    auto processNestedType = [&]() -> bool
-    {
-        ToRelease<ICorDebugType> trFirstParameter;
-        if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
-        {
-            trCurrentType = trFirstParameter.Detach();
-            return true; // Continue processing the inner type
-        }
-        elementType = "<unknown>";
-        for (const auto &suffix : typeSuffixes)
-        {
-            arrayType += suffix;
-        }
-        return false; // Exit loop
-    };
-
-    // Iteratively process nested types until we reach a base type
-    while (trCurrentType != nullptr)
-    {
-        CorElementType corElemType = ELEMENT_TYPE_MAX;
-        IfFailRet(trCurrentType->GetType(&corElemType));
-
-        switch (corElemType)
-        {
-        // List of unsupported CorElementTypes:
-        // ELEMENT_TYPE_END            = 0x0,
-        // ELEMENT_TYPE_VAR            = 0x13,     // a class type variable VAR <U1>
-        // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
-        // ELEMENT_TYPE_TYPEDBYREF     = 0x16,     // TYPEDREF  (it takes no args) a typed reference to some other type
-        // ELEMENT_TYPE_MVAR           = 0x1e,     // a method type variable MVAR <U1>
-        // ELEMENT_TYPE_CMOD_REQD      = 0x1F,     // required C modifier : E_T_CMOD_REQD <mdTypeRef/mdTypeDef>
-        // ELEMENT_TYPE_CMOD_OPT       = 0x20,     // optional C modifier : E_T_CMOD_OPT <mdTypeRef/mdTypeDef>
-        // ELEMENT_TYPE_INTERNAL       = 0x21,     // INTERNAL <typehandle>
-        // ELEMENT_TYPE_MAX            = 0x22,     // first invalid element type
-        // ELEMENT_TYPE_MODIFIER       = 0x40,
-        // ELEMENT_TYPE_SENTINEL       = 0x01 | ELEMENT_TYPE_MODIFIER, // sentinel for varargs
-        // ELEMENT_TYPE_PINNED         = 0x05 | ELEMENT_TYPE_MODIFIER,
-        // ELEMENT_TYPE_R4_HFA         = 0x06 | ELEMENT_TYPE_MODIFIER, // used only internally for R4 HFA types
-        // ELEMENT_TYPE_R8_HFA         = 0x07 | ELEMENT_TYPE_MODIFIER, // used only internally for R8 HFA types
-        default:
-        {
-            std::ostringstream ss;
-            ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
-            elementType = ss.str();
-        }
-            return S_OK;
-
-        case ELEMENT_TYPE_VALUETYPE:
-        case ELEMENT_TYPE_CLASS:
-        {
-            std::ostringstream ss;
-            // Defaults in case we fail...
-            elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
-
-            mdTypeDef typeDef = mdTypeDefNil;
-            ToRelease<ICorDebugClass> trClass;
-            if (SUCCEEDED(trCurrentType->GetClass(&trClass)) && SUCCEEDED(trClass->GetToken(&typeDef)))
-            {
-                ToRelease<ICorDebugModule> trModule;
-                IfFailRet(trClass->GetModule(&trModule));
-
-                ToRelease<IUnknown> trUnknown;
-                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-                ToRelease<IMetaDataImport> trMDImport;
-                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-                std::string name;
-                std::list<std::string> args;
-                AddGenericArgs(trCurrentType, args);
-                if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), trMDImport, name, false, &args)))
-                {
-                    static const std::string_view nullablePattern = "System.Nullable<";
-                    if (name.rfind(nullablePattern, 0) == 0)
-                    {
-                        ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
-                    }
-                    else
-                    {
-                        ss << name;
-                    }
-                }
-            }
-            elementType = ss.str();
-            finalizeSuffixes();
-            return S_OK;
-        }
-
-        case ELEMENT_TYPE_VOID:
-            elementType = "void";
-            break;
-        case ELEMENT_TYPE_BOOLEAN:
-            elementType = "bool";
-            break;
-        case ELEMENT_TYPE_CHAR:
-            elementType = "char";
-            break;
-        case ELEMENT_TYPE_I1:
-            elementType = "sbyte";
-            break;
-        case ELEMENT_TYPE_U1:
-            elementType = "byte";
-            break;
-        case ELEMENT_TYPE_I2:
-            elementType = "short";
-            break;
-        case ELEMENT_TYPE_U2:
-            elementType = "ushort";
-            break;
-        case ELEMENT_TYPE_I4:
-            elementType = "int";
-            break;
-        case ELEMENT_TYPE_U4:
-            elementType = "uint";
-            break;
-        case ELEMENT_TYPE_I8:
-            elementType = "long";
-            break;
-        case ELEMENT_TYPE_U8:
-            elementType = "ulong";
-            break;
-        case ELEMENT_TYPE_R4:
-            elementType = "float";
-            break;
-        case ELEMENT_TYPE_R8:
-            elementType = "double";
-            break;
-        case ELEMENT_TYPE_OBJECT:
-            elementType = "object";
-            break;
-        case ELEMENT_TYPE_STRING:
-            elementType = "string";
-            break;
-        case ELEMENT_TYPE_I:
-            elementType = "IntPtr";
-            break;
-        case ELEMENT_TYPE_U:
-            elementType = "UIntPtr";
-            break;
-        case ELEMENT_TYPE_SZARRAY:
-            typeSuffixes.emplace_back("[]");
-            if (processNestedType())
-            {
-                continue;
-            }
-            return S_OK;
-        case ELEMENT_TYPE_ARRAY:
-        {
-            std::ostringstream ss;
-            uint32_t rank = 0;
-            trCurrentType->GetRank(&rank);
-            ss << "[";
-            for (uint32_t i = 0; i < rank - 1; i++)
-            {
-                ss << ",";
-            }
-            ss << "]";
-            typeSuffixes.emplace_back(ss.str());
-            if (processNestedType())
-            {
-                continue;
-            }
-            return S_OK;
-        }
-        case ELEMENT_TYPE_BYREF:
-            typeSuffixes.emplace_back(""); // BYREF doesn't add visible suffix currently
-            if (processNestedType())
-            {
-                continue;
-            }
-            return S_OK;
-        case ELEMENT_TYPE_PTR:
-            typeSuffixes.emplace_back("*");
-            if (processNestedType())
-            {
-                continue;
-            }
-            return S_OK;
-        case ELEMENT_TYPE_FNPTR:
-            elementType = "*(...)";
-            break;
-        case ELEMENT_TYPE_TYPEDBYREF:
-            elementType = "typedbyref";
-            break;
-        }
-
-        // For simple types, build arrayType from accumulated suffixes and return
-        finalizeSuffixes();
-        return S_OK;
+        ReplacePlaceholders(elementType, resolvedParams);
     }
 
     return S_OK;
