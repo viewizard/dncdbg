@@ -77,13 +77,14 @@ class Program
         public static Nested<X, Y> static_nested;
         public Nested<X, Y> nested;
         public Nested<X, Y> uninitialized;
+        public Nested<double, float> nestedDiff = new Nested<double, float>();
         public TestNested()
         {
             nested = new Nested<X, Y>();
         }
     }
 
-    public class TestGeneric<T, U>
+    public class TestGenericClass<T, U>
     {
         public T test1(T argt)
         {
@@ -206,7 +207,7 @@ class Program
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK2");
                     Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK2");
 
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestGeneric<int, string>}", "TestGeneric.Program.TestGeneric<int, string>", "this");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestGenericClass<int, string>}", "TestGeneric.Program.TestGenericClass<int, string>", "this");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "123", "int", "i1");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string1\"", "string", "s1");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "234", "int", "p_i1");
@@ -321,15 +322,15 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        TestGeneric<int, string> ttt = new TestGeneric<int, string>();
+        TestGenericClass<int, string> ttt = new TestGenericClass<int, string>();
         ttt.i1 = 123;
         ttt.s1 = "test_string1";
         ttt.p_i1 = 234;
         ttt.p_s1 = "test_string2";
-        TestGeneric<int, string>.static_i1 = 345;
-        TestGeneric<int, string>.static_s1 = "test_string3";
-        TestGeneric<int, string>.static_p_i1 = 456;
-        TestGeneric<int, string>.static_p_s1 = "test_string4";
+        TestGenericClass<int, string>.static_i1 = 345;
+        TestGenericClass<int, string>.static_s1 = "test_string3";
+        TestGenericClass<int, string>.static_p_i1 = 456;
+        TestGenericClass<int, string>.static_p_s1 = "test_string4";
         MY my = new MY();
         CHILDOFMY<int> ichofmy = new CHILDOFMY<int>();
         CHILDOFMY<string> schofmy = new CHILDOFMY<string>();
@@ -337,6 +338,7 @@ class Program
         schofmy.m = 15;
         TestNested<char, int> testnested = new TestNested<char, int>();
         TestNested<char, int> uninitialized;
+        var nestedDiff = testnested.nestedDiff;
 
         ttt.test_func();                                                                                 Label.Breakpoint("BREAK1");
 
@@ -347,7 +349,9 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestGeneric<int, string>}", "TestGeneric.Program.TestGeneric<int, string>", "ttt");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestGenericClass<int, string>}", "TestGeneric.Program.TestGenericClass<int, string>", "ttt");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestNested<char, int>.Nested<double, float>}", "TestGeneric.Program.TestNested<char, int>.Nested<double, float>", "nestedDiff");
+                    
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "123", "int", "ttt.i1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string1\"", "string", "ttt.s1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "234", "int", "ttt.p_i1");
@@ -358,10 +362,10 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ttt.static_p_s1", "error");
 
                 // Static members
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "345", "int", "TestGeneric<int, string>.static_i1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string3\"", "string", "TestGeneric<int, string>.static_s1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "456", "int", "TestGeneric<int, string>.static_p_i1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string4\"", "string", "TestGeneric<int, string>.static_p_s1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "345", "int", "TestGenericClass<int, string>.static_i1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string3\"", "string", "TestGenericClass<int, string>.static_s1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "456", "int", "TestGenericClass<int, string>.static_p_i1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string4\"", "string", "TestGenericClass<int, string>.static_p_s1");
 
                 // Instance methods
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "ttt.test1(5)");
@@ -398,25 +402,25 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "uninitialized.uninitialized?.test3<string>('c',456,\"cde\")", "error");
 
                 // Static methods
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "TestGeneric<int,string>.static_test1(15)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"fifteen\"", "string", "TestGeneric<int,string>.static_test1(\"fifteen\")");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test1(false)", "error");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "TestGeneric<int,string>.static_test2<int>(20)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestGeneric<int,string>.static_test2<bool>(true)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "120 'x'", "char", "TestGeneric<int,string>.static_test2<char>('x')");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"xyz\"", "string", "TestGeneric<int,string>.static_test2<string>(\"xyz\")");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.MY}", "TestGeneric.Program.MY", "TestGeneric<int,string>.static_test2<MY>(my)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestGeneric<int,string>.static_test3<char>(101,\"string\",'a')");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test3<bool>(101,\"string\",'a')", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test3<char>(101,'a','a')", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test3<char>('a',\"string\",'a')", "error");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestGeneric<int,string>.static_test41<char,bool,string>('a',true,\"string\", 41)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestGeneric<int,string>.static_test42<char,bool,string>('a',true,\"string\", 41)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "TestGeneric<int,string>.static_test43<char,bool,string>('a',true,\"string\", 41)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "TestGeneric<int,string>.static_test44<char,bool,string>('a',true,\"string\", 41)");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test44<bool,string,char>('a',true,\"string\", 41)", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test44<string,char,bool>('a',true,\"string\", 41)", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_test44<bool,char,string>('a',true,\"string\", 41)", "error");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "TestGenericClass<int,string>.static_test1(15)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"fifteen\"", "string", "TestGenericClass<int,string>.static_test1(\"fifteen\")");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test1(false)", "error");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "TestGenericClass<int,string>.static_test2<int>(20)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestGenericClass<int,string>.static_test2<bool>(true)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "120 'x'", "char", "TestGenericClass<int,string>.static_test2<char>('x')");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"xyz\"", "string", "TestGenericClass<int,string>.static_test2<string>(\"xyz\")");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.MY}", "TestGeneric.Program.MY", "TestGenericClass<int,string>.static_test2<MY>(my)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestGenericClass<int,string>.static_test3<char>(101,\"string\",'a')");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<bool>(101,\"string\",'a')", "error");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<char>(101,'a','a')", "error");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<char>('a',\"string\",'a')", "error");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestGenericClass<int,string>.static_test41<char,bool,string>('a',true,\"string\", 41)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestGenericClass<int,string>.static_test42<char,bool,string>('a',true,\"string\", 41)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "TestGenericClass<int,string>.static_test43<char,bool,string>('a',true,\"string\", 41)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "TestGenericClass<int,string>.static_test44<char,bool,string>('a',true,\"string\", 41)");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test44<bool,string,char>('a',true,\"string\", 41)", "error");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test44<string,char,bool>('a',true,\"string\", 41)", "error");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test44<bool,char,string>('a',true,\"string\", 41)", "error");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestNested<int,string>.Nested<char,bool>.static_test1('a')");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestNested<int,string>.Nested<char,bool>.static_test1(true)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"abc\"", "string", "TestNested<int,string>.Nested<char,bool>.static_test3<string>('a', true, \"abc\")");
@@ -470,12 +474,12 @@ class Program
                 Context.SetVariable(@"__FILE__:__LINE__", frameId, setStaticReference, "static_p_s1", "\"changed_string44\"");
 
                 // FIXME debugger must be fixed first
-                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_i1", "777");
-                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_s1", "\"changed_string3\"");
+                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_i1", "777");
+                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_s1", "\"changed_string3\"");
 
                 // FIXME debugger must be fixed first
-                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_p_i1", "888");
-                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGeneric<int,string>.static_p_s1", "\"changed_string4\"");
+                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_p_i1", "888");
+                Context.SetExpression(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_p_s1", "\"changed_string4\"");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
