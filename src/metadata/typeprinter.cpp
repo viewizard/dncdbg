@@ -396,7 +396,6 @@ HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
 }
 
 // From strike.cpp
-
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType)
 {
     if (pType == nullptr)
@@ -405,183 +404,212 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
     }
 
     HRESULT Status = S_OK;
+    ToRelease<ICorDebugType> trCurrentType(pType);
+    trCurrentType->AddRef(); // Hold reference since we're taking ownership
 
-    CorElementType corElemType = ELEMENT_TYPE_MAX;
-    IfFailRet(pType->GetType(&corElemType));
+    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
+    std::vector<std::string> typeSuffixes;
 
-    switch (corElemType)
+    // Helper lambda to build arrayType from accumulated suffixes
+    auto finalizeSuffixes = [&]()
     {
-    // List of unsupported CorElementTypes:
-    // ELEMENT_TYPE_END            = 0x0,
-    // ELEMENT_TYPE_VAR            = 0x13,     // a class type variable VAR <U1>
-    // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
-    // ELEMENT_TYPE_TYPEDBYREF     = 0x16,     // TYPEDREF  (it takes no args) a typed reference to some other type
-    // ELEMENT_TYPE_MVAR           = 0x1e,     // a method type variable MVAR <U1>
-    // ELEMENT_TYPE_CMOD_REQD      = 0x1F,     // required C modifier : E_T_CMOD_REQD <mdTypeRef/mdTypeDef>
-    // ELEMENT_TYPE_CMOD_OPT       = 0x20,     // optional C modifier : E_T_CMOD_OPT <mdTypeRef/mdTypeDef>
-    // ELEMENT_TYPE_INTERNAL       = 0x21,     // INTERNAL <typehandle>
-    // ELEMENT_TYPE_MAX            = 0x22,     // first invalid element type
-    // ELEMENT_TYPE_MODIFIER       = 0x40,
-    // ELEMENT_TYPE_SENTINEL       = 0x01 | ELEMENT_TYPE_MODIFIER, // sentinel for varargs
-    // ELEMENT_TYPE_PINNED         = 0x05 | ELEMENT_TYPE_MODIFIER,
-    // ELEMENT_TYPE_R4_HFA         = 0x06 | ELEMENT_TYPE_MODIFIER, // used only internally for R4 HFA types
-    // ELEMENT_TYPE_R8_HFA         = 0x07 | ELEMENT_TYPE_MODIFIER, // used only internally for R8 HFA types
-    default:
-    {
-        std::ostringstream ss;
-        ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
-        elementType = ss.str();
-    }
-    break;
-
-    case ELEMENT_TYPE_VALUETYPE:
-    case ELEMENT_TYPE_CLASS:
-    {
-        std::ostringstream ss;
-        // Defaults in case we fail...
-        elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
-
-        mdTypeDef typeDef = mdTypeDefNil;
-        ToRelease<ICorDebugClass> trClass;
-        if (SUCCEEDED(pType->GetClass(&trClass)) && SUCCEEDED(trClass->GetToken(&typeDef)))
+        for (const auto &suffix : typeSuffixes)
         {
-            ToRelease<ICorDebugModule> trModule;
-            IfFailRet(trClass->GetModule(&trModule));
-
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-            ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-            std::string name;
-            std::list<std::string> args;
-            AddGenericArgs(pType, args);
-            if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), trMDImport, name, false, &args)))
-            {
-                static const std::string_view nullablePattern = "System.Nullable<";
-                if (name.rfind(nullablePattern, 0) == 0)
-                {
-                    ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
-                }
-                else
-                {
-                    ss << name;
-                }
-            }
+            arrayType += suffix;
         }
-        elementType = ss.str();
-        return S_OK;
-    }
-    break;
-    case ELEMENT_TYPE_VOID:
-        elementType = "void";
-        break;
-    case ELEMENT_TYPE_BOOLEAN:
-        elementType = "bool";
-        break;
-    case ELEMENT_TYPE_CHAR:
-        elementType = "char";
-        break;
-    case ELEMENT_TYPE_I1:
-        elementType = "sbyte";
-        break;
-    case ELEMENT_TYPE_U1:
-        elementType = "byte";
-        break;
-    case ELEMENT_TYPE_I2:
-        elementType = "short";
-        break;
-    case ELEMENT_TYPE_U2:
-        elementType = "ushort";
-        break;
-    case ELEMENT_TYPE_I4:
-        elementType = "int";
-        break;
-    case ELEMENT_TYPE_U4:
-        elementType = "uint";
-        break;
-    case ELEMENT_TYPE_I8:
-        elementType = "long";
-        break;
-    case ELEMENT_TYPE_U8:
-        elementType = "ulong";
-        break;
-    case ELEMENT_TYPE_R4:
-        elementType = "float";
-        break;
-    case ELEMENT_TYPE_R8:
-        elementType = "double";
-        break;
-    case ELEMENT_TYPE_OBJECT:
-        elementType = "object";
-        break;
-    case ELEMENT_TYPE_STRING:
-        elementType = "string";
-        break;
-    case ELEMENT_TYPE_I:
-        elementType = "IntPtr";
-        break;
-    case ELEMENT_TYPE_U:
-        elementType = "UIntPtr";
-        break;
-    case ELEMENT_TYPE_SZARRAY:
-    case ELEMENT_TYPE_ARRAY:
-    case ELEMENT_TYPE_BYREF:
-    case ELEMENT_TYPE_PTR:
+    };
+
+    // Helper lambda to process nested type - returns true if we should continue loop
+    auto processNestedType = [&]() -> bool
     {
-        std::string subElementType;
-        std::string subArrayType;
         ToRelease<ICorDebugType> trFirstParameter;
-        if (SUCCEEDED(pType->GetFirstTypeParameter(&trFirstParameter)))
+        if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
         {
-            GetTypeOfValue(trFirstParameter, subElementType, subArrayType);
+            trCurrentType = trFirstParameter.Detach();
+            return true; // Continue processing the inner type
         }
-        else
+        elementType = "<unknown>";
+        for (const auto &suffix : typeSuffixes)
         {
-            subElementType = "<unknown>";
+            arrayType += suffix;
         }
+        return false; // Exit loop
+    };
 
-        elementType = subElementType;
+    // Iteratively process nested types until we reach a base type
+    while (trCurrentType != nullptr)
+    {
+        CorElementType corElemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trCurrentType->GetType(&corElemType));
 
         switch (corElemType)
         {
+        // List of unsupported CorElementTypes:
+        // ELEMENT_TYPE_END            = 0x0,
+        // ELEMENT_TYPE_VAR            = 0x13,     // a class type variable VAR <U1>
+        // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
+        // ELEMENT_TYPE_TYPEDBYREF     = 0x16,     // TYPEDREF  (it takes no args) a typed reference to some other type
+        // ELEMENT_TYPE_MVAR           = 0x1e,     // a method type variable MVAR <U1>
+        // ELEMENT_TYPE_CMOD_REQD      = 0x1F,     // required C modifier : E_T_CMOD_REQD <mdTypeRef/mdTypeDef>
+        // ELEMENT_TYPE_CMOD_OPT       = 0x20,     // optional C modifier : E_T_CMOD_OPT <mdTypeRef/mdTypeDef>
+        // ELEMENT_TYPE_INTERNAL       = 0x21,     // INTERNAL <typehandle>
+        // ELEMENT_TYPE_MAX            = 0x22,     // first invalid element type
+        // ELEMENT_TYPE_MODIFIER       = 0x40,
+        // ELEMENT_TYPE_SENTINEL       = 0x01 | ELEMENT_TYPE_MODIFIER, // sentinel for varargs
+        // ELEMENT_TYPE_PINNED         = 0x05 | ELEMENT_TYPE_MODIFIER,
+        // ELEMENT_TYPE_R4_HFA         = 0x06 | ELEMENT_TYPE_MODIFIER, // used only internally for R4 HFA types
+        // ELEMENT_TYPE_R8_HFA         = 0x07 | ELEMENT_TYPE_MODIFIER, // used only internally for R8 HFA types
+        default:
+        {
+            std::ostringstream ss;
+            ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
+            elementType = ss.str();
+        }
+            return S_OK;
+
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+        {
+            std::ostringstream ss;
+            // Defaults in case we fail...
+            elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
+
+            mdTypeDef typeDef = mdTypeDefNil;
+            ToRelease<ICorDebugClass> trClass;
+            if (SUCCEEDED(trCurrentType->GetClass(&trClass)) && SUCCEEDED(trClass->GetToken(&typeDef)))
+            {
+                ToRelease<ICorDebugModule> trModule;
+                IfFailRet(trClass->GetModule(&trModule));
+
+                ToRelease<IUnknown> trUnknown;
+                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+                ToRelease<IMetaDataImport> trMDImport;
+                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+                std::string name;
+                std::list<std::string> args;
+                AddGenericArgs(trCurrentType, args);
+                if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), trMDImport, name, false, &args)))
+                {
+                    static const std::string_view nullablePattern = "System.Nullable<";
+                    if (name.rfind(nullablePattern, 0) == 0)
+                    {
+                        ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
+                    }
+                    else
+                    {
+                        ss << name;
+                    }
+                }
+            }
+            elementType = ss.str();
+            finalizeSuffixes();
+            return S_OK;
+        }
+
+        case ELEMENT_TYPE_VOID:
+            elementType = "void";
+            break;
+        case ELEMENT_TYPE_BOOLEAN:
+            elementType = "bool";
+            break;
+        case ELEMENT_TYPE_CHAR:
+            elementType = "char";
+            break;
+        case ELEMENT_TYPE_I1:
+            elementType = "sbyte";
+            break;
+        case ELEMENT_TYPE_U1:
+            elementType = "byte";
+            break;
+        case ELEMENT_TYPE_I2:
+            elementType = "short";
+            break;
+        case ELEMENT_TYPE_U2:
+            elementType = "ushort";
+            break;
+        case ELEMENT_TYPE_I4:
+            elementType = "int";
+            break;
+        case ELEMENT_TYPE_U4:
+            elementType = "uint";
+            break;
+        case ELEMENT_TYPE_I8:
+            elementType = "long";
+            break;
+        case ELEMENT_TYPE_U8:
+            elementType = "ulong";
+            break;
+        case ELEMENT_TYPE_R4:
+            elementType = "float";
+            break;
+        case ELEMENT_TYPE_R8:
+            elementType = "double";
+            break;
+        case ELEMENT_TYPE_OBJECT:
+            elementType = "object";
+            break;
+        case ELEMENT_TYPE_STRING:
+            elementType = "string";
+            break;
+        case ELEMENT_TYPE_I:
+            elementType = "IntPtr";
+            break;
+        case ELEMENT_TYPE_U:
+            elementType = "UIntPtr";
+            break;
         case ELEMENT_TYPE_SZARRAY:
-            arrayType = "[]" + subArrayType;
+            typeSuffixes.emplace_back("[]");
+            if (processNestedType())
+            {
+                continue;
+            }
             return S_OK;
         case ELEMENT_TYPE_ARRAY:
         {
             std::ostringstream ss;
             uint32_t rank = 0;
-            pType->GetRank(&rank);
+            trCurrentType->GetRank(&rank);
             ss << "[";
             for (uint32_t i = 0; i < rank - 1; i++)
             {
                 ss << ",";
             }
             ss << "]";
-            arrayType = ss.str() + subArrayType;
-        }
+            typeSuffixes.emplace_back(ss.str());
+            if (processNestedType())
+            {
+                continue;
+            }
             return S_OK;
+        }
         case ELEMENT_TYPE_BYREF:
-            arrayType = subArrayType; // + "&";
+            typeSuffixes.emplace_back(""); // BYREF doesn't add visible suffix currently
+            if (processNestedType())
+            {
+                continue;
+            }
             return S_OK;
         case ELEMENT_TYPE_PTR:
-            arrayType = subArrayType + "*";
+            typeSuffixes.emplace_back("*");
+            if (processNestedType())
+            {
+                continue;
+            }
             return S_OK;
-        default:
-            // note we can never reach here as this is a nested switch
-            // and corElemType can only be one of the values above
+        case ELEMENT_TYPE_FNPTR:
+            elementType = "*(...)";
+            break;
+        case ELEMENT_TYPE_TYPEDBYREF:
+            elementType = "typedbyref";
             break;
         }
+
+        // For simple types, build arrayType from accumulated suffixes and return
+        finalizeSuffixes();
+        return S_OK;
     }
-    break;
-    case ELEMENT_TYPE_FNPTR:
-        elementType = "*(...)";
-        break;
-    case ELEMENT_TYPE_TYPEDBYREF:
-        elementType = "typedbyref";
-        break;
-    }
+
     return S_OK;
 }
 
