@@ -132,7 +132,7 @@ class IndexedStorage
         }
 
         const key_type index = key - m_base;
-        if (index >= m_data.size() || m_data[index].first != key)
+        if (index >= m_data.size() || m_data.at(index).first != key)
         {
             return end();
         }

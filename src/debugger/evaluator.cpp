@@ -34,12 +34,12 @@ void IncIndices(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
 
     while (i >= 0)
     {
-        ind[i] += 1;
-        if (ind[i] < dims[i])
+        ind.at(i) += 1;
+        if (ind.at(i) < dims.at(i))
         {
             return;
         }
-        ind[i] = 0;
+        ind.at(i) = 0;
         --i;
     }
 }
@@ -58,7 +58,7 @@ std::string IndicesToStr(const std::vector<uint32_t> &ind, const std::vector<uin
     {
         ss << sep;
         sep = ", ";
-        ss << (base[i] + ind[i]);
+        ss << (base.at(i) + ind.at(i));
     }
     return ss.str();
 }
@@ -1531,7 +1531,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     ToRelease<ICorDebugValue> trResultValue(pValue);
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
-        if (identifiers[i].empty())
+        if (identifiers.at(i).empty())
         {
             return E_FAIL;
         }
@@ -1544,7 +1544,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
             {
                 if ((is_static && valueKind == ValueKind::Variable) ||
                     (!is_static && valueKind == ValueKind::Class) ||
-                    memberName != identifiers[i])
+                    memberName != identifiers.at(i))
 
                 {
                     return S_OK;
@@ -1602,7 +1602,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         fullpath = classIdentifiers;
         for (int i = 0; i < identifiersNum; i++)
         {
-            fullpath.push_back(identifiers[i]);
+            fullpath.push_back(identifiers.at(i));
         }
 
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
@@ -1616,9 +1616,9 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             std::vector<std::string> staticName;
             for (int i = nextClassIdentifier; i < static_cast<int>(fullpath.size()); i++)
             {
-                staticName.emplace_back(fullpath[i]);
+                staticName.emplace_back(fullpath.at(i));
             }
-            staticName.emplace_back(fieldName[0]);
+            staticName.emplace_back(fieldName.at(0));
             ToRelease<ICorDebugValue> trTypeObject;
             if (S_OK == m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject))
             {
@@ -1714,7 +1714,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
     if ((trResolvedValue == nullptr) && (trThisValue != nullptr)) // check this/this.*
     {
-        if (identifiers[nextIdentifier] == "this")
+        if (identifiers.at(nextIdentifier) == "this")
         {
             nextIdentifier++; // skip first identifier with "this" (we have it in trThisValue), check rest
         }
@@ -1874,7 +1874,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                 }
                 if (ty == ELEMENT_TYPE_CLASS || ty == ELEMENT_TYPE_VALUETYPE)
                 {
-                    if (typeName != argElementTypes[0].typeName)
+                    if (typeName != argElementTypes.at(0).typeName)
                     {
                         // if type names don't match check implemented interfaces names
 
@@ -1939,13 +1939,13 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                                 }
                             }
 
-                            if (ifaceElementType.typeName == argElementTypes[0].typeName &&
+                            if (ifaceElementType.typeName == argElementTypes.at(0).typeName &&
                                 methodArgs.size() + 1 == argElementTypes.size())
                             {
                                 bool found = true;
                                 for (unsigned int i = 0; i < methodArgs.size(); i++)
                                 {
-                                    if (methodArgs[i].corType != argElementTypes[i + 1].corType)
+                                    if (methodArgs.at(i).corType != argElementTypes.at(i + 1).corType)
                                     {
                                         found = false;
                                         break;
@@ -1964,7 +1964,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                         trMDImportInt->CloseEnum(ifEnum);
                     }
                 }
-                else if (ty != argElementTypes[0].corType || (methodArgs.size() + 1 != argElementTypes.size()))
+                else if (ty != argElementTypes.at(0).corType || (methodArgs.size() + 1 != argElementTypes.size()))
                 {
                     continue;
                 }
@@ -1973,7 +1973,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                     bool found = true;
                     for (unsigned int i = 0; i < methodArgs.size(); i++)
                     {
-                        if (methodArgs[i].corType != argElementTypes[i + 1].corType)
+                        if (methodArgs.at(i).corType != argElementTypes.at(i + 1).corType)
                         {
                             found = false;
                             break;

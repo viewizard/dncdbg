@@ -155,7 +155,7 @@ std::pair<Class::FileHandle, Class::FileHandle> Class::unnamed_pipe()
     // TODO what to do with this?
     static_cast<void>(signal(SIGPIPE, SIG_IGN));
 
-    return {fds[0], fds[1]};
+    return {fds.at(0), fds.at(1)};
 }
 
 // Function creates listening TCP socket on given port, waits, accepts single
@@ -352,7 +352,7 @@ dncdbg::IOSystem::StdFiles Class::get_std_files()
 {
     static const std::array<IOSystem::FileHandle, std::tuple_size_v<IOSystem::StdFiles>> handles{
         FileHandle(STDIN_FILENO), FileHandle(STDOUT_FILENO), FileHandle(STDERR_FILENO)};
-    return {handles[0], handles[1], handles[2]};
+    return {handles.at(0), handles.at(1), handles.at(2)};
 }
 
 // StdIOSwap class allows to substitute set of standard IO files with one provided to constructor.
@@ -368,14 +368,14 @@ Class::StdIOSwap::StdIOSwap(const StdFiles &files) // NOLINT(cppcoreguidelines-p
 
     for (unsigned n = 0; n < NFD; n++)
     {
-        m_orig_fd[n] = ::dup(oldfd[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-        if (m_orig_fd[n] == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        m_orig_fd.at(n) = ::dup(oldfd.at(n)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        if (m_orig_fd.at(n) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             std::cerr << "dup error " << errno << "\n";
             throw std::runtime_error("dup error");
         }
 
-        if (::dup2(newfd[n], oldfd[n]) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        if (::dup2(newfd.at(n), oldfd.at(n)) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             std::cerr << "dup2 error " << errno << "\n";
             throw std::runtime_error("dup2 error");
@@ -394,12 +394,12 @@ Class::StdIOSwap::~StdIOSwap()
     static constexpr std::array<int, NFD> oldfd{StdFileType::Stdin, StdFileType::Stdout, StdFileType::Stderr};
     for (unsigned n = 0; n < NFD; n++)
     {
-        if (::dup2(m_orig_fd[n], oldfd[n]) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        if (::dup2(m_orig_fd.at(n), oldfd.at(n)) == -1) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         {
             abort();
         }
 
-        ::close(m_orig_fd[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        ::close(m_orig_fd.at(n)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 }
 

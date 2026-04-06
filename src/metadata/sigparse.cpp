@@ -502,7 +502,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_S
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, argElementTypes[i], addCorTypeName));
+        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, argElementTypes.at(i), addCorTypeName));
     }
 
     return S_OK;
@@ -516,8 +516,8 @@ HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigEl
         {
             return E_INVALIDARG;
         }
-        methodArg.corType = typeGenerics[methodArg.varNum].corType;
-        methodArg.typeName = typeGenerics[methodArg.varNum].typeName;
+        methodArg.corType = typeGenerics.at(methodArg.varNum).corType;
+        methodArg.typeName = typeGenerics.at(methodArg.varNum).typeName;
         methodArg.elementType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }
@@ -533,8 +533,8 @@ HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, S
         {
             return E_INVALIDARG;
         }
-        methodArg.corType = methodGenerics[methodArg.varNum].corType;
-        methodArg.typeName = methodGenerics[methodArg.varNum].typeName;
+        methodArg.corType = methodGenerics.at(methodArg.varNum).corType;
+        methodArg.typeName = methodGenerics.at(methodArg.varNum).typeName;
         methodArg.elementType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }

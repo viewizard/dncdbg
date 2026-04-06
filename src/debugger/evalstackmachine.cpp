@@ -336,7 +336,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
             {
                 ss << ".";
             }
-            ss << evalStack.front().identifiers[i];
+            ss << evalStack.front().identifiers.at(i);
         }
         output = "error: The name '" + ss.str() + "' does not exist in the current context";
     }
@@ -361,7 +361,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
             {
                 ss << ".";
             }
-            ss << evalStack.front().identifiers[i];
+            ss << evalStack.front().identifiers.at(i);
         }
         if (trValue == nullptr)
         {
@@ -408,7 +408,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!is_static || methodArgs.size() != 1 || opName != methodName ||
-                elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
+                elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -440,7 +440,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         {
             if (!is_static || methodArgs.size() != 1 || opName != methodName ||
                 elemRetType != methodRet.corType || typeRetName != methodRet.typeName ||
-                elemType != methodArgs[0].corType || typeName != methodArgs[0].typeName)
+                elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -495,48 +495,48 @@ using ImplicitCastMap_t = std::array<std::array<std::function<HRESULT(ICorDebugV
 ImplicitCastMap_t InitImplicitCastMap()
 {
     ImplicitCastMap_t implicitCastMap;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_U2] = ImplicitCastElemType<uint16_t, uint16_t>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_I4] = ImplicitCastElemType<uint16_t, int32_t>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_U4] = ImplicitCastElemType<uint16_t, uint32_t>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_I8] = ImplicitCastElemType<uint16_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_U8] = ImplicitCastElemType<uint16_t, uint64_t>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_R4] = ImplicitCastElemType<uint16_t, float>;
-    implicitCastMap[ELEMENT_TYPE_CHAR][ELEMENT_TYPE_R8] = ImplicitCastElemType<uint16_t, double>;
-    implicitCastMap[ELEMENT_TYPE_I1][ELEMENT_TYPE_I2] = ImplicitCastElemType<int8_t, int16_t>;
-    implicitCastMap[ELEMENT_TYPE_I1][ELEMENT_TYPE_I4] = ImplicitCastElemType<int8_t, int32_t>;
-    implicitCastMap[ELEMENT_TYPE_I1][ELEMENT_TYPE_I8] = ImplicitCastElemType<int8_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_I1][ELEMENT_TYPE_R4] = ImplicitCastElemType<int8_t, float>;
-    implicitCastMap[ELEMENT_TYPE_I1][ELEMENT_TYPE_R8] = ImplicitCastElemType<int8_t, double>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_I2] = ImplicitCastElemType<uint8_t, int16_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_U2] = ImplicitCastElemType<uint8_t, uint16_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_I4] = ImplicitCastElemType<uint8_t, int32_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_U4] = ImplicitCastElemType<uint8_t, uint32_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_I8] = ImplicitCastElemType<uint8_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_U8] = ImplicitCastElemType<uint8_t, uint64_t>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_R4] = ImplicitCastElemType<uint8_t, float>;
-    implicitCastMap[ELEMENT_TYPE_U1][ELEMENT_TYPE_R8] = ImplicitCastElemType<uint8_t, double>;
-    implicitCastMap[ELEMENT_TYPE_I2][ELEMENT_TYPE_I4] = ImplicitCastElemType<int16_t, int32_t>;
-    implicitCastMap[ELEMENT_TYPE_I2][ELEMENT_TYPE_I8] = ImplicitCastElemType<int16_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_I2][ELEMENT_TYPE_R4] = ImplicitCastElemType<int16_t, float>;
-    implicitCastMap[ELEMENT_TYPE_I2][ELEMENT_TYPE_R8] = ImplicitCastElemType<int16_t, double>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_I4] = ImplicitCastElemType<uint16_t, int32_t>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_U4] = ImplicitCastElemType<uint16_t, uint32_t>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_I8] = ImplicitCastElemType<uint16_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_U8] = ImplicitCastElemType<uint16_t, uint64_t>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_R4] = ImplicitCastElemType<uint16_t, float>;
-    implicitCastMap[ELEMENT_TYPE_U2][ELEMENT_TYPE_R8] = ImplicitCastElemType<uint16_t, double>;
-    implicitCastMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_I8] = ImplicitCastElemType<int32_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_R4] = ImplicitCastElemType<int32_t, float>;
-    implicitCastMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_R8] = ImplicitCastElemType<int32_t, double>;
-    implicitCastMap[ELEMENT_TYPE_U4][ELEMENT_TYPE_I8] = ImplicitCastElemType<uint32_t, int64_t>;
-    implicitCastMap[ELEMENT_TYPE_U4][ELEMENT_TYPE_U8] = ImplicitCastElemType<uint32_t, uint64_t>;
-    implicitCastMap[ELEMENT_TYPE_U4][ELEMENT_TYPE_R4] = ImplicitCastElemType<uint32_t, float>;
-    implicitCastMap[ELEMENT_TYPE_U4][ELEMENT_TYPE_R8] = ImplicitCastElemType<uint32_t, double>;
-    implicitCastMap[ELEMENT_TYPE_I8][ELEMENT_TYPE_R4] = ImplicitCastElemType<int64_t, float>;
-    implicitCastMap[ELEMENT_TYPE_I8][ELEMENT_TYPE_R8] = ImplicitCastElemType<int64_t, double>;
-    implicitCastMap[ELEMENT_TYPE_U8][ELEMENT_TYPE_R4] = ImplicitCastElemType<uint64_t, float>;
-    implicitCastMap[ELEMENT_TYPE_U8][ELEMENT_TYPE_R8] = ImplicitCastElemType<uint64_t, double>;
-    implicitCastMap[ELEMENT_TYPE_R4][ELEMENT_TYPE_R8] = ImplicitCastElemType<float, double>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<uint16_t, uint16_t>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint16_t, int32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint16_t, uint32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint16_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint16_t, uint64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint16_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint16_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<int8_t, int16_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<int8_t, int32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int8_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int8_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int8_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<uint8_t, int16_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<uint8_t, uint16_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint8_t, int32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint8_t, uint32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint8_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint8_t, uint64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint8_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint8_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<int16_t, int32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int16_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int16_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int16_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint16_t, int32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint16_t, uint32_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint16_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint16_t, uint64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint16_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint16_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int32_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int32_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int32_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint32_t, int64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint32_t, uint64_t>;
+    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint32_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint32_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_I8).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int64_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_I8).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int64_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_U8).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint64_t, float>;
+    implicitCastMap.at(ELEMENT_TYPE_U8).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint64_t, double>;
+    implicitCastMap.at(ELEMENT_TYPE_R4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<float, double>;
 
     return implicitCastMap;
 }
@@ -544,12 +544,12 @@ ImplicitCastMap_t InitImplicitCastMap()
 ImplicitCastMap_t InitImplicitCastLiteralMap()
 {
     ImplicitCastMap_t implicitCastLiteralMap;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_I1] = ImplicitCastElemType<int32_t, int8_t>;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_U1] = ImplicitCastElemType<int32_t, uint8_t>;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_I2] = ImplicitCastElemType<int32_t, int16_t>;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_U2] = ImplicitCastElemType<int32_t, uint16_t>;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_U4] = ImplicitCastElemType<int32_t, uint32_t>;
-    implicitCastLiteralMap[ELEMENT_TYPE_I4][ELEMENT_TYPE_U8] = ImplicitCastElemType<int32_t, uint64_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I1) = ImplicitCastElemType<int32_t, int8_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U1) = ImplicitCastElemType<int32_t, uint8_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<int32_t, int16_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<int32_t, uint16_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<int32_t, uint32_t>;
+    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<int32_t, uint64_t>;
 
     return implicitCastLiteralMap;
 }
@@ -817,8 +817,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
     // Try execute operator for exact same type as provided values.
     if (SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
-            return elemType1 != methodArgs[0].corType || typeName1 != methodArgs[0].typeName ||
-                    elemType2 != methodArgs[1].corType || typeName2 != methodArgs[1].typeName
+            return elemType1 != methodArgs.at(0).corType || typeName1 != methodArgs.at(0).typeName ||
+                    elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName
                     ? E_FAIL : S_OK;
         })))
     {
@@ -830,15 +830,15 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     // since "... at least one parameter must have type T...".
     if (elemType == elemType1 && typeName == typeName1 &&
         SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
-            if (elemType1 != methodArgs[0].corType || typeName1 != methodArgs[0].typeName)
+            if (elemType1 != methodArgs.at(0).corType || typeName1 != methodArgs.at(0).typeName)
             {
                 return E_FAIL;
             }
 
             ToRelease<ICorDebugValue> trResultValue;
-            if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs[1].corType, methodArgs[1].typeName,
+            if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(1).corType, methodArgs.at(1).typeName,
                                         pType2Value, &trResultValue, ed)) &&
-                FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs[1].corType, methodArgs[1].typeName,
+                FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(1).corType, methodArgs.at(1).typeName,
                                         pType2Value, &trResultValue, ed)))
             {
                 return E_FAIL;
@@ -855,15 +855,15 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
     // Try execute operator with implicit cast for first value.
     return CallOperator([&](std::vector<SigElementType> &methodArgs) {
-        if (elemType2 != methodArgs[1].corType || typeName2 != methodArgs[1].typeName)
+        if (elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName)
         {
             return E_FAIL;
         }
 
         ToRelease<ICorDebugValue> trResultValue;
-        if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs[0].corType, methodArgs[0].typeName,
+        if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(0).corType, methodArgs.at(0).typeName,
                                     pType1Value, &trResultValue, ed)) &&
-            FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs[0].corType, methodArgs[0].typeName,
+            FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(0).corType, methodArgs.at(0).typeName,
                                     pType1Value, &trResultValue, ed)))
         {
             return E_FAIL;
@@ -1152,7 +1152,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     std::vector<ToRelease<ICorDebugValue>> trArgs(Int);
     for (int32_t i = Int - 1; i >= 0; i--)
     {
-        IfFailRet(GetFrontStackEntryValue(&trArgs[i], nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(&trArgs.at(i), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
 
@@ -1234,16 +1234,16 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     for (int32_t i = 0; i < Int; ++i)
     {
         ToRelease<ICorDebugValue> trValueArg;
-        IfFailRet(DereferenceAndUnboxValue(trArgs[i].GetPtr(), &trValueArg, nullptr));
-        IfFailRet(trValueArg->GetType(&funcArgs[i].corType));
+        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
+        IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
 
-        if (funcArgs[i].corType == ELEMENT_TYPE_VALUETYPE || funcArgs[i].corType == ELEMENT_TYPE_CLASS)
+        if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
         {
-            IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs[i].typeName));
+            IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
         }
-        else if (funcArgs[i].corType == ELEMENT_TYPE_SZARRAY || funcArgs[i].corType == ELEMENT_TYPE_ARRAY)
+        else if (funcArgs.at(i).corType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).corType == ELEMENT_TYPE_ARRAY)
         {
-            IfFailRet(TypePrinter::GetTypeOfValue(trValueArg, funcArgs[i].typeName));
+            IfFailRet(TypePrinter::GetTypeOfValue(trValueArg, funcArgs.at(i).typeName));
         }
     }
 
@@ -1268,8 +1268,8 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
             for (size_t i = 0; i < funcArgs.size(); ++i)
             {
-                if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs[i])) ||
-                    funcArgs[i] != methodArgs[i])
+                if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs.at(i))) ||
+                    funcArgs.at(i) != methodArgs.at(i))
                 {
                     return S_OK; // Return with success to continue walk.
                 }
@@ -1314,7 +1314,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     // Add arguments values
     for (int32_t i = 0; i < Int; i++)
     {
-        pValueArgs.emplace_back(trArgs[i].GetPtr());
+        pValueArgs.emplace_back(trArgs.at(i).GetPtr());
     }
 
     // Collect type(class)'s generic types if any
@@ -1332,7 +1332,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     // Add method's generic types if any
     for (size_t i = typeArgsCount; i > 0; i--)
     {
-        pTypeArgs.emplace_back(evalStack.front().trGenericTypeCache[i - 1].GetPtr());
+        pTypeArgs.emplace_back(evalStack.front().trGenericTypeCache.at(i - 1).GetPtr());
     }
 
     evalStack.front().ResetEntry();
@@ -1367,7 +1367,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
 
     for (int32_t i = Int - 1; i >= 0; i--)
     {
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues[i], nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(i), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1390,8 +1390,8 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         {
             uint32_t result_index = 0;
             // TODO implicitly convert ICorValue to int, if type not int
-            // at this moment GetElementIndex() work with integer types only
-            IfFailRet(GetElementIndex(trIndexValues[i], result_index));
+            // at this moment GetElementIndex() works with integer types only
+            IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
             indexes.insert(indexes.begin(), result_index);
         }
         evalStack.front().trValue.Free();
@@ -1405,12 +1405,12 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         for (int32_t i = 0; i < Int; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
-            IfFailRet(DereferenceAndUnboxValue(trIndexValues[i].GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs[i].corType));
+            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
+            IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
 
-            if (funcArgs[i].corType == ELEMENT_TYPE_VALUETYPE || funcArgs[i].corType == ELEMENT_TYPE_CLASS)
+            if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs[i].typeName));
+                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
             }
         }
 
@@ -1429,7 +1429,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
+                    if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
                     {
                         return S_OK; // Return with success to continue walk.
                     }
@@ -1449,7 +1449,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
 
         for (int32_t i = 0; i < Int; i++)
         {
-            trValueArgs.emplace_back(trIndexValues[i].GetPtr());
+            trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1472,7 +1472,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
 
     for (int32_t i = Int - 1; i >= 0; i--)
     {
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues[i], nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(i), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1506,8 +1506,8 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         {
             uint32_t result_index = 0;
             // TODO implicitly convert ICorValue to int, if type not int
-            // at this moment GetElementIndex() work with integer types only
-            IfFailRet(GetElementIndex(trIndexValues[i], result_index));
+            // at this moment GetElementIndex() works with integer types only
+            IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
             indexes.insert(indexes.begin(), result_index);
         }
         evalStack.front().trValue.Free();
@@ -1521,12 +1521,12 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         for (int32_t i = 0; i < Int; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
-            IfFailRet(DereferenceAndUnboxValue(trIndexValues[i].GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs[i].corType));
+            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
+            IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
 
-            if (funcArgs[i].corType == ELEMENT_TYPE_VALUETYPE || funcArgs[i].corType == ELEMENT_TYPE_CLASS)
+            if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs[i].typeName));
+                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
             }
         }
 
@@ -1545,7 +1545,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
 
                     for (size_t i = 0; i < funcArgs.size(); ++i)
                     {
-                        if (funcArgs[i].corType != methodArgs[i].corType || funcArgs[i].typeName != methodArgs[i].typeName)
+                        if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1565,7 +1565,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
 
         for (int32_t i = 0; i < Int; i++)
         {
-            trValueArgs.emplace_back(trIndexValues[i].GetPtr());
+            trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1683,7 +1683,7 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, void */*pA
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
     assert(!evalStack.front().trValue);              // Should be unresolved identifier only front element.
 
-    std::string identifier = std::move(evalStack.front().identifiers[0]);
+    std::string identifier = std::move(evalStack.front().identifiers.at(0));
     evalStack.pop_front();
 
     if (evalStack.front().preventBinding)
@@ -1728,7 +1728,7 @@ HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, void 
     assert(!evalStack.front().trValue);              // Should be unresolved identifier only front element.
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
 
-    std::string identifier = std::move(evalStack.front().identifiers[0]);
+    std::string identifier = std::move(evalStack.front().identifiers.at(0));
     std::vector<ToRelease<ICorDebugType>> trDebugTypes;
     const size_t genericsCount = evalStack.front().trGenericTypeCache.size();
     if (genericsCount > 0)
@@ -2133,7 +2133,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     {
         if (FAILED(Status = Interop::NextStackCommand(pStackProgram, Command, &pArguments, output)) ||
             Command == ProgramFinished ||
-            FAILED(Status = CommandImplementation[Command](evalStack, pArguments, output, m_evalData)))
+            FAILED(Status = CommandImplementation.at(Command)(evalStack, pArguments, output, m_evalData)))
         {
             break;
         }

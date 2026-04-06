@@ -61,9 +61,9 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         IfFailRet(resolvedBP.trModule->GetBaseAddress(&modAddressTrack));
         if ((modAddress != 0U) && (modAddress != modAddressTrack))
         {
-            LOGW(log << "During breakpoint resolve, multiple modules with same source file path was detected.");
+            LOGW(log << "During breakpoint resolve, multiple modules with same source file path were detected.");
             LOGW(log << "File name: " << bp_fullname.c_str());
-            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFileName(resolvedPoints[0].trModule).c_str());
+            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFileName(resolvedPoints.at(0).trModule).c_str());
             LOGW(log << "Ignored module: " << Modules::GetModuleFileName(resolvedBP.trModule).c_str());
             continue;
         }
@@ -90,8 +90,8 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
     bp.trFuncBreakpoints.shrink_to_fit();
 
     // Same for multiple breakpoint resolve for one module.
-    bp.linenum = resolvedPoints[0].startLine;
-    bp.endLine = resolvedPoints[0].endLine;
+    bp.linenum = resolvedPoints.at(0).startLine;
+    bp.endLine = resolvedPoints.at(0).endLine;
 
     return S_OK;
 }
@@ -307,8 +307,8 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule,
 
                 CORDB_ADDRESS brModAddress = 0;
                 // Check only first element, see ActivateSourceBreakpoint() code,
-                // debugger don't support breakpoint with same source name in different modules.
-                if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints[0], brModAddress)) ||
+                // debugger doesn't support breakpoint with same source name in different modules.
+                if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0), brModAddress)) ||
                     modAddress != brModAddress)
                 {
                     ++it;

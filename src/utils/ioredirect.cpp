@@ -114,10 +114,10 @@ void IORedirectHelper::worker()
     static constexpr std::array<StreamType, 3> stream_types{IOSystem::Stdin, IOSystem::Stdout, IOSystem::Stderr};
 
     std::array<InStreamBuf *const, 3> in_streams{nullptr,
-                                       dynamic_cast<InStreamBuf *>(std::get<stream_types[1]>(m_streams).rdbuf()),
-                                       dynamic_cast<InStreamBuf *>(std::get<stream_types[2]>(m_streams).rdbuf())};
+                                       dynamic_cast<InStreamBuf *>(std::get<stream_types.at(1)>(m_streams).rdbuf()),
+                                       dynamic_cast<InStreamBuf *>(std::get<stream_types.at(2)>(m_streams).rdbuf())};
 
-    auto *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types[0]>(m_streams).rdbuf());
+    auto *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types.at(0)>(m_streams).rdbuf());
     if (out_stream == nullptr)
     {
         LOGE(log << "dynamic_cast fail");
@@ -166,7 +166,7 @@ void IORedirectHelper::worker()
         // process data available in buffer for input in_streams
         for (unsigned n = 0; n < std::size(stream_types); n++)
         {
-            InStreamBuf *const stream = in_streams[n]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+            InStreamBuf *const stream = in_streams.at(n); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             if (stream == nullptr)
             {
                 continue;
@@ -177,7 +177,7 @@ void IORedirectHelper::worker()
             if (avail != 0U)
             {
                 LOGD(log << "push "<< avail << " bytes to callback");
-                m_callback(stream_types[n], gsl::span<char>(stream->gptr(), avail)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+                m_callback(stream_types.at(n), gsl::span<char>(stream->gptr(), avail)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
                 stream->gbump(static_cast<int>(avail));
                 stream->compactify();
             }
@@ -332,7 +332,7 @@ bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf 
 {
     for (size_t n = 0; n < stream_types_cout; n++)
     {
-        InStreamBuf *const stream = in_streams[n]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        InStreamBuf *const stream = in_streams.at(n); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         if (stream == nullptr)
         {
             continue;

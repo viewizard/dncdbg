@@ -337,8 +337,8 @@ void ReplacePlaceholders(std::string &str, const std::vector<std::string> &resol
         std::size_t pos = 0;
         while ((pos = str.find(placeholder, pos)) != std::string::npos)
         {
-            str.replace(pos, placeholder.size(), resolvedParams[i]);
-            pos += resolvedParams[i].size();
+            str.replace(pos, placeholder.size(), resolvedParams.at(i));
+            pos += resolvedParams.at(i).size();
         }
     }
 }
@@ -392,10 +392,10 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             const std::size_t paramIdx = current.nextParamIdx;
             current.nextParamIdx++;
 
-            ICorDebugType *paramType = current.typeParams[paramIdx].GetPtr();
+            ICorDebugType *paramType = current.typeParams.at(paramIdx).GetPtr();
 
             StackFrame childFrame;
-            childFrame.resultSlot = &current.resolvedParams[paramIdx];
+            childFrame.resultSlot = &current.resolvedParams.at(paramIdx);
 
             std::string elementType;
             std::string arrayType;
@@ -742,7 +742,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         std::vector<std::string> resolvedParams(typeParams.size());
         for (std::size_t i = 0; i < typeParams.size(); ++i)
         {
-            IfFailRet(ResolveTypeToString(typeParams[i], resolvedParams[i]));
+            IfFailRet(ResolveTypeToString(typeParams.at(i), resolvedParams.at(i)));
         }
         ReplacePlaceholders(elementType, resolvedParams);
     }
@@ -911,9 +911,9 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
 
             std::string valueType;
             ToRelease<ICorDebugValue> trValue;
-            if (argElementTypes.size() > i && !argElementTypes[i].typeName.empty()) // FIXME care about typeGenerics and methodGenerics
+            if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
-                ss << argElementTypes[i].typeName << " ";
+                ss << argElementTypes.at(i).typeName << " ";
             }
             else if (SUCCEEDED(trILFrame->GetArgument(i, &trValue)) &&
                      SUCCEEDED(GetTypeOfValue(trValue, valueType)))

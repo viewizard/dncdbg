@@ -818,7 +818,7 @@ void *AllocString(const std::string &str)
         return nullptr;
     }
 
-    memmove(bstr, wstr.data(), wstr.size() * sizeof(decltype(wstr[0])));
+    memmove(bstr, wstr.data(), wstr.size() * sizeof(decltype(wstr.at(0))));
     return bstr;
 }
 

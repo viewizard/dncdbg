@@ -143,7 +143,7 @@ template <> struct dncdbg::IOSystemTraits<dncdbg::UnixPlatformTag>
             other.m_valid = false;
             for (unsigned n = 0; n < std::tuple_size_v<StdFiles>; n++)
             {
-                m_orig_fd[n] = other.m_orig_fd[n]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+                m_orig_fd.at(n) = other.m_orig_fd.at(n); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             }
         }
 

@@ -56,7 +56,8 @@ constexpr size_t PathLen(std::string_view path)
 {
     for (size_t pos = path.size(); pos > 0; --pos)
     {
-        if (path[pos - 1] == '/' || path[pos - 1] == '\\')
+        // Note: std::string_view::at() is not constexpr in C++17 (it became constexpr in C++20)
+        if (path[pos - 1] == '/' || path[pos - 1] == '\\') // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         {
             return pos;
         }

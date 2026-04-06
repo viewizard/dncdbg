@@ -372,8 +372,8 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
         unsigned fullPathIndex = 0;
         IfFailRet(GetFullPathIndex(inputData->moduleMethodsData[i].document, fullPathIndex));
 
-        m_sourcesMethodsData[fullPathIndex].emplace_back(FileMethodsData{});
-        auto &fileMethodsData = m_sourcesMethodsData[fullPathIndex].back();
+        m_sourcesMethodsData.at(fullPathIndex).emplace_back(FileMethodsData{});
+        auto &fileMethodsData = m_sourcesMethodsData.at(fullPathIndex).back();
         fileMethodsData.modAddress = modAddress;
 
         // Note, don't reorder input data, since it have almost ideal order for us.
@@ -404,8 +404,8 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
         fileMethodsData.methodsData.resize(inputMethodsData.size());
         for (size_t i = 0; i < inputMethodsData.size(); i++)
         {
-            fileMethodsData.methodsData[i].resize(inputMethodsData[i].size());
-            std::copy(inputMethodsData[i].begin(), inputMethodsData[i].end(), fileMethodsData.methodsData[i].begin());
+            fileMethodsData.methodsData.at(i).resize(inputMethodsData.at(i).size());
+            std::copy(inputMethodsData.at(i).begin(), inputMethodsData.at(i).end(), fileMethodsData.methodsData.at(i).begin());
         }
     }
 
@@ -463,17 +463,17 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
         auto it = std::min_element(possiblePathsIndexes.begin(), possiblePathsIndexes.end(),
             [&](const unsigned a, const unsigned b)
             {
-                return m_sourceIndexToPath[a].size() < m_sourceIndexToPath[b].size();
+                return m_sourceIndexToPath.at(a).size() < m_sourceIndexToPath.at(b).size();
             });
 
-        filename = it == possiblePathsIndexes.end() ? result : m_sourceIndexToPath[*it];
+        filename = it == possiblePathsIndexes.end() ? result : m_sourceIndexToPath.at(*it);
         return S_OK;
     }
 
     std::list<std::string> possibleResults;
     for (const auto pathIndex : possiblePathsIndexes)
     {
-        if (result.size() > m_sourceIndexToPath[pathIndex].size())
+        if (result.size() > m_sourceIndexToPath.at(pathIndex).size())
         {
             continue;
         }
@@ -495,7 +495,7 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
         //    possibleResults.push_back(path);
         auto first1 = result.begin();
         auto last1 = result.end();
-        auto first2 = std::prev(m_sourceIndexToPath[pathIndex].end(), static_cast<intptr_t>(result.size()));
+        auto first2 = std::prev(m_sourceIndexToPath.at(pathIndex).end(), static_cast<intptr_t>(result.size()));
         auto equal = [&]()
             {
                 for (; first1 != last1; ++first1, ++first2)
@@ -509,7 +509,7 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
             };
         if (equal())
         {
-            possibleResults.push_back(m_sourceIndexToPath[pathIndex]);
+            possibleResults.push_back(m_sourceIndexToPath.at(pathIndex));
         }
     }
     // The problem is - we could have several assemblies that could have sources with same relative paths with different
@@ -549,7 +549,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         // Check, if start from drive letter, for example "D:\" or "D:/".
         if (filename.size() > 2 && filename[1] == ':' && (filename[2] == '/' || filename[2] == '\\'))
 #else
-        if (filename[0] == '/')
+        if (filename.at(0) == '/')
 #endif
         {
             return E_FAIL;
@@ -583,7 +583,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         }
     };
 
-    for (const auto &sourceData : m_sourcesMethodsData[findIndex->second])
+    for (const auto &sourceData : m_sourcesMethodsData.at(findIndex->second))
     {
         if ((modAddress != 0U) && modAddress != sourceData.modAddress)
         {
@@ -616,7 +616,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         void *data = nullptr;
         int32_t Count = 0;
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        const std::string fullName = m_sourceIndexToInitialFullPath[findIndex->second];
+        const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
 #else
         const std::string fullName = m_sourceIndexToPath[findIndex->second];
 #endif
@@ -652,7 +652,7 @@ HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &
     }
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    fullPath = m_sourceIndexToInitialFullPath[index];
+    fullPath = m_sourceIndexToInitialFullPath.at(index);
 #else
     fullPath = m_sourceIndexToPath[index];
 #endif

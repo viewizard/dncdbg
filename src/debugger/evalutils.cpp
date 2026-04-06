@@ -22,7 +22,7 @@ std::vector<std::string> GatherParameters(const std::vector<std::string> &identi
     for (int i = 0; i < indexEnd; i++)
     {
         std::string typeName;
-        std::vector<std::string> params = ParseGenericParams(identifiers[i], typeName);
+        std::vector<std::string> params = ParseGenericParams(identifiers.at(i), typeName);
         result.insert(result.end(), params.begin(), params.end());
     }
     return result;
@@ -51,7 +51,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         std::string name;
-        ParseGenericParams(identifiers[i], name);
+        ParseGenericParams(identifiers.at(i), name);
         currentTypeName += (currentTypeName.empty() ? "" : ".") + name;
 
         typeToken = GetTypeTokenForName(trMDImport, mdTypeDefNil, currentTypeName);
@@ -71,7 +71,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
     {
         std::string name;
-        ParseGenericParams(identifiers[j], name);
+        ParseGenericParams(identifiers.at(j), name);
         const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, name);
         if (classToken == mdTypeDefNil)
         {
@@ -154,7 +154,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         std::vector<std::string> classIdentifiers = ParseType(currentType, ranks);
         if (classIdentifiers.size() == 1)
         {
-            classIdentifiers[0] = TypePrinter::RenameToSystem(classIdentifiers[0]);
+            classIdentifiers.at(0) = TypePrinter::RenameToSystem(classIdentifiers.at(0));
         }
 
         int nextClassIdentifier = 0;

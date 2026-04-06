@@ -436,7 +436,7 @@ inline uint32_t Lo_32(uint64_t v)
 
 bool uint96_is_zero(const std::array<uint32_t, 3> &v)
 {
-    return v[0] == 0 && v[1] == 0 && v[2] == 0;
+    return v.at(0) == 0 && v.at(1) == 0 && v.at(2) == 0;
 }
 
 void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &remainder)
@@ -584,13 +584,13 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         ss << sep;
         sep = ", ";
 
-        if (base[i] > 0)
+        if (base.at(i) > 0)
         {
-            ss << base[i] << ".." << (base[i] + dims[i] - 1);
+            ss << base.at(i) << ".." << (base.at(i) + dims.at(i) - 1);
         }
         else
         {
-            ss << dims[i];
+            ss << dims.at(i);
         }
     }
     ss << "]" << arrayType;
@@ -620,42 +620,42 @@ void EscapeString(std::string &s, char q = '\"')
         case '\0':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = '0';
+            s.at(i + count) = '0';
             break;
         case '\a':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'a';
+            s.at(i + count) = 'a';
             break;
         case '\b':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'b';
+            s.at(i + count) = 'b';
             break;
         case '\f':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'f';
+            s.at(i + count) = 'f';
             break;
         case '\n':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'n';
+            s.at(i + count) = 'n';
             break;
         case '\r':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'r';
+            s.at(i + count) = 'r';
             break;
         case '\t':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 't';
+            s.at(i + count) = 't';
             break;
         case '\v':
             count = 1;
             s.insert(i, count, '\\');
-            s[i + count] = 'v';
+            s.at(i + count) = 'v';
             break;
         default:
             break;
