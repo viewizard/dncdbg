@@ -68,8 +68,8 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
 
 HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::string &mdName)
 {
-    // Note, instead of GetTypeDefProps(), GetTypeRefProps() return fully-qualified name.
-    // CoreCLR use dynamic allocated or size fixed buffers up to 16kb for GetTypeRefProps().
+    // Note: instead of GetTypeDefProps(), GetTypeRefProps() returns fully-qualified name.
+    // CoreCLR uses dynamically allocated or size-fixed buffers up to 16kb for GetTypeRefProps().
     HRESULT Status = S_OK;
     ULONG refNameSize = 0;
     IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
@@ -588,27 +588,24 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
 
 HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args)
 {
-    mdName[0] = L'\0';
-    if (TypeFromToken(mb) != mdtTypeDef && TypeFromToken(mb) != mdtTypeRef)
-    {
-        return E_FAIL;
-    }
+    HRESULT Status = S_OK;
+    mdName.clear();
 
-    HRESULT hr = S_OK;
     if (TypeFromToken(mb) == mdtTypeDef)
     {
-        hr = NameForTypeDef(mb, pMDImport, mdName, args);
+        IfFailRet(NameForTypeDef(mb, pMDImport, mdName, args));
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        hr = NameForTypeRef(mb, pMDImport, mdName);
+        IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
     }
     else
     {
-        hr = E_FAIL;
+        // Unsupported token type
+        return CORDBG_E_UNSUPPORTED;
     }
 
-    return hr;
+    return S_OK;
 }
 
 HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
@@ -642,18 +639,8 @@ HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
                      std::list<std::string> *args)
 {
-    mdName[0] = L'\0';
-    if (TypeFromToken(mb) != mdtTypeDef &&
-        TypeFromToken(mb) != mdtFieldDef &&
-        TypeFromToken(mb) != mdtMethodDef &&
-        TypeFromToken(mb) != mdtMemberRef &&
-        TypeFromToken(mb) != mdtTypeRef)
-    {
-        // ExtOut("unsupported\n");
-        return E_FAIL;
-    }
-
     HRESULT Status = S_OK;
+    mdName.clear();
 
     if (TypeFromToken(mb) == mdtTypeDef)
     {
@@ -720,7 +707,6 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
         // Unsupported token type
         return CORDBG_E_UNSUPPORTED;
     }
-
 
     mdName = RenameToCSharp(mdName);
     return S_OK;
@@ -900,7 +886,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         {
             // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
             // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
-            // Note, IMetaDataImport::GetParamForMethodIndex() don't include "this", but ICorDebugILFrame::GetArgument() do. This is why we have different logic here.
+            // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
             const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
             mdParamDef paramDef = mdParamDefNil;
             ULONG paramNameLen = 0;
