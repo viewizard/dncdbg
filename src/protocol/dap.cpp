@@ -56,8 +56,8 @@ const std::unordered_set<std::string> &GetCancelCommandQueueSet()
     return cancelCommandQueueSet;
 }
 
-// Don't cancel commands related to debugger configuration. For example, breakpoint setup could be done in any time
-// (even if process don't attached at all).
+// Don't cancel commands related to debugger configuration. For example, breakpoint setup could be done at any time
+// (even if process is not attached at all).
 const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
 {
     static const std::unordered_set<std::string> debuggerSetupCommandSet{
@@ -121,7 +121,7 @@ std::string ReadData(std::istream &cin)
             char *p = nullptr;
             errno = 0;
             static constexpr int base = 10;
-            content_len = static_cast<long>(strtoul(&line[CONTENT_LENGTH.size()], &p, base));
+            content_len = static_cast<long>(strtoul(&line.at(CONTENT_LENGTH.size()), &p, base));
             if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
             {
                 LOGE(log << "protocol violation: '" << line.c_str() << "'");
@@ -175,16 +175,16 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
         if (!current->message.empty())
         {
-            result["message"] = current->message;
+            result.emplace("message", current->message);
         }
 
         if (current->innerException)
         {
-            // Note, DAP have "innerException" field as array, but in real we don't have array with inner
-            // exceptions here, since exception object have only one exception object reference in InnerException field.
+            // Note, DAP has "innerException" field as array, but in reality we don't have an array with inner
+            // exceptions here, since the exception object has only one exception object reference in the InnerException field.
             json arr = json::array();
             arr.push_back(tmp);
-            result["innerException"] = arr;
+            result.emplace("innerException", arr);
         }
     }
 
@@ -254,14 +254,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         continue;
                     }
 
-                    if (findCondition->second[0] == '!')
+                    if (findCondition->second.at(0) == '!')
                     {
                         if (findCondition->second.size() == 1)
                         {
                             continue;
                         }
 
-                        findCondition->second[0] = ' ';
+                        findCondition->second.at(0) = ' ';
                         exceptionBreakpoints.back().negativeCondition = true;
                     }
 
@@ -276,8 +276,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
-                // TODO form responseBody with breakpoints (optional output, MS vsdbg don't provide it for VSCode IDE now)
-                // responseBody["breakpoints"] = breakpoints;
+                // TODO form responseBody with breakpoints (optional output, MS vsdbg doesn't provide it for VSCode IDE now)
+                // responseBody.emplace("breakpoints", breakpoints);
 
                 return S_OK;
             }},
@@ -292,10 +292,10 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 ExceptionInfo exceptionInfo;
                 IfFailRet(m_sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
 
-                responseBody["exceptionId"] = exceptionInfo.exceptionId;
-                responseBody["description"] = exceptionInfo.description;
-                responseBody["breakMode"] = exceptionInfo.breakMode;
-                responseBody["details"] = FormJsonForExceptionDetails(exceptionInfo.details);
+                responseBody.emplace("exceptionId", exceptionInfo.exceptionId);
+                responseBody.emplace("description", exceptionInfo.description);
+                responseBody.emplace("breakMode", exceptionInfo.breakMode);
+                responseBody.emplace("details", FormJsonForExceptionDetails(exceptionInfo.details));
                 return S_OK;
             }},
         {"setBreakpoints", [&](const json &arguments, json &responseBody)
@@ -312,7 +312,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetSourceBreakpoints(arguments.at("source").at("path"), sourceBreakpoints, breakpoints));
 
-                responseBody["breakpoints"] = breakpoints;
+                responseBody.emplace("breakpoints", breakpoints);
 
                 return S_OK;
             }},
@@ -333,9 +333,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 m_sharedDebugger->SetJustMyCode(
-                    arguments.value("justMyCode", true)); // MS vsdbg have "justMyCode" enabled by default.
+                    arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
                 m_sharedDebugger->SetStepFiltering(
-                    arguments.value("enableStepFiltering", true)); // MS vsdbg have "enableStepFiltering" enabled by default.
+                    arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
 
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;
@@ -372,7 +372,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Thread> threads;
                 IfFailRet(m_sharedDebugger->GetThreads(threads));
 
-                responseBody["threads"] = threads;
+                responseBody.emplace("threads", threads);
 
                 return S_OK;
             }},
@@ -409,23 +409,23 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
                                                           static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
-                responseBody["stackFrames"] = stackFrames;
-                responseBody["totalFrames"] = stackFrames.size();
+                responseBody.emplace("stackFrames", stackFrames);
+                responseBody.emplace("totalFrames", stackFrames.size());
 
                 return S_OK;
             }},
         {"continue", [&](const json &arguments, json &responseBody)
             {
-                responseBody["allThreadsContinued"] = true;
+                responseBody.emplace("allThreadsContinued", true);
 
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                responseBody["threadId"] = static_cast<int>(threadId);
+                responseBody.emplace("threadId", static_cast<int>(threadId));
                 return m_sharedDebugger->Continue(threadId);
             }},
         {"pause", [&](const json &arguments, json &responseBody)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                responseBody["threadId"] = static_cast<int>(threadId);
+                responseBody.emplace("threadId", static_cast<int>(threadId));
                 return m_sharedDebugger->Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &/*responseBody*/)
@@ -450,7 +450,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
                 IfFailRet(m_sharedDebugger->GetScopes(frameId, scopes));
 
-                responseBody["scopes"] = scopes;
+                responseBody.emplace("scopes", scopes);
 
                 return S_OK;
             }},
@@ -473,7 +473,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                                          arguments.value("start", 0), arguments.value("count", 0),
                                                          variables));
 
-                responseBody["variables"] = variables;
+                responseBody.emplace("variables", variables);
 
                 return S_OK;
             }},
@@ -503,22 +503,22 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         std::stringstream stream;
                         stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                        responseBody["message"] = stream.str();
+                        responseBody.emplace("message", stream.str());
                     }
                     else
                     {
-                        responseBody["message"] = output;
+                        responseBody.emplace("message", output);
                     }
 
                     return Status;
                 }
 
-                responseBody["result"] = variable.value;
-                responseBody["type"] = variable.type;
-                responseBody["variablesReference"] = variable.variablesReference;
+                responseBody.emplace("result", variable.value);
+                responseBody.emplace("type", variable.type);
+                responseBody.emplace("variablesReference", variable.variablesReference);
                 if (variable.variablesReference > 0)
                 {
-                    responseBody["namedVariables"] = variable.namedVariables;
+                    responseBody.emplace("namedVariables", variable.namedVariables);
                     // indexedVariables
                 }
                 return S_OK;
@@ -549,17 +549,17 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     {
                         std::stringstream stream;
                         stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                        responseBody["message"] = stream.str();
+                        responseBody.emplace("message", stream.str());
                     }
                     else
                     {
-                        responseBody["message"] = output;
+                        responseBody.emplace("message", output);
                     }
 
                     return Status;
                 }
 
-                responseBody["value"] = output;
+                responseBody.emplace("value", output);
                 return S_OK;
             }},
         {"attach", [&](const json &arguments, json &/*responseBody*/)
@@ -592,11 +592,11 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::string output;
                 if (FAILED(Status = m_sharedDebugger->SetVariable(name, value, ref, output)))
                 {
-                    responseBody["message"] = output;
+                    responseBody.emplace("message", output);
                     return Status;
                 }
 
-                responseBody["value"] = output;
+                responseBody.emplace("value", output);
 
                 return S_OK;
             }},
@@ -626,7 +626,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
-                responseBody["breakpoints"] = breakpoints;
+                responseBody.emplace("breakpoints", breakpoints);
 
                 return Status;
             }},
@@ -637,8 +637,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 m_sharedDebugger->GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
                                              modules, totalModules);
 
-                responseBody["modules"] = modules;
-                responseBody["totalModules"] = totalModules;
+                responseBody.emplace("modules", modules);
+                responseBody.emplace("totalModules", totalModules);
 
                 return S_OK;
             }}};
@@ -666,7 +666,7 @@ HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json 
     catch (nlohmann::detail::exception &ex)
     {
         LOGE(log << "JSON error: " << ex.what());
-        responseBody["message"] = std::string("can't parse: ") + ex.what();
+        responseBody.emplace("message", std::string("can't parse: ") + ex.what());
     }
 
     return E_FAIL;
@@ -710,7 +710,7 @@ void DAP::CommandsWorker()
 
         // MSVS debugger use config file, for Visual Studio 2022 Community Edition located at
         // C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Profiles\CSharp.vssettings
-        // Visual Studio have timeout setup for each type of requests, for example:
+        // Visual Studio has timeout setup for each type of requests, for example:
         // LocalsTimeout = 1000
         // LongEvalTimeout = 10000
         // NormalEvalTimeout = 5000
@@ -723,7 +723,7 @@ void DAP::CommandsWorker()
         const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
         if (timeoutStatus == std::future_status::timeout)
         {
-            responseBody["message"] = "Command execution timed out.";
+            responseBody.emplace("message", "Command execution timed out.");
             Status = COR_E_TIMEOUT;
         }
         else
@@ -733,8 +733,8 @@ void DAP::CommandsWorker()
 
         if (SUCCEEDED(Status))
         {
-            c.response["success"] = true;
-            c.response["body"] = responseBody;
+            c.response.emplace("success", true);
+            c.response.emplace("body", responseBody);
         }
         else
         {
@@ -743,14 +743,14 @@ void DAP::CommandsWorker()
                 std::ostringstream ss;
                 ss << "Failed command '" << c.command << "' : "
                    << "0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                c.response["message"] = ss.str();
+                c.response.emplace("message", ss.str());
             }
             else
             {
-                c.response["message"] = responseBody["message"];
+                c.response.emplace("message", responseBody.at("message"));
             }
 
-            c.response["success"] = false;
+            c.response.emplace("success", false);
         }
 
         DAPIO::EmitMessageWithLog(LOG_RESPONSE, c.response);
@@ -781,8 +781,8 @@ void DAP::CommandsWorker()
 // Caller must care about m_commandsMutex.
 std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<DAP::CommandQueueEntry>::iterator &iter)
 {
-    iter->response["success"] = false;
-    iter->response["message"] = std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled.");
+    iter->response.emplace("success", false);
+    iter->response.emplace("message", std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled."));
     DAPIO::EmitMessageWithLog(LOG_RESPONSE, iter->response);
     return m_commandsQueue.erase(iter);
 }
@@ -791,9 +791,9 @@ void DAP::CommandLoop()
 {
 #ifdef DEBUG_INTERNAL_TESTS
 {
-    // nlohmann/json have internal dump serializer and care about escaped characters, test it
+    // nlohmann/json has internal dump serializer and cares about escaped characters, test it
     nlohmann::json j;
-    j["test"] = std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n");
+    j.emplace("test", std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n"));
     const std::string expected(R"({"test":"te\u0013st\nte\u0013st\nte\u0013st\nte\u0013st\nte\u0013st234\n"})");
     assert(j.dump() == expected);
 }
@@ -835,19 +835,19 @@ void DAP::CommandLoop()
 
             // Variable `resp' is used to construct response and assign it to `response'
             // variable in single step: `response' variable should always be in
-            // consistent state (it must not have state when some fields is assigned and
+            // consistent state (it must not have state when some fields are assigned and
             // some not assigned due to an exception) because `response' is used below
             // in exception handler.
             json resp;
-            resp["type"] = "response";
-            resp["request_seq"] = request.at("seq");
+            resp.emplace("type", "response");
+            resp.emplace("request_seq", request.at("seq"));
             queueEntry.response = resp;
 
             queueEntry.command = request.at("command");
-            resp["command"] = queueEntry.command;
+            resp.emplace("command", queueEntry.command);
             queueEntry.response = resp;
 
-            if (request["type"] != "request")
+            if (request.at("type") != "request")
             {
                 throw bad_format("wrong request type!");
             }
@@ -885,18 +885,18 @@ void DAP::CommandLoop()
             {
                 if (!queueEntry.arguments.contains("requestId"))
                 {
-                    queueEntry.response["success"] = false;
-                    queueEntry.response["message"] = "CancelRequest don't have requestId.";
+                    queueEntry.response.emplace("success", false);
+                    queueEntry.response.emplace("message", "CancelRequest don't have requestId.");
                     DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
                     continue;
                 }
 
                 auto requestId = queueEntry.arguments.at("requestId");
                 std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
-                queueEntry.response["success"] = false;
+                queueEntry.response.emplace("success", false);
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end(); ++iter)
                 {
-                    if (requestId != iter->response["request_seq"])
+                    if (requestId != iter->response.at("request_seq"))
                     {
                         continue;
                     }
@@ -908,14 +908,14 @@ void DAP::CommandLoop()
 
                     CancelCommand(iter);
 
-                    queueEntry.response["success"] = true;
+                    queueEntry.response.at("success") = true;
                     break;
                 }
                 lockCommandsMutex.unlock();
 
-                if (!queueEntry.response["success"])
+                if (!queueEntry.response.at("success"))
                 {
-                    queueEntry.response["message"] = "CancelRequest is not supported for requestId.";
+                    queueEntry.response.emplace("message", "CancelRequest is not supported for requestId.");
                 }
 
                 DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
@@ -937,16 +937,16 @@ void DAP::CommandLoop()
         catch (nlohmann::detail::exception &ex)
         {
             LOGE(log << "JSON error: " << ex.what());
-            queueEntry.response["type"] = "response";
-            queueEntry.response["success"] = false;
-            queueEntry.response["message"] = std::string("can't parse: ") + ex.what();
+            queueEntry.response.emplace("type", "response");
+            queueEntry.response.emplace("success", false);
+            queueEntry.response.emplace("message", std::string("can't parse: ") + ex.what());
         }
         catch (bad_format &ex)
         {
             LOGE(log << "JSON error: " << ex.what());
-            queueEntry.response["type"] = "response";
-            queueEntry.response["success"] = false;
-            queueEntry.response["message"] = std::string("can't parse: ") + ex.what();
+            queueEntry.response.emplace("type", "response");
+            queueEntry.response.emplace("success", false);
+            queueEntry.response.emplace("message", std::string("can't parse: ") + ex.what());
         }
 
         DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);

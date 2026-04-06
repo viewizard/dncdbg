@@ -28,22 +28,22 @@ void to_json(json &j, const Breakpoint &b)
 
     if (b.line != 0)
     {
-        j["line"] = b.line;
+        j.emplace("line", b.line);
     }
 
     if (!b.message.empty())
     {
-        j["message"] = b.message;
+        j.emplace("message", b.message);
     }
     if (b.verified)
     {
         if (b.endLine != 0)
         {
-            j["endLine"] = b.endLine;
+            j.emplace("endLine", b.endLine);
         }
         if (!b.source.IsNull())
         {
-            j["source"] = b.source;
+            j.emplace("source", b.source);
         }
     }
 }
@@ -59,7 +59,7 @@ void to_json(json &j, const StackFrame &f)
              {"moduleId",  f.moduleId}};
     if (!f.source.IsNull())
     {
-        j["source"] = f.source;
+        j.emplace("source", f.source);
     }
 }
 
@@ -78,8 +78,8 @@ void to_json(json &j, const Scope &s)
 
     if (s.variablesReference > 0)
     {
-        j["namedVariables"] = s.namedVariables;
-        // j["indexedVariables"] = s.indexedVariables;
+        j.emplace("namedVariables", s.namedVariables);
+        // j.emplace("indexedVariables", s.indexedVariables);
     }
 }
 
@@ -93,8 +93,8 @@ void to_json(json &j, const Variable &v)
 
     if (v.variablesReference > 0)
     {
-        j["namedVariables"] = v.namedVariables;
-        // j["indexedVariables"] = v.indexedVariables;
+        j.emplace("namedVariables", v.namedVariables);
+        // j.emplace("indexedVariables", v.indexedVariables);
     }
 }
 
@@ -108,24 +108,24 @@ void to_json(json &j, const Module &m)
 
     if (!m.symbolFilePath.empty())
     {
-        j["symbolFilePath"] = m.symbolFilePath;
+        j.emplace("symbolFilePath", m.symbolFilePath);
     }
 
     if (!m.addressRange.empty())
     {
-        j["addressRange"] = m.addressRange;
+        j.emplace("addressRange", m.addressRange);
     }
 
     switch (m.symbolStatus)
     {
     case SymbolStatus::Skipped:
-        j["symbolStatus"] = "Skipped loading symbols.";
+        j.emplace("symbolStatus", "Skipped loading symbols.");
         break;
     case SymbolStatus::Loaded:
-        j["symbolStatus"] = "Symbols loaded.";
+        j.emplace("symbolStatus", "Symbols loaded.");
         break;
     case SymbolStatus::NotFound:
-        j["symbolStatus"] = "Symbols not found.";
+        j.emplace("symbolStatus", "Symbols not found.");
         break;
     }
 }
@@ -141,16 +141,16 @@ const std::unordered_map<std::string, ExceptionBreakpointFilter> &DAPIO::GetExce
 
 void DAPIO::AddCapabilitiesTo(json &capabilities)
 {
-    capabilities["supportsConfigurationDoneRequest"] = true;
-    capabilities["supportsFunctionBreakpoints"] = true;
-    capabilities["supportsConditionalBreakpoints"] = true;
-    capabilities["supportTerminateDebuggee"] = true;
-    capabilities["supportsSetVariable"] = true;
-    capabilities["supportsSetExpression"] = true;
-    capabilities["supportsTerminateRequest"] = true;
-    capabilities["supportsCancelRequest"] = true;
-    capabilities["supportsExceptionInfoRequest"] = true;
-    capabilities["supportsExceptionFilterOptions"] = true;
+    capabilities.emplace("supportsConfigurationDoneRequest", true);
+    capabilities.emplace("supportsFunctionBreakpoints", true);
+    capabilities.emplace("supportsConditionalBreakpoints", true);
+    capabilities.emplace("supportTerminateDebuggee", true);
+    capabilities.emplace("supportsSetVariable", true);
+    capabilities.emplace("supportsSetExpression", true);
+    capabilities.emplace("supportsTerminateRequest", true);
+    capabilities.emplace("supportsCancelRequest", true);
+    capabilities.emplace("supportsExceptionInfoRequest", true);
+    capabilities.emplace("supportsExceptionFilterOptions", true);
     json excFilters = json::array();
     for (const auto &entry : GetExceptionFilters())
     {
@@ -158,10 +158,10 @@ void DAPIO::AddCapabilitiesTo(json &capabilities)
                           {"label",entry.first}};
         excFilters.push_back(filter);
     }
-    capabilities["exceptionBreakpointFilters"] = excFilters;
-    capabilities["supportsExceptionOptions"] = false; // TODO add implementation
-    capabilities["supportsHitConditionalBreakpoints"] = true;
-    capabilities["supportsModulesRequest"] = true;
+    capabilities.emplace("exceptionBreakpointFilters", excFilters);
+    capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
+    capabilities.emplace("supportsHitConditionalBreakpoints", true);
+    capabilities.emplace("supportsModulesRequest", true);
 }
 
 void DAPIO::SetupProtocolLogging(const std::string &path)
@@ -178,21 +178,21 @@ void DAPIO::EmitProcessEvent(DWORD processId, const std::string &name, StartMeth
 {
     json body;
 
-    body["name"] = name;
-    body["systemProcessId"] = processId;
-    body["isLocalProcess"] = true;
-    body["pointerSize"] = sizeof(void *) * CHAR_BIT;
+    body.emplace("name", name);
+    body.emplace("systemProcessId", processId);
+    body.emplace("isLocalProcess", true);
+    body.emplace("pointerSize", sizeof(void *) * CHAR_BIT);
 
     assert(startMethod != StartMethod::None);
 
     switch (startMethod)
     {
     case StartMethod::Attach:
-        body["startMethod"] = "attach";
+        body.emplace("startMethod", "attach");
         break;
     case StartMethod::Launch:
     default:
-        body["startMethod"] = "launch";
+        body.emplace("startMethod", "launch");
         break;
     }
 
@@ -206,19 +206,19 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
     switch (event.reason)
     {
     case StoppedEventReason::Step:
-        body["reason"] = "step";
+        body.emplace("reason", "step");
         break;
     case StoppedEventReason::Breakpoint:
-        body["reason"] = "breakpoint";
+        body.emplace("reason", "breakpoint");
         break;
     case StoppedEventReason::Exception:
-        body["reason"] = "exception";
+        body.emplace("reason", "exception");
         break;
     case StoppedEventReason::Pause:
-        body["reason"] = "pause";
+        body.emplace("reason", "pause");
         break;
     case StoppedEventReason::Entry:
-        body["reason"] = "entry";
+        body.emplace("reason", "entry");
         break;
     }
 
@@ -226,21 +226,21 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
 
     if (!event.text.empty())
     {
-        body["text"] = event.text;
+        body.emplace("text", event.text);
     }
 
-    body["threadId"] = static_cast<int>(event.threadId);
-    body["allThreadsStopped"] = event.allThreadsStopped;
+    body.emplace("threadId", static_cast<int>(event.threadId));
+    body.emplace("allThreadsStopped", event.allThreadsStopped);
 
     if (!event.hitBreakpointIds.empty())
     {
-        body["hitBreakpointIds"] = event.hitBreakpointIds;
+        body.emplace("hitBreakpointIds", event.hitBreakpointIds);
     }
 
     // vsdbg shows additional info, but it is not a part of the protocol
-    // body["line"] = event.frame.line;
-    // body["column"] = event.frame.column;
-    // body["source"] = event.frame.source;
+    // body.emplace("line", event.frame.line);
+    // body.emplace("column", event.frame.column);
+    // body.emplace("source", event.frame.source);
 
     EmitEvent("stopped", body);
 }
@@ -248,7 +248,7 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
 void DAPIO::EmitExitedEvent(const ExitedEvent &event)
 {
     json body;
-    body["exitCode"] = event.exitCode;
+    body.emplace("exitCode", event.exitCode);
     EmitEvent("exited", body);
 }
 
@@ -263,10 +263,10 @@ void DAPIO::EmitContinuedEvent(ThreadId threadId)
 
     if (threadId)
     {
-        body["threadId"] = static_cast<int>(threadId);
+        body.emplace("threadId", static_cast<int>(threadId));
     }
 
-    body["allThreadsContinued"] = true;
+    body.emplace("allThreadsContinued", true);
     EmitEvent("continued", body);
 }
 
@@ -277,16 +277,16 @@ void DAPIO::EmitThreadEvent(const ThreadEvent &event)
     switch (event.reason)
     {
     case ThreadEventReason::Started:
-        body["reason"] = "started";
+        body.emplace("reason", "started");
         break;
     case ThreadEventReason::Exited:
-        body["reason"] = "exited";
+        body.emplace("reason", "exited");
         break;
     default:
         return;
     }
 
-    body["threadId"] = static_cast<int>(event.threadId);
+    body.emplace("threadId", static_cast<int>(event.threadId));
 
     EmitEvent("thread", body);
 }
@@ -298,17 +298,17 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
     switch (event.reason)
     {
     case ModuleEventReason::New:
-        body["reason"] = "new";
+        body.emplace("reason", "new");
         break;
     case ModuleEventReason::Changed:
-        body["reason"] = "changed";
+        body.emplace("reason", "changed");
         break;
     case ModuleEventReason::Removed:
-        body["reason"] = "removed";
+        body.emplace("reason", "removed");
         break;
     }
 
-    body["module"] = event.module;
+    body.emplace("module", event.module);
 
     EmitEvent("module", body);
 }
@@ -320,24 +320,24 @@ void DAPIO::EmitOutputEvent(const OutputEvent &event)
     switch(event.category)
     {
         case OutputCategory::Console:
-            body["category"] = "console";
+            body.emplace("category", "console");
             break;
         case OutputCategory::StdOut:
-            body["category"] = "stdout";
+            body.emplace("category", "stdout");
             break;
         case OutputCategory::StdErr:
-            body["category"] = "stderr";
+            body.emplace("category", "stderr");
             break;
     }
 
     if (!event.source.IsNull())
     {
-        body["source"] = event.source;
-        body["line"] = event.line;
-        body["column"] = event.column;
+        body.emplace("source", event.source);
+        body.emplace("line", event.line);
+        body.emplace("column", event.column);
     }
 
-    body["output"] = event.output;
+    body.emplace("output", event.output);
 
     EmitEvent("output", body);
 }
@@ -349,17 +349,17 @@ void DAPIO::EmitBreakpointEvent(const BreakpointEvent &event)
     switch (event.reason)
     {
     case BreakpointEventReason::New:
-        body["reason"] = "new";
+        body.emplace("reason", "new");
         break;
     case BreakpointEventReason::Changed:
-        body["reason"] = "changed";
+        body.emplace("reason", "changed");
         break;
     case BreakpointEventReason::Removed:
-        body["reason"] = "removed";
+        body.emplace("reason", "removed");
         break;
     }
 
-    body["breakpoint"] = event.breakpoint;
+    body.emplace("breakpoint", event.breakpoint);
 
     EmitEvent("breakpoint", body);
 }
@@ -376,7 +376,7 @@ void DAPIO::EmitCapabilitiesEvent()
 
     AddCapabilitiesTo(capabilities);
 
-    body["capabilities"] = capabilities;
+    body.emplace("capabilities", capabilities);
 
     EmitEvent("capabilities", body);
 }
@@ -384,7 +384,7 @@ void DAPIO::EmitCapabilitiesEvent()
 // Caller must care about m_outMutex.
 void DAPIO::EmitMessage(nlohmann::json &message, std::string &output)
 {
-    message["seq"] = m_seqCounter;
+    message.emplace("seq", m_seqCounter);
     ++m_seqCounter;
     output = message.dump();
     std::cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
@@ -402,9 +402,9 @@ void DAPIO::EmitMessageWithLog(const std::string_view &message_prefix, nlohmann:
 void DAPIO::EmitEvent(const std::string &name, const nlohmann::json &body)
 {
     json message;
-    message["type"] = "event";
-    message["event"] = name;
-    message["body"] = body;
+    message.emplace("type", "event");
+    message.emplace("event", name);
+    message.emplace("body", body);
     EmitMessageWithLog(LOG_EVENT, message);
 }
 
