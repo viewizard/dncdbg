@@ -93,7 +93,7 @@ struct method_data_t_hash
 
         size_t seed = 0;
         const auto hashCombine =
-            [&seed](const auto& value)
+            [&seed](const auto &value)
             {
                 const std::hash<std::decay_t<decltype(value)>> hasher;
                 seed ^= hasher(value) + hash_golden_ratio + (seed << hash_shift_bits) + (seed >> hash_shift_bits);

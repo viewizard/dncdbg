@@ -597,7 +597,7 @@ Class::IOSystem::StdFiles Class::get_std_files()
     /*thread_local*/ static alignas(alignof(Handles)) char mem[sizeof(Handles)]; // TODO
 #endif
 
-    Handles& handles = *new (mem) Handles {FileHandle(GetStdHandle(STD_INPUT_HANDLE)),
+    Handles &handles = *new (mem) Handles {FileHandle(GetStdHandle(STD_INPUT_HANDLE)),
                                            FileHandle(GetStdHandle(STD_OUTPUT_HANDLE)),
                                            FileHandle(GetStdHandle(STD_ERROR_HANDLE))};
     return { std::get<IOSystem::Stdin>(handles),
