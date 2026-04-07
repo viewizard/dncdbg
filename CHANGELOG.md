@@ -87,3 +87,4 @@ Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg)
 - Fixed entry breakpoint logic, will not double break in case some source breakpoint is also set to first line of Main() method.
 - Fixed function breakpoint logic, will not double break in case some source breakpoint is also set to first line of method.
 - Fixed undefined behavior in evaluation code.
+- Fixed memory leaks in process creation and generic evaluation code.

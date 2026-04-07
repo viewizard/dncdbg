@@ -1298,12 +1298,9 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         trType = trResultType.Detach();
     }
 
-    const size_t typeArgsCount = evalStack.front().trGenericTypeCache.size();
     const uint32_t realArgsCount = Int + (isInstance ? 1 : 0);
-    std::vector<ICorDebugType *> pTypeArgs;
     std::vector<ICorDebugValue *> pValueArgs;
     pValueArgs.reserve(realArgsCount);
-    pTypeArgs.reserve(typeArgsCount);
 
     // Place instance value ("this") if extension or not static method
     if (isInstance)
@@ -1318,6 +1315,9 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     }
 
     // Collect type(class)'s generic types if any
+    const size_t typeArgsCount = evalStack.front().trGenericTypeCache.size();
+    std::vector<ToRelease<ICorDebugType>> trTypeGenerics;
+    trTypeGenerics.reserve(typeArgsCount);
     ToRelease<ICorDebugTypeEnum> trTypeEnum;
     if (SUCCEEDED(trType->EnumerateTypeParameters(&trTypeEnum)))
     {
@@ -1325,19 +1325,21 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         ULONG fetched = 0;
         while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
-            pTypeArgs.emplace_back(curType);
+            trTypeGenerics.emplace_back(curType);
         }
     }
 
     // Add method's generic types if any
     for (size_t i = typeArgsCount; i > 0; i--)
     {
-        pTypeArgs.emplace_back(evalStack.front().trGenericTypeCache.at(i - 1).GetPtr());
+        trTypeGenerics.emplace_back(evalStack.front().trGenericTypeCache.at(i - 1).GetPtr());
+        trTypeGenerics.back()->AddRef();
     }
 
     evalStack.front().ResetEntry();
     Status = ed.pEvalHelpers->EvalGenericFunction(
-        ed.pThread, trFunc, pTypeArgs.data(), static_cast<uint32_t>(pTypeArgs.size()), pValueArgs.data(),
+        ed.pThread, trFunc, reinterpret_cast<ICorDebugType **>(trTypeGenerics.data()),
+        static_cast<uint32_t>(trTypeGenerics.size()), pValueArgs.data(),
         static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is

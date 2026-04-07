@@ -202,17 +202,16 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
     // should stop debuggee process by direct `Pause()` call. From another side, callback queue has a bunch of asynchronous
     // added entries and, for example, `CreateThread()` could be called after this callback and break our debugger logic.
     ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
-    ICorDebugAppDomain *pAppDomain = nullptr;
+    ToRelease<ICorDebugAppDomain> trAppDomain;
     ULONG domainsFetched = 0;
     if (SUCCEEDED(pProcess->EnumerateAppDomains(&trAppDomainEnum)))
     {
         // At this point we have only one domain for sure.
-        if (SUCCEEDED(trAppDomainEnum->Next(1, &pAppDomain, &domainsFetched)) && domainsFetched == 1)
+        if (SUCCEEDED(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched)) && domainsFetched == 1)
         {
-            // Don't AddRef() here for pAppDomain! We get it with AddRef() from Next() and will release in m_callbacksQueue by ToRelease destructor.
-            return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]()
+            return m_sharedCallbacksQueue->AddCallbackToQueue(trAppDomain, [&]()
             {
-                m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::CreateProcess, pAppDomain, nullptr, nullptr, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
+                m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::CreateProcess, trAppDomain.Detach(), nullptr, nullptr, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
             });
         }
     }
