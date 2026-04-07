@@ -422,7 +422,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, 0, &pValue, 1, pResultValue);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, &pValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
@@ -454,7 +454,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, 0, &pTypeValue, 1, pResultValue);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, &pTypeValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
@@ -812,7 +812,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
-            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, 0, ppArgsValue.data(), 2, pResultValue);
+            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, ppArgsValue.data(), 2, pResultValue);
         };
 
     // Try execute operator for exact same type as provided values.
@@ -1459,7 +1459,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetRef(), 1, trValueArgs.data(),
+        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trValueArgs.data(),
                                                Int + 1, &evalStack.front().trValue);
     }
     return Status;
@@ -1575,7 +1575,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetRef(), 1, trValueArgs.data(),
+        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trValueArgs.data(),
                                                Int + 1, &evalStack.front().trValue);
     }
     return Status;

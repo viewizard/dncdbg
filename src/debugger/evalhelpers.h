@@ -38,8 +38,8 @@ class EvalHelpers
                                               ICorDebugValue **ppTypeObjectResult = nullptr,
                                               bool DetectStaticMembers = true);
 
-    HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                         uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
+    HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+                         ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                          ICorDebugValue **ppEvalResult, bool ignoreEvalFlags = false);
 
     HRESULT EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,

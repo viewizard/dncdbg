@@ -148,16 +148,14 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // Call managed function in debuggee process.
 // [in] pThread - managed thread for evaluation;
 // [in] pFunc - function to call;
-// [in] ppArgsType - pointer to args Type array, could be nullptr;
-// [in] argsTypeCount - size of args Type array;
+// [in] pArgType - pointer to arg Type, could be nullptr;
 // [in] ppArgsValue - pointer to args Value array, could be nullptr;
 // [in] argsValueCount - size of args Value array;
 // [out] ppEvalResult - return value;
-HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                  uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
+HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+                                  ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                   ICorDebugValue **ppEvalResult, bool ignoreEvalFlags)
 {
-    assert((!ppArgsType && argsTypeCount == 0) || (ppArgsType && argsTypeCount > 0));
     assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
 
     const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : m_evalFlags;
@@ -168,13 +166,10 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     }
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    // Reserve memory upfront, since trTypeParams will have argsTypeCount or more elements for sure.
-    trTypeParams.reserve(argsTypeCount);
-
-    for (uint32_t i = 0; i < argsTypeCount; i++)
+    if (pArgType != nullptr)
     {
         ToRelease<ICorDebugTypeEnum> trTypeEnum;
-        if (SUCCEEDED(ppArgsType[i]->EnumerateTypeParameters(&trTypeEnum)))
+        if (SUCCEEDED(pArgType->EnumerateTypeParameters(&trTypeEnum)))
         {
             ICorDebugType *curType = nullptr;
             ULONG fetched = 0;
@@ -193,7 +188,8 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
             IfFailRet(trEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(trTypeParams.size()),
-                                                         reinterpret_cast<ICorDebugType **>(trTypeParams.data()), argsValueCount, ppArgsValue));
+                                                         reinterpret_cast<ICorDebugType **>(trTypeParams.data()),
+                                                         argsValueCount, ppArgsValue));
             return S_OK;
         });
 }
@@ -384,7 +380,7 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
         }
 
         // Note, this call must ignore any eval flags.
-        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, &pType, 1, trTypeObject.GetRef(), 1, nullptr, true));
+        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, trTypeObject.GetRef(), 1, nullptr, true));
     }
 
     AddTypeObjectToCache(pType, trTypeObject);
