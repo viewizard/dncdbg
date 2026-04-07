@@ -149,16 +149,16 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // [in] pThread - managed thread for evaluation;
 // [in] pFunc - function to call;
 // [in] ppArgsType - pointer to args Type array, could be nullptr;
-// [in] ArgsTypeCount - size of args Type array;
+// [in] argsTypeCount - size of args Type array;
 // [in] ppArgsValue - pointer to args Value array, could be nullptr;
-// [in] ArgsValueCount - size of args Value array;
+// [in] argsValueCount - size of args Value array;
 // [out] ppEvalResult - return value;
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                  uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
+                                  uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                   ICorDebugValue **ppEvalResult, bool ignoreEvalFlags)
 {
-    assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
-    assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
+    assert((!ppArgsType && argsTypeCount == 0) || (ppArgsType && argsTypeCount > 0));
+    assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
 
     const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : m_evalFlags;
 
@@ -168,10 +168,10 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     }
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    // Reserve memory upfront, since trTypeParams will have ArgsTypeCount or more elements for sure.
-    trTypeParams.reserve(ArgsTypeCount);
+    // Reserve memory upfront, since trTypeParams will have argsTypeCount or more elements for sure.
+    trTypeParams.reserve(argsTypeCount);
 
-    for (uint32_t i = 0; i < ArgsTypeCount; i++)
+    for (uint32_t i = 0; i < argsTypeCount; i++)
     {
         ToRelease<ICorDebugTypeEnum> trTypeEnum;
         if (SUCCEEDED(ppArgsType[i]->EnumerateTypeParameters(&trTypeEnum)))
@@ -193,17 +193,17 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
             IfFailRet(trEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(trTypeParams.size()),
-                                                         reinterpret_cast<ICorDebugType **>(trTypeParams.data()), ArgsValueCount, ppArgsValue));
+                                                         reinterpret_cast<ICorDebugType **>(trTypeParams.data()), argsValueCount, ppArgsValue));
             return S_OK;
         });
 }
 
 HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                         uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
+                                         uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                          ICorDebugValue **ppEvalResult)
 {
-    assert((!ppArgsType && ArgsTypeCount == 0) || (ppArgsType && ArgsTypeCount > 0));
-    assert((!ppArgsValue && ArgsValueCount == 0) || (ppArgsValue && ArgsValueCount > 0));
+    assert((!ppArgsType && argsTypeCount == 0) || (ppArgsType && argsTypeCount > 0));
+    assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
 
     if ((m_evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {
@@ -217,7 +217,7 @@ HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunc
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->CallParameterizedFunction(pFunc, ArgsTypeCount, ppArgsType, ArgsValueCount, ppArgsValue));
+            IfFailRet(trEval2->CallParameterizedFunction(pFunc, argsTypeCount, ppArgsType, argsValueCount, ppArgsValue));
             return S_OK;
         });
 }

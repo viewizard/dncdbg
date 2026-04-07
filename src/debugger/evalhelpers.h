@@ -39,11 +39,11 @@ class EvalHelpers
                                               bool DetectStaticMembers = true);
 
     HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                         uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
+                         uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                          ICorDebugValue **ppEvalResult, bool ignoreEvalFlags = false);
 
     HRESULT EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                uint32_t ArgsTypeCount, ICorDebugValue **ppArgsValue, uint32_t ArgsValueCount,
+                                uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                 ICorDebugValue **ppEvalResult);
 
     HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
