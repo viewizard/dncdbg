@@ -788,13 +788,13 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     if (setterData->trThisValue == nullptr)
     {
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 trValue.GetRef(), 1, nullptr);
+                                                 nullptr, trValue.GetRef(), 1, nullptr);
     }
     else
     {
         std::array<ICorDebugValue *, 2> ppArgsValue{setterData->trThisValue, trValue};
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 ppArgsValue.data(), 2, nullptr);
+                                                 nullptr, ppArgsValue.data(), 2, nullptr);
     }
 }
 
@@ -1096,7 +1096,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             ToRelease<ICorDebugFunction> trFunc;
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
-                            return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(),
+                            return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
                                                                      is_static ? nullptr : &pInputValue, is_static ? 0 : 1,
                                                                      ppResultValue, ignoreEvalFlags);
                         };

@@ -422,7 +422,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, &pValue, 1, pResultValue);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
@@ -454,7 +454,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, &pTypeValue, 1, pResultValue);
+    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue, 1, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
@@ -812,7 +812,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
-            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, ppArgsValue.data(), 2, pResultValue);
+            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, ppArgsValue.data(), 2, pResultValue);
         };
 
     // Try execute operator for exact same type as provided values.
@@ -1314,33 +1314,18 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         pValueArgs.emplace_back(trArgs.at(i).GetPtr());
     }
 
-    // Collect type(class)'s generic types if any
-    const size_t typeArgsCount = evalStack.front().trGenericTypeCache.size();
-    std::vector<ToRelease<ICorDebugType>> trTypeGenerics;
-    trTypeGenerics.reserve(typeArgsCount);
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-    if (SUCCEEDED(trType->EnumerateTypeParameters(&trTypeEnum)))
+    // Prepare method's generic types if any
+    std::vector<ToRelease<ICorDebugType>> trMethodGenericTypes;
+    trMethodGenericTypes.reserve(evalStack.front().trGenericTypeCache.size());
+    for (size_t i = evalStack.front().trGenericTypeCache.size(); i > 0; i--)
     {
-        ICorDebugType *curType = nullptr;
-        ULONG fetched = 0;
-        while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
-        {
-            trTypeGenerics.emplace_back(curType);
-        }
-    }
-
-    // Add method's generic types if any
-    for (size_t i = typeArgsCount; i > 0; i--)
-    {
-        trTypeGenerics.emplace_back(evalStack.front().trGenericTypeCache.at(i - 1).GetPtr());
-        trTypeGenerics.back()->AddRef();
+        // Note: we detach here, since trGenericTypeCache will be cleared at ResetEntry() call anyway.
+        trMethodGenericTypes.emplace_back(evalStack.front().trGenericTypeCache.at(i - 1).Detach());
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalHelpers->EvalGenericFunction(
-        ed.pThread, trFunc, reinterpret_cast<ICorDebugType **>(trTypeGenerics.data()),
-        static_cast<uint32_t>(trTypeGenerics.size()), pValueArgs.data(),
-        static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
+    Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+                                           pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is
     // void.
@@ -1459,7 +1444,7 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trValueArgs.data(),
+        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
                                                Int + 1, &evalStack.front().trValue);
     }
     return Status;
@@ -1575,7 +1560,7 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trValueArgs.data(),
+        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
                                                Int + 1, &evalStack.front().trValue);
     }
     return Status;

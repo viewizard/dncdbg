@@ -153,6 +153,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 // [in] argsValueCount - size of args Value array;
 // [out] ppEvalResult - return value;
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+                                  std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                   ICorDebugValue **ppEvalResult, bool ignoreEvalFlags)
 {
@@ -179,6 +180,15 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             }
         }
     }
+    if (pTrMethodGenericTypes != nullptr)
+    {
+        trTypeParams.reserve(trTypeParams.size() + (*pTrMethodGenericTypes).size());
+        for (auto &entry : *pTrMethodGenericTypes)
+        {
+            trTypeParams.emplace_back(entry.Detach());
+        }
+        (*pTrMethodGenericTypes).clear();
+    }
 
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
@@ -190,30 +200,6 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             IfFailRet(trEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(trTypeParams.size()),
                                                          reinterpret_cast<ICorDebugType **>(trTypeParams.data()),
                                                          argsValueCount, ppArgsValue));
-            return S_OK;
-        });
-}
-
-HRESULT EvalHelpers::EvalGenericFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType **ppArgsType,
-                                         uint32_t argsTypeCount, ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                                         ICorDebugValue **ppEvalResult)
-{
-    assert((!ppArgsType && argsTypeCount == 0) || (ppArgsType && argsTypeCount > 0));
-    assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
-
-    if ((m_evalFlags & EVAL_NOFUNCEVAL) != 0U)
-    {
-        return CORDBG_E_DEBUGGING_DISABLED;
-    }
-
-    return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by EvalWaiter mutex.
-            HRESULT Status = S_OK;
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->CallParameterizedFunction(pFunc, argsTypeCount, ppArgsType, argsValueCount, ppArgsValue));
             return S_OK;
         });
 }
@@ -380,7 +366,7 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
         }
 
         // Note, this call must ignore any eval flags.
-        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, trTypeObject.GetRef(), 1, nullptr, true));
+        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(), 1, nullptr, true));
     }
 
     AddTypeObjectToCache(pType, trTypeObject);
