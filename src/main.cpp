@@ -75,20 +75,6 @@ void print_version()
     std::cout << "DNCDbg version " << BuildInfo::version << "\n";
 }
 
-void FindAndParseArgs(char **argv, const std::vector<std::pair<std::string, std::function<void(int i)>>> &partialArguments, int i)
-{
-    for (auto const &argument : partialArguments)
-    {
-        if (strstr(argv[i], argument.first.c_str()) == argv[i])
-        {
-            argument.second(i);
-            return;
-        }
-    }
-    std::cerr << "Error: Unknown option " << argv[i] << "\n";
-    exit(EXIT_FAILURE);
-}
-
 } // unnamed namespace
 
 int
@@ -101,6 +87,8 @@ int
     std::cin.tie(nullptr);
 
     std::string protocolLogFilePath;
+    // Converts all arguments, skip the program name (argv[0])
+    const std::vector<std::string> args(argv + 1, argv + argc);
 
     std::unordered_map<std::string, std::function<void()>> entireArguments{
         {"--help", [&]() {
@@ -116,31 +104,46 @@ int
             exit(EXIT_SUCCESS);
         }},
         {"--interpreter=vscode" , [&]() {
-            // VSCode IDE send this option silently to debugger, just ignore it
+            // VSCode IDE sends this option silently to debugger, just ignore it
         }}};
 
-    const std::vector<std::pair<std::string, std::function<void(int i)>>> partialArguments{
-        {"--logProtocol=", [&](int i) {
-            protocolLogFilePath = argv[i] + strlen("--logProtocol="); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    const std::vector<std::pair<std::string, std::function<void(const std::string &arg)>>> partialArguments{
+        {"--logProtocol=", [&](const std::string &arg) {
+            protocolLogFilePath = arg.substr(strlen("--logProtocol="));
         }},
-        {"--log=", [&](int i) {
-            dncdbg::Logger::OpenLogStream(argv[i] + strlen("--log=")); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+        {"--log=", [&](const std::string &arg) {
+            dncdbg::Logger::OpenLogStream(arg.substr(strlen("--log=")).c_str());
         }},
-        {"--loglevel=", [&](int i) {
-            dncdbg::Logger::SetLogLevel(argv[i] + strlen("--loglevel=")); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+        {"--loglevel=", [&](const std::string &arg) {
+            dncdbg::Logger::SetLogLevel(arg.substr(strlen("--loglevel=")).c_str());
         }}
     };
 
-    for (int i = 1; i < argc; i++)
+    for (const std::string &arg : args)
     {
-        auto args = entireArguments.find(std::string(argv[i]));
-        if (args != entireArguments.end())
+        auto findEntire = entireArguments.find(arg);
+        if (findEntire != entireArguments.end())
         {
-            args->second();
+            findEntire->second();
         }
         else
         {
-            FindAndParseArgs(argv, partialArguments, i);
+            bool found = false;
+            for (auto const &entry : partialArguments)
+            {
+                // Note: starts_with() is C++20, use rfind() for compatibility
+                if (arg.rfind(entry.first, 0) == 0)
+                {
+                    entry.second(arg);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                std::cerr << "Error: Unknown option " << arg << "\n";
+                exit(EXIT_FAILURE);
+            }
         }
     }
 
