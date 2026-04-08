@@ -195,15 +195,23 @@ bool IsDirExists(const char *const path)
 
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
-    // We need to append the environ values with keeping the current process environment block.
-    // It works equally for any platforms in coreclr CreateProcessW(), but is not critical for Linux.
+    // We need to append the environment values while keeping the current process environment block.
+    // It works equally for all platforms in coreclr CreateProcessW(), but is not critical for Linux.
     std::map<std::string, std::string> envMap;
     if (SUCCEEDED(GetSystemEnvironmentAsMap(envMap)))
     {
         // Override the system value (PATHs appending needs a complex implementation)
         for (const auto &pair : env)
         {
-            envMap[pair.first] = pair.second;
+            auto findEnv = envMap.find(pair.first);
+            if (findEnv != envMap.end())
+            {
+                findEnv->second = pair.second;
+            }
+            else
+            {
+                envMap.emplace(pair);
+            }
         }
         for (const auto &pair : envMap)
         {

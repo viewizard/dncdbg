@@ -445,10 +445,26 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         case ExceptionCallbackType::FIRST_CHANCE:
         {
             // Important, reset previous stage for this thread.
-            m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::NEVER;
+            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            {
+                findBreakMode->second = ExceptionBreakMode::NEVER;
+            }
+            else
+            {
+                m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::NEVER);
+            }
 
-            m_threadsExceptionStatus[tid].m_lastEvent = ExceptionCallbackType::FIRST_CHANCE;
-            m_threadsExceptionStatus[tid].m_excModule = excModule;
+            auto findExceptionStatus = m_threadsExceptionStatus.find(tid);
+            if (findExceptionStatus != m_threadsExceptionStatus.end())
+            {
+                findExceptionStatus->second.m_lastEvent = ExceptionCallbackType::FIRST_CHANCE;
+                findExceptionStatus->second.m_excModule = excModule;
+            }
+            else
+            {
+                m_threadsExceptionStatus.emplace(tid, ExceptionStatus(ExceptionCallbackType::FIRST_CHANCE, excModule));
+            }
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
@@ -456,7 +472,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
+            m_threadsExceptionBreakMode.at(tid) = ExceptionBreakMode::THROW;
             break;
         }
 
@@ -466,7 +482,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             auto find = m_threadsExceptionStatus.find(tid);
             if (find != m_threadsExceptionStatus.end())
             {
-                m_threadsExceptionStatus[tid].m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
+                find->second.m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
                 if (find->second.m_excModule.empty())
                 {
                     find->second.m_excModule = excModule;
@@ -475,8 +491,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            m_threadsExceptionStatus[tid].m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
-            m_threadsExceptionStatus[tid].m_excModule = excModule;
+            m_threadsExceptionStatus.emplace(tid, ExceptionStatus(ExceptionCallbackType::USER_FIRST_CHANCE, excModule));
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
@@ -484,7 +499,15 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::THROW;
+            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            {
+                findBreakMode->second = ExceptionBreakMode::THROW;
+            }
+            else
+            {
+                m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::THROW);
+            }
             break;
         }
 
@@ -492,7 +515,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         {
             assert(m_threadsExceptionStatus.find(tid) != m_threadsExceptionStatus.end());
 
-            if (!m_justMyCode || m_threadsExceptionStatus[tid].m_lastEvent == ExceptionCallbackType::FIRST_CHANCE)
+            if (!m_justMyCode || m_threadsExceptionStatus.at(tid).m_lastEvent == ExceptionCallbackType::FIRST_CHANCE)
             {
                 m_threadsExceptionStatus.erase(tid);
                 return S_IGNORE;
@@ -505,17 +528,25 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            excModule = m_threadsExceptionStatus[tid].m_excModule;
+            excModule = m_threadsExceptionStatus.at(tid).m_excModule;
             m_threadsExceptionStatus.erase(tid);
 
-            m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::USER_UNHANDLED;
+            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            {
+                findBreakMode->second = ExceptionBreakMode::USER_UNHANDLED;
+            }
+            else
+            {
+                m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::USER_UNHANDLED);
+            }
             break;
         }
 
         case ExceptionCallbackType::USER_CATCH_HANDLER_FOUND:
         {
             assert(m_threadsExceptionStatus.find(tid) != m_threadsExceptionStatus.end());
-            assert(m_threadsExceptionStatus[tid].m_lastEvent == ExceptionCallbackType::USER_FIRST_CHANCE);
+            assert(m_threadsExceptionStatus.at(tid).m_lastEvent == ExceptionCallbackType::USER_FIRST_CHANCE);
 
             m_threadsExceptionStatus.erase(tid);
             return S_IGNORE;
@@ -523,9 +554,9 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
         case ExceptionCallbackType::UNHANDLED:
         {
-            // By current logic, debugger must stop at all unhandled exception (that will crash application), no matter what user has configured.
-            // TODO some exception like System.AppDomainUnloadedException or System.Threading.ThreadAbortException, could be ignored at unhandled,
-            // since they don't crash application, in this case:
+            // By current logic, the debugger must stop at all unhandled exceptions (that will crash the application), no matter what the user has configured.
+            // TODO: Some exceptions like System.AppDomainUnloadedException or System.Threading.ThreadAbortException could be ignored at unhandled,
+            // since they don't crash the application. In this case:
             //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, excType, ExceptionCategory::CLR)) - forced to emit event
 
             auto find = m_threadsExceptionStatus.find(tid);
@@ -535,7 +566,15 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 m_threadsExceptionStatus.erase(find);
             }
 
-            m_threadsExceptionBreakMode[tid] = ExceptionBreakMode::UNHANDLED;
+            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            {
+                findBreakMode->second = ExceptionBreakMode::UNHANDLED;
+            }
+            else
+            {
+                m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::UNHANDLED);
+            }
             break;
         }
 

@@ -71,18 +71,18 @@ void Threads::Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugTh
 
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
 
-    // First added user thread during start is Main thread for sure.
+    // The first user thread added during startup is the Main thread.
     if (!processAttached && !MainThread)
     {
         MainThread = threadId;
         if (threadName == "<No name>")
         {
-            m_userThreads.insert({threadId, "Main Thread"});
+            m_userThreads.emplace(threadId, "Main Thread");
             return;
         }
     }
 
-    m_userThreads.insert({threadId, threadName});
+    m_userThreads.emplace(threadId, threadName);
 }
 
 void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
@@ -96,7 +96,9 @@ void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICor
 
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
     const ThreadId threadId(getThreadId(pThread));
-    m_userThreads[threadId] = threadName;
+
+    assert(m_userThreads.find(threadId) != m_userThreads.end());
+    m_userThreads.at(threadId) = threadName;
 }
 
 void Threads::Remove(const ThreadId &threadId)

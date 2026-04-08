@@ -229,7 +229,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
             }
         }
 
-        resolvedTypes[currentType] = std::move(trType);
+        resolvedTypes.emplace(currentType, std::move(trType));
     }
 
     // Copy resolved types to output in original order.
