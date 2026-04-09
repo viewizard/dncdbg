@@ -17,6 +17,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
 #include <array>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <unordered_set>
@@ -360,16 +361,9 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
         uint32_t startOffset;
         uint32_t length;
     };
-    struct hoisted_local_scope_t_deleter
-    {
-        void operator()(hoisted_local_scope_t *p) const
-        {
-            Interop::CoTaskMemFree(p);
-        }
-    };
 
-    int32_t hoistedLocalScopesCount = -1;
-    std::unique_ptr<hoisted_local_scope_t, hoisted_local_scope_t_deleter> hoistedLocalScopes;
+    bool hoistedLocalScopesChecked = false;
+    std::vector<hoisted_local_scope_t> hoistedLocalScopes;
 
     return ForEachFields(pMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
@@ -414,26 +408,28 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
             {
-                if (hoistedLocalScopesCount == -1)
+                if (!hoistedLocalScopesChecked)
                 {
                     void *data = nullptr;
-                    if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, hoistedLocalScopesCount)) && data)
+                    int32_t count = 0;
+                    if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, count)) &&
+                        data != nullptr)
                     {
-                        hoistedLocalScopes.reset(static_cast<hoisted_local_scope_t *>(data));
+                        hoistedLocalScopes.resize(count);
+                        std::memcpy(hoistedLocalScopes.data(), data, count * sizeof(hoisted_local_scope_t));
+                        Interop::CoTaskMemFree(data);
                     }
-                    else
-                    {
-                        hoistedLocalScopesCount = 0;
-                    }
+
+                    hoistedLocalScopesChecked = true;
                 }
 
-                // Check, that hoisted local is in scope.
-                // Note, in case we have any issue - ignore this check and show variable, since this is not fatal error.
+                // Check that hoisted local is in scope.
+                // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
                 int32_t index = 0;
-                if (hoistedLocalScopesCount > 0 && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
-                    hoistedLocalScopesCount > index &&
-                    (currentIlOffset < hoistedLocalScopes.get()[index].startOffset ||
-                    currentIlOffset >= hoistedLocalScopes.get()[index].startOffset + hoistedLocalScopes.get()[index].length))
+                if (!hoistedLocalScopes.empty() && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
+                    hoistedLocalScopes.size() > index &&
+                    (currentIlOffset < hoistedLocalScopes.at(index).startOffset ||
+                    currentIlOffset >= hoistedLocalScopes.at(index).startOffset + hoistedLocalScopes.at(index).length))
                 {
                     return S_OK; // Return with success to continue walk.
                 }
