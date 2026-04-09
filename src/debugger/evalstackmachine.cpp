@@ -2242,7 +2242,10 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     {
         typeDef = mdTypeDefNil;
         IfFailRet(trMDImport->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
-        IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap[entry.first]));
+
+        assert(m_evalData.trElementToValueClassMap.find(entry.first) == m_evalData.trElementToValueClassMap.end());
+        m_evalData.trElementToValueClassMap.emplace(entry.first, nullptr);
+        IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap.at(entry.first)));
     }
 
     return S_OK;
