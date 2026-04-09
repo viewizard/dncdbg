@@ -995,7 +995,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         {
             return S_CAN_EXIT;
         }
-        IfFailRet(ForEachProperties(trMDImport, currentTypeDef,
+        Status = ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
             {
                 ULONG propertyNameLen = 0;
@@ -1003,15 +1003,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                        nullptr, nullptr, nullptr, nullptr, nullptr,
                                                        nullptr, nullptr, nullptr, nullptr, 0, nullptr));
 
-                mdTypeDef propertyClass = mdTypeDefNil;
-                UVCP_CONSTANT pDefaultValue;
-                ULONG cchDefaultValue;
                 mdMethodDef mdGetter = mdMethodDefNil;
                 mdMethodDef mdSetter = mdMethodDefNil;
                 WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
-                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, &propertyClass, propertyName.data(), propertyNameLen, // NOLINT(readability-suspicious-call-argument)
-                                                           nullptr, nullptr, nullptr, nullptr, nullptr, &pDefaultValue,
-                                                           &cchDefaultValue, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
+                                                           nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                           nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                 {
                     DWORD getterAttr = 0;
                     if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
@@ -1027,8 +1024,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     }
 
                     // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
-                    // Since we check only first byte, no reason store it as int (default enum type in c#)
-                    enum DebuggerBrowsableState : char // NOLINT(cppcoreguidelines-use-enum-class)
+                    // Since we check only first byte, no reason to store it as int (default enum type in C#)
+                    enum DebuggerBrowsableState : uint8_t // NOLINT(cppcoreguidelines-use-enum-class)
                     {
                         Never = 0,
                         Expanded = 1,
@@ -1036,7 +1033,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         RootHidden = 3
                     };
 
-                    const char *g_DebuggerBrowsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
+                    static constexpr std::string_view s_DebuggerBrowsableAttr = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
                     bool debuggerBrowsableState_Never = false;
 
                     ULONG numAttributes = 0;
@@ -1045,28 +1042,44 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     while (SUCCEEDED(trMDImport->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
                         numAttributes != 0)
                     {
-                        mdToken ptkObj = mdTokenNil;
-                        mdToken ptkType = mdTokenNil;
-                        void const *ppBlob = nullptr;
-                        ULONG pcbSize = 0;
-                        if (FAILED(trMDImport->GetCustomAttributeProps(attr, &ptkObj, &ptkType, &ppBlob, &pcbSize)))
+                        mdToken tkType = mdTokenNil;
+                        const void *pBlob = nullptr;
+                        ULONG cbSize = 0;
+                        if (FAILED(trMDImport->GetCustomAttributeProps(attr, nullptr, &tkType, &pBlob, &cbSize)))
                         {
                             continue;
                         }
 
                         std::string mdName;
-                        if (FAILED(TypePrinter::NameForToken(ptkType, trMDImport, mdName, true, nullptr)))
+                        if (FAILED(TypePrinter::NameForToken(tkType, trMDImport, mdName, true, nullptr)) ||
+                            mdName != s_DebuggerBrowsableAttr)
                         {
                             continue;
                         }
 
-                        if (mdName == g_DebuggerBrowsable
-                            // In case of DebuggerBrowsableAttribute blob is 8 bytes:
-                            // 2 bytes - blob prolog 0x0001
-                            // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
-                            // 2 bytes - alignment
-                            // We check only one byte (first data byte), no reason check 4 bytes in our case.
-                            && pcbSize > 2 && (static_cast<char const *>(ppBlob)[2] == DebuggerBrowsableState::Never))
+                        // In case of DebuggerBrowsableAttribute, blob size must be 8 bytes:
+                        // 2 bytes - blob prolog 0x0001
+                        // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
+                        // 2 bytes - alignment
+                        static constexpr ULONG debuggerBrowsableAttributeBlobSize = 8;
+                        const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+                        if (cbSize != debuggerBrowsableAttributeBlobSize ||
+                            // Check blob prolog 0x0001 as bytes to avoid uint16_t alignment issues.
+#if BIGENDIAN
+                            *pbBlob != 0x00 || *(pbBlob + 1) != 0x01)
+#else
+                            *pbBlob != 0x01 || *(pbBlob + 1) != 0x00)
+#endif
+                        {
+                            continue;
+                        }
+
+                        // We check only one byte (first data byte for integer), no reason to check 4 bytes in our case.
+#if BIGENDIAN
+                        if (*(pbBlob + 5) == DebuggerBrowsableState::Never)
+#else
+                        if (*(pbBlob + 2) == DebuggerBrowsableState::Never)
+#endif
                         {
                             debuggerBrowsableState_Never = true;
                             break;
@@ -1121,7 +1134,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     }
                 }
                 return S_OK; // Return with success to continue walk.
-            }));
+            });
+        // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
+        IfFailRet(Status);
         if (Status == S_CAN_EXIT)
         {
             return S_OK;
