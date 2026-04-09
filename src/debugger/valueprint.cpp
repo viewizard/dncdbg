@@ -72,8 +72,8 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    //First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant
-    //We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar)
+    // First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant.
+    // We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar).
     ULONG numFields = 0;
     HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
@@ -439,31 +439,31 @@ bool uint96_is_zero(const std::array<uint32_t, 3> &v)
     return v.at(0) == 0 && v.at(1) == 0 && v.at(2) == 0;
 }
 
-void udivrem96(std::array<uint32_t, 3> &divident, uint32_t divisor, uint32_t &remainder)
+void udivrem96(std::array<uint32_t, 3> &dividend, uint32_t divisor, uint32_t &remainder)
 {
     remainder = 0;
     for (int i = 2; i >= 0; i--)
     {
-        const uint64_t partial_dividend = Make_64(remainder, divident.at(i));
+        const uint64_t partial_dividend = Make_64(remainder, dividend.at(i));
         if (partial_dividend == 0)
         {
-            divident.at(i) = 0;
+            dividend.at(i) = 0;
             remainder = 0;
         }
         else if (partial_dividend < divisor)
         {
-            divident.at(i) = 0;
+            dividend.at(i) = 0;
             remainder = Lo_32(partial_dividend);
         }
         else if (partial_dividend == divisor)
         {
-            divident.at(i) = 1;
+            dividend.at(i) = 1;
             remainder = 0;
         }
         else
         {
-            divident.at(i) = Lo_32(partial_dividend / divisor);
-            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(divident.at(i)) * divisor));
+            dividend.at(i) = Lo_32(partial_dividend / divisor);
+            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(dividend.at(i)) * divisor));
         }
     }
 }
