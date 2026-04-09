@@ -23,10 +23,9 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::functi
     while (SUCCEEDED(pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &attr, 1, &numAttributes)) && numAttributes != 0)
     {
         std::string mdName;
-        mdToken ptkObj = mdTokenNil;
-        mdToken ptkType = mdTokenNil;
-        if (FAILED(pMDImport->GetCustomAttributeProps(attr, &ptkObj, &ptkType, nullptr, nullptr)) ||
-            FAILED(TypePrinter::NameForToken(ptkType, pMDImport, mdName, true, nullptr)))
+        mdToken tkType = mdTokenNil;
+        if (FAILED(pMDImport->GetCustomAttributeProps(attr, nullptr, &tkType, nullptr, nullptr)) ||
+            FAILED(TypePrinter::NameForToken(tkType, pMDImport, mdName, true, nullptr)))
         {
             continue;
         }
