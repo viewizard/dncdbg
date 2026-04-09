@@ -825,6 +825,10 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
 
         uint32_t cbSize = 0;
         IfFailRet(trValue->GetSize(&cbSize));
+        if (cbSize == 0)
+        {
+            return E_INVALIDARG;
+        }
         std::vector<uint8_t> genericValue(cbSize, 0);
 
         CorElementType corElemType = ELEMENT_TYPE_MAX;
@@ -949,7 +953,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 return S_OK;
             }
             EscapeString(printableVal, '\'');
-            ss << static_cast<unsigned int>(wstr.c_str()[0]) << " '" << printableVal << "'";
+            ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
         }
         break;
 
