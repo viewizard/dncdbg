@@ -154,7 +154,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
     while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
     {
         ULONG propertyNameLen = 0;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen, // NOLINT(readability-suspicious-call-argument)
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                                                 nullptr, 0, nullptr)))
         {
@@ -163,7 +163,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
 
         WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
         mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr, // NOLINT(readability-suspicious-call-argument)
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr,
                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
                                                 nullptr, 0, nullptr)))
         {
