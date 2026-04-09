@@ -811,11 +811,11 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
                 return E_INVALIDARG;
             }
 
-            std::array<ICorDebugValue *, 2> ppArgsValue{pType1Value, pType2Value};
-            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, ppArgsValue.data(), 2, pResultValue);
+            std::array<ICorDebugValue *, 2> argsValue{pType1Value, pType2Value};
+            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(), 2, pResultValue);
         };
 
-    // Try execute operator for exact same type as provided values.
+    // Try to execute operator for exact same type as provided values.
     if (SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
             return elemType1 != methodArgs.at(0).corType || typeName1 != methodArgs.at(0).typeName ||
                     elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName
@@ -825,7 +825,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         return S_OK;
     }
 
-    // Try execute operator with implicit cast for second value.
+    // Try to execute operator with implicit cast for second value.
     // Make sure we don't cast "base" struct/class value for this case,
     // since "... at least one parameter must have type T...".
     if (elemType == elemType1 && typeName == typeName1 &&
@@ -853,7 +853,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         return S_OK;
     }
 
-    // Try execute operator with implicit cast for first value.
+    // Try to execute operator with implicit cast for first value.
     return CallOperator([&](std::vector<SigElementType> &methodArgs) {
         if (elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName)
         {

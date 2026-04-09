@@ -23,11 +23,11 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     DWORD threadId = 0;
     pThread->GetID(&threadId);
 
-    std::unique_ptr<evalResultData_t> ppEvalResult = std::make_unique<evalResultData_t>();
+    std::unique_ptr<evalResultData_t> uniqueEvalResult = std::make_unique<evalResultData_t>();
     if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
-        (*ppEvalResult).Status = pEval->GetResult(&((*ppEvalResult).trEval));
+        (*uniqueEvalResult).Status = pEval->GetResult(&((*uniqueEvalResult).trEval));
     }
 
     if (!m_evalResult || m_evalResult->threadId != threadId)
@@ -35,7 +35,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
         return;
     }
 
-    m_evalResult->promiseValue.set_value(std::move(ppEvalResult));
+    m_evalResult->promiseValue.set_value(std::move(uniqueEvalResult));
     m_evalResult.reset(nullptr);
 }
 

@@ -788,9 +788,9 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     }
     else
     {
-        std::array<ICorDebugValue *, 2> ppArgsValue{setterData->trThisValue, trValue};
+        std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 nullptr, ppArgsValue.data(), 2, nullptr);
+                                                 nullptr, argsValue.data(), 2, nullptr);
     }
 }
 

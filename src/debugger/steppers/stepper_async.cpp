@@ -273,9 +273,9 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(trModule->GetFunctionFromToken(setNotifDef, &trFunc));
 
-    std::array <ICorDebugValue *, 2> ppArgsValue{pBuilderValue, trNewBoolean};
-    // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr, ppArgsValue.data(), 2, nullptr, true));
+    std::array<ICorDebugValue *, 2> argsValue{pBuilderValue, trNewBoolean};
+    // Note, builder (`this` value) could be a generic type - Task<TResult>, type must be provided too.
+    IfFailRet(pEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr, argsValue.data(), 2, nullptr, true));
 
     return S_OK;
 }
