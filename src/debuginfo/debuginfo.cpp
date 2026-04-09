@@ -7,6 +7,7 @@
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
+#include <cstring>
 #include <vector>
 
 namespace dncdbg
@@ -587,33 +588,43 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    return GetPDBInfo(modAddress, [&](PDBInfo &pdbInfo) -> HRESULT {
+    return GetPDBInfo(modAddress, [&](PDBInfo &pdbInfo) -> HRESULT
+    {
         void *data = nullptr;
         int32_t constantCount = 0;
         IfFailRet(Interop::GetLocalConstants(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, &data, constantCount));
-
-        if (constantCount > 0 && data != nullptr)
+        if (constantCount <= 0 || data == nullptr)
         {
-            auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
-            for (int32_t i = 0; i < constantCount; i++)
-            {
-                LocalConstantInfo info;
-                if (interopConstants[i].name != nullptr)
-                {
-                    info.name = interopConstants[i].name;
-                    Interop::SysFreeString(interopConstants[i].name);
-                }
-                if (interopConstants[i].signature != nullptr && interopConstants[i].signatureSize > 0)
-                {
-                    info.signature = std::vector<uint8_t>(
-                        interopConstants[i].signature,
-                        interopConstants[i].signature + interopConstants[i].signatureSize);
-                    Interop::CoTaskMemFree(interopConstants[i].signature);
-                }
-                constants.push_back(std::move(info));
-            }
-            Interop::CoTaskMemFree(data);
+            return S_OK;
         }
+
+        auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
+        const Interop::LocalConstantInfo *endLoopPointer = interopConstants + constantCount;
+        constants.reserve(constantCount);
+
+        while (interopConstants != endLoopPointer)
+        {
+            LocalConstantInfo info;
+            const Interop::LocalConstantInfo &inConstant = *interopConstants;
+
+            if (inConstant.name != nullptr)
+            {
+                info.name = inConstant.name;
+                Interop::SysFreeString(inConstant.name);
+            }
+            if (inConstant.signature != nullptr && inConstant.signatureSize > 0)
+            {
+                info.signature.resize(inConstant.signatureSize);
+                std::memcpy(info.signature.data(), inConstant.signature, inConstant.signatureSize);
+                Interop::CoTaskMemFree(inConstant.signature);
+            }
+
+            constants.emplace_back(std::move(info));
+            ++interopConstants;
+        }
+
+        Interop::CoTaskMemFree(data);
+
         return S_OK;
     });
 }
