@@ -12,11 +12,13 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "managed/interop.h"
 #include "utils/torelease.h"
 #include <functional>
 #include <mutex>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <string>
 
@@ -25,66 +27,33 @@ namespace dncdbg
 
 using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
 
-struct method_data_t
+struct file_data_t
 {
-    mdMethodDef methodDef;
-    int32_t startLine;   // first segment/method SequencePoint's startLine
-    int32_t endLine;     // last segment/method SequencePoint's endLine
-    int32_t startColumn; // first segment/method SequencePoint's startColumn
-    int32_t endColumn;   // last segment/method SequencePoint's endColumn
-    int32_t isCtor;      // is method data constructor related
+    unsigned fullPathIndex{0};
+    std::vector<Interop::method_data_t> methodsData;
 
-    method_data_t()
-        : methodDef(0),
-          startLine(0),
-          endLine(0),
-          startColumn(0),
-          endColumn(0),
-          isCtor(0)
+    file_data_t(unsigned fullPathIndex_, std::vector<Interop::method_data_t> &&methodsData_) noexcept
+        : fullPathIndex(fullPathIndex_),
+          methodsData(std::move(methodsData_))
     {
     }
 
-    method_data_t(mdMethodDef methodDef_,
-                  int32_t startLine_,
-                  int32_t endLine_,
-                  int32_t startColumn_,
-                  int32_t endColumn_,
-                  int32_t isCtor_)
-        : methodDef(methodDef_),
-          startLine(startLine_),
-          endLine(endLine_),
-          startColumn(startColumn_),
-          endColumn(endColumn_),
-          isCtor(isCtor_)
+    file_data_t(file_data_t &&other) noexcept
+        : fullPathIndex(other.fullPathIndex),
+          methodsData(std::move(other.methodsData))
     {
     }
 
-    bool operator<(const method_data_t &other) const
-    {
-        return endLine < other.endLine || (endLine == other.endLine && endColumn < other.endColumn);
-    }
-
-    bool operator<(const int32_t lineNum) const
-    {
-        return endLine < lineNum;
-    }
-
-    bool operator==(const method_data_t &other) const
-    {
-        return methodDef == other.methodDef && startLine == other.startLine && endLine == other.endLine &&
-               startColumn == other.startColumn && endColumn == other.endColumn;
-    }
-
-    [[nodiscard]] bool NestedInto(const method_data_t &other) const
-    {
-        return (startLine > other.startLine || (startLine == other.startLine && startColumn >= other.startColumn)) &&
-               (endLine < other.endLine || (endLine == other.endLine && endColumn <= other.endColumn));
-    }
+    file_data_t() = default;
+    file_data_t(const file_data_t &) = delete;
+    file_data_t &operator=(file_data_t &&) = delete;
+    file_data_t &operator=(const file_data_t &) = delete;
+    ~file_data_t() = default;
 };
 
 struct method_data_t_hash
 {
-    size_t operator()(const method_data_t &p) const
+    size_t operator()(const Interop::method_data_t &p) const
     {
         // Hash combining based on boost::hash_combine
         // Golden ratio constant for better bit distribution
@@ -156,7 +125,7 @@ class DebugInfoSources
     {
         CORDB_ADDRESS modAddress = 0;
         // properly ordered on each nested level arrays of methods data
-        std::vector<std::vector<method_data_t>> methodsData;
+        std::vector<std::vector<Interop::method_data_t>> methodsData;
     };
 
     // Note, breakpoints setup and ran debuggee's process could be in the same time.
@@ -174,6 +143,9 @@ class DebugInfoSources
 
     HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);
     HRESULT ResolveRelativeSourceFileName(std::string &filename);
+    HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
+                                std::unordered_set<mdMethodDef> *methodTokens,
+                                std::vector<file_data_t> &inputData);
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     // all files names converted to uppercase in containers above, but this vector hold initial full path names

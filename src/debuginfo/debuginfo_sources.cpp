@@ -5,7 +5,6 @@
 
 #include "debuginfo/debuginfo_sources.h"
 #include "debuginfo/debuginfo.h"
-#include "managed/interop.h"
 #include "utils/filesystem.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
@@ -21,69 +20,19 @@ namespace dncdbg
 namespace
 {
 
-struct file_methods_data_t
-{
-    BSTR document;
-    int32_t methodNum;
-    method_data_t *methodsData;
-
-    file_methods_data_t() = delete;
-    file_methods_data_t(const file_methods_data_t &) = delete;
-    file_methods_data_t &operator=(const file_methods_data_t &) = delete;
-    file_methods_data_t(file_methods_data_t &&) = delete;
-    file_methods_data_t &operator=(file_methods_data_t &&) = delete;
-    ~file_methods_data_t() = default;
-};
-
-struct module_methods_data_t
-{
-    int32_t fileNum;
-    file_methods_data_t *moduleMethodsData;
-
-    module_methods_data_t() = delete;
-    module_methods_data_t(const module_methods_data_t &) = delete;
-    module_methods_data_t &operator=(const module_methods_data_t &) = delete;
-    module_methods_data_t(module_methods_data_t &&) = delete;
-    module_methods_data_t &operator=(module_methods_data_t &&) = delete;
-    ~module_methods_data_t() = default;
-};
-
-struct module_methods_data_t_deleter
-{
-    void operator()(module_methods_data_t *p) const
-    {
-        if (p->moduleMethodsData != nullptr)
-        {
-            for (int32_t i = 0; i < p->fileNum; i++)
-            {
-                if (p->moduleMethodsData[i].document != nullptr)
-                {
-                    Interop::SysFreeString(p->moduleMethodsData[i].document);
-                }
-                if (p->moduleMethodsData[i].methodsData != nullptr)
-                {
-                    Interop::CoTaskMemFree(p->moduleMethodsData[i].methodsData);
-                }
-            }
-            Interop::CoTaskMemFree(p->moduleMethodsData);
-        }
-        Interop::CoTaskMemFree(p);
-    }
-};
-
 // Note, we use std::map since we need container that will not invalidate iterators on add new elements.
-void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodData,
-                   const method_data_t &entry, const size_t level)
+void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>> &methodData,
+                   const Interop::method_data_t &entry, const size_t level)
 {
     struct MethodDataWithLevel
     {
-        MethodDataWithLevel(const method_data_t &entry_, const size_t level_)
+        MethodDataWithLevel(const Interop::method_data_t &entry_, const size_t level_)
             : entry(entry_),
               level(level_)
         {
         }
 
-        method_data_t entry;
+        Interop::method_data_t entry;
         size_t level;
     };
 
@@ -95,16 +44,16 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
         MethodDataWithLevel currentData = methodDataQueue.front();
         methodDataQueue.pop_front();
 
-        // if we here, we need at least one nested level for sure
+        // if we are here, we need at least one nested level for sure
         if (methodData.empty())
         {
-            methodData.emplace(0, std::set<method_data_t>{currentData.entry});
+            methodData.emplace(0, std::set<Interop::method_data_t>{currentData.entry});
             continue;
         }
         assert(currentData.level <= methodData.size()); // could be increased only at 1 per recursive call
         if (currentData.level == methodData.size())
         {
-            methodData.emplace(currentData.level, std::set<method_data_t>{currentData.entry});
+            methodData.emplace(currentData.level, std::set<Interop::method_data_t>{currentData.entry});
             continue;
         }
         auto it = methodData[currentData.level].lower_bound(currentData.entry);
@@ -121,7 +70,7 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
             continue;
         }
 
-        // in case this is parts of constructor with same location (for example, `int i = 0;`)
+        // in case these are parts of constructor with same location (for example, `int i = 0;`)
         if (it != methodData[currentData.level].end() && *it == currentData.entry && currentData.entry.isCtor == 1)
         {
             assert(it->isCtor == 1); // also must be part of constructor
@@ -136,7 +85,7 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
 
             if (it->NestedInto(currentData.entry))
             {
-                const method_data_t tmp = *it;
+                const Interop::method_data_t tmp = *it;
                 it = methodData[currentData.level].erase(it);
                 methodDataQueue.emplace_back(tmp, currentData.level + 1);
             }
@@ -150,12 +99,12 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<method_data_t>> &methodD
     }
 }
 
-bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &methodBpData,
+bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_data_t>> &methodBpData,
                                  /*in,out*/ int32_t &lineNum,
                                  /*out*/ std::vector<mdMethodDef> &Tokens,
                                  /*out*/ mdMethodDef &closestNestedToken)
 {
-    const method_data_t *result = nullptr;
+    const Interop::method_data_t *result = nullptr;
     closestNestedToken = 0;
 
     for (auto it = methodBpData.cbegin(); it != methodBpData.cend(); ++it)
@@ -208,7 +157,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
             result = &(*lower);
             continue; // need check nested level (if available)
         }
-        // out of first level methods lines - forced move line to first method below, for example:
+        // out of first-level method lines - forced move line to first method below, for example:
         //  <-- breakpoint at line without code (out of any methods)
         // void Method() {...}
         else if (it == methodBpData.cbegin() && lineNum < lower->startLine)
@@ -243,9 +192,11 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<method_data_t>> &
     return (result != nullptr);
 }
 
-HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
-                            std::unordered_set<mdMethodDef> *methodTokens,
-                            std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> &inputData)
+} // unnamed namespace
+
+HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
+                                              std::unordered_set<mdMethodDef> *methodTokens,
+                                              std::vector<file_data_t> &inputData)
 {
     HRESULT Status = S_OK;
     // Note, we need 2 arrays of tokens - for normal methods and constructors (.ctor/.cctor, that could have segmented code).
@@ -310,11 +261,72 @@ HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandl
         return S_OK;
     }
 
-    inputData.reset(static_cast<module_methods_data_t *>(data));
+    struct module_methods_data_t_deleter
+    {
+        void operator()(Interop::module_methods_data_t *data) const
+        {
+            if (data->moduleMethodsData == nullptr)
+            {
+                return;
+            }
+
+            auto *curMethodsData = static_cast<Interop::file_methods_data_t *>(data->moduleMethodsData);
+            const Interop::file_methods_data_t *endMethodsData = curMethodsData + data->fileNum;
+
+            while (curMethodsData != endMethodsData)
+            {
+                if (curMethodsData->document != nullptr)
+                {
+                    Interop::SysFreeString(curMethodsData->document);
+                }
+                if (curMethodsData->methodsData != nullptr)
+                {
+                    Interop::CoTaskMemFree(curMethodsData->methodsData);
+                }
+                ++curMethodsData;
+            }
+
+            Interop::CoTaskMemFree(data->moduleMethodsData);
+            Interop::CoTaskMemFree(data);
+        }
+    };
+
+    std::unique_ptr<Interop::module_methods_data_t, module_methods_data_t_deleter> rawData(static_cast<Interop::module_methods_data_t *>(data));
+
+    if (rawData->moduleMethodsData == nullptr ||
+        rawData->fileNum == 0)
+    {
+        return S_OK;
+    }
+
+    auto *curMethodsData = static_cast<Interop::file_methods_data_t *>(rawData->moduleMethodsData);
+    const Interop::file_methods_data_t *endMethodsData = curMethodsData + rawData->fileNum;
+    inputData.reserve(rawData->fileNum);
+
+    while (curMethodsData != endMethodsData)
+    {
+        unsigned fullPathIndex = 0;
+        if (curMethodsData->document == nullptr ||
+            curMethodsData->methodsData == nullptr ||
+            FAILED(GetFullPathIndex(curMethodsData->document, fullPathIndex)))
+        {
+            ++curMethodsData;
+            continue;
+        }
+
+        std::vector<Interop::method_data_t> methodsData;
+        methodsData.resize(curMethodsData->methodNum);
+        std::memcpy(methodsData.data(),
+                    curMethodsData->methodsData,
+                    curMethodsData->methodNum * sizeof(Interop::method_data_t));
+
+        inputData.emplace_back(fullPathIndex, std::move(methodsData));
+
+        ++curMethodsData;
+    }
+
     return S_OK;
 }
-
-} // unnamed namespace
 
 // Caller must care about m_sourcesInfoMutex.
 HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
@@ -351,57 +363,55 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
     HRESULT Status = S_OK;
-    std::unique_ptr<module_methods_data_t, module_methods_data_t_deleter> inputData;
+    std::vector<file_data_t> inputData;
     IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, nullptr, inputData));
-    if (inputData == nullptr)
+    if (inputData.empty())
     {
         return S_OK;
     }
 
     // Usually, modules provide files with unique full paths for sources.
-    m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData->fileNum);
-    m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData->fileNum);
+    m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData.size());
+    m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData.size());
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData->fileNum);
+    m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData.size());
 #endif
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    for (int i = 0; i < inputData->fileNum; i++)
+    for (const auto &fileData : inputData)
     {
-        unsigned fullPathIndex = 0;
-        IfFailRet(GetFullPathIndex(inputData->moduleMethodsData[i].document, fullPathIndex));
-
-        m_sourcesMethodsData.at(fullPathIndex).emplace_back(FileMethodsData{});
-        auto &fileMethodsData = m_sourcesMethodsData.at(fullPathIndex).back();
+        m_sourcesMethodsData.at(fileData.fullPathIndex).emplace_back(FileMethodsData{});
+        auto &fileMethodsData = m_sourcesMethodsData.at(fileData.fullPathIndex).back();
         fileMethodsData.modAddress = modAddress;
 
-        // Note, don't reorder input data, since it have almost ideal order for us.
-        // For example, for Private.CoreLib (about 22000 methods) only 8 relocations were made.
-        // In case default methods ordering will be dramatically changed, we could use data reordering,
-        // for example based on this solution:
-        //    struct compare {
-        //        bool operator()(const method_data_t &lhs, const method_data_t &rhs) const
-        //        { return lhs.endLine > rhs.endLine || (lhs.endLine == rhs.endLine && lhs.endColumn > rhs.endColumn); }
-        //    };
-        //    std::multiset<method_data_t, compare> orderedInputData;
-        //    for (int j = 0; j < inputData->moduleMethodsData[i].methodNum; j++)
-        //    {
-        //        orderedInputData.emplace(inputData->moduleMethodsData[i].methodsData[j]);
-        //    }
-        //    std::map<size_t, std::set<method_data_t>> inputMethodsData;
-        //    for (const auto &entry : orderedInputData)
-        //    {
-        //        AddMethodData(inputMethodsData, entry, 0);
-        //    }
-
-        std::map<size_t, std::set<method_data_t>> inputMethodsData;
-        for (int j = 0; j < inputData->moduleMethodsData[i].methodNum; j++)
+#ifdef DEBUG_INTERNAL_TESTS
+        // Reorder data in reverse for testing AddMethodData() method to build proper nested levels.
+        struct compare {
+            bool operator()(const Interop::method_data_t &lhs, const Interop::method_data_t &rhs) const
+            { return lhs.endLine < rhs.endLine || (lhs.endLine == rhs.endLine && lhs.endColumn < rhs.endColumn); }
+        };
+        std::multiset<Interop::method_data_t, compare> orderedInputData;
+        for (const auto &methodData : fileData.methodsData)
         {
-            AddMethodData(inputMethodsData, inputData->moduleMethodsData[i].methodsData[j], 0);
+            orderedInputData.emplace(methodData);
         }
-
+        std::map<size_t, std::set<Interop::method_data_t>> inputMethodsData;
+        for (const auto &methodData : orderedInputData)
+        {
+            AddMethodData(inputMethodsData, methodData, 0);
+        }
+#else
+        // Note, don't reorder input data, since it has almost ideal order for us.
+        // For example, for Private.CoreLib (about 22000 methods) only 8 relocations were made.
+        // In case the default methods ordering is dramatically changed, we could use data reordering.
+        std::map<size_t, std::set<Interop::method_data_t>> inputMethodsData;
+        for (const auto &methodData : fileData.methodsData)
+        {
+            AddMethodData(inputMethodsData, methodData, 0);
+        }
+#endif // DEBUG_INTERNAL_TESTS
         fileMethodsData.methodsData.resize(inputMethodsData.size());
         for (size_t i = 0; i < inputMethodsData.size(); i++)
         {

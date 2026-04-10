@@ -80,6 +80,90 @@ struct LocalConstantInfo
     int32_t signatureSize{0};
 };
 
+struct method_data_t
+{
+    mdMethodDef methodDef;
+    int32_t startLine;   // first segment/method SequencePoint's startLine
+    int32_t endLine;     // last segment/method SequencePoint's endLine
+    int32_t startColumn; // first segment/method SequencePoint's startColumn
+    int32_t endColumn;   // last segment/method SequencePoint's endColumn
+    int32_t isCtor;      // whether method data is constructor-related
+
+    method_data_t()
+        : methodDef(0),
+          startLine(0),
+          endLine(0),
+          startColumn(0),
+          endColumn(0),
+          isCtor(0)
+    {
+    }
+
+    method_data_t(mdMethodDef methodDef_,
+                  int32_t startLine_,
+                  int32_t endLine_,
+                  int32_t startColumn_,
+                  int32_t endColumn_,
+                  int32_t isCtor_)
+        : methodDef(methodDef_),
+          startLine(startLine_),
+          endLine(endLine_),
+          startColumn(startColumn_),
+          endColumn(endColumn_),
+          isCtor(isCtor_)
+    {
+    }
+
+    bool operator<(const method_data_t &other) const
+    {
+        return endLine < other.endLine || (endLine == other.endLine && endColumn < other.endColumn);
+    }
+
+    bool operator<(const int32_t lineNum) const
+    {
+        return endLine < lineNum;
+    }
+
+    bool operator==(const method_data_t &other) const
+    {
+        return methodDef == other.methodDef && startLine == other.startLine && endLine == other.endLine &&
+               startColumn == other.startColumn && endColumn == other.endColumn;
+    }
+
+    [[nodiscard]] bool NestedInto(const method_data_t &other) const
+    {
+        return (startLine > other.startLine || (startLine == other.startLine && startColumn >= other.startColumn)) &&
+               (endLine < other.endLine || (endLine == other.endLine && endColumn <= other.endColumn));
+    }
+};
+
+struct file_methods_data_t
+{
+    BSTR document;
+    int32_t methodNum;
+    method_data_t *methodsData;
+
+    file_methods_data_t() = delete;
+    file_methods_data_t(const file_methods_data_t &) = delete;
+    file_methods_data_t &operator=(const file_methods_data_t &) = delete;
+    file_methods_data_t(file_methods_data_t &&) = delete;
+    file_methods_data_t &operator=(file_methods_data_t &&) = delete;
+    ~file_methods_data_t() = default;
+};
+
+struct module_methods_data_t
+{
+    int32_t fileNum;
+    file_methods_data_t *moduleMethodsData;
+
+    module_methods_data_t() = delete;
+    module_methods_data_t(const module_methods_data_t &) = delete;
+    module_methods_data_t &operator=(const module_methods_data_t &) = delete;
+    module_methods_data_t(module_methods_data_t &&) = delete;
+    module_methods_data_t &operator=(module_methods_data_t &&) = delete;
+    ~module_methods_data_t() = default;
+};
+
 // WARNING! Due to CoreCLR limitations, Init() / Shutdown() sequence can be used only once during process execution.
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
 void Init(const std::string &coreClrPath);
