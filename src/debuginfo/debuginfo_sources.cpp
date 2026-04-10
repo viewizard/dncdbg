@@ -56,37 +56,40 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>>
             methodData.emplace(currentData.level, std::set<Interop::method_data_t>{currentData.entry});
             continue;
         }
-        auto it = methodData[currentData.level].lower_bound(currentData.entry);
-        if (it != methodData[currentData.level].end() && currentData.entry.NestedInto(*it))
+
+        auto &levelMethodData = methodData.at(currentData.level);
+
+        auto it = levelMethodData.lower_bound(currentData.entry);
+        if (it != levelMethodData.end() && currentData.entry.NestedInto(*it))
         {
             methodDataQueue.emplace_back(currentData.entry, currentData.level + 1);
             continue;
         }
 
         // case with only one element on nested level, NestedInto() was already called and entry checked
-        if (it == methodData[currentData.level].begin())
+        if (it == levelMethodData.begin())
         {
-            methodData[currentData.level].emplace(currentData.entry);
+            levelMethodData.emplace(currentData.entry);
             continue;
         }
 
         // in case these are parts of constructor with same location (for example, `int i = 0;`)
-        if (it != methodData[currentData.level].end() && *it == currentData.entry && currentData.entry.isCtor == 1)
+        if (it != levelMethodData.end() && *it == currentData.entry && currentData.entry.isCtor == 1)
         {
             assert(it->isCtor == 1); // also must be part of constructor
-            methodData[currentData.level].emplace(currentData.entry);
+            levelMethodData.emplace(currentData.entry);
             continue;
         }
 
-        // move all previously added nested for new entry elements to level above
-        while (it != methodData[currentData.level].begin())
+        // move all previously added nested elements for the new entry to the level above
+        while (it != levelMethodData.begin())
         {
             it = std::prev(it);
 
             if (it->NestedInto(currentData.entry))
             {
                 const Interop::method_data_t tmp = *it;
-                it = methodData[currentData.level].erase(it);
+                it = levelMethodData.erase(it);
                 methodDataQueue.emplace_back(tmp, currentData.level + 1);
             }
             else
@@ -95,7 +98,7 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>>
             }
         };
 
-        methodData[currentData.level].emplace(currentData.entry);
+        levelMethodData.emplace(currentData.entry);
     }
 }
 
