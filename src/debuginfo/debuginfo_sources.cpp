@@ -10,6 +10,7 @@
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <cstring>
 #include <list>
 #include <map>
 #include <memory>
@@ -575,14 +576,6 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         uint32_t methodToken;
     };
 
-    struct resolved_input_bp_t_deleter
-    {
-        void operator()(resolved_input_bp_t *p) const
-        {
-            Interop::CoTaskMemFree(p);
-        }
-    };
-
     for (const auto &sourceData : m_sourcesMethodsData.at(findIndex->second))
     {
         if ((modAddress != 0U) && modAddress != sourceData.modAddress)
@@ -597,7 +590,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         {
             continue;
         }
-        // correctedStartLine - in case line not belong any methods, if possible, will be "moved" to first line of
+        // correctedStartLine - in case line doesn't belong to any methods, if possible, will be "moved" to first line of
         // method below sourceLine.
 
         if (static_cast<int32_t>(Tokens.size()) > std::numeric_limits<int32_t>::max())
@@ -614,28 +607,33 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         }
 
         void *data = nullptr;
-        int32_t Count = 0;
+        int32_t resolvedCount = 0;
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
 #else
         const std::string fullName = m_sourceIndexToPath[findIndex->second];
 #endif
         if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
-                                               correctedStartLine, closestNestedToken, Count, fullName, &data)) ||
+                                               correctedStartLine, closestNestedToken, resolvedCount, fullName, &data)) ||
             data == nullptr)
         {
             continue;
         }
+        if (resolvedCount <= 0)
+        {
+            Interop::CoTaskMemFree(data);
+            continue;
+        }
 
-        const std::unique_ptr<resolved_input_bp_t, resolved_input_bp_t_deleter> inputData(static_cast<resolved_input_bp_t *>(data));
+        std::vector<resolved_input_bp_t> inputData(resolvedCount);
+        std::memcpy(inputData.data(), data, resolvedCount * sizeof(resolved_input_bp_t));
+        Interop::CoTaskMemFree(data);
 
-        for (int32_t i = 0; i < Count; i++)
+        for (auto &entry : inputData)
         {
             pmdInfo->m_trModule->AddRef();
-
-            resolvedPoints.emplace_back(inputData.get()[i].startLine, inputData.get()[i].endLine,
-                                        inputData.get()[i].ilOffset, inputData.get()[i].methodToken,
-                                        pmdInfo->m_trModule.GetPtr());
+            resolvedPoints.emplace_back(entry.startLine, entry.endLine, entry.ilOffset,
+                                        entry.methodToken, pmdInfo->m_trModule.GetPtr());
         }
     }
 
