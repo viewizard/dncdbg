@@ -560,8 +560,8 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
     {
         // Check for absolute path.
 #ifdef _WIN32
-        // Check, if start from drive letter, for example "D:\" or "D:/".
-        if (filename.size() > 2 && filename[1] == ':' && (filename[2] == '/' || filename[2] == '\\'))
+        // Check if it starts from drive letter, for example "D:\" or "D:/".
+        if (filename.size() > 2 && filename.at(1) == ':' && (filename.at(2) == '/' || filename.at(2) == '\\'))
 #else
         if (filename.at(0) == '/')
 #endif
@@ -624,7 +624,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
 #else
-        const std::string fullName = m_sourceIndexToPath[findIndex->second];
+        const std::string fullName = m_sourceIndexToPath.at(findIndex->second);
 #endif
         if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
                                                correctedStartLine, closestNestedToken, resolvedCount, fullName, &data)) ||
@@ -665,7 +665,7 @@ HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     fullPath = m_sourceIndexToInitialFullPath.at(index);
 #else
-    fullPath = m_sourceIndexToPath[index];
+    fullPath = m_sourceIndexToPath.at(index);
 #endif
 
     return S_OK;

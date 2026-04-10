@@ -442,7 +442,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     {
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
         // Note, we don't remove breakpoint in case changed `condition` or `hitCondition`,
-        // only change this fields in resolved breakpoint.
+        // only change these fields in resolved breakpoint.
         if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.end())
         {
             Breakpoint breakpoint;
@@ -456,14 +456,14 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         }
         else
         {
-            // Note, debugger assume, that IDE can provide only one breakpoint for one line.
+            // Note, debugger assumes that IDE can provide only one breakpoint for one line.
             assert(breakpointsInSourceMap.find(initialBreakpoint.breakpoint.line) == breakpointsInSourceMap.end());
-            breakpointsInSourceMap[initialBreakpoint.breakpoint.line] = &initialBreakpoint;
+            breakpointsInSourceMap.emplace(initialBreakpoint.breakpoint.line, &initialBreakpoint);
             ++it;
         }
     }
 
-    // Note, DAP require, that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
 
     for (const auto &sb : sourceBreakpoints)
     {

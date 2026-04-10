@@ -215,7 +215,11 @@ uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter
     }
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-    return static_cast<uint32_t>((reinterpret_cast<uint32_t *>(bstrString)[-1]) / sizeof(WCHAR));
+    // https://learn.microsoft.com/en-us/previous-versions/windows/desktop/automat/bstr
+    // A BSTR is a composite data type that consists of a length prefix, a data string, and a terminator. 
+    // A four-byte integer that contains the number of bytes in the following data string.
+    // It appears immediately before the first character of the data string. This value does not include the terminator.
+    return static_cast<uint32_t>(*(reinterpret_cast<uint32_t *>(bstrString) - 1) / sizeof(WCHAR));
 #elif _WIN32
     return ::SysStringLen(bstrString);
 #endif
