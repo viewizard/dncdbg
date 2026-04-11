@@ -560,7 +560,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
     {
         // Check for absolute path.
 #ifdef _WIN32
-        // Check if it starts from drive letter, for example "D:\" or "D:/".
+        // Check if it starts with a drive letter, for example "D:\" or "D:/".
         if (filename.size() > 2 && filename.at(1) == ':' && (filename.at(2) == '/' || filename.at(2) == '\\'))
 #else
         if (filename.at(0) == '/')
