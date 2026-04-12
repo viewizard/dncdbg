@@ -120,7 +120,9 @@ Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp5");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 
-                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
+                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6", "TestSrcBreakpointResolve/PROGRAM.CS");
+                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "SrcBreakpointResolve/PROGRAM.CS");
+                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "OGRAM.CS");
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 int? id_bp6_b = Context.GetBreakpointId(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
@@ -140,7 +142,7 @@ Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp3", false);
 
-                Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "./TestSrcBreakpointResolve/PROGRAM.CS");
+                Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "TestSrcBreakpointResolve/PROGRAM.CS");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 

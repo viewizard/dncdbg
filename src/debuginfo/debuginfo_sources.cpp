@@ -498,12 +498,20 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
     std::list<std::string> possibleResults;
     for (const auto pathIndex : possiblePathsIndexes)
     {
-        if (result.size() > m_sourceIndexToPath.at(pathIndex).size())
+        const std::string &path = m_sourceIndexToPath.at(pathIndex);
+
+        if (result.size() > path.size())
         {
             continue;
         }
 
-        const std::string &path = m_sourceIndexToPath.at(pathIndex);
+        // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
+        if (result.size() < path.size() && result.at(0) != '/' && result.at(0) != '\\' &&
+            path.at(path.size() - result.size() - 1) != '/' && path.at(path.size() - result.size() - 1) != '\\')
+        {
+            continue;
+        }
+
         if (std::equal(result.begin(), result.end(), path.end() - static_cast<std::string::difference_type>(result.size()), BinaryPredicate))
         {
             possibleResults.push_back(path);
