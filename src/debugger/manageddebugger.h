@@ -63,12 +63,12 @@ class ManagedDebugger
     ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
-    bool IsJustMyCode() const
+    [[nodiscard]] bool IsJustMyCode() const
     {
         return m_justMyCode;
     }
     void SetJustMyCode(bool enable);
-    bool IsStepFiltering() const
+    [[nodiscard]] bool IsStepFiltering() const
     {
         return m_stepFiltering;
     }
@@ -157,12 +157,12 @@ class ManagedDebugger
     DWORD m_processId{0};
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
-    IORedirectHelper m_ioredirect;
+    IORedirect m_ioredirect;
 
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    static void InputCallback(IORedirectHelper::StreamType type, gsl::span<char> text);
+    static void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

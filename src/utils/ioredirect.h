@@ -2,145 +2,192 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS_IOREDIRECT_H
-#define UTILS_IOREDIRECT_H
+#ifndef UTILS_IOSYSTEM_H
+#define UTILS_IOSYSTEM_H
 
-#include "utils/iosystem.h"
-#include "utils/platformtag.h"
-#include "utils/rwlock.h"
-#include "utils/streams.h"
 #include <gsl/span>
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
-#include <memory>
+#include <mutex>
 #include <thread>
-#include <utility>
-#include <tuple>
 
 namespace dncdbg
 {
 
-enum class AsyncResult : uint8_t
-{
-    Canceled, // function canceled due to debugger interruption
-    Error,    // IO error
-    Eof       // EOF reached
-};
-
-// This class allows to redirect standard input/output file of the program
-// (and its child processes), and provides event driven mechanism for
-// processing data which was written to stdout/stderr.
-class IORedirectHelper
+// IORedirect class provides IO redirection for a child process.
+//
+// It creates unnamed pipes for stdin, stdout, and stderr, then allows launching
+// a child process with those pipes substituted for the standard file descriptors.
+// After the child process is launched, worker threads read from the child's stdout
+// and stderr pipes and deliver data via a callback. The debugger can also write
+// data to the child's stdin pipe.
+//
+// Usage:
+//   1. Construct IORedirect with an OutputCallback.
+//   2. Call exec() with a lambda that creates the child process.
+//      Inside the lambda, stdin/stdout/stderr are redirected to the pipes.
+//   3. The OutputCallback is called from worker threads when the child writes
+//      to stdout or stderr.
+//   4. Call writeStdin() to send data to the child's stdin.
+//   5. Destruction stops worker threads and closes all pipes.
+//
+class IORedirect
 {
   public:
 
-    using StreamType = IOSystem::StdFileType;
-
-    using PipePair = std::pair<IOSystem::FileHandle, IOSystem::FileHandle>;
-    using Pipes = std::tuple<PipePair, PipePair, PipePair>;
-
-    // Data type which represents callback functor, which is called, when
-    // some data is written to pipes representing stdout and stderr files.
-    // Arguments of the callback functor are following:
-    //  * `StreamType` defines the stream: IOSystem::Stdout or IOSystem::Stderr;
-    //  * `span<char>` represents portion of the data (text).
-    using InputCallback = std::function<void(StreamType, gsl::span<char>)>;
-
-    // This constant represents default buffers size for input/output.
-    // Typically buffer with default size can hold few lines of text.
-    static const size_t DefaultBufferSize;
-
-    // Class constructor requires following arguments:
-    //  * three pair of pipes which represent stdin/stdout/stderr files;
-    //  * callback functor, which is called when some data became available in stdout/stderr;
-    //  * optionally: input (for stdout/stderr) and output (for writing to stdin) buffers sizes.
-    IORedirectHelper(const Pipes &pipes, InputCallback callback, size_t input_bufsize = DefaultBufferSize,
-                     size_t output_bufsize = DefaultBufferSize);
-
-    IORedirectHelper(IORedirectHelper &&) = delete;
-    IORedirectHelper(const IORedirectHelper &) = delete;
-    IORedirectHelper &operator=(IORedirectHelper &&) = delete;
-    IORedirectHelper &operator=(const IORedirectHelper &) = delete;
-
-    ~IORedirectHelper();
-
-    // This function allows to write some data to pipe, which represents stdin stream.
-    // Output IS NOT BLOCKING, function returns actual number of written bytes
-    // (this number might be less than requested if output buffer is full).
-    AsyncResult async_input(InStream &instream);
-
-    // This function interrupts thread which is currently executing `async_input`
-    // or thread which will call `async_input` next time.
-    void async_cancel();
-
-    // This function allows to execute some another function `func` with substituted
-    // standard input/output files. Typically function `func` should start some external
-    // process, which inherits stdin/stdout/stderr files which is substituted during
-    // function invocation. Arguments `args...` just forwarded to function `func`.
-    //
-    // Note: this function closes files, so it can be called only once!
-    //
-    template <typename Func, typename... Args>
-    typename std::invoke_result_t<Func, Args...> exec(Func func, Args &&...args)
+    // Stream type identifier for stdout and stderr.
+    enum class StreamType : uint8_t
     {
-        const IOSystem::StdIOSwap file_descriptors({std::get<IOSystem::Stdin>(m_pipes),
-                                                    std::get<IOSystem::Stdout>(m_pipes),
-                                                    std::get<IOSystem::Stderr>(m_pipes)});
+        Stdout = 0,
+        Stderr = 1
+    };
 
-        // close "remote" pipe ends
-        auto on_exit = [&](void *)
-        {
-            IOSystem::close(std::get<IOSystem::Stdin>(m_pipes));
-            IOSystem::close(std::get<IOSystem::Stdout>(m_pipes));
-            IOSystem::close(std::get<IOSystem::Stderr>(m_pipes));
-        };
+    // Callback type for receiving output from the child process.
+    // Called from worker threads when data is available on stdout or stderr.
+    //   - StreamType: identifies whether data came from stdout or stderr.
+    //   - gsl::span<char>: the data buffer (valid only during the callback).
+    using OutputCallback = std::function<void(StreamType, gsl::span<char>)>;
 
-        const std::unique_ptr<void, decltype(on_exit)> defer{this, on_exit};
-        return func(std::forward<Args>(args)...);
-    }
+    // Construct IORedirect with the given output callback.
+    // The callback will be invoked from worker threads when the child process
+    // writes to stdout or stderr. Creates all necessary pipes internally.
+    explicit IORedirect(OutputCallback callback);
+
+    // Non-copyable, non-movable.
+    IORedirect(IORedirect &&) = delete;
+    IORedirect(const IORedirect &) = delete;
+    IORedirect &operator=(IORedirect &&) = delete;
+    IORedirect &operator=(const IORedirect &) = delete;
+
+    // Destructor stops worker threads and closes all pipe handles.
+    ~IORedirect();
+
+    // Execute a function with stdin/stdout/stderr redirected to the internal pipes.
+    //
+    // The provided callback `func` should create a child process (e.g., via
+    // CreateProcessForLaunch). During the callback execution, the standard file
+    // descriptors (stdin/stdout/stderr) are temporarily replaced with the pipe
+    // endpoints so the child process inherits them.
+    //
+    // After the callback returns, the child-side pipe ends are closed,
+    // and worker threads begin reading from the child's stdout and stderr.
+    //
+    // This method can only be called once.
+    void exec(const std::function<void()> &func);
+
+    // Write data to the child process's stdin pipe.
+    //
+    // The data from `data` is written to the stdin pipe.
+    // Returns the number of bytes actually written, or -1 on error.
+    // Returns 0 if the stdin pipe has been closed.
+    int writeStdin(gsl::span<const char> data);
+
+    // Close the stdin pipe to signal EOF to the child process.
+    void closeStdin();
 
   private:
 
-    void wake_worker() const;
-    void wake_reader() const;
+    // Default buffer size for reading from stdout/stderr pipes.
+    static constexpr size_t ReadBufferSize = 4096;
 
-    void worker(); // worker thread function
-    void StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *out_stream,
-                               IOSystem::AsyncHandle &out_handle);
-    bool ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *out_stream,
-                                      IOSystem::AsyncHandle &out_handle);
-    static bool ProcessFinishedReadRequests(const std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
-                                            IOSystem::AsyncHandle async_handles[]); // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    // Output callback invoked when data arrives on stdout or stderr.
+    OutputCallback m_callback;
 
-    // remote side of the pipes
-    const std::tuple<IOSystem::FileHandle, IOSystem::FileHandle, IOSystem::FileHandle> m_pipes;
+    // Flag to track whether exec() has been called.
+    bool m_execCalled{false};
 
-    // our side of the pipes
-    std::tuple<OutStream, InStream, InStream> m_streams;
+    // Flag to signal worker threads to stop.
+    std::atomic<bool> m_stopWorkers{false};
 
-    InputCallback m_callback; // callback function (which is called on data receiving)
+    // Mutex to protect writeStdin() and closeStdin() from concurrent access.
+    std::mutex m_stdinMutex;
 
-    // pointers in our side stdin's the buffer (actually output)
-    // used to organize asynchronous IO
-    char *m_sent;   // start of region for which async. write request issued
-    char *m_unsent; // end of such region, start region of unwritten data.
+    // Worker threads for reading stdout and stderr from the child process.
+    std::thread m_stdoutThread;
+    std::thread m_stderrThread;
 
-    bool m_eof{false}; // EOF reached in async_input, worker should close writing end of pipe
+    // Worker thread function that reads from a pipe and calls the output callback.
+    void readerWorker(StreamType type);
 
-    // Synchronize access of async_input function and worker thread to
-    // stdin's output buffer and two pointers listed above (m_sent and m_unsent).
-    RWLock m_rwlock;
+    // Platform-specific pipe handle type and invalid value.
+#ifdef _WIN32
+    using PipeHandle = void *; // HANDLE on Windows
+    // INVALID_HANDLE_VALUE is (void*)-1
+    static PipeHandle invalidPipe()
+    {
+        return reinterpret_cast<PipeHandle>(static_cast<intptr_t>(-1));
+    }
+#endif // _WIN32
 
-    PipePair m_worker_pipe; // pipe to wake worker thread
-    PipePair m_input_pipe;  // pipe to wake thread sleeping in async_input
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+    using PipeHandle = int; // file descriptor on Unix
+    static PipeHandle invalidPipe()
+    {
+        return -1;
+    }
+#endif // __unix__
 
-    std::atomic<bool> m_cancel{false}; // atomic flag which prevents multiple calls to async_cancel()
-    volatile bool m_finish{false}; // exit request for worker thread
+    // Pipe endpoints for stdin (debugger writes, child reads).
+    PipeHandle m_stdinRead;   // Child-side read end (given to child process).
+    PipeHandle m_stdinWrite;  // Debugger-side write end.
 
-    std::thread m_thread; // worker thread (which monitors received data)
+    // Pipe endpoints for stdout (child writes, debugger reads).
+    PipeHandle m_stdoutRead;  // Debugger-side read end.
+    PipeHandle m_stdoutWrite; // Child-side write end (given to child process).
+
+    // Pipe endpoints for stderr (child writes, debugger reads).
+    PipeHandle m_stderrRead;  // Debugger-side read end.
+    PipeHandle m_stderrWrite; // Child-side write end (given to child process).
+
+    // Platform-specific helper methods (implemented in iosystem_unix.cpp / iosystem_win32.cpp).
+
+    // Create an unnamed pipe. Returns true on success.
+    // readEnd and writeEnd receive the two pipe endpoints.
+    static bool createPipe(PipeHandle &readEnd, PipeHandle &writeEnd);
+
+    // Close a pipe handle. Sets the handle to invalidPipe().
+    static void closePipe(PipeHandle &handle);
+
+    // Read from a pipe. Returns number of bytes read, 0 on EOF, -1 on error.
+    static int readPipe(PipeHandle handle, char *buffer, size_t size);
+
+    // Write to a pipe. Returns number of bytes written, -1 on error.
+    static int writePipe(PipeHandle handle, const char *buffer, size_t size);
+
+    // Set whether a pipe handle is inheritable by child processes.
+    static bool setInheritable(PipeHandle handle, bool inheritable);
+
+    // Platform-specific saved state for standard file descriptor redirection.
+    struct SavedStdFiles
+    {
+#ifdef _WIN32
+        PipeHandle origStdin{invalidPipe()};
+        PipeHandle origStdout{invalidPipe()};
+        PipeHandle origStderr{invalidPipe()};
+        int origStdinFd{-1};
+        int origStdoutFd{-1};
+        int origStderrFd{-1};
+#endif // _WIN32
+
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+        int origStdinFd{-1};
+        int origStdoutFd{-1};
+        int origStderrFd{-1};
+#endif // __unix__
+
+        bool valid{false};
+    };
+
+    // Redirect standard file descriptors to the given pipe handles.
+    // Saves the original file descriptors for later restoration.
+    static SavedStdFiles redirectStdFiles(PipeHandle stdinHandle, PipeHandle stdoutHandle, PipeHandle stderrHandle);
+
+    // Restore standard file descriptors from saved state.
+    static void restoreStdFiles(SavedStdFiles &saved);
 };
 
 } // namespace dncdbg
 
-#endif // UTILS_IOREDIRECT_H
+#endif // UTILS_IOSYSTEM_H

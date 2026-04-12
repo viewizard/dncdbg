@@ -4,519 +4,165 @@
 
 #include "utils/ioredirect.h"
 #include "utils/logger.h"
-#include "utils/streams.h"
 #include <array>
-#include <cstring>
-
-#ifdef FEATURE_PAL
-#include <climits> // INT_MAX, LINE_MAX
-#else // FEATURE_PAL
-#ifndef LINE_MAX
-#define LINE_MAX (2048)
-#endif
-#endif // FEATURE_PAL
+#include <cassert>
+#include <cerrno>
 
 namespace dncdbg
 {
 
-// This constant represents default buffers size for input/output.
-// Typically buffer with default size can hold few lines of text.
-const size_t IORedirectHelper::DefaultBufferSize = static_cast<const size_t>(2 * LINE_MAX);
-
-namespace
+// Constructor: create all three pipe pairs and store the output callback.
+IORedirect::IORedirect(OutputCallback callback)
+    : m_callback(std::move(callback)),
+      m_stdinRead(invalidPipe()),
+      m_stdinWrite(invalidPipe()),
+      m_stdoutRead(invalidPipe()),
+      m_stdoutWrite(invalidPipe()),
+      m_stderrRead(invalidPipe()),
+      m_stderrWrite(invalidPipe())
 {
-// timeout for select() call
-constexpr int32_t divMax = 1000;
-constexpr std::chrono::milliseconds WaitForever{INT_MAX / divMax};
-
-char *get_streams_pptr(std::tuple<OutStream, InStream, InStream> &m_streams)
-{
-    const auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
-    if (out == nullptr)
+    // Create stdin pipe (debugger writes -> child reads).
+    if (!createPipe(m_stdinRead, m_stdinWrite))
     {
-        LOGE(log << "dynamic_cast fail");
-        return nullptr;
-    }
-    return out->pptr();
-}
-} // namespace
-
-IORedirectHelper::IORedirectHelper(
-    const Pipes &pipes,            // three pair of pipes which represent stdin/stdout/sterr files
-    InputCallback callback,        // callback functor, which is called when some data became available
-    size_t input_bufsize,          // input buffer size (for stdou/stderr streams)
-    size_t output_bufsize          // output buffer size (for stdin stream)
-    )
-    : m_pipes{std::get<IOSystem::Stdin>(pipes).first,
-              std::get<IOSystem::Stdout>(pipes).second,
-              std::get<IOSystem::Stderr>(pipes).second},
-      m_streams{OutStream(OutStreamBuf(std::get<IOSystem::Stdin>(pipes).second, output_bufsize)),
-                InStream(InStreamBuf(std::get<IOSystem::Stdout>(pipes).first, input_bufsize)),
-                InStream(InStreamBuf(std::get<IOSystem::Stderr>(pipes).first, input_bufsize))},
-      m_callback(std::move(callback)),
-      m_sent(get_streams_pptr(m_streams)),
-      m_unsent(m_sent),
-      m_worker_pipe(IOSystem::unnamed_pipe()),
-      m_input_pipe(IOSystem::unnamed_pipe()),
-      m_thread{&IORedirectHelper::worker, this}
-{
-    assert(std::get<IOSystem::Stdin>(pipes).first);
-    assert(std::get<IOSystem::Stdin>(pipes).second);
-    assert(std::get<IOSystem::Stdout>(pipes).first);
-    assert(std::get<IOSystem::Stdout>(pipes).second);
-    assert(std::get<IOSystem::Stderr>(pipes).first);
-    assert(std::get<IOSystem::Stderr>(pipes).second);
-
-    assert(m_sent != nullptr);
-
-    // prohibit inheritance of "our" pipe ends
-    IOSystem::set_inherit(std::get<IOSystem::Stdin>(pipes).second, false);
-    IOSystem::set_inherit(std::get<IOSystem::Stdout>(pipes).first, false);
-    IOSystem::set_inherit(std::get<IOSystem::Stderr>(pipes).first, false);
-
-    // enable inheritance of "remote" pipe ends
-    IOSystem::set_inherit(std::get<IOSystem::Stdin>(pipes).first, true);
-    IOSystem::set_inherit(std::get<IOSystem::Stdout>(pipes).second, true);
-    IOSystem::set_inherit(std::get<IOSystem::Stderr>(pipes).second, true);
-}
-
-IORedirectHelper::~IORedirectHelper()
-{
-    LOGD(log << "request worker to exit");
-    m_finish = true; // signal worker thread to stop
-    wake_worker();
-    m_thread.join();
-}
-
-void IORedirectHelper::wake_worker() const
-{
-    LOGD(log << "waking worker");
-    IOSystem::write(m_worker_pipe.second, "", 1);
-}
-
-void IORedirectHelper::wake_reader() const
-{
-    LOGD(log << "waking reader");
-    IOSystem::write(m_input_pipe.second, "", 1);
-}
-
-// Output buffer management:
-// ----------SSSSSSSSSSS++++++++++----------
-// ^         ^          ^         ^        ^
-// pbase()   m_sent     m_unsent  pptr()   epptr()
-//
-// legend:
-//    - free space (already sent data or the left)
-//    S segment of data for which IO request is in progress
-//    + unwritten data for which IO request isn't issued
-//
-// New data might be written in buffer (with locked mutex)
-// starting from pptr() till epptr(). overflow() shold never
-// be called (because it conflicts with asynchronous write).
-
-// Worker thread function: this function monitors input pipes, which corresponds
-// to stdout/stderr streams, and call callback functor when data received.
-void IORedirectHelper::worker()
-{
-    static constexpr std::array<StreamType, 3> stream_types{IOSystem::Stdin, IOSystem::Stdout, IOSystem::Stderr};
-
-    std::array<InStreamBuf *const, 3> in_streams{nullptr,
-                                       dynamic_cast<InStreamBuf *>(std::get<stream_types.at(1)>(m_streams).rdbuf()),
-                                       dynamic_cast<InStreamBuf *>(std::get<stream_types.at(2)>(m_streams).rdbuf())};
-
-    auto *const out_stream = dynamic_cast<OutStreamBuf *>(std::get<stream_types.at(0)>(m_streams).rdbuf());
-    if (out_stream == nullptr)
-    {
-        LOGE(log << "dynamic_cast fail");
+        LOGE(log << "IORedirect: failed to create stdin pipe");
         return;
     }
 
-    // currently existing asyncchronous io requests
-    IOSystem::AsyncHandle async_handles[std::size(stream_types) + 1]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-    auto &out_handle = async_handles[0];
-    auto &pipe_handle = async_handles[std::size(stream_types)]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-
-    // at exit: cancel all unfinished io requests
-    auto on_exit = [&](void *)
-        {
-            for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-            {
-                if (h)
-                {
-                    IOSystem::async_cancel(h);
-                }
-            }
-
-            LOGI(log << "IORedirectHelper::worker: terminated");
-        };
-
-    const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
-
-    // issue read request for control pipe
-    char dummybuf = 0;
-    pipe_handle = IOSystem::async_read(m_worker_pipe.first, &dummybuf, 1);
-    assert(pipe_handle);
-
-    LOGI(log << "started");
-
-    ReadLock read_lock(m_rwlock, std::defer_lock_t{});
-
-    // loop till fatal error or exit request
-    while (true)
+    // Create stdout pipe (child writes -> debugger reads).
+    if (!createPipe(m_stdoutRead, m_stdoutWrite))
     {
-        // start new write requests if possible
-        if (!out_handle)
-        {
-            StartNewWriteRequests(read_lock, out_stream, out_handle);
-        }
-
-        // process data available in buffer for input in_streams
-        for (unsigned n = 0; n < std::size(stream_types); n++)
-        {
-            InStreamBuf *const stream = in_streams.at(n); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-            if (stream == nullptr)
-            {
-                continue;
-            }
-
-            // process data already existing in the buffer
-            const size_t avail = stream->egptr() - stream->gptr();
-            if (avail != 0U)
-            {
-                LOGD(log << "push "<< avail << " bytes to callback");
-                m_callback(stream_types.at(n), gsl::span<char>(stream->gptr(), avail)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-                stream->gbump(static_cast<int>(avail));
-                stream->compactify();
-            }
-
-            // request to read more data
-            if (!async_handles[n]) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-            {
-                const size_t free_size = stream->endp() - stream->egptr();
-                LOGD(log << "requesting " << free_size << " bytes to read");
-                async_handles[n] = IOSystem::async_read(stream->get_file_handle(), stream->gptr(), free_size); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-
-                if (!async_handles[n]) // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-                {
-                    LOGE(log << "can't issue async read request!");
-                    return;
-                }
-            }
-        }
-
-        // check if data available for reading or write operation is finished
-        IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], WaitForever); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        LOGD(log << "wake");
-
-        // check if termination requested
-        const IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
-        if (result.status != IOSystem::IOResult::Pending)
-        {
-            if (result.status != IOSystem::IOResult::Success)
-            {
-                LOGE(log << "control pipe read error");
-                return;
-            }
-
-            if (m_finish)
-            {
-                return; // exit request
-            }
-
-            // issue next read request for control pipe
-            pipe_handle = IOSystem::async_read(m_worker_pipe.first, &dummybuf, 1);
-        }
-
-        // process finished write requests
-        if (out_handle && !ProcessFinishedWriteRequests(read_lock, out_stream, out_handle))
-        {
-            return;
-        }
-
-        // process finished read requests
-        if (!ProcessFinishedReadRequests(in_streams, std::size(stream_types), async_handles)) // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        {
-            return;
-        }
+        LOGE(log << "IORedirect: failed to create stdout pipe");
+        return;
     }
+
+    // Create stderr pipe (child writes -> debugger reads).
+    if (!createPipe(m_stderrRead, m_stderrWrite))
+    {
+        LOGE(log << "IORedirect: failed to create stderr pipe");
+        return;
+    }
+
+    // Mark debugger-side pipe ends as non-inheritable (child should not inherit these).
+    setInheritable(m_stdinWrite, false);
+    setInheritable(m_stdoutRead, false);
+    setInheritable(m_stderrRead, false);
+
+    // Mark child-side pipe ends as inheritable (child process needs these).
+    setInheritable(m_stdinRead, true);
+    setInheritable(m_stdoutWrite, true);
+    setInheritable(m_stderrWrite, true);
 }
 
-void IORedirectHelper::StartNewWriteRequests(ReadLock &read_lock, const OutStreamBuf *const out_stream,
-                                             IOSystem::AsyncHandle &out_handle)
+// Destructor: stop worker threads and close all remaining pipe handles.
+IORedirect::~IORedirect()
 {
-    assert(!read_lock);
-    read_lock.lock();
+    // Signal worker threads to stop.
+    m_stopWorkers.store(true);
 
-    assert(out_stream->pbase() <= m_sent && m_sent <= m_unsent && m_unsent <= out_stream->pptr() &&
-           out_stream->pptr() <= out_stream->epptr());
+    // Close the debugger-side read ends to unblock worker threads waiting on read().
+    closePipe(m_stdoutRead);
+    closePipe(m_stderrRead);
 
-    const size_t bytes = out_stream->pptr() - m_unsent;
-    if (bytes != 0U)
+    // Wait for worker threads to finish.
+    if (m_stdoutThread.joinable())
     {
-        LOGD(log << "have " << bytes << " bytes unsent");
-        out_handle = IOSystem::async_write(out_stream->get_file_handle(), m_unsent, bytes);
-
-        if (!out_handle)
-        {
-            LOGE(log << "can't issue async write request!");
-            return;
-        }
-
-        m_unsent = out_stream->pptr();
+        m_stdoutThread.join();
     }
-    else
+    if (m_stderrThread.joinable())
     {
-        // close writing end of debugee's stdin pipe if
-        // we reached EOF on reading input from user and
-        // if all previously received data is completely sent.
-        if (m_eof)
-        {
-            LOGD(log << "closing writing end of stdin's pipe");
-            auto forgetme = std::move(std::get<IOSystem::Stdin>(m_streams));
-        }
-
-        read_lock.unlock();
+        m_stderrThread.join();
     }
+
+    // Close any remaining pipe handles.
+    closePipe(m_stdinRead);
+    closePipe(m_stdinWrite);
+    closePipe(m_stdoutWrite);
+    closePipe(m_stderrWrite);
+
+    LOGD(log << "IORedirect: destroyed");
 }
 
-bool IORedirectHelper::ProcessFinishedWriteRequests(ReadLock &read_lock, OutStreamBuf *const out_stream,
-                                                    IOSystem::AsyncHandle &out_handle)
+// Execute a function with stdin/stdout/stderr redirected to the internal pipes.
+void IORedirect::exec(const std::function<void()> &func)
 {
-    const IOSystem::IOResult result = IOSystem::async_result(out_handle);
-    if (result.status == IOSystem::IOResult::Success)
-    {
-        // update buffer
-        assert(read_lock);
-        assert(out_stream->pbase() <= m_sent && m_sent <= m_unsent && m_unsent <= out_stream->pptr() &&
-               out_stream->pptr() <= out_stream->epptr());
+    assert(!m_execCalled && "exec() can only be called once");
+    m_execCalled = true;
 
-        LOGD(log << "sent " << result.size << " bytes");
-        assert(result.size <= static_cast<size_t>(m_unsent - m_sent));
-        m_sent += result.size;
+    // Redirect standard file descriptors to the child-side pipe ends.
+    SavedStdFiles saved = redirectStdFiles(m_stdinRead, m_stdoutWrite, m_stderrWrite);
 
-        out_handle = {}; // can issue next read request
+    // Execute the user-provided function (which should create the child process).
+    func();
 
-        read_lock.unlock();
+    // Restore original standard file descriptors.
+    restoreStdFiles(saved);
 
-        // process situation, when end of buffer reached.
-        if (m_rwlock.try_lock())
-        {
-            bool updated = false;
+    // Close child-side pipe ends (the child process has inherited copies of these).
+    // We must close our copies so that reads on the debugger side will see EOF
+    // when the child process exits.
+    closePipe(m_stdinRead);
+    closePipe(m_stdoutWrite);
+    closePipe(m_stderrWrite);
 
-            // can move tail to beginning of the buffer
-            const size_t bytes = out_stream->pptr() - m_unsent; // num of unsent bytes
-            if (m_unsent == m_sent && bytes == 0)
-            {
-                memmove(out_stream->pbase(), m_unsent, bytes);
-                m_sent = m_unsent = out_stream->pbase();
-                out_stream->clear();
-                out_stream->pbump(static_cast<int>(bytes));
-
-                updated = true;
-            }
-
-            m_rwlock.unlock();
-
-            // wake reader to read more data
-            if (updated)
-            {
-                wake_reader();
-            }
-        }
-    }
-    else if (result.status != IOSystem::IOResult::Pending)
-    { // fatal error
-        out_handle = {};
-        LOGE(log << "child process stdin writing error");
-        return false;
-    }
-
-    return true;
+    // Start worker threads to read from the child's stdout and stderr.
+    m_stdoutThread = std::thread(&IORedirect::readerWorker, this, StreamType::Stdout);
+    m_stderrThread = std::thread(&IORedirect::readerWorker, this, StreamType::Stderr);
 }
 
-bool IORedirectHelper::ProcessFinishedReadRequests(const std::array<InStreamBuf *const, 3> &in_streams, size_t stream_types_cout,
-                                                   IOSystem::AsyncHandle async_handles[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+// Write data to the child process's stdin pipe.
+int IORedirect::writeStdin(gsl::span<const char> data)
 {
-    for (size_t n = 0; n < stream_types_cout; n++)
+    const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+
+    if (m_stdinWrite == invalidPipe())
     {
-        InStreamBuf *const stream = in_streams.at(n); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-        if (stream == nullptr)
-        {
-            continue;
-        }
-
-        const IOSystem::IOResult result = IOSystem::async_result(async_handles[n]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-        if (result.status == IOSystem::IOResult::Success)
-        {
-            // update buffer
-            LOGD(log << "read " << result.size << " bytes");
-            assert(result.size <= static_cast<size_t>(stream->endp() - stream->gptr()));
-            stream->setegptr(stream->egptr() + result.size);
-
-            async_handles[n] = {}; // can issue next read request
-        }
-        else if (result.status != IOSystem::IOResult::Pending)
-        { // fatal error
-            async_handles[n] = {};
-            LOGE(log << "child process stdout/stderr reading error");
-            return false;
-        }
+        return 0; // Pipe already closed.
     }
 
-    return true;
+    return writePipe(m_stdinWrite, data.data(), static_cast<size_t>(data.size()));
 }
 
-void IORedirectHelper::async_cancel()
+// Close the stdin pipe to signal EOF to the child process.
+void IORedirect::closeStdin()
 {
-    LOGD(log << "canceling reading of real stdin");
-    bool expected = false;
-    if (m_cancel.compare_exchange_strong(expected, true))
-    {
-        wake_reader();
-    }
+    const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+    closePipe(m_stdinWrite);
 }
 
-AsyncResult IORedirectHelper::async_input(InStream &instream)
+// Worker thread function: reads from a pipe and calls the output callback.
+void IORedirect::readerWorker(StreamType type)
 {
-    if (m_eof)
+    // Select the appropriate pipe handle based on stream type.
+    const bool isStdout = (type == StreamType::Stdout);
+    const PipeHandle handle = isStdout ? m_stdoutRead : m_stderrRead;
+
+    std::array<char, ReadBufferSize> buffer{};
+
+    while (!m_stopWorkers.load())
     {
-        return AsyncResult::Eof;
-    }
+        // Read data from the pipe (blocking call).
+        const int bytesRead = readPipe(handle, buffer.data(), buffer.size());
 
-    auto *out = dynamic_cast<OutStreamBuf *>(std::get<IOSystem::Stdin>(m_streams).rdbuf());
-    if (out == nullptr)
-    {
-        LOGE(log << "dynamic_cast fail");
-        return AsyncResult::Error;
-    }
-
-    IOSystem::AsyncHandle async_handles[2]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-    auto &input_handle = async_handles[0];
-    auto &pipe_handle = async_handles[1];
-
-    auto on_exit = [&](void *) {
-        for (auto &h : async_handles) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+        if (bytesRead > 0)
         {
-            if (h)
-            {
-                IOSystem::async_cancel(h);
-            }
+            // Deliver data to the callback.
+            m_callback(type, gsl::span<char>(buffer.data(), bytesRead));
         }
-
-        bool expected = true;
-        if (m_cancel.compare_exchange_strong(expected, false))
+        else if (bytesRead == 0)
         {
-            LOGD(log << "async_input: canceled");
+            // EOF: child process closed its end of the pipe.
+            LOGD(log << "IORedirect: EOF on " << (isStdout ? "stdout" : "stderr"));
+            break;
         }
-    };
-
-    const std::unique_ptr<void, decltype(on_exit)> catch_exit{this, on_exit};
-
-    // issue read request for control pipe
-    char dummybuf = 0;
-    pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
-    if (!pipe_handle)
-    {
-        LOGE(log << "control pipe reading error");
-        return AsyncResult::Error;
-    }
-
-    ReadLock read_lock(m_rwlock, std::defer_lock_t{});
-
-    // loop until termination request
-    LOGD(log << "async_input: entering in loop");
-    while (true)
-    {
-        // issue new read request if no async read performed currenly
-        if (!input_handle && !m_eof)
+        else
         {
-            assert(!read_lock);
-            read_lock.lock();
-            assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
-
-            // free bytes in output buffer
-            const size_t avail = out->epptr() - out->pptr();
-            if (avail != 0U)
+            // Error reading from pipe.
+            if (!m_stopWorkers.load())
             {
-                LOGD(log << "requesting " << avail << " bytes to read");
-                input_handle = IOSystem::async_read(instream.get_file_handle(), out->pptr(), avail);
-
-                if (!input_handle)
-                {
-                    LOGE(log << "can't issue read request for real stdin");
-                    return AsyncResult::Error;
-                }
+                LOGE(log << "IORedirect: read error on " << (isStdout ? "stdout" : "stderr")
+                         << ", errno=" << errno);
             }
-            else
-            {
-                read_lock.unlock();
-            }
-        }
-
-        // wait for finish of read request with small timeout
-        // NOTE: using here polling, but not waiting, on Win32,
-        // to avoid issue with blocking console read operation...
-#ifdef _WIN32
-        const std::chrono::milliseconds PollPeriod{100};
-#else
-        const auto &PollPeriod = WaitForever;
-#endif
-        if (IOSystem::async_wait(async_handles, &async_handles[std::size(async_handles)], PollPeriod)) // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        {
-            LOGD(log << "wake");
-        }
-
-        // check if cancellation requested
-        IOSystem::IOResult result = IOSystem::async_result(pipe_handle);
-        if (result.status != IOSystem::IOResult::Pending)
-        {
-            if (result.status != IOSystem::IOResult::Success)
-            {
-                LOGE(log << "control pipe read error");
-                return AsyncResult::Error;
-            }
-
-            if (m_cancel.load())
-            {
-                return AsyncResult::Canceled;
-            }
-
-            pipe_handle = IOSystem::async_read(m_input_pipe.first, &dummybuf, 1);
-        }
-
-        // check if asynchronous read request finished
-        if (input_handle)
-        {
-            result = IOSystem::async_result(input_handle);
-            if (result.status == IOSystem::IOResult::Success)
-            {
-                input_handle = {}; // can issue next read request
-
-                // some data received
-                assert(read_lock);
-                assert(out->pbase() <= out->pptr() && out->pptr() <= out->epptr());
-
-                LOGD(log << "read " << result.size << " bytes from stdin");
-                assert(result.size <= static_cast<size_t>(out->epptr() - out->pptr()));
-                out->pbump(static_cast<int>(result.size));
-
-                read_lock.unlock();
-                wake_worker(); // worker must be waked after modifying `out` buffer
-            }
-            else if (result.status == IOSystem::IOResult::Eof)
-            {
-                // instruct worker to close writing end of pipe
-                LOGD(log << "EOF reached");
-                m_eof = true;
-                wake_worker();
-                return AsyncResult::Eof;
-            }
-            else if (result.status == IOSystem::IOResult::Error)
-            { // fatal error
-                input_handle = {};
-                LOGE(log << "real stdin read error");
-                return AsyncResult::Canceled;
-            }
+            break;
         }
     }
 }

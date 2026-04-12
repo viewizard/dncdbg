@@ -351,10 +351,9 @@ ManagedDebugger::ManagedDebugger()
       m_sharedBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
-      m_ioredirect({IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe(), IOSystem::unnamed_pipe()},
-            [](auto &&PH1, auto &&PH2)
+      m_ioredirect([](IORedirect::StreamType type, gsl::span<char> text)
             {
-                InputCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+                InputCallback(type, text);
             })
 {
     m_sharedEvalStackMachine->SetupEval(m_sharedEvaluator, m_sharedEvalHelpers, m_sharedEvalWaiter);
@@ -654,14 +653,13 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         m_cwd.clear();
     }
 
-    Status = m_ioredirect.exec([&]() -> HRESULT {
-            IfFailRet(m_dbgshim.GetCreateProcessForLaunch()(
-                reinterpret_cast<WCHAR *>(const_cast<WCHAR*>(to_utf16(ss.str()).c_str())), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+    m_ioredirect.exec([&]() {
+            Status = m_dbgshim.GetCreateProcessForLaunch()(
+                const_cast<WCHAR*>(to_utf16(ss.str()).c_str()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : outEnv.data(),
                 m_cwd.empty() ? nullptr : reinterpret_cast<const WCHAR *>(to_utf16(m_cwd).c_str()),
-                &m_processId, &resumeHandle));
-            return Status;
+                &m_processId, &resumeHandle);
         });
 
     if (FAILED(Status))
@@ -1268,9 +1266,9 @@ void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
     m_sharedEvalHelpers->SetEvalFlags(evalFlags);
 }
 
-void ManagedDebugger::InputCallback(IORedirectHelper::StreamType type, gsl::span<char> text)
+void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
-    DAPIO::EmitOutputEvent(OutputEvent(type == IOSystem::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
+    DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
 }
 
 void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)

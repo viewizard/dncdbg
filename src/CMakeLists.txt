@@ -56,13 +56,12 @@ set(dncdbg_SRC
     utils/filesystem_unix.cpp
     utils/filesystem_win32.cpp
     utils/filesystem.cpp
+    utils/ioredirect_unix.cpp
+    utils/ioredirect_win32.cpp
     utils/ioredirect.cpp
-    utils/iosystem_unix.cpp
-    utils/iosystem_win32.cpp
     utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
-    utils/streams.cpp
     utils/utf.cpp
     utils/waitpid.cpp
     buildinfo.cpp
@@ -80,11 +79,6 @@ if (CPPCHECK)
                            --enable=all
                            --check-level=exhaustive
                            --quiet
-                           --suppress=uninitMemberVar:streams.h
-                           --suppress=operatorEqRetRefThis:span.h
-                           --suppress=operatorEqVarError:span.h
-                           --suppress=duplInheritedMember:streams.h
-                           --suppress=accessMoved:streams.h
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
                            --suppress=useStlAlgorithm:main.cpp
