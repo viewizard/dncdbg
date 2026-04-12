@@ -196,10 +196,9 @@ HRESULT Breakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::
     return S_OK;
 }
 
-HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType,
-                                              const std::string &excModule)
+HRESULT Breakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType)
 {
-    return m_exceptionBreakpoints->ManagedCallbackException(pThread, eventType, excModule);
+    return m_exceptionBreakpoints->ManagedCallbackException(pThread, eventType);
 }
 
 HRESULT Breakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread)

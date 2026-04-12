@@ -419,7 +419,7 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
     https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger.md#exception-settings
     https://docs.microsoft.com/en-us/visualstudio/debugger/managing-exceptions-with-the-debugger
 */
-HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule)
+HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType)
 {
     HRESULT Status = S_OK;
     DWORD tid = 0;
@@ -455,15 +455,14 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::NEVER);
             }
 
-            auto findExceptionStatus = m_threadsExceptionStatus.find(tid);
-            if (findExceptionStatus != m_threadsExceptionStatus.end())
+            auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
+            if (findExceptionCallbackType != m_threadsExceptionCallbackType.end())
             {
-                findExceptionStatus->second.m_lastEvent = ExceptionCallbackType::FIRST_CHANCE;
-                findExceptionStatus->second.m_excModule = excModule;
+                findExceptionCallbackType->second = ExceptionCallbackType::FIRST_CHANCE;
             }
             else
             {
-                m_threadsExceptionStatus.emplace(tid, ExceptionStatus(ExceptionCallbackType::FIRST_CHANCE, excModule));
+                m_threadsExceptionCallbackType.emplace(tid, ExceptionCallbackType::FIRST_CHANCE);
             }
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
@@ -479,19 +478,14 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         case ExceptionCallbackType::USER_FIRST_CHANCE:
         {
             // In case we already "THROW" at FIRST CHANCE, don't emit "THROW" event again.
-            auto find = m_threadsExceptionStatus.find(tid);
-            if (find != m_threadsExceptionStatus.end())
+            auto find = m_threadsExceptionCallbackType.find(tid);
+            if (find != m_threadsExceptionCallbackType.end())
             {
-                find->second.m_lastEvent = ExceptionCallbackType::USER_FIRST_CHANCE;
-                if (find->second.m_excModule.empty())
-                {
-                    find->second.m_excModule = excModule;
-                }
-
+                find->second = ExceptionCallbackType::USER_FIRST_CHANCE;
                 return S_IGNORE;
             }
 
-            m_threadsExceptionStatus.emplace(tid, ExceptionStatus(ExceptionCallbackType::USER_FIRST_CHANCE, excModule));
+            m_threadsExceptionCallbackType.emplace(tid, ExceptionCallbackType::USER_FIRST_CHANCE);
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
@@ -513,23 +507,22 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
         case ExceptionCallbackType::CATCH_HANDLER_FOUND:
         {
-            assert(m_threadsExceptionStatus.find(tid) != m_threadsExceptionStatus.end());
+            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.end());
 
-            if (!m_justMyCode || m_threadsExceptionStatus.at(tid).m_lastEvent == ExceptionCallbackType::FIRST_CHANCE)
+            if (!m_justMyCode || m_threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::FIRST_CHANCE)
             {
-                m_threadsExceptionStatus.erase(tid);
+                m_threadsExceptionCallbackType.erase(tid);
                 return S_IGNORE;
             }
 
             if (!CoveredByFilter(ExceptionBreakpointFilter::USER_UNHANDLED, excType, ExceptionCategory::CLR) &&
                 !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
             {
-                m_threadsExceptionStatus.erase(tid);
+                m_threadsExceptionCallbackType.erase(tid);
                 return S_IGNORE;
             }
 
-            excModule = m_threadsExceptionStatus.at(tid).m_excModule;
-            m_threadsExceptionStatus.erase(tid);
+            m_threadsExceptionCallbackType.erase(tid);
 
             auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
             if (findBreakMode != m_threadsExceptionBreakMode.end())
@@ -545,10 +538,10 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
         case ExceptionCallbackType::USER_CATCH_HANDLER_FOUND:
         {
-            assert(m_threadsExceptionStatus.find(tid) != m_threadsExceptionStatus.end());
-            assert(m_threadsExceptionStatus.at(tid).m_lastEvent == ExceptionCallbackType::USER_FIRST_CHANCE);
+            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.end());
+            assert(m_threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::USER_FIRST_CHANCE);
 
-            m_threadsExceptionStatus.erase(tid);
+            m_threadsExceptionCallbackType.erase(tid);
             return S_IGNORE;
         }
 
@@ -559,11 +552,10 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             // since they don't crash the application. In this case:
             //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, excType, ExceptionCategory::CLR)) - forced to emit event
 
-            auto find = m_threadsExceptionStatus.find(tid);
-            if (find != m_threadsExceptionStatus.end())
+            auto find = m_threadsExceptionCallbackType.find(tid);
+            if (find != m_threadsExceptionCallbackType.end())
             {
-                excModule = find->second.m_excModule;
-                m_threadsExceptionStatus.erase(find);
+                m_threadsExceptionCallbackType.erase(find);
             }
 
             auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
@@ -593,7 +585,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackExitThread(ICorDebugThread *pThread
 
     m_threadsExceptionMutex.lock();
     m_threadsExceptionBreakMode.erase(tid);
-    m_threadsExceptionStatus.erase(tid);
+    m_threadsExceptionCallbackType.erase(tid);
     m_threadsExceptionMutex.unlock();
 
     return S_OK;

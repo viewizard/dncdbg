@@ -52,7 +52,7 @@ class ExceptionBreakpoints
     // Good:
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
-    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType, std::string excModule);
+    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
     HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
   private:
@@ -60,30 +60,8 @@ class ExceptionBreakpoints
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     bool m_justMyCode{true};
 
-    struct ExceptionStatus
-    {
-        ExceptionCallbackType m_lastEvent{ExceptionCallbackType::FIRST_CHANCE};
-        std::string m_excModule;
-
-        ExceptionStatus(ExceptionCallbackType lastEvent, std::string excModule)
-            : m_lastEvent(lastEvent),
-              m_excModule(std::move(excModule))
-        {
-        }
-
-        ExceptionStatus(ExceptionStatus &&other) noexcept
-            : m_lastEvent(other.m_lastEvent),
-              m_excModule(std::move(other.m_excModule))
-        {
-        }
-        ExceptionStatus(const ExceptionStatus &) = delete;
-        ExceptionStatus &operator=(ExceptionStatus &&) = delete;
-        ExceptionStatus &operator=(const ExceptionStatus &) = delete;
-        ~ExceptionStatus() = default;
-    };
-
     std::mutex m_threadsExceptionMutex;
-    std::unordered_map<DWORD, ExceptionStatus> m_threadsExceptionStatus;
+    std::unordered_map<DWORD, ExceptionCallbackType> m_threadsExceptionCallbackType;
     // Note: Exception callbacks are called with different exception callback types,
     // and we need to know the exception type related to the current stop event.
     std::unordered_map<DWORD, ExceptionBreakMode> m_threadsExceptionBreakMode;

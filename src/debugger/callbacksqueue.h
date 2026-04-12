@@ -74,8 +74,7 @@ class CallbacksQueue
     HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain);
     HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback);
     void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                     ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType,
-                     const std::string &ExcModule = std::string{});
+                     ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType);
 
   private:
 
@@ -124,7 +123,7 @@ class CallbacksQueue
     bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint);
     bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
     bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
-    bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType, const std::string &excModule);
+    bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType);
     bool CallbacksWorkerCreateProcess();
     static bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
 };

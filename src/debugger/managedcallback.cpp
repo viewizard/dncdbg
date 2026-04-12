@@ -28,36 +28,6 @@ namespace dncdbg
 namespace
 {
 
-HRESULT GetExceptionModuleName(ICorDebugFrame *pFrame, std::string &excModule)
-{
-    // Exception was thrown outside of managed code (for example, by runtime).
-    if (pFrame == nullptr)
-    {
-        excModule = "<unknown module>";
-        return S_OK;
-    }
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(pFrame->GetFunction(&trFunc));
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunc->GetModule(&trModule));
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetScopeProps(nullptr, 0, &nameLen, nullptr));
-    WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
-    IfFailRet(trMDImport->GetScopeProps(mdName.data(), nameLen, nullptr, nullptr));
-    excModule = to_utf8(mdName.c_str());
-
-    return S_OK;
-}
-
 ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame, bool justMyCode)
 {
     if (!justMyCode)
@@ -482,16 +452,13 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
     return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
         // pFrame could be neutered in case of evaluation during brake, do all stuff with pFrame in callback itself.
         ExceptionCallbackType eventType = ExceptionCallbackType::UNKNOWN;
-        std::string excModule;
         switch (dwEventType)
         {
         case DEBUG_EXCEPTION_FIRST_CHANCE:
             eventType = ExceptionCallbackType::FIRST_CHANCE;
-            GetExceptionModuleName(pFrame, excModule);
             break;
         case DEBUG_EXCEPTION_USER_FIRST_CHANCE:
             eventType = ExceptionCallbackType::USER_FIRST_CHANCE;
-            GetExceptionModuleName(pFrame, excModule);
             break;
         case DEBUG_EXCEPTION_CATCH_HANDLER_FOUND:
             eventType = CorrectedByJMCCatchHandlerEventType(pFrame, m_debugger.IsJustMyCode());
@@ -504,8 +471,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
 
         pAppDomain->AddRef();
         pThread->AddRef();
-        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Exception, pAppDomain, pThread, nullptr, STEP_NORMAL,
-                                            eventType, excModule);
+        m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Exception, pAppDomain, pThread, nullptr, STEP_NORMAL, eventType);
     });
 }
 

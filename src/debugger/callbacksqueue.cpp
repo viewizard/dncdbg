@@ -92,9 +92,9 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 }
 
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                              ExceptionCallbackType eventType, const std::string &excModule)
+                                              ExceptionCallbackType eventType)
 {
-    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackException(pThread, eventType, excModule))
+    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackException(pThread, eventType))
     {
         // Exception related break (for example, catch handler or filtered thrown exception),
         // don't emit stop event and continue execution.
@@ -144,7 +144,7 @@ void CallbacksQueue::CallbacksWorker()
             m_stopEventInProcess = CallbacksWorkerBreak(c.trAppDomain, c.trThread);
             break;
         case CallbackQueueCall::Exception:
-            m_stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType, c.ExcModule);
+            m_stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType);
             break;
         case CallbackQueueCall::CreateProcess:
             m_stopEventInProcess = CallbacksWorkerCreateProcess();
@@ -350,9 +350,9 @@ CallbacksQueue::~CallbacksQueue()
 // NOTE caller must care about m_callbacksMutex.
 void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                  ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason,
-                                 ExceptionCallbackType EventType, const std::string &ExcModule)
+                                 ExceptionCallbackType EventType)
 {
-    m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType, ExcModule);
+    m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType);
 }
 
 } // namespace dncdbg
