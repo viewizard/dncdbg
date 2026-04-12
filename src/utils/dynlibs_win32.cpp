@@ -4,7 +4,6 @@
 
 #ifdef _WIN32
 #include "utils/dynlibs.h"
-#include "utils/limits.h"
 #include <windows.h>
 
 namespace dncdbg

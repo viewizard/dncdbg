@@ -7,13 +7,6 @@
 
 #include <string>
 #include <string_view>
-#include <cstddef>
-
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#include "utils/limits.h"
-#elif _WIN32
-#include <windows.h>
-#endif
 
 namespace dncdbg
 {
@@ -21,15 +14,11 @@ namespace dncdbg
 namespace FileSystem
 {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-static constexpr size_t PathMax = PATH_MAX;
-static constexpr size_t NameMax = NAME_MAX;
-static constexpr char PathSeparator = '/';
-static constexpr std::string_view PathSeparatorSymbols("/");
+constexpr char PathSeparator = '/';
+constexpr std::string_view PathSeparatorSymbols("/");
 #elif _WIN32
-static constexpr size_t PathMax = MAX_PATH;
-static constexpr size_t NameMax = MAX_PATH - 1; // does not include terminal null character.
-static constexpr char PathSeparator = '\\';
-static constexpr std::string_view PathSeparatorSymbols("/\\");
+constexpr char PathSeparator = '\\';
+constexpr std::string_view PathSeparatorSymbols("/\\");
 #endif
 } // namespace FileSystem
 

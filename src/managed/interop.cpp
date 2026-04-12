@@ -14,7 +14,6 @@
 #include <cstdlib>
 #include <sys/stat.h>
 #elif _WIN32
-#include "utils/limits.h"
 #include <windows.h>
 #include <palclr.h>
 #endif

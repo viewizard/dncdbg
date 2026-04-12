@@ -8,8 +8,9 @@
 #endif
 #include "utils/filesystem.h"
 #include <array>
-#include <string>
+#include <climits> // PATH_MAX   NOLINT(misc-include-cleaner)
 #include <cstdlib>
+#include <string>
 #include <unistd.h>
 
 namespace dncdbg

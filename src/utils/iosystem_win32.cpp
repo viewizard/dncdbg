@@ -5,7 +5,6 @@
 #ifdef _WIN32
 #include "utils/iosystem_internal.h"
 #include "utils/iosystem_win32.h"
-#include "utils/limits.h"
 #include <afunix.h>
 #include <cassert>
 #include <atomic>
@@ -17,6 +16,10 @@
 #include <ws2tcpip.h>
 #include <iostream>
 #include <iomanip>
+
+#ifndef LINE_MAX
+#define LINE_MAX (2048)
+#endif
 
 // short alias for full class name
 namespace

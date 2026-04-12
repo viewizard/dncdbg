@@ -3,11 +3,18 @@
 // See the LICENSE file in the project root for more information.
 
 #include "utils/streams.h"
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
+#include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <algorithm>
 #include <thread>
+
+#ifdef FEATURE_PAL
+#include <climits> // LINE_MAX    NOLINT(misc-include-cleaner)
+#else // FEATURE_PAL
+#ifndef LINE_MAX
+#define LINE_MAX (2048)
+#endif
+#endif // FEATURE_PAL
 
 namespace dncdbg
 {

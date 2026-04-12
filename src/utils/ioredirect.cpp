@@ -3,11 +3,18 @@
 // See the LICENSE file in the project root for more information.
 
 #include "utils/ioredirect.h"
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include "utils/streams.h"
 #include <array>
 #include <cstring>
+
+#ifdef FEATURE_PAL
+#include <climits> // INT_MAX, LINE_MAX
+#else // FEATURE_PAL
+#ifndef LINE_MAX
+#define LINE_MAX (2048)
+#endif
+#endif // FEATURE_PAL
 
 namespace dncdbg
 {

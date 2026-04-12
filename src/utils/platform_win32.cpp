@@ -4,7 +4,6 @@
 
 #ifdef _WIN32
 #include "utils/platform.h"
-#include "utils/limits.h"
 #include <cstdlib> // char **environ
 #include <windows.h>
 

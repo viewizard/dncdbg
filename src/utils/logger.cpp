@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "utils/logger.h"
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include <ctime>
 #include <cstring>
 #include <algorithm>

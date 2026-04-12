@@ -10,7 +10,6 @@
 #endif
 
 #include "utils/dynlibs.h"
-#include "utils/limits.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include <dlfcn.h>
 #include <iostream>
