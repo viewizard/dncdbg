@@ -26,6 +26,7 @@
 #include "protocol/dapio.h"
 #include "utils/waitpid.h"
 #include "utils/logger.h"
+#include "utils/platform.h"
 #include "utils/utf.h"
 #include <array>
 #include <chrono>

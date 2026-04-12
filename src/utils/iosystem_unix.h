@@ -8,7 +8,7 @@
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
 #include "utils/iosystem_internal.h"
-#include "utils/platform.h"
+#include "utils/platformtag.h"
 #include <array>
 #include <cassert>
 #include <cstdlib>

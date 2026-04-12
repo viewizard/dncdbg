@@ -16,7 +16,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "utils/platform.h"
 #include "utils/utf.h"
 #include <string>
 #include <unordered_set>

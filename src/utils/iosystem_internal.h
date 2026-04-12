@@ -5,7 +5,7 @@
 #ifndef UTILS_IOSYSTEM_INTERNAL_H
 #define UTILS_IOSYSTEM_INTERNAL_H
 
-#include "utils/platform.h"
+#include "utils/platformtag.h"
 #include <chrono>
 #include <cstddef>
 #include <type_traits>

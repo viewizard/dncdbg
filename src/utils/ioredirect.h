@@ -6,7 +6,7 @@
 #define UTILS_IOREDIRECT_H
 
 #include "utils/iosystem.h"
-#include "utils/platform.h"
+#include "utils/platformtag.h"
 #include "utils/rwlock.h"
 #include "utils/streams.h"
 #include <gsl/span>
