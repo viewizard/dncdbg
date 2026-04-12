@@ -484,6 +484,17 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
         return S_OK;
     }
 
+    // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
+    auto BinaryPredicate =
+        [](const char &a, const char &b) -> bool
+        {
+            if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
+            {
+                return true;
+            }
+            return a == b;
+        };
+
     std::list<std::string> possibleResults;
     for (const auto pathIndex : possiblePathsIndexes)
     {
@@ -492,38 +503,10 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
             continue;
         }
 
-        // Note, since assemblies could be built in different OSes, we could have different delimiters in source files
-        // paths.
-        auto BinaryPredicate =
-            [](const char &a, const char &b)
-            {
-                if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
-                {
-                    return true;
-                }
-                return a == b;
-            };
-
-        // since C++17
-        // if (std::equal(result.begin(), result.end(), path.end() - result.size(), BinaryPredicate))
-        //    possibleResults.push_back(path);
-        auto first1 = result.begin();
-        auto last1 = result.end();
-        auto first2 = std::prev(m_sourceIndexToPath.at(pathIndex).end(), static_cast<intptr_t>(result.size()));
-        auto equal = [&]()
-            {
-                for (; first1 != last1; ++first1, ++first2)
-                {
-                    if (!BinaryPredicate(*first1, *first2))
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            };
-        if (equal())
+        const std::string &path = m_sourceIndexToPath.at(pathIndex);
+        if (std::equal(result.begin(), result.end(), path.end() - static_cast<std::string::difference_type>(result.size()), BinaryPredicate))
         {
-            possibleResults.push_back(m_sourceIndexToPath.at(pathIndex));
+            possibleResults.push_back(path);
         }
     }
     // The problem is - we could have several assemblies that could have sources with same relative paths with different
@@ -546,11 +529,11 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
 }
 
 HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
-                                          /*in*/ CORDB_ADDRESS modAddress,
-                                          /*in*/ const std::string &filename,
-                                          /*out*/ unsigned &fullname_index,
-                                          /*in*/ int sourceLine,
-                                          /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
+                                            /*in*/ CORDB_ADDRESS modAddress,
+                                            /*in*/ const std::string &filename,
+                                            /*out*/ unsigned &fullname_index,
+                                            /*in*/ int sourceLine,
+                                            /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
 {
     const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
