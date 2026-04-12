@@ -9,7 +9,6 @@
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
-#include "utils/platform.h"
 #include <array>
 #include <iomanip>
 #include <map>

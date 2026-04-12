@@ -8,7 +8,6 @@
 #include "debugger/steppers/stepper_simple.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/attributes.h"
-#include "utils/platform.h"
 #include "utils/utf.h"
 #include <unordered_set>
 

@@ -4,7 +4,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalwaiter.h"
-#include "utils/platform.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
 

@@ -7,7 +7,6 @@
 #include "debugger/evalwaiter.h"
 #include "metadata/corhelpers.h"
 #include "metadata/modules.h"
-#include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
 #include <vector>

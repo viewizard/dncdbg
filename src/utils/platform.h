@@ -6,12 +6,6 @@
 #ifndef UTILS_PLATFORM_H
 #define UTILS_PLATFORM_H
 
-#ifdef _MSC_VER
-#define W(s) L##s
-#else
-#define W(s) u##s
-#endif
-
 #ifdef _WIN32
 #define PLATFORM_TAG Win32PlatformTag
 #else

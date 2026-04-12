@@ -10,8 +10,10 @@
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
+#define W(s) u##s
 #else
 #include <wtypes.h>
+#define W(s) L##s
 #endif
 
 namespace dncdbg

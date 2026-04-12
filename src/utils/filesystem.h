@@ -11,7 +11,6 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include "utils/limits.h"
-#include "utils/platform.h"
 #elif _WIN32
 #include <windows.h>
 #endif
