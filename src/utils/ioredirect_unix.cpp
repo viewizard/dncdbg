@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
 
 #include "utils/ioredirect.h"
 #include "utils/logger.h"
@@ -187,4 +187,4 @@ void IORedirect::restoreStdFiles(SavedStdFiles &saved)
 
 } // namespace dncdbg
 
-#endif // __unix__
+#endif // FEATURE_PAL

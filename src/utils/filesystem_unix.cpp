@@ -2,10 +2,12 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#ifdef __APPLE__
+#ifdef FEATURE_PAL
+
+#if (defined(__APPLE__) && defined(__MACH__))
 #include <mach-o/dyld.h>
 #endif
+
 #include "utils/filesystem.h"
 #include <array>
 #include <climits> // PATH_MAX   NOLINT(misc-include-cleaner)
@@ -26,7 +28,7 @@ std::string get_exe_path()
     const ssize_t r = readlink(self_link.c_str(), buffer.data(), PATH_MAX);
     return {buffer.data(), r < 0 ? 0 : r};
 }
-#elif defined(__APPLE__)
+#elif (defined(__APPLE__) && defined(__MACH__))
 std::string get_exe_path()
 {
     uint32_t lenActualPath = 0;
@@ -82,4 +84,5 @@ bool SetWorkDir(const std::string &path)
 }
 
 } // namespace dncdbg
-#endif // __unix__
+
+#endif // FEATURE_PAL

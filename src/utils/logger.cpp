@@ -13,12 +13,11 @@
 #include <windows.h>
 #endif
 
-#ifdef __unix__
+#ifdef FEATURE_PAL
 #include <unistd.h>
 #endif
 
 #if (defined(__APPLE__) && defined(__MACH__))
-#include <unistd.h>
 #include <pthread.h>
 #endif
 

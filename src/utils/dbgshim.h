@@ -7,11 +7,8 @@
 #define UTILS_DBGSHIM_H
 
 #include <cor.h>
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#include <specstrings_undef.h>
-#endif
-
 #ifdef FEATURE_PAL
+#include <specstrings_undef.h>
 #include <pal_mstypes.h>
 #else
 #include <palclr.h>
@@ -59,7 +56,7 @@ class dbgshim_t
 
 #ifdef _WIN32
         libName += "dbgshim.dll";
-#elif defined(__APPLE__)
+#elif (defined(__APPLE__) && defined(__MACH__))
         libName += "libdbgshim.dylib";
 #else
         libName += "libdbgshim.so";

@@ -13,10 +13,10 @@ namespace dncdbg
 
 namespace FileSystem
 {
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
 constexpr char PathSeparator = '/';
 constexpr std::string_view PathSeparatorSymbols("/");
-#elif _WIN32
+#else
 constexpr char PathSeparator = '\\';
 constexpr std::string_view PathSeparatorSymbols("/\\");
 #endif

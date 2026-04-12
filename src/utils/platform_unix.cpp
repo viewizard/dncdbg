@@ -2,10 +2,12 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-#ifdef __APPLE__
+#ifdef FEATURE_PAL
+
+#if (defined(__APPLE__) && defined(__MACH__))
 #include <crt_externs.h>
 #endif
+
 #include "utils/platform.h"
 #include <unistd.h>
 
@@ -23,12 +25,13 @@ void USleep(unsigned long usec)
 // Function returns list of environment variables (like char **environ).
 char **GetSystemEnvironment()
 {
-#if __APPLE__
+#if (defined(__APPLE__) && defined(__MACH__))
     return *(_NSGetEnviron());
-#else  // __APPLE__
+#else
     return environ;
-#endif // __APPLE__
+#endif
 }
 
 } // namespace dncdbg
-#endif // __unix__
+
+#endif // FEATURE_PAL

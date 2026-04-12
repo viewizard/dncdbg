@@ -121,13 +121,13 @@ class IORedirect
     }
 #endif // _WIN32
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
     using PipeHandle = int; // file descriptor on Unix
     static PipeHandle invalidPipe()
     {
         return -1;
     }
-#endif // __unix__
+#endif // FEATURE_PAL
 
     // Pipe endpoints for stdin (debugger writes, child reads).
     PipeHandle m_stdinRead;   // Child-side read end (given to child process).
@@ -171,11 +171,11 @@ class IORedirect
         int origStderrFd{-1};
 #endif // _WIN32
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
         int origStdinFd{-1};
         int origStdoutFd{-1};
         int origStderrFd{-1};
-#endif // __unix__
+#endif // FEATURE_PAL
 
         bool valid{false};
     };

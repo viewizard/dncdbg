@@ -18,7 +18,8 @@ namespace dncdbg
 namespace
 {
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
+
 std::u16string utf8_to_utf16(const std::string &utf8_str)
 {
 #if BIGENDIAN
@@ -82,7 +83,8 @@ std::string utf16_to_utf8(const std::u16string &utf16_str)
     const size_t u8_len = (original_out_bytes - out_bytes) / sizeof(char);
     return {out_buf.data(), u8_len};
 }
-#endif // #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+
+#endif // FEATURE_PAL
 
 } // unnamed namespace
 

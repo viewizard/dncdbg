@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // See the LICENSE file in the project root for more information.
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
 
-#ifdef __APPLE__
+#if (defined(__APPLE__) && defined(__MACH__))
 #include <crt_externs.h>
 #include <mach-o/dyld.h>
 #endif
@@ -66,4 +66,5 @@ bool DLClose(DLHandle handle)
 }
 
 } // namespace dncdbg
-#endif // __unix__
+
+#endif // FEATURE_PAL

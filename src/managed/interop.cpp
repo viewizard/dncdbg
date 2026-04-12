@@ -9,11 +9,11 @@
 
 #include "managed/interop.h"
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
 #include <dirent.h>
 #include <cstdlib>
 #include <sys/stat.h>
-#elif _WIN32
+#else
 #include <windows.h>
 #include <palclr.h>
 #endif
@@ -35,7 +35,7 @@
 // `_invalid_parameter(char16_t const*, char16_t const*, char16_t const*, unsigned int, unsigned long)':
 //      /coreclr/src/pal/inc/rt/safecrt.h:386: undefined reference to `RaiseException'
 static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags, // NOLINT(misc-use-anonymous-namespace)
-                           DWORD nNumberOfArguments, CONST ULONG_PTR *lpArguments)
+                           DWORD nNumberOfArguments, const ULONG_PTR *lpArguments)
 {
 }
 #endif
@@ -50,7 +50,7 @@ namespace // unnamed namespace
 // to colon-separated list `tpaList'.
 void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &tpaList)
 {
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
     static constexpr std::array<std::string_view, 4> tpaExtensions{
         ".ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         ".dll",
@@ -138,7 +138,7 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
     }
 
     closedir(dir);
-#elif _WIN32
+#else
     static constexpr std::array<std::string_view, 4> tpaExtensions{
         "*.ni.dll", // Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
         "*.dll",
@@ -198,9 +198,9 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 // This function unsets `CORECLR_ENABLE_PROFILING' environment variable.
 void UnsetCoreCLREnv()
 {
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
     unsetenv("CORECLR_ENABLE_PROFILING");
-#elif _WIN32
+#else
     _putenv("CORECLR_ENABLE_PROFILING=");
 #endif
 }
@@ -213,13 +213,13 @@ uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter
         return 0;
     }
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#ifdef FEATURE_PAL
     // https://learn.microsoft.com/en-us/previous-versions/windows/desktop/automat/bstr
     // A BSTR is a composite data type that consists of a length prefix, a data string, and a terminator.
     // A four-byte integer that contains the number of bytes in the following data string.
     // It appears immediately before the first character of the data string. This value does not include the terminator.
     return static_cast<uint32_t>(*(reinterpret_cast<uint32_t *>(bstrString) - 1) / sizeof(WCHAR));
-#elif _WIN32
+#else
     return ::SysStringLen(bstrString);
 #endif
 }
