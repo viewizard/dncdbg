@@ -7,6 +7,8 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "utils/torelease.h"
+#include <algorithm>
+#include <iterator>
 
 namespace dncdbg
 {
@@ -119,10 +121,11 @@ HRESULT Threads::GetThreads(std::vector<Thread> &threads)
     const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
-    for (const auto &userThread : m_userThreads)
-    {
-        threads.emplace_back(userThread.first, userThread.second);
-    }
+    std::transform(m_userThreads.begin(), m_userThreads.end(),
+                   std::back_inserter(threads), [](const auto &userThread)
+                   {
+                       return Thread(userThread.first, userThread.second);
+                   });
 
     return S_OK;
 }
@@ -132,10 +135,11 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
     const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
-    for (const auto &userThread : m_userThreads)
-    {
-        threads.emplace_back(userThread.first);
-    }
+    std::transform(m_userThreads.begin(), m_userThreads.end(),
+                   std::back_inserter(threads), [](const auto &userThread)
+                   {
+                       return userThread.first;
+                   });
     return S_OK;
 }
 

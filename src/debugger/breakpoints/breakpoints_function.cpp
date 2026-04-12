@@ -64,8 +64,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     ULONG cParams = 0;
     IfFailRet(trParamEnum->GetCount(&cParams));
 
-    std::ostringstream ss;
-    ss << "(";
+    std::ostringstream ss_params;
+    ss_params << "(";
     if (cParams > 0)
     {
         for (ULONG i = 0; i < cParams; ++i)
@@ -81,16 +81,16 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             IfFailRet(TypePrinter::GetTypeOfValue(trValue, param));
             if (i > 0)
             {
-                ss << ",";
+                ss_params << ",";
             }
 
-            ss << param;
+            ss_params << param;
         }
     }
-    ss << ")";
-    const std::string params = ss.str();
+    ss_params << ")";
+    const std::string params = ss_params.str();
 
-    // Note, since IsEnableByCondition() during eval execution could neuter frame, all frame-related calculations
+    // Note, since IsEnableByCondition() during eval execution could neuter the frame, all frame-related calculations
     // must be done before entering this loop.
     for (auto &fb : m_funcBreakpoints)
     {

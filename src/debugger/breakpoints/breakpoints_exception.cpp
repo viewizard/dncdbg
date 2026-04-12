@@ -9,6 +9,7 @@
 #include "metadata/typeprinter.h"
 #include <algorithm>
 #include <functional>
+#include <numeric>
 
 namespace dncdbg
 {
@@ -45,10 +46,11 @@ size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcep
     std::sort(sortedConditions.begin(), sortedConditions.end());
 
     const std::hash<std::string> stringHasher;
-    for (const auto &entry : sortedConditions)
-    {
-        hash = HashCombine(hash, stringHasher(entry));
-    }
+    hash = std::accumulate(sortedConditions.begin(), sortedConditions.end(), hash,
+                           [&stringHasher](size_t h, const auto &entry)
+                           {
+                               return HashCombine(h, stringHasher(entry));
+                           });
 
     return hash;
 }

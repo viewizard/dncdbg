@@ -79,6 +79,7 @@ if (CPPCHECK)
                            --enable=all
                            --check-level=exhaustive
                            --quiet
+                           --suppress=constParameterReference
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
                            --suppress=useStlAlgorithm:main.cpp

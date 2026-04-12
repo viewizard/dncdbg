@@ -62,9 +62,9 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         if ((modAddress != 0U) && (modAddress != modAddressTrack))
         {
             LOGW(log << "During breakpoint resolve, multiple modules with same source file path were detected.");
-            LOGW(log << "File name: " << bp_fullname.c_str());
-            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFileName(resolvedPoints.at(0).trModule).c_str());
-            LOGW(log << "Ignored module: " << Modules::GetModuleFileName(resolvedBP.trModule).c_str());
+            LOGW(log << "File name: " << bp_fullname);
+            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFileName(resolvedPoints.at(0).trModule));
+            LOGW(log << "Ignored module: " << Modules::GetModuleFileName(resolvedBP.trModule));
             continue;
         }
 

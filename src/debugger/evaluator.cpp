@@ -18,6 +18,7 @@
 #include "utils/utf.h"
 #include <array>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <unordered_set>
@@ -495,7 +496,6 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
     int nextClassIdentifier = 0;
-    std::vector<std::string> fullpath;
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
@@ -508,11 +508,8 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
             classIdentifiers.pop_back();
         }
 
-        fullpath = classIdentifiers;
-        for (auto &identifier : identifiers)
-        {
-            fullpath.push_back(identifier);
-        }
+        std::vector<std::string> fullpath = classIdentifiers;
+        std::copy(identifiers.begin(), identifiers.end(), std::back_inserter(fullpath));
 
         nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
@@ -1595,7 +1592,6 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     int nextClassIdentifier = 0;
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
-    std::vector<std::string> fullpath;
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
@@ -1610,11 +1606,8 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             classIdentifiers.pop_back();
         }
 
-        fullpath = classIdentifiers;
-        for (int i = 0; i < identifiersNum; i++)
-        {
-            fullpath.push_back(identifiers.at(i));
-        }
+        std::vector<std::string> fullpath = classIdentifiers;
+        std::copy(identifiers.begin(), identifiers.begin() + identifiersNum, std::back_inserter(fullpath));
 
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
@@ -1875,7 +1868,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                 // TODO
                 // argElementTypes - typeGenerics, methodGenerics
 
-                std::string typeName;
+                typeName.clear();
                 CorElementType ty = ELEMENT_TYPE_MAX;
 
                 if (FAILED(pType->GetType(&ty)) ||
@@ -1887,7 +1880,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                 {
                     if (typeName != argElementTypes.at(0).typeName)
                     {
-                        // if type names don't match check implemented interfaces names
+                        // If type names don't match, check implemented interfaces' names
 
                         ToRelease<ICorDebugClass> trClass;
                         if (FAILED(pType->GetClass(&trClass)))
@@ -1927,8 +1920,8 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                         {
                             mdTypeDef tkClass = mdTypeDefNil;
                             mdToken tkIface = mdTokenNil;
-                            PCCOR_SIGNATURE pSig = nullptr;
-                            ULONG cbSig = 0;
+                            pSig = nullptr;
+                            cbSig = 0;
                             SigElementType ifaceElementType;
                             if (FAILED(trMDImportInt->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
                             {

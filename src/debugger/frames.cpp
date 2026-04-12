@@ -5,6 +5,7 @@
 
 #include "debugger/frames.h"
 #include "utils/torelease.h"
+#include <iterator>
 #include <list>
 #include <vector>
 
@@ -14,7 +15,7 @@ namespace dncdbg
 namespace
 {
 
-uintptr_t GetSP(CONTEXT *context)
+uintptr_t GetSP(const CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rsp;
@@ -33,7 +34,7 @@ uintptr_t GetSP(CONTEXT *context)
 #endif
 }
 
-uintptr_t GetFP(CONTEXT *context)
+uintptr_t GetFP(const CONTEXT *context)
 {
 #if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
     return context->Rbp;
@@ -88,10 +89,7 @@ HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, st
     if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
         fetchedFrames == cInternalFrames)
     {
-        for (const auto &entry : pInternalFrames)
-        {
-            trInternalFrames.emplace_back(entry);
-        }
+        std::copy(pInternalFrames.begin(), pInternalFrames.end(), std::back_inserter(trInternalFrames));
     }
     else
     {

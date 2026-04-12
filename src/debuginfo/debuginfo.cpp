@@ -140,12 +140,11 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
 std::vector<std::string> split_on_tokens(const std::string &str, const char delim)
 {
     std::vector<std::string> res;
-    size_t pos = 0;
     size_t prev = 0;
 
     while (true)
     {
-        pos = str.find(delim, prev);
+        const size_t pos = str.find(delim, prev);
         if (pos == std::string::npos)
         {
             res.emplace_back(str, prev);
@@ -270,7 +269,7 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, c
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (auto &info_pair : m_debugInfo)
+    for (const auto &info_pair : m_debugInfo)
     {
         const PDBInfo &mdInfo = info_pair.second;
         ResolveMethodInModule(mdInfo.m_trModule, funcname, cb);

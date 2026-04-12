@@ -12,8 +12,10 @@
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
+#include <algorithm>
 #include <array>
 #include <functional>
+#include <iterator>
 #include <sstream>
 #include <vector>
 #include <utility>
@@ -1249,10 +1251,11 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
 
     std::vector<SigElementType> methodGenerics;
     methodGenerics.reserve(methodGenericStrings.size());
-    for (const auto &methodGenericString : methodGenericStrings)
-    {
-        methodGenerics.emplace_back(dncdbg::Evaluator::GetElementTypeByTypeName(methodGenericString));
-    }
+    std::transform(methodGenericStrings.begin(), methodGenericStrings.end(),
+                   std::back_inserter(methodGenerics), [](const auto &methodGenericString)
+                   {
+                       return dncdbg::Evaluator::GetElementTypeByTypeName(methodGenericString);
+                   });
 
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugType> trResultType;
@@ -1369,15 +1372,15 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
     ToRelease<ICorDebugValue> trRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(trObjectValue, &trRealValue, &elemType));
-    std::vector<uint32_t> indexes;
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
+        std::vector<uint32_t> indexes;
         for (int32_t i = Int - 1; i >= 0; i--)
         {
             uint32_t result_index = 0;
-            // TODO implicitly convert ICorValue to int, if type not int
-            // at this moment GetElementIndex() works with integer types only
+            // TODO implicitly convert ICorValue to int, if type is not int
+            // currently GetElementIndex() works with integer types only
             IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
             indexes.insert(indexes.begin(), result_index);
         }
@@ -1485,15 +1488,15 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
     ToRelease<ICorDebugValue> trRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(trObjectValue, &trRealValue, &elemType));
-    std::vector<uint32_t> indexes;
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
+        std::vector<uint32_t> indexes;
         for (int32_t i = Int - 1; i >= 0; i--)
         {
             uint32_t result_index = 0;
-            // TODO implicitly convert ICorValue to int, if type not int
-            // at this moment GetElementIndex() works with integer types only
+            // TODO implicitly convert ICorValue to int, if type is not int
+            // currently GetElementIndex() works with integer types only
             IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
             indexes.insert(indexes.begin(), result_index);
         }

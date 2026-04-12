@@ -9,6 +9,7 @@
 #include "metadata/modules.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 namespace dncdbg
@@ -182,10 +183,11 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
     if (pTrMethodGenericTypes != nullptr)
     {
         trTypeParams.reserve(trTypeParams.size() + (*pTrMethodGenericTypes).size());
-        for (auto &entry : *pTrMethodGenericTypes)
-        {
-            trTypeParams.emplace_back(entry.Detach());
-        }
+        std::transform((*pTrMethodGenericTypes).begin(), (*pTrMethodGenericTypes).end(),
+                       std::back_inserter(trTypeParams), [](auto &entry)
+                       {
+                           return entry.Detach();
+                       });
         (*pTrMethodGenericTypes).clear();
     }
 

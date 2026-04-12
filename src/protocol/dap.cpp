@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <exception>
 #include <future>
+#include <iterator>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -115,7 +116,7 @@ std::string ReadData(std::istream &cin)
         {
             if (content_len >= 0)
             {
-                LOGW(log << "protocol violation: duplicate '" << line.c_str() << "'");
+                LOGW(log << "protocol violation: duplicate '" << line << "'");
             }
 
             char *p = nullptr;
@@ -124,7 +125,7 @@ std::string ReadData(std::istream &cin)
             content_len = static_cast<long>(strtoul(&line.at(CONTENT_LENGTH.size()), &p, base));
             if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
             {
-                LOGE(log << "protocol violation: '" << line.c_str() << "'");
+                LOGE(log << "protocol violation: '" << line << "'");
                 return {};
             }
         }
@@ -303,11 +304,13 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 HRESULT Status = S_OK;
 
                 std::vector<SourceBreakpoint> sourceBreakpoints;
-                for (const auto &b : arguments.at("breakpoints"))
-                {
-                    sourceBreakpoints.emplace_back(b.at("line"), b.value("condition", std::string()),
-                                                   b.value("hitCondition", std::string()));
-                }
+                std::transform(arguments.at("breakpoints").begin(), arguments.at("breakpoints").end(),
+                               std::back_inserter(sourceBreakpoints), [](const auto &b)
+                               {
+                                   return SourceBreakpoint(b.at("line"),
+                                                           b.value("condition", std::string()),
+                                                           b.value("hitCondition", std::string()));
+                               });
 
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetSourceBreakpoints(arguments.at("source").at("path"), sourceBreakpoints, breakpoints));
