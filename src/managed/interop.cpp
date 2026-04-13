@@ -21,7 +21,6 @@
 #include "utils/logger.h"
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
-#include "utils/rwlock.h"
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -40,14 +39,14 @@ static void RaiseException(DWORD dwExceptionCode, DWORD dwExceptionFlags, // NOL
 }
 #endif
 
-namespace dncdbg::Interop
+namespace dncdbg
 {
 
-namespace // unnamed namespace
+namespace
 {
 
-// This function searches *.dll files in specified directory and adds full paths to files
-// to colon-separated list `tpaList'.
+// This function searches *.dll files in the specified directory and adds full paths to files
+// to the colon-separated list `tpaList'.
 void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &tpaList)
 {
 #ifdef FEATURE_PAL
@@ -224,81 +223,7 @@ uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter
 #endif
 }
 
-enum class RetCode : int32_t // NOLINT(performance-enum-size)
-{
-    OK = 0,
-    Fail = 1,
-    Exception = 2
-};
-
-RWLock CLRrwlock;
-void *hostHandle = nullptr;
-unsigned int domainId = 0;
-
-// part of coreclrhost.h file from runtime sources
-#if defined(_WIN32) && defined(_M_IX86)
-#define CORECLR_CALLING_CONVENTION __stdcall
-#else
-#define CORECLR_CALLING_CONVENTION
-#endif
-
-#define CORECLR_HOSTING_API(function, ...) /* NOLINT(cppcoreguidelines-macro-usage) */ \
-    extern "C" int CORECLR_CALLING_CONVENTION function(__VA_ARGS__); \
-    using function##_ptr = int (CORECLR_CALLING_CONVENTION *)(__VA_ARGS__)
-
-CORECLR_HOSTING_API(coreclr_shutdown, void *hostHandle, unsigned int domainId);
-CORECLR_HOSTING_API(coreclr_initialize, const char *exePath, const char *appDomainFriendlyName, int propertyCount,
-                    const char **propertyKeys, const char **propertyValues, void **hostHandle, unsigned int *domainId);
-CORECLR_HOSTING_API(coreclr_create_delegate, void *hostHandle, unsigned int domainId, const char *entryPointAssemblyName,
-                    const char *entryPointTypeName, const char *entryPointMethodName, void **delegate);
-
-coreclr_shutdown_ptr shutdownCoreClr = nullptr;
-
-// CoreCLR use fixed size integers, don't use system/arch size dependent types for delegates.
-// Important! In case of usage pointer to variable as delegate arg, make sure it have proper size for CoreCLR!
-// For example, native code "int" != managed code "int", since managed code "int" is 4 byte fixed size.
-using ReadMemoryDelegate = int (*)(uint64_t, char *, int32_t);
-using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate, BSTR *);
-using DisposeDelegate = void (*)(void *);
-using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
-using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
-using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
-using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
-using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
-using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
-using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
-using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
-using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
-using CalculationDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, void **, BSTR *);
-using GenerateStackMachineProgramDelegate = int (*)(const WCHAR *, void **, BSTR *);
-using ReleaseStackMachineProgramDelegate = void (*)(void *);
-using NextStackCommandDelegate = int (*)(void *, int32_t *, void **, BSTR *);
-using StringToUpperDelegate = RetCode (*)(const WCHAR *, BSTR *);
-using CoTaskMemFreeDelegate = void (*)(void *);
-using SysAllocStringLenDelegate = void *(*)(int32_t);
-using SysFreeStringDelegate = void (*)(void *);
-
-LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate = nullptr;
-DisposeDelegate disposeDelegate = nullptr;
-GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate = nullptr;
-GetHoistedLocalScopesDelegate getHoistedLocalScopesDelegate = nullptr;
-GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate = nullptr;
-GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate = nullptr;
-GetStepRangesFromIPDelegate getStepRangesFromIPDelegate = nullptr;
-GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate = nullptr;
-ResolveBreakPointsDelegate resolveBreakPointsDelegate = nullptr;
-GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate = nullptr;
-GetLocalConstantsDelegate getLocalConstantsDelegate = nullptr;
-GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate = nullptr;
-ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate = nullptr;
-NextStackCommandDelegate nextStackCommandDelegate = nullptr;
-StringToUpperDelegate stringToUpperDelegate = nullptr;
-CoTaskMemFreeDelegate coTaskMemFreeDelegate = nullptr;
-SysAllocStringLenDelegate sysAllocStringLenDelegate = nullptr;
-SysFreeStringDelegate sysFreeStringDelegate = nullptr;
-CalculationDelegate calculationDelegate = nullptr;
-
-// Pass to managed helper code to read in-memory PEs/PDBs
+// Passed to managed helper code to read in-memory PEs/PDBs.
 // Returns the number of bytes read.
 int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
 {
@@ -313,9 +238,34 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
 
 } // unnamed namespace
 
-HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
-                                  uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize,
-                                  void **ppSymbolReaderHandle, std::string &pdbPath)
+RWLock Interop::CLRrwlock;
+void *Interop::hostHandle = nullptr;
+unsigned int Interop::domainId = 0;
+coreclr_shutdown_ptr Interop::shutdownCoreClr = nullptr;
+
+Interop::LoadSymbolsForModuleDelegate Interop::loadSymbolsForModuleDelegate = nullptr;
+Interop::DisposeDelegate Interop::disposeDelegate = nullptr;
+Interop::GetLocalVariableNameAndScopeDelegate Interop::getLocalVariableNameAndScopeDelegate = nullptr;
+Interop::GetHoistedLocalScopesDelegate Interop::getHoistedLocalScopesDelegate = nullptr;
+Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetDelegate = nullptr;
+Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegate = nullptr;
+Interop::GetStepRangesFromIPDelegate Interop::getStepRangesFromIPDelegate = nullptr;
+Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
+Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
+Interop::GetAsyncMethodSteppingInfoDelegate Interop::getAsyncMethodSteppingInfoDelegate = nullptr;
+Interop::GetLocalConstantsDelegate Interop::getLocalConstantsDelegate = nullptr;
+Interop::GenerateStackMachineProgramDelegate Interop::generateStackMachineProgramDelegate = nullptr;
+Interop::ReleaseStackMachineProgramDelegate Interop::releaseStackMachineProgramDelegate = nullptr;
+Interop::NextStackCommandDelegate Interop::nextStackCommandDelegate = nullptr;
+Interop::StringToUpperDelegate Interop::stringToUpperDelegate = nullptr;
+Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
+Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
+Interop::SysFreeStringDelegate Interop::sysFreeStringDelegate = nullptr;
+Interop::CalculationDelegate Interop::calculationDelegate = nullptr;
+
+HRESULT Interop::LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
+                                           uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize,
+                                           void **ppSymbolReaderHandle, std::string &pdbPath)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((loadSymbolsForModuleDelegate == nullptr) || (ppSymbolReaderHandle == nullptr))
@@ -349,12 +299,12 @@ HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory
     return S_OK;
 }
 
-SequencePoint::~SequencePoint() noexcept
+Interop::SequencePoint::~SequencePoint() noexcept
 {
     Interop::SysFreeString(document);
 }
 
-void DisposeSymbols(void *pSymbolReaderHandle)
+void Interop::DisposeSymbols(void *pSymbolReaderHandle)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((disposeDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
@@ -367,7 +317,7 @@ void DisposeSymbols(void *pSymbolReaderHandle)
 
 // WARNING! Due to CoreCLR limitations, Init() / Shutdown() sequence can be used only once during process execution.
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
-void Init(const std::string &coreClrPath)
+void Interop::Init(const std::string &coreClrPath)
 {
     const WriteLock write_lock(CLRrwlock);
 
@@ -509,7 +459,7 @@ void Init(const std::string &coreClrPath)
 }
 
 // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
-void Shutdown()
+void Interop::Shutdown()
 {
     const WriteLock write_lock(CLRrwlock);
     if (shutdownCoreClr == nullptr)
@@ -543,8 +493,8 @@ void Shutdown()
     calculationDelegate = nullptr;
 }
 
-HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                   SequencePoint *sequencePoint)
+HRESULT Interop::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                            SequencePoint *sequencePoint)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getSequencePointByILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (sequencePoint == nullptr))
@@ -559,8 +509,8 @@ HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef method
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                uint32_t &ilNextOffset, bool *noUserCodeFound)
+HRESULT Interop::GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                         uint32_t &ilNextOffset, bool *noUserCodeFound)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getNextUserCodeILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
@@ -582,7 +532,7 @@ HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodTok
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset)
+HRESULT Interop::GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getStepRangesFromIPDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
@@ -596,8 +546,8 @@ HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
-                                      WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
+HRESULT Interop::GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
+                                               WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
 {
     ReadLock read_lock(CLRrwlock);
     if ((getLocalVariableNameAndScopeDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
@@ -629,7 +579,7 @@ HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef met
     return S_OK;
 }
 
-HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount)
+HRESULT Interop::GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getHoistedLocalScopesDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
@@ -642,8 +592,8 @@ HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
-                    int32_t &resultType, void **data, std::string &errorText)
+HRESULT Interop::Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
+                             int32_t &resultType, void **data, std::string &errorText)
 {
     ReadLock read_lock(CLRrwlock);
     if (calculationDelegate == nullptr)
@@ -666,8 +616,8 @@ HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t se
     return S_OK;
 }
 
-HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
-                               uint32_t normalTokensNum, void *normalTokens, void **data)
+HRESULT Interop::GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
+                                        uint32_t normalTokensNum, void *normalTokens, void **data)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((getModuleMethodsRangesDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || ((constrTokensNum != 0U) && (constrTokens == nullptr)) ||
@@ -681,8 +631,8 @@ HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensN
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum, void *Tokens, int32_t sourceLine,
-                           int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data)
+HRESULT Interop::ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum, void *Tokens, int32_t sourceLine,
+                                    int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((resolveBreakPointsDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (Tokens == nullptr) || (data == nullptr))
@@ -695,8 +645,8 @@ HRESULT ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum, void *To
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
-HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
-                                   std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset)
+HRESULT Interop::GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
+                                            std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset)
 {
     ReadLock read_lock(CLRrwlock);
     if ((getAsyncMethodSteppingInfoDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (ilOffset == nullptr))
@@ -729,8 +679,8 @@ HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef method
     return S_OK;
 }
 
-HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                          void **data, int32_t &constantCount)
+HRESULT Interop::GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                   void **data, int32_t &constantCount)
 {
     ReadLock read_lock(CLRrwlock);
     if ((getLocalConstantsDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (data == nullptr))
@@ -750,7 +700,7 @@ HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, ui
     return S_OK;
 }
 
-HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput)
+HRESULT Interop::GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput)
 {
     ReadLock read_lock(CLRrwlock);
     if ((generateStackMachineProgramDelegate == nullptr) || (ppStackProgram == nullptr))
@@ -772,7 +722,7 @@ HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgr
     return Status;
 }
 
-void ReleaseStackMachineProgram(void *pStackProgram)
+void Interop::ReleaseStackMachineProgram(void *pStackProgram)
 {
     const ReadLock read_lock(CLRrwlock);
     if ((releaseStackMachineProgramDelegate == nullptr) || (pStackProgram == nullptr))
@@ -783,9 +733,9 @@ void ReleaseStackMachineProgram(void *pStackProgram)
     releaseStackMachineProgramDelegate(pStackProgram);
 }
 
-// Note, managed part will release Ptr unmanaged memory at object finalizer call after ReleaseStackMachineProgram() call.
-// Native part must not release Ptr memory, allocated by managed part.
-HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput)
+// Note: the managed part will release Ptr unmanaged memory at object finalizer call after ReleaseStackMachineProgram() call.
+// The native part must not release Ptr memory allocated by the managed part.
+HRESULT Interop::NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput)
 {
     ReadLock read_lock(CLRrwlock);
     if ((nextStackCommandDelegate == nullptr) || (pStackProgram == nullptr))
@@ -807,7 +757,7 @@ HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std:
     return Status;
 }
 
-void *AllocString(const std::string &str)
+void *Interop::AllocString(const std::string &str)
 {
     if (str.empty())
     {
@@ -825,7 +775,7 @@ void *AllocString(const std::string &str)
     return bstr;
 }
 
-HRESULT StringToUpper(std::string &String)
+HRESULT Interop::StringToUpper(std::string &String)
 {
     ReadLock read_lock(CLRrwlock);
     if (stringToUpperDelegate == nullptr)
@@ -848,7 +798,7 @@ HRESULT StringToUpper(std::string &String)
     return S_OK;
 }
 
-BSTR SysAllocStringLen(int32_t size)
+BSTR Interop::SysAllocStringLen(int32_t size)
 {
     const ReadLock read_lock(CLRrwlock);
     if (sysAllocStringLenDelegate == nullptr)
@@ -859,7 +809,7 @@ BSTR SysAllocStringLen(int32_t size)
     return reinterpret_cast<BSTR>(sysAllocStringLenDelegate(size));
 }
 
-void SysFreeString(BSTR ptrBSTR)
+void Interop::SysFreeString(BSTR ptrBSTR)
 {
     const ReadLock read_lock(CLRrwlock);
     if (sysFreeStringDelegate == nullptr)
@@ -870,7 +820,7 @@ void SysFreeString(BSTR ptrBSTR)
     sysFreeStringDelegate(ptrBSTR);
 }
 
-void CoTaskMemFree(void *ptr)
+void Interop::CoTaskMemFree(void *ptr)
 {
     const ReadLock read_lock(CLRrwlock);
     if (coTaskMemFreeDelegate == nullptr)
@@ -881,4 +831,4 @@ void CoTaskMemFree(void *ptr)
     coTaskMemFreeDelegate(ptr);
 }
 
-} // namespace dncdbg::Interop
+} // namespace dncdbg
