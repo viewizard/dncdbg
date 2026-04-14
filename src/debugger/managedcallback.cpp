@@ -205,7 +205,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProces
     // C# Main() return values is int (signed int) or void (return 0)
     int exitCode = 0;
 #ifdef FEATURE_PAL
-    exitCode = GetWaitpid().GetExitCode();
+    exitCode = WaitpidHook::GetExitCode();
 #else
     HPROCESS hProcess;
     DWORD dwExitCode = 0;

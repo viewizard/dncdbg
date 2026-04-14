@@ -9,7 +9,6 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-do-while,
-  -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-reinterpret-cast,
   modernize-*,

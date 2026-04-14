@@ -13,40 +13,35 @@
 
 namespace dncdbg
 {
-namespace hook
-{
 
-class waitpid_t
+class WaitpidHook
 {
   public:
 
-    waitpid_t() = default;
-    waitpid_t(waitpid_t &&) = delete;
-    waitpid_t(const waitpid_t &) = delete;
-    waitpid_t &operator=(waitpid_t &&) = delete;
-    waitpid_t &operator=(const waitpid_t &) = delete;
-    ~waitpid_t() = default;
+    WaitpidHook() = default;
+    WaitpidHook(WaitpidHook &&) = delete;
+    WaitpidHook(const WaitpidHook &) = delete;
+    WaitpidHook &operator=(WaitpidHook &&) = delete;
+    WaitpidHook &operator=(const WaitpidHook &) = delete;
+    ~WaitpidHook() = default;
 
-    pid_t operator()(pid_t pid, int *status, int options);
-    void SetupTrackingPID(pid_t PID);
-    int GetExitCode();
-    void SetExitCode(pid_t PID, int Code);
+    static pid_t CallOriginal(pid_t pid, int *status, int options);
+    static void SetupTrackingPID(pid_t PID);
+    static int GetExitCode();
+    static void SetExitCode(pid_t PID, int Code);
 
   private:
 
     using Signature = pid_t (*)(pid_t pid, int *status, int options);
-    Signature original = nullptr;
+
+    static Signature original;
     static constexpr pid_t notConfigured = -1;
-    pid_t trackPID = notConfigured;
-    int exitCode = 0; // same behaviour as CoreCLR has, by default exit code is 0
-    std::recursive_mutex interlock;
+    static pid_t trackPID;
+    static int exitCode;
+    static std::recursive_mutex interlock;
 
-    void init() noexcept;
+    static void init() noexcept;
 };
-
-} // namespace hook
-
-hook::waitpid_t &GetWaitpid();
 
 } // namespace dncdbg
 

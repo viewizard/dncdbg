@@ -620,7 +620,7 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     w_lock.unlock();
 
 #ifdef FEATURE_PAL
-    GetWaitpid().SetupTrackingPID(static_cast<pid_t>(m_processId));
+    WaitpidHook::SetupTrackingPID(static_cast<pid_t>(m_processId));
 #endif // FEATURE_PAL
 
     return S_OK;
@@ -668,7 +668,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     }
 
 #ifdef FEATURE_PAL
-    GetWaitpid().SetupTrackingPID(static_cast<pid_t>(m_processId));
+    WaitpidHook::SetupTrackingPID(static_cast<pid_t>(m_processId));
 #endif // FEATURE_PAL
 
     IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
