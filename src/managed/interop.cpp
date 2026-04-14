@@ -121,15 +121,16 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
             // Make sure if we have an assembly with multiple extensions present,
             // we insert only one version of it.
-            if (addedAssemblies.find(filenameWithoutExt) == addedAssemblies.end())
+            if (addedAssemblies.find(filenameWithoutExt) != addedAssemblies.end())
             {
-                addedAssemblies.insert(filenameWithoutExt);
-
-                tpaList.append(directory);
-                tpaList += FileSystem::PathSeparator;
-                tpaList.append(filename);
-                tpaList.append(":");
+                continue;
             }
+
+            addedAssemblies.insert(filenameWithoutExt);
+            tpaList.append(directory);
+            tpaList += FileSystem::PathSeparator;
+            tpaList.append(filename);
+            tpaList.append(":");
         }
 
         // Rewind the directory stream to be able to iterate over it for the next extension
@@ -176,15 +177,16 @@ void AddFilesFromDirectoryToTpaList(const std::string &directory, std::string &t
 
                     // Make sure if we have an assembly with multiple extensions present,
                     // we insert only one version of it.
-                    if (addedAssemblies.find(filenameWithoutExt) == addedAssemblies.end())
+                    if (addedAssemblies.find(filenameWithoutExt) != addedAssemblies.end())
                     {
-                        addedAssemblies.insert(filenameWithoutExt);
-
-                        tpaList.append(directory);
-                        tpaList += FileSystem::PathSeparator;
-                        tpaList.append(filename);
-                        tpaList.append(";");
+                        continue;
                     }
+
+                    addedAssemblies.insert(filenameWithoutExt);
+                    tpaList.append(directory);
+                    tpaList += FileSystem::PathSeparator;
+                    tpaList.append(filename);
+                    tpaList.append(";");
                 }
             } while (0 != FindNextFileA(findHandle, &data));
 
