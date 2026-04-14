@@ -8,9 +8,10 @@
 #include "protocol/dapio.h"
 #include "utils/logger.h"
 
-#include <string>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <utility>
 
 #ifdef _WIN32
@@ -128,18 +129,17 @@ int
         }
         else
         {
-            bool found = false;
-            for (auto const &entry : partialArguments)
-            {
-                // Note: starts_with() is C++20, use rfind() for compatibility
-                if (arg.rfind(entry.first, 0) == 0)
+            auto it = std::find_if(partialArguments.begin(), partialArguments.end(),
+                [&arg](const auto &entry)
                 {
-                    entry.second(arg);
-                    found = true;
-                    break;
-                }
+                    // Note: starts_with() is C++20, use rfind() for compatibility
+                    return arg.rfind(entry.first, 0) == 0;
+                });
+            if (it != partialArguments.end())
+            {
+                it->second(arg);
             }
-            if (!found)
+            else
             {
                 std::cerr << "Error: Unknown option " << arg << "\n";
                 exit(EXIT_FAILURE);

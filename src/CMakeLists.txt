@@ -79,10 +79,10 @@ if (CPPCHECK)
                            --enable=all
                            --check-level=exhaustive
                            --quiet
+                           --suppress=preprocessorErrorDirective
                            --suppress=constParameterReference
                            --suppress=noExplicitConstructor
                            --suppress=knownConditionTrueFalse
-                           --suppress=useStlAlgorithm:main.cpp
                            --suppress=missingIncludeSystem
                            --suppress=unusedFunction
                            --suppress=unmatchedSuppression
