@@ -25,7 +25,7 @@ class SimpleStepper
 {
   public:
 
-    SimpleStepper(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+    explicit SimpleStepper(std::shared_ptr<DebugInfo> &sharedDebugInfo)
         : m_sharedDebugInfo(sharedDebugInfo)
     {
     }

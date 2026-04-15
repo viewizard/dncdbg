@@ -223,7 +223,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
             for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
             {
-                const ToRelease<ICorDebugType> trElementType = trType.Detach();
+                const ToRelease<ICorDebugType> trElementType = ToRelease<ICorDebugType>(trType.Detach());
                 IfFailRet(trAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY,
                                                               *irank, trElementType, &trType));
             }

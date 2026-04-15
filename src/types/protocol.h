@@ -41,7 +41,7 @@ struct Source
     // adapterData?: any;
     // checksums?: Checksum[];
 
-    Source(const std::string &path = {});
+    explicit Source(const std::string &path = {});
 
     [[nodiscard]] bool IsNull() const
     {
@@ -96,7 +96,7 @@ struct StackFrame
     {
     }
 
-    StackFrame(FrameId id)
+    explicit StackFrame(FrameId id)
         : id(id),
           line(0),
           column(0),
@@ -171,8 +171,8 @@ struct StoppedEvent
     bool allThreadsStopped;
     std::vector<uint32_t> hitBreakpointIds;
 
-    StoppedEvent(StoppedEventReason reason,
-                 ThreadId threadId = ThreadId::Invalid)
+    explicit StoppedEvent(StoppedEventReason reason,
+                          ThreadId threadId = ThreadId::Invalid)
         : reason(reason),
           threadId(threadId),
           allThreadsStopped(true)
@@ -216,7 +216,7 @@ struct ExitedEvent
 {
     int exitCode;
 
-    ExitedEvent(int exitCode)
+    explicit ExitedEvent(int exitCode)
         : exitCode(exitCode)
     {
     }
@@ -366,9 +366,9 @@ struct SourceBreakpoint
     // logMessage?: string;
     // mode?: string;
 
-    SourceBreakpoint(int linenum,
-                     std::string cond = std::string(),
-                     std::string hitCond = std::string())
+    explicit SourceBreakpoint(int linenum,
+                              std::string cond = std::string(),
+                              std::string hitCond = std::string())
         : line(linenum),
           condition(std::move(cond)),
           hitCondition(std::move(hitCond))

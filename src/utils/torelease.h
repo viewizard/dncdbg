@@ -39,7 +39,7 @@ template <class T> class ToRelease
     {
     }
 
-    ToRelease(T *ptr) : m_ptr(ptr)
+    explicit ToRelease(T *ptr) : m_ptr(ptr)
     {
     }
 

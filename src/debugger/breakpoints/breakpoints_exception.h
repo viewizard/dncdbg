@@ -29,7 +29,7 @@ class ExceptionBreakpoints
 {
   public:
 
-    ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
+    explicit ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
         : m_sharedEvaluator(sharedEvaluator),
           m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
     {

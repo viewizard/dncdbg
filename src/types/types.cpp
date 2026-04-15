@@ -202,7 +202,8 @@ struct FramesList
 
     struct ScopeGuard
     {
-        ScopeGuard(FramesList &f) : frames_list(f)
+        explicit ScopeGuard(FramesList &f)
+            : frames_list(f)
         {
             frames_list.mutex.lock();
         }
@@ -229,7 +230,7 @@ struct FramesList
 
     ScopeGuard get()
     {
-        return *this;
+        return ScopeGuard(*this);
     }
 
   private:

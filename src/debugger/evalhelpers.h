@@ -30,7 +30,7 @@ class EvalHelpers
 {
   public:
 
-    EvalHelpers(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+    explicit EvalHelpers(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedEvalWaiter(sharedEvalWaiter)
     {
     }

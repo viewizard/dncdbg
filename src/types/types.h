@@ -114,7 +114,7 @@ class ThreadId : public CustomScalarType<ThreadId>
 
     int m_id;
 
-    ThreadId(SpecialValues val) noexcept
+    explicit ThreadId(SpecialValues val) noexcept
         : m_id(val)
     {
     }
@@ -169,7 +169,7 @@ class FrameId : public CustomScalarType<FrameId>
     {
     }
     FrameId(ThreadId thread, FrameLevel level);
-    FrameId(int n);
+    explicit FrameId(int n);
 
     explicit operator ScalarType() const noexcept
     {

@@ -186,7 +186,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         std::transform((*pTrMethodGenericTypes).begin(), (*pTrMethodGenericTypes).end(),
                        std::back_inserter(trTypeParams), [](auto &entry)
                        {
-                           return entry.Detach();
+                           return ToRelease<ICorDebugType>(entry.Detach());
                        });
         (*pTrMethodGenericTypes).clear();
     }
@@ -295,7 +295,7 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     }
     else
     {
-        m_typeObjectCache.emplace_front(type_object_t{typeID, trHandleValue.Detach()});
+        m_typeObjectCache.emplace_front(type_object_t{typeID, ToRelease<ICorDebugHandleValue>(trHandleValue.Detach())});
     }
 
     return S_OK;

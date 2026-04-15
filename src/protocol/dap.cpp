@@ -826,7 +826,8 @@ void DAP::CommandLoop()
 
         struct bad_format : public std::invalid_argument
         {
-            bad_format(const char *s) : invalid_argument(s)
+            explicit bad_format(const char *s)
+                : invalid_argument(s)
             {
             }
         };

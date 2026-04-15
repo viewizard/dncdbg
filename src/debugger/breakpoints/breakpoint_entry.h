@@ -25,7 +25,7 @@ class EntryBreakpoint
 {
   public:
 
-    EntryBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
+    explicit EntryBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
         : m_sharedDebugInfo(sharedDebugInfo)
     {
     }

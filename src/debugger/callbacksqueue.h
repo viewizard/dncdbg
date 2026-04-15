@@ -52,7 +52,7 @@ class CallbacksQueue
 {
   public:
 
-    CallbacksQueue(ManagedDebugger &debugger)
+    explicit CallbacksQueue(ManagedDebugger &debugger)
         : m_debugger(debugger),
           m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this}
     {

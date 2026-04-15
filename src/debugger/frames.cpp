@@ -5,6 +5,7 @@
 
 #include "debugger/frames.h"
 #include "utils/torelease.h"
+#include <algorithm>
 #include <iterator>
 #include <list>
 #include <vector>
@@ -89,7 +90,11 @@ HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, st
     if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
         fetchedFrames == cInternalFrames)
     {
-        std::copy(pInternalFrames.begin(), pInternalFrames.end(), std::back_inserter(trInternalFrames));
+        std::transform(pInternalFrames.begin(), pInternalFrames.end(), 
+                       std::back_inserter(trInternalFrames), [](ICorDebugInternalFrame2 *p)
+                       {
+                           return ToRelease<ICorDebugInternalFrame2>(p);
+                       });
     }
     else
     {
