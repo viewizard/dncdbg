@@ -873,7 +873,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
         trTypeValue.Free();
         IfFailRet(GetRealValueWithType(trResultValue, &trTypeValue));
-        pType1Value = trTypeValue.GetPtr();
+        pType1Value = trTypeValue.GetPtr(); // FIXME why we need this here? Assignment of function parameter has no effect outside the function.
 
         return S_OK;
     });
