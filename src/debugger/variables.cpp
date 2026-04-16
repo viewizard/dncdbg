@@ -539,7 +539,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameId.getLevel(), expression,
                                                            &trValue, output, &editable, &setterData));
     if (!editable ||
-        (editable && (setterData != nullptr) && (setterData->trSetterFunction == nullptr))) // property, that don't have setter
+        (setterData != nullptr && setterData->trSetterFunction == nullptr)) // property that doesn't have a setter
     {
         output = "'" + expression + "' cannot be assigned to";
         return E_INVALIDARG;

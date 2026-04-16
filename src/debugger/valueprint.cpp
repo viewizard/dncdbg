@@ -176,8 +176,8 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
                     continue;
                 }
 
-                if ((currentConstValue == remainingValue) ||
-                    ((currentConstValue != 0) && ((currentConstValue & remainingValue) == currentConstValue)))
+                if (currentConstValue == remainingValue ||
+                    (currentConstValue & remainingValue) == currentConstValue)
                 {
                     OrderedFlags.emplace(currentConstValue, to_utf8(mdName.c_str()));
                     remainingValue &= ~currentConstValue;

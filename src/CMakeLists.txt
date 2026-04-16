@@ -81,7 +81,6 @@ if (CPPCHECK)
                            --quiet
                            --suppress=preprocessorErrorDirective
                            --suppress=constParameterReference
-                           --suppress=knownConditionTrueFalse
                            --suppress=missingIncludeSystem
                            --suppress=unusedFunction
                            --suppress=unmatchedSuppression
