@@ -21,7 +21,7 @@ namespace
 
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
-HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, SourceBreakpoints::ManagedSourceBreakpoint &bp,
+HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, const SourceBreakpoints::ManagedSourceBreakpoint &bp,
                                 const std::string &bp_fullname, std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints,
                                 unsigned &bp_fullname_index)
 {

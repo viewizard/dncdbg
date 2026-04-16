@@ -126,10 +126,10 @@ class Variables
     HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
                               std::vector<Variable> &variables);
 
-    HRESULT GetChildren(VariableReference &ref, ICorDebugThread *pThread, int start, int count,
+    HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, int start, int count,
                         std::vector<Variable> &variables);
 
-    HRESULT SetStackVariable(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+    HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                              const std::string &value, std::string &output);
 
     HRESULT SetChild(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,

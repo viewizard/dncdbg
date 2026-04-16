@@ -107,7 +107,7 @@ class Evaluator
                                           ICorDebugFunction **ppCorFunc);
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                         ValueKind valueKind, std::vector<std::string> &identifiers, int nextIdentifier,
+                         ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,

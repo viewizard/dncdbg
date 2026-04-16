@@ -226,7 +226,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
     COR_TYPEID typeID;
     IfFailRet(trType2->GetTypeID(&typeID));
 
-    auto is_same = [&typeID](type_object_t &typeObject)
+    auto is_same = [&typeID](const type_object_t &typeObject)
                    {
                        return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
                    };
@@ -264,7 +264,7 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     COR_TYPEID typeID;
     IfFailRet(trType2->GetTypeID(&typeID));
 
-    auto is_same = [&typeID](type_object_t &typeObject)
+    auto is_same = [&typeID](const type_object_t &typeObject)
                    {
                        return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
                    };

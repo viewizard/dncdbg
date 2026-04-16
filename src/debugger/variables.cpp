@@ -174,7 +174,7 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
         return E_FAIL;
     }
 
-    VariableReference &ref = it->second;
+    const VariableReference &ref = it->second;
 
     HRESULT Status = S_OK;
 
@@ -334,7 +334,7 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
     return S_OK;
 }
 
-HRESULT Variables::GetChildren(VariableReference &ref, ICorDebugThread *pThread, int start, int count, std::vector<Variable> &variables)
+HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pThread, int start, int count, std::vector<Variable> &variables)
 {
     if (ref.IsScope())
     {
@@ -448,7 +448,7 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
     return S_OK;
 }
 
-HRESULT Variables::SetStackVariable(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                                     const std::string &value, std::string &output)
 {
     HRESULT Status = S_OK;

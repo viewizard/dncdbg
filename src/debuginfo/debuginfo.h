@@ -80,7 +80,7 @@ class DebugInfo
 
     HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
-    static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+    static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
                                                      const ResolveFunctionBreakpointCallback &cb);
 
     HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range);

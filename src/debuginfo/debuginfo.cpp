@@ -278,7 +278,7 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, c
     return S_OK;
 }
 
-HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, std::string &funcname,
+HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
                                                      const ResolveFunctionBreakpointCallback &cb)
 {
     return ResolveMethodInModule(pModule, funcname, cb);

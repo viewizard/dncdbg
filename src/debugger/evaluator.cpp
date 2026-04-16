@@ -1523,7 +1523,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 }
 
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                ValueKind valueKind, std::vector<std::string> &identifiers,
+                                ValueKind valueKind, const std::vector<std::string> &identifiers,
                                 int nextIdentifier, ICorDebugValue **ppResult,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
