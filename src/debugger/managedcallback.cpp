@@ -189,7 +189,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
-HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess(ICorDebugProcess *pProcess) // NOLINT(misc-unused-parameters)
+HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebugProcess *pProcess)
 {
     if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
     {
