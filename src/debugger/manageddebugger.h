@@ -33,7 +33,7 @@ class EvalWaiter;
 class EvalHelpers;
 class EvalStackMachine;
 class Variables;
-class ManagedCallback; // NOLINT(cppcoreguidelines-virtual-class-destructor)
+class ManagedCallback;
 class CallbacksQueue;
 class Breakpoints;
 class DebugInfo;

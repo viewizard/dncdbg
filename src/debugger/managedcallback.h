@@ -31,6 +31,13 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
           m_sharedCallbacksQueue(sharedCallbacksQueue)
     {
     }
+
+    ManagedCallback(ManagedCallback &&) = delete;
+    ManagedCallback(const ManagedCallback &) = delete;
+    ManagedCallback &operator=(ManagedCallback &&) = delete;
+    ManagedCallback &operator=(const ManagedCallback &) = delete;
+    virtual ~ManagedCallback() = default;
+
     ULONG GetRefCount();
 
     // IUnknown
