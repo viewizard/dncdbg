@@ -371,14 +371,11 @@ HRESULT ManagedDebugger::Initialize()
     return S_OK;
 }
 
-HRESULT ManagedDebugger::RunIfReady()
+HRESULT ManagedDebugger::ConfigurationDone()
 {
     FrameId::invalidate();
 
-    if (m_startMethod == StartMethod::None || !m_isConfigurationDone)
-    {
-        return S_OK;
-    }
+    assert(m_startMethod != StartMethod::None);
 
     switch (m_startMethod)
     {
@@ -389,16 +386,13 @@ HRESULT ManagedDebugger::RunIfReady()
     default:
         return E_FAIL;
     }
-
-    // Unreachable
-    return E_FAIL;
 }
 
-HRESULT ManagedDebugger::Attach(int pid)
+HRESULT ManagedDebugger::Attach(DWORD pid)
 {
     m_startMethod = StartMethod::Attach;
     m_processId = pid;
-    return RunIfReady();
+    return S_OK;
 }
 
 HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
@@ -410,14 +404,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
     m_cwd = cwd;
     m_env = env;
     m_sharedBreakpoints->SetStopAtEntry(stopAtEntry);
-    return RunIfReady();
-}
-
-HRESULT ManagedDebugger::ConfigurationDone()
-{
-    m_isConfigurationDone = true;
-
-    return RunIfReady();
+    return S_OK;
 }
 
 HRESULT ManagedDebugger::Disconnect(DisconnectAction action)

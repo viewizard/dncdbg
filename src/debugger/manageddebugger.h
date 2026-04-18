@@ -76,7 +76,7 @@ class ManagedDebugger
     void SetEvalFlags(uint32_t evalFlags);
 
     HRESULT Initialize();
-    HRESULT Attach(int pid);
+    HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
                    const std::map<std::string, std::string> &env, const std::string &cwd, bool stopAtEntry = false);
     HRESULT ConfigurationDone();
@@ -131,7 +131,6 @@ class ManagedDebugger
     std::vector<std::string> m_execArgs;
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
-    bool m_isConfigurationDone{false};
 
     std::shared_ptr<Threads> m_sharedThreads;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
@@ -179,7 +178,6 @@ class ManagedDebugger
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     HRESULT StartupCallbackHR{S_OK};
     HRESULT Startup(IUnknown *punk);
-    HRESULT RunIfReady();
     HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs);
     HRESULT AttachToProcess();
     HRESULT DetachFromProcess();
