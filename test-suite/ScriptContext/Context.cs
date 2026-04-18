@@ -178,7 +178,7 @@ class Context
 
             // for disconnect and unhandled exception we don't check exit code here, since Windows and Linux provide different exit code
             if (wasExited && checkExitCode.HasValue)
-                Assert.Equal(exitCode, checkExitCode.Value, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                Assert.Equal(checkExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
             if (wasExited && wasTerminated)
                 return true;
