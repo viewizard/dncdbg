@@ -35,9 +35,9 @@ public class DAPLocalDebuggerClient : DebuggerClient
         return true;
     }
 
-    public override string[] Receive(int timeout)
+    public override string[]? Receive(int timeout)
     {
-        string line = ReceiveOutputLine(timeout);
+        string? line = ReceiveOutputLine(timeout);
         if (line is null)
         {
             return null;
@@ -51,7 +51,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
         DebuggerOutput.Close();
     }
 
-    string ReadData()
+    string? ReadData()
     {
         string header = "";
         byte[] recvBuffer = new byte[1];
@@ -114,18 +114,13 @@ public class DAPLocalDebuggerClient : DebuggerClient
         }
     }
 
-    string ReceiveOutputLine(int timeout)
+    string? ReceiveOutputLine(int timeout)
     {
         GetInput.Set();
         bool success = GotInput.WaitOne(timeout);
         if (!success)
         {
             throw new DebuggerNotResponses();
-        }
-
-        if (InputString is null)
-        {
-            return null;
         }
 
         return InputString;
@@ -135,7 +130,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
     readonly StreamReader DebuggerOutput;
     readonly Thread InputThread;
     readonly AutoResetEvent GetInput, GotInput;
-    string InputString;
+    string? InputString;
     static readonly string TWO_CRLF = "\r\n\r\n";
     static readonly string CONTENT_LENGTH = "Content-Length: ";
 }

@@ -7,68 +7,68 @@ public class Response : ProtocolMessage
 {
     public int request_seq;
     public bool success;
-    public string command;
-    public string message;
+    public string command = string.Empty;
+    public string message = string.Empty;
 }
 
 public class StackTraceResponse : Response
 {
-    public StackTraceResponseBody body;
+    public StackTraceResponseBody body = new();
 }
 
 public class StackTraceResponseBody
 {
-    public List<StackFrame> stackFrames;
+    public List<StackFrame> stackFrames = [];
     public int? totalFrames;
 }
 
 public class StackFrame
 {
     public Int64 id;
-    public string name;
-    public Source source;
+    public string name = string.Empty;
+    public Source source = new();
     public int line;
     public int column;
     public int? endLine;
     public int? endColumn;
-    public dynamic moduleId = null;
-    public string presentationHint; // "normal" | "label" | "subtle"
+    public string moduleId = string.Empty; // dncdbg use string
+    public string presentationHint = string.Empty; // "normal" | "label" | "subtle"
 }
 
 public class ThreadsResponse : Response
 {
-    public ThreadsResponseBody body;
+    public ThreadsResponseBody body = new();
 }
 
 public class ThreadsResponseBody
 {
-    public List<Thread> threads;
+    public List<Thread> threads = [];
 }
 
 public class Thread
 {
     public int id;
-    public string name;
+    public string name = string.Empty;
 }
 
 public class ScopesResponse : Response
 {
-    public ScopesResponseBody body;
+    public ScopesResponseBody body = new();
 }
 
 public class ScopesResponseBody
 {
-    public List<Scope> scopes;
+    public List<Scope> scopes = [];
 }
 
 public class Scope
 {
-    public string name;
+    public string name = string.Empty;
     public int? variablesReference;
     public int? namedVariables;
     public int? indexedVariables;
     public bool? expensive;
-    public Source source;
+    public Source source = new();
     public int? line;
     public int? column;
     public int? endLine;
@@ -77,21 +77,21 @@ public class Scope
 
 public class VariablesResponse : Response
 {
-    public VariablesResponseBody body;
+    public VariablesResponseBody body = new();
 }
 
 public class VariablesResponseBody
 {
-    public List<Variable> variables;
+    public List<Variable> variables = [];
 }
 
 public class Variable
 {
-    public string name;
-    public string value;
-    public string type;
-    public VariablePresentationHint presentationHint;
-    public string evaluateName;
+    public string name = string.Empty;
+    public string value = string.Empty;
+    public string type = string.Empty;
+    public VariablePresentationHint presentationHint = new();
+    public string evaluateName = string.Empty;
     public int variablesReference;
     public int? namedVariables;
     public int? indexedVariables;
@@ -99,21 +99,21 @@ public class Variable
 
 public class VariablePresentationHint
 {
-    public string kind;
-    public List<string> attributes;
-    public string visibility;
+    public string kind = string.Empty;
+    public List<string> attributes = [];
+    public string visibility = string.Empty;
 }
 
 public class EvaluateResponse : Response
 {
-    public EvaluateResponseBody body;
+    public EvaluateResponseBody body = new();
 }
 
 public class EvaluateResponseBody
 {
-    public string result;
-    public string type;
-    public VariablePresentationHint presentationHint;
+    public string result = string.Empty;
+    public string type = string.Empty;
+    public VariablePresentationHint presentationHint = new();
     public int variablesReference;
     public int? namedVariables;
     public int? indexedVariables;
@@ -121,13 +121,13 @@ public class EvaluateResponseBody
 
 public class SetVariableResponse : Response
 {
-    public SetVariableResponseBody body;
+    public SetVariableResponseBody body = new();
 }
 
 public class SetVariableResponseBody
 {
-    public string value;
-    public string type;
+    public string value = string.Empty;
+    public string type = string.Empty;
     public int? variablesReference;
     public int? namedVariables;
     public int? indexedVariables;
@@ -137,36 +137,36 @@ public class Breakpoint
 {
     public int? id;
     public bool verified;
-    public string message;
-    public Source source;
+    public string message = string.Empty;
+    public Source source = new();
     public int? line;
     public int? column;
     public int? endLine;
     public int? endColumn;
-    public string instructionReference;
+    public string instructionReference = string.Empty;
     public int? offset;
 }
 
 public class SetBreakpointsResponseBody
 {
-    public List<Breakpoint> breakpoints;
+    public List<Breakpoint> breakpoints = [];
 }
 
 public class SetBreakpointsResponse : Response
 {
-    public SetBreakpointsResponseBody body;
+    public SetBreakpointsResponseBody body = new();
 }
 
 public class ExceptionInfoResponse : Response
 {
-    public ExceptionInfoResponseBody body;
+    public ExceptionInfoResponseBody body = new();
 }
 
 public class ExceptionInfoResponseBody
 {
-    public string exceptionId;
+    public string exceptionId = string.Empty;
     public string? description;
-    public string breakMode; // "never" | "always" | "unhandled" | "userUnhandled"
+    public string breakMode = string.Empty; // "never" | "always" | "unhandled" | "userUnhandled"
     public ExceptionDetails? details;
 }
 
@@ -176,18 +176,18 @@ public class ExceptionDetails
     public string? typeName;
     public string? fullTypeName;
     public string? evaluateName;
-    public string stackTrace;
-    public List<ExceptionDetails> innerException;
+    public string stackTrace = string.Empty;
+    public List<ExceptionDetails> innerException = [];
 }
 
 public class SetExpressionResponse : Response
 {
-    public SetExpressionResponseBody body;
+    public SetExpressionResponseBody body = new();
 }
 
 public class SetExpressionResponseBody
 {
-    public string value;
+    public string value = string.Empty;
     public string? type;
     public VariablePresentationHint? presentationHint;
     public int? variablesReference;
@@ -197,7 +197,7 @@ public class SetExpressionResponseBody
 
 public class PauseResponse : Response
 {
-    public PauseResponseBody body;
+    public PauseResponseBody body = new();
 }
 
 public class PauseResponseBody
@@ -207,8 +207,8 @@ public class PauseResponseBody
 
 public class Module
 {
-  public string id;
-  public string name;
+  public string id = string.Empty;
+  public string name = string.Empty;
   public string? path;
   public bool? isOptimized;
   public bool? isUserCode;
@@ -221,12 +221,12 @@ public class Module
 
 public class ModulesResponse : Response
 {
-    public ModulesResponseBody body;
+    public ModulesResponseBody body = new();
 }
 
 public class ModulesResponseBody
 {
-    public List<Module> modules;
-    public int? totalModules;
+    public List<Module> modules = new();
+    public int? totalModules = null;
 }
 }

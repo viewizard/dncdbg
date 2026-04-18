@@ -8,6 +8,6 @@ namespace DbgTest.DAP
 public class ProtocolMessage
 {
     public int seq;
-    public string type;
+    public string type = string.Empty;
 }
 }

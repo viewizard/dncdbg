@@ -17,7 +17,7 @@ public class DebuggerClient
     }
 
     // Receive protocol specific response
-    public virtual string[] Receive(int timeout)
+    public virtual string[]? Receive(int timeout)
     {
         return null;
     }

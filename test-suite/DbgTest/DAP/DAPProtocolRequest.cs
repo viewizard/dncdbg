@@ -10,7 +10,7 @@ public class Request : ProtocolMessage
         // "seq" must be configured by DAPDebugger
         type = "request";
     }
-    public string command;
+    public string command = string.Empty;
 }
 
 public class InitializeRequest : Request
@@ -24,13 +24,13 @@ public class InitializeRequest : Request
 
 public class InitializeRequestArguments
 {
-    public string clientID;
-    public string clientName;
-    public string adapterID;
-    public string locale;
+    public string clientID = string.Empty;
+    public string clientName = string.Empty;
+    public string adapterID = string.Empty;
+    public string locale = string.Empty;
     public bool? linesStartAt1;
     public bool? columnsStartAt1;
-    public string pathFormat;
+    public string pathFormat = string.Empty;
     public bool? supportsVariableType;
     public bool? supportsVariablePaging;
     public bool? supportsRunInTerminalRequest;
@@ -47,19 +47,19 @@ public class LaunchRequest : Request
 
 public class LaunchRequestArguments
 {
-    public string name;
-    public string type;
-    public string preLaunchTask;
-    public string program;
-    public List<string> args;
-    public string cwd;
-    public Dictionary<string, string> env;
-    public string console;
+    public string name = string.Empty;
+    public string type = string.Empty;
+    public string preLaunchTask = string.Empty;
+    public string program = string.Empty;
+    public List<string> args = [];
+    public string cwd = string.Empty;
+    public Dictionary<string, string> env = [];
+    public string console = string.Empty;
     public bool stopAtEntry;
     public bool? justMyCode;
     public bool? enableStepFiltering;
-    public string internalConsoleOptions;
-    public string __sessionId;
+    public string internalConsoleOptions = string.Empty;
+    public string __sessionId = string.Empty;
 }
 
 public class AttachRequest : Request
@@ -82,7 +82,7 @@ public class ConfigurationDoneRequest : Request
     {
         command = "configurationDone";
     }
-    public ConfigurationDoneArguments arguments;
+    public ConfigurationDoneArguments arguments = new();
 }
 
 public class ConfigurationDoneArguments
@@ -109,7 +109,7 @@ public class DisconnectRequest : Request
     {
         command = "disconnect";
     }
-    public DisconnectArguments arguments;
+    public DisconnectArguments arguments = new();
 }
 
 public class DisconnectArguments
@@ -124,7 +124,7 @@ public class TerminateRequest : Request
     {
         command = "terminate";
     }
-    public TerminateArguments arguments;
+    public TerminateArguments arguments = new();
 }
 
 public class TerminateArguments
@@ -151,35 +151,35 @@ public class SetBreakpointsArguments
 
 public class SourceBreakpoint
 {
-    public SourceBreakpoint(int bpLine, string Condition = null, string HitCondition = null)
+    public SourceBreakpoint(int bpLine, string? Condition = null, string? HitCondition = null)
     {
         line = bpLine;
-        condition = Condition;
-        hitCondition = HitCondition;
+        condition = Condition ?? string.Empty;
+        hitCondition = HitCondition ?? string.Empty;
     }
     public int line;
     public int? column;
-    public string condition;
-    public string hitCondition;
-    public string logMessage;
+    public string condition = string.Empty;
+    public string hitCondition = string.Empty;
+    public string logMessage = string.Empty;
 }
 
 public class Source
 {
-    public string name;
-    public string path;
+    public string name = string.Empty;
+    public string path = string.Empty;
     public int? sourceReference;
-    public string presentationHint; // "normal" | "emphasize" | "deemphasize"
-    public string origin;
-    public List<Source> sources = new List<Source>();
-    public dynamic adapterData = null;
-    public List<Checksum> checksums = new List<Checksum>();
+    public string presentationHint = string.Empty; // "normal" | "emphasize" | "deemphasize"
+    public string origin = string.Empty;
+    public List<Source> sources = [];
+    public dynamic? adapterData = null;
+    public List<Checksum> checksums = [];
 }
 
 public class Checksum
 {
-    public string algorithm; // "MD5" | "SHA1" | "SHA256" | "timestamp"
-    public string checksum;
+    public string algorithm = string.Empty; // "MD5" | "SHA1" | "SHA256" | "timestamp"
+    public string checksum = string.Empty;
 }
 
 public class SetFunctionBreakpointsRequest : Request
@@ -198,15 +198,15 @@ public class SetFunctionBreakpointsArguments
 
 public class FunctionBreakpoint
 {
-    public FunctionBreakpoint(string funcName, string Condition = null, string HitCondition = null)
+    public FunctionBreakpoint(string funcName, string? Condition = null, string? HitCondition = null)
     {
         name = funcName;
-        condition = Condition;
-        hitCondition = HitCondition;
+        condition = Condition ?? string.Empty;
+        hitCondition = HitCondition ?? string.Empty;
     }
-    public string name;
-    public string condition;
-    public string hitCondition;
+    public string name = string.Empty;
+    public string condition = string.Empty;
+    public string hitCondition = string.Empty;
 }
 
 public class StackTraceRequest : Request
@@ -223,7 +223,7 @@ public class StackTraceArguments
     public int threadId;
     public int? startFrame;
     public int? levels;
-    public StackFrameFormat format;
+    public StackFrameFormat format = new();
 }
 
 public class ValueFormat
@@ -290,10 +290,10 @@ public class VariablesRequest : Request
 public class VariablesArguments
 {
     public int variablesReference;
-    public string filter; // "indexed" | "named"
+    public string filter = string.Empty; // "indexed" | "named"
     public int? start;
     public int? count;
-    public ValueFormat format;
+    public ValueFormat format = new();
 }
 
 public class EvaluateRequest : Request
@@ -307,10 +307,10 @@ public class EvaluateRequest : Request
 
 public class EvaluateArguments
 {
-    public string expression;
+    public string expression = string.Empty;
     public Int64? frameId;
-    public string context;
-    public ValueFormat format;
+    public string context = string.Empty;
+    public ValueFormat format = new();
 }
 
 public class SetVariableRequest : Request
@@ -325,9 +325,9 @@ public class SetVariableRequest : Request
 public class SetVariableArguments
 {
     public int variablesReference;
-    public string name;
-    public string value;
-    public ValueFormat format;
+    public string name = string.Empty;
+    public string value = string.Empty;
+    public ValueFormat format = new();
 }
 
 public class NextRequest : Request
@@ -384,21 +384,21 @@ public class SetExceptionBreakpointsRequest : Request
 
 public class SetExceptionBreakpointsArguments
 {
-    public List<string> filters = new List<string>();
-    public List<ExceptionFilterOptions> filterOptions;
-    public List<ExceptionOptions> exceptionOptions;
+    public List<string> filters = [];
+    public List<ExceptionFilterOptions> filterOptions = [];
+    public List<ExceptionOptions> exceptionOptions = [];
 }
 
 public class ExceptionFilterOptions
 {
-    public string filterId;
+    public string filterId = string.Empty;
     public string? condition;
 }
 
 public class ExceptionOptions
 {
-    public List<ExceptionPathSegment> path;
-    public string breakMode; // "never" | "always" | "unhandled" | "userUnhandled";
+    public List<ExceptionPathSegment> path = [];
+    public string breakMode = string.Empty; // "never" | "always" | "unhandled" | "userUnhandled";
 }
 
 public class ExceptionPathSegment
@@ -432,8 +432,8 @@ public class SetExpressionRequest : Request
 
 public class SetExpressionArguments
 {
-    public string expression;
-    public string value;
+    public string expression = string.Empty;
+    public string value = string.Empty;
     public int? frameId;
     public ValueFormat? format;
 }

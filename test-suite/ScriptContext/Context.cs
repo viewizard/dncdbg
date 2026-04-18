@@ -234,7 +234,7 @@ class Context
             listBp = new List<SourceBreakpoint>();
             SrcBreakpoints[bp_fileName] = listBp;
         }
-        listBp.Add(new SourceBreakpoint(bp_line, null));
+        listBp.Add(new SourceBreakpoint(bp_line));
 
         List<int?> listBpId;
         if (!SrcBreakpointIds.TryGetValue(bp_fileName, out listBpId))

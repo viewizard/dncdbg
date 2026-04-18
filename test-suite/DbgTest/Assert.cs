@@ -12,7 +12,7 @@ public static class Assert
             areEqual = expected.Equals(actual);
 
         if (!areEqual)
-            throw new ResultEqualException(expected, actual, stacktrace);
+            throw new ResultEqualException(expected!, actual!, stacktrace);
     }
 
     public static void NotEqual<T>(T expected, T actual, string stacktrace)
@@ -25,7 +25,7 @@ public static class Assert
             areEqual = expected.Equals(actual);
 
         if (areEqual)
-            throw new ResultNotEqualException(expected, actual, stacktrace);
+            throw new ResultNotEqualException(expected!, actual!, stacktrace);
     }
 
     public static void True(bool isTrue, string stacktrace)

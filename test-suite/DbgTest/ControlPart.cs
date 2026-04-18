@@ -14,9 +14,9 @@ public class ControlPart
 
 public class Environment
 {
-    public string TestName { get; set; } = null;
-    public string SourceFilesPath { get; set; } = null;
-    public string TargetAssemblyPath { get; set; } = null;
+    public string? TestName { get; set; }
+    public string? SourceFilesPath { get; set; }
+    public string? TargetAssemblyPath { get; set; }
     public string CorerunPath { get; set; } = "dotnet";
 }
 }

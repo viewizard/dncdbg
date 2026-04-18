@@ -21,7 +21,7 @@ namespace DbgTestCore
 public static class SourceLocation
 {
     // This method will return the full path of the file where it is called from.
-    public static string GetSourceFilePath([CallerFilePath] string path = null)
+    public static string? GetSourceFilePath([CallerFilePath] string? path = null)
     {
         return path;
     }
@@ -124,7 +124,7 @@ namespace DbgTestCore
         SyntaxTree = BuildTree();
         Compilation compilation = CompileTree(SyntaxTree);
         Assembly scriptAssembly = MakeAssembly(compilation);
-        generatedScriptClass = scriptAssembly.GetType("DbgTestCore.GeneratedScript");
+        generatedScriptClass = scriptAssembly.GetType("DbgTestCore.GeneratedScript")!;
         Breakpoints = TestLabelsInfo.Breakpoints;
     }
 
@@ -134,24 +134,24 @@ namespace DbgTestCore
 
     public void ExecuteCheckPoints(ControlInfo ControlInfo, DebuggerClient DebuggerClient)
     {
-        MethodInfo minfo_setup = generatedScriptClass.GetMethod("Setup");
+        MethodInfo? minfo_setup = generatedScriptClass!.GetMethod("Setup");
         try
         {
-            minfo_setup.Invoke(null, new object[] { ControlInfo, DebuggerClient });
+            minfo_setup!.Invoke(null, new object[] { ControlInfo, DebuggerClient });
         }
         catch (TargetInvocationException e)
         {
-            throw e.InnerException;
+            throw e.InnerException!;
         }
 
-        MethodInfo minfo_execute = generatedScriptClass.GetMethod("ExecuteCheckPoints");
+        MethodInfo? minfo_execute = generatedScriptClass.GetMethod("ExecuteCheckPoints");
         try
         {
-            minfo_execute.Invoke(null, null);
+            minfo_execute!.Invoke(null, null);
         }
         catch (TargetInvocationException e)
         {
-            throw e.InnerException;
+            throw e.InnerException!;
         }
     }
 
@@ -185,7 +185,7 @@ namespace DbgTestCore
 
         CSharpSyntaxRewriter visitor;
 
-        visitor = new GeneratedScriptInvokesBuilder(TestLabelsInfo);
+        visitor = new GeneratedScriptInvokesBuilder(TestLabelsInfo!);
         tree = ((GeneratedScriptInvokesBuilder)(visitor)).Visit(tree.GetRoot()).SyntaxTree;
         visitor = new GeneratedScriptDeclarationsBuilder(ScriptDeclarations);
         tree = ((GeneratedScriptDeclarationsBuilder)(visitor)).Visit(tree.GetRoot()).SyntaxTree;
@@ -195,7 +195,7 @@ namespace DbgTestCore
 
     MetadataReference[] GetMetadataReferences()
     {
-        var systemPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
+        var systemPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var libList = new List<MetadataReference>();
 
         string[] libNames = {
@@ -251,8 +251,8 @@ namespace DbgTestCore
         }
     }
 
-    readonly Type generatedScriptClass = null;
-    readonly TestLabelsInfo TestLabelsInfo = null;
+    readonly Type? generatedScriptClass = null;
+    readonly TestLabelsInfo? TestLabelsInfo = null;
     readonly SyntaxList<MemberDeclarationSyntax> ScriptDeclarations;
     readonly string ControlScriptDummyText;
 }
@@ -274,7 +274,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
     public TestLabelsInfoCollector()
     {
         TestLabelsInfo = new TestLabelsInfo();
-        TypeClassBP = Type.GetType("DbgTest.LineBreakpoint");
+        TypeClassBP = Type.GetType("DbgTest.LineBreakpoint")!;
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -290,9 +290,9 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
             // "name" -> name
             name = name.Trim(new char[] { '\"' });
 
-            LineBreakpoint lbp = (LineBreakpoint)Activator.CreateInstance(TypeClassBP, name, fileName, numLine);
+            LineBreakpoint lbp = (LineBreakpoint)Activator.CreateInstance(TypeClassBP, name, fileName, numLine)!;
 
-            TestLabelsInfo.Breakpoints.Add(name, lbp);
+            TestLabelsInfo.Breakpoints.Add(name, lbp!);
             break;
         case "Label.Checkpoint":
             string id = node.ArgumentList.Arguments[0].Expression.ToString();
@@ -309,7 +309,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
     }
 
     public TestLabelsInfo TestLabelsInfo { get; }
-    private Type TypeClassBP { get; }
+    private Type TypeClassBP { get; set; }
 }
 
 public class GeneratedScriptInvokesBuilder : CSharpSyntaxRewriter
@@ -330,11 +330,11 @@ public class GeneratedScriptInvokesBuilder : CSharpSyntaxRewriter
         switch (node.Identifier.ToString())
         {
         case "ExecuteCheckPoints":
-            string key = "init";
-            Tuple<string, InvocationExpressionSyntax> Value;
+            string? key = "init";
+            Tuple<string, InvocationExpressionSyntax>? Value;
             do
             {
-                if (TestLabelsInfo.CheckPointInvokes.TryGetValue(key, out Value))
+                if (TestLabelsInfo!.CheckPointInvokes.TryGetValue(key, out Value))
                 {
                     invokes.Add(Value.Item2);
                     if (key == "finish")

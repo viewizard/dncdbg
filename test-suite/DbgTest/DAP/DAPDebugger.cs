@@ -46,7 +46,7 @@ public class DAPDebugger
         return false;
     }
 
-    public object GetResponsePropertyValue(string stringJSON, string testField)
+    public object? GetResponsePropertyValue(string stringJSON, string testField)
     {
         JsonTextReader reader = new JsonTextReader(new StringReader(stringJSON));
         while (reader.Read())
@@ -82,8 +82,8 @@ public class DAPDebugger
             if (IsResponseContainProperty(line, "type", "response"))
             {
                 Logger.LogLine("<- (R) " + line);
-                if ((Int64)GetResponsePropertyValue(line, "request_seq") == command.seq)
-                    return new DAPResult((bool)GetResponsePropertyValue(line, "success"), line);
+                if ((Int64)GetResponsePropertyValue(line, "request_seq")! == command.seq)
+                    return new DAPResult((bool)GetResponsePropertyValue(line, "success")!, line);
                 else
                     throw new WrongResponseSequence();
             }
