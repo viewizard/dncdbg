@@ -80,10 +80,10 @@ class CallbacksQueue
 
     ManagedDebugger &m_debugger;
 
-    // NOTE we have one entry type for both (managed and interop) callbacks (stop events),
-    //      since almost all the time we have CallbackQueue with 1 entry only, no reason complicate code.
-    //      Probably in future we could reuse Reason, EventType and ExcModule fields for interop events too.
-    //      Each event use its own constructor.
+    // Note: we have one entry type for both (managed and interop) callbacks (stop events),
+    //       since almost all the time we have CallbackQueue with 1 entry only, no reason complicate code.
+    //       Probably in future we could reuse Reason, EventType and ExcModule fields for interop events too.
+    //       Each event uses its own constructor.
     struct CallbackQueueEntry
     {
         CallbackQueueCall Call;

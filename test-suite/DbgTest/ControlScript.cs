@@ -91,7 +91,7 @@ namespace DbgTestCore
     }
 }";
 
-        // we may have list of files separated by ';' symbol
+        // We may have a list of files separated by the ';' symbol.
         string scriptContextPath = Path.GetDirectoryName(SourceLocation.GetSourceFilePath()) + "/../ScriptContext/Context.cs";
         pathToTestFiles = pathToTestFiles + ";" + scriptContextPath;
         string[] pathToFiles = pathToTestFiles.Split(';');

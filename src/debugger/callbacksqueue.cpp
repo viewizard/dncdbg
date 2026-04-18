@@ -347,7 +347,7 @@ CallbacksQueue::~CallbacksQueue()
     m_callbacksWorker.join();
 }
 
-// NOTE caller must care about m_callbacksMutex.
+// Note: caller must care about m_callbacksMutex.
 void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                  ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason,
                                  ExceptionCallbackType EventType)

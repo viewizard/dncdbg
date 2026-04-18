@@ -176,7 +176,7 @@ class Context
                 wasTerminated = true;
             }
 
-            // for disconnect and unhandled exception we don't check exit code here, since Windows and Linux provide different exit code
+            // For disconnect and unhandled exceptions, we don't check the exit code here, since Windows and Linux provide different exit codes.
             if (wasExited && checkExitCode.HasValue)
                 Assert.Equal(checkExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -351,7 +351,7 @@ class Context
             SetBreakpointsResponse setBreakpointsResponse =
                 JsonConvert.DeserializeObject<SetBreakpointsResponse>(ret.ResponseStr);
 
-            // check, that we don't have hiddenly re-created breakpoints with different ids
+            // Check that breakpoints were not unexpectedly re-created with different IDs.
             for (int i = 0; i < setBreakpointsResponse.body.breakpoints.Count; i++)
             {
                 if (SrcBreakpointIds[Breakpoints.Key][i] == null)
@@ -382,7 +382,7 @@ class Context
     {
         SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
         setBreakpointsRequest.arguments.source.name = BreakpointSourceName;
-        // NOTE this code works only with one source file
+        // Note: this code only works with a single source file.
         setBreakpointsRequest.arguments.source.path = ControlInfo.SourceFilesPath;
         setBreakpointsRequest.arguments.lines.AddRange(BreakpointLines);
         setBreakpointsRequest.arguments.breakpoints.AddRange(BreakpointList);
@@ -430,7 +430,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
             return;
 
@@ -467,7 +467,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && (!checkSourcePath || (checkSourcePath && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)))
             return;
 
@@ -508,7 +508,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
             return;
 
@@ -569,7 +569,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
             return;
 
@@ -645,7 +645,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
             return stackTraceResponse.body.stackFrames[0].id;
 
@@ -1150,7 +1150,7 @@ class Context
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
             stackTraceResponse.body.stackFrames[0].source.name == lbp.FileName
-            // NOTE this code works only with one source file
+            // Note: this code works only with one source file
             && stackTraceResponse.body.stackFrames[0].source.path == ControlInfo.SourceFilesPath)
         {
             TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);

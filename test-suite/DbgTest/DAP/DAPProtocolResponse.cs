@@ -31,8 +31,8 @@ public class StackFrame
     public int column;
     public int? endLine;
     public int? endColumn;
-    public string moduleId = string.Empty; // dncdbg use string
-    public string presentationHint = string.Empty; // "normal" | "label" | "subtle"
+    public string moduleId = string.Empty; // dncdbg uses string
+    public string presentationHint = string.Empty; // "normal", "label", or "subtle"
 }
 
 public class ThreadsResponse : Response
@@ -166,7 +166,7 @@ public class ExceptionInfoResponseBody
 {
     public string exceptionId = string.Empty;
     public string? description;
-    public string breakMode = string.Empty; // "never" | "always" | "unhandled" | "userUnhandled"
+    public string breakMode = string.Empty; // "never", "always", "unhandled", or "userUnhandled"
     public ExceptionDetails? details;
 }
 

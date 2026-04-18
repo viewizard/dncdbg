@@ -1420,8 +1420,8 @@ public class SymbolReader
             var pdbStream = TryOpenFile(pdbPath);
             if (pdbStream is null && assemblyPath != null)
             {
-                // workaround, since NI file could be generated in `.native_image` subdirectory
-                // NOTE this is temporary solution until we add option for specifying pdb path
+                // Workaround, since NI file could be generated in `.native_image` subdirectory.
+                // Note: this is a temporary solution until we add an option for specifying the PDB path.
                 try
                 {
                     int tmpLastIndex = assemblyPath.LastIndexOf(".native_image");

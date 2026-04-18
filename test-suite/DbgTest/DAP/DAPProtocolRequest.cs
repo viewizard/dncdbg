@@ -145,7 +145,7 @@ public class SetBreakpointsArguments
 {
     public Source source = new Source();
     public List<SourceBreakpoint> breakpoints = new List<SourceBreakpoint>();
-    public List<int> lines = new List<int>(); // Deprecated: The code locations of the breakpoints. dncdbg doesn't support it.
+    public List<int> lines = new List<int>(); // Deprecated: The code locations of the breakpoints. dncdbg does not support them.
     public bool? sourceModified;
 }
 
@@ -169,7 +169,7 @@ public class Source
     public string name = string.Empty;
     public string path = string.Empty;
     public int? sourceReference;
-    public string presentationHint = string.Empty; // "normal" | "emphasize" | "deemphasize"
+    public string presentationHint = string.Empty; // "normal", "emphasize", or "deemphasize"
     public string origin = string.Empty;
     public List<Source> sources = [];
     public dynamic? adapterData = null;
@@ -178,7 +178,7 @@ public class Source
 
 public class Checksum
 {
-    public string algorithm = string.Empty; // "MD5" | "SHA1" | "SHA256" | "timestamp"
+    public string algorithm = string.Empty; // "MD5", "SHA1", "SHA256", or "timestamp"
     public string checksum = string.Empty;
 }
 
@@ -290,7 +290,7 @@ public class VariablesRequest : Request
 public class VariablesArguments
 {
     public int variablesReference;
-    public string filter = string.Empty; // "indexed" | "named"
+    public string filter = string.Empty; // "indexed" or "named"
     public int? start;
     public int? count;
     public ValueFormat format = new();
@@ -398,7 +398,7 @@ public class ExceptionFilterOptions
 public class ExceptionOptions
 {
     public List<ExceptionPathSegment> path = [];
-    public string breakMode = string.Empty; // "never" | "always" | "unhandled" | "userUnhandled";
+    public string breakMode = string.Empty; // "never", "always", "unhandled", or "userUnhandled"
 }
 
 public class ExceptionPathSegment

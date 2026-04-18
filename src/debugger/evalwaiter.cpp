@@ -176,7 +176,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 return E_FAIL;
             }
 
-            // NOTE
+            // Note:
             // MSVS 2017 debugger and newer use config file
             // C:\Program Files (x86)\Microsoft Visual Studio\YYYY\VERSION\Common7\IDE\Profiles\CSharp.vssettings
             // by default NormalEvalTimeout is 5000 milliseconds
@@ -191,7 +191,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 LOGW(log << "To prevent an unsafe abort when evaluating, all threads were allowed to run. "
                          << "This may have changed the state of the process and any breakpoints and exceptions encountered have been skipped.");
 
-                // NOTE
+                // Note:
                 // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
                 // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
 
@@ -274,7 +274,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
 
 HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 {
-    // NOTE
+    // Note:
     // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
     // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
 

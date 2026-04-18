@@ -1515,7 +1515,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
         IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));
-        // Note WalkGeneratedClassFields() could return S_CAN_EXIT.
+        // Note: WalkGeneratedClassFields() could return S_CAN_EXIT.
         return S_OK;
     }
 

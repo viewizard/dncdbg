@@ -131,14 +131,14 @@ public class DAPDebugger
 
     public bool IsEventReceived(Func<string, bool> filter)
     {
-        // check previously received events first
+        // Check previously received events first.
         while (EventQueue.Count > 0)
         {
             if (filter(EventQueue.Dequeue()))
                 return true;
         }
 
-        // receive new events and check them
+        // Receive new events and check them.
         ReceiveEvents(10000);
         while (EventQueue.Count > 0)
         {
@@ -151,7 +151,7 @@ public class DAPDebugger
 
     public bool IsNotStopEventReceived(Func<string, bool> filter)
     {
-        // check previously received events
+        // Check previously received events.
         foreach (var Event in NotStopEventList)
         {
             if (filter(Event))
