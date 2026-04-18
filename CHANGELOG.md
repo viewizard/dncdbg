@@ -1,5 +1,5 @@
-## [Unreleased]
-Upcoming changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 codebase.
+## Version 1.0.0
+Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 codebase.
 
 #### DAP
 - Added `allowImplicitFuncEval` configuration option support in Launch Request (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173

@@ -26,7 +26,7 @@
 namespace BuildInfo
 {
 
-const std::string_view version = "0.0.1";
+const std::string_view version = "1.0.0";
 const std::string_view build_type = STRINGIFY(BUILD_TYPE);
 
 const std::string_view dncdbg_vcs_info = STRINGIFY(DNCDBG_VCS_INFO);
