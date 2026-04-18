@@ -29,7 +29,8 @@ class Program
         string EnvA = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         string EnvB = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
 
-        Console.WriteLine("Env A = " + EnvA + " Env B = " + EnvB); Label.Breakpoint("bp");
+        Console.WriteLine("Env A = " + EnvA + " Env B = " + EnvB);
+        int i = 111;                                               Label.Breakpoint("bp");
 
         Label.Checkpoint("env_test", "finish",
             (Object context) =>
