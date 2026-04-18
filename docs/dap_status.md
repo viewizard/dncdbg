@@ -1,4 +1,4 @@
-## Debug Adapter Protocol support status.
+rocessId## Debug Adapter Protocol support status.
 
 #### Key to Notation
 ```diff
@@ -176,6 +176,8 @@
 #### AttachRequest `attach`
 ```diff
 -   __restart?: any;
+@@ additional field: @@
++   processId number;
 ```
 #### AttachResponse
 ```diff
