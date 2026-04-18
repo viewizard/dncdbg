@@ -567,18 +567,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"attach", [&](const json &arguments, json &/*responseBody*/)
             {
-                int processId = 0;
-
-                const json &processIdArg = arguments.at("processId");
-                if (processIdArg.is_string())
-                {
-                    processId = std::stoi(processIdArg.get<std::string>());
-                }
-                else if (processIdArg.is_number())
-                {
-                    processId = processIdArg;
-                }
-                else
+                const DWORD processId = arguments.value("processId", 0);
+                if (processId == 0)
                 {
                     return E_INVALIDARG;
                 }

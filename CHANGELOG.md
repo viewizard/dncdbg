@@ -1,3 +1,12 @@
+## [Unreleased]
+Upcoming changes compared to previous version.
+
+#### DAP
+- Changed Attach Request, field 'processId' must be number only now.
+
+</br>
+</br>
+
 ## Version 1.0.0
 Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 codebase.
 
