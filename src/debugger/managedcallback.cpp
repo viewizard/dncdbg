@@ -15,7 +15,6 @@
 #include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "managed/interop.h"
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "protocol/dapio.h"
 #include "utils/logger.h"
@@ -163,10 +162,6 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain */*p
 // This method is not called until the common language runtime is initialized. Most of the ICorDebug methods will return CORDBG_E_NOTREADY before the CreateProcess callback.
 HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProcess)
 {
-    // ManagedPart must be initialized only once for process, since CoreCLR don't support unload and reinit
-    // for global variables. coreclr_shutdown only should be called on process exit.
-    Interop::Init(m_debugger.m_clrPath);
-
     // Important! Care about callback queue before NotifyProcessCreated() call.
     // In case of `attach`, NotifyProcessCreated() call will notify debugger that debuggee process attached and debugger
     // should stop debuggee process by direct `Pause()` call. From another side, callback queue has a bunch of asynchronous

@@ -916,6 +916,19 @@ void DAP::CommandLoop()
                 continue;
             }
 
+            // For "attach", initialize interop before "configurationDone" command, since we know process ID.
+            if (!m_interopInitialized &&
+                m_sharedDebugger != nullptr &&
+                queueEntry.command == "attach")
+            {
+                const DWORD processId = queueEntry.arguments.value("processId", 0);
+                if (processId != 0)
+                {
+                    Interop::Init(m_sharedDebugger->DetectClrPathByPID(processId));
+                    m_interopInitialized = true;
+                }
+            }
+
             std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
             const bool isCommandNeedSync = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().end();
             m_commandsQueue.emplace_back(std::move(queueEntry));
@@ -924,6 +937,15 @@ void DAP::CommandLoop()
             if (isCommandNeedSync)
             {
                 m_commandSyncCV.wait(lockCommandsMutex);
+
+                // For "launch", initialize interop after "configurationDone" command completes.
+                if (!m_interopInitialized &&
+                    m_sharedDebugger != nullptr &&
+                    !m_sharedDebugger->GetClrPath().empty())
+                {
+                    Interop::Init(m_sharedDebugger->GetClrPath());
+                    m_interopInitialized = true;
+                }
             }
 
             continue;

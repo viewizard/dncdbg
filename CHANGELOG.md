@@ -2,7 +2,10 @@
 Upcoming changes compared to previous version.
 
 #### DAP
-- Changed Attach Request, field 'processId' must be number only now.
+- Changed Attach Request, field 'processId' must be a number only now.
+
+#### Fixed
+- Fixed work on Linux musl OSes. Alpine Linux added to CI.
 
 </br>
 </br>

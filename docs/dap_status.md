@@ -1,4 +1,4 @@
-rocessId## Debug Adapter Protocol support status.
+## Debug Adapter Protocol support status.
 
 #### Key to Notation
 ```diff

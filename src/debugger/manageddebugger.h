@@ -106,6 +106,12 @@ class ManagedDebugger
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
+    std::string GetClrPath()
+    {
+        return m_clrPath;
+    }
+    std::string DetectClrPathByPID(DWORD processId);
+
   private:
 
     friend class ManagedCallback;

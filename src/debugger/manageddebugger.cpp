@@ -802,6 +802,11 @@ void ManagedDebugger::Cleanup()
     m_sharedCallbacksQueue = nullptr;
 }
 
+std::string ManagedDebugger::DetectClrPathByPID(DWORD processId)
+{
+    return GetCLRPath(m_dbgshim, processId);
+}
+
 HRESULT ManagedDebugger::AttachToProcess()
 {
     HRESULT Status = S_OK;
