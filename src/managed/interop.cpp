@@ -319,6 +319,10 @@ void Interop::DisposeSymbols(void *pSymbolReaderHandle)
 
 // WARNING! Due to CoreCLR limitations, Init() / Shutdown() sequence can be used only once during process execution.
 // Note, init in case of error will throw exception, since this is fatal for debugger (CoreCLR can't be re-init).
+//
+// Important! The coreclr_initialize is supposed to be called on the main thread only.
+// On Linux with musl libc, calling coreclr_initialize from a non-main thread will cause SIGSEGV.
+// For more info, see: https://github.com/dotnet/runtime/issues/103741
 void Interop::Init(const std::string &coreClrPath)
 {
     const WriteLock write_lock(CLRrwlock);
