@@ -893,12 +893,11 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec1", "123");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec2", "null");
 
-                int variablesReference_Locals = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
-                int variablesReference_ts1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "nullable_ts1");
+                int variablesReference_ts1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference, "nullable_ts1");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts1, "int", "Milliseconds", "0");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts1, "int", "Hours", "0");
 
-                int variablesReference_guid3 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "nullable_guid3");
+                int variablesReference_guid3 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference, "nullable_guid3");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_guid3, "int", "Version", "0");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_guid3, "int", "Variant", "0");
 
