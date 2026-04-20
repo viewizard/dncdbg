@@ -886,9 +886,37 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     {
         std::string className;
         TypePrinter::GetTypeOfValue(trType, className);
-        if ((className == "decimal") || // TODO: implement mechanism for walking over custom type fields
-            (className.back() == '?')) // System.Nullable<T>, don't provide class member list.
+        if (className == "decimal") // TODO: implement mechanism for walking over custom type fields
         {
+            return S_OK;
+        }
+
+        if (className.back() == '?') // System.Nullable<T>
+        {
+            ToRelease<ICorDebugValue> trValueValue;
+            ToRelease<ICorDebugValue> trHasValueValue;
+            IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
+
+            uint32_t nullableCbSize = 0;
+            IfFailRet(trHasValueValue->GetSize(&nullableCbSize));
+            std::vector<uint8_t> boolValue(nullableCbSize, 0);
+
+            ToRelease<ICorDebugGenericValue> trNullableGenericValue;
+            IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trNullableGenericValue)));
+            IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(boolValue.data())));
+            // trHasValueValue is ELEMENT_TYPE_BOOLEAN
+            if (boolValue.at(0) == 1) // TRUE
+            {
+                trValue.Free();
+                trValue = trValueValue.Detach();
+                ToRelease<ICorDebugValue2> trValue2;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                trType.Free();
+                IfFailRet(trValue2->GetExactType(&trType));
+
+                continue;
+            }
+
             return S_OK;
         }
 
