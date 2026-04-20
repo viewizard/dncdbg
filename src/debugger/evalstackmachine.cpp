@@ -14,6 +14,7 @@
 #include "utils/utf.h"
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <functional>
 #include <iterator>
 #include <sstream>
@@ -165,17 +166,17 @@ HRESULT CreateBooleanValue(ICorDebugThread *pThread, ICorDebugValue **ppValue, b
         return S_OK;
     }
 
+#ifdef DEBUG_INTERNAL_TESTS
     uint32_t cbSize = 0;
     IfFailRet((*ppValue)->GetSize(&cbSize));
-    std::vector<uint8_t> valueData(cbSize, 0);
+    assert(cbSize == 1);
+#endif // DEBUG_INTERNAL_TESTS
+    uint8_t boolValue = 0;
 
     ToRelease<ICorDebugGenericValue> trGenValue;
     IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
-
-    IfFailRet(trGenValue->GetValue(static_cast<void *>(valueData.data())));
-    valueData.at(0) = 1; // TRUE
-
-    return trGenValue->SetValue(static_cast<void *>(valueData.data()));
+    boolValue = 1; // TRUE
+    return trGenValue->SetValue(static_cast<void *>(&boolValue));
 }
 
 HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
@@ -246,6 +247,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     {
     case ELEMENT_TYPE_I1:
     {
+        assert(indexValue.size() == 1);
         const int8_t tmp = *reinterpret_cast<int8_t *>(indexValue.data());
         if (tmp < 0)
         {
@@ -256,11 +258,13 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U1:
     {
+        assert(indexValue.size() == 1);
         index = static_cast<uint32_t>(indexValue.at(0));
         break;
     }
     case ELEMENT_TYPE_I2:
     {
+        assert(indexValue.size() == 2);
         const int16_t tmp = *reinterpret_cast<int16_t *>(indexValue.data());
         if (tmp < 0)
         {
@@ -271,11 +275,13 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U2:
     {
+        assert(indexValue.size() == 2);
         index = static_cast<uint32_t>(*reinterpret_cast<uint16_t *>(indexValue.data()));
         break;
     }
     case ELEMENT_TYPE_I4:
     {
+        assert(indexValue.size() == 4);
         const int32_t tmp = *reinterpret_cast<int32_t *>(indexValue.data());
         if (tmp < 0)
         {
@@ -286,11 +292,13 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U4:
     {
+        assert(indexValue.size() == 4);
         index = *reinterpret_cast<uint32_t *>(indexValue.data());
         break;
     }
     case ELEMENT_TYPE_I8:
     {
+        assert(indexValue.size() == 8);
         const int64_t tmp = *reinterpret_cast<int64_t *>(indexValue.data());
         if (tmp < 0)
         {
@@ -301,6 +309,7 @@ HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
     }
     case ELEMENT_TYPE_U8:
     {
+        assert(indexValue.size() == 8);
         index = static_cast<uint32_t>(*reinterpret_cast<uint64_t *>(indexValue.data()));
         break;
     }

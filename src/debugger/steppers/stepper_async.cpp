@@ -12,7 +12,7 @@
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>
-#include <vector>
+#include <cassert>
 
 namespace dncdbg
 {
@@ -259,14 +259,18 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     IfFailRet(pThread->CreateEval(&trEval));
     ToRelease<ICorDebugValue> trNewBoolean;
     IfFailRet(trEval->CreateValue(ELEMENT_TYPE_BOOLEAN, nullptr, &trNewBoolean));
+
+#ifdef DEBUG_INTERNAL_TESTS
     uint32_t cbSize = 0;
     IfFailRet(trNewBoolean->GetSize(&cbSize));
-    std::vector<uint8_t> boolValue(cbSize, 0);
+    assert(cbSize == 1);
+#endif // DEBUG_INTERNAL_TESTS
+    uint8_t boolValue = 0;
+
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trNewBoolean->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(boolValue.data())));
-    boolValue.at(0) = 1; // TRUE
-    IfFailRet(trGenericValue->SetValue(static_cast<void *>(boolValue.data())));
+    boolValue = 1; // TRUE
+    IfFailRet(trGenericValue->SetValue(static_cast<void *>(&boolValue)));
 
     // Call this.<>t__builder.SetNotificationForWaitCompletion(TRUE).
     ToRelease<ICorDebugFunction> trFunc;

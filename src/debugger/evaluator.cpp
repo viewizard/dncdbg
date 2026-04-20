@@ -17,6 +17,7 @@
 #include "metadata/typeprinter.h"
 #include "utils/utf.h"
 #include <array>
+#include <cassert>
 #include <cstring>
 #include <iterator>
 #include <memory>
@@ -897,15 +898,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             ToRelease<ICorDebugValue> trHasValueValue;
             IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
 
+#ifdef DEBUG_INTERNAL_TESTS
             uint32_t nullableCbSize = 0;
             IfFailRet(trHasValueValue->GetSize(&nullableCbSize));
-            std::vector<uint8_t> boolValue(nullableCbSize, 0);
+            assert(nullableCbSize == 1); // trHasValueValue is ELEMENT_TYPE_BOOLEAN
+#endif // DEBUG_INTERNAL_TESTS
+            uint8_t boolValue = 0;
 
             ToRelease<ICorDebugGenericValue> trNullableGenericValue;
             IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trNullableGenericValue)));
-            IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(boolValue.data())));
-            // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-            if (boolValue.at(0) == 1) // TRUE
+            IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(&boolValue)));
+
+            if (boolValue == 1) // TRUE
             {
                 trValue.Free();
                 trValue = trValueValue.Detach();

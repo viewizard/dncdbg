@@ -783,13 +783,11 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 void DAP::CommandLoop()
 {
 #ifdef DEBUG_INTERNAL_TESTS
-{
     // nlohmann/json has internal dump serializer and cares about escaped characters, test it
-    nlohmann::json j;
-    j.emplace("test", std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n"));
+    nlohmann::json testj;
+    testj.emplace("test", std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n"));
     const std::string expected(R"({"test":"te\u0013st\nte\u0013st\nte\u0013st\nte\u0013st\nte\u0013st234\n"})");
-    assert(j.dump() == expected);
-}
+    assert(testj.dump() == expected);
 #endif // DEBUG_INTERNAL_TESTS
 
     CreateManagedDebugger();

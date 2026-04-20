@@ -10,6 +10,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
+#include <cassert>
 #include <iomanip>
 #include <map>
 #include <sstream>
@@ -912,15 +913,18 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 ToRelease<ICorDebugValue> trHasValueValue;
                 IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
 
+#ifdef DEBUG_INTERNAL_TESTS
                 uint32_t nullableCbSize = 0;
                 IfFailRet(trHasValueValue->GetSize(&nullableCbSize));
-                std::vector<uint8_t> boolValue(nullableCbSize, 0);
+                assert(nullableCbSize == 1); // trHasValueValue is ELEMENT_TYPE_BOOLEAN
+#endif // DEBUG_INTERNAL_TESTS
+                uint8_t boolValue = 0;
 
                 ToRelease<ICorDebugGenericValue> trNullableGenericValue;
                 IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trNullableGenericValue)));
-                IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(boolValue.data())));
-                // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-                if (boolValue.at(0) == 1) // TRUE
+                IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(&boolValue)));
+
+                if (boolValue == 1) // TRUE
                 {
                     // Iterative handling: set trCurrentValue to the inner value and continue loop
                     trCurrentValue = trValueValue.Detach();
@@ -939,6 +943,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         break;
 
         case ELEMENT_TYPE_BOOLEAN:
+            assert(genericValue.size() == 1);
             ss << (genericValue.at(0) == 0 ? "false" : "true");
             break;
 
@@ -957,44 +962,54 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         break;
 
         case ELEMENT_TYPE_I1:
+            assert(genericValue.size() == 1);
             ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
             break;
 
         case ELEMENT_TYPE_U1:
+            assert(genericValue.size() == 1);
             ss << static_cast<uint32_t>(genericValue.at(0));
             break;
 
         case ELEMENT_TYPE_I2:
+            assert(genericValue.size() == 2);
             ss << *reinterpret_cast<int16_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_U2:
+            assert(genericValue.size() == 2);
             ss << *reinterpret_cast<uint16_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_I4:
+            assert(genericValue.size() == 4);
             ss << *reinterpret_cast<int32_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_U4:
+            assert(genericValue.size() == 4);
             ss << *reinterpret_cast<uint32_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_I8:
+            assert(genericValue.size() == 8);
             ss << *reinterpret_cast<int64_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_U8:
+            assert(genericValue.size() == 8);
             ss << *reinterpret_cast<uint64_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_R4:
+            assert(genericValue.size() == 4);
             ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_R8:
+            assert(genericValue.size() == 8);
             ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(genericValue.data());
             break;
 
