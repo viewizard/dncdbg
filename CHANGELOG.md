@@ -4,6 +4,14 @@ Upcoming changes compared to previous version.
 #### DAP
 - Changed Attach Request, field 'processId' must be a number only now.
 
+#### Added
+- Added more nullable evaluation tests.
+
+#### Changed
+- Improved ManagedDebugger attach/launch logic.
+- Enabled Nullable inspection for complex types.
+- Optimized boolean/primitive value handling with size assertions.
+
 #### Fixed
 - Fixed work on Linux musl OSes. Alpine Linux added to CI.
 
