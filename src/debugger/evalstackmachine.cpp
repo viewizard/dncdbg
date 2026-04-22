@@ -123,6 +123,7 @@ void ReplaceInternalNames(std::string &expression, bool restore = false)
     // TODO more internal names should be added (see internal variables supported by MSVS C# debugger)
     static const std::vector<std::pair<std::string, std::string>> internalNamesMap{
         {"$exception", "__INTERNAL_DNCDBG_EXCEPTION_VARIABLE"},
+        {"$pid", "__INTERNAL_DNCDBG_PID_VARIABLE"},
         {"$tid", "__INTERNAL_DNCDBG_TID_VARIABLE"}
     };
 

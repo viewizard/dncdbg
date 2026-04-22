@@ -957,7 +957,7 @@ class Program
 
         lambda2("argVar");
 
-        // Test internal variable names "$exception" and "$tid".
+        // Test internal variable names "$exception", "$pid" and "$tid".
 
         try
         {
@@ -975,7 +975,16 @@ class Program
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.Exception}", "System.Exception", "$exception");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, null, "uint", "$pid");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, null, "uint", "$tid");
+
+                // Unlike Linux/macOS, Windows uses a global ID space, ensuring that PIDs and TIDs are always distinct and never overlap.
+                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+                if (isWindows)
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "$pid != $tid");
+                else
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "$pid == $tid");
+
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

@@ -6,6 +6,7 @@ Upcoming changes compared to previous version.
 
 #### Added
 - Added more nullable evaluation tests.
+- Added debugger pseudo-variable `$pid`.
 - Added debugger pseudo-variable `$tid`.
 
 #### Changed

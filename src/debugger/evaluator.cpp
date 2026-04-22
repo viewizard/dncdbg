@@ -1717,6 +1717,27 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return E_FAIL;
         }
     }
+    else if (identifiers.at(nextIdentifier) == "$pid")
+    {
+        ToRelease<ICorDebugProcess> trProcess;
+        IfFailRet(pThread->GetProcess(&trProcess));
+        DWORD processId = 0;
+        IfFailRet(trProcess->GetID(&processId));
+
+        ToRelease<ICorDebugEval> trEval;
+        IfFailRet(pThread->CreateEval(&trEval));
+        IfFailRet(trEval->CreateValue(ELEMENT_TYPE_U4, nullptr, &trResolvedValue));
+
+#ifdef DEBUG_INTERNAL_TESTS
+        uint32_t cbSize = 0;
+        IfFailRet(trResolvedValue->GetSize(&cbSize));
+        assert(cbSize == 4);
+#endif // DEBUG_INTERNAL_TESTS
+
+        ToRelease<ICorDebugGenericValue> trGenericValue;
+        IfFailRet(trResolvedValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+        IfFailRet(trGenericValue->SetValue(static_cast<void *>(&processId)));
+    }
     else if (identifiers.at(nextIdentifier) == "$tid")
     {
         DWORD threadId = 0;
