@@ -957,7 +957,7 @@ class Program
 
         lambda2("argVar");
 
-        // Test internal "$exception" variable name.
+        // Test internal variable names "$exception" and "$tid".
 
         try
         {
@@ -975,6 +975,7 @@ class Program
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BP_EXCEPTION");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.Exception}", "System.Exception", "$exception");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, null, "uint", "$tid");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

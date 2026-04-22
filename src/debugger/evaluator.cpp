@@ -1717,6 +1717,25 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return E_FAIL;
         }
     }
+    else if (identifiers.at(nextIdentifier) == "$tid")
+    {
+        DWORD threadId = 0;
+        IfFailRet(pThread->GetID(&threadId));
+
+        ToRelease<ICorDebugEval> trEval;
+        IfFailRet(pThread->CreateEval(&trEval));
+        IfFailRet(trEval->CreateValue(ELEMENT_TYPE_U4, nullptr, &trResolvedValue));
+
+#ifdef DEBUG_INTERNAL_TESTS
+        uint32_t cbSize = 0;
+        IfFailRet(trResolvedValue->GetSize(&cbSize));
+        assert(cbSize == 4);
+#endif // DEBUG_INTERNAL_TESTS
+
+        ToRelease<ICorDebugGenericValue> trGenericValue;
+        IfFailRet(trResolvedValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+        IfFailRet(trGenericValue->SetValue(static_cast<void *>(&threadId)));
+    }
     else
     {
         IfFailRet(WalkStackVars(pThread, frameLevel,

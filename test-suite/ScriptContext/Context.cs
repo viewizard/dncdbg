@@ -831,7 +831,7 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType,
+    public void GetAndCheckValue(string caller_trace, Int64 frameId, string? ExpectedResult, string ExpectedType,
                                  string Expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
@@ -842,7 +842,10 @@ class Context
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr);
 
-        Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (ExpectedResult != null)
+        {
+            Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        }
         Assert.Equal(ExpectedType, evaluateResponse.body.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
