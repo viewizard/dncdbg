@@ -7,9 +7,13 @@
 3. You may also need to install some common developer tools not mentioned here, such as [Git](https://www.git-scm.com/downloads), etc.
 4. Optional: the debugger requires the **.NET SDK**, which is typically downloaded automatically, but can also be downloaded manually from: https://dotnet.microsoft.com/download.
 
-***For example, Debian/Ubuntu prerequisites installation:***
+***Debian/Ubuntu prerequisites installation:***
 ```
 sudo apt install cmake clang llvm build-essential
+```
+***Alpine Linux prerequisites installation:***
+```
+apk add cmake make clang llvm build-base icu-libs bash
 ```
 
 ## Compiling
