@@ -859,6 +859,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             IfFailRet(GetRealValueWithType(trResultValue, &trTypeValue));
+            // The assignment modifies a local variable captured by reference, and
+            // that modified value is used by CallOperator when calling EvalFunction.
             pType2Value = trTypeValue.GetPtr();
 
             return S_OK;
@@ -885,7 +887,9 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
         trTypeValue.Free();
         IfFailRet(GetRealValueWithType(trResultValue, &trTypeValue));
-        pType1Value = trTypeValue.GetPtr(); // FIXME why we need this here? Assignment of function parameter has no effect outside the function.
+        // The assignment modifies a local variable captured by reference, and
+        // that modified value is used by CallOperator when calling EvalFunction.
+        pType1Value = trTypeValue.GetPtr();
 
         return S_OK;
     });
