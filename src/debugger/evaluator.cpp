@@ -31,7 +31,7 @@ namespace dncdbg
 namespace
 {
 
-void IncIndices(std::vector<uint32_t> &ind, const std::vector<uint32_t> &dims)
+void IncIndices(const std::vector<uint32_t> &dims, std::vector<uint32_t> &ind)
 {
     int i = static_cast<int32_t>(ind.size()) - 1;
 
@@ -860,7 +860,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             {
                 return S_OK;
             }
-            IncIndices(ind, dims); // FIXME why we need this here?
+            IncIndices(dims, ind);
         }
 
         return S_OK;
