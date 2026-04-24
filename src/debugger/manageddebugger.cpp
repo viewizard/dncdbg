@@ -82,7 +82,8 @@ bool AreAllHandlesValid(gsl::span<HANDLE> handles)
 {
     return std::all_of(handles.begin(), handles.end(), [](HANDLE h)
     {
-        return h != INVALID_HANDLE_VALUE; // NOLINT(performance-no-int-to-ptr,cppcoreguidelines-pro-type-cstyle-cast)
+        // EnumerateCLRs() could returns -1 (INVALID_HANDLE_VALUE) handle; compare as intptr_t to avoid int-to-ptr cast.
+        return reinterpret_cast<intptr_t>(h) != -1;
     });
 }
 

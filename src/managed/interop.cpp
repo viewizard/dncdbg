@@ -234,7 +234,7 @@ int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
         return 0;
     }
 
-    std::memcpy(buffer, reinterpret_cast<const void *>(address), cb); // NOLINT(performance-no-int-to-ptr)
+    std::memcpy(buffer, reinterpret_cast<const void *>(address), cb);
     return cb;
 }
 
