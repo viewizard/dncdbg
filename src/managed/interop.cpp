@@ -227,14 +227,14 @@ uint32_t SysStringLen(BSTR bstrString) // NOLINT(readability-non-const-parameter
 
 // Passed to managed helper code to read in-memory PEs/PDBs.
 // Returns the number of bytes read.
-int ReadMemoryForSymbols(uint64_t address, char *buffer, int cb)
+int ReadMemoryForSymbols(const void *address, char *buffer, int cb)
 {
-    if (address == 0 || buffer == nullptr || cb == 0)
+    if (address == nullptr || buffer == nullptr || cb == 0)
     {
         return 0;
     }
 
-    std::memcpy(buffer, reinterpret_cast<const void *>(address), cb);
+    std::memcpy(buffer, address, cb);
     return cb;
 }
 
@@ -265,8 +265,8 @@ Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
 Interop::SysFreeStringDelegate Interop::sysFreeStringDelegate = nullptr;
 Interop::CalculationDelegate Interop::calculationDelegate = nullptr;
 
-HRESULT Interop::LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress,
-                                           uint64_t peSize, uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize,
+HRESULT Interop::LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, const void *peAddress,
+                                           uint64_t peSize, const void *inMemoryPdbAddress, uint64_t inMemoryPdbSize,
                                            void **ppSymbolReaderHandle, std::string &pdbPath)
 {
     const ReadLock read_lock(CLRrwlock);

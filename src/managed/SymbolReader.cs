@@ -130,7 +130,7 @@ public class SymbolReader
     /// Read memory callback
     /// </summary>
     /// <returns>number of bytes read or 0 for error</returns>
-    internal unsafe delegate int ReadMemoryDelegate(ulong address, byte *buffer, int count);
+    internal unsafe delegate int ReadMemoryDelegate(IntPtr address, byte *buffer, int count);
 
     private sealed class OpenedReader : IDisposable
     {
@@ -156,7 +156,7 @@ public class SymbolReader
     /// </summary>
     private sealed class TargetStream : Stream
     {
-        private readonly ulong _address;
+        private readonly IntPtr _address;
         private readonly ReadMemoryDelegate _readMemory;
 
         public override long Position { get; set; }
@@ -165,7 +165,7 @@ public class SymbolReader
         public override bool CanRead => true;
         public override bool CanWrite => false;
 
-        public TargetStream(ulong address, int size, ReadMemoryDelegate readMemory)
+        public TargetStream(IntPtr address, int size, ReadMemoryDelegate readMemory)
         {
             _address = address;
             _readMemory = readMemory ?? throw new ArgumentNullException(nameof(readMemory));
@@ -191,7 +191,7 @@ public class SymbolReader
             {
                 fixed (byte* p = &buffer[offset])
                 {
-                    int read = _readMemory(_address + (ulong)Position, p, count);
+                    int read = _readMemory(IntPtr.Add(_address, (int)Position), p, count);
                     Position += read;
                     return read;
                 }
@@ -263,8 +263,8 @@ public class SymbolReader
     /// <param name="pdbName">pdb file path</param>
     /// <returns>Symbol reader handle or zero if error</returns>
     internal static IntPtr LoadSymbolsForModule([MarshalAs(UnmanagedType.LPWStr)] string assemblyPath,
-                                                bool isFileLayout, ulong loadedPeAddress, int loadedPeSize,
-                                                ulong inMemoryPdbAddress, int inMemoryPdbSize,
+                                                bool isFileLayout, IntPtr loadedPeAddress, int loadedPeSize,
+                                                IntPtr inMemoryPdbAddress, int inMemoryPdbSize,
                                                 ReadMemoryDelegate readMemory, out IntPtr pdbName)
     {
         GCHandle gch = new GCHandle();
@@ -276,11 +276,11 @@ public class SymbolReader
         {
             try
             {
-                if (assemblyPath is null && loadedPeAddress != 0)
+                if (assemblyPath is null && loadedPeAddress != IntPtr.Zero)
                 {
                     peStream = new TargetStream(loadedPeAddress, loadedPeSize, readMemory);
                 }
-                if (inMemoryPdbAddress != 0)
+                if (inMemoryPdbAddress != IntPtr.Zero)
                 {
                     pdbStream = new TargetStream(inMemoryPdbAddress, inMemoryPdbSize, readMemory);
                 }

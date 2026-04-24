@@ -200,14 +200,14 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
     IfFailRet(pModule->GetSize(&peSize));
 
     std::vector<unsigned char> peBuf;
-    uint64_t peBufAddress = 0;
+    const void *peBufAddress = nullptr;
     if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
     {
         ToRelease<ICorDebugProcess> trProcess;
         IfFailRet(pModule->GetProcess(&trProcess));
 
         peBuf.resize(peSize);
-        peBufAddress = reinterpret_cast<uint64_t>(peBuf.data());
+        peBufAddress = peBuf.data();
         SIZE_T read = 0;
         IfFailRet(trProcess->ReadMemory(peAddress, peSize, peBuf.data(), &read));
         if (read != peSize)
@@ -222,7 +222,7 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
         isInMemory, // isFileLayout
         peBufAddress,
         peSize,
-        0,          // inMemoryPdbAddress
+        nullptr,    // inMemoryPdbAddress
         0,          // inMemoryPdbSize
         ppSymbolReaderHandle,
         pdbPath

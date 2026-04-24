@@ -191,8 +191,8 @@ class Interop
     // WARNING! Due to CoreCLR limitations, Shutdown() can't be called out of the Main() scope, for example, from global object destructor.
     static void Shutdown();
 
-    static HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, uint64_t peAddress, uint64_t peSize,
-                                             uint64_t inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle, std::string &pdbPath);
+    static HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, const void *peAddress, uint64_t peSize,
+                                             const void *inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle, std::string &pdbPath);
     static void DisposeSymbols(void *pSymbolReaderHandle);
     static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
     static HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
@@ -237,8 +237,8 @@ class Interop
     // CoreCLR uses fixed size integers, don't use system/arch size dependent types for delegates.
     // Important! In case of usage pointer to variable as delegate arg, make sure it has proper size for CoreCLR!
     // For example, native code "int" != managed code "int", since managed code "int" is 4 byte fixed size.
-    using ReadMemoryDelegate = int (*)(uint64_t, char *, int32_t);
-    using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, uint64_t, int32_t, uint64_t, int32_t, ReadMemoryDelegate, BSTR *);
+    using ReadMemoryDelegate = int (*)(const void *, char *, int32_t);
+    using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, const void *, int32_t, const void *, int32_t, ReadMemoryDelegate, BSTR *);
     using DisposeDelegate = void (*)(void *);
     using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
     using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
