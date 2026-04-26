@@ -429,7 +429,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
                 int32_t index = 0;
                 if (!hoistedLocalScopes.empty() && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
-                    hoistedLocalScopes.size() > index &&
+                    static_cast<int32_t>(hoistedLocalScopes.size()) > index &&
                     (currentIlOffset < hoistedLocalScopes.at(index).startOffset ||
                     currentIlOffset >= hoistedLocalScopes.at(index).startOffset + hoistedLocalScopes.at(index).length))
                 {

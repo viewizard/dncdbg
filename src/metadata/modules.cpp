@@ -206,7 +206,7 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
 
     totalModules = m_moduleList.size();
 
-    if (startModule >= m_moduleList.size())
+    if (startModule >= static_cast<int>(m_moduleList.size()))
     {
         return;
     }
@@ -214,7 +214,7 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
     auto startIt = std::next(m_moduleList.begin(), startModule);
     auto endIt = m_moduleList.end();
     if (moduleCount != 0 &&
-        startModule + moduleCount < m_moduleList.size())
+        startModule + moduleCount < static_cast<int>(m_moduleList.size()))
     {
         endIt = std::next(startIt, moduleCount);
     }
