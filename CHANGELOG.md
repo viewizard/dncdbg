@@ -16,6 +16,7 @@ Upcoming changes compared to previous version.
 
 #### Fixed
 - Fixed work on Linux musl OSes. Alpine Linux added to CI.
+- Fixed Windows x86 build.
 
 </br>
 </br>
