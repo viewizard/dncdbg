@@ -7,6 +7,7 @@
 #include "utils/ioredirect.h"
 #include "utils/logger.h"
 #include <atomic>
+#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <fcntl.h>
@@ -85,6 +86,9 @@ void IORedirect::closePipe(PipeHandle &handle)
 int IORedirect::readPipe(PipeHandle handle, char *buffer, size_t size)
 {
     DWORD bytesRead = 0;
+#ifdef BIT64
+    assert(size <= static_cast<size_t>(std::numeric_limits<DWORD>::max()));
+#endif
     if (!ReadFile(handle, buffer, static_cast<DWORD>(size), &bytesRead, nullptr))
     {
         const DWORD error = GetLastError();
@@ -100,6 +104,7 @@ int IORedirect::readPipe(PipeHandle handle, char *buffer, size_t size)
         return 0; // EOF.
     }
 
+    assert(bytesRead <= static_cast<DWORD>(std::numeric_limits<int>::max()));
     return static_cast<int>(bytesRead);
 }
 
@@ -107,7 +112,9 @@ int IORedirect::readPipe(PipeHandle handle, char *buffer, size_t size)
 int IORedirect::writePipe(PipeHandle handle, const char *buffer, size_t size)
 {
     DWORD totalWritten = 0;
-
+#ifdef BIT64
+    assert(size <= static_cast<size_t>(std::numeric_limits<DWORD>::max()));
+#endif
     // Write all data, handling partial writes.
     while (totalWritten < static_cast<DWORD>(size))
     {
@@ -121,6 +128,7 @@ int IORedirect::writePipe(PipeHandle handle, const char *buffer, size_t size)
         totalWritten += bytesWritten;
     }
 
+    assert(totalWritten <= static_cast<DWORD>(std::numeric_limits<int>::max()));
     return static_cast<int>(totalWritten);
 }
 

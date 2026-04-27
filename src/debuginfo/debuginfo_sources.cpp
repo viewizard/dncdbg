@@ -256,6 +256,10 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
         return E_FAIL;
     }
 
+#ifdef BIT64
+    assert(constrTokens.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+    assert(normalTokens.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
     void *data = nullptr;
     IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, static_cast<uint32_t>(constrTokens.size()), constrTokens.data(),
                                               static_cast<uint32_t>(normalTokens.size()), normalTokens.data(), &data));
@@ -596,8 +600,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         }
         // correctedStartLine - in case line doesn't belong to any methods, if possible, will be "moved" to first line of
         // method below sourceLine.
-
-        if (static_cast<int32_t>(Tokens.size()) > std::numeric_limits<int32_t>::max())
+        if (Tokens.size() > static_cast<size_t>(std::numeric_limits<int32_t>::max()))
         {
             LOGE(log << "Too big token arrays.");
             return E_FAIL;

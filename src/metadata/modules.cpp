@@ -206,6 +206,7 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
 
     totalModules = m_moduleList.size();
 
+    assert(m_moduleList.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     if (startModule >= static_cast<int>(m_moduleList.size()))
     {
         return;

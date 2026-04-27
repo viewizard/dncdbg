@@ -7,6 +7,7 @@
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
 #include "utils/torelease.h"
+#include <cassert>
 #include <unordered_map>
 
 namespace dncdbg
@@ -194,6 +195,7 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
+            assert(number <= static_cast<ULONG>(std::numeric_limits<int>::max()));
             work.push_back(static_cast<int>(number)); // skip N generic arg element types
             break;
         }

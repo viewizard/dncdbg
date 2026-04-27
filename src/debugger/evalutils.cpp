@@ -48,6 +48,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     std::string currentTypeName;
 
     // Search for type in module
+    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         std::string name;
@@ -113,6 +114,9 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
     const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
+#ifdef BIT64
+    assert(trTypes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
     ToRelease<ICorDebugType> trType;
     IfFailRet(trClass2->GetParameterizedType(et, static_cast<uint32_t>(trTypes.size()),
                                              reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));

@@ -198,6 +198,9 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+#ifdef BIT64
+            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
             IfFailRet(trEval2->CallParameterizedFunction(pFunc, static_cast<uint32_t>(trTypeParams.size()),
                                                          reinterpret_cast<ICorDebugType **>(trTypeParams.data()),
                                                          argsValueCount, ppArgsValue));
@@ -338,16 +341,21 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
     IfFailRet(pType->GetClass(&trClass));
 
     ToRelease<ICorDebugValue> trTypeObject;
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trTypeObject,
+    Status = m_sharedEvalWaiter->WaitEvalResult(pThread, &trTypeObject,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+#ifdef BIT64
+            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
             IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
                                                                    reinterpret_cast<ICorDebugType **>(trTypeParams.data())));
             return S_OK;
-        }));
+        });
+    // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
+    IfFailRet(Status);
 
     if (et == ELEMENT_TYPE_CLASS)
     {

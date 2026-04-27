@@ -119,7 +119,7 @@ int IORedirect::writeStdin(gsl::span<const char> data)
         return 0; // Pipe already closed.
     }
 
-    return writePipe(m_stdinWrite, data.data(), static_cast<size_t>(data.size()));
+    return writePipe(m_stdinWrite, data.data(), data.size());
 }
 
 // Close the stdin pipe to signal EOF to the child process.

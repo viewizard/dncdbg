@@ -207,6 +207,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
     if (SUCCEEDED(pProcess->GetHandle(&hProcess)))
     {
         GetExitCodeProcess(hProcess, &dwExitCode);
+        assert(dwExitCode <= static_cast<DWORD>(std::numeric_limits<int>::max()));
         exitCode = static_cast<int>(dwExitCode);
     }
 #endif // FEATURE_PAL

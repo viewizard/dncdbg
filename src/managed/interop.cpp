@@ -284,6 +284,8 @@ HRESULT Interop::LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL i
     }
     BSTR pdbPathBSTR = nullptr;
 
+    assert(peSize <= static_cast<uint64_t>(std::numeric_limits<int>::max()));
+    assert(inMemoryPdbSize <= static_cast<uint64_t>(std::numeric_limits<int>::max()));
     *ppSymbolReaderHandle = loadSymbolsForModuleDelegate(szModuleName, isFileLayout, peAddress, static_cast<int>(peSize), inMemoryPdbAddress,
                                                          static_cast<int>(inMemoryPdbSize), ReadMemoryForSymbols, &pdbPathBSTR);
 
@@ -387,6 +389,7 @@ void Interop::Init(const std::string &coreClrPath)
         "UseLatestBehaviorWhenTFMNotSpecified"   // AppDomainCompatSwitch
     };
 
+    assert(propertyKeys.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     if (FAILED(Status = initializeCoreCLR(exe.c_str(), "debugger", static_cast<int>(propertyKeys.size()),
                                           const_cast<const char**>(propertyKeys.data()),
                                           const_cast<const char**>(propertyValues.data()),
@@ -562,8 +565,8 @@ HRESULT Interop::GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMeth
         return E_FAIL;
     }
 
-    static constexpr uint32_t mdNameLen = 2048;
-    BSTR wszLocalName = Interop::SysAllocStringLen(static_cast<int32_t>(mdNameLen));
+    static constexpr int32_t mdNameLen = 2048;
+    BSTR wszLocalName = Interop::SysAllocStringLen(mdNameLen);
     if (SysStringLen(wszLocalName) == 0)
     {
         return E_OUTOFMEMORY;

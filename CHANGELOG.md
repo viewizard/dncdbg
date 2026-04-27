@@ -8,6 +8,7 @@ Upcoming changes compared to previous version.
 - Added more nullable evaluation tests.
 - Added debugger pseudo-variable `$pid`.
 - Added debugger pseudo-variable `$tid`.
+- Added assertions for narrowing conversions.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.
@@ -15,7 +16,7 @@ Upcoming changes compared to previous version.
 - Optimized boolean/primitive value handling with size assertions.
 
 #### Fixed
-- Fixed work on Linux musl OSes. Alpine Linux added to CI.
+- Fixed work on Linux musl OSes.
 - Fixed Windows x86 build.
 
 </br>

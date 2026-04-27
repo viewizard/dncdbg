@@ -33,6 +33,7 @@ namespace
 
 void IncIndices(const std::vector<uint32_t> &dims, std::vector<uint32_t> &ind)
 {
+    assert(ind.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()));
     int i = static_cast<int32_t>(ind.size()) - 1;
 
     while (i >= 0)
@@ -428,6 +429,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 // Check that hoisted local is in scope.
                 // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
                 int32_t index = 0;
+                assert(hoistedLocalScopes.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()));
                 if (!hoistedLocalScopes.empty() && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
                     static_cast<int32_t>(hoistedLocalScopes.size()) > index &&
                     (currentIlOffset < hoistedLocalScopes.at(index).startOffset ||
@@ -519,6 +521,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
             break;
         }
 
+        assert(fullpath.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
         if (nextClassIdentifier == static_cast<int>(fullpath.size()))
         {
             *ppResultType = trType.Detach();
@@ -597,6 +600,9 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t>
         return E_FAIL;
     }
 
+#ifdef BIT64
+    assert(indexes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
     return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
 }
 
@@ -1562,6 +1568,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     HRESULT Status = S_OK;
 
     // Note, in case of (nextIdentifier == identifiers.size()) result is pValue itself, so, we ok here.
+    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     if (nextIdentifier > static_cast<int>(identifiers.size()))
     {
         return E_FAIL;
@@ -1622,6 +1629,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
     int nextClassIdentifier = 0;
+    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
 
@@ -1646,6 +1654,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             break;
         }
 
+        assert(fullpath.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
         if (nextClassIdentifier < static_cast<int>(fullpath.size()))
         {
             // try to check non-static fields inside a static member
@@ -1834,6 +1843,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     if (trResolvedValue != nullptr)
     {
         nextIdentifier++;
+        assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
         if (nextIdentifier == static_cast<int>(identifiers.size()))
         {
             *ppResultValue = trResolvedValue.Detach();
@@ -1849,6 +1859,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
+        assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
         if ((ppResultType != nullptr) && nextIdentifier == static_cast<int>(identifiers.size()))
         {
             *ppResultType = trType.Detach();

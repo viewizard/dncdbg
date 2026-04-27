@@ -218,6 +218,9 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
         return S_OK;
     }
 
+#ifdef BIT64
+    assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
     variable.namedVariables = numChild;
     variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
     pValue->AddRef();
@@ -324,6 +327,9 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
             return E_FAIL;
         }
 
+#ifdef BIT64
+        assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
         variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
         VariableReference scopeReference(variablesReference, frameId, namedVariables);
         m_references.emplace(variablesReference, std::move(scopeReference));
