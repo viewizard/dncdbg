@@ -9,6 +9,7 @@ Upcoming changes compared to previous version.
 - Added debugger pseudo-variable `$pid`.
 - Added debugger pseudo-variable `$tid`.
 - Added assertions for narrowing conversions.
+- Add defensive asserts to switch default branches.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

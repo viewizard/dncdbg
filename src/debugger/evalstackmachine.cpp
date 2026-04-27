@@ -2165,14 +2165,14 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         output = "The function evaluation requires all threads to run.";
         break;
     case E_UNEXPECTED:
-        output = "Evaluation timed out, but function evaluation can't be completed or aborted. Debuggee have inconsistent state now.";
+        output = "Evaluation timed out, but function evaluation can't be completed or aborted. Debuggee has inconsistent state now.";
         break;
     case COR_E_THREADSTATE:
         output = "Thread is in an invalid state for this operation.";
         break;
     case CORDBG_E_DEBUGGING_DISABLED:
-       output = "Implicit function evaluation is turned off by the user.";
-       break;
+        output = "Implicit function evaluation is turned off by the user.";
+        break;
     default:
         break;
     }

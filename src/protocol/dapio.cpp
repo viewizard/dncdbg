@@ -183,16 +183,16 @@ void DAPIO::EmitProcessEvent(DWORD processId, const std::string &name, StartMeth
     body.emplace("isLocalProcess", true);
     body.emplace("pointerSize", sizeof(void *) * CHAR_BIT);
 
-    assert(startMethod != StartMethod::None);
-
     switch (startMethod)
     {
     case StartMethod::Attach:
         body.emplace("startMethod", "attach");
         break;
     case StartMethod::Launch:
-    default:
         body.emplace("startMethod", "launch");
+        break;
+    default:
+        assert(false);
         break;
     }
 
@@ -283,6 +283,7 @@ void DAPIO::EmitThreadEvent(const ThreadEvent &event)
         body.emplace("reason", "exited");
         break;
     default:
+        assert(false);
         return;
     }
 

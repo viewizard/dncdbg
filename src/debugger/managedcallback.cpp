@@ -461,8 +461,10 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
             eventType = CorrectedByJMCCatchHandlerEventType(pFrame, m_debugger.IsJustMyCode());
             break;
         case DEBUG_EXCEPTION_UNHANDLED:
-        default:
             eventType = ExceptionCallbackType::UNHANDLED;
+            break;
+        default:
+            assert(false);
             break;
         }
 

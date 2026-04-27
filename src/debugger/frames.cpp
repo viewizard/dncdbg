@@ -129,9 +129,11 @@ bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
     case STUBFRAME_SECURITY:
     case STUBFRAME_JIT_COMPILATION:
         return true;
-    case STUBFRAME_EXCEPTION: // no reason add `[Exception]` frame on the top of stacktrace
+    case STUBFRAME_EXCEPTION: // no reason to add `[Exception]` frame on the top of stacktrace
     case STUBFRAME_NONE:
+        return false;
     default:
+        assert(false);
         return false;
     }
 }
@@ -401,7 +403,9 @@ const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
     case STUBFRAME_JIT_COMPILATION:
         return "JIT Compilation";
     case STUBFRAME_NONE:
+        return "Unknown";
     default:
+        assert(false);
         return "Unknown";
     }
 }

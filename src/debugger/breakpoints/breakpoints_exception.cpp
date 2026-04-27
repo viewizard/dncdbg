@@ -72,6 +72,7 @@ void GetExceptionShortDescription(ExceptionBreakMode breakMode, const std::strin
         break;
 
     default:
+        assert(false);
         result = "";
         break;
     }
@@ -94,6 +95,7 @@ void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result
         break;
 
     default:
+        assert(false);
         result = "";
         break;
     }
@@ -573,6 +575,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         }
 
         default:
+            assert(false);
             return E_INVALIDARG;
     }
 

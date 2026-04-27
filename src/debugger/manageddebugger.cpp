@@ -376,8 +376,6 @@ HRESULT ManagedDebugger::ConfigurationDone()
 {
     FrameId::invalidate();
 
-    assert(m_startMethod != StartMethod::None);
-
     switch (m_startMethod)
     {
     case StartMethod::Launch:
@@ -385,6 +383,7 @@ HRESULT ManagedDebugger::ConfigurationDone()
     case StartMethod::Attach:
         return AttachToProcess();
     default:
+        assert(false);
         return E_FAIL;
     }
 }
@@ -423,6 +422,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
             terminate = false;
             break;
         default:
+            assert(false);
             return E_FAIL;
         }
         break;
@@ -438,6 +438,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
         terminate = false;
         break;
     default:
+        assert(false);
         return E_FAIL;
     }
 
