@@ -241,7 +241,7 @@ public class conditional_access2
 
 public class conditional_access3
 {
-    public conditional_access1 member;
+    public conditional_access1? member;
 }
 
 public class object_with_array
@@ -281,7 +281,7 @@ public class coalesce_test_B
 public class MethodCallTest2
 {
     public static MethodCallTest1 member1 = new MethodCallTest1();
-    public MethodCallTest1 nullMember;
+    public MethodCallTest1? nullMember;
 }
 
 public class MethodCallTest3
@@ -409,19 +409,19 @@ class TestClass
 class Program
 {
     int int_i = 505;
-    static test_nested test_nested_static_instance;
+    static test_nested? test_nested_static_instance;
 
     const int literal1_int = 5;
     const string literal1_string = "literal";
-    const string literal1_string_null = null;
-    const object literal1_object = null;
-    const System.IO.StreamReader literal1_random = null;
-    const TestClass literal1_testclass = null;
-    const int [] literal1_array = null;
-    const TestClass [] literal1_array_testclass = null;
-    const int [,,] literal1_array2 = null;
-    const Random [,,] literal1_array2_random = null;
-    const TestClass [,,] literal1_array2_testclass = null;
+    const string? literal1_string_null = null;
+    const object? literal1_object = null;
+    const System.IO.StreamReader? literal1_random = null;
+    const TestClass? literal1_testclass = null;
+    const int[]? literal1_array = null;
+    const TestClass[]? literal1_array_testclass = null;
+    const int[,,]? literal1_array2 = null;
+    const Random[,,]? literal1_array2_random = null;
+    const TestClass[,,]? literal1_array2_testclass = null;
 
     static int stGetInt()
     {
@@ -575,7 +575,7 @@ class Program
         TestOperators2 testStruct;
         TestOperators3 testStruct2;
         testStruct.data = 5;
-        string testString1 = null;
+        string? testString1 = null;
         string testString2 = "test";
         int break_line2 = 1;                                                                    Label.Breakpoint("BREAK2");
 
@@ -993,27 +993,27 @@ class Program
         {
             const int literal2_int = 5;
             const string literal2_string = "literal";
-            const string literal2_string_null = null;
-            const object literal2_object = null;
-            const Random literal2_random = null;
-            const TestClass literal2_testclass = null;
-            const int [] literal2_array = null;
-            const TestClass [] literal2_array_testclass = null;
-            const int [,,] literal2_array2 = null;
-            const Random [,,] literal2_array2_random = null;
-            const TestClass [,,] literal2_array2_testclass = null;
+            const string? literal2_string_null = null;
+            const object? literal2_object = null;
+            const Random? literal2_random = null;
+            const TestClass? literal2_testclass = null;
+            const int[]? literal2_array = null;
+            const TestClass[]? literal2_array_testclass = null;
+            const int[,,]? literal2_array2 = null;
+            const Random[,,]? literal2_array2_random = null;
+            const TestClass[,,]? literal2_array2_testclass = null;
         }
         const int literal3_int = 15;
         const string literal3_string = "localliteral";
-        const string literal3_string_null = null;
-        const object literal3_object = null;
-        const Random literal3_random = null;
-        const TestClass literal3_testclass = null;
-        const int [] literal3_array = null;
-        const TestClass [] literal3_array_testclass = null;
-        const int [,,] literal3_array2 = null;
-        const Random [,,] literal3_array2_random = null;
-        const TestClass [,,] literal3_array2_testclass = null;
+        const string? literal3_string_null = null;
+        const object? literal3_object = null;
+        const Random? literal3_random = null;
+        const TestClass? literal3_testclass = null;
+        const int[]? literal3_array = null;
+        const TestClass[]? literal3_array_testclass = null;
+        const int[,,]? literal3_array2 = null;
+        const Random[,,]? literal3_array2_random = null;
+        const TestClass[,,]? literal3_array2_testclass = null;
 
         int litstop = 1;                                                                             Label.Breakpoint("BP_LITERAL");
 
@@ -1337,11 +1337,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        coalesce_test_A test_null = null;
+        coalesce_test_A? test_null = null;
         coalesce_test_A A_class = new coalesce_test_A();
         coalesce_test_B B_class = new coalesce_test_B();
 
-        string str_null = null;
+        string? str_null = null;
         string A_string = "A";
         string B_string = "B";
         string C_string = "C";

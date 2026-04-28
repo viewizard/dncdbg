@@ -15,9 +15,9 @@ class Program
     static int Main(string[] args)
     {
         var cli = new CLInterface(args);
-        DebuggerClient debugger = null;
-        ControlScript script = null;
-        LocalDebuggerProcess localDebugger = null;
+        DebuggerClient? debugger = null;
+        ControlScript? script = null;
+        LocalDebuggerProcess? localDebugger = null;
 
         if (cli.NeedHelp)
         {
@@ -37,7 +37,7 @@ class Program
             localDebugger = new LocalDebuggerProcess(localClientInfo.DebuggerPath, @"");
             localDebugger.Start();
 
-            debugger = new DAPLocalDebuggerClient(localDebugger.Input, localDebugger.Output);
+            debugger = new DAPLocalDebuggerClient(localDebugger.Input!, localDebugger.Output!);
         }
         catch
         {
@@ -62,7 +62,7 @@ class Program
 
         try
         {
-            script = new ControlScript(cli.Environment.SourceFilesPath);
+            script = new ControlScript(cli.Environment.SourceFilesPath!);
         }
         catch (ScriptNotBuiltException e)
         {
@@ -256,7 +256,7 @@ options:
 
     public bool NeedHelp { get; } = false;
     public DbgTestCore.Environment Environment { get; }
-    public LocalClientInfo ClientInfo { get; private set; }
+    public LocalClientInfo? ClientInfo { get; private set; }
 }
 
 class LocalClientInfo

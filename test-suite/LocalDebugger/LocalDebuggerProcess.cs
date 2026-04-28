@@ -15,9 +15,9 @@ public class LocalDebuggerProcess : IDisposable
         DebuggerProcess.StartInfo.RedirectStandardInput = true;
         DebuggerProcess.StartInfo.RedirectStandardOutput = true;
         DebuggerProcess.EnableRaisingEvents = true;
-        DebuggerProcess.Exited += new System.EventHandler(DebuggerProcess_Exited);
-        Input = null;
-        Output = null;
+        DebuggerProcess.Exited += DebuggerProcess_Exited;
+        Input = null!;
+        Output = null!;
     }
 
     public void Start()
@@ -56,7 +56,7 @@ public class LocalDebuggerProcess : IDisposable
         }
     }
 
-    void DebuggerProcess_Exited(object sender, System.EventArgs e)
+    void DebuggerProcess_Exited(object? sender, System.EventArgs e)
     {
         if (!CloseCalled && DebuggerProcess.ExitCode != 0)
         {
@@ -69,8 +69,8 @@ public class LocalDebuggerProcess : IDisposable
     private bool CloseCalled = false;
     private bool _disposed = false;
 
-    public StreamWriter Input { get; private set; }
-    public StreamReader Output { get; private set; }
+    public StreamWriter? Input { get; private set; }
+    public StreamReader? Output { get; private set; }
     public Process DebuggerProcess { get; }
 }
 }

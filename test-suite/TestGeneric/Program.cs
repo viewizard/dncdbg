@@ -41,7 +41,7 @@ class Program
     {
         public class Nested<A, B>
         {
-            public static MY my;
+            public static MY? my;
 
             public A test1(A arga)
             {
@@ -74,9 +74,9 @@ class Program
             }
         }
 
-        public static Nested<X, Y> static_nested;
+        public static Nested<X, Y>? static_nested;
         public Nested<X, Y> nested;
-        public Nested<X, Y> uninitialized;
+        public Nested<X, Y>? uninitialized;
         public Nested<double, float> nestedDiff = new Nested<double, float>();
         public TestNested()
         {
@@ -176,19 +176,19 @@ class Program
             return argt;
         }
 
-        public T i1;
-        public U s1;
+        public T? i1;
+        public U? s1;
 
-        public T p_i1 { get; set; }
+        public T? p_i1 { get; set; }
 
-        public U p_s1 { get; set; }
+        public U? p_s1 { get; set; }
 
-        public static T static_i1;
-        public static U static_s1;
+        public static T? static_i1;
+        public static U? static_s1;
 
-        public static T static_p_i1 { get; set; }
+        public static T? static_p_i1 { get; set; }
 
-        public static U static_p_s1 { get; set; }
+        public static U? static_p_s1 { get; set; }
 
         public void test_func()
         {

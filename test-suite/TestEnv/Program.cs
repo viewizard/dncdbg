@@ -26,8 +26,8 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        string EnvA = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        string EnvB = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+        string? EnvA = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        string? EnvB = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
 
         Console.WriteLine("Env A = " + EnvA + " Env B = " + EnvB);
         int i = 111;                                               Label.Breakpoint("bp");
