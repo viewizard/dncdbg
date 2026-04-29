@@ -232,105 +232,13 @@ HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
         return E_FAIL;
     }
 
-    CorElementType corElemType = ELEMENT_TYPE_MAX;
-    IfFailRet(trValue->GetType(&corElemType));
-
-    switch (corElemType)
-    {
-    case ELEMENT_TYPE_I1:
-    case ELEMENT_TYPE_U1:
-        if (typeid(T) == typeid(char) || typeid(T) == typeid(unsigned char) || typeid(T) == typeid(signed char))
-        {
-            break;
-        }
-        return E_FAIL;
-
-    case ELEMENT_TYPE_I4:
-    case ELEMENT_TYPE_U4:
-        if (typeid(T) == typeid(int) || typeid(T) == typeid(unsigned))
-        {
-            break;
-        }
-
-        if (sizeof(int) == sizeof(long))
-        {
-            if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
-            {
-                break;
-            }
-        }
-        return E_FAIL;
-
-    case ELEMENT_TYPE_I8:
-    case ELEMENT_TYPE_U8:
-        if (typeid(T) == typeid(long long) || typeid(T) == typeid(unsigned long long))
-        {
-            break;
-        }
-
-        if (sizeof(long long) == sizeof(long))
-        {
-            if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
-            {
-                break;
-            }
-        }
-
-        return E_FAIL;
-
-    case ELEMENT_TYPE_I:
-    case ELEMENT_TYPE_U:
-        if (sizeof(T) == sizeof(int))
-        {
-            if (typeid(T) == typeid(int) || typeid(T) == typeid(unsigned))
-            {
-                break;
-            }
-
-            if (sizeof(int) == sizeof(long))
-            {
-                if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
-                {
-                    break;
-                }
-            }
-        }
-
-        if (sizeof(T) == sizeof(long long))
-        {
-            if (typeid(T) == typeid(long long) || typeid(T) == typeid(unsigned long long))
-            {
-                break;
-            }
-
-            if (sizeof(long long) == sizeof(long))
-            {
-                if (typeid(T) == typeid(long) || typeid(T) == typeid(unsigned long))
-                {
-                    break;
-                }
-            }
-        }
-
-        return E_FAIL;
-
-    default:
-        return E_FAIL;
-    }
-
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
     IfFailRet(trGenericValue->GetValue(&value));
     return S_OK;
 }
 
-HRESULT GetUIntValue(ICorDebugValue *pInputValue, unsigned &value)
-{
-    return GetIntegralValue(pInputValue, value);
-}
-
-HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int &mid, unsigned int &lo,
-                         unsigned int &flags)
+HRESULT GetDecimalFields(ICorDebugValue *pValue, uint32_t &hi, uint32_t &mid, uint32_t &lo, uint32_t &flags)
 {
     HRESULT Status = S_OK;
 
@@ -386,13 +294,13 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
 
             if (name == "hi" || name == "_hi32")
             {
-                IfFailRet(GetUIntValue(trFieldVal, hi));
+                IfFailRet(GetIntegralValue(trFieldVal, hi));
                 has_hi = true;
             }
             else if (name == "_lo64")
             {
-                static constexpr unsigned int fourBytesShift = 32;
-                unsigned long long lo64 = 0;
+                static constexpr uint32_t fourBytesShift = 32;
+                uint64_t lo64 = 0;
                 IfFailRet(GetIntegralValue(trFieldVal, lo64));
                 mid = lo64 >> fourBytesShift;
                 lo = lo64 & ((1ULL << fourBytesShift) - 1);
@@ -400,17 +308,17 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, unsigned int &hi, unsigned int 
             }
             else if (name == "mid")
             {
-                IfFailRet(GetUIntValue(trFieldVal, mid));
+                IfFailRet(GetIntegralValue(trFieldVal, mid));
                 has_mid = true;
             }
             else if (name == "lo")
             {
-                IfFailRet(GetUIntValue(trFieldVal, lo));
+                IfFailRet(GetIntegralValue(trFieldVal, lo));
                 has_lo = true;
             }
             else if (name == "flags" || name == "_flags")
             {
-                IfFailRet(GetUIntValue(trFieldVal, flags));
+                IfFailRet(GetIntegralValue(trFieldVal, flags));
                 has_flags = true;
             }
         }
@@ -482,17 +390,17 @@ std::string uint96_to_string(std::array<uint32_t, 3> &v)
     return result;
 }
 
-void PrintDecimal(unsigned int hi, unsigned int mid, unsigned int lo, unsigned int flags, std::string &output)
+void PrintDecimal(uint32_t hi, uint32_t mid, uint32_t lo, uint32_t flags, std::string &output)
 {
     std::array<uint32_t, 3> v{lo, mid, hi};
 
     output = uint96_to_string(v);
 
-    static constexpr unsigned int ScaleMask = 0x00FF0000UL;
-    static constexpr unsigned int ScaleShift = 16;
-    static constexpr unsigned int SignMask = 1UL << 31;
+    static constexpr uint32_t ScaleMask = 0x00FF0000UL;
+    static constexpr uint32_t ScaleShift = 16;
+    static constexpr uint32_t SignMask = 1UL << 31;
 
-    const unsigned int scale = (flags & ScaleMask) >> ScaleShift;
+    const uint32_t scale = (flags & ScaleMask) >> ScaleShift;
     const bool is_negative = ((flags & SignMask) != 0U);
 
     const size_t len = output.length();
@@ -520,10 +428,10 @@ HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    unsigned int hi = 0;
-    unsigned int mid = 0;
-    unsigned int lo = 0;
-    unsigned int flags = 0;
+    uint32_t hi = 0;
+    uint32_t mid = 0;
+    uint32_t lo = 0;
+    uint32_t flags = 0;
 
     IfFailRet(GetDecimalFields(pValue, hi, mid, lo, flags));
 
