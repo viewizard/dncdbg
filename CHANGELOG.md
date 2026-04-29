@@ -15,6 +15,7 @@ Upcoming changes compared to previous version.
 - Improved ManagedDebugger attach/launch logic.
 - Enabled Nullable inspection for complex types.
 - Optimized boolean/primitive value handling with size assertions.
+- Updated diagnostics source version to 10.0.721401.
 
 #### Fixed
 - Fixed work on Linux musl OSes.
