@@ -118,6 +118,60 @@ bool TypeHasStaticMembers(ICorDebugType *pType)
 
 } // unnamed namespace
 
+// From strike.cpp
+HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull)
+{
+    *ppOutputValue = nullptr;
+    if (pIsNull != nullptr)
+    {
+        *pIsNull = FALSE;
+    }
+
+    pValue->AddRef();
+    ToRelease<ICorDebugValue> trCurrentValue(pValue);
+    HRESULT Status = S_OK;
+
+    while (true)
+    {
+        ToRelease<ICorDebugReferenceValue> trReferenceValue;
+        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+        {
+            BOOL isNull = FALSE;
+            IfFailRet(trReferenceValue->IsNull(&isNull));
+            if (isNull == FALSE)
+            {
+                ToRelease<ICorDebugValue> trDereferencedValue;
+                IfFailRet(trReferenceValue->Dereference(&trDereferencedValue));
+                trCurrentValue = trDereferencedValue.Detach();
+                continue;
+            }
+            else
+            {
+                if (pIsNull != nullptr)
+                {
+                    *pIsNull = TRUE;
+                }
+                break; // unboxed until null reference
+            }
+        }
+
+        ToRelease<ICorDebugBoxValue> trBoxedValue;
+        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue))))
+        {
+            ToRelease<ICorDebugObjectValue> trUnboxedValue;
+            IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));
+            trCurrentValue = trUnboxedValue.Detach();
+            continue;
+        }
+
+        break; // unboxed until object
+    }
+
+    trCurrentValue->AddRef();
+    *ppOutputValue = trCurrentValue;
+    return S_OK;
+}
+
 void EvalHelpers::Cleanup()
 {
     m_trSuppressFinalizeMutex.lock();

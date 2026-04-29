@@ -7,7 +7,6 @@
 #include "debugger/steppers/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalhelpers.h"
 #include "debugger/threads.h"
-#include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
 #include "utils/utf.h"

@@ -19,10 +19,40 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace dncdbg
 {
+
+HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull = nullptr);
+
+template <typename T, typename = typename std::enable_if_t<std::is_integral_v<T>>>
+HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
+{
+    HRESULT Status = S_OK;
+
+    BOOL isNull = TRUE;
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+
+    if (isNull == TRUE)
+    {
+        return E_FAIL;
+    }
+
+    uint32_t cbSize = 0;
+    IfFailRet(trValue->GetSize(&cbSize));
+    if (cbSize != sizeof(value))
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(&value));
+    return S_OK;
+}
 
 class EvalWaiter;
 

@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/valueprint.h"
+#include "debugger/evalhelpers.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
@@ -15,7 +16,6 @@
 #include <map>
 #include <sstream>
 #include <cstring>
-#include <type_traits>
 #include <vector>
 
 namespace dncdbg
@@ -208,33 +208,6 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         output = std::to_string(curValue);
     }
 
-    return S_OK;
-}
-
-template <typename T, typename = typename std::enable_if_t<std::is_integral_v<T>>>
-HRESULT GetIntegralValue(ICorDebugValue *pInputValue, T &value)
-{
-    HRESULT Status = S_OK;
-
-    BOOL isNull = TRUE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-
-    if (isNull == TRUE)
-    {
-        return E_FAIL;
-    }
-
-    uint32_t cbSize = 0;
-    IfFailRet(trValue->GetSize(&cbSize));
-    if (cbSize != sizeof(value))
-    {
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugGenericValue> trGenericValue;
-    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(&value));
     return S_OK;
 }
 
@@ -574,60 +547,6 @@ void EscapeString(std::string &s, char q = '\"')
 
 } // unnamed namespace
 
-// From strike.cpp
-HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull)
-{
-    *ppOutputValue = nullptr;
-    if (pIsNull != nullptr)
-    {
-        *pIsNull = FALSE;
-    }
-
-    pValue->AddRef();
-    ToRelease<ICorDebugValue> trCurrentValue(pValue);
-    HRESULT Status = S_OK;
-
-    while (true)
-    {
-        ToRelease<ICorDebugReferenceValue> trReferenceValue;
-        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
-        {
-            BOOL isNull = FALSE;
-            IfFailRet(trReferenceValue->IsNull(&isNull));
-            if (isNull == FALSE)
-            {
-                ToRelease<ICorDebugValue> trDereferencedValue;
-                IfFailRet(trReferenceValue->Dereference(&trDereferencedValue));
-                trCurrentValue = trDereferencedValue.Detach();
-                continue;
-            }
-            else
-            {
-                if (pIsNull != nullptr)
-                {
-                    *pIsNull = TRUE;
-                }
-                break; // unboxed till null reference
-            }
-        }
-
-        ToRelease<ICorDebugBoxValue> trBoxedValue;
-        if (SUCCEEDED(trCurrentValue->QueryInterface(IID_ICorDebugBoxValue, reinterpret_cast<void **>(&trBoxedValue))))
-        {
-            ToRelease<ICorDebugObjectValue> trUnboxedValue;
-            IfFailRet(trBoxedValue->GetObject(&trUnboxedValue));
-            trCurrentValue = trUnboxedValue.Detach();
-            continue;
-        }
-
-        break; // unboxed till object
-    }
-
-    trCurrentValue->AddRef();
-    *ppOutputValue = trCurrentValue;
-    return S_OK;
-}
-
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -821,16 +740,8 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 ToRelease<ICorDebugValue> trHasValueValue;
                 IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
 
-#ifdef DEBUG_INTERNAL_TESTS
-                uint32_t nullableCbSize = 0;
-                IfFailRet(trHasValueValue->GetSize(&nullableCbSize));
-                assert(nullableCbSize == 1); // trHasValueValue is ELEMENT_TYPE_BOOLEAN
-#endif // DEBUG_INTERNAL_TESTS
                 uint8_t boolValue = 0;
-
-                ToRelease<ICorDebugGenericValue> trNullableGenericValue;
-                IfFailRet(trHasValueValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trNullableGenericValue)));
-                IfFailRet(trNullableGenericValue->GetValue(static_cast<void *>(&boolValue)));
+                IfFailRet(GetIntegralValue(trHasValueValue, boolValue));
 
                 if (boolValue == 1) // TRUE
                 {

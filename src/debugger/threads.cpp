@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/threads.h"
+#include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "utils/torelease.h"
