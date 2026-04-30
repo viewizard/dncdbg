@@ -22,4 +22,4 @@ The project's development strategy is Trunk-Based Development, this means you ca
 
 - [VSCode IDE, Windows OS.](docs/usage_vscode_windows.md)
 - [VSCode IDE, Linux OS.](docs/usage_vscode_linux.md)
-- [Debugger Pseudo-Variables](docs/pseudo_variables.md)
+- [Debugger pseudo-variables.](docs/pseudo_variables.md)
