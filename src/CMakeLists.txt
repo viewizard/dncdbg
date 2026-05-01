@@ -124,7 +124,8 @@ target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG_INTERNAL_TESTS
 if (WIN32)
     target_link_libraries(dncdbg corguids wsock32 ws2_32)
 else()
-    target_link_libraries(dncdbg corguids dl pthread)
+    find_package(Iconv REQUIRED)
+    target_link_libraries(dncdbg corguids dl pthread Iconv::Iconv)
 endif()
 
 install_clr(TARGETS dncdbg DESTINATIONS . )
