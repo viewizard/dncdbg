@@ -978,9 +978,11 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, null, "uint", "$pid");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, null, "uint", "$tid");
 
-                // Unlike Linux/macOS, Windows uses a global ID space, ensuring that PIDs and TIDs are always distinct and never overlap.
+                // Windows uses a global ID space, ensuring that PIDs and TIDs are always distinct and never overlap.
                 bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-                if (isWindows)
+                // In macOS (Darwin), PID and TID belong to different namespaces. Unlike Linux, the main thread's TID never matches the PID.
+                bool isOSX = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX);
+                if (isWindows || isOSX)
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "$pid != $tid");
                 else
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "$pid == $tid");
