@@ -1,4 +1,4 @@
-# VSCode IDE, local debugging, Linux OS
+# VSCode IDE, local debugging, Linux and macOS OSes
 
 1. Install `C#` extension from Microsoft
 2. Switch to `Run and Debug` panel
@@ -32,9 +32,9 @@
             },
             "pipeTransport": {
                 "pipeCwd": "${workspaceFolder}",
-                "pipeProgram": "/usr/bin/bash",
+                "pipeProgram": "/bin/bash",
                 "pipeArgs": ["-c"],
-                "debuggerPath": "/home/user/dncdbg/bin/dncdbg"
+                "debuggerPath": "/path/to/dncdbg/bin/dncdbg"
             }
         }
 ```

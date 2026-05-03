@@ -16,10 +16,11 @@ The project's development strategy is Trunk-Based Development, this means you ca
 
 - [Windows OS build.](docs/build_windows.md)
 - [Linux OS build.](docs/build_linux.md)
+- [MacOS build.](docs/build_macos.md)
 - [Local testing.](test-suite/README.md)
 
 ## Usage
 
 - [VSCode IDE, Windows OS.](docs/usage_vscode_windows.md)
-- [VSCode IDE, Linux OS.](docs/usage_vscode_linux.md)
+- [VSCode IDE, Linux and macOS OSes.](docs/usage_vscode_unix.md)
 - [Debugger pseudo-variables.](docs/pseudo_variables.md)
