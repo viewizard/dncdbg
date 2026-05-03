@@ -25,14 +25,21 @@ set(DOTNET_DIR "" CACHE FILEPATH "Path to .NET SDK directory")
 set(DOTNET_CHANNEL "10.0" CACHE STRING ".NET SDK channel")
 
 if (WIN32)
-    # For windows it is expected that CLR_CMAKE_HOST_ARCH parameter is passed
-    # to CMAKE to determine build arch.
-    # If it is not passed, detect arch here.
+    # For Windows it is expected that CLR_CMAKE_HOST_ARCH parameter is passed
+    # to CMAKE to determine build arch. If it is not passed, detect arch here.
     if ("${CLR_CMAKE_HOST_ARCH}" STREQUAL "")
-        if ("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-            set(CLR_CMAKE_HOST_ARCH x86)
+        if (MSVC_CXX_ARCHITECTURE_ID)
+            string(TOLOWER "${MSVC_CXX_ARCHITECTURE_ID}" LOWERCASE_ARCH_ID)
         else()
+            string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" LOWERCASE_ARCH_ID)
+        endif()
+
+        if (LOWERCASE_ARCH_ID MATCHES "^arm64|^aarch64")
+            set(CLR_CMAKE_HOST_ARCH arm64)
+        elseif (LOWERCASE_ARCH_ID STREQUAL "x64" OR "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
             set(CLR_CMAKE_HOST_ARCH x64)
+        else()
+            set(CLR_CMAKE_HOST_ARCH x86)
         endif()
     endif()
 endif()

@@ -22,6 +22,7 @@ Upcoming changes compared to previous version.
 - Fixed work on Linux musl OSes.
 - Fixed Windows x86 build.
 - Fixed macOS arm64 and x86_64 builds (iconv proper detection).
+- Fixed Windows arm64 architecture detection during the build process.
 
 </br>
 </br>
