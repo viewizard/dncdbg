@@ -37,6 +37,9 @@ If you have previously downloaded the .NET SDK, then you should modify the comma
 Add your build type (`Release` or `Debug`), for example:
 `-DCMAKE_BUILD_TYPE=Release`
 
+Specify the target architecture as `arm64` or `x86_64` (universal binaries are not recommended because the debugger will only work properly if the matching .NET SDK is installed on the system). Example:
+`-DCMAKE_OSX_ARCHITECTURES=arm64`
+
 To build with Address Sanitizer, add the option
 `-DASAN=1`
 
@@ -57,6 +60,6 @@ As an example, the complete build sequence might look like:
 ```
 user@dncdbg$ mkdir build
 user@dncdbg$ cd build
-user@build$ CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=$PWD/../bin -DDOTNET_DIR=/Users/user/SDK/ -DCMAKE_BUILD_TYPE=Release
+user@build$ CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=$PWD/../bin -DDOTNET_DIR=/Users/user/SDK/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
 user@build$ cmake --build . --target install --parallel $(sysctl -n hw.ncpu) -- UseSharedCompilation=false UseRearNodes=false
 ```
