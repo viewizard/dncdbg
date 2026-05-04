@@ -57,8 +57,10 @@ cmake --build . --target install --parallel $(nproc --all)
 As an example, the complete build sequence might look like:
 
 ```
-user@dncdbg$ mkdir build
-user@dncdbg$ cd build
-user@build$ CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=$PWD/../bin -DDOTNET_DIR=/home/user/SDK/ -DCMAKE_BUILD_TYPE=Release
+user@dncdbg$ mkdir build && cd build
+user@build$ CC=clang CXX=clang++ cmake .. \
+    -DCMAKE_INSTALL_PREFIX=$PWD/../bin \
+    -DDOTNET_DIR=/home/user/SDK/ \
+    -DCMAKE_BUILD_TYPE=Release
 user@build$ cmake --build . --target install --parallel $(nproc --all)
 ```

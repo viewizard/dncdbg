@@ -25,8 +25,13 @@ Configure the build with the following commands:
 ```
 user@dncdbg$ mkdir build
 user@dncdbg$ cd build
+user@build$ cmake ..
+```
+The build system requires **Clang** (AppleClang). You can ensure it is used by prefixing the `cmake` command with compiler variables:
+```
 user@build$ CC=clang CXX=clang++ cmake ..
 ```
+**Note:** If you have multiple versions of LLVM/Clang installed (e.g., via Homebrew), CMake will use the system-default AppleClang unless you provide a specific path.
 
 In order to run tests after a successful build, you need to add the option
 `-DCMAKE_INSTALL_PREFIX=$PWD/../bin`
@@ -37,8 +42,7 @@ If you have previously downloaded the .NET SDK, then you should modify the comma
 Add your build type (`Release` or `Debug`), for example:
 `-DCMAKE_BUILD_TYPE=Release`
 
-Specify the target architecture as `arm64` or `x86_64` (universal binaries are not recommended because the debugger will only work properly if the matching .NET SDK is installed on the system). Example:
-`-DCMAKE_OSX_ARCHITECTURES=arm64`
+Optionally, you can specify the target architecture manually using `arm64` or `x86_64`. If not provided, the build system will automatically use your host architecture. Note that universal binaries are not recommended because the debugger requires a matching .NET SDK for the specific architecture. Example: `-DCMAKE_OSX_ARCHITECTURES=arm64`
 
 To build with Address Sanitizer, add the option
 `-DASAN=1`
@@ -55,11 +59,13 @@ After configuration has finished, you can then build debugger:
 cmake --build . --target install --parallel $(sysctl -n hw.ncpu)
 ```
 
-As an example, the complete build sequence might look like:
+As an example, the complete build sequence for an Apple Silicon Mac might look like:
 
 ```
-user@dncdbg$ mkdir build
-user@dncdbg$ cd build
-user@build$ CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=$PWD/../bin -DDOTNET_DIR=/Users/user/SDK/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+user@dncdbg$ mkdir build && cd build
+user@build$ CC=clang CXX=clang++ cmake .. \
+    -DCMAKE_INSTALL_PREFIX=$PWD/../bin \
+    -DDOTNET_DIR=/Users/user/SDK/ \
+    -DCMAKE_BUILD_TYPE=Release
 user@build$ cmake --build . --target install --parallel $(sysctl -n hw.ncpu) -- UseSharedCompilation=false UseRearNodes=false
 ```
