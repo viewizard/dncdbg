@@ -9,14 +9,14 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW) # install() paths are normalized
 endif(POLICY CMP0177)
 
-project(dncdbg)
+project(dncdbg LANGUAGES C CXX)
 
 # Require Clang compiler on non-Windows platforms
 if(NOT WIN32)
-    if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang|AppleClang")
         message(FATAL_ERROR "Clang compiler is required. Current C compiler: ${CMAKE_C_COMPILER_ID}")
     endif()
-    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
         message(FATAL_ERROR "Clang C++ compiler is required. Current C++ compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()
 endif()
@@ -24,37 +24,50 @@ endif()
 set(DOTNET_DIR "" CACHE FILEPATH "Path to .NET SDK directory")
 set(DOTNET_CHANNEL "10.0" CACHE STRING ".NET SDK channel")
 
-if (WIN32)
+if(WIN32)
     # For Windows it is expected that CLR_CMAKE_HOST_ARCH parameter is passed
     # to CMAKE to determine build arch. If it is not passed, detect arch here.
-    if ("${CLR_CMAKE_HOST_ARCH}" STREQUAL "")
-        if (MSVC_CXX_ARCHITECTURE_ID)
+    if(NOT CLR_CMAKE_HOST_ARCH)
+        if(MSVC_CXX_ARCHITECTURE_ID)
             string(TOLOWER "${MSVC_CXX_ARCHITECTURE_ID}" LOWERCASE_ARCH_ID)
         else()
             string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" LOWERCASE_ARCH_ID)
         endif()
 
-        if (LOWERCASE_ARCH_ID MATCHES "^arm64|^aarch64")
+        if(LOWERCASE_ARCH_ID MATCHES "^arm64|^aarch64")
             set(CLR_CMAKE_HOST_ARCH arm64)
-        elseif (LOWERCASE_ARCH_ID STREQUAL "x64" OR "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
+            message(STATUS "Architecture not specified: using host architecture ARM64")
+        elseif(LOWERCASE_ARCH_ID MATCHES "amd64|x64" OR CMAKE_SIZEOF_VOID_P EQUAL 8)
             set(CLR_CMAKE_HOST_ARCH x64)
+            message(STATUS "Architecture not specified: using host architecture x64")
         else()
             set(CLR_CMAKE_HOST_ARCH x86)
+            message(STATUS "Architecture not specified: using host architecture x86")
         endif()
+    endif()
+endif()
+
+if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
+    # For macOS it is expected that CMAKE_OSX_ARCHITECTURES parameter is passed
+    # to CMAKE to determine build arch. If it is not passed, detect arch here.
+    if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+        set(CMAKE_OSX_ARCHITECTURES "arm64")
+        message(STATUS "Architecture not specified: using host architecture ARM64")
+    elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+        set(CMAKE_OSX_ARCHITECTURES "x86_64")
+        message(STATUS "Architecture not specified: using host architecture x86_64")
     endif()
 endif()
 
 include(cmake/fetchdeps.cmake)
 
 # Basic checks for valid path
-if (NOT "${DOTNET_DIR}" STREQUAL "")
-    if (NOT IS_DIRECTORY "${DOTNET_DIR}/shared/Microsoft.NETCore.App")
-        message(FATAL_ERROR "Invalid .NET SDK directory")
-    endif()
+if(NOT DOTNET_DIR OR NOT IS_DIRECTORY "${DOTNET_DIR}/shared/Microsoft.NETCore.App")
+    message(FATAL_ERROR "Invalid or missing .NET SDK directory: '${DOTNET_DIR}'")
 endif()
 
 # Debug symbols stripping from libdbgshim and dncdbg for Release build only
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 0)
 else()
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
@@ -66,7 +79,7 @@ include(cmake/vcsinfo.cmake)
 VCSInfo(DNCDBG_VCS_INFO)
 
 # AddressSanitize
-if (ASAN)
+if(ASAN)
     set(CLR_CMAKE_ENABLE_SANITIZERS "address")
     #TODO UBSanitizer for Debug build
     #set(ENV{DEBUG_SANITIZERS} "ubsan")
