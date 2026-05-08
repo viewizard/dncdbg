@@ -92,3 +92,7 @@ done
 echo ""
 echo -e $test_list
 echo "Total tests: $(($test_pass + $test_fail)). Passed: $test_pass. Failed: $test_fail."
+
+if [ "$test_fail" -ne 0 ]; then
+  exit 1
+fi

@@ -90,13 +90,11 @@ foreach ($TEST_NAME in $TEST_NAMES) {
         --sources $SOURCE_FILES `
         --assembly $TEST_NAME/bin/$BUILD_TYPE/net10.0/$TEST_NAME.dll
 
-    if($?)
-    {
+    if ($?) {
         $test_pass++
         $test_list = "$test_list$TEST_NAME ... passed`n"
     }
-    else
-    {
+    else {
         $test_fail++
         $test_list = "$test_list$TEST_NAME ... failed`n"
     }
@@ -105,3 +103,7 @@ foreach ($TEST_NAME in $TEST_NAMES) {
 Write-Host ""
 Write-Host $test_list
 Write-Host "Total tests: $($test_pass + $test_fail). Passed: $test_pass. Failed: $test_fail."
+
+if ($test_fail -ne 0) {
+    exit 1
+}
