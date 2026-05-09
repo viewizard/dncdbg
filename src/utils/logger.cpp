@@ -68,8 +68,8 @@ unsigned get_tid()
 #elif (defined(__APPLE__) && defined(__MACH__))
     auto getTID = []() -> unsigned
     {
-        uint64_t tid;
-        pthread_threadid_np(NULL, &tid);
+        uint64_t tid = 0;
+        pthread_threadid_np(nullptr, &tid);
         return static_cast<unsigned>(tid);
     };
     static const thread_local unsigned thread_id = getTID();
