@@ -31,28 +31,40 @@ size_t HashCombine(size_t seed, size_t value) noexcept
 
 size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcept
 {
-    size_t hash = 0;
+    try
+    {
+        size_t hash = 0;
 
-    // Hash categoryHint (enum value)
-    hash = HashCombine(hash, static_cast<size_t>(expb.categoryHint));
+        // Hash categoryHint (enum value)
+        hash = HashCombine(hash, static_cast<size_t>(expb.categoryHint));
 
-    // Hash negativeCondition flag
-    hash = HashCombine(hash, static_cast<size_t>(expb.negativeCondition));
+        // Hash negativeCondition flag
+        hash = HashCombine(hash, static_cast<size_t>(expb.negativeCondition));
 
-    // Hash all conditions in a deterministic order
-    // Note: unordered_set iteration order is not guaranteed, so we need to sort
-    // for consistent hash values across different runs
-    std::vector<std::string> sortedConditions(expb.condition.begin(), expb.condition.end());
-    std::sort(sortedConditions.begin(), sortedConditions.end());
+        // Hash all conditions in a deterministic order
+        // Note: unordered_set iteration order is not guaranteed, so we need to sort
+        // for consistent hash values across different runs
+        std::vector<std::string> sortedConditions(expb.condition.begin(), expb.condition.end());
+        std::sort(sortedConditions.begin(), sortedConditions.end());
 
-    const std::hash<std::string> stringHasher;
-    hash = std::accumulate(sortedConditions.begin(), sortedConditions.end(), hash,
-                           [&stringHasher](size_t h, const auto &entry)
-                           {
-                               return HashCombine(h, stringHasher(entry));
-                           });
+        const std::hash<std::string> stringHasher;
+        hash = std::accumulate(sortedConditions.begin(), sortedConditions.end(), hash,
+                               [&stringHasher](size_t h, const auto &entry)
+                               {
+                                   return HashCombine(h, stringHasher(entry));
+                               });
 
-    return hash;
+        return hash;
+    }
+    catch (...)
+    {
+        // If memory allocation fails, return a hash based only on categoryHint and negativeCondition
+        // This maintains noexcept guarantee while providing a deterministic fallback
+        size_t fallbackHash = 0;
+        fallbackHash = HashCombine(fallbackHash, static_cast<size_t>(expb.categoryHint));
+        fallbackHash = HashCombine(fallbackHash, static_cast<size_t>(expb.negativeCondition));
+        return fallbackHash;
+    }
 }
 
 void GetExceptionShortDescription(ExceptionBreakMode breakMode, const std::string &excType, const std::string &excModule, std::string &result)

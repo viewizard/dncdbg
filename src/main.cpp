@@ -88,63 +88,76 @@ int
     std::cin.tie(nullptr);
 
     std::string protocolLogFilePath;
-    // Converts all arguments, skip the program name (argv[0])
-    const std::vector<std::string> args(argv + 1, argv + argc);
-
-    std::unordered_map<std::string, std::function<void()>> entireArguments{
-        {"--help", [&]() {
-            print_help();
-            exit(EXIT_SUCCESS);
-        }},
-        {"--buildinfo", [&]() {
-            print_buildinfo();
-            exit(EXIT_SUCCESS);
-        }},
-        {"--version", [&]() {
-            print_version();
-            exit(EXIT_SUCCESS);
-        }},
-        {"--interpreter=vscode" , [&]() {
-            // VSCode IDE sends this option silently to debugger, just ignore it
-        }}};
-
-    const std::vector<std::pair<std::string, std::function<void(const std::string &arg)>>> partialArguments{
-        {"--logProtocol=", [&](const std::string &arg) {
-            protocolLogFilePath = arg.substr(strlen("--logProtocol="));
-        }},
-        {"--log=", [&](const std::string &arg) {
-            dncdbg::Logger::OpenLogStream(arg.substr(strlen("--log=")).c_str());
-        }},
-        {"--loglevel=", [&](const std::string &arg) {
-            dncdbg::Logger::SetLogLevel(arg.substr(strlen("--loglevel=")).c_str());
-        }}
-    };
-
-    for (const std::string &arg : args)
+    try
     {
-        auto findEntire = entireArguments.find(arg);
-        if (findEntire != entireArguments.end())
+        // Converts all arguments, skip the program name (argv[0])
+        const std::vector<std::string> args(argv + 1, argv + argc);
+
+        std::unordered_map<std::string, std::function<void()>> entireArguments{
+            {"--help", [&]() {
+                print_help();
+                exit(EXIT_SUCCESS);
+            }},
+            {"--buildinfo", [&]() {
+                print_buildinfo();
+                exit(EXIT_SUCCESS);
+            }},
+            {"--version", [&]() {
+                print_version();
+                exit(EXIT_SUCCESS);
+            }},
+            {"--interpreter=vscode" , [&]() {
+                // VSCode IDE sends this option silently to debugger, just ignore it
+            }}};
+
+        const std::vector<std::pair<std::string, std::function<void(const std::string &arg)>>> partialArguments{
+            {"--logProtocol=", [&](const std::string &arg) {
+                protocolLogFilePath = arg.substr(strlen("--logProtocol="));
+            }},
+            {"--log=", [&](const std::string &arg) {
+                dncdbg::Logger::OpenLogStream(arg.substr(strlen("--log=")).c_str());
+            }},
+            {"--loglevel=", [&](const std::string &arg) {
+                dncdbg::Logger::SetLogLevel(arg.substr(strlen("--loglevel=")).c_str());
+            }}
+        };
+
+        for (const std::string &arg : args)
         {
-            findEntire->second();
-        }
-        else
-        {
-            auto it = std::find_if(partialArguments.begin(), partialArguments.end(),
-                [&arg](const auto &entry)
-                {
-                    // Note: starts_with() is C++20, use rfind() for compatibility
-                    return arg.rfind(entry.first, 0) == 0;
-                });
-            if (it != partialArguments.end())
+            auto findEntire = entireArguments.find(arg);
+            if (findEntire != entireArguments.end())
             {
-                it->second(arg);
+                findEntire->second();
             }
             else
             {
-                std::cerr << "Error: Unknown option " << arg << "\n";
-                exit(EXIT_FAILURE);
+                auto it = std::find_if(partialArguments.begin(), partialArguments.end(),
+                    [&arg](const auto &entry)
+                    {
+                        // Note: starts_with() is C++20, use rfind() for compatibility
+                        return arg.rfind(entry.first, 0) == 0;
+                    });
+                if (it != partialArguments.end())
+                {
+                    it->second(arg);
+                }
+                else
+                {
+                    std::cerr << "Error: Unknown option " << arg << "\n";
+                    exit(EXIT_FAILURE);
+                }
             }
         }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Fatal error: " << e.what() << "\n";
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Fatal error: unknown exception\n";
+        return EXIT_FAILURE;
     }
 
     LOGI(log << "DNCDbg started");

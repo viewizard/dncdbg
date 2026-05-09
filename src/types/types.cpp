@@ -121,23 +121,30 @@ class IndexedStorage
         return {--m_data.end(), true};
     }
 
-    // This functions find data element which corresponds to supplied `key'
-    // and returns iterator pointing to it, or returns iterator pointing
-    // to `end()` value of no any element corresponds to supplied `key'.
-    [[nodiscard]] iterator find(key_type key) const
+    // This function finds the data element which corresponds to the supplied `key'
+    // and returns an iterator pointing to it, or returns an iterator pointing
+    // to `end()` value if no element corresponds to the supplied `key'.
+    [[nodiscard]] iterator find(key_type key) const noexcept
     {
-        if (m_base > key)
+        try
+        {
+            if (m_base > key)
+            {
+                return end();
+            }
+
+            const key_type index = key - m_base;
+            if (index >= m_data.size() || m_data.at(index).first != key)
+            {
+                return end();
+            }
+
+            return begin() + index;
+        }
+        catch (...)
         {
             return end();
         }
-
-        const key_type index = key - m_base;
-        if (index >= m_data.size() || m_data.at(index).first != key)
-        {
-            return end();
-        }
-
-        return begin() + index;
     }
 
     // This function checks if element with corresponding `key' value present in the container.

@@ -335,16 +335,25 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
 
 CallbacksQueue::~CallbacksQueue()
 {
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    try
+    {
+        std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
-    // Clear queue and do notify_one call with FinishWorker request.
-    m_callbacksQueue.clear();
-    m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
-                                   ExceptionCallbackType::FIRST_CHANCE);
-    m_stopEventInProcess = false; // forced to proceed during break too
-    m_callbacksCV.notify_one();   // notify_one with lock
-    lock.unlock();
-    m_callbacksWorker.join();
+        // Clear queue and do notify_one call with FinishWorker request.
+        m_callbacksQueue.clear();
+        m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
+                                       ExceptionCallbackType::FIRST_CHANCE);
+        m_stopEventInProcess = false; // forced to proceed during break too
+        m_callbacksCV.notify_one();   // notify_one with lock
+        lock.unlock();
+        m_callbacksWorker.join();
+    }
+    catch (...)
+    {
+        // We can't allow this thread to stay and can't finish it.
+        // Terminate debugger, don't allow restart debug session.
+        std::terminate();
+    }
 }
 
 // Note: caller must care about m_callbacksMutex.
