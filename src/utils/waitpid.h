@@ -38,7 +38,12 @@ class WaitpidHook
     static constexpr pid_t notConfigured = -1;
     static pid_t trackPID;
     static int exitCode;
-    static std::recursive_mutex interlock;
+
+    static std::recursive_mutex &GetInterlock()
+    {
+        static std::recursive_mutex interlock;
+        return interlock;
+    }
 
     static void init() noexcept;
 };

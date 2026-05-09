@@ -222,7 +222,12 @@ class Interop
 
   private:
 
-    static RWLock CLRrwlock;
+    static RWLock &GetCLRrwlock()
+    {
+        static RWLock CLRrwlock;
+        return CLRrwlock;
+    }
+
     static void *hostHandle;
     static unsigned int domainId;
     static coreclr_shutdown_ptr shutdownCoreClr;
