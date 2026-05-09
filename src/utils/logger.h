@@ -69,7 +69,7 @@ constexpr size_t PathLen(std::string_view path)
 } // namespace dncdbg
 
 // Following macros shouldn't be used directly, they are intended for internal use.
-#define LOG_(prio, cbLog) dncdbg::Logger::LogPrint(prio, &__FILE__[dncdbg::PathLen(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; }) // NOLINT(cppcoreguidelines-macro-usage)
+#define LOG_(prio, cbLog) dncdbg::Logger::LogPrint(prio, &__FILE__[dncdbg::PathLen(__FILE__)], __LINE__, __func__, [&](std::ostream &log){ cbLog; }) // NOLINT(cppcoreguidelines-macro-usage,cppcoreguidelines-pro-bounds-constant-array-index)
 
 #ifdef DEBUG
 #define LOGD(cbLog) LOG_(dncdbg::LogLevel::DBG, cbLog) // NOLINT(cppcoreguidelines-macro-usage)
