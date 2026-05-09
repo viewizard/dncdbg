@@ -8,8 +8,11 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include "utils/filesystem.h"
+#ifdef __linux__
 #include <array>
+#endif
+
+#include "utils/filesystem.h"
 #include <climits> // PATH_MAX   NOLINT(misc-include-cleaner)
 #include <cstdlib>
 #include <string>

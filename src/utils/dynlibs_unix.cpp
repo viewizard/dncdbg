@@ -6,7 +6,6 @@
 
 #if (defined(__APPLE__) && defined(__MACH__))
 #include <crt_externs.h>
-#include <mach-o/dyld.h>
 #endif
 
 #include "utils/dynlibs.h"
