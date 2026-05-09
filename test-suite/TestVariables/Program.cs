@@ -192,20 +192,14 @@ public struct TestStruct6
     public int val2
     {
         get {
-            // CoreCLR 7.0, 8.0 and 9.0 have issue with abortable internal native code.
+            // Note: CoreCLR 7.0 and newer versions have an issue with abortable internal native code.
             // https://github.com/dotnet/runtime/issues/82422
-            if (System.Environment.Version.Major == 7 ||
-                System.Environment.Version.Major == 8 ||
-                System.Environment.Version.Major == 9 ||
-                System.Environment.Version.Major == 10)
+            // Avoid Sleep() usage with big time intervals.
+            for (int i = 0; i < 100; i++)
             {
-                while (true)
-                {
-                    System.Threading.Thread.Sleep(100);
-                }
+                System.Threading.Thread.Sleep(100);
             }
-            else
-                System.Threading.Thread.Sleep(5000000);
+
             return 999;
         }
     }

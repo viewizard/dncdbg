@@ -440,7 +440,14 @@ class Program
 
     static int TestTimeOut()
     {
-        System.Threading.Thread.Sleep(10000);
+        // Note: CoreCLR 7.0 and newer versions have an issue with abortable internal native code.
+        // https://github.com/dotnet/runtime/issues/82422
+        // Avoid Sleep() usage with big time intervals.
+        for (int i = 0; i < 100; i++)
+        {
+            System.Threading.Thread.Sleep(100);
+        }
+
         return 5;
     }
 
