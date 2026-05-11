@@ -40,8 +40,13 @@ int MacKqueue::GetExitCode()
         return 0;
     }
 
+    constexpr long timeoutSeconds = 3;
+    struct timespec timeout;
+    timeout.tv_sec = timeoutSeconds;
+    timeout.tv_nsec = 0;
+
     struct kevent event{};
-    const int nev = kevent(kq, nullptr, 0, &event, 1, nullptr);
+    const int nev = kevent(kq, nullptr, 0, &event, 1, &timeout);
     if (nev > 0 && event.filter == EVFILT_PROC && ((event.fflags & NOTE_EXIT) != 0U))
     {
         const int status = static_cast<int>(event.data);
@@ -55,6 +60,10 @@ int MacKqueue::GetExitCode()
             LOGW(log << "Process terminated by signal " << WTERMSIG(status) << ". Assuming EXIT_FAILURE.");
             return EXIT_FAILURE;
         }
+    }
+    else if (nev == 0)
+    {
+        LOGE(log << "kevent() timeout.");
     }
     else if (nev == -1)
     {
