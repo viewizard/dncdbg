@@ -24,7 +24,8 @@
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
-#include "utils/waitpid.h"
+#include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
+#include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
@@ -608,10 +609,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     w_lock.unlock();
 
-#ifdef FEATURE_PAL
-    WaitpidHook::SetupTrackingPID(static_cast<pid_t>(m_processId));
-#endif // FEATURE_PAL
-
     return S_OK;
 }
 
@@ -656,9 +653,11 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         return Status;
     }
 
-#ifdef FEATURE_PAL
+#if (defined(__APPLE__) && defined(__MACH__))
+    MacKqueue::SetupTrackingPID(static_cast<pid_t>(m_processId));
+#elif __linux__
     WaitpidHook::SetupTrackingPID(static_cast<pid_t>(m_processId));
-#endif // FEATURE_PAL
+#endif
 
     IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
 

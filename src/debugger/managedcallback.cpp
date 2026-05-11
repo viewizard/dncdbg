@@ -18,7 +18,8 @@
 #include "metadata/modules.h" // NOLINT(misc-include-cleaner)
 #include "protocol/dapio.h"
 #include "utils/logger.h"
-#include "utils/waitpid.h"
+#include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
+#include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
 #include "utils/utf.h"
 
 namespace dncdbg
@@ -199,7 +200,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
     // internal CoreCLR variable LatchedExitCode is INT32 (signed int)
     // C# Main() return values is int (signed int) or void (return 0)
     int exitCode = 0;
-#ifdef FEATURE_PAL
+#if (defined(__APPLE__) && defined(__MACH__))
+    exitCode = MacKqueue::GetExitCode();
+#elif __linux__
     exitCode = WaitpidHook::GetExitCode();
 #else
     HPROCESS hProcess;
@@ -210,7 +213,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
         assert(dwExitCode <= static_cast<DWORD>(std::numeric_limits<int>::max()));
         exitCode = static_cast<int>(dwExitCode);
     }
-#endif // FEATURE_PAL
+#endif
 
     DAPIO::EmitExitedEvent(ExitedEvent(exitCode));
     m_debugger.NotifyProcessExited();

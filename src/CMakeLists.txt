@@ -59,6 +59,7 @@ set(dncdbg_SRC
     utils/ioredirect_unix.cpp
     utils/ioredirect_win32.cpp
     utils/ioredirect.cpp
+    utils/kqueue.cpp
     utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp

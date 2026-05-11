@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifdef FEATURE_PAL
+#ifdef __linux__
 
 #include "utils/waitpid.h"
 #include "utils/logger.h"
@@ -93,4 +93,4 @@ extern "C" pid_t wait(int *status) // NOLINT(readability-inconsistent-declaratio
 
 } // namespace dncdbg
 
-#endif // FEATURE_PAL
+#endif // __linux__

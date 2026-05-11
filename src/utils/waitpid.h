@@ -6,7 +6,7 @@
 #ifndef UTILS_WAITPID_H
 #define UTILS_WAITPID_H
 
-#ifdef FEATURE_PAL
+#ifdef __linux__
 
 #include <mutex>
 #include <csignal>
@@ -50,6 +50,6 @@ class WaitpidHook
 
 } // namespace dncdbg
 
-#endif // FEATURE_PAL
+#endif // __linux__
 
 #endif // UTILS_WAITPID_H
