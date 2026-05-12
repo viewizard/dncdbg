@@ -29,6 +29,7 @@ class MacKqueue
   private:
 
     static int kq;
+    static int exitCode;
 };
 
 } // namespace dncdbg

@@ -16,7 +16,7 @@ namespace dncdbg
 
 WaitpidHook::Signature WaitpidHook::original = nullptr;
 pid_t WaitpidHook::trackPID = notConfigured;
-int WaitpidHook::exitCode = 0; // same behaviour as CoreCLR has, by default exit code is 0
+int WaitpidHook::exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
 
 void WaitpidHook::init() noexcept
 {
@@ -43,7 +43,7 @@ void WaitpidHook::SetupTrackingPID(pid_t PID)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
     trackPID = PID;
-    exitCode = 0; // same behaviour as CoreCLR has, by default exit code is 0
+    exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
 }
 
 int WaitpidHook::GetExitCode()

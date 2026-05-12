@@ -10,15 +10,18 @@
 #include <cstring>
 #include <sys/event.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 namespace dncdbg
 {
 
 int MacKqueue::kq = -1;
+int MacKqueue::exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
 
 void MacKqueue::SetupTrackingPID(pid_t PID)
 {
     kq = kqueue();
+    exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
     if (kq == -1)
     {
         LOGE(log << "Failed to create kqueue: " << strerror(errno));
@@ -36,10 +39,13 @@ int MacKqueue::GetExitCode()
 {
     if (kq == -1)
     {
-        LOGW(log << "kqueue not initialized, returning exit code 0");
-        return 0;
+        return exitCode;
     }
 
+    // Note: This function is triggered by ManagedCallback::ExitProcess() after the
+    // child process has already exited. We use a blocking kevent() call with a
+    // 3-second timeout as a fallback mechanism, in case the kevent registration
+    // in kqueue is still lagging.
     constexpr long timeoutSeconds = 3;
     struct timespec timeout;
     timeout.tv_sec = timeoutSeconds;
@@ -53,12 +59,12 @@ int MacKqueue::GetExitCode()
 
         if (WIFEXITED(status))
         {
-            return WEXITSTATUS(status);
+            exitCode = WEXITSTATUS(status);
         }
-        if (WIFSIGNALED(status))
+        else if (WIFSIGNALED(status))
         {
             LOGW(log << "Process terminated by signal " << WTERMSIG(status) << ". Assuming EXIT_FAILURE.");
-            return EXIT_FAILURE;
+            exitCode = EXIT_FAILURE;
         }
     }
     else if (nev == 0)
@@ -70,7 +76,10 @@ int MacKqueue::GetExitCode()
         LOGE(log << "kevent() failed: " << strerror(errno));
     }
 
-    return 0;
+    close(kq);
+    kq = -1;
+
+    return exitCode;
 }
 
 } // namespace dncdbg
