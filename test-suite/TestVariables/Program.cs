@@ -891,10 +891,6 @@ class Program
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts1, "int", "Milliseconds", "0");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts1, "int", "Hours", "0");
 
-                int variablesReference_guid3 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference, "nullable_guid3");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_guid3, "int", "Version", "0");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_guid3, "int", "Variant", "0");
-
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
