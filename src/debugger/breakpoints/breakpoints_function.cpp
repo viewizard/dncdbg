@@ -37,8 +37,7 @@ void FunctionBreakpoints::DeleteAll()
 }
 
 HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                                std::vector<uint32_t> &hitBreakpointIds,
-                                                std::vector<BreakpointEvent> &bpChangeEvents)
+                                                std::vector<uint32_t> &hitBreakpointIds)
 {
     if (m_funcBreakpoints.empty())
     {
@@ -127,7 +126,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                     << fbp.condition << "'. The error returned was '" << output << "'. - "
                     << fbp.name << "(" << fbp.params << ")\n";
                     breakpoint.message = ss.str();
-                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     fbp.condition.clear();
                 }
             }
@@ -154,7 +154,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                     << fbp.hitCondition << "'. The error returned was '" << output << "'. - "
                     << fbp.name << "(" << fbp.params << ")\n";
                     breakpoint.message = ss.str();
-                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     fbp.hitCondition.clear();
                 }
             }

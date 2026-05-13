@@ -132,8 +132,7 @@ HRESULT Breakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &e
 }
 
 HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                               std::vector<uint32_t> &hitBreakpointIds,
-                                               std::vector<BreakpointEvent> &bpChangeEvents, bool &atEntry)
+                                               std::vector<uint32_t> &hitBreakpointIds, bool &atEntry)
 {
     // CheckBreakpointHit return:
     //     S_OK - breakpoint hit
@@ -151,7 +150,7 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         return S_OK;
     }
 
-    // Don't stop at breakpoint in not JMC code, if possible (error here is not fatal for debug process).
+    // Don't stop at breakpoint in non-JMC code, if possible (error here is not fatal for debug process).
     // We need this check here, since we can't guarantee this check in SkipBreakpoint().
     ToRelease<ICorDebugFrame> trFrame;
     ToRelease<ICorDebugFunction> trFunction;
@@ -166,13 +165,13 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
         return S_IGNORE; // breakpoint in non-user code, continue process execution
     }
 
-    if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents)) &&
+    if (SUCCEEDED(Status = m_sourceBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         return S_OK;
     }
 
-    if (SUCCEEDED(Status = m_funcBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents)) &&
+    if (SUCCEEDED(Status = m_funcBreakpoints->CheckBreakpointHit(pThread, pBreakpoint, hitBreakpointIds)) &&
         Status == S_OK) // S_FALSE - no breakpoint hit
     {
         return S_OK;

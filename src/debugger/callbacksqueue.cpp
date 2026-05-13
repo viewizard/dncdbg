@@ -29,9 +29,8 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     }
 
     bool atEntry = false;
-    std::vector<BreakpointEvent> bpChangeEvents;
     std::vector<uint32_t> hitBreakpointIds;
-    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, bpChangeEvents, atEntry))
+    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, atEntry))
     {
         // Breakpoints related break (for example, breakpoint's condition failed or stop in non-user code
         // with enabled JMC), don't emit breakpoint stop event and continue execution.
@@ -42,11 +41,6 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
-    for (const BreakpointEvent &changeEvent : bpChangeEvents)
-    {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, changeEvent.breakpoint.message});
-        DAPIO::EmitBreakpointEvent(changeEvent);
-    }
 
     const ThreadId threadId(getThreadId(pThread));
     const StoppedEvent event(atEntry ? StoppedEventReason::Entry : StoppedEventReason::Breakpoint, std::move(hitBreakpointIds), threadId);

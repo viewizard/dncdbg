@@ -51,8 +51,7 @@ class SourceBreakpoints
     // S_OK - breakpoint hit
     // S_FALSE - no breakpoint hit
     HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                               std::vector<uint32_t> &hitBreakpointIds,
-                               std::vector<BreakpointEvent> &bpChangeEvents);
+                               std::vector<uint32_t> &hitBreakpointIds);
 
 #ifdef DEBUG_INTERNAL_TESTS
     size_t GetBreakpointsCount();

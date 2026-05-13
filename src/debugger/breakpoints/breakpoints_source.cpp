@@ -124,8 +124,7 @@ void SourceBreakpoints::DeleteAll()
 }
 
 HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                              std::vector<uint32_t> &hitBreakpointIds,
-                                              std::vector<BreakpointEvent> &bpChangeEvents)
+                                              std::vector<uint32_t> &hitBreakpointIds)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
@@ -167,7 +166,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     mdMethodDef methodToken = mdMethodDefNil;
     IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
-    // Same logic as provide vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
+    // Same logic as in vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
     for (auto &b : bList)
     {
         for (const auto &trFuncBreakpoint : b.trFuncBreakpoints)
@@ -196,7 +195,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     << b.condition << "'. The error returned was '" << output << "'. - "
                     << sp.document << ":" << b.linenum << "\n";
                     breakpoint.message = ss.str();
-                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     b.condition.clear();
                 }
             }
@@ -223,7 +223,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     << b.hitCondition << "'. The error returned was '" << output << "'. - "
                     << sp.document << ":" << b.linenum << "\n";
                     breakpoint.message = ss.str();
-                    bpChangeEvents.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     b.hitCondition.clear();
                 }
             }
