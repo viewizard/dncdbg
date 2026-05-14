@@ -101,8 +101,8 @@
 -   group?: 'start' | 'startCollapsed' | 'end';
 -   variablesReference?: number;
 +   source?: Source;
--   line?: number;
--   column?: number;
++   line?: number;
++   column?: number;
 -   data?: any;
 -   locationReference?: number;
 ```
