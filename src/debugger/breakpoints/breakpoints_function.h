@@ -59,15 +59,15 @@ class FunctionBreakpoints
     size_t GetBreakpointsCount();
 #endif // DEBUG_INTERNAL_TESTS
 
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
+    // Important! Callback-related methods must control the return of succeeded return codes.
+    // Do not allow debugger API to return succeeded (uncontrolled) return codes.
+    // Bad:
     //     return pThread->GetID(&threadId);
     // Good:
     //     IfFailRet(pThread->GetID(&threadId));
     //     return S_OK;
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
-    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events);
+    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
   private:
 

@@ -180,18 +180,18 @@ HRESULT Breakpoints::ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDeb
     return S_IGNORE;
 }
 
-HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT Breakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     m_entryBreakpoint->ManagedCallbackLoadModule(pModule);
-    m_funcBreakpoints->ManagedCallbackLoadModule(pModule, events);
-    m_sourceBreakpoints->ManagedCallbackLoadModule(pModule, events);
+    m_funcBreakpoints->ManagedCallbackLoadModule(pModule);
+    m_sourceBreakpoints->ManagedCallbackLoadModule(pModule);
     return S_OK;
 }
 
-HRESULT Breakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT Breakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
-    m_funcBreakpoints->ManagedCallbackUnloadModule(pModule, events);
-    m_sourceBreakpoints->ManagedCallbackUnloadModule(pModule, events);
+    m_funcBreakpoints->ManagedCallbackUnloadModule(pModule);
+    m_sourceBreakpoints->ManagedCallbackUnloadModule(pModule);
     return S_OK;
 }
 

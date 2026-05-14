@@ -236,7 +236,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
 }
 
-HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
@@ -270,7 +270,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
 
             Breakpoint breakpoint;
             bp.ToBreakpoint(breakpoint, resolved_fullname);
-            events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+            DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
 
             initialBreakpoint.resolved_fullname_index = resolved_fullname_index;
             initialBreakpoint.resolved_linenum = bp.linenum;
@@ -282,7 +282,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, s
     return S_OK;
 }
 
-HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
@@ -342,9 +342,9 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule,
     }
 
     // Reset removed resolved breakpoints.
-    for (auto &sourceBreakpoins : m_sourceBreakpointMapping)
+    for (auto &sourceBreakpoints : m_sourceBreakpointMapping)
     {
-        for (auto &bp : sourceBreakpoins.second)
+        for (auto &bp : sourceBreakpoints.second)
         {
             if (removedIds.find(bp.id) != removedIds.end())
             {
@@ -355,7 +355,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule,
                 breakpoint.id = bp.id;
                 breakpoint.verified = false;
                 breakpoint.message = "Breakpoint reset at module unload.";
-                events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+                DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
             }
         }
     }

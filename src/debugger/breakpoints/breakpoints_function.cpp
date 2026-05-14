@@ -167,7 +167,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
 }
 
-HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
@@ -182,13 +182,13 @@ HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule,
 
         Breakpoint breakpoint;
         fb.ToBreakpoint(breakpoint);
-        events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+        DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
     }
 
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule, std::vector<BreakpointEvent> &events)
+HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
@@ -228,7 +228,7 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
             breakpoint.id = fb.id;
             breakpoint.verified = false;
             breakpoint.message = "Breakpoint reset at module unload.";
-            events.emplace_back(BreakpointEventReason::Changed, breakpoint);
+            DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
         }
     }
 
