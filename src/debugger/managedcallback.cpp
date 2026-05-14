@@ -255,15 +255,10 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     Module &module = m_debugger.m_sharedModules->GetNewModuleRef();
-    std::string errorText;
-    m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module, errorText);
+    m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
-    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode(), errorText);
+    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode());
     DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
-    if (!errorText.empty())
-    {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, errorText});
-    }
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {

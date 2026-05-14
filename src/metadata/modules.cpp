@@ -5,6 +5,7 @@
 
 #include "metadata/modules.h"
 #include "metadata/jmc.h"
+#include "protocol/dapio.h"
 #include "utils/filesystem.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -91,7 +92,7 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
     return ss.str();
 }
 
-void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &errorText)
+void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC)
 {
     module.path = Modules::GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
@@ -129,9 +130,10 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
             }
             else if (Status == CORDBG_E_CANT_SET_TO_JMC)
             {
-                errorText += "You are debugging a Release build of " + module.name + ". Disabling JIT "
-                             "optimizations failed, in some cases (e.g. attach) this results in a "
-                             "degraded debugging experience (e.g. breakpoints will not be hit).\n";
+                DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+                    "You are debugging a Release build of " + module.name + ". Disabling JIT "
+                    "optimizations failed, in some cases (e.g. attach) this results in a "
+                    "degraded debugging experience (e.g. breakpoints will not be hit).\n"});
             }
         }
     }
@@ -146,7 +148,8 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
 
     if (FAILED(Modules::GetModuleId(pModule, module.id)))
     {
-        errorText += "Could not calculate module ID for module " + module.name + ".\n";
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+            "Could not calculate module ID for module " + module.name + ".\n"});
     }
 
     CORDB_ADDRESS moduleBaseAddress = 0;
@@ -163,7 +166,7 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
     }
     else
     {
-        errorText += "Could not calculate module address range.\n";
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not calculate module address range.\n"});
     }
 }
 

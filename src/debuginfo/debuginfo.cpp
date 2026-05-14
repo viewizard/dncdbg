@@ -7,6 +7,7 @@
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
+#include "protocol/dapio.h"
 #include <cstring>
 #include <vector>
 
@@ -409,7 +410,7 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     return S_OK;
 }
 
-void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, std::string &errorText)
+void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 {
     void *pSymbolReaderHandle = nullptr;
     LoadSymbols(pModule, &pSymbolReaderHandle, module.symbolFilePath);
@@ -423,8 +424,9 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, s
             FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) ||
             FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
         {
-            errorText += "Could not load source lines related info from PDB file. Could produce failures during "
-                         "breakpoint's source path resolve in future.\n";
+            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+                "Could not load source lines related info from PDB file. Could produce failures during "
+                "breakpoint's source path resolve in future.\n"});
         }
 
         CORDB_ADDRESS baseAddress = 0;
@@ -437,7 +439,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module, s
         }
         else
         {
-            errorText += "Could not find module base address.\n";
+            DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
         }
     }
 }

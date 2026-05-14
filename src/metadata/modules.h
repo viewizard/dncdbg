@@ -28,7 +28,7 @@ class Modules
 
     static HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id);
     static std::string GetModuleFileName(ICorDebugModule *pModule);
-    static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, std::string &errorText);
+    static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC);
 
     Module &GetNewModuleRef();
     HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
