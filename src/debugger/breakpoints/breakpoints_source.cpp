@@ -229,6 +229,21 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 }
             }
 
+            if (!b.logMessage.empty())
+            {
+                if (b.logMessageParts.empty())
+                {
+                    BreakpointUtils::CreateMessageParts(b.logMessage, b.logMessageParts);
+                }
+                std::string message;
+                BreakpointUtils::BuildTraceMessage(m_sharedVariables.get(), pThread, b.logMessageParts, message);
+                OutputEvent event(OutputCategory::Console, message);
+                event.source = Source(sp.document);
+                event.line = b.linenum;
+                DAPIO::EmitOutputEvent(event);
+                continue;
+            }
+
             hitBreakpointIds.emplace_back(b.id);
         }
     }
@@ -255,6 +270,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             bp.endLine = initialBreakpoint.breakpoint.line;
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
+            bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             unsigned resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
@@ -442,7 +458,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     for (auto it = breakpointsInSource.begin(); it != breakpointsInSource.end();)
     {
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
-        // Note, we don't remove breakpoint in case changed `condition` or `hitCondition`,
+        // Note, we don't remove breakpoint in case `condition`, `hitCondition` or `logMessage` changed,
         // only change these fields in resolved breakpoint.
         if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.end())
         {
@@ -485,6 +501,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             bp.endLine = line;
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
+            bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             unsigned resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
@@ -519,6 +536,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             ManagedSourceBreakpointMapping &initialBreakpoint = *b->second;
             initialBreakpoint.breakpoint.condition = sb.condition;
             initialBreakpoint.breakpoint.hitCondition = sb.hitCondition;
+            initialBreakpoint.breakpoint.logMessage = sb.logMessage;
 
             if (initialBreakpoint.resolved_linenum != 0)
             {
@@ -544,21 +562,43 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                     // Existing breakpoint
                     const bool changedCondition = bp.condition != initialBreakpoint.breakpoint.condition;
                     const bool changedHitCondition = bp.hitCondition != initialBreakpoint.breakpoint.hitCondition;
+                    const bool changedLogMessage = bp.logMessage != initialBreakpoint.breakpoint.logMessage;
                     bp.condition = initialBreakpoint.breakpoint.condition;
                     bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
+                    bp.logMessage = initialBreakpoint.breakpoint.logMessage;
+                    if (changedLogMessage)
+                    {
+                        bp.logMessageParts.clear();
+                    }
                     std::string resolved_fullname;
                     m_sharedDebugInfo->GetSourceFullPathByIndex(initialBreakpoint.resolved_fullname_index, resolved_fullname);
                     bp.ToBreakpoint(breakpoint, resolved_fullname);
-                    if (changedCondition || changedHitCondition)
+                    if (changedCondition || changedHitCondition || changedLogMessage)
                     {
+                        std::string changed;
+
                         if (changedCondition)
                         {
-                            breakpoint.message = "Breakpoint condition changed.";
+                            changed = "condition";
                         }
-                        else
+                        if (changedHitCondition)
                         {
-                            breakpoint.message = "Breakpoint hitCondition changed.";
+                            if (changedCondition)
+                            {
+                                changed += ", ";
+                            }
+                            changed += "hitCondition";
                         }
+                        if (changedLogMessage)
+                        {
+                            if (changedCondition || changedHitCondition)
+                            {
+                                changed += ", ";
+                            }
+                            changed += "logMessage";
+                        }
+
+                        breakpoint.message = "Breakpoint " + changed + " changed.";
                         const BreakpointEvent event(BreakpointEventReason::Changed, breakpoint);
                         DAPIO::EmitBreakpointEvent(event);
                         breakpoint.message.clear();
@@ -575,6 +615,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 bp.endLine = line;
                 bp.condition = initialBreakpoint.breakpoint.condition;
                 bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
+                bp.logMessage = initialBreakpoint.breakpoint.logMessage;
                 bp.ToBreakpoint(breakpoint, filename);
                 if (!haveProcess)
                 {

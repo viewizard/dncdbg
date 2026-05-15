@@ -154,4 +154,101 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     return S_OK;
 }
 
+void CreateMessageParts(const std::string &logMessage, std::vector<std::pair<std::string, bool>> &logMessageParts)
+{
+    size_t pos = 0;
+    size_t prevPos = 0;
+
+    while ((pos = logMessage.find('{', prevPos)) != std::string::npos)
+    {
+        // Add text before the '{' (if any) as literal text.
+        if (pos > prevPos)
+        {
+            logMessageParts.emplace_back(logMessage.substr(prevPos, pos - prevPos), false);
+        }
+
+        // Find the matching closing '}' by counting brace depth.
+        size_t endPos = pos + 1;
+        int braceDepth = 1;
+        while (endPos < logMessage.length() && braceDepth > 0)
+        {
+            if (logMessage.at(endPos) == '{')
+            {
+                braceDepth++;
+            }
+            else if (logMessage.at(endPos) == '}')
+            {
+                braceDepth--;
+            }
+            endPos++;
+        }
+
+        if (braceDepth > 0)
+        {
+            // No matching closing brace found, treat from '{' to end as literal text.
+            logMessageParts.emplace_back(logMessage.substr(pos), false);
+            prevPos = logMessage.length();
+            break;
+        }
+
+        // Add the expression inside braces (without the braces themselves) as expression.
+        // endPos points to position after the matching '}', so expression is [pos+1, endPos-1).
+        logMessageParts.emplace_back(logMessage.substr(pos + 1, endPos - pos - 2), true);
+
+        prevPos = endPos;
+    }
+
+    // Add remaining text after the last '}' (or entire string if no braces found) as literal text.
+    if (prevPos < logMessage.length())
+    {
+        logMessageParts.emplace_back(logMessage.substr(prevPos), false);
+    }
+}
+
+void BuildTraceMessage(Variables *pVariables, ICorDebugThread *pThread, const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message)
+{
+    // Build the final message by evaluating expressions.
+    for (const auto &entry : logMessageParts)
+    {
+        if (!entry.second)
+        {
+            // Literal text - append directly.
+            message += entry.first;
+        }
+        else
+        {
+            // Expression - evaluate it.
+            DWORD threadId = 0;
+            ToRelease<ICorDebugProcess> trProcess;
+            if (FAILED(pThread->GetID(&threadId)) ||
+                FAILED(pThread->GetProcess(&trProcess)))
+            {
+                message += "{unknown error}";
+                continue;
+            }
+
+            const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
+            Variable variable;
+            std::string evalOutput;
+            if (SUCCEEDED(pVariables->Evaluate(trProcess, frameId, entry.first, variable, evalOutput)))
+            {
+                message += variable.value;
+            }
+            else
+            {
+                if (!evalOutput.empty())
+                {
+                    message += "{" + evalOutput + "}";
+                }
+                else
+                {
+                    message += "{unknown error}";
+                }
+            }
+        }
+    }
+
+    message += '\n';
+}
+
 } // namespace dncdbg::BreakpointUtils

@@ -418,7 +418,7 @@
 -   supportSuspendDebuggee?: boolean;
 -   supportsDelayedStackTraceLoading?: boolean;
 -   supportsLoadedSourcesRequest?: boolean;
--   supportsLogPoints?: boolean;
++   supportsLogPoints?: boolean;
 -   supportsTerminateThreadsRequest?: boolean;
 +   supportsSetExpression?: boolean;
 +   supportsTerminateRequest?: boolean;
@@ -523,7 +523,7 @@
 +   column?: number;
 +   condition?: string;
 +   hitCondition?: string;
--   logMessage?: string;
++   logMessage?: string;
 -   mode?: string;
 ```
 #### FunctionBreakpoint

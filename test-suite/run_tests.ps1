@@ -40,6 +40,7 @@ $ALL_TEST_NAMES = @(
     "TestUnhandledException"
     "TestStdIO"
     "TestModules"
+    "TestTracePoint"
 )
 
 $TEST_NAMES = $tests

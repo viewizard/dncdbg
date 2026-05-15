@@ -309,7 +309,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                {
                                    return SourceBreakpoint(b.at("line"),
                                                            b.value("condition", std::string()),
-                                                           b.value("hitCondition", std::string()));
+                                                           b.value("hitCondition", std::string()),
+                                                           b.value("logMessage", std::string()));
                                });
 
                 std::vector<Breakpoint> breakpoints;

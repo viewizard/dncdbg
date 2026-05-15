@@ -3,6 +3,7 @@ Upcoming changes compared to previous version.
 
 #### DAP
 - Changed Attach Request, field 'processId' must be a number only now.
+- Added `logMessage` support in SourceBreakpoint.
 
 #### Added
 - Added more nullable evaluation tests.
@@ -10,6 +11,7 @@ Upcoming changes compared to previous version.
 - Added debugger pseudo-variable `$tid`.
 - Added assertions for narrowing conversions.
 - Added defensive asserts to switch default branches.
+- Added TestTracePoint.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.
@@ -34,7 +36,7 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 #### DAP
 - Added `allowImplicitFuncEval` configuration option support in Launch Request (analog MSVS option: `Enable property evaluation and other implicit function calls`) https://github.com/OmniSharp/omnisharp-vscode/issues/3173
 - Added `hitBreakpointIds` support in Stopped Event.
-- Added `hitCondition` support for SourceBreakpoint and FunctionBreakpoint.
+- Added `hitCondition` support in SourceBreakpoint and FunctionBreakpoint.
 - Added `isOptimized` support in Module.
 - Added `isUserCode` support in Module.
 - Added `symbolFilePath` support in Module.

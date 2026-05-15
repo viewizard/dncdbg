@@ -162,6 +162,7 @@ void DAPIO::AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
     capabilities.emplace("supportsHitConditionalBreakpoints", true);
     capabilities.emplace("supportsModulesRequest", true);
+    capabilities.emplace("supportsLogPoints", true);
 }
 
 void DAPIO::SetupProtocolLogging(const std::string &path)

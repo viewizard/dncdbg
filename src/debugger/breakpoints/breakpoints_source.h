@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 #include <unordered_map>
 
 namespace dncdbg
@@ -76,6 +77,9 @@ class SourceBreakpoints
         uint32_t hitCount{0};
         std::string hitCondition;
         std::string condition;
+        std::string logMessage;
+        // Parses the logMessage string, each entry is a pair: <text, isExpression>.
+        std::vector<std::pair<std::string, bool>> logMessageParts;
         // In case of code line in constructor, we could resolve multiple methods for breakpoints.
         // For example, `MyType obj = new MyType(1);` code will be added to all class constructors).
         std::vector<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;

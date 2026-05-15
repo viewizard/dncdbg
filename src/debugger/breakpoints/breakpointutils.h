@@ -13,6 +13,7 @@
 #endif
 
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -25,6 +26,8 @@ HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICor
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
 HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables, ICorDebugThread *pThread, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
+void CreateMessageParts(const std::string &logMessage, std::vector<std::pair<std::string, bool>> &logMessageParts);
+void BuildTraceMessage(Variables *pVariables, ICorDebugThread *pThread, const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message);
 } // namespace BreakpointUtils
 
 } // namespace dncdbg

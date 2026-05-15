@@ -363,15 +363,17 @@ struct SourceBreakpoint
     // column?: number;
     std::string condition;
     std::string hitCondition;
-    // logMessage?: string;
+    std::string logMessage;
     // mode?: string;
 
-    explicit SourceBreakpoint(int linenum,
-                              std::string cond = std::string(),
-                              std::string hitCond = std::string())
-        : line(linenum),
-          condition(std::move(cond)),
-          hitCondition(std::move(hitCond))
+    explicit SourceBreakpoint(int line_,
+                              std::string condition_ = std::string(),
+                              std::string hitCondition_ = std::string(),
+                              std::string logMessage_ = std::string())
+        : line(line_),
+          condition(std::move(condition_)),
+          hitCondition(std::move(hitCondition_)),
+          logMessage(std::move(logMessage_))
     {
     }
 };

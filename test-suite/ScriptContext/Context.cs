@@ -205,14 +205,14 @@ class Context
         Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void AddBreakpoint(string caller_trace, string bpName, string? Condition = null, string? hitCondition = null)
+    public void AddBreakpoint(string caller_trace, string bpName, string? Condition = null, string? hitCondition = null, string? logMessage = null)
     {
         Breakpoint bp = ControlInfo.Breakpoints[bpName];
         Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
         var lbp = (LineBreakpoint)bp;
 
         BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition!, hitCondition!));
+        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition!, hitCondition!, logMessage!));
         BreakpointLines.Add(lbp.NumLine);
     }
 

@@ -151,11 +151,12 @@ public class SetBreakpointsArguments
 
 public class SourceBreakpoint
 {
-    public SourceBreakpoint(int bpLine, string? Condition = null, string? HitCondition = null)
+    public SourceBreakpoint(int bpLine, string? Condition = null, string? HitCondition = null, string? LogMessage = null)
     {
         line = bpLine;
         condition = Condition ?? string.Empty;
         hitCondition = HitCondition ?? string.Empty;
+        logMessage = LogMessage ?? string.Empty;
     }
     public int line;
     public int? column;
