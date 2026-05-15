@@ -86,7 +86,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
-                Context.WasOutputEvent("stdout", "Application started.", @"__FILE__:__LINE__");
+                Context.WasOutputEvent("stdout", "Application started.\n", @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
