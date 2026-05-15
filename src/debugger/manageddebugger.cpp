@@ -555,6 +555,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         {
             ss << " mscordbi or mscordaccore libs are not the same version as the target CoreCLR.";
         }
+        ss << '\n';
         DAPIO::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         self->StartupCallbackHR = hr;
         return;

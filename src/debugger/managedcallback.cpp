@@ -324,7 +324,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         return S_OK;
     }
 
-    OutputEvent event(OutputCategory::StdOut, to_utf8(pMessage));
+    OutputEvent event(OutputCategory::StdOut, to_utf8(pMessage) + '\n');
 
     DWORD threadId = 0;
     pThread->GetID(&threadId);
