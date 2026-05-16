@@ -85,6 +85,7 @@ class ManagedDebugger
 
     ThreadId GetLastStoppedThreadId();
     HRESULT Continue(ThreadId threadId);
+    bool IsProcessRunning();
     HRESULT Pause(ThreadId lastStoppedThread);
     HRESULT GetThreads(std::vector<Thread> &threads);
     HRESULT SetSourceBreakpoints(const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
@@ -111,6 +112,8 @@ class ManagedDebugger
         return m_clrPath;
     }
     std::string DetectClrPathByPID(DWORD processId);
+
+    void WriteStdin(gsl::span<const char> data);
 
   private:
 

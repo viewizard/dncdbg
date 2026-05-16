@@ -53,6 +53,8 @@ class DAP
     std::string m_fileExec;
     std::vector<std::string> m_execArgs;
 
+    bool m_internalConsole{false};
+
     struct CommandQueueEntry
     {
         std::string command;

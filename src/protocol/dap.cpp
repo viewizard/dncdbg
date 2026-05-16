@@ -341,6 +341,15 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 m_sharedDebugger->SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
 
+                // https://aka.ms/VSCode-CS-LaunchJson-Console
+                std::string console;
+                auto consoleIter = arguments.find("console");
+                if (consoleIter != arguments.end())
+                {
+                    console = consoleIter.value();
+                }
+                m_internalConsole = (console == "internalConsole");
+
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;
                 if (arguments.contains("expressionEvaluationOptions"))
@@ -483,7 +492,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"evaluate", [&](const json &arguments, json &responseBody)
             {
-                const std::string expression = arguments.at("expression");
+                std::string expression = arguments.at("expression");
                 const FrameId frameId([&]()
                     {
                         auto frameIdIter = arguments.find("frameId");
@@ -497,6 +506,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                             return FrameId{static_cast<int>(frameIdIter.value())};
                         }
                     }());
+
+                if (m_internalConsole && m_sharedDebugger->IsProcessRunning())
+                {
+                    expression += '\n'; // User pressed "Enter".
+                    m_sharedDebugger->WriteStdin({expression.data(), expression.size()});
+                    responseBody.emplace("message", "Text redirected to debuggee stdin.");
+                    return S_OK;
+                }
 
                 HRESULT Status = S_OK;
                 Variable variable;

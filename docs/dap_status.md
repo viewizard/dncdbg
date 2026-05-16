@@ -169,6 +169,7 @@
 +   justMyCode?: boolean;
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
++   console?: 'internalConsole'
 ```
 #### LaunchResponse
 ```diff

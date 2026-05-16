@@ -525,6 +525,19 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
     return Status;
 }
 
+bool ManagedDebugger::IsProcessRunning()
+{
+    const ReadLock r_lock(m_debugProcessRWLock);
+
+    if (FAILED(CheckDebugProcess()) ||
+        m_sharedEvalWaiter->IsEvalRunning())
+    {
+        return false;
+    }
+
+    return m_sharedCallbacksQueue->IsRunning();
+}
+
 HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 {
     const ReadLock r_lock(m_debugProcessRWLock);
@@ -640,7 +653,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         m_cwd.clear();
     }
 
-    m_ioredirect.exec([&]() {
+    m_ioredirect.Exec([&]() {
             Status = m_dbgshim.GetCreateProcessForLaunch()(
                 const_cast<WCHAR*>(to_utf16(ss.str()).c_str()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
@@ -1263,6 +1276,11 @@ void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
     DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
+}
+
+void ManagedDebugger::WriteStdin(gsl::span<const char> data)
+{
+    m_ioredirect.WriteStdin(data);
 }
 
 void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
