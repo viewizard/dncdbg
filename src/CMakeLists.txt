@@ -63,6 +63,9 @@ set(dncdbg_SRC
     utils/logger.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
+    utils/remote_console_unix.cpp
+    utils/remote_console_win32.cpp
+    utils/remote_console.cpp
     utils/utf.cpp
     utils/waitpid.cpp
     buildinfo.cpp
