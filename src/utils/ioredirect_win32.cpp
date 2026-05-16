@@ -20,7 +20,7 @@ namespace dncdbg
 
 // Create an unnamed pipe using named pipes with overlapped IO support.
 // Returns true on success.
-bool IORedirect::createPipe(PipeHandle &readEnd, PipeHandle &writeEnd)
+bool IORedirect::CreatePipe(PipeHandle &readEnd, PipeHandle &writeEnd)
 {
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -48,7 +48,7 @@ bool IORedirect::createPipe(PipeHandle &readEnd, PipeHandle &writeEnd)
 
     if (readEnd == invalidPipe())
     {
-        LOGE(log << "IORedirect::createPipe: CreateNamedPipeA failed, error=" << GetLastError());
+        LOGE(log << "IORedirect::CreatePipe: CreateNamedPipeA failed, error=" << GetLastError());
         return false;
     }
 
@@ -64,7 +64,7 @@ bool IORedirect::createPipe(PipeHandle &readEnd, PipeHandle &writeEnd)
 
     if (writeEnd == invalidPipe())
     {
-        LOGE(log << "IORedirect::createPipe: CreateFileA failed, error=" << GetLastError());
+        LOGE(log << "IORedirect::CreatePipe: CreateFileA failed, error=" << GetLastError());
         CloseHandle(readEnd);
         readEnd = invalidPipe();
         return false;
@@ -74,7 +74,7 @@ bool IORedirect::createPipe(PipeHandle &readEnd, PipeHandle &writeEnd)
 }
 
 // Close a pipe handle. Sets the handle to invalidPipe().
-void IORedirect::closePipe(PipeHandle &handle)
+void IORedirect::ClosePipe(PipeHandle &handle)
 {
     if (handle != invalidPipe())
     {
@@ -84,7 +84,7 @@ void IORedirect::closePipe(PipeHandle &handle)
 }
 
 // Read from a pipe. Returns number of bytes read, 0 on EOF, -1 on error.
-int IORedirect::readPipe(PipeHandle handle, char *buffer, size_t size)
+int IORedirect::ReadPipe(PipeHandle handle, char *buffer, size_t size)
 {
     DWORD bytesRead = 0;
 #ifdef BIT64
@@ -110,7 +110,7 @@ int IORedirect::readPipe(PipeHandle handle, char *buffer, size_t size)
 }
 
 // Write to a pipe. Returns number of bytes written, -1 on error.
-int IORedirect::writePipe(PipeHandle handle, const char *buffer, size_t size)
+int IORedirect::WritePipe(PipeHandle handle, const char *buffer, size_t size)
 {
     DWORD totalWritten = 0;
 #ifdef BIT64
@@ -123,7 +123,7 @@ int IORedirect::writePipe(PipeHandle handle, const char *buffer, size_t size)
         if (!WriteFile(handle, buffer + totalWritten,
                        static_cast<DWORD>(size) - totalWritten, &bytesWritten, nullptr))
         {
-            LOGE(log << "IORedirect::writePipe: WriteFile failed, error=" << GetLastError());
+            LOGE(log << "IORedirect::WritePipe: WriteFile failed, error=" << GetLastError());
             return -1;
         }
         totalWritten += bytesWritten;
@@ -134,12 +134,12 @@ int IORedirect::writePipe(PipeHandle handle, const char *buffer, size_t size)
 }
 
 // Set whether a pipe handle is inheritable by child processes.
-bool IORedirect::setInheritable(PipeHandle handle, bool inheritable)
+bool IORedirect::SetInheritable(PipeHandle handle, bool inheritable)
 {
     const DWORD flags = inheritable ? HANDLE_FLAG_INHERIT : 0;
     if (!SetHandleInformation(handle, HANDLE_FLAG_INHERIT, flags))
     {
-        LOGE(log << "IORedirect::setInheritable: SetHandleInformation failed, error=" << GetLastError());
+        LOGE(log << "IORedirect::SetInheritable: SetHandleInformation failed, error=" << GetLastError());
         return false;
     }
     return true;
@@ -147,7 +147,7 @@ bool IORedirect::setInheritable(PipeHandle handle, bool inheritable)
 
 // Redirect standard file descriptors to the given pipe handles.
 // Saves the original handles and C runtime file descriptors for later restoration.
-IORedirect::SavedStdFiles IORedirect::redirectStdFiles(PipeHandle stdinHandle, PipeHandle stdoutHandle, PipeHandle stderrHandle)
+IORedirect::SavedStdFiles IORedirect::RedirectStdFiles(PipeHandle stdinHandle, PipeHandle stdoutHandle, PipeHandle stderrHandle)
 {
     SavedStdFiles saved;
 
@@ -158,7 +158,7 @@ IORedirect::SavedStdFiles IORedirect::redirectStdFiles(PipeHandle stdinHandle, P
 
     if (saved.origStdin == invalidPipe() || saved.origStdout == invalidPipe() || saved.origStderr == invalidPipe())
     {
-        LOGE(log << "IORedirect::redirectStdFiles: GetStdHandle failed");
+        LOGE(log << "IORedirect::RedirectStdFiles: GetStdHandle failed");
         saved.valid = false;
         return saved;
     }
@@ -168,16 +168,16 @@ IORedirect::SavedStdFiles IORedirect::redirectStdFiles(PipeHandle stdinHandle, P
     fflush(stderr);
 
     // Make child-side pipe ends inheritable for the child process.
-    setInheritable(stdinHandle, true);
-    setInheritable(stdoutHandle, true);
-    setInheritable(stderrHandle, true);
+    SetInheritable(stdinHandle, true);
+    SetInheritable(stdoutHandle, true);
+    SetInheritable(stderrHandle, true);
 
     // Set new Win32 standard handles.
     if (!SetStdHandle(STD_INPUT_HANDLE, stdinHandle) ||
         !SetStdHandle(STD_OUTPUT_HANDLE, stdoutHandle) ||
         !SetStdHandle(STD_ERROR_HANDLE, stderrHandle))
     {
-        LOGE(log << "IORedirect::redirectStdFiles: SetStdHandle failed, error=" << GetLastError());
+        LOGE(log << "IORedirect::RedirectStdFiles: SetStdHandle failed, error=" << GetLastError());
         // Restore original handles on failure.
         SetStdHandle(STD_INPUT_HANDLE, saved.origStdin);
         SetStdHandle(STD_OUTPUT_HANDLE, saved.origStdout);
@@ -222,7 +222,7 @@ IORedirect::SavedStdFiles IORedirect::redirectStdFiles(PipeHandle stdinHandle, P
 }
 
 // Restore standard file descriptors from saved state.
-void IORedirect::restoreStdFiles(SavedStdFiles &saved)
+void IORedirect::RestoreStdFiles(SavedStdFiles &saved)
 {
     if (!saved.valid)
     {

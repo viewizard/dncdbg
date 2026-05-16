@@ -27,11 +27,11 @@ namespace dncdbg
 //
 // Usage:
 //   1. Construct IORedirect with an OutputCallback.
-//   2. Call exec() with a lambda that creates the child process.
+//   2. Call Exec() with a lambda that creates the child process.
 //      Inside the lambda, stdin/stdout/stderr are redirected to the pipes.
 //   3. The OutputCallback is called from worker threads when the child writes
 //      to stdout or stderr.
-//   4. Call writeStdin() to send data to the child's stdin.
+//   4. Call WriteStdin() to send data to the child's stdin.
 //   5. Destruction stops worker threads and closes all pipes.
 //
 class IORedirect
@@ -76,17 +76,17 @@ class IORedirect
     // and worker threads begin reading from the child's stdout and stderr.
     //
     // This method can only be called once.
-    void exec(const std::function<void()> &func);
+    void Exec(const std::function<void()> &func);
 
     // Write data to the child process's stdin pipe.
     //
     // The data from `data` is written to the stdin pipe.
     // Returns the number of bytes actually written, or -1 on error.
     // Returns 0 if the stdin pipe has been closed.
-    int writeStdin(gsl::span<const char> data);
+    int WriteStdin(gsl::span<const char> data);
 
     // Close the stdin pipe to signal EOF to the child process.
-    void closeStdin();
+    void CloseStdin();
 
   private:
 
@@ -96,13 +96,13 @@ class IORedirect
     // Output callback invoked when data arrives on stdout or stderr.
     OutputCallback m_callback;
 
-    // Flag to track whether exec() has been called.
+    // Flag to track whether Exec() has been called.
     bool m_execCalled{false};
 
     // Flag to signal worker threads to stop.
     std::atomic<bool> m_stopWorkers{false};
 
-    // Mutex to protect writeStdin() and closeStdin() from concurrent access.
+    // Mutex to protect WriteStdin() and CloseStdin() from concurrent access.
     std::mutex m_stdinMutex;
 
     // Worker threads for reading stdout and stderr from the child process.
@@ -110,7 +110,7 @@ class IORedirect
     std::thread m_stderrThread;
 
     // Worker thread function that reads from a pipe and calls the output callback.
-    void readerWorker(StreamType type);
+    void ReaderWorker(StreamType type);
 
     // Platform-specific pipe handle type and invalid value.
 #ifdef _WIN32
@@ -146,19 +146,19 @@ class IORedirect
 
     // Create an unnamed pipe. Returns true on success.
     // readEnd and writeEnd receive the two pipe endpoints.
-    static bool createPipe(PipeHandle &readEnd, PipeHandle &writeEnd);
+    static bool CreatePipe(PipeHandle &readEnd, PipeHandle &writeEnd);
 
     // Close a pipe handle. Sets the handle to invalidPipe().
-    static void closePipe(PipeHandle &handle);
+    static void ClosePipe(PipeHandle &handle);
 
     // Read from a pipe. Returns number of bytes read, 0 on EOF, -1 on error.
-    static int readPipe(PipeHandle handle, char *buffer, size_t size);
+    static int ReadPipe(PipeHandle handle, char *buffer, size_t size);
 
     // Write to a pipe. Returns number of bytes written, -1 on error.
-    static int writePipe(PipeHandle handle, const char *buffer, size_t size);
+    static int WritePipe(PipeHandle handle, const char *buffer, size_t size);
 
     // Set whether a pipe handle is inheritable by child processes.
-    static bool setInheritable(PipeHandle handle, bool inheritable);
+    static bool SetInheritable(PipeHandle handle, bool inheritable);
 
     // Platform-specific saved state for standard file descriptor redirection.
     struct SavedStdFiles
@@ -183,10 +183,10 @@ class IORedirect
 
     // Redirect standard file descriptors to the given pipe handles.
     // Saves the original file descriptors for later restoration.
-    static SavedStdFiles redirectStdFiles(PipeHandle stdinHandle, PipeHandle stdoutHandle, PipeHandle stderrHandle);
+    static SavedStdFiles RedirectStdFiles(PipeHandle stdinHandle, PipeHandle stdoutHandle, PipeHandle stderrHandle);
 
     // Restore standard file descriptors from saved state.
-    static void restoreStdFiles(SavedStdFiles &saved);
+    static void RestoreStdFiles(SavedStdFiles &saved);
 };
 
 } // namespace dncdbg

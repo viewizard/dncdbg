@@ -23,35 +23,35 @@ IORedirect::IORedirect(OutputCallback callback)
       m_stderrWrite(invalidPipe())
 {
     // Create stdin pipe (debugger writes -> child reads).
-    if (!createPipe(m_stdinRead, m_stdinWrite))
+    if (!CreatePipe(m_stdinRead, m_stdinWrite))
     {
         LOGE(log << "IORedirect: failed to create stdin pipe");
         return;
     }
 
     // Create stdout pipe (child writes -> debugger reads).
-    if (!createPipe(m_stdoutRead, m_stdoutWrite))
+    if (!CreatePipe(m_stdoutRead, m_stdoutWrite))
     {
         LOGE(log << "IORedirect: failed to create stdout pipe");
         return;
     }
 
     // Create stderr pipe (child writes -> debugger reads).
-    if (!createPipe(m_stderrRead, m_stderrWrite))
+    if (!CreatePipe(m_stderrRead, m_stderrWrite))
     {
         LOGE(log << "IORedirect: failed to create stderr pipe");
         return;
     }
 
     // Mark debugger-side pipe ends as non-inheritable (child should not inherit these).
-    setInheritable(m_stdinWrite, false);
-    setInheritable(m_stdoutRead, false);
-    setInheritable(m_stderrRead, false);
+    SetInheritable(m_stdinWrite, false);
+    SetInheritable(m_stdoutRead, false);
+    SetInheritable(m_stderrRead, false);
 
     // Mark child-side pipe ends as inheritable (child process needs these).
-    setInheritable(m_stdinRead, true);
-    setInheritable(m_stdoutWrite, true);
-    setInheritable(m_stderrWrite, true);
+    SetInheritable(m_stdinRead, true);
+    SetInheritable(m_stdoutWrite, true);
+    SetInheritable(m_stderrWrite, true);
 }
 
 // Destructor: stop worker threads and close all remaining pipe handles.
@@ -61,8 +61,8 @@ IORedirect::~IORedirect()
     m_stopWorkers.store(true);
 
     // Close the debugger-side read ends to unblock worker threads waiting on read().
-    closePipe(m_stdoutRead);
-    closePipe(m_stderrRead);
+    ClosePipe(m_stdoutRead);
+    ClosePipe(m_stderrRead);
 
     // Wait for worker threads to finish.
     if (m_stdoutThread.joinable())
@@ -75,43 +75,43 @@ IORedirect::~IORedirect()
     }
 
     // Close any remaining pipe handles.
-    closePipe(m_stdinRead);
-    closePipe(m_stdinWrite);
-    closePipe(m_stdoutWrite);
-    closePipe(m_stderrWrite);
+    ClosePipe(m_stdinRead);
+    ClosePipe(m_stdinWrite);
+    ClosePipe(m_stdoutWrite);
+    ClosePipe(m_stderrWrite);
 
     LOGD(log << "IORedirect: destroyed");
 }
 
 // Execute a function with stdin/stdout/stderr redirected to the internal pipes.
-void IORedirect::exec(const std::function<void()> &func)
+void IORedirect::Exec(const std::function<void()> &func)
 {
-    assert(!m_execCalled && "exec() can only be called once");
+    assert(!m_execCalled && "Exec() can only be called once");
     m_execCalled = true;
 
     // Redirect standard file descriptors to the child-side pipe ends.
-    SavedStdFiles saved = redirectStdFiles(m_stdinRead, m_stdoutWrite, m_stderrWrite);
+    SavedStdFiles saved = RedirectStdFiles(m_stdinRead, m_stdoutWrite, m_stderrWrite);
 
     // Execute the user-provided function (which should create the child process).
     func();
 
     // Restore original standard file descriptors.
-    restoreStdFiles(saved);
+    RestoreStdFiles(saved);
 
     // Close child-side pipe ends (the child process has inherited copies of these).
     // We must close our copies so that reads on the debugger side will see EOF
     // when the child process exits.
-    closePipe(m_stdinRead);
-    closePipe(m_stdoutWrite);
-    closePipe(m_stderrWrite);
+    ClosePipe(m_stdinRead);
+    ClosePipe(m_stdoutWrite);
+    ClosePipe(m_stderrWrite);
 
     // Start worker threads to read from the child's stdout and stderr.
-    m_stdoutThread = std::thread(&IORedirect::readerWorker, this, StreamType::Stdout);
-    m_stderrThread = std::thread(&IORedirect::readerWorker, this, StreamType::Stderr);
+    m_stdoutThread = std::thread(&IORedirect::ReaderWorker, this, StreamType::Stdout);
+    m_stderrThread = std::thread(&IORedirect::ReaderWorker, this, StreamType::Stderr);
 }
 
 // Write data to the child process's stdin pipe.
-int IORedirect::writeStdin(gsl::span<const char> data)
+int IORedirect::WriteStdin(gsl::span<const char> data)
 {
     const std::scoped_lock<std::mutex> lock(m_stdinMutex);
 
@@ -120,18 +120,18 @@ int IORedirect::writeStdin(gsl::span<const char> data)
         return 0; // Pipe already closed.
     }
 
-    return writePipe(m_stdinWrite, data.data(), data.size());
+    return WritePipe(m_stdinWrite, data.data(), data.size());
 }
 
 // Close the stdin pipe to signal EOF to the child process.
-void IORedirect::closeStdin()
+void IORedirect::CloseStdin()
 {
     const std::scoped_lock<std::mutex> lock(m_stdinMutex);
-    closePipe(m_stdinWrite);
+    ClosePipe(m_stdinWrite);
 }
 
 // Worker thread function: reads from a pipe and calls the output callback.
-void IORedirect::readerWorker(StreamType type)
+void IORedirect::ReaderWorker(StreamType type)
 {
     // Select the appropriate pipe handle based on stream type.
     const bool isStdout = (type == StreamType::Stdout);
@@ -142,7 +142,7 @@ void IORedirect::readerWorker(StreamType type)
     while (!m_stopWorkers.load())
     {
         // Read data from the pipe (blocking call).
-        const int bytesRead = readPipe(handle, buffer.data(), buffer.size());
+        const int bytesRead = ReadPipe(handle, buffer.data(), buffer.size());
 
         if (bytesRead > 0)
         {
