@@ -94,11 +94,11 @@ class RemoteConsoleServer
 
     // Create + bind + listen on the given port. Stores the listener socket.
     // Returns true on success.
-    bool CreateListener(int port);
+    [[nodiscard]] bool CreateListener(int port);
 
     // Accept exactly one client. Returns true on success, false
     // on error or when shutdown was requested before a client arrived.
-    bool AcceptOne();
+    [[nodiscard]] bool AcceptOne();
 
     // Close the listener socket (if open).
     void CloseListener();
@@ -116,10 +116,10 @@ class RemoteConsoleServer
 
     // OS-specific blocking recv into 'buffer'. Returns number of bytes read
     // (>0), 0 on graceful disconnect, -1 on error / shutdown.
-    int RecvBlocking(gsl::span<char> buffer);
+    [[nodiscard]] int RecvBlocking(gsl::span<char> buffer);
 
     // OS-specific blocking send of the full span. Returns true on success.
-    bool SendAll(gsl::span<const char> data) const;
+    [[nodiscard]] bool SendAll(gsl::span<const char> data) const;
 
     // Default buffer size for blocking recv() in the worker loop.
     static constexpr size_t ReadBufferSize = 4096;
