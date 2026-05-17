@@ -12,7 +12,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Label.Checkpoint("init", "testio",
+        Label.Checkpoint("init", "testoutput",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -23,6 +23,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp5");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp6");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp7");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.PrepareEnd(@"__FILE__:__LINE__");
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
@@ -52,7 +53,7 @@ class Program
 
         i++;                                                      Label.Breakpoint("bp6");
 
-        Label.Checkpoint("testio", "finish",
+        Label.Checkpoint("testoutput", "testinput",
             (Object context) =>
             {
                 string endLine = "\n";
@@ -87,6 +88,32 @@ class Program
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
                 Context.WasOutputEvent("stdout", "Application started.\n", @"__FILE__:__LINE__");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Console.WriteLine("test stdin");
+
+        string? s = Console.ReadLine();
+        Console.WriteLine("input text: " + s);
+
+        i++;                                                      Label.Breakpoint("bp7");
+
+        Label.Checkpoint("testinput", "finish",
+            (Object context) =>
+            {
+                System.Threading.Thread.Sleep(3000);
+
+                Context Context = (Context)context;
+                Context.CalcExpressionWithStatusOnlyCheck(@"__FILE__:__LINE__", 0, "new added text", true);
+
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp7");
+
+                string endLine = "\n";
+                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+                if (isWindows)
+                    endLine = "\r\n";
+
+                Context.WasOutputEvent("stdout", "input text: new added text" + endLine, @"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

@@ -665,13 +665,13 @@ class Context
         Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void CalcExpressionWithNotDeclared(string caller_trace, Int64? frameId, string Expression)
+    public void CalcExpressionWithStatusOnlyCheck(string caller_trace, Int64? frameId, string Expression, bool expectedStatus)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
         evaluateRequest.arguments.expression = Expression;
         evaluateRequest.arguments.frameId = frameId;
         var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedStatus, ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public int GetVariablesReference(string caller_trace, Int64 frameId, string ScopeName)

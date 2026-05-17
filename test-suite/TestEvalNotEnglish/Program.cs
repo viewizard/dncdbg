@@ -40,8 +40,8 @@ class Program
                 Context.CalcAndCheckExpression(@"__FILE__:__LINE__", frameId, "1", "당신");
                 Context.CalcAndCheckExpression(@"__FILE__:__LINE__", frameId, "12", "당신 + 11");
 
-                Context.CalcExpressionWithNotDeclared(@"__FILE__:__LINE__", frameId, "你");
-                Context.CalcExpressionWithNotDeclared(@"__FILE__:__LINE__", frameId, "你 + 1");
+                Context.CalcExpressionWithStatusOnlyCheck(@"__FILE__:__LINE__", frameId, "你", false);
+                Context.CalcExpressionWithStatusOnlyCheck(@"__FILE__:__LINE__", frameId, "你 + 1", false);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
