@@ -1,5 +1,7 @@
 # Inputting text into the target process
 
+***Note: parameters below work only in case the target app is launched into the debugger and will not work if you are attaching the debugger to an already running process.***
+
 ## Inputting text from Debug Console
 
 Add the `"console": "internalConsole"` property to your `.vscode/launch.json` configuration file.

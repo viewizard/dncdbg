@@ -16,6 +16,7 @@
 #include "types/protocol.h"
 #include "utils/ioredirect.h"
 #include "utils/dbgshim.h"
+#include "utils/remote_console.h"
 #include "utils/rwlock.h"
 #include "utils/torelease.h"
 #include <gsl/span>
@@ -113,7 +114,8 @@ class ManagedDebugger
     }
     std::string DetectClrPathByPID(DWORD processId);
 
-    void WriteStdin(gsl::span<const char> data);
+    void WriteStdin(gsl::span<const char> text);
+    bool InitializeRemoteConsoleServer(int port);
 
   private:
 
@@ -166,11 +168,12 @@ class ManagedDebugger
     std::string m_clrPath;
     dbgshim_t m_dbgshim;
     IORedirect m_ioredirect;
+    RemoteConsoleServer m_remoteConsoleServer;
 
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();
 
-    static void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
+    void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
 
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();

@@ -353,7 +353,7 @@ ManagedDebugger::ManagedDebugger()
       m_sharedBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedVariables)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
-      m_ioredirect([](IORedirect::StreamType type, gsl::span<char> text)
+      m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
             {
                 InputCallback(type, text);
             })
@@ -1276,11 +1276,21 @@ void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
     DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
+    m_remoteConsoleServer.SendData(text);
 }
 
-void ManagedDebugger::WriteStdin(gsl::span<const char> data)
+void ManagedDebugger::WriteStdin(gsl::span<const char> text)
 {
-    m_ioredirect.WriteStdin(data);
+    m_ioredirect.WriteStdin(text);
+}
+
+bool ManagedDebugger::InitializeRemoteConsoleServer(int port)
+{
+    return m_remoteConsoleServer.Initialize(port,
+        [this](gsl::span<char> text)
+        {
+            m_ioredirect.WriteStdin(text);
+        });
 }
 
 void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
