@@ -33,6 +33,19 @@ char **GetSystemEnvironment()
 #endif
 }
 
+// Function retrieves the value of an environment variable by name and returns it as UTF-8 string.
+// Returns empty string if the environment variable is not found.
+std::string GetEnvUtf8(const std::string &name)
+{
+    const char *value = std::getenv(name.c_str());
+    if (value != nullptr)
+    {
+        return {value};
+    }
+
+    return {};
+}
+
 } // namespace dncdbg
 
 #endif // FEATURE_PAL
