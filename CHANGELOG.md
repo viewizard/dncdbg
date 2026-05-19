@@ -4,7 +4,9 @@ Upcoming changes compared to previous version.
 #### DAP
 - Changed Attach Request, field 'processId' must be a number only now.
 - Added `logMessage` support in SourceBreakpoint.
-- Added `console` configuration option with `internalConsole` support in Launch Request (for more info see: [Inputting text into the target process when using internalConsole](https://aka.ms/VSCode-CS-LaunchJson-Console)).
+- Added `console` configuration option with `internalConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
+- Added `console` configuration option with `remoteConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
+- Added `remoteConsolePort` configuration option support in Launch Request.
 
 #### Added
 - Added more nullable evaluation tests.

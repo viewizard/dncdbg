@@ -348,7 +348,19 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 {
                     console = consoleIter.value();
                 }
-                m_internalConsole = (console == "internalConsole");
+                if (console == "internalConsole")
+                {
+                    m_internalConsole = true;
+                }
+                else if (console == "remoteConsole")
+                {
+                    constexpr int defaultPort = 22534;
+                    const int remoteConsolePort = arguments.value("remoteConsolePort", defaultPort);
+                    if (!m_sharedDebugger->InitializeRemoteConsoleServer(remoteConsolePort))
+                    {
+                        return E_FAIL;
+                    }
+                }
 
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;

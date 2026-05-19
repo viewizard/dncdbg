@@ -169,7 +169,9 @@
 +   justMyCode?: boolean;
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
-+   console?: 'internalConsole'
++   console?: 'internalConsole' | 'remoteConsole'
+@@ additional field: @@
++   remoteConsolePort?: number;
 ```
 #### LaunchResponse
 ```diff
@@ -178,7 +180,7 @@
 ```diff
 -   __restart?: any;
 @@ additional field: @@
-+   processId number;
++   processId: number;
 ```
 #### AttachResponse
 ```diff
