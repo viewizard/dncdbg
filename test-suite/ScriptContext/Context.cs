@@ -51,6 +51,35 @@ class Context
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public void PrepareStartWithRemoteConsole(int remoteConsolePort, string caller_trace)
+    {
+        InitializeRequest initializeRequest = new InitializeRequest();
+        initializeRequest.arguments.clientID = "vscode";
+        initializeRequest.arguments.clientName = "Visual Studio Code";
+        initializeRequest.arguments.adapterID = "coreclr";
+        initializeRequest.arguments.pathFormat = "path";
+        initializeRequest.arguments.linesStartAt1 = true;
+        initializeRequest.arguments.columnsStartAt1 = true;
+        initializeRequest.arguments.supportsVariableType = true;
+        initializeRequest.arguments.supportsVariablePaging = true;
+        initializeRequest.arguments.supportsRunInTerminalRequest = true;
+        initializeRequest.arguments.locale = "en-us";
+        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        LaunchRequest launchRequest = new LaunchRequest();
+        launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
+        launchRequest.arguments.type = "coreclr";
+        launchRequest.arguments.preLaunchTask = "build";
+        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath!;
+        launchRequest.arguments.cwd = "";
+        launchRequest.arguments.console = "remoteConsole";
+        launchRequest.arguments.remoteConsolePort = remoteConsolePort;
+        launchRequest.arguments.stopAtEntry = true;
+        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
+        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
+        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
     public void PrepareStartAttach(string caller_trace)
     {
         InitializeRequest initializeRequest = new InitializeRequest();
@@ -1261,5 +1290,7 @@ class Context
     // Note, SrcBreakpoints and SrcBreakpointIds must have same order of the elements, since we use indexes for mapping.
     Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
     Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
+
+    public RemoteConsole? RemoteConsole;
 }
 }

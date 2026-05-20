@@ -15,6 +15,7 @@ Upcoming changes compared to previous version.
 - Added assertions for narrowing conversions.
 - Added defensive asserts to switch default branches.
 - Added TestTracePoint.
+- Added TestRemoteConsole.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

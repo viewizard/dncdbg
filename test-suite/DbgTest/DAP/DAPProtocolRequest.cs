@@ -55,6 +55,7 @@ public class LaunchRequestArguments
     public string cwd = string.Empty;
     public Dictionary<string, string> env = [];
     public string console = string.Empty;
+    public int remoteConsolePort;
     public bool stopAtEntry;
     public bool? justMyCode;
     public bool? enableStepFiltering;

@@ -41,6 +41,7 @@ $ALL_TEST_NAMES = @(
     "TestStdIO"
     "TestModules"
     "TestTracePoint"
+    "TestRemoteConsole"
 )
 
 $TEST_NAMES = $tests
