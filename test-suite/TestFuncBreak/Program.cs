@@ -17,7 +17,8 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.PrepareStart(null, null, @"__FILE__:__LINE__");
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
 
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -36,7 +37,8 @@ class Program
                 Context.AddFunctionBreakpoint("funcbrackpoint6(int)", "i>10");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
 
-                Context.PrepareEnd(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });

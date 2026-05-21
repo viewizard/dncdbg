@@ -17,10 +17,11 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.PrepareStartAttach(@"__FILE__:__LINE__");
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.PrepareEnd(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
             });
 
         // wait some time, control process should attach and setup breakpoints

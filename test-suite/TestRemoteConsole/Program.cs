@@ -16,14 +16,16 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                int remoteConsolePort = 33212;
-                Context.PrepareStartWithRemoteConsole(remoteConsolePort, @"__FILE__:__LINE__");
+                Context.Initialize(@"__FILE__:__LINE__");
+                int port = 33212;
+                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: true, RemoteConsolePort: port, @"__FILE__:__LINE__");
 
                 System.Threading.Thread.Sleep(1000);
-                Context.RemoteConsole = new RemoteConsole(remoteConsolePort);
+                Context.RemoteConsole = new RemoteConsole(port);
 
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.PrepareEnd(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });

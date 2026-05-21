@@ -46,7 +46,8 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.PrepareStart(null, null, @"__FILE__:__LINE__");
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
 
                 // setup breakpoints before process start
                 // in this way we will check breakpoint resolve routine during module load
@@ -62,7 +63,8 @@ class Program
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp0_delete_test1");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 
-                Context.PrepareEnd(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
 
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp0_delete_test2");

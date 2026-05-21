@@ -18,10 +18,12 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.PrepareStartWithEnv(@"__FILE__:__LINE__");
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.LaunchWithEnv(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.PrepareEnd(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });

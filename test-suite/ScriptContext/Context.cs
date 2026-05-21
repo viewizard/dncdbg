@@ -15,7 +15,7 @@ namespace DbgTest.Script
 {
 class Context
 {
-    public void PrepareStart(bool? JMC, bool? StepFiltering, string caller_trace)
+    public void Initialize(string caller_trace)
     {
         InitializeRequest initializeRequest = new InitializeRequest();
         initializeRequest.arguments.clientID = "vscode";
@@ -29,15 +29,28 @@ class Context
         initializeRequest.arguments.supportsRunInTerminalRequest = true;
         initializeRequest.arguments.locale = "en-us";
         Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
 
+    public void Launch(bool? JMC, bool? StepFiltering, bool RemoteConsole, int RemoteConsolePort, string caller_trace)
+    {
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
         launchRequest.arguments.type = "coreclr";
         launchRequest.arguments.preLaunchTask = "build";
         launchRequest.arguments.program = ControlInfo.TargetAssemblyPath!;
         launchRequest.arguments.cwd = "";
-        launchRequest.arguments.console = "internalConsole";
         launchRequest.arguments.stopAtEntry = true;
+
+        if (RemoteConsole)
+        {
+            launchRequest.arguments.console = "remoteConsole";
+            launchRequest.arguments.remoteConsolePort = RemoteConsolePort;
+        }
+        else
+        {
+            launchRequest.arguments.console = "internalConsole";
+        }
+
         if (JMC.HasValue)
         {
             launchRequest.arguments.justMyCode = JMC.Value;
@@ -46,82 +59,14 @@ class Context
         {
             launchRequest.arguments.enableStepFiltering = StepFiltering.Value;
         }
+
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
         launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void PrepareStartWithRemoteConsole(int remoteConsolePort, string caller_trace)
+    public void LaunchWithEnv(string caller_trace)
     {
-        InitializeRequest initializeRequest = new InitializeRequest();
-        initializeRequest.arguments.clientID = "vscode";
-        initializeRequest.arguments.clientName = "Visual Studio Code";
-        initializeRequest.arguments.adapterID = "coreclr";
-        initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = true;
-        initializeRequest.arguments.columnsStartAt1 = true;
-        initializeRequest.arguments.supportsVariableType = true;
-        initializeRequest.arguments.supportsVariablePaging = true;
-        initializeRequest.arguments.supportsRunInTerminalRequest = true;
-        initializeRequest.arguments.locale = "en-us";
-        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        LaunchRequest launchRequest = new LaunchRequest();
-        launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
-        launchRequest.arguments.type = "coreclr";
-        launchRequest.arguments.preLaunchTask = "build";
-        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath!;
-        launchRequest.arguments.cwd = "";
-        launchRequest.arguments.console = "remoteConsole";
-        launchRequest.arguments.remoteConsolePort = remoteConsolePort;
-        launchRequest.arguments.stopAtEntry = true;
-        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
-        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
-        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void PrepareStartAttach(string caller_trace)
-    {
-        InitializeRequest initializeRequest = new InitializeRequest();
-        initializeRequest.arguments.clientID = "vscode";
-        initializeRequest.arguments.clientName = "Visual Studio Code";
-        initializeRequest.arguments.adapterID = "coreclr";
-        initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = true;
-        initializeRequest.arguments.columnsStartAt1 = true;
-        initializeRequest.arguments.supportsVariableType = true;
-        initializeRequest.arguments.supportsVariablePaging = true;
-        initializeRequest.arguments.supportsRunInTerminalRequest = true;
-        initializeRequest.arguments.locale = "en-us";
-        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        Process testProcess = new Process();
-        testProcess.StartInfo.UseShellExecute = false;
-        testProcess.StartInfo.FileName = ControlInfo.CorerunPath;
-        testProcess.StartInfo.Arguments = ControlInfo.TargetAssemblyPath;
-        testProcess.StartInfo.CreateNoWindow = true;
-        Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        AttachRequest attachRequest = new AttachRequest();
-        attachRequest.arguments.processId = testProcess.Id;
-        Assert.True(DAPDebugger.Request(attachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void PrepareStartWithEnv(string caller_trace)
-    {
-        InitializeRequest initializeRequest = new InitializeRequest();
-        initializeRequest.arguments.clientID = "vscode";
-        initializeRequest.arguments.clientName = "Visual Studio Code";
-        initializeRequest.arguments.adapterID = "coreclr";
-        initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = true;
-        initializeRequest.arguments.columnsStartAt1 = true;
-        initializeRequest.arguments.supportsVariableType = true;
-        initializeRequest.arguments.supportsVariablePaging = true;
-        initializeRequest.arguments.supportsRunInTerminalRequest = true;
-        initializeRequest.arguments.locale = "en-us";
-        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (web)";
         launchRequest.arguments.type = "coreclr";
@@ -144,7 +89,21 @@ class Context
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void PrepareEnd(string caller_trace)
+    public void StartTargetAndAttach(string caller_trace)
+    {
+        Process testProcess = new Process();
+        testProcess.StartInfo.UseShellExecute = false;
+        testProcess.StartInfo.FileName = ControlInfo.CorerunPath;
+        testProcess.StartInfo.Arguments = ControlInfo.TargetAssemblyPath;
+        testProcess.StartInfo.CreateNoWindow = true;
+        Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        AttachRequest attachRequest = new AttachRequest();
+        attachRequest.arguments.processId = testProcess.Id;
+        Assert.True(DAPDebugger.Request(attachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void ConfigurationDone(string caller_trace)
     {
         ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
         Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
