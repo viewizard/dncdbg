@@ -8,7 +8,8 @@ public class RemoteConsole : IDisposable
 {
     public RemoteConsole(int port)
     {
-        client = new TcpClient("127.0.0.1", port);
+        client = new TcpClient(AddressFamily.InterNetwork);
+        client.Connect(System.Net.IPAddress.Loopback, port);
         stream = client.GetStream();
         consoleInput = new StreamWriter(stream);
         consoleOutput = new StreamReader(stream);
