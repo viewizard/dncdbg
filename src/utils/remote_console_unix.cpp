@@ -11,6 +11,7 @@
 #include <csignal>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/types.h> // NOLINT(misc-include-cleaner)
 #include <unistd.h>
@@ -120,6 +121,12 @@ bool RemoteConsoleServer::AcceptOne()
     if (flags >= 0)
     {
         static_cast<void>(::fcntl(c, F_SETFD, flags | FD_CLOEXEC)); // NOLINT(cppcoreguidelines-pro-type-vararg)
+    }
+
+    int noDelay = 1;
+    if (::setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&noDelay), sizeof(noDelay)) < 0)
+    {
+        LOGW(log << "RemoteConsoleServer: setsockopt(TCP_NODELAY) failed, errno=" << errno);
     }
 
     m_client = c;
