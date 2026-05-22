@@ -162,7 +162,7 @@
 -   __restart?: any;
 @@ VSCode IDE additional fields: @@
 +   cwd?: string;
-+   env?: string;
++   env?: { [key: string]: string; };
 +   program?: string;
 +   args?: string;
 +   stopAtEntry?: boolean;
@@ -170,8 +170,6 @@
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
 +   console?: 'internalConsole' | 'remoteConsole'
-@@ additional field: @@
-+   remoteConsolePort?: number;
 ```
 #### LaunchResponse
 ```diff

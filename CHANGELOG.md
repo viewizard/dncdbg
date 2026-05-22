@@ -6,7 +6,7 @@ Upcoming changes compared to previous version.
 - Added `logMessage` support in SourceBreakpoint.
 - Added `console` configuration option with `internalConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
 - Added `console` configuration option with `remoteConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
-- Added `remoteConsolePort` configuration option support in Launch Request.
+- Added `DNCDBG_CONSOLE` and `DNCDBG_REMOTECONSOLEPORT` variables in `env` option support in Launch Request.
 
 #### Added
 - Added more nullable evaluation tests.

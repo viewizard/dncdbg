@@ -343,19 +343,45 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 // https://aka.ms/VSCode-CS-LaunchJson-Console
                 std::string console;
-                auto consoleIter = arguments.find("console");
-                if (consoleIter != arguments.end())
+                auto findConsole = env.find("DNCDBG_CONSOLE");
+                if (findConsole != env.end())
                 {
-                    console = consoleIter.value();
+                    console = findConsole->second;
                 }
+                else // fallback to `console` field
+                {
+                    auto consoleIter = arguments.find("console");
+                    if (consoleIter != arguments.end())
+                    {
+                        console = consoleIter.value();
+                    }
+                }
+
+                constexpr int defaultPort = 22534;
+                int remoteConsolePort = defaultPort;
+                auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
+                if (findConsolePort != env.end())
+                {
+                    try
+                    {
+                        remoteConsolePort = std::stoi(findConsolePort->second);
+                    } 
+                    catch (const std::invalid_argument &ex)
+                    {
+                        LOGE(log << "DNCDBG_REMOTECONSOLEPORT not a number: " << ex.what());
+                    } 
+                    catch (const std::out_of_range &ex)
+                    {
+                        LOGE(log << "DNCDBG_REMOTECONSOLEPORT number out of int range: " << ex.what());
+                    }
+                }
+
                 if (console == "internalConsole")
                 {
                     m_internalConsole = true;
                 }
                 else if (console == "remoteConsole")
                 {
-                    constexpr int defaultPort = 22534;
-                    const int remoteConsolePort = arguments.value("remoteConsolePort", defaultPort);
                     if (!m_sharedDebugger->InitializeRemoteConsoleServer(remoteConsolePort))
                     {
                         return E_FAIL;

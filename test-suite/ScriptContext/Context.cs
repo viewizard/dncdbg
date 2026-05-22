@@ -43,8 +43,9 @@ class Context
 
         if (RemoteConsole)
         {
-            launchRequest.arguments.console = "remoteConsole";
-            launchRequest.arguments.remoteConsolePort = RemoteConsolePort;
+            launchRequest.arguments.env = new Dictionary<string, string>();
+            launchRequest.arguments.env.Add("DNCDBG_CONSOLE", "remoteConsole");
+            launchRequest.arguments.env.Add("DNCDBG_REMOTECONSOLEPORT", RemoteConsolePort.ToString());
         }
         else
         {
