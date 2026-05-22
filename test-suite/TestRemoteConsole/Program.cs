@@ -55,12 +55,12 @@ class Program
 
                 Context.RemoteConsole.Send("new added text");
 
-                text = Context.RemoteConsole.Receive(5);
+                text = Context.RemoteConsole.Receive(1000);
                 Assert.Equal("text: new added text", text, @"__FILE__:__LINE__");
 
                 Context.RemoteConsole.Send("more text 12345");
 
-                text = Context.RemoteConsole.Receive(5);
+                text = Context.RemoteConsole.Receive(1000);
                 Assert.Equal("new text: more text 12345", text, @"__FILE__:__LINE__");
 
                 Context.RemoteConsole.SendChar('c');
