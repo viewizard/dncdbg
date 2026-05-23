@@ -1251,6 +1251,6 @@ class Context
     Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
     Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
 
-    public RemoteConsole? RemoteConsole;
+    public RemoteConsole? RemoteConsole = null;
 }
 }
