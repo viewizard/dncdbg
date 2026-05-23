@@ -369,10 +369,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     catch (const std::invalid_argument &ex)
                     {
                         LOGE(log << "DNCDBG_REMOTECONSOLEPORT not a number: " << ex.what());
+                        return E_INVALIDARG;
                     } 
                     catch (const std::out_of_range &ex)
                     {
                         LOGE(log << "DNCDBG_REMOTECONSOLEPORT number out of int range: " << ex.what());
+                        return E_INVALIDARG;
                     }
                 }
 
@@ -384,7 +386,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 {
                     if (!m_sharedDebugger->InitializeRemoteConsoleServer(remoteConsolePort))
                     {
-                        return E_FAIL;
+                        return INET_E_CANNOT_CONNECT;
                     }
                 }
 
