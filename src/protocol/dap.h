@@ -33,11 +33,6 @@ class DAP
     }
 
     void CreateManagedDebugger();
-    void SetLaunchCommand(const std::string &fileExec, const std::vector<std::string> &args)
-    {
-        m_fileExec = fileExec;
-        m_execArgs = args;
-    }
     void CommandLoop();
 
     HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);

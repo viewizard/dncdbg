@@ -398,11 +398,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
                 m_sharedDebugger->SetEvalFlags(evalFlags);
 
-                if (!m_fileExec.empty())
-                {
-                    return m_sharedDebugger->Launch(m_fileExec, m_execArgs, env, cwd, arguments.value("stopAtEntry", false));
-                }
-
+                const bool stopAtEntry = arguments.value("stopAtEntry", false);
                 const std::string program = arguments.at("program").get<std::string>();
                 std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
 
@@ -411,12 +407,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
                 {
                     args.insert(args.begin(), program);
-                    return m_sharedDebugger->Launch("dotnet", args, env, cwd, arguments.value("stopAtEntry", false));
+                    return m_sharedDebugger->Launch("dotnet", args, env, cwd, stopAtEntry);
                 }
                 else
                 {
                     // If we're not being asked to launch a dll, assume whatever we're given is an executable
-                    return m_sharedDebugger->Launch(program, args, env, cwd, arguments.value("stopAtEntry", false));
+                    return m_sharedDebugger->Launch(program, args, env, cwd, stopAtEntry);
                 }
             }},
         {"threads", [&](const json &/*arguments*/, json &responseBody)

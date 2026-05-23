@@ -24,6 +24,9 @@ Upcoming changes compared to previous version.
 - Updated diagnostics source version to 10.0.721401.
 - Simplified decimal type parsing in print code.
 
+#### Removed
+- Removed unused code.
+
 #### Fixed
 - Fixed work on Linux musl OSes.
 - Fixed Windows x86 build.
