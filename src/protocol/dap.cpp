@@ -389,6 +389,18 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         return INET_E_CANNOT_CONNECT;
                     }
                 }
+                else if (console == "externalTerminal")
+                {
+#ifdef _WIN32
+                    if (SetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", L"1") == FALSE)
+                    {
+                        LOGE(log << "Failed to set DNCDBG_CREATE_NEW_CONSOLE environment variable, error: " << GetLastError());
+                        return E_FAIL;
+                    }
+#else
+                    LOGW(log << "externalTerminal console mode is not supported on this platform");
+#endif // _WIN32
+                }
 
                 // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;

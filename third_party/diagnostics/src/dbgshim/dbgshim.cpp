@@ -713,6 +713,15 @@ CreateProcessForLaunch(
         dwCreationFlags = CREATE_SUSPENDED;
     }
 
+#ifdef _WIN32
+    wchar_t flagBuffer[2] = { 0 }; 
+    DWORD copied = GetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", flagBuffer, 2);
+    if (copied == 1 && flagBuffer[0] == L'1')
+    {
+        dwCreationFlags |= CREATE_NEW_CONSOLE;
+    }
+#endif // _WIN32
+
     BOOL result = CreateProcessW(
         NULL,
         lpCommandLine,

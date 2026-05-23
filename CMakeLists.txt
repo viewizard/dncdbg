@@ -103,6 +103,15 @@ set(FEATURE_EVENT_TRACE 0)
 #   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
 # - correct `third_party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
 #   since we disable `FEATURE_EVENT_TRACE` and diagnostics don't have `eventing_headers` project in sources
+# - add external terminal related code to `third_party/diagnostics/src/dbgshim/dbgshim.cpp`:
+#   #ifdef _WIN32
+#       wchar_t flagBuffer[2] = { 0 }; 
+#       DWORD copied = GetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", flagBuffer, 2);
+#       if (copied == 1 && flagBuffer[0] == L'1')
+#       {
+#           dwCreationFlags |= CREATE_NEW_CONSOLE;
+#       }
+#   #endif // _WIN32
 #
 ###
 

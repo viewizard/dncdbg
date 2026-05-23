@@ -169,7 +169,7 @@
 +   justMyCode?: boolean;
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
-+   console?: 'internalConsole' | 'remoteConsole'
++   console?: 'internalConsole' | 'remoteConsole' | 'externalTerminal'
 ```
 #### LaunchResponse
 ```diff
