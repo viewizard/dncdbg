@@ -340,6 +340,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
                 m_sharedDebugger->SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
+                m_sharedDebugger->SetSuppressJITOptimizations(
+                    arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
 
                 // https://aka.ms/VSCode-CS-LaunchJson-Console
                 std::string console;

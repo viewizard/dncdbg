@@ -170,6 +170,7 @@
 +   enableStepFiltering?: boolean;
 +   expressionEvaluationOptions?: ExpressionEvaluationOptions;
 +   console?: 'internalConsole' | 'remoteConsole' | 'externalTerminal'
++   suppressJITOptimizations?: boolean;
 ```
 #### LaunchResponse
 ```diff

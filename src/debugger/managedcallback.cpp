@@ -257,7 +257,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     Module &module = m_debugger.m_sharedModules->GetNewModuleRef();
     m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
-    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode());
+    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode(), m_debugger.IsSuppressJITOptimizations());
     DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
     if (module.symbolStatus == SymbolStatus::Loaded)

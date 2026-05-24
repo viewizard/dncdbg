@@ -21,7 +21,9 @@
             "console": "internalConsole",
             "stopAtEntry": false,
             "justMyCode" : true,
-            "enableStepFiltering": false,
+            "enableStepFiltering": true,
+            // Note: dncdbg has different behaviour compared to VSCode vsdbg, in case dll has debug symbols debugger suppresses JIT optimization.
+            "suppressJITOptimizations": false,
             "expressionEvaluationOptions": {
                 "allowImplicitFuncEval": true
             },

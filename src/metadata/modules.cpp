@@ -92,7 +92,7 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
     return ss.str();
 }
 
-void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC)
+void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations)
 {
     module.path = Modules::GetModuleFileName(pModule);
     module.name = GetFileName(module.path);
@@ -135,6 +135,15 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
                     "optimizations failed, in some cases (e.g. attach) this results in a "
                     "degraded debugging experience (e.g. breakpoints will not be hit).\n"});
             }
+        }
+    }
+    else if (suppressJITOptimizations)
+    {
+        ToRelease<ICorDebugModule2> trModule2;
+        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
+        {
+            // Try to disable optimization for all modules.
+            trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
         }
     }
 

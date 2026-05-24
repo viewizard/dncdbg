@@ -4,10 +4,9 @@ Upcoming changes compared to previous version.
 #### DAP
 - Changed Attach Request, field 'processId' must be a number only now.
 - Added `logMessage` support in SourceBreakpoint.
-- Added `console` configuration option with `internalConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
-- Added `console` configuration option with `remoteConsole` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
+- Added `console` configuration option with `internalConsole`, `remoteConsole` and `externalTerminal` support in Launch Request (for more info see: [Inputting text into the target process](docs/inputting_text.md)).
 - Added `DNCDBG_CONSOLE` and `DNCDBG_REMOTECONSOLEPORT` variables in `env` option support in Launch Request.
-- Added `console` configuration option with `externalTerminal` support in Launch Request (for more info see: [Inputting text into the target process.](docs/inputting_text.md)).
+- Added `suppressJITOptimizations` configuration option support in Launch Request (for more info see: [Suppress JIT Optimizations](https://code.visualstudio.com/docs/csharp/debugger-settings#_suppress-jit-optimizations)).
 
 #### Added
 - Added more nullable evaluation tests.

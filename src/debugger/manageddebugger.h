@@ -76,6 +76,15 @@ class ManagedDebugger
     void SetStepFiltering(bool enable);
     void SetEvalFlags(uint32_t evalFlags);
 
+    [[nodiscard]] bool IsSuppressJITOptimizations() const
+    {
+        return m_suppressJITOptimizations;
+    }
+    void SetSuppressJITOptimizations(bool enable)
+    {
+        m_suppressJITOptimizations = enable;
+    }
+
     HRESULT Initialize();
     HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
@@ -162,6 +171,7 @@ class ManagedDebugger
 
     bool m_justMyCode{true};
     bool m_stepFiltering{true};
+    bool m_suppressJITOptimizations{false};
 
     void *m_unregisterToken{nullptr};
     DWORD m_processId{0};
