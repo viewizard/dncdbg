@@ -525,7 +525,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
     {
         return E_FAIL;
     }
-
+    // TODO care about `sourceFileMap`
     sequencePoint->document = to_utf8(symSequencePoint.document);
     sequencePoint->startLine = symSequencePoint.startLine;
     sequencePoint->startColumn = symSequencePoint.startColumn;

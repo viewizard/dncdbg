@@ -338,6 +338,7 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
 // Caller must care about m_sourcesInfoMutex.
 HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
+    // TODO care about `sourceFileMap`
     std::string fullPath = to_utf8(document);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status = S_OK;
