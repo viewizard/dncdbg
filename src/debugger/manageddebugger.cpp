@@ -909,10 +909,10 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     IfFailRet(trFunc->GetModule(&trModule));
 
     uint32_t ilOffset = 0;
-    SequencePoint sp;
+    ManagedSequencePoint sp;
     if (SUCCEEDED(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
     {
-        stackFrame.source = Source(sp.document);
+        stackFrame.source = Source(sp.sourceFile);
         stackFrame.line = sp.startLine;
         stackFrame.column = sp.startColumn;
         stackFrame.endLine = sp.endLine;

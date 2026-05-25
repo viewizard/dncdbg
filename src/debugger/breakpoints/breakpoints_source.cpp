@@ -98,11 +98,11 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
 } // unnamed namespace
 
-void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &fullname) const
+void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
-    breakpoint.source = Source(fullname);
+    breakpoint.source = Source(sourceFile);
     breakpoint.line = this->linenum;
     breakpoint.endLine = this->endLine;
 }
@@ -138,11 +138,11 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     }
 
     uint32_t ilOffset = 0;
-    SequencePoint sp;
+    ManagedSequencePoint sp;
     IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
 
     unsigned filenameIndex = 0;
-    IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.document, filenameIndex));
+    IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.sourceFile, filenameIndex));
 
     auto breakpoints = m_sourceResolvedBreakpoints.find(filenameIndex);
     if (breakpoints == m_sourceResolvedBreakpoints.end())
@@ -189,11 +189,11 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sp.document);
+                    b.ToBreakpoint(breakpoint, sp.sourceFile);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
                     << b.condition << "'. The error returned was '" << output << "'. - "
-                    << sp.document << ":" << b.linenum << "\n";
+                    << sp.sourceFile << ":" << b.linenum << "\n";
                     breakpoint.message = ss.str();
                     DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
                     DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
@@ -217,11 +217,11 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sp.document);
+                    b.ToBreakpoint(breakpoint, sp.sourceFile);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
                     << b.hitCondition << "'. The error returned was '" << output << "'. - "
-                    << sp.document << ":" << b.linenum << "\n";
+                    << sp.sourceFile << ":" << b.linenum << "\n";
                     breakpoint.message = ss.str();
                     DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
                     DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
@@ -238,7 +238,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 std::string message;
                 BreakpointUtils::BuildTraceMessage(m_sharedVariables.get(), pThread, b.logMessageParts, message);
                 OutputEvent event(OutputCategory::Console, message);
-                event.source = Source(sp.document);
+                event.source = Source(sp.sourceFile);
                 event.line = b.linenum;
                 DAPIO::EmitOutputEvent(event);
                 continue;

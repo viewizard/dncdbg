@@ -286,7 +286,7 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, c
 }
 
 HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
-                                              SequencePoint &sequencePoint)
+                                              ManagedSequencePoint &sequencePoint)
 {
     HRESULT Status = S_OK;
 
@@ -517,7 +517,7 @@ HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdM
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              SequencePoint *sequencePoint)
+                                              ManagedSequencePoint *sequencePoint)
 {
     Interop::SequencePoint symSequencePoint;
 
@@ -526,7 +526,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
         return E_FAIL;
     }
     // TODO care about `sourceFileMap`
-    sequencePoint->document = to_utf8(symSequencePoint.document);
+    sequencePoint->sourceFile = to_utf8(symSequencePoint.document);
     sequencePoint->startLine = symSequencePoint.startLine;
     sequencePoint->startColumn = symSequencePoint.startColumn;
     sequencePoint->endLine = symSequencePoint.endLine;
@@ -537,7 +537,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                              SequencePoint &sequencePoint)
+                                              ManagedSequencePoint &sequencePoint)
 {
     return GetPDBInfo(modAddress,
         [&](PDBInfo &mdInfo) -> HRESULT

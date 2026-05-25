@@ -73,7 +73,7 @@ class DebugInfo
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo);
 
-    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, SequencePoint &sequencePoint);
+    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, ManagedSequencePoint &sequencePoint);
 
     HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
                                               bool *noUserCodeFound);
@@ -103,7 +103,7 @@ class DebugInfo
                                             uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);
 
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                       SequencePoint &sequencePoint);
+                                       ManagedSequencePoint &sequencePoint);
 
   private:
 
@@ -114,7 +114,7 @@ class DebugInfo
     DebugInfoSources m_debugInfoSources;
 
     static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              SequencePoint *sequencePoint);
+                                              ManagedSequencePoint *sequencePoint);
 };
 
 } // namespace dncdbg

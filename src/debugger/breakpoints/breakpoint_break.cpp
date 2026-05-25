@@ -119,11 +119,11 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         return S_OK;
     }
 
-    SequencePoint lastSP;
+    ManagedSequencePoint lastSP;
     IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
                                                             m_lastStoppedIlOffset.ilOffset, lastSP));
 
-    SequencePoint curSP;
+    ManagedSequencePoint curSP;
     IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
                                                             fullyQualifiedIlOffset.ilOffset, curSP));
 
@@ -132,7 +132,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         lastSP.endLine != curSP.endLine ||
         lastSP.endColumn != curSP.endColumn ||
         lastSP.offset != curSP.offset ||
-        lastSP.document != curSP.document)
+        lastSP.sourceFile != curSP.sourceFile)
     {
         return S_OK;
     }

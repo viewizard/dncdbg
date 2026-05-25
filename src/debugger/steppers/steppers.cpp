@@ -225,16 +225,16 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             }
             else
             {
-                // Step completed on same location in source as it was started, this happens when some user code block have several
+                // Step completed on same location in source as it was started, this happens when some user code block has several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 uint32_t ilOffset = 0;
-                SequencePoint sp;
+                ManagedSequencePoint sp;
                 IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
                     sp.endLine == m_StepStartSP.endLine &&
                     sp.endColumn == m_StepStartSP.endColumn &&
-                    sp.document == m_StepStartSP.document)
+                    sp.sourceFile == m_StepStartSP.sourceFile)
                 {
                     IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
                     return S_IGNORE;
