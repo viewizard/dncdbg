@@ -366,7 +366,7 @@ HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathInde
 }
 
 HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
-                                                      void *pSymbolReaderHandle)
+                                                        void *pSymbolReaderHandle)
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
