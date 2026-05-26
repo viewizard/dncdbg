@@ -31,7 +31,7 @@ uintptr_t GetSP(const CONTEXT *context)
 #elif defined(_TARGET_LOONGARCH64_)
     return context->Sp;
 #else
-#error "Unsupported platform"
+    static_assert(false, "Unsupported platform");
 #endif
 }
 
@@ -50,7 +50,7 @@ uintptr_t GetFP(const CONTEXT *context)
 #elif defined(_TARGET_LOONGARCH64_)
     return context->Fp;
 #else
-#error "Unsupported platform"
+    static_assert(false, "Unsupported platform");
 #endif
 }
 
@@ -69,7 +69,7 @@ void SetFP(CONTEXT *context, uintptr_t value)
 #elif defined(_TARGET_LOONGARCH64_)
     context->Fp = value;
 #else
-#error "Unsupported platform"
+    static_assert(false, "Unsupported platform");
 #endif
 }
 

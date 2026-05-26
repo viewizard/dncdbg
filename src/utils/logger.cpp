@@ -75,7 +75,7 @@ unsigned get_tid()
     };
     static const thread_local unsigned thread_id = getTID();
 #else
-#error "Unsupported platform"
+    static_assert(false, "Unsupported platform");
 #endif
 
     return thread_id;
