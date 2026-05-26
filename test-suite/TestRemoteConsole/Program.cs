@@ -41,7 +41,8 @@ class Program
         int c3 = Console.Read();
         int c4 = Console.Read();
         int c5 = Console.Read();
-        Console.WriteLine("new chars: " + (char)c1 + (char)c2 + (char)c3 + (char)c4 + (char)c5);
+        Console.Write("" + (char)c1 + (char)c2 + (char)c3 + (char)c4 + (char)c5);
+        Console.Out.Flush();
 
         Label.Checkpoint("testremote", "finish",
             (Object context) =>
@@ -69,8 +70,16 @@ class Program
                 Context.RemoteConsole.SendChar('r');
                 Context.RemoteConsole.SendChar('s');
 
-                text = Context.RemoteConsole.Receive(1000);
-                Assert.Equal("new chars: chars", text, @"__FILE__:__LINE__");
+                int? ch = Context.RemoteConsole.ReceiveChar(1000);
+                Assert.Equal((int)'c', ch, @"__FILE__:__LINE__");
+                ch = Context.RemoteConsole.ReceiveChar(1000);
+                Assert.Equal((int)'h', ch, @"__FILE__:__LINE__");
+                ch = Context.RemoteConsole.ReceiveChar(1000);
+                Assert.Equal((int)'a', ch, @"__FILE__:__LINE__");
+                ch = Context.RemoteConsole.ReceiveChar(1000);
+                Assert.Equal((int)'r', ch, @"__FILE__:__LINE__");
+                ch = Context.RemoteConsole.ReceiveChar(1000);
+                Assert.Equal((int)'s', ch, @"__FILE__:__LINE__");
             });
 
         Label.Checkpoint("finish", "",

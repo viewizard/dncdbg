@@ -33,6 +33,12 @@ public class RemoteConsole : IDisposable
         return consoleOutput.ReadLine();
     }
 
+    public int? ReceiveChar(int timeout)
+    {
+        stream.ReadTimeout = timeout;
+        return consoleOutput.Read();
+    }
+
     public void Close()
     {
         Dispose();
