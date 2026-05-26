@@ -81,8 +81,8 @@ class RemoteConsoleServer
     bool SendData(gsl::span<const char> data);
 
     // Close the server: shut down sockets and join the worker thread. Safe to
-    // call multiple times. Returns 0 on success, non-zero on error.
-    int Close();
+    // call multiple times. Returns true on success, false on error.
+    bool Close();
 
   private:
 

@@ -136,13 +136,13 @@ bool RemoteConsoleServer::SendData(gsl::span<const char> data)
     }
 }
 
-int RemoteConsoleServer::Close()
+bool RemoteConsoleServer::Close()
 {
     try
     {
         if (!m_initialized.load() && !m_workerThread.joinable())
         {
-            return 0; // Nothing to do.
+            return true; // Nothing to do.
         }
 
         // Signal the worker thread to stop and unblock any pending accept() / recv() it is sitting in.
@@ -158,7 +158,7 @@ int RemoteConsoleServer::Close()
             catch (const std::exception &e)
             {
                 LOGE(log << "RemoteConsoleServer::Close: join exception: " << e.what());
-                return -1;
+                return false;
             }
         }
 
@@ -173,17 +173,17 @@ int RemoteConsoleServer::Close()
         }
         m_clientConnected.store(false);
 
-        return 0;
+        return true;
     }
     catch (const std::exception &e)
     {
         LOGE(log << "RemoteConsoleServer::Close exception: " << e.what());
-        return -1;
+        return false;
     }
     catch (...)
     {
         LOGE(log << "RemoteConsoleServer::Close: unknown exception");
-        return -1;
+        return false;
     }
 }
 
