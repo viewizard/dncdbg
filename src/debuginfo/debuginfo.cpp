@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/sourcefilemap.h"
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
@@ -525,8 +526,8 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
     {
         return E_FAIL;
     }
-    // TODO care about `sourceFileMap`
-    sequencePoint->sourceFile = to_utf8(symSequencePoint.document);
+
+    sequencePoint->sourceFile = SourceFileMap::Path(to_utf8(symSequencePoint.document));
     sequencePoint->startLine = symSequencePoint.startLine;
     sequencePoint->startColumn = symSequencePoint.startColumn;
     sequencePoint->endLine = symSequencePoint.endLine;

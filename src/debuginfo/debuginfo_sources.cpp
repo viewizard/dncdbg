@@ -5,6 +5,7 @@
 
 #include "debuginfo/debuginfo_sources.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/sourcefilemap.h"
 #include "utils/filesystem.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
@@ -338,8 +339,7 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
 // Caller must care about m_sourcesInfoMutex.
 HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
-    // TODO care about `sourceFileMap`
-    std::string fullPath = to_utf8(document);
+    std::string fullPath = SourceFileMap::Path(to_utf8(document));
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status = S_OK;
     const std::string initialFullPath = fullPath;

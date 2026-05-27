@@ -41,6 +41,7 @@ set(dncdbg_SRC
     debuginfo/async_info.cpp
     debuginfo/debuginfo_sources.cpp
     debuginfo/debuginfo.cpp
+    debuginfo/sourcefilemap.cpp
     managed/interop.cpp
     metadata/attributes.cpp
     metadata/jmc.cpp
