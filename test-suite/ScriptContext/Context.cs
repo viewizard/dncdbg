@@ -61,6 +61,11 @@ class Context
             launchRequest.arguments.enableStepFiltering = StepFiltering.Value;
         }
 
+        if (sourceFileMap.Count != 0)
+        {
+            launchRequest.arguments.sourceFileMap = sourceFileMap;
+        }
+
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
         launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
@@ -1227,6 +1232,16 @@ class Context
         }
     }
 
+    public string GetSourceFilesPath()
+    {
+        return ControlInfo.SourceFilesPath;
+    }
+
+    public void AddSourceFileMapEntry(string OldPath, string NewPath)
+    {
+        sourceFileMap.Add(OldPath, NewPath);
+    }
+
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
@@ -1252,5 +1267,6 @@ class Context
     Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
 
     public RemoteConsole? RemoteConsole = null;
+    Dictionary<string, string> sourceFileMap = new Dictionary<string, string>();
 }
 }

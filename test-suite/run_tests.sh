@@ -36,6 +36,7 @@ ALL_TEST_NAMES=(
     "TestModules"
     "TestTracePoint"
     "TestRemoteConsole"
+    "TestSourceFileMap"
 )
 
 TEST_NAMES="$@"

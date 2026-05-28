@@ -54,6 +54,7 @@ public class LaunchRequestArguments
     public List<string> args = [];
     public string cwd = string.Empty;
     public Dictionary<string, string> env = [];
+    public Dictionary<string, string> sourceFileMap = [];
     public string console = string.Empty;
     public bool stopAtEntry;
     public bool? justMyCode;
