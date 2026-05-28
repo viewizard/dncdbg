@@ -147,10 +147,9 @@ class DebugInfoSources
                                 std::unordered_set<mdMethodDef> *methodTokens,
                                 std::vector<file_data_t> &inputData);
 
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    // all files names converted to uppercase in containers above, but this vector hold initial full path names
+    // Source file names could be converted to uppercase in containers above or changed by SourceFileMap,
+    // this vector holds initial full path names
     std::vector<std::string> m_sourceIndexToInitialFullPath;
-#endif
 };
 
 } // namespace dncdbg

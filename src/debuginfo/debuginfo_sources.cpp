@@ -339,10 +339,10 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
 // Caller must care about m_sourcesInfoMutex.
 HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
 {
-    std::string fullPath = SourceFileMap::Path(to_utf8(document));
+    const std::string initialFullPath = to_utf8(document);
+    std::string fullPath = SourceFileMap::Path(initialFullPath);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     HRESULT Status = S_OK;
-    const std::string initialFullPath = fullPath;
     IfFailRet(Interop::StringToUpper(fullPath));
 #endif
     auto findPathIndex = m_sourcePathToIndex.find(fullPath);
@@ -351,9 +351,7 @@ HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathInde
         fullPathIndex = static_cast<unsigned>(m_sourceIndexToPath.size());
         m_sourcePathToIndex.emplace(fullPath, fullPathIndex);
         m_sourceIndexToPath.emplace_back(fullPath);
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
-#endif
         m_sourceNameToFullPathsIndexes[GetFileName(fullPath)].emplace(fullPathIndex);
         m_sourcesMethodsData.emplace_back();
     }
@@ -381,9 +379,7 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
     // Usually, modules provide files with unique full paths for sources.
     m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData.size());
     m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData.size());
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData.size());
-#endif
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
@@ -430,10 +426,7 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
 
     m_sourcesMethodsData.shrink_to_fit();
     m_sourceIndexToPath.shrink_to_fit();
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     m_sourceIndexToInitialFullPath.shrink_to_fit();
-#endif
-
     return S_OK;
 }
 
@@ -616,11 +609,8 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
 
         void *data = nullptr;
         int32_t resolvedCount = 0;
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
-#else
-        const std::string fullName = m_sourceIndexToPath.at(findIndex->second);
-#endif
+
         if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
                                                correctedStartLine, closestNestedToken, resolvedCount, fullName, &data)) ||
             data == nullptr)
@@ -657,12 +647,7 @@ HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &
         return E_FAIL;
     }
 
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    fullPath = m_sourceIndexToInitialFullPath.at(index);
-#else
-    fullPath = m_sourceIndexToPath.at(index);
-#endif
-
+    fullPath = SourceFileMap::Path(m_sourceIndexToInitialFullPath.at(index));
     return S_OK;
 }
 
