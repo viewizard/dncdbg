@@ -298,4 +298,6 @@ endif(CLR_CMAKE_HOST_UNIX)
 # Native Projects
 #-----------------------------------------
 add_subdirectory(third_party/diagnostics)
+add_subdirectory(third_party/tree-sitter)
+add_subdirectory(third_party/tree-sitter-c-sharp)
 add_subdirectory(src)

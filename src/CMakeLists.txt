@@ -127,10 +127,10 @@ target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG>)
 target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG_INTERNAL_TESTS>)
 
 if (WIN32)
-    target_link_libraries(dncdbg corguids wsock32 ws2_32)
+    target_link_libraries(dncdbg corguids wsock32 ws2_32 tree-sitter-csharp)
 else()
     find_package(Iconv REQUIRED)
-    target_link_libraries(dncdbg corguids dl pthread Iconv::Iconv)
+    target_link_libraries(dncdbg corguids dl pthread Iconv::Iconv tree-sitter-csharp)
 endif()
 
 install_clr(TARGETS dncdbg DESTINATIONS . )
