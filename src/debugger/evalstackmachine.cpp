@@ -8,6 +8,7 @@
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
 #include "debugger/valueprint.h"
+#include "expressionparser/parser.h"
 #include "managed/interop.h"
 #include "metadata/typeprinter.h"
 #include "utils/logger.h"
@@ -26,36 +27,6 @@ namespace dncdbg
 
 namespace
 {
-struct FormatF
-{
-    uint32_t Flags;
-};
-
-struct FormatFS
-{
-    uint32_t Flags;
-    BSTR wString;
-};
-
-struct FormatFI
-{
-    uint32_t Flags;
-    int32_t Int;
-};
-
-struct FormatFIS
-{
-    uint32_t Flags;
-    int32_t Int;
-    BSTR wString;
-};
-
-struct FormatFIP
-{
-    uint32_t Flags;
-    int32_t Int;
-    void *Ptr;
-};
 
 // Keep in sync with BasicTypes enum in Evaluation.cs
 enum class BasicTypes : uint8_t
@@ -1106,26 +1077,26 @@ HRESULT CalculateOneOperand(OperationType opType, std::list<EvalStackEntry> &eva
     return Status;
 }
 
-HRESULT IdentifierName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT IdentifierName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
-    std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
-    ReplaceInternalNames(String, true);
+    std::string argString = stepData.str;
+    ReplaceInternalNames(argString, true);
 
     evalStack.emplace_front();
-    evalStack.front().identifiers.emplace_back(std::move(String));
+    evalStack.front().identifiers.emplace_back(std::move(argString));
     evalStack.front().editable = true;
     return S_OK;
 }
 
-HRESULT GenericName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
+HRESULT GenericName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
-    const int32_t Int = static_cast<FormatFIS *>(pArguments)->Int;
-    std::string String = to_utf8(static_cast<FormatFIS *>(pArguments)->wString);
+    const uint32_t argCount = stepData.count;
+    std::string argString = stepData.str;
     std::vector<ToRelease<ICorDebugType>> trGenericValues;
     std::string generics = ">";
-    trGenericValues.reserve(Int);
-    for (int i = 0; i < Int; i++)
+    trGenericValues.reserve(argCount);
+    for (uint32_t i = 0; i < argCount; i++)
     {
         ToRelease<ICorDebugValue> trValue;
         ToRelease<ICorDebugType> trType;
@@ -1147,30 +1118,27 @@ HRESULT GenericName(std::list<EvalStackEntry> &evalStack, void *pArguments, std:
         evalStack.pop_front();
     }
     generics.erase(0, 1);
-    String += "<" + generics;
+    argString += "<" + generics;
     evalStack.emplace_front();
-    evalStack.front().identifiers.emplace_back(std::move(String));
+    evalStack.front().identifiers.emplace_back(std::move(argString));
     evalStack.front().trGenericTypeCache = std::move(trGenericValues);
     evalStack.front().editable = true;
     return S_OK;
 }
 
-HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
+HRESULT InvocationExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
-
-    if (Int < 0)
-    {
-        return E_INVALIDARG;
-    }
+    const uint32_t argCount = stepData.count;
 
     HRESULT Status = S_OK;
     bool idsEmpty = false;
     bool isInstance = true;
-    std::vector<ToRelease<ICorDebugValue>> trArgs(Int);
-    for (int32_t i = Int - 1; i >= 0; i--)
+    std::vector<ToRelease<ICorDebugValue>> trArgs(argCount);
+    uint32_t tmpArgCount = argCount;
+    while (tmpArgCount > 0)
     {
-        IfFailRet(GetFrontStackEntryValue(&trArgs.at(i), nullptr, evalStack, ed, output));
+        tmpArgCount--;
+        IfFailRet(GetFrontStackEntryValue(&trArgs.at(tmpArgCount), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
 
@@ -1248,8 +1216,8 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         IfFailRet(trValue2->GetExactType(&trType));
     }
 
-    std::vector<SigElementType> funcArgs(Int);
-    for (int32_t i = 0; i < Int; ++i)
+    std::vector<SigElementType> funcArgs(argCount);
+    for (uint32_t i = 0; i < argCount; ++i)
     {
         ToRelease<ICorDebugValue> trValueArg;
         IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
@@ -1317,7 +1285,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
         trType = trResultType.Detach();
     }
 
-    const uint32_t realArgsCount = Int + (isInstance ? 1 : 0);
+    const uint32_t realArgsCount = argCount + (isInstance ? 1 : 0);
     std::vector<ICorDebugValue *> pValueArgs;
     pValueArgs.reserve(realArgsCount);
 
@@ -1328,7 +1296,7 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     }
 
     // Add arguments values
-    for (int32_t i = 0; i < Int; i++)
+    for (uint32_t i = 0; i < argCount; i++)
     {
         pValueArgs.emplace_back(trArgs.at(i).GetPtr());
     }
@@ -1357,23 +1325,18 @@ HRESULT InvocationExpression(std::list<EvalStackEntry> &evalStack, void *pArgume
     return Status;
 }
 
-HRESULT ObjectCreationExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ElementAccessExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    // TODO uint32_t Flags = static_cast<FormatFI *>(pArguments)->Flags;
-    // TODO int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
-    return E_NOTIMPL;
-}
-
-HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
-{
-    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
+    const uint32_t argCount = stepData.count;
     HRESULT Status = S_OK;
 
-    std::vector<ToRelease<ICorDebugValue>> trIndexValues(Int);
+    std::vector<ToRelease<ICorDebugValue>> trIndexValues(argCount);
 
-    for (int32_t i = Int - 1; i >= 0; i--)
+    uint32_t tmpArgCount = stepData.count;
+    while (tmpArgCount > 0)
     {
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(i), nullptr, evalStack, ed, output));
+        tmpArgCount--;
+        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(tmpArgCount), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1392,12 +1355,14 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         std::vector<uint32_t> indexes;
-        for (int32_t i = Int - 1; i >= 0; i--)
+        uint32_t tmpArgCount = stepData.count;
+        while (tmpArgCount > 0)
         {
+            tmpArgCount--;
             uint32_t result_index = 0;
             // TODO implicitly convert ICorValue to int, if type is not int
             // currently GetElementIndex() works with integer types only
-            IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
+            IfFailRet(GetElementIndex(trIndexValues.at(tmpArgCount), result_index));
             indexes.insert(indexes.begin(), result_index);
         }
         evalStack.front().trValue.Free();
@@ -1407,8 +1372,8 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
     }
     else
     {
-        std::vector<SigElementType> funcArgs(Int);
-        for (int32_t i = 0; i < Int; ++i)
+        std::vector<SigElementType> funcArgs(argCount);
+        for (uint32_t i = 0; i < argCount; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
             IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
@@ -1449,11 +1414,11 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         }
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> trValueArgs;
-        trValueArgs.reserve(Int + 1);
+        trValueArgs.reserve(argCount + 1);
 
         trValueArgs.emplace_back(trObjectValue.GetPtr());
 
-        for (int32_t i = 0; i < Int; i++)
+        for (uint32_t i = 0; i < argCount; i++)
         {
             trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
@@ -1464,21 +1429,23 @@ HRESULT ElementAccessExpression(std::list<EvalStackEntry> &evalStack, void *pArg
         IfFailRet(trValue2->GetExactType(&trType));
 
         Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
-                                               Int + 1, &evalStack.front().trValue);
+                                               argCount + 1, &evalStack.front().trValue);
     }
     return Status;
 }
 
-HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
+HRESULT ElementBindingExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
+    const uint32_t argCount = stepData.count;
     HRESULT Status = S_OK;
 
-    std::vector<ToRelease<ICorDebugValue>> trIndexValues(Int);
+    std::vector<ToRelease<ICorDebugValue>> trIndexValues(argCount);
 
-    for (int32_t i = Int - 1; i >= 0; i--)
+    uint32_t tmpArgCount = argCount;
+    while (tmpArgCount > 0)
     {
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(i), nullptr, evalStack, ed, output));
+        tmpArgCount--;
+        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(tmpArgCount), nullptr, evalStack, ed, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1508,12 +1475,14 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         std::vector<uint32_t> indexes;
-        for (int32_t i = Int - 1; i >= 0; i--)
+        uint32_t tmpArgCount = argCount;
+        while (tmpArgCount > 0)
         {
             uint32_t result_index = 0;
+            tmpArgCount--;
             // TODO implicitly convert ICorValue to int, if type is not int
             // currently GetElementIndex() works with integer types only
-            IfFailRet(GetElementIndex(trIndexValues.at(i), result_index));
+            IfFailRet(GetElementIndex(trIndexValues.at(tmpArgCount), result_index));
             indexes.insert(indexes.begin(), result_index);
         }
         evalStack.front().trValue.Free();
@@ -1523,8 +1492,8 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
     }
     else
     {
-        std::vector<SigElementType> funcArgs(Int);
-        for (int32_t i = 0; i < Int; ++i)
+        std::vector<SigElementType> funcArgs(argCount);
+        for (uint32_t i = 0; i < argCount; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
             IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
@@ -1565,11 +1534,11 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         }
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> trValueArgs;
-        trValueArgs.reserve(Int + 1);
+        trValueArgs.reserve(argCount + 1);
 
         trValueArgs.emplace_back(trObjectValue.GetPtr());
 
-        for (int32_t i = 0; i < Int; i++)
+        for (uint32_t i = 0; i < argCount; i++)
         {
             trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
@@ -1580,15 +1549,15 @@ HRESULT ElementBindingExpression(std::list<EvalStackEntry> &evalStack, void *pAr
         IfFailRet(trValue2->GetExactType(&trType));
 
         Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
-                                               Int + 1, &evalStack.front().trValue);
+                                               argCount + 1, &evalStack.front().trValue);
     }
     return Status;
 }
 
-HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
-{
-    const int32_t Int = static_cast<FormatFIP *>(pArguments)->Int;
-    void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
+HRESULT NumericLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+{/*
+    const uint32_t argCount = stepData.count;
+    //void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
     static constexpr std::array<CorElementType, 15> BasicTypesAlias{
@@ -1618,27 +1587,33 @@ HRESULT NumericLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pAr
     {
         return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(Int), Ptr);
     }
+    */
+
+    return E_FAIL; /// TODO
 }
 
-HRESULT StringLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT StringLiteralExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
-    std::string String = to_utf8(static_cast<FormatFS *>(pArguments)->wString);
-    ReplaceInternalNames(String, true);
+    std::string argString = stepData.str;
+    ReplaceInternalNames(argString, true);
     evalStack.emplace_front();
     evalStack.front().literal = true;
-    return ed.pEvalHelpers->CreateString(ed.pThread, String, &evalStack.front().trValue);
+    return ed.pEvalHelpers->CreateString(ed.pThread, argString, &evalStack.front().trValue);
 }
 
-HRESULT CharacterLiteralExpression(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
-{
+HRESULT CharacterLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+{/*
     void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_CHAR, Ptr);
+*/
+    return E_FAIL; /// TODO
 }
 
-HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &/*output*/, EvalData &ed)
+HRESULT PredefinedType(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
 {
+    /*
     static constexpr std::array<CorElementType, 15> BasicTypesAlias{
         ELEMENT_TYPE_BOOLEAN,   // Boolean
         ELEMENT_TYPE_U1,        // Byte
@@ -1657,33 +1632,28 @@ HRESULT PredefinedType(std::list<EvalStackEntry> &evalStack, void *pArguments, s
         ELEMENT_TYPE_U8         // ULong
     };
 
-    // TODO uint32_t Flags = static_cast<FormatFI *>(pArguments)->Flags;
-    const int32_t Int = static_cast<FormatFI *>(pArguments)->Int;
-    const std::string String;
+    const uint32_t argCount = stepData.count;
 
     evalStack.emplace_front();
 
-    if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_VALUETYPE)
+    if (BasicTypesAlias.at(argCount) == ELEMENT_TYPE_VALUETYPE)
     {
         return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, nullptr);
     }
-    else if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_STRING)
+    else if (BasicTypesAlias.at(argCount) == ELEMENT_TYPE_STRING)
     {
-        return ed.pEvalHelpers->CreateString(ed.pThread, String, &evalStack.front().trValue);
+        const std::string emptyString;
+        return ed.pEvalHelpers->CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
     }
     else
     {
-        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(Int), nullptr);
+        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(argCount), nullptr);
     }
+        */
+    return E_FAIL; /// TODO
 }
 
-HRESULT AliasQualifiedName(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT MemberBindingExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     assert(evalStack.size() > 1);
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
@@ -1722,16 +1692,10 @@ HRESULT MemberBindingExpression(std::list<EvalStackEntry> &evalStack, void */*pA
     return S_OK;
 }
 
-HRESULT ConditionalExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT SimpleMemberAccessExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
     assert(evalStack.size() > 1);
-    assert(!evalStack.front().trValue);              // Should be unresolved identifier only front element.
+    assert(!evalStack.front().trValue);                // Should be unresolved identifier only front element.
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
 
     std::string identifier = std::move(evalStack.front().identifiers.at(0));
@@ -1754,191 +1718,143 @@ HRESULT SimpleMemberAccessExpression(std::list<EvalStackEntry> &evalStack, void 
     return S_OK;
 }
 
-HRESULT QualifiedName(std::list<EvalStackEntry> &evalStack, void *pArguments, std::string &output, EvalData &ed)
+HRESULT QualifiedName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    return SimpleMemberAccessExpression(evalStack, pArguments, output, ed);
+    return SimpleMemberAccessExpression(stepData, evalStack, output, ed);
 }
 
-HRESULT PointerMemberAccessExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT CastExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT AsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT AddExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT AddExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::AddExpression, evalStack, output, ed);
 }
 
-HRESULT MultiplyExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT MultiplyExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::MultiplyExpression, evalStack, output, ed);
 }
 
-HRESULT SubtractExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT SubtractExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::SubtractExpression, evalStack, output, ed);
 }
 
-HRESULT DivideExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT DivideExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::DivideExpression, evalStack, output, ed);
 }
 
-HRESULT ModuloExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT ModuloExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::ModuloExpression, evalStack, output, ed);
 }
 
-HRESULT LeftShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LeftShiftExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LeftShiftExpression, evalStack, output, ed);
 }
 
-HRESULT RightShiftExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT RightShiftExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::RightShiftExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseAndExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::BitwiseAndExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::BitwiseOrExpression, evalStack, output, ed);
 }
 
-HRESULT ExclusiveOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT ExclusiveOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalAndExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalAndExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LogicalAndExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalOrExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LogicalOrExpression, evalStack, output, ed);
 }
 
-HRESULT EqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT EqualsExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::EqualsExpression, evalStack, output, ed);
 }
 
-HRESULT NotEqualsExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT NotEqualsExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::NotEqualsExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT GreaterThanExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::GreaterThanExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LessThanExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LessThanExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT GreaterThanOrEqualExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanOrEqualExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LessThanOrEqualExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT IsExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT UnaryPlusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT UnaryPlusExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::UnaryPlusExpression, evalStack, output, ed);
 }
 
-HRESULT UnaryMinusExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT UnaryMinusExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::UnaryMinusExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT LogicalNotExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::LogicalNotExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseNotExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT BitwiseNotExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::BitwiseNotExpression, evalStack, output, ed);
 }
 
-HRESULT TrueLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT TrueLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, true);
 }
 
-HRESULT FalseLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT FalseLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, false);
 }
 
-HRESULT NullLiteralExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &ed)
+HRESULT NullLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateNullValue(ed.pThread, &evalStack.front().trValue);
 }
 
-HRESULT PreIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT PostIncrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT PreDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT PostDecrementExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT SizeOfExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     assert(!evalStack.empty());
     HRESULT Status = S_OK;
@@ -1997,13 +1913,7 @@ HRESULT SizeOfExpression(std::list<EvalStackEntry> &evalStack, void */*pArgument
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_U4, szPtr);
 }
 
-HRESULT TypeOfExpression(std::list<EvalStackEntry> &/*evalStack*/, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
-{
-    // TODO uint32_t Flags = static_cast<FormatF *>(pArguments)->Flags;
-    return E_NOTIMPL;
-}
-
-HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &output, EvalData &ed)
+HRESULT CoalesceExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trRealValueRightOp;
@@ -2020,14 +1930,14 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, void */*pArgume
     IfFailRet(GetFrontStackEntryValue(&trLeftOpValue, nullptr, evalStack, ed, output));
     IfFailRet(GetRealValueWithType(trLeftOpValue, &trRealValueLeftOp, &elemTypeLeftOp));
     std::string typeNameLeft;
-    std::string typeNameRigth;
+    std::string typeNameRight;
 
     // TODO add implementation for object type ?? other
     if ((elemTypeRightOp == ELEMENT_TYPE_STRING && elemTypeLeftOp == ELEMENT_TYPE_STRING) ||
         ((elemTypeRightOp == ELEMENT_TYPE_CLASS && elemTypeLeftOp == ELEMENT_TYPE_CLASS) &&
          SUCCEEDED(TypePrinter::NameForTypeByValue(trRealValueLeftOp, typeNameLeft)) &&
-         SUCCEEDED(TypePrinter::NameForTypeByValue(trRealValueRightOp, typeNameRigth)) &&
-         typeNameLeft == typeNameRigth))
+         SUCCEEDED(TypePrinter::NameForTypeByValue(trRealValueRightOp, typeNameRight)) &&
+         typeNameLeft == typeNameRight))
     {
         ToRelease<ICorDebugReferenceValue> trRefValue;
         IfFailRet(trLeftOpValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trRefValue)));
@@ -2041,7 +1951,7 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, void */*pArgume
         }
         return S_OK;
     }
-    // TODO add proccesing for parent-child class relationship
+    // TODO add processing for parent-child class relationship
     std::string typeName1;
     std::string typeName2;
     IfFailRet(TypePrinter::GetTypeOfValue(trRealValueLeftOp, typeName1));
@@ -2050,7 +1960,7 @@ HRESULT CoalesceExpression(std::list<EvalStackEntry> &evalStack, void */*pArgume
     return E_INVALIDARG;
 }
 
-HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ThisExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
     evalStack.emplace_front();
     evalStack.front().identifiers.emplace_back("this");
@@ -2063,59 +1973,47 @@ HRESULT ThisExpression(std::list<EvalStackEntry> &evalStack, void */*pArguments*
 HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                               std::list<EvalStackEntry> &evalStack, std::string &output)
 {
-    static const std::vector<std::function<HRESULT(std::list<EvalStackEntry> &, void *, std::string &, EvalData &)>> CommandImplementation = {
-        IdentifierName,
-        GenericName,
-        InvocationExpression,
-        ObjectCreationExpression,
-        ElementAccessExpression,
-        ElementBindingExpression,
-        NumericLiteralExpression,
-        StringLiteralExpression,
-        CharacterLiteralExpression,
-        PredefinedType,
-        QualifiedName,
-        AliasQualifiedName,
-        MemberBindingExpression,
-        ConditionalExpression,
-        SimpleMemberAccessExpression,
-        PointerMemberAccessExpression,
-        CastExpression,
-        AsExpression,
-        AddExpression,
-        MultiplyExpression,
-        SubtractExpression,
-        DivideExpression,
-        ModuloExpression,
-        LeftShiftExpression,
-        RightShiftExpression,
-        BitwiseAndExpression,
-        BitwiseOrExpression,
-        ExclusiveOrExpression,
-        LogicalAndExpression,
-        LogicalOrExpression,
-        EqualsExpression,
-        NotEqualsExpression,
-        GreaterThanExpression,
-        LessThanExpression,
-        GreaterThanOrEqualExpression,
-        LessThanOrEqualExpression,
-        IsExpression,
-        UnaryPlusExpression,
-        UnaryMinusExpression,
-        LogicalNotExpression,
-        BitwiseNotExpression,
-        TrueLiteralExpression,
-        FalseLiteralExpression,
-        NullLiteralExpression,
-        PreIncrementExpression,
-        PostIncrementExpression,
-        PreDecrementExpression,
-        PostDecrementExpression,
-        SizeOfExpression,
-        TypeOfExpression,
-        CoalesceExpression,
-        ThisExpression
+    static const std::unordered_map<SyntaxKind, std::function<HRESULT(const ExecutionStepData &, std::list<EvalStackEntry> &, std::string &, EvalData &)>> CommandImplementation = {
+        {SyntaxKind::IdentifierName, IdentifierName},
+        {SyntaxKind::GenericName, GenericName},
+        {SyntaxKind::InvocationExpression, InvocationExpression},
+        {SyntaxKind::ElementAccessExpression, ElementAccessExpression},
+        {SyntaxKind::ElementBindingExpression, ElementBindingExpression},
+        {SyntaxKind::NumericLiteralExpression, NumericLiteralExpression},
+        {SyntaxKind::StringLiteralExpression, StringLiteralExpression},
+        {SyntaxKind::CharacterLiteralExpression, CharacterLiteralExpression},
+        {SyntaxKind::PredefinedType, PredefinedType},
+        {SyntaxKind::QualifiedName, QualifiedName},
+        {SyntaxKind::MemberBindingExpression, MemberBindingExpression},
+        {SyntaxKind::SimpleMemberAccessExpression, SimpleMemberAccessExpression},
+        {SyntaxKind::AddExpression, AddExpression},
+        {SyntaxKind::MultiplyExpression, MultiplyExpression},
+        {SyntaxKind::SubtractExpression, SubtractExpression},
+        {SyntaxKind::DivideExpression, DivideExpression},
+        {SyntaxKind::ModuloExpression, ModuloExpression},
+        {SyntaxKind::LeftShiftExpression, LeftShiftExpression},
+        {SyntaxKind::RightShiftExpression, RightShiftExpression},
+        {SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
+        {SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
+        {SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},
+        {SyntaxKind::LogicalAndExpression, LogicalAndExpression},
+        {SyntaxKind::LogicalOrExpression, LogicalOrExpression},
+        {SyntaxKind::EqualsExpression, EqualsExpression},
+        {SyntaxKind::NotEqualsExpression, NotEqualsExpression},
+        {SyntaxKind::GreaterThanExpression, GreaterThanExpression},
+        {SyntaxKind::LessThanExpression, LessThanExpression},
+        {SyntaxKind::GreaterThanOrEqualExpression, GreaterThanOrEqualExpression},
+        {SyntaxKind::LessThanOrEqualExpression, LessThanOrEqualExpression},
+        {SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},
+        {SyntaxKind::UnaryMinusExpression, UnaryMinusExpression},
+        {SyntaxKind::LogicalNotExpression, LogicalNotExpression},
+        {SyntaxKind::BitwiseNotExpression, BitwiseNotExpression},
+        {SyntaxKind::TrueLiteralExpression, TrueLiteralExpression},
+        {SyntaxKind::FalseLiteralExpression, FalseLiteralExpression},
+        {SyntaxKind::NullLiteralExpression, NullLiteralExpression},
+        {SyntaxKind::SizeOfExpression, SizeOfExpression},
+        {SyntaxKind::CoalesceExpression, CoalesceExpression},
+        {SyntaxKind::ThisExpression, ThisExpression}
     };
 
     // Note, internal variables start with "$" and must be replaced before CSharp syntax analyzer.
@@ -2124,26 +2022,27 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     ReplaceInternalNames(fixed_expression);
 
     HRESULT Status = S_OK;
-    void *pStackProgram = nullptr;
-    IfFailRet(Interop::GenerateStackMachineProgram(fixed_expression, &pStackProgram, output));
-
-    static constexpr int32_t ProgramInProgress = 0;
-    static constexpr int32_t ProgramFinished = -1;
-    int32_t Command = ProgramInProgress;
-    void *pArguments = nullptr;
+    std::list<ExecutionStepData> stackProgram;
+    IfFailRet(GenerateStackMachineProgram(fixed_expression, stackProgram, output));
 
     m_evalData.pThread = pThread;
     m_evalData.frameLevel = frameLevel;
 
-    do
+    for (const auto &executionStep : stackProgram)
     {
-        if (FAILED(Status = Interop::NextStackCommand(pStackProgram, Command, &pArguments, output)) ||
-            Command == ProgramFinished ||
-            FAILED(Status = CommandImplementation.at(Command)(evalStack, pArguments, output, m_evalData)))
+        auto findStep = CommandImplementation.find(executionStep.kind);
+        if (findStep == CommandImplementation.end())
+        {
+            output = "Invalid syntax kind.";
+            Status = E_INVALIDARG;
+            break;
+        }
+
+        if (FAILED(Status = findStep->second(executionStep, evalStack, output, m_evalData)))
         {
             break;
         }
-    } while (true);
+    }
 
     switch (Status)
     {
@@ -2177,7 +2076,6 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         break;
     }
 
-    Interop::ReleaseStackMachineProgram(pStackProgram);
     return Status;
 }
 

@@ -255,9 +255,6 @@ Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate 
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
 Interop::GetAsyncMethodSteppingInfoDelegate Interop::getAsyncMethodSteppingInfoDelegate = nullptr;
 Interop::GetLocalConstantsDelegate Interop::getLocalConstantsDelegate = nullptr;
-Interop::GenerateStackMachineProgramDelegate Interop::generateStackMachineProgramDelegate = nullptr;
-Interop::ReleaseStackMachineProgramDelegate Interop::releaseStackMachineProgramDelegate = nullptr;
-Interop::NextStackCommandDelegate Interop::nextStackCommandDelegate = nullptr;
 Interop::StringToUpperDelegate Interop::stringToUpperDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
 Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
@@ -427,9 +424,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "GenerateStackMachineProgram", reinterpret_cast<void **>(&generateStackMachineProgramDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "ReleaseStackMachineProgram", reinterpret_cast<void **>(&releaseStackMachineProgramDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "NextStackCommand", reinterpret_cast<void **>(&nextStackCommandDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
@@ -451,9 +445,6 @@ void Interop::Init(const std::string &coreClrPath)
                                     (resolveBreakPointsDelegate != nullptr) &&
                                     (getAsyncMethodSteppingInfoDelegate != nullptr) &&
                                     (getLocalConstantsDelegate != nullptr) &&
-                                    (generateStackMachineProgramDelegate != nullptr) &&
-                                    (releaseStackMachineProgramDelegate != nullptr) &&
-                                    (nextStackCommandDelegate != nullptr) &&
                                     (stringToUpperDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
@@ -706,63 +697,6 @@ HRESULT Interop::GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef method
     }
 
     return S_OK;
-}
-
-HRESULT Interop::GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if ((generateStackMachineProgramDelegate == nullptr) || (ppStackProgram == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    textOutput = "";
-    BSTR wTextOutput = nullptr;
-    const HRESULT Status = generateStackMachineProgramDelegate(to_utf16(expr).c_str(), ppStackProgram, &wTextOutput);
-    read_lock.unlock();
-
-    if (wTextOutput != nullptr)
-    {
-        textOutput = to_utf8(wTextOutput);
-        SysFreeString(wTextOutput);
-    }
-
-    return Status;
-}
-
-void Interop::ReleaseStackMachineProgram(void *pStackProgram)
-{
-    const ReadLock read_lock(GetCLRrwlock());
-    if ((releaseStackMachineProgramDelegate == nullptr) || (pStackProgram == nullptr))
-    {
-        return;
-    }
-
-    releaseStackMachineProgramDelegate(pStackProgram);
-}
-
-// Note: the managed part will release Ptr unmanaged memory at object finalizer call after ReleaseStackMachineProgram() call.
-// The native part must not release Ptr memory allocated by the managed part.
-HRESULT Interop::NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if ((nextStackCommandDelegate == nullptr) || (pStackProgram == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    textOutput = "";
-    BSTR wTextOutput = nullptr;
-    const HRESULT Status = nextStackCommandDelegate(pStackProgram, &Command, Ptr, &wTextOutput);
-    read_lock.unlock();
-
-    if (wTextOutput != nullptr)
-    {
-        textOutput = to_utf8(wTextOutput);
-        SysFreeString(wTextOutput);
-    }
-
-    return Status;
 }
 
 void *Interop::AllocString(const std::string &str)

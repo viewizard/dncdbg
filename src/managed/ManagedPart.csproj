@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Compile Include="Evaluation.cs" />
-    <Compile Include="StackMachine.cs" />
     <Compile Include="SymbolReader.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
@@ -22,8 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="[4.7,)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="[4.5,)" />
+    <PackageReference Include="System.Reflection.Metadata" Version="[6.0.0,)" />
   </ItemGroup>
 
 </Project>
-

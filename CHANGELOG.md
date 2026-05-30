@@ -27,6 +27,7 @@ Upcoming changes compared to previous version.
 - Optimized boolean/primitive value handling with size assertions.
 - Updated diagnostics source version to 10.0.721401.
 - Simplified decimal type parsing in print code.
+- Replaced managed Roslyn parser with native tree-sitter implementation.
 
 #### Removed
 - Removed unused code.

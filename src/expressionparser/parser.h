@@ -68,30 +68,30 @@ enum class SyntaxKind : uint8_t
     ThisExpression
 };
 
-struct ExecutionStep
+struct ExecutionStepData
 {
     SyntaxKind kind;
     std::string str;
     uint32_t count{0};
 
-    ExecutionStep(SyntaxKind kind_)
+    ExecutionStepData(SyntaxKind kind_)
         : kind(kind_)
     {
     }
 
-    ExecutionStep(SyntaxKind kind_, std::string str_)
+    ExecutionStepData(SyntaxKind kind_, std::string str_)
         : kind(kind_),
           str(std::move(str_))
     {
     }
 
-    ExecutionStep(SyntaxKind kind_, uint32_t count_)
+    ExecutionStepData(SyntaxKind kind_, uint32_t count_)
         : kind(kind_),
           count(count_)
     {
     }
 
-    ExecutionStep(SyntaxKind kind_, std::string str_, uint32_t count_)
+    ExecutionStepData(SyntaxKind kind_, std::string str_, uint32_t count_)
         : kind(kind_),
           str(std::move(str_)),
           count(count_)
@@ -99,7 +99,7 @@ struct ExecutionStep
     }
 };
 
-HRESULT GenerateStackMachineProgram(const std::string &expression, std::list<ExecutionStep> &stackProgram, std::string &output);
+HRESULT GenerateStackMachineProgram(const std::string &expression, std::list<ExecutionStepData> &stackProgram, std::string &output);
 
 } // namespace dncdbg
 

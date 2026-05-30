@@ -211,9 +211,6 @@ class Interop
                                      void **data, int32_t &constantCount);
     static HRESULT Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
                                int32_t &resultType, void **data, std::string &errorText);
-    static HRESULT GenerateStackMachineProgram(const std::string &expr, void **ppStackProgram, std::string &textOutput);
-    static void ReleaseStackMachineProgram(void *pStackProgram);
-    static HRESULT NextStackCommand(void *pStackProgram, int32_t &Command, void **Ptr, std::string &textOutput);
     static void *AllocString(const std::string &str);
     static HRESULT StringToUpper(std::string &String);
     static BSTR SysAllocStringLen(int32_t size);
@@ -255,9 +252,6 @@ class Interop
     using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
     using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
     using CalculationDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, void **, BSTR *);
-    using GenerateStackMachineProgramDelegate = int (*)(const WCHAR *, void **, BSTR *);
-    using ReleaseStackMachineProgramDelegate = void (*)(void *);
-    using NextStackCommandDelegate = int (*)(void *, int32_t *, void **, BSTR *);
     using StringToUpperDelegate = RetCode (*)(const WCHAR *, BSTR *);
     using CoTaskMemFreeDelegate = void (*)(void *);
     using SysAllocStringLenDelegate = void *(*)(int32_t);
@@ -274,9 +268,6 @@ class Interop
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
     static GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate;
     static GetLocalConstantsDelegate getLocalConstantsDelegate;
-    static GenerateStackMachineProgramDelegate generateStackMachineProgramDelegate;
-    static ReleaseStackMachineProgramDelegate releaseStackMachineProgramDelegate;
-    static NextStackCommandDelegate nextStackCommandDelegate;
     static StringToUpperDelegate stringToUpperDelegate;
     static CoTaskMemFreeDelegate coTaskMemFreeDelegate;
     static SysAllocStringLenDelegate sysAllocStringLenDelegate;

@@ -159,15 +159,4 @@ add_custom_command(OUTPUT ${DOTNET_BUILD_RESULT}
 )
 
 add_custom_target(managedpart_dll ALL DEPENDS ${DOTNET_BUILD_RESULT})
-
-# Copy dlls
-set(ROSLYN_DLLS
-    Microsoft.CodeAnalysis.dll
-    Microsoft.CodeAnalysis.CSharp.dll)
-
-set(DLLS_TO_DEPLOY ${DOTNET_BUILD_RESULT})
-foreach(ITEM ${ROSLYN_DLLS})
-    list(APPEND DLLS_TO_DEPLOY "${CMAKE_CURRENT_BINARY_DIR}/${ITEM}")
-endforeach()
-
-install(FILES ${DLLS_TO_DEPLOY} DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(FILES ${DOTNET_BUILD_RESULT} DESTINATION ${CMAKE_INSTALL_PREFIX})
