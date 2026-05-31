@@ -127,14 +127,26 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     // Roslyn: StringLiteralExpression
     if (type == "string_literal" || type == "verbatim_string_literal")
     {
-        program.emplace_back(SyntaxKind::StringLiteralExpression, std::string(rawText));
+        std::string_view str = GetNodeText(node, source);
+        if (str.size() >= 2 && str.front() == '"' && str.back() == '"')
+        {
+            str.remove_prefix(1);
+            str.remove_suffix(1);
+        }
+        program.emplace_back(SyntaxKind::StringLiteralExpression, std::string(str));
         return S_OK;
     }
 
     // Roslyn: CharacterLiteralExpression
     if (type == "character_literal")
     {
-        program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(rawText));
+        std::string_view ch = GetNodeText(node, source);
+        if (ch.size() >= 2 && ch.front() == '\'' && ch.back() == '\'')
+        {
+            ch.remove_prefix(1);
+            ch.remove_suffix(1);
+        }
+        program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(ch));
         return S_OK;
     }
 
@@ -200,7 +212,8 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     if (type == "member_binding_expression")
     {
         const TSNode name = ts_node_named_child(node, 0);
-        program.emplace_back(SyntaxKind::MemberBindingExpression, std::string(GetNodeText(name, source)));
+        IfFailRet(GenerateExecutionSteps(name, source, program, output));
+        program.emplace_back(SyntaxKind::MemberBindingExpression);
         return S_OK;
     }
 
@@ -649,12 +662,18 @@ HRESULT GenerateProgram(const std::string &expression, std::list<Opcode> &progra
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_c_sharp());
 
+    // Trim trailing whitespace from the input expression.
+    std::string trimmedExpression = expression;
+    trimmedExpression.erase(std::find_if(trimmedExpression.rbegin(), trimmedExpression.rend(), 
+                                         [](unsigned char ch) { return !std::isspace(ch); }).base(),
+                            trimmedExpression.end());
+
     static const std::string prefix = "class W{void M(){_ = ";
     static const std::string suffix = ";}}";
-    const std::string fullSource = prefix + expression + suffix;
+    const std::string fullSource = prefix + trimmedExpression + suffix;
 
     const auto startByte = static_cast<uint32_t>(prefix.length());
-    const uint32_t endByte = startByte + static_cast<uint32_t>(expression.length());
+    const uint32_t endByte = startByte + static_cast<uint32_t>(trimmedExpression.length());
 
     TSTree *tree = ts_parser_parse_string(parser, nullptr, fullSource.c_str(), static_cast<uint32_t>(fullSource.length()));
     const TSNode rootNode = ts_tree_root_node(tree);

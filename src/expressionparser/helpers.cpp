@@ -5,7 +5,6 @@
 #include "expressionparser/helpers.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
-#include <algorithm>
 #include <clocale>
 #include <cstring>
 #include <limits>
@@ -25,6 +24,11 @@ struct DotNetDecimal
     uint32_t lo = 0;
     uint32_t mid = 0;
 };
+constexpr uint8_t bitShift32 = 32;
+constexpr uint32_t decimalBase = 10;
+constexpr int maxDecimalScale = 28;
+constexpr uint8_t scaleShiftBits = 16;
+constexpr uint8_t signShiftBits = 31;
 
 // Multiplies a 96-bit integer (lo, mid, hi) by a short uint32_t multiplier (base 10)
 bool multiply96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t multiplier)
@@ -33,15 +37,15 @@ bool multiply96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t multiplier)
 
     carry = static_cast<uint64_t>(lo) * multiplier;
     lo = static_cast<uint32_t>(carry);
-    carry >>= 32;
+    carry >>= bitShift32;
 
     carry += static_cast<uint64_t>(mid) * multiplier;
     mid = static_cast<uint32_t>(carry);
-    carry >>= 32;
+    carry >>= bitShift32;
 
     carry += static_cast<uint64_t>(hi) * multiplier;
     hi = static_cast<uint32_t>(carry);
-    carry >>= 32;
+    carry >>= bitShift32;
 
     return carry == 0; // Returns false if overflow occurred (> 96 bits)
 }
@@ -53,11 +57,11 @@ void add96(uint32_t& lo, uint32_t& mid, uint32_t& hi, uint32_t value)
 
     carry += lo;
     lo = static_cast<uint32_t>(carry);
-    carry >>= 32;
+    carry >>= bitShift32;
 
     carry += mid;
     mid = static_cast<uint32_t>(carry);
-    carry >>= 32;
+    carry >>= bitShift32;
 
     carry += hi;
     hi = static_cast<uint32_t>(carry);
@@ -97,14 +101,16 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
 
     auto [isNegative, numericPart] = parseSign(strView);
 
-    uint32_t lo = 0, mid = 0, hi = 0;
+    uint32_t hi = 0;
+    uint32_t mid = 0;
+    uint32_t lo = 0;
     int scale = 0;
     std::optional<size_t> dotIndex = std::nullopt;
     bool hasDigits = false;
 
     for (size_t i = 0; i < numericPart.length(); ++i)
     {
-        char ch = numericPart[i];
+        const char ch = numericPart.at(i);
 
         if (ch == '.' || ch == ',')
         {
@@ -120,9 +126,9 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
         if (ch >= '0' && ch <= '9')
         {
             hasDigits = true;
-            uint32_t digit = static_cast<uint32_t>(ch - '0');
+            const auto digit = static_cast<uint32_t>(ch - '0');
 
-            if (!multiply96(lo, mid, hi, 10))
+            if (!multiply96(lo, mid, hi, decimalBase))
             {
                 output = "Conversion error: value is too large for .NET Decimal (96-bit mantissa overflow).";
                 return E_INVALIDARG;
@@ -146,7 +152,7 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
         output = "Conversion error: no digits found.";
         return E_INVALIDARG;
     }
-    if (scale > 28)
+    if (scale > maxDecimalScale)
     {
         output = "Conversion error: scale cannot exceed 28 in .NET Decimal.";
         return E_INVALIDARG;
@@ -154,10 +160,10 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
 
     // Construct the 32-bit flags field
     uint32_t flags = 0;
-    flags |= (static_cast<uint32_t>(scale) << 16);
+    flags |= (static_cast<uint32_t>(scale) << scaleShiftBits);
     if (isNegative)
     {
-        flags |= (1U << 31);
+        flags |= (1U << signShiftBits);
     }
 
     DotNetDecimal dec{ flags, hi, lo, mid };
@@ -268,10 +274,10 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 {
     HRESULT Status = S_OK;
 
-    if (upperText.size() >= 3)
+    if (upperText.size() >= 2)
     {
-        const std::string_view last3 = std::string_view(upperText).substr(upperText.size() - 3);
-        if (last3 == "UL" || last3 == "LU")
+        const std::string_view last2 = std::string_view(upperText).substr(upperText.size() - 2);
+        if (last2 == "UL" || last2 == "LU")
         {
             type = ELEMENT_TYPE_U8;
             data.resize(sizeof(uint64_t), 0);

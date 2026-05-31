@@ -1586,14 +1586,19 @@ HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStac
     return ed.pEvalHelpers->CreateString(ed.pThread, argString, &evalStack.front().trValue);
 }
 
-HRESULT CharacterLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
-{/*
-    void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
+HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+{
+    WSTRING wStr = to_utf16(opcode.str);
+    if (wStr.empty() || wStr.size() > 1)
+    {
+        output = "Failed to parse character.";
+        return E_INVALIDARG;
+    }
+
+    WCHAR value = wStr.at(0);
     evalStack.emplace_front();
     evalStack.front().literal = true;
-    return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_CHAR, Ptr);
-*/
-    return E_FAIL; /// TODO
+    return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_CHAR, &value);
 }
 
 HRESULT PredefinedType(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
