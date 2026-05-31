@@ -6,6 +6,10 @@
 #define EXPRESSIONPARSER_HELPERS_H
 
 #include <cor.h>
+#ifdef FEATURE_PAL
+#include <specstrings_undef.h>
+#endif
+
 #include <string>
 #include <vector>
 

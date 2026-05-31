@@ -4,6 +4,7 @@
 
 #include "expressionparser/parser.h"
 #include "utils/torelease.h"
+#include <algorithm>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
 
