@@ -15,6 +15,8 @@ namespace dncdbg::Parser
 HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &type,
                                     std::vector<uint8_t> &data, std::string &output);
 
+HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &type, std::string &output);
+
 } // namespace dncdbg::Parser
 
 #endif // EXPRESSIONPARSER_HELPERS_H

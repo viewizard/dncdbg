@@ -10,6 +10,7 @@
 #include <limits>
 #include <optional>
 #include <tuple>
+#include <unordered_map>
 
 namespace dncdbg::Parser
 {
@@ -434,6 +435,38 @@ HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, C
     }
     // 2. Handle Integer Literals (Check suffixes from longest to shortest)
     return DetermineIntegerLiteralTypeAndData(upperText, type, data, output);
+}
+
+HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &type, std::string &output)
+{
+    static const std::unordered_map<std::string, CorElementType> predefinedTypeMap{
+        {"bool", ELEMENT_TYPE_BOOLEAN},
+        {"byte", ELEMENT_TYPE_U1},
+        {"char", ELEMENT_TYPE_CHAR},
+        {"decimal", ELEMENT_TYPE_VALUETYPE},
+        {"double", ELEMENT_TYPE_R8},
+        {"float", ELEMENT_TYPE_R4},
+        {"int", ELEMENT_TYPE_I4},
+        {"long", ELEMENT_TYPE_I8},
+        {"object", ELEMENT_TYPE_MAX},
+        {"sbyte", ELEMENT_TYPE_I1},
+        {"short", ELEMENT_TYPE_I2},
+        {"string", ELEMENT_TYPE_STRING},
+        {"ushort", ELEMENT_TYPE_U2},
+        {"uint", ELEMENT_TYPE_U4},
+        {"ulong", ELEMENT_TYPE_U8}
+    };
+
+    auto find = predefinedTypeMap.find(typeName);
+    if (find == predefinedTypeMap.end())
+    {
+        output = "Unknown predefined type: " + typeName;
+        return E_INVALIDARG;
+    }
+
+    type = find->second;
+
+    return S_OK;
 }
 
 } // namespace dncdbg::Parser

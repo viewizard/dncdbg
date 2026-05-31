@@ -1601,46 +1601,27 @@ HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalS
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_CHAR, &value);
 }
 
-HRESULT PredefinedType(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    /*
-    static constexpr std::array<CorElementType, 15> BasicTypesAlias{
-        ELEMENT_TYPE_BOOLEAN,   // Boolean
-        ELEMENT_TYPE_U1,        // Byte
-        ELEMENT_TYPE_CHAR,      // Char
-        ELEMENT_TYPE_VALUETYPE, // Decimal
-        ELEMENT_TYPE_R8,        // Double
-        ELEMENT_TYPE_R4,        // Float
-        ELEMENT_TYPE_I4,        // Int
-        ELEMENT_TYPE_I8,        // Long
-        ELEMENT_TYPE_MAX,       // Object
-        ELEMENT_TYPE_I1,        // SByte
-        ELEMENT_TYPE_I2,        // Short
-        ELEMENT_TYPE_STRING,    // String
-        ELEMENT_TYPE_U2,        // UShort
-        ELEMENT_TYPE_U4,        // UInt
-        ELEMENT_TYPE_U8         // ULong
-    };
-
-    const uint32_t argCount = opcode.count;
+    HRESULT Status = S_OK;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(Parser::ParsePredefinedType(opcode.str, elemType, output));
 
     evalStack.emplace_front();
 
-    if (BasicTypesAlias.at(argCount) == ELEMENT_TYPE_VALUETYPE)
+    if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
         return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, nullptr);
     }
-    else if (BasicTypesAlias.at(argCount) == ELEMENT_TYPE_STRING)
+    else if (elemType == ELEMENT_TYPE_STRING)
     {
         const std::string emptyString;
         return ed.pEvalHelpers->CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
     }
     else
     {
-        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(argCount), nullptr);
+        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, elemType, nullptr);
     }
-        */
-    return E_FAIL; /// TODO
 }
 
 HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
