@@ -42,6 +42,7 @@ set(dncdbg_SRC
     debuginfo/debuginfo_sources.cpp
     debuginfo/debuginfo.cpp
     debuginfo/sourcefilemap.cpp
+    expressionparser/helpers.cpp
     expressionparser/parser.cpp
     managed/interop.cpp
     metadata/attributes.cpp

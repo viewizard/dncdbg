@@ -25,151 +25,7 @@ std::string_view GetNodeText(TSNode node, const std::string &source)
     const uint32_t end = ts_node_end_byte(node);
     return std::string_view(source).substr(start, end - start);
 }
-/*
-// Helper to determine the exact Roslyn/C# type of a numeric literal
-int32_t DetermineNumericType(std::string_view text, std::string_view node_type)
-{
-    if (text.empty())
-    {
-        return ELEMENT_TYPE_I4;
-    }
 
-    // Convert to uppercase for uniform suffix checking
-    std::string upper_text;
-    upper_text.reserve(text.size());
-    for (const char c : text)
-    {
-        upper_text.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
-    }
-
-    // 1. Handle Real Literals (Floating point)
-    if (node_type == "real_literal")
-    {
-        if (upper_text.back() == 'F')
-        {
-            return ELEMENT_TYPE_R4; // float
-        }
-        if (upper_text.back() == 'M')
-        {
-            return ELEMENT_TYPE_VALUETYPE; // decimal
-        }
-        return ELEMENT_TYPE_R8; // double (default for real literals)
-    }
-
-    // 2. Handle Integer Literals (Check suffixes from longest to shortest)
-    if (upper_text.size() >= 3)
-    {
-        const std::string_view last3 = std::string_view(upper_text).substr(upper_text.size() - 3);
-        if (last3 == "UL" || last3 == "LU")
-        {
-            return ELEMENT_TYPE_U8; // UInt64
-        }
-    }
-    
-    if (upper_text.size() >= 2)
-    {
-        const std::string_view last2 = std::string_view(upper_text).substr(upper_text.size() - 2);
-        if (last2 == "UL" || last2 == "LU") 
-        {
-            return ELEMENT_TYPE_U8; // UInt64
-        }
-    }
-
-    const char last_char = upper_text.back();
-    if (last_char == 'U') 
-    {
-        return ELEMENT_TYPE_U4; // UInt32
-    }
-    if (last_char == 'L')
-    {
-        return ELEMENT_TYPE_I8; // Int64
-    }
-
-    // 3. Fallback when there is no suffix (C# chooses the narrowest type that fits)
-    try
-    {
-        unsigned long long val = 0;
-
-        if (upper_text.rfind("0X", 0) == 0) 
-        {
-            // Handle Hexadecimal (e.g., 0xFA)
-            static constexpr int baseHex = 16;
-            val = std::stoull(upper_text, nullptr, baseHex);
-            
-            if (val > UINT32_MAX)
-            {
-                return ELEMENT_TYPE_I8; // Fits in long / ulong
-            }
-            if (val > INT32_MAX)
-            {
-                return ELEMENT_TYPE_U4; // Fits in uint
-            }
-            return ELEMENT_TYPE_I4; // Fits in standard int
-        } 
-        else if(upper_text.rfind("0B", 0) == 0)
-        {
-            // Strip the "0B" prefix so std::stoull can parse it as base 2
-            const std::string binary_digits = upper_text.substr(2);
-            val = std::stoull(binary_digits, nullptr, 2);
-            
-            if (val > UINT32_MAX)
-            {
-                return ELEMENT_TYPE_I8; // Int64
-            }
-            if (val > INT32_MAX)
-            {
-                return ELEMENT_TYPE_U4; // UInt32
-            }
-            return ELEMENT_TYPE_I4; // Int32
-        } 
-        else
-        {
-            // Standard decimal number
-            const long long dec_val = std::stoll(upper_text);
-            if (dec_val < INT32_MIN || dec_val > INT32_MAX)
-            {
-                return ELEMENT_TYPE_I8; // Int64
-            }
-            return ELEMENT_TYPE_I4; // Int32
-        }
-    }
-    catch (...)
-    {
-        return ELEMENT_TYPE_I8; // Int64 - Safe fallback for massive integers
-    }
-
-    return ELEMENT_TYPE_I4; // Int32 - Default C# integer type
-}
-
-// Helper to strip C# suffixes (L, U, F, M, etc.) from the numeric string
-std::string CleanNumericText(std::string_view text)
-{
-    if (text.empty())
-    {
-        return "";
-    }
-    
-    std::string clean_str = std::string(text);
-    
-    // Remove underscores if your debugger needs clean numbers (e.g., 1_000 -> 1000)
-    clean_str.erase(std::remove(clean_str.begin(), clean_str.end(), '_'), clean_str.end());
-
-    // Keep popping characters from the end if they are standard C# numeric suffixes
-    while (!clean_str.empty())
-    {
-        const char last = static_cast<char>(std::toupper(static_cast<unsigned char>(clean_str.back())));
-        if (last == 'L' || last == 'U' || last == 'F' || last == 'D' || last == 'M')
-        {
-            clean_str.pop_back();
-        }
-        else
-        {
-            break; // Stop when we hit an actual digit or dot
-        }
-    }
-    return clean_str;
-}
-*/
 HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output)
 {
     if (ts_node_is_null(node) ||
@@ -263,10 +119,8 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     // Roslyn: NumericLiteralExpression
     if (type == "integer_literal" || type == "real_literal")
     {
-        // const int32_t exactType = DetermineNumericType(rawText, type);
-        // const std::string cleanVal  = CleanNumericText(rawText);
-
-        program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText));
+        const uint32_t realLiteral = (type == "real_literal") ? 1 : 0;
+        program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText), realLiteral);
         return S_OK;
     }
 
@@ -323,6 +177,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         const TSNode name = ts_node_child(node, 2);
 
         IfFailRet(GenerateExecutionSteps(expr, source, program, output));
+        IfFailRet(GenerateExecutionSteps(name, source, program, output));
 
         // Check what kind of separator is used in the source code
         const std::string_view opText = GetNodeText(op, source);
@@ -330,13 +185,13 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
 
-            // program.emplace_back(SyntaxKind::PointerMemberAccessExpression, std::string(GetNodeText(name, source)));
+            // program.emplace_back(SyntaxKind::PointerMemberAccessExpression);
             output = "Pointer member access expression not implemented.";
             return E_NOTIMPL;
         }
         else
         {
-            program.emplace_back(SyntaxKind::SimpleMemberAccessExpression, std::string(GetNodeText(name, source)));
+            program.emplace_back(SyntaxKind::SimpleMemberAccessExpression);
         }
         return S_OK;
     }
@@ -389,6 +244,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         const TSNode function = ts_node_named_child(node, 0);
         const TSNode argList = ts_node_named_child(node, 1);
         uint32_t argCount = 0;
+        IfFailRet(GenerateExecutionSteps(function, source, program, output));
         if (!ts_node_is_null(argList))
         {
             argCount = ts_node_named_child_count(argList);
@@ -397,7 +253,6 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
                 IfFailRet(GenerateExecutionSteps(ts_node_named_child(argList, i), source, program, output));
             }
         }
-        IfFailRet(GenerateExecutionSteps(function, source, program, output));
         program.emplace_back(SyntaxKind::InvocationExpression, argCount);
         return S_OK;
     }
@@ -408,11 +263,11 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         const TSNode expression = ts_node_named_child(node, 0);
         const TSNode indexList = ts_node_named_child(node, 1);
         const uint32_t argCount = ts_node_named_child_count(indexList);
+        IfFailRet(GenerateExecutionSteps(expression, source, program, output));
         for (uint32_t i = 0; i < argCount; ++i)
         {
             IfFailRet(GenerateExecutionSteps(ts_node_named_child(indexList, i), source, program, output));
         }
-        IfFailRet(GenerateExecutionSteps(expression, source, program, output));
         program.emplace_back(SyntaxKind::ElementAccessExpression, argCount);
         return S_OK;
     }
@@ -517,7 +372,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     if (type == "prefix_unary_expression")
     {
         const TSNode operand = ts_node_named_child(node, 0);
-        const std::string op = std::string(GetNodeText(ts_node_child(node, 0), source));
+        const std::string op = std::string(GetNodeText(ts_node_child(node, 0), source)); // Operator is first child
         IfFailRet(GenerateExecutionSteps(operand, source, program, output));
 
         if (op == "+")

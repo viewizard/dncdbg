@@ -8,6 +8,7 @@
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
 #include "debugger/valueprint.h"
+#include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
 #include "managed/interop.h"
 #include "metadata/typeprinter.h"
@@ -1554,42 +1555,26 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
     return Status;
 }
 
-HRESULT NumericLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
-{/*
-    const uint32_t argCount = opcode.count;
-    //void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
+HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+{
+    const bool argRealLiteral = (opcode.count == 1);
+    const std::string argString = opcode.str;
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    std::vector<uint8_t> data;
 
-    // StackMachine type to CorElementType map.
-    static constexpr std::array<CorElementType, 15> BasicTypesAlias{
-        ELEMENT_TYPE_MAX,       // Boolean - TrueLiteralExpression or FalseLiteralExpression
-        ELEMENT_TYPE_MAX,       // Byte - no literal suffix for byte
-        ELEMENT_TYPE_MAX,       // Char - CharacterLiteralExpression
-        ELEMENT_TYPE_VALUETYPE, // Decimal
-        ELEMENT_TYPE_R8,
-        ELEMENT_TYPE_R4,
-        ELEMENT_TYPE_I4,
-        ELEMENT_TYPE_I8,
-        ELEMENT_TYPE_MAX, // Object
-        ELEMENT_TYPE_MAX, // SByte - no literal suffix for sbyte
-        ELEMENT_TYPE_MAX, // Short - no literal suffix for short
-        ELEMENT_TYPE_MAX, // String - StringLiteralExpression
-        ELEMENT_TYPE_MAX, // UShort - no literal suffix for ushort
-        ELEMENT_TYPE_U4,
-        ELEMENT_TYPE_U8};
+    HRESULT Status = S_OK;
+    IfFailRet(Parser::DetermineNumericTypeAndData(argString, argRealLiteral, elemType, data, output));
 
     evalStack.emplace_front();
     evalStack.front().literal = true;
-    if (BasicTypesAlias.at(Int) == ELEMENT_TYPE_VALUETYPE)
+    if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, Ptr);
+        return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, data.data());
     }
     else
     {
-        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, BasicTypesAlias.at(Int), Ptr);
+        return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, elemType, data.data());
     }
-    */
-
-    return E_FAIL; /// TODO
 }
 
 HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)

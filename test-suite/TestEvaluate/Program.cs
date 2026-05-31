@@ -572,9 +572,9 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "this.int_i", "error:"); // error, Main is a static method that doesn't have "this"
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int_i", "error:"); // error, doesn't have "this" (no object of type "Program" was created)
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "not_declared", "error:"); // error, no such variable
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "array1[]", "error CS1519:"); // error, no such variable
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[]", "error CS1519:"); // error, no such variable
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[,]", "error CS1519:"); // error, no such variable
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "array1[]", "Expression has malformed or incomplete syntax."); // error, no such variable
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[]", "Expression has malformed or incomplete syntax."); // error, no such variable
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[,]", "Expression has malformed or incomplete syntax."); // error, no such variable
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
