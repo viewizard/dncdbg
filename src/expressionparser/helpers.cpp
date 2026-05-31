@@ -191,12 +191,12 @@ HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElement
             float value = std::stof(upperText);
             std::memcpy(data.data(), &value, sizeof(float));
         } 
-        catch (const std::invalid_argument& e)
+        catch (const std::invalid_argument &)
         {
             output = "Conversion error: Invalid argument (not a number).";
             return E_INVALIDARG;
         }
-        catch (const std::out_of_range& e)
+        catch (const std::out_of_range &)
         {
             output = "Conversion error: Value is out of range for a float.";
             return E_INVALIDARG;
@@ -217,12 +217,12 @@ HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElement
             double value = std::stod(upperText);
             std::memcpy(data.data(), &value, sizeof(double));
         } 
-        catch (const std::invalid_argument& e)
+        catch (const std::invalid_argument &)
         {
             output = "Conversion error: Invalid argument (not a number).";
             return E_INVALIDARG;
         }
-        catch (const std::out_of_range& e)
+        catch (const std::out_of_range &)
         {
             output = "Conversion error: Value is out of range for a double.";
             return E_INVALIDARG;
@@ -238,12 +238,12 @@ HRESULT ParseULL(const std::string &upperText, unsigned long long &parsedValue, 
     {
         parsedValue = std::stoull(upperText);
     } 
-    catch (const std::invalid_argument& e)
+    catch (const std::invalid_argument &)
     {
         output = "Conversion error: does not start with a valid number.";
         return E_INVALIDARG;
     } 
-    catch (const std::out_of_range& e)
+    catch (const std::out_of_range &)
     {
         output = "Conversion error: Value is too large.";
         return E_INVALIDARG;
@@ -257,12 +257,12 @@ HRESULT ParseLL(const std::string &upperText, long long &parsedValue, std::strin
     {
         parsedValue = std::stoll(upperText);
     } 
-    catch (const std::invalid_argument& e)
+    catch (const std::invalid_argument &)
     {
         output = "Conversion error: does not start with a valid number.";
         return E_INVALIDARG;
     } 
-    catch (const std::out_of_range& e)
+    catch (const std::out_of_range &)
     {
         output = "Conversion error: Value is too large.";
         return E_INVALIDARG;
