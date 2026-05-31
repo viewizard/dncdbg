@@ -84,9 +84,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         {
             IfFailRet(GenerateExecutionSteps(ts_node_named_child(typeArgs, i), source, program, output));
         }
-
-        IfFailRet(GenerateExecutionSteps(nameNode, source, program, output));
-        program.emplace_back(SyntaxKind::GenericName, count);
+        program.emplace_back(SyntaxKind::GenericName, std::string(GetNodeText(nameNode, source)), count);
         return S_OK;
     }
 
