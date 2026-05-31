@@ -9,9 +9,10 @@
 #include <list>
 #include <string>
 
-namespace dncdbg
+namespace dncdbg::Parser
 {
 
+// Roslyn SyntaxKind
 enum class SyntaxKind : uint8_t
 {
     IdentifierName,
@@ -68,30 +69,30 @@ enum class SyntaxKind : uint8_t
     ThisExpression
 };
 
-struct ExecutionStepData
+struct Opcode
 {
     SyntaxKind kind;
     std::string str;
     uint32_t count{0};
 
-    ExecutionStepData(SyntaxKind kind_)
+    Opcode(SyntaxKind kind_)
         : kind(kind_)
     {
     }
 
-    ExecutionStepData(SyntaxKind kind_, std::string str_)
+    Opcode(SyntaxKind kind_, std::string str_)
         : kind(kind_),
           str(std::move(str_))
     {
     }
 
-    ExecutionStepData(SyntaxKind kind_, uint32_t count_)
+    Opcode(SyntaxKind kind_, uint32_t count_)
         : kind(kind_),
           count(count_)
     {
     }
 
-    ExecutionStepData(SyntaxKind kind_, std::string str_, uint32_t count_)
+    Opcode(SyntaxKind kind_, std::string str_, uint32_t count_)
         : kind(kind_),
           str(std::move(str_)),
           count(count_)
@@ -99,8 +100,8 @@ struct ExecutionStepData
     }
 };
 
-HRESULT GenerateStackMachineProgram(const std::string &expression, std::list<ExecutionStepData> &stackProgram, std::string &output);
+HRESULT GenerateProgram(const std::string &expression, std::list<Opcode> &stackProgram, std::string &output);
 
-} // namespace dncdbg
+} // namespace dncdbg::Parser
 
 #endif // EXPRESSIONPARSER_PARSER_H

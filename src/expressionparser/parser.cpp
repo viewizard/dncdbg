@@ -7,7 +7,7 @@
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
 
-namespace dncdbg
+namespace dncdbg::Parser
 {
 
 namespace
@@ -170,7 +170,7 @@ std::string CleanNumericText(std::string_view text)
     return clean_str;
 }
 */
-HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list<ExecutionStepData> &program, std::string &output)
+HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output)
 {
     if (ts_node_is_null(node) ||
         // Skip zero-width recovery nodes that aren't explicit errors
@@ -789,7 +789,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
 
 } // unnamed namespace
 
-HRESULT GenerateStackMachineProgram(const std::string &expression, std::list<ExecutionStepData> &program, std::string &output)
+HRESULT GenerateProgram(const std::string &expression, std::list<Opcode> &program, std::string &output)
 {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_c_sharp());
@@ -827,4 +827,4 @@ HRESULT GenerateStackMachineProgram(const std::string &expression, std::list<Exe
     return Status;
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::Parser

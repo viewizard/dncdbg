@@ -1077,9 +1077,9 @@ HRESULT CalculateOneOperand(OperationType opType, std::list<EvalStackEntry> &eva
     return Status;
 }
 
-HRESULT IdentifierName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT IdentifierName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
-    std::string argString = stepData.str;
+    std::string argString = opcode.str;
     ReplaceInternalNames(argString, true);
 
     evalStack.emplace_front();
@@ -1088,11 +1088,11 @@ HRESULT IdentifierName(const ExecutionStepData &stepData, std::list<EvalStackEnt
     return S_OK;
 }
 
-HRESULT GenericName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
-    const uint32_t argCount = stepData.count;
-    std::string argString = stepData.str;
+    const uint32_t argCount = opcode.count;
+    std::string argString = opcode.str;
     std::vector<ToRelease<ICorDebugType>> trGenericValues;
     std::string generics = ">";
     trGenericValues.reserve(argCount);
@@ -1126,9 +1126,9 @@ HRESULT GenericName(const ExecutionStepData &stepData, std::list<EvalStackEntry>
     return S_OK;
 }
 
-HRESULT InvocationExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    const uint32_t argCount = stepData.count;
+    const uint32_t argCount = opcode.count;
 
     HRESULT Status = S_OK;
     bool idsEmpty = false;
@@ -1325,14 +1325,14 @@ HRESULT InvocationExpression(const ExecutionStepData &stepData, std::list<EvalSt
     return Status;
 }
 
-HRESULT ElementAccessExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    const uint32_t argCount = stepData.count;
+    const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> trIndexValues(argCount);
 
-    uint32_t tmpArgCount = stepData.count;
+    uint32_t tmpArgCount = opcode.count;
     while (tmpArgCount > 0)
     {
         tmpArgCount--;
@@ -1355,7 +1355,7 @@ HRESULT ElementAccessExpression(const ExecutionStepData &stepData, std::list<Eva
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         std::vector<uint32_t> indexes;
-        uint32_t tmpArgCount = stepData.count;
+        uint32_t tmpArgCount = opcode.count;
         while (tmpArgCount > 0)
         {
             tmpArgCount--;
@@ -1434,9 +1434,9 @@ HRESULT ElementAccessExpression(const ExecutionStepData &stepData, std::list<Eva
     return Status;
 }
 
-HRESULT ElementBindingExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    const uint32_t argCount = stepData.count;
+    const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
 
     std::vector<ToRelease<ICorDebugValue>> trIndexValues(argCount);
@@ -1554,9 +1554,9 @@ HRESULT ElementBindingExpression(const ExecutionStepData &stepData, std::list<Ev
     return Status;
 }
 
-HRESULT NumericLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT NumericLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
 {/*
-    const uint32_t argCount = stepData.count;
+    const uint32_t argCount = opcode.count;
     //void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
 
     // StackMachine type to CorElementType map.
@@ -1592,16 +1592,16 @@ HRESULT NumericLiteralExpression(const ExecutionStepData &/*stepData*/, std::lis
     return E_FAIL; /// TODO
 }
 
-HRESULT StringLiteralExpression(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
-    std::string argString = stepData.str;
+    std::string argString = opcode.str;
     ReplaceInternalNames(argString, true);
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return ed.pEvalHelpers->CreateString(ed.pThread, argString, &evalStack.front().trValue);
 }
 
-HRESULT CharacterLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT CharacterLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
 {/*
     void *Ptr = static_cast<FormatFIP *>(pArguments)->Ptr;
     evalStack.emplace_front();
@@ -1611,7 +1611,7 @@ HRESULT CharacterLiteralExpression(const ExecutionStepData &/*stepData*/, std::l
     return E_FAIL; /// TODO
 }
 
-HRESULT PredefinedType(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT PredefinedType(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &/*evalStack*/, std::string &/*output*/, EvalData &/*ed*/)
 {
     /*
     static constexpr std::array<CorElementType, 15> BasicTypesAlias{
@@ -1632,7 +1632,7 @@ HRESULT PredefinedType(const ExecutionStepData &/*stepData*/, std::list<EvalStac
         ELEMENT_TYPE_U8         // ULong
     };
 
-    const uint32_t argCount = stepData.count;
+    const uint32_t argCount = opcode.count;
 
     evalStack.emplace_front();
 
@@ -1653,7 +1653,7 @@ HRESULT PredefinedType(const ExecutionStepData &/*stepData*/, std::list<EvalStac
     return E_FAIL; /// TODO
 }
 
-HRESULT MemberBindingExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     assert(evalStack.size() > 1);
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
@@ -1692,7 +1692,7 @@ HRESULT MemberBindingExpression(const ExecutionStepData &/*stepData*/, std::list
     return S_OK;
 }
 
-HRESULT SimpleMemberAccessExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
     assert(evalStack.size() > 1);
     assert(!evalStack.front().trValue);                // Should be unresolved identifier only front element.
@@ -1718,143 +1718,143 @@ HRESULT SimpleMemberAccessExpression(const ExecutionStepData &/*stepData*/, std:
     return S_OK;
 }
 
-HRESULT QualifiedName(const ExecutionStepData &stepData, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT QualifiedName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
-    return SimpleMemberAccessExpression(stepData, evalStack, output, ed);
+    return SimpleMemberAccessExpression(opcode, evalStack, output, ed);
 }
 
-HRESULT AddExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT AddExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::AddExpression, evalStack, output, ed);
 }
 
-HRESULT MultiplyExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT MultiplyExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::MultiplyExpression, evalStack, output, ed);
 }
 
-HRESULT SubtractExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT SubtractExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::SubtractExpression, evalStack, output, ed);
 }
 
-HRESULT DivideExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT DivideExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::DivideExpression, evalStack, output, ed);
 }
 
-HRESULT ModuloExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ModuloExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::ModuloExpression, evalStack, output, ed);
 }
 
-HRESULT LeftShiftExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LeftShiftExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LeftShiftExpression, evalStack, output, ed);
 }
 
-HRESULT RightShiftExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT RightShiftExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::RightShiftExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseAndExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT BitwiseAndExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::BitwiseAndExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT BitwiseOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::BitwiseOrExpression, evalStack, output, ed);
 }
 
-HRESULT ExclusiveOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ExclusiveOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalAndExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LogicalAndExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LogicalAndExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalOrExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LogicalOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LogicalOrExpression, evalStack, output, ed);
 }
 
-HRESULT EqualsExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT EqualsExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::EqualsExpression, evalStack, output, ed);
 }
 
-HRESULT NotEqualsExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT NotEqualsExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::NotEqualsExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT GreaterThanExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::GreaterThanExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LessThanExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LessThanExpression, evalStack, output, ed);
 }
 
-HRESULT GreaterThanOrEqualExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT GreaterThanOrEqualExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT LessThanOrEqualExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LessThanOrEqualExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateTwoOperands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
 }
 
-HRESULT UnaryPlusExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT UnaryPlusExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::UnaryPlusExpression, evalStack, output, ed);
 }
 
-HRESULT UnaryMinusExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT UnaryMinusExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::UnaryMinusExpression, evalStack, output, ed);
 }
 
-HRESULT LogicalNotExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT LogicalNotExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::LogicalNotExpression, evalStack, output, ed);
 }
 
-HRESULT BitwiseNotExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT BitwiseNotExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     return CalculateOneOperand(OperationType::BitwiseNotExpression, evalStack, output, ed);
 }
 
-HRESULT TrueLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT TrueLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, true);
 }
 
-HRESULT FalseLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT FalseLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, false);
 }
 
-HRESULT NullLiteralExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT NullLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateNullValue(ed.pThread, &evalStack.front().trValue);
 }
 
-HRESULT SizeOfExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     assert(!evalStack.empty());
     HRESULT Status = S_OK;
@@ -1913,7 +1913,7 @@ HRESULT SizeOfExpression(const ExecutionStepData &/*stepData*/, std::list<EvalSt
     return CreatePrimitiveValue(ed.pThread, &evalStack.front().trValue, ELEMENT_TYPE_U4, szPtr);
 }
 
-HRESULT CoalesceExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trRealValueRightOp;
@@ -1960,7 +1960,7 @@ HRESULT CoalesceExpression(const ExecutionStepData &/*stepData*/, std::list<Eval
     return E_INVALIDARG;
 }
 
-HRESULT ThisExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ThisExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
     evalStack.emplace_front();
     evalStack.front().identifiers.emplace_back("this");
@@ -1973,47 +1973,47 @@ HRESULT ThisExpression(const ExecutionStepData &/*stepData*/, std::list<EvalStac
 HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                               std::list<EvalStackEntry> &evalStack, std::string &output)
 {
-    static const std::unordered_map<SyntaxKind, std::function<HRESULT(const ExecutionStepData &, std::list<EvalStackEntry> &, std::string &, EvalData &)>> CommandImplementation = {
-        {SyntaxKind::IdentifierName, IdentifierName},
-        {SyntaxKind::GenericName, GenericName},
-        {SyntaxKind::InvocationExpression, InvocationExpression},
-        {SyntaxKind::ElementAccessExpression, ElementAccessExpression},
-        {SyntaxKind::ElementBindingExpression, ElementBindingExpression},
-        {SyntaxKind::NumericLiteralExpression, NumericLiteralExpression},
-        {SyntaxKind::StringLiteralExpression, StringLiteralExpression},
-        {SyntaxKind::CharacterLiteralExpression, CharacterLiteralExpression},
-        {SyntaxKind::PredefinedType, PredefinedType},
-        {SyntaxKind::QualifiedName, QualifiedName},
-        {SyntaxKind::MemberBindingExpression, MemberBindingExpression},
-        {SyntaxKind::SimpleMemberAccessExpression, SimpleMemberAccessExpression},
-        {SyntaxKind::AddExpression, AddExpression},
-        {SyntaxKind::MultiplyExpression, MultiplyExpression},
-        {SyntaxKind::SubtractExpression, SubtractExpression},
-        {SyntaxKind::DivideExpression, DivideExpression},
-        {SyntaxKind::ModuloExpression, ModuloExpression},
-        {SyntaxKind::LeftShiftExpression, LeftShiftExpression},
-        {SyntaxKind::RightShiftExpression, RightShiftExpression},
-        {SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
-        {SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
-        {SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},
-        {SyntaxKind::LogicalAndExpression, LogicalAndExpression},
-        {SyntaxKind::LogicalOrExpression, LogicalOrExpression},
-        {SyntaxKind::EqualsExpression, EqualsExpression},
-        {SyntaxKind::NotEqualsExpression, NotEqualsExpression},
-        {SyntaxKind::GreaterThanExpression, GreaterThanExpression},
-        {SyntaxKind::LessThanExpression, LessThanExpression},
-        {SyntaxKind::GreaterThanOrEqualExpression, GreaterThanOrEqualExpression},
-        {SyntaxKind::LessThanOrEqualExpression, LessThanOrEqualExpression},
-        {SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},
-        {SyntaxKind::UnaryMinusExpression, UnaryMinusExpression},
-        {SyntaxKind::LogicalNotExpression, LogicalNotExpression},
-        {SyntaxKind::BitwiseNotExpression, BitwiseNotExpression},
-        {SyntaxKind::TrueLiteralExpression, TrueLiteralExpression},
-        {SyntaxKind::FalseLiteralExpression, FalseLiteralExpression},
-        {SyntaxKind::NullLiteralExpression, NullLiteralExpression},
-        {SyntaxKind::SizeOfExpression, SizeOfExpression},
-        {SyntaxKind::CoalesceExpression, CoalesceExpression},
-        {SyntaxKind::ThisExpression, ThisExpression}
+    static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const Parser::Opcode &, std::list<EvalStackEntry> &, std::string &, EvalData &)>> CommandImplementation = {
+        {Parser::SyntaxKind::IdentifierName, IdentifierName},
+        {Parser::SyntaxKind::GenericName, GenericName},
+        {Parser::SyntaxKind::InvocationExpression, InvocationExpression},
+        {Parser::SyntaxKind::ElementAccessExpression, ElementAccessExpression},
+        {Parser::SyntaxKind::ElementBindingExpression, ElementBindingExpression},
+        {Parser::SyntaxKind::NumericLiteralExpression, NumericLiteralExpression},
+        {Parser::SyntaxKind::StringLiteralExpression, StringLiteralExpression},
+        {Parser::SyntaxKind::CharacterLiteralExpression, CharacterLiteralExpression},
+        {Parser::SyntaxKind::PredefinedType, PredefinedType},
+        {Parser::SyntaxKind::QualifiedName, QualifiedName},
+        {Parser::SyntaxKind::MemberBindingExpression, MemberBindingExpression},
+        {Parser::SyntaxKind::SimpleMemberAccessExpression, SimpleMemberAccessExpression},
+        {Parser::SyntaxKind::AddExpression, AddExpression},
+        {Parser::SyntaxKind::MultiplyExpression, MultiplyExpression},
+        {Parser::SyntaxKind::SubtractExpression, SubtractExpression},
+        {Parser::SyntaxKind::DivideExpression, DivideExpression},
+        {Parser::SyntaxKind::ModuloExpression, ModuloExpression},
+        {Parser::SyntaxKind::LeftShiftExpression, LeftShiftExpression},
+        {Parser::SyntaxKind::RightShiftExpression, RightShiftExpression},
+        {Parser::SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
+        {Parser::SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
+        {Parser::SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},
+        {Parser::SyntaxKind::LogicalAndExpression, LogicalAndExpression},
+        {Parser::SyntaxKind::LogicalOrExpression, LogicalOrExpression},
+        {Parser::SyntaxKind::EqualsExpression, EqualsExpression},
+        {Parser::SyntaxKind::NotEqualsExpression, NotEqualsExpression},
+        {Parser::SyntaxKind::GreaterThanExpression, GreaterThanExpression},
+        {Parser::SyntaxKind::LessThanExpression, LessThanExpression},
+        {Parser::SyntaxKind::GreaterThanOrEqualExpression, GreaterThanOrEqualExpression},
+        {Parser::SyntaxKind::LessThanOrEqualExpression, LessThanOrEqualExpression},
+        {Parser::SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},
+        {Parser::SyntaxKind::UnaryMinusExpression, UnaryMinusExpression},
+        {Parser::SyntaxKind::LogicalNotExpression, LogicalNotExpression},
+        {Parser::SyntaxKind::BitwiseNotExpression, BitwiseNotExpression},
+        {Parser::SyntaxKind::TrueLiteralExpression, TrueLiteralExpression},
+        {Parser::SyntaxKind::FalseLiteralExpression, FalseLiteralExpression},
+        {Parser::SyntaxKind::NullLiteralExpression, NullLiteralExpression},
+        {Parser::SyntaxKind::SizeOfExpression, SizeOfExpression},
+        {Parser::SyntaxKind::CoalesceExpression, CoalesceExpression},
+        {Parser::SyntaxKind::ThisExpression, ThisExpression}
     };
 
     // Note, internal variables start with "$" and must be replaced before CSharp syntax analyzer.
@@ -2022,8 +2022,8 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     ReplaceInternalNames(fixed_expression);
 
     HRESULT Status = S_OK;
-    std::list<ExecutionStepData> stackProgram;
-    IfFailRet(GenerateStackMachineProgram(fixed_expression, stackProgram, output));
+    std::list<Parser::Opcode> stackProgram;
+    IfFailRet(Parser::GenerateProgram(fixed_expression, stackProgram, output));
 
     m_evalData.pThread = pThread;
     m_evalData.frameLevel = frameLevel;
@@ -2051,7 +2051,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     case CORDBG_E_ILLEGAL_IN_STACK_OVERFLOW:
     case CORDBG_E_ILLEGAL_IN_OPTIMIZED_CODE:
     case CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT:
-        output = "This expression causes side effects and will not be evaluated. ";
+        output = "This expression causes side effects and will not be evaluated.";
         LOGE(log << "Eval error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         break;
     case COR_E_TIMEOUT:
