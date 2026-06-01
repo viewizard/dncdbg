@@ -5,6 +5,7 @@
 #include "expressionparser/helpers.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
+#include <algorithm>
 #include <clocale>
 #include <cstring>
 #include <limits>
@@ -288,7 +289,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 
             if (parsedValue > std::numeric_limits<uint64_t>::max())
             {
-                output = "Conversion error: Value is out of range for uint64_t.";
+                output = "Conversion error: Value is out of range for UInt64.";
                 return E_INVALIDARG;
             }
 
@@ -309,7 +310,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 
         if (parsedValue > std::numeric_limits<uint32_t>::max())
         {
-            output = "Conversion error: Value is out of range for uint32_t.";
+            output = "Conversion error: Value is out of range for UInt32.";
             return E_INVALIDARG;
         }
 
@@ -329,7 +330,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
         if (parsedValue > std::numeric_limits<int64_t>::max() ||
             parsedValue < std::numeric_limits<int64_t>::min())
         {
-            output = "Conversion error: Value is out of range for int64_t.";
+            output = "Conversion error: Value is out of range for Int64.";
             return E_INVALIDARG;
         }
 
@@ -337,74 +338,91 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
         std::memcpy(data.data(), &value, sizeof(int64_t));
         return S_OK;
     }
-/*
-    // Fallback when there is no suffix (C# chooses the narrowest type that fits)
-    try
-    {
-        unsigned long long val = 0;
 
-        if (upper_text.rfind("0X", 0) == 0)
+    // Check prefix
+    if (upperText.rfind("0X", 0) == 0 ||
+        upperText.rfind("0B", 0) == 0)
+    {
+        try
         {
-            // Handle Hexadecimal (e.g., 0xFA)
-            static constexpr int baseHex = 16;
-            val = std::stoull(upper_text, nullptr, baseHex);
-            
-            if (val > UINT32_MAX)
+            unsigned long long parsedValue = 0;
+
+            if (upperText.rfind("0X", 0) == 0)
             {
-                return ELEMENT_TYPE_I8; // Fits in long / ulong
+                // Handle Hexadecimal (e.g., 0xFA)
+                static constexpr int baseHex = 16;
+                parsedValue = std::stoull(upperText, nullptr, baseHex);
             }
-            if (val > INT32_MAX)
+            else if (upperText.rfind("0B", 0) == 0)
             {
-                return ELEMENT_TYPE_U4; // Fits in uint
+                // Strip the "0B" prefix so std::stoull can parse it as base 2
+                std::string digits = upperText.substr(2);
+                // Remove all underscores if any
+                digits.erase(std::remove(digits.begin(), digits.end(), '_'), digits.end());
+                parsedValue = std::stoull(digits, nullptr, 2);
             }
-            return ELEMENT_TYPE_I4; // Fits in standard int
+
+            if (parsedValue <= std::numeric_limits<int32_t>::max())
+            {
+                type = ELEMENT_TYPE_I4;
+                data.resize(sizeof(int32_t), 0);
+                auto value = static_cast<int32_t>(parsedValue);
+                std::memcpy(data.data(), &value, sizeof(int32_t));
+                return S_OK;
+            }
+            if (parsedValue <= std::numeric_limits<uint32_t>::max())
+            {
+                type = ELEMENT_TYPE_U4;
+                data.resize(sizeof(uint32_t), 0);
+                auto value = static_cast<uint32_t>(parsedValue);
+                std::memcpy(data.data(), &value, sizeof(uint32_t));
+                return S_OK;
+            }
+            if (parsedValue <= static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
+            {
+                type = ELEMENT_TYPE_I8;
+                data.resize(sizeof(int64_t), 0);
+                auto value = static_cast<int64_t>(parsedValue);
+                std::memcpy(data.data(), &value, sizeof(int64_t));
+                return S_OK;
+            }
+
+            type = ELEMENT_TYPE_U8;
+            data.resize(sizeof(uint64_t), 0);
+            auto value = static_cast<uint64_t>(parsedValue);
+            std::memcpy(data.data(), &value, sizeof(uint64_t));
+            return S_OK;
         }
-        else if(upper_text.rfind("0B", 0) == 0)
+        catch (const std::invalid_argument &)
         {
-            // Strip the "0B" prefix so std::stoull can parse it as base 2
-            const std::string binary_digits = upper_text.substr(2);
-            val = std::stoull(binary_digits, nullptr, 2);
-            
-            if (val > UINT32_MAX)
-            {
-                return ELEMENT_TYPE_I8; // Int64
-            }
-            if (val > INT32_MAX)
-            {
-                return ELEMENT_TYPE_U4; // UInt32
-            }
-            return ELEMENT_TYPE_I4; // Int32
+            output = "Conversion error: does not start with a valid number.";
+            return E_INVALIDARG;
         }
-        else
+        catch (const std::out_of_range &)
         {
-            // Standard decimal number
-            const long long dec_val = std::stoll(upper_text);
-            if (dec_val < INT32_MIN || dec_val > INT32_MAX)
-            {
-                return ELEMENT_TYPE_I8; // Int64
-            }
-            return ELEMENT_TYPE_I4; // Int32
+            output = "Conversion error: Value is too large.";
+            return E_INVALIDARG;
+        }
+        catch (...)
+        {
+            output = "Conversion error: unknown error.";
+            return E_INVALIDARG;
         }
     }
-    catch (...)
-    {
-        return ELEMENT_TYPE_I8; // Int64 - Safe fallback for massive integers
-    }
-*/
-    // Default C# integer type
-    type = ELEMENT_TYPE_I4;
-    data.resize(sizeof(int32_t), 0);
 
+    // Fallback when there is no suffix or prefix
     long long parsedValue = 0;
     IfFailRet(ParseLL(upperText, parsedValue, output));
 
     if (parsedValue > std::numeric_limits<int32_t>::max() ||
         parsedValue < std::numeric_limits<int32_t>::min())
     {
-        output = "Conversion error: Value is out of range for int32_t.";
+        output = "Conversion error: Value is out of range for Int32.";
         return E_INVALIDARG;
     }
 
+    type = ELEMENT_TYPE_I4;
+    data.resize(sizeof(int32_t), 0);
     auto value = static_cast<int32_t>(parsedValue);
     std::memcpy(data.data(), &value, sizeof(int32_t));
     return S_OK;
