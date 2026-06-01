@@ -100,6 +100,11 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         {
             program.emplace_back(SyntaxKind::FalseLiteralExpression);
         }
+        else
+        {
+            output = "Unknown boolean literal expression: " + std::string(rawText);
+            return E_INVALIDARG;
+        }
         return S_OK;
     }
 
@@ -233,7 +238,6 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         if (opText == "->")
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
-
             // program.emplace_back(SyntaxKind::PointerMemberAccessExpression);
             output = "Pointer member access expression not implemented.";
             return E_NOTIMPL;
@@ -398,20 +402,22 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         else if (op == "++")
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
-
             // program.emplace_back(SyntaxKind::PreIncrementExpression);
-
-            output = "Pre increment expression not implemented.";
+            output = "Pre-increment expression not implemented.";
             return E_NOTIMPL;
         }
         else if (op == "--")
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
-
             // program.emplace_back(SyntaxKind::PreDecrementExpression);
-
-            output = "Pre decrement expression not implemented.";
+            output = "Pre-decrement expression not implemented.";
             return E_NOTIMPL;
+        }
+        else
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            output = "Unknown prefix unary expression: " + std::string(rawText);
+            return E_INVALIDARG;
         }
         return S_OK;
     }
@@ -426,22 +432,23 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         if (op == "++")
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
-
             // program.emplace_back(SyntaxKind::PostIncrementExpression);
-
-            output = "Post increment expression not implemented.";
+            output = "Post-increment expression not implemented.";
             return E_NOTIMPL;
         }
         else if (op == "--")
         {
             // TODO implement in evalstackmachine.cpp before uncomment this code
-
             // program.emplace_back(SyntaxKind::PostDecrementExpression);
-
-            output = "Post decrement expression not implemented.";
+            output = "Post-decrement expression not implemented.";
             return E_NOTIMPL;
         }
-        return S_OK;
+        else
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            output = "Unknown postfix unary expression: " + std::string(rawText);
+            return E_INVALIDARG;
+        }
     }
 
     // Roslyn: CastExpression (e.g., (int)a or (Object)this)
@@ -613,30 +620,20 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
 
         // Scan for ref/out modifiers to tell the debugger how to pass the variable descriptor
-        std::string flags = "none";
         for (uint32_t i = 0; i < childCount - 1; ++i)
         {
             const std::string_view txt = GetNodeText(ts_node_child(node, i), source);
-            if (txt == "ref")
+            if (txt == "ref" || txt == "out" || txt == "in")
             {
-                flags = "ref";
+                // TODO implement ref/out/in modifiers
+                output = "ref/out/in modifiers not implemented.";
+                return E_NOTIMPL;
             }
-            if (txt == "out")
+            else
             {
-                flags = "out";
+                output = "Unknown argument modifier: " + std::string(txt);
+                return E_INVALIDARG;
             }
-            if (txt == "in")
-            {
-                flags = "in";
-            }
-        }
-
-        // TODO
-        // "MARK_ARGUMENT_MODIFIER(" + flags + ")"
-        if (flags != "none")
-        {
-            output = "ref/out/in modifiers not implemented.";
-            return E_NOTIMPL;
         }
 
         return S_OK;
