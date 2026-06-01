@@ -5,6 +5,7 @@
 
 #include "metadata/typeprinter.h"
 #include "metadata/sigparse.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <sstream>

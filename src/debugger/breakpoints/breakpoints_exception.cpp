@@ -7,6 +7,7 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include <algorithm>
 #include <functional>
 #include <numeric>

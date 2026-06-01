@@ -7,6 +7,7 @@
 #include "metadata/jmc.h"
 #include "protocol/dapio.h"
 #include "utils/filesystem.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <iomanip>

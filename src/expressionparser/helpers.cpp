@@ -4,7 +4,7 @@
 
 #include "expressionparser/helpers.h"
 #include "utils/logger.h"
-#include "utils/torelease.h"
+#include "utils/hresult.h"
 #include <algorithm>
 #include <clocale>
 #include <cstring>

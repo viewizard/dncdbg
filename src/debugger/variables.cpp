@@ -10,6 +10,7 @@
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include <unordered_set>
 #include <vector>
 

@@ -14,6 +14,7 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "protocol/dapio.h"
+#include "utils/hresult.h"
 #include <algorithm>
 
 namespace dncdbg

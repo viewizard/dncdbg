@@ -11,6 +11,7 @@
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
+#include "utils/hresult.h"
 #include <mutex>
 
 namespace dncdbg

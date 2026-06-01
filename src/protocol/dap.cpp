@@ -8,8 +8,8 @@
 #include "protocol/dapio.h"
 #include "debugger/manageddebugger.h"
 #include "debuginfo/sourcefilemap.h"
+#include "utils/hresult.h"
 #include "utils/logger.h"
-#include "utils/torelease.h"
 #include <algorithm>
 #include <exception>
 #include <future>

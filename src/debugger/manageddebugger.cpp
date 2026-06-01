@@ -24,6 +24,7 @@
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
+#include "utils/hresult.h"
 #include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
 #include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"

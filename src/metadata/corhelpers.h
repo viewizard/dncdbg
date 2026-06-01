@@ -15,7 +15,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "utils/torelease.h"
+#include "utils/hresult.h"
 #include <algorithm>
 #include <cassert>
 

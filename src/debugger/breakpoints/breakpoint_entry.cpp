@@ -8,6 +8,7 @@
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
+#include "utils/hresult.h"
 #include "utils/utf.h"
 #include <fstream>
 #include <string>

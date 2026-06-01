@@ -9,6 +9,7 @@
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
+#include "utils/hresult.h"
 #include <sstream>
 #include <unordered_set>
 

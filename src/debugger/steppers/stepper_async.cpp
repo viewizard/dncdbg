@@ -8,6 +8,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/threads.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <array>

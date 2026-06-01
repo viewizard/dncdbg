@@ -9,6 +9,7 @@
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
+#include "utils/hresult.h"
 #include <cstring>
 #include <vector>
 

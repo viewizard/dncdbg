@@ -6,6 +6,7 @@
 #include "debugger/breakpoints/breakpoint_break.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 
 namespace dncdbg

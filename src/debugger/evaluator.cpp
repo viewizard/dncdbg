@@ -15,6 +15,7 @@
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include "utils/utf.h"
 #include <array>
 #include <cassert>

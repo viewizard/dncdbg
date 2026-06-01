@@ -7,6 +7,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <iterator>

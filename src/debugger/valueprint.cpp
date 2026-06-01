@@ -8,6 +8,7 @@
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>

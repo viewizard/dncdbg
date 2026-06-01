@@ -9,6 +9,7 @@
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
+#include "utils/hresult.h"
 #include "utils/logger.h"
 #include <sstream>
 #include <unordered_set>

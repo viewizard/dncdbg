@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "expressionparser/parser.h"
-#include "utils/torelease.h"
+#include "utils/hresult.h"
 #include <algorithm>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();

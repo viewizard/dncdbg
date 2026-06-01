@@ -6,6 +6,7 @@
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debugger/variables.h"
 #include "metadata/attributes.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 
 namespace dncdbg::BreakpointUtils

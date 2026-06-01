@@ -6,6 +6,7 @@
 #include "debugger/evalutils.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <map>

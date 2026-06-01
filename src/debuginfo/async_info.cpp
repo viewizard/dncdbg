@@ -6,6 +6,7 @@
 #include "debuginfo/async_info.h"
 #include "debuginfo/debuginfo.h"
 #include "managed/interop.h"
+#include "utils/hresult.h"
 
 namespace dncdbg
 {

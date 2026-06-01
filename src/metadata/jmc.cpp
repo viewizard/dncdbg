@@ -5,6 +5,7 @@
 
 #include "metadata/jmc.h"
 #include "metadata/attributes.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <iterator>
 #include <vector>

@@ -13,6 +13,7 @@
 #endif
 
 #include "types/types.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <list>

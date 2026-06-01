@@ -7,6 +7,7 @@
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/sourcefilemap.h"
 #include "utils/filesystem.h"
+#include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
 #include <algorithm>

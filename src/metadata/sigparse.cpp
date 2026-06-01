@@ -6,7 +6,7 @@
 #include "metadata/sigparse.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
-#include "utils/torelease.h"
+#include "utils/hresult.h"
 #include <cassert>
 #include <unordered_map>
 

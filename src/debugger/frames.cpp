@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/frames.h"
+#include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <iterator>
