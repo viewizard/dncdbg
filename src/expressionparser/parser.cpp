@@ -5,6 +5,8 @@
 #include "expressionparser/parser.h"
 #include "utils/hresult.h"
 #include <algorithm>
+#include <cassert>
+#include <unordered_map>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
 
@@ -25,6 +27,25 @@ std::string_view GetNodeText(TSNode node, const std::string &source)
     const uint32_t start = ts_node_start_byte(node);
     const uint32_t end = ts_node_end_byte(node);
     return std::string_view(source).substr(start, end - start);
+}
+
+// Pack 1 or 2 character string into uint16_t for use as map key.
+// First character goes in low byte, second character (if present) in high byte.
+constexpr uint16_t packString(const std::string_view &str)
+{
+    if (str.empty() || str.size() > 2)
+    {
+        assert(false && "String must be 1 or 2 characters only");
+    }
+
+    uint16_t result = static_cast<uint8_t>(str.at(0));
+    if (str.size() == 2)
+    {
+        constexpr uint8_t bitsInByte = 8;
+        result |= (static_cast<uint16_t>(static_cast<uint8_t>(str.at(1))) << bitsInByte);
+    }
+
+    return result;
 }
 
 HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output)
@@ -308,92 +329,46 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     {
         const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
         const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
-        const std::string op = std::string(GetNodeText(ts_node_child(node, 1), source)); // Operator is index 1
+        const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // Operator is index 1
+
+        if (op.empty() || op.size() > 2)
+        {
+            output = "Unknown binary expression: " + std::string(op);
+            return E_INVALIDARG;
+        }
 
         IfFailRet(GenerateExecutionSteps(left, source, program, output));
         IfFailRet(GenerateExecutionSteps(right, source, program, output));
 
-        if (op == "+")
+        static const std::unordered_map<uint16_t, SyntaxKind> opMap{
+            { packString("+"),  SyntaxKind::AddExpression },
+            { packString("-"),  SyntaxKind::SubtractExpression },
+            { packString("*"),  SyntaxKind::MultiplyExpression },
+            { packString("/"),  SyntaxKind::DivideExpression },
+            { packString("%"),  SyntaxKind::ModuloExpression },
+            { packString("<<"), SyntaxKind::LeftShiftExpression },
+            { packString(">>"), SyntaxKind::RightShiftExpression },
+            { packString("&"),  SyntaxKind::BitwiseAndExpression },
+            { packString("|"),  SyntaxKind::BitwiseOrExpression },
+            { packString("^"),  SyntaxKind::ExclusiveOrExpression },
+            { packString("&&"), SyntaxKind::LogicalAndExpression },
+            { packString("||"), SyntaxKind::LogicalOrExpression },
+            { packString("=="), SyntaxKind::EqualsExpression },
+            { packString("!="), SyntaxKind::NotEqualsExpression },
+            { packString(">"),  SyntaxKind::GreaterThanExpression },
+            { packString("<"),  SyntaxKind::LessThanExpression },
+            { packString(">="), SyntaxKind::GreaterThanOrEqualExpression },
+            { packString("<="), SyntaxKind::LessThanOrEqualExpression },
+            { packString("??"), SyntaxKind::CoalesceExpression }
+        };
+
+        const auto findOp = opMap.find(packString(op));
+        if (findOp == opMap.end())
         {
-            program.emplace_back(SyntaxKind::AddExpression);
-        }
-        else if (op == "-")
-        {
-            program.emplace_back(SyntaxKind::SubtractExpression);
-        }
-        else if (op == "*")
-        {
-            program.emplace_back(SyntaxKind::MultiplyExpression);
-        }
-        else if (op == "/")
-        {
-            program.emplace_back(SyntaxKind::DivideExpression);
-        }
-        else if (op == "%")
-        {
-            program.emplace_back(SyntaxKind::ModuloExpression);
-        }
-        else if (op == "<<")
-        {
-            program.emplace_back(SyntaxKind::LeftShiftExpression);
-        }
-        else if (op == ">>")
-        {
-            program.emplace_back(SyntaxKind::RightShiftExpression);
-        }
-        else if (op == "&")
-        {
-            program.emplace_back(SyntaxKind::BitwiseAndExpression);
-        }
-        else if (op == "|")
-        {
-            program.emplace_back(SyntaxKind::BitwiseOrExpression);
-        }
-        else if (op == "^")
-        {
-            program.emplace_back(SyntaxKind::ExclusiveOrExpression);
-        }
-        else if (op == "&&")
-        {
-            program.emplace_back(SyntaxKind::LogicalAndExpression);
-        }
-        else if (op == "||")
-        {
-            program.emplace_back(SyntaxKind::LogicalOrExpression);
-        }
-        else if (op == "==")
-        {
-            program.emplace_back(SyntaxKind::EqualsExpression);
-        }
-        else if (op == "!=")
-        {
-            program.emplace_back(SyntaxKind::NotEqualsExpression);
-        }
-        else if (op == ">")
-        {
-            program.emplace_back(SyntaxKind::GreaterThanExpression);
-        }
-        else if (op == "<")
-        {
-            program.emplace_back(SyntaxKind::LessThanExpression);
-        }
-        else if (op == ">=")
-        {
-            program.emplace_back(SyntaxKind::GreaterThanOrEqualExpression);
-        }
-        else if (op == "<=")
-        {
-            program.emplace_back(SyntaxKind::LessThanOrEqualExpression);
-        }
-        else if (op == "??")
-        {
-            program.emplace_back(SyntaxKind::CoalesceExpression);
-        }
-        else
-        {
-            output = "Unknown binary expression: " + op;
+            output = "Unknown binary expression: " + std::string(op);
             return E_INVALIDARG;
         }
+        program.emplace_back(findOp->second);
         return S_OK;
     }
 
