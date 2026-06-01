@@ -386,12 +386,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         try
                         {
                             remoteConsolePort = std::stoi(findConsolePort->second);
-                        } 
+                        }
                         catch (const std::invalid_argument &ex)
                         {
                             LOGE(log << "DNCDBG_REMOTECONSOLEPORT not a number: " << ex.what());
                             return E_INVALIDARG;
-                        } 
+                        }
                         catch (const std::out_of_range &ex)
                         {
                             LOGE(log << "DNCDBG_REMOTECONSOLEPORT number out of int range: " << ex.what());

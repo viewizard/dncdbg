@@ -190,7 +190,7 @@ HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElement
         {
             float value = std::stof(upperText);
             std::memcpy(data.data(), &value, sizeof(float));
-        } 
+        }
         catch (const std::invalid_argument &)
         {
             output = "Conversion error: Invalid argument (not a number).";
@@ -216,7 +216,7 @@ HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElement
         {
             double value = std::stod(upperText);
             std::memcpy(data.data(), &value, sizeof(double));
-        } 
+        }
         catch (const std::invalid_argument &)
         {
             output = "Conversion error: Invalid argument (not a number).";
@@ -237,12 +237,12 @@ HRESULT ParseULL(const std::string &upperText, unsigned long long &parsedValue, 
     try
     {
         parsedValue = std::stoull(upperText);
-    } 
+    }
     catch (const std::invalid_argument &)
     {
         output = "Conversion error: does not start with a valid number.";
         return E_INVALIDARG;
-    } 
+    }
     catch (const std::out_of_range &)
     {
         output = "Conversion error: Value is too large.";
@@ -256,12 +256,12 @@ HRESULT ParseLL(const std::string &upperText, long long &parsedValue, std::strin
     try
     {
         parsedValue = std::stoll(upperText);
-    } 
+    }
     catch (const std::invalid_argument &)
     {
         output = "Conversion error: does not start with a valid number.";
         return E_INVALIDARG;
-    } 
+    }
     catch (const std::out_of_range &)
     {
         output = "Conversion error: Value is too large.";
@@ -299,7 +299,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
     }
 
     const char lastChar = upperText.back();
-    if (lastChar == 'U') 
+    if (lastChar == 'U')
     {
         type = ELEMENT_TYPE_U4;
         data.resize(sizeof(uint32_t), 0);
@@ -343,7 +343,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
     {
         unsigned long long val = 0;
 
-        if (upper_text.rfind("0X", 0) == 0) 
+        if (upper_text.rfind("0X", 0) == 0)
         {
             // Handle Hexadecimal (e.g., 0xFA)
             static constexpr int baseHex = 16;
@@ -358,7 +358,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
                 return ELEMENT_TYPE_U4; // Fits in uint
             }
             return ELEMENT_TYPE_I4; // Fits in standard int
-        } 
+        }
         else if(upper_text.rfind("0B", 0) == 0)
         {
             // Strip the "0B" prefix so std::stoull can parse it as base 2
@@ -374,7 +374,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
                 return ELEMENT_TYPE_U4; // UInt32
             }
             return ELEMENT_TYPE_I4; // Int32
-        } 
+        }
         else
         {
             // Standard decimal number
