@@ -1232,7 +1232,7 @@ class Context
         }
     }
 
-    public string GetSourceFilesPath()
+    public string? GetSourceFilesPath()
     {
         return ControlInfo.SourceFilesPath;
     }
