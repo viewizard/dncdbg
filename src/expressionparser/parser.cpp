@@ -38,39 +38,54 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
 
     HRESULT Status = S_OK;
     const std::string_view type = ts_node_type(node);
-    const std::string_view rawText = GetNodeText(node, source);
 
     // Roslyn: NullLiteralExpression
-    if (rawText == "null")
+    if (type == "null_literal")
     {
         program.emplace_back(SyntaxKind::NullLiteralExpression);
         return S_OK;
     }
 
     // Roslyn: ThisExpression
-    if (rawText == "this")
+    if (type == "this")
     {
         program.emplace_back(SyntaxKind::ThisExpression);
         return S_OK;
     }
 
-    // Roslyn: TrueLiteralExpression
-    if (rawText == "true")
+    // Roslyn: TrueLiteralExpression (one word expression: "true")
+    if (type == "true")
     {
         program.emplace_back(SyntaxKind::TrueLiteralExpression);
         return S_OK;
     }
 
-    // Roslyn: FalseLiteralExpression
-    if (rawText == "false")
+    // Roslyn: FalseLiteralExpression (one word expression: "false")
+    if (type == "false")
     {
         program.emplace_back(SyntaxKind::FalseLiteralExpression);
+        return S_OK;
+    }
+
+    // Roslyn: TrueLiteralExpression and FalseLiteralExpression (complex expression)
+    if (type == "boolean_literal")
+    {
+        const std::string_view rawText = GetNodeText(node, source);
+        if (rawText == "true")
+        {
+            program.emplace_back(SyntaxKind::TrueLiteralExpression);
+        }
+        else if (rawText == "false")
+        {
+            program.emplace_back(SyntaxKind::FalseLiteralExpression);
+        }
         return S_OK;
     }
 
     // Roslyn: IdentifierName
     if (type == "identifier")
     {
+        const std::string_view rawText = GetNodeText(node, source);
         program.emplace_back(SyntaxKind::IdentifierName, std::string(rawText));
         return S_OK;
     }
@@ -119,6 +134,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     if (type == "integer_literal" || type == "real_literal")
     {
         const uint32_t realLiteral = (type == "real_literal") ? 1 : 0;
+        const std::string_view rawText = GetNodeText(node, source);
         program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText), realLiteral);
         return S_OK;
     }
@@ -152,6 +168,7 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
     // Roslyn: PredefinedType (e.g., int, string, void)
     if (type == "predefined_type")
     {
+        const std::string_view rawText = GetNodeText(node, source);
         program.emplace_back(SyntaxKind::PredefinedType, std::string(rawText));
         return S_OK;
     }
@@ -650,7 +667,8 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         return S_OK;
     }
 
-    output = "Failed parse type: '" + std::string(type) + "' expression: '" + std::string(rawText) + "'";
+    const std::string_view rawText = GetNodeText(node, source);
+    output = "Failed parse node type: '" + std::string(type) + "' expression: '" + std::string(rawText) + "'";
     return E_INVALIDARG;
 }
 
