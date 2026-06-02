@@ -5,9 +5,12 @@
 #include "expressionparser/parser.h"
 #include <algorithm>
 #include <cassert>
+#include <exception>
 #include <functional>
+#include <new>
 #include <stack>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
@@ -159,7 +162,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             const std::string nameText(GetNodeText(nameNode, source));
 
             // Push in reverse: first the post-action, then children (last-to-first).
-            workStack.emplace(EmitAction{[nameText, count](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
+            workStack.emplace(EmitAction{[nameText, count](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT // NOLINT(bugprone-exception-escape) handled by try-catch in code below
             {
                 prog.emplace_back(SyntaxKind::GenericName, nameText, count);
                 return S_OK;
@@ -860,7 +863,27 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
         if (auto *emit = std::get_if<EmitAction>(&item))
         {
             // Execute deferred opcode emission.
-            const HRESULT hr = emit->action(program, output);
+            HRESULT hr = S_OK;
+            try
+            {
+                hr = emit->action(program, output);
+            }
+            catch (const std::bad_alloc &)
+            {
+                output = "Failed to allocate memory while generating expression program.";
+                return E_OUTOFMEMORY;
+            }
+            catch (const std::exception &ex)
+            {
+                output = "Unhandled exception while generating expression program: " + std::string(ex.what());
+                return E_FAIL;
+            }
+            catch (...)
+            {
+                output = "Unknown exception while generating expression program.";
+                return E_FAIL;
+            }
+
             if (FAILED(hr))
             {
                 return hr;
@@ -884,7 +907,27 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
         const auto findHandler = syntaxKindHandlerMap.find(type);
         if (findHandler != syntaxKindHandlerMap.end())
         {
-            const HRESULT hr = findHandler->second(node, source, program, output, workStack);
+            HRESULT hr = S_OK;
+            try
+            {
+                hr = findHandler->second(node, source, program, output, workStack);
+            }
+            catch (const std::bad_alloc &)
+            {
+                output = "Failed to allocate memory while parsing expression node.";
+                return E_OUTOFMEMORY;
+            }
+            catch (const std::exception &ex)
+            {
+                output = "Unhandled exception while parsing expression node: " + std::string(ex.what());
+                return E_FAIL;
+            }
+            catch (...)
+            {
+                output = "Unknown exception while parsing expression node.";
+                return E_FAIL;
+            }
+
             if (FAILED(hr))
             {
                 return hr;
