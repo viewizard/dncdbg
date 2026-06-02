@@ -6,6 +6,7 @@
 #include "utils/hresult.h"
 #include <algorithm>
 #include <cassert>
+#include <functional>
 #include <unordered_map>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
@@ -50,123 +51,7 @@ constexpr uint16_t packString(const std::string_view &str)
 
 HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output)
 {
-    if (ts_node_is_null(node) ||
-        // Skip zero-width recovery nodes that aren't explicit errors
-        ts_node_start_byte(node) == ts_node_end_byte(node))
-    {
-        return S_OK;
-    }
-
-    HRESULT Status = S_OK;
-    const std::string_view type = ts_node_type(node);
-
-    // Roslyn: NullLiteralExpression
-    if (type == "null_literal")
-    {
-        program.emplace_back(SyntaxKind::NullLiteralExpression);
-        return S_OK;
-    }
-
-    // Roslyn: ThisExpression
-    if (type == "this")
-    {
-        program.emplace_back(SyntaxKind::ThisExpression);
-        return S_OK;
-    }
-
-    // Roslyn: TrueLiteralExpression (one word expression: "true")
-    if (type == "true")
-    {
-        program.emplace_back(SyntaxKind::TrueLiteralExpression);
-        return S_OK;
-    }
-
-    // Roslyn: FalseLiteralExpression (one word expression: "false")
-    if (type == "false")
-    {
-        program.emplace_back(SyntaxKind::FalseLiteralExpression);
-        return S_OK;
-    }
-
-    // Roslyn: TrueLiteralExpression and FalseLiteralExpression (complex expression)
-    if (type == "boolean_literal")
-    {
-        const std::string_view rawText = GetNodeText(node, source);
-        if (rawText == "true")
-        {
-            program.emplace_back(SyntaxKind::TrueLiteralExpression);
-        }
-        else if (rawText == "false")
-        {
-            program.emplace_back(SyntaxKind::FalseLiteralExpression);
-        }
-        else
-        {
-            output = "Unknown boolean literal expression: " + std::string(rawText);
-            return E_INVALIDARG;
-        }
-        return S_OK;
-    }
-
-    // Roslyn: IdentifierName
-    if (type == "identifier")
-    {
-        const std::string_view rawText = GetNodeText(node, source);
-        program.emplace_back(SyntaxKind::IdentifierName, std::string(rawText));
-        return S_OK;
-    }
-
-    // Roslyn: GenericName (e.g., List<int>)
-    if (type == "generic_name")
-    {
-        const TSNode nameNode = ts_node_named_child(node, 0);
-        const TSNode typeArgs = ts_node_named_child(node, 1);
-        const uint32_t count = ts_node_named_child_count(typeArgs);
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            IfFailRet(GenerateExecutionSteps(ts_node_named_child(typeArgs, i), source, program, output));
-        }
-        program.emplace_back(SyntaxKind::GenericName, std::string(GetNodeText(nameNode, source)), count);
-        return S_OK;
-    }
-
-    // Roslyn: QualifiedName (e.g., System.Collections)
-    if (type == "qualified_name")
-    {
-        const TSNode left = ts_node_named_child(node, 0);
-        const TSNode right = ts_node_named_child(node, 1);
-        IfFailRet(GenerateExecutionSteps(left, source, program, output));
-        IfFailRet(GenerateExecutionSteps(right, source, program, output));
-        program.emplace_back(SyntaxKind::QualifiedName);
-        return S_OK;
-    }
-
-    // Roslyn: AliasQualifiedName (e.g., global::System)
-    if (type == "alias_qualified_name")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // TSNode alias = ts_node_named_child(node, 0);
-        // TSNode name = ts_node_named_child(node, 1);
-        // "PUSH_ALIAS(" + std::string(GetNodeText(alias, source)) + ")"
-        // generate_execution_steps(name, source, steps);
-        // "RESOLVE_ALIAS_NAME"
-
-        output = "Alias qualified name not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: NumericLiteralExpression
-    if (type == "integer_literal" || type == "real_literal")
-    {
-        const uint32_t realLiteral = (type == "real_literal") ? 1 : 0;
-        const std::string_view rawText = GetNodeText(node, source);
-        program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText), realLiteral);
-        return S_OK;
-    }
-
-    // Roslyn: StringLiteralExpression
-    if (type == "string_literal" || type == "verbatim_string_literal")
+    auto StringLiteralKindParser = [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
     {
         std::string_view str = GetNodeText(node, source);
         if (str.size() >= 2 && str.front() == '"' && str.back() == '"')
@@ -176,467 +61,654 @@ HRESULT GenerateExecutionSteps(TSNode node, const std::string &source, std::list
         }
         program.emplace_back(SyntaxKind::StringLiteralExpression, std::string(str));
         return S_OK;
-    }
+    };
 
-    // Roslyn: CharacterLiteralExpression
-    if (type == "character_literal")
-    {
-        std::string_view ch = GetNodeText(node, source);
-        if (ch.size() >= 2 && ch.front() == '\'' && ch.back() == '\'')
+    using SyntaxKindParser = std::function<HRESULT(TSNode, const std::string &, std::list<Opcode> &, std::string &)>;
+    static const std::unordered_map<std::string_view, SyntaxKindParser> syntaxKindParserMap{
+    // Roslyn: NullLiteralExpression
+    {"null_literal",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
         {
-            ch.remove_prefix(1);
-            ch.remove_suffix(1);
+            program.emplace_back(SyntaxKind::NullLiteralExpression);
+            return S_OK;
         }
-        program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(ch));
-        return S_OK;
-    }
-
-    // Roslyn: PredefinedType (e.g., int, string, void)
-    if (type == "predefined_type")
-    {
-        const std::string_view rawText = GetNodeText(node, source);
-        program.emplace_back(SyntaxKind::PredefinedType, std::string(rawText));
-        return S_OK;
-    }
-
-    // Roslyn: ObjectCreationExpression (e.g., new Foo())
-    if (type == "object_creation_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // const TSNode typeNode = ts_node_named_child(node, 0);
-        // const TSNode argList = ts_node_named_child(node, 1);
-        // uint32_t argCount = 0;
-        // if (!ts_node_is_null(argList) && std::string_view(ts_node_type(argList)) == "argument_list")
-        // {
-        //     argCount = ts_node_named_child_count(argList);
-        //     for (uint32_t i = 0; i < argCount; ++i)
-        //     {
-        //         IfFailRet(GenerateExecutionSteps(ts_node_named_child(argList, i), source, program, output));
-        //     }
-        // }
-        // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        // program.emplace_back(SyntaxKind::ObjectCreationExpression, argCount);
-        // return S_OK;
-
-        output = "Object creation expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: SimpleMemberAccessExpression (a.b) AND PointerMemberAccessExpression (a->b)
-    if (type == "member_access_expression")
-    {
-        const TSNode expr = ts_node_child(node, 0);
-        const TSNode op = ts_node_child(node, 1); // The operator token (. or ->)
-        const TSNode name = ts_node_child(node, 2);
-
-        IfFailRet(GenerateExecutionSteps(expr, source, program, output));
-        IfFailRet(GenerateExecutionSteps(name, source, program, output));
-
-        // Check what kind of separator is used in the source code
-        const std::string_view opText = GetNodeText(op, source);
-        if (opText == "->")
+    },
+    // Roslyn: ThisExpression
+    {"this",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
         {
-            // TODO implement in evalstackmachine.cpp before uncomment this code
-            // program.emplace_back(SyntaxKind::PointerMemberAccessExpression);
-            output = "Pointer member access expression not implemented.";
-            return E_NOTIMPL;
+            program.emplace_back(SyntaxKind::ThisExpression);
+            return S_OK;
         }
-        else
+    },
+    // Roslyn: TrueLiteralExpression (one word expression: "true")
+    {"true",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
         {
-            program.emplace_back(SyntaxKind::SimpleMemberAccessExpression);
+            program.emplace_back(SyntaxKind::TrueLiteralExpression);
+            return S_OK;
         }
-        return S_OK;
-    }
-
-    // Roslyn: MemberBindingExpression
-    if (type == "member_binding_expression")
-    {
-        const TSNode name = ts_node_named_child(node, 0);
-        IfFailRet(GenerateExecutionSteps(name, source, program, output));
-        program.emplace_back(SyntaxKind::MemberBindingExpression);
-        return S_OK;
-    }
-
-    // Roslyn: ElementBindingExpression
-    if (type == "element_binding_expression")
-    {
-        const TSNode indexList = ts_node_named_child(node, 0);
-        const uint32_t argCount = ts_node_named_child_count(indexList);
-        for (uint32_t i = 0; i < argCount; ++i)
+    },
+    // Roslyn: FalseLiteralExpression (one word expression: "false")
+    {"false",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
         {
-            IfFailRet(GenerateExecutionSteps(ts_node_named_child(indexList, i), source, program, output));
+            program.emplace_back(SyntaxKind::FalseLiteralExpression);
+            return S_OK;
         }
-        program.emplace_back(SyntaxKind::ElementBindingExpression, argCount);
-        return S_OK;
-    }
-
-    // Roslyn: ConditionalAccessExpression (e.g., user?.Name or array?[0])
-    if (type == "conditional_access_expression")
-    {
-        // In Tree-sitter C#, conditional_access_expression always has exactly 3 children:
-        // child 0: The base expression (e.g., 'user' or 'array')
-        // child 1: The operator token ('?.' or '?[')
-        // child 2: The binding expression (member_binding_expression or element_binding_expression)
-        const TSNode baseExpr = ts_node_child(node, 0);
-        const TSNode binding = ts_node_child(node, 2);
-
-        // 1. Evaluate the base object first
-        IfFailRet(GenerateExecutionSteps(baseExpr, source, program, output));
-
-        // FIXME: Binding now works with null check all the time. Emit the conditional jump or
-        //        provide as marker in MemberBindingExpression and ElementBindingExpression.
-
-        // 2. Evaluate the binding (e.g., fetching the member or the element)
-        IfFailRet(GenerateExecutionSteps(binding, source, program, output));
-        return S_OK;
-    }
-
-    // Roslyn: InvocationExpression (e.g., Method())
-    if (type == "invocation_expression")
-    {
-        const TSNode function = ts_node_named_child(node, 0);
-        const TSNode argList = ts_node_named_child(node, 1);
-        uint32_t argCount = 0;
-        IfFailRet(GenerateExecutionSteps(function, source, program, output));
-        if (!ts_node_is_null(argList))
+    },
+    // Roslyn: TrueLiteralExpression and FalseLiteralExpression (complex expression)
+    {"boolean_literal",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
         {
-            argCount = ts_node_named_child_count(argList);
-            for (uint32_t i = 0; i < argCount; ++i)
+            const std::string_view rawText = GetNodeText(node, source);
+            if (rawText == "true")
             {
-                IfFailRet(GenerateExecutionSteps(ts_node_named_child(argList, i), source, program, output));
+                program.emplace_back(SyntaxKind::TrueLiteralExpression);
             }
-        }
-        program.emplace_back(SyntaxKind::InvocationExpression, argCount);
-        return S_OK;
-    }
-
-    // Roslyn: ElementAccessExpression (e.g., array[index])
-    if (type == "element_access_expression")
-    {
-        const TSNode expression = ts_node_named_child(node, 0);
-        const TSNode indexList = ts_node_named_child(node, 1);
-        const uint32_t argCount = ts_node_named_child_count(indexList);
-        IfFailRet(GenerateExecutionSteps(expression, source, program, output));
-        for (uint32_t i = 0; i < argCount; ++i)
-        {
-            IfFailRet(GenerateExecutionSteps(ts_node_named_child(indexList, i), source, program, output));
-        }
-        program.emplace_back(SyntaxKind::ElementAccessExpression, argCount);
-        return S_OK;
-    }
-
-    // Roslyn Binary Group: Handles Add, Multiply, Subtract, Divide, Modulo, LeftShift, RightShift,
-    // BitwiseAnd, BitwiseOr, ExclusiveOr, LogicalAnd, LogicalOr, Equals, NotEquals,
-    // GreaterThan, LessThan, GreaterThanOrEqual, LessThanOrEqual, Coalesce Expressions.
-    if (type == "binary_expression")
-    {
-        const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
-        const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
-        const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // Operator is index 1
-
-        if (op.empty() || op.size() > 2)
-        {
-            output = "Unknown binary expression: " + std::string(op);
-            return E_INVALIDARG;
-        }
-
-        IfFailRet(GenerateExecutionSteps(left, source, program, output));
-        IfFailRet(GenerateExecutionSteps(right, source, program, output));
-
-        static const std::unordered_map<uint16_t, SyntaxKind> opMap{
-            { packString("+"),  SyntaxKind::AddExpression },
-            { packString("-"),  SyntaxKind::SubtractExpression },
-            { packString("*"),  SyntaxKind::MultiplyExpression },
-            { packString("/"),  SyntaxKind::DivideExpression },
-            { packString("%"),  SyntaxKind::ModuloExpression },
-            { packString("<<"), SyntaxKind::LeftShiftExpression },
-            { packString(">>"), SyntaxKind::RightShiftExpression },
-            { packString("&"),  SyntaxKind::BitwiseAndExpression },
-            { packString("|"),  SyntaxKind::BitwiseOrExpression },
-            { packString("^"),  SyntaxKind::ExclusiveOrExpression },
-            { packString("&&"), SyntaxKind::LogicalAndExpression },
-            { packString("||"), SyntaxKind::LogicalOrExpression },
-            { packString("=="), SyntaxKind::EqualsExpression },
-            { packString("!="), SyntaxKind::NotEqualsExpression },
-            { packString(">"),  SyntaxKind::GreaterThanExpression },
-            { packString("<"),  SyntaxKind::LessThanExpression },
-            { packString(">="), SyntaxKind::GreaterThanOrEqualExpression },
-            { packString("<="), SyntaxKind::LessThanOrEqualExpression },
-            { packString("??"), SyntaxKind::CoalesceExpression }
-        };
-
-        const auto findOp = opMap.find(packString(op));
-        if (findOp == opMap.end())
-        {
-            output = "Unknown binary expression: " + std::string(op);
-            return E_INVALIDARG;
-        }
-        program.emplace_back(findOp->second);
-        return S_OK;
-    }
-
-    // Roslyn Unary Group: UnaryPlus, UnaryMinus, LogicalNot, BitwiseNot, PreIncrement, PreDecrement
-    if (type == "prefix_unary_expression")
-    {
-        const TSNode operand = ts_node_named_child(node, 0);
-        const std::string op = std::string(GetNodeText(ts_node_child(node, 0), source)); // Operator is first child
-        IfFailRet(GenerateExecutionSteps(operand, source, program, output));
-
-        if (op == "+")
-        {
-            program.emplace_back(SyntaxKind::UnaryPlusExpression);
-        }
-        else if (op == "-")
-        {
-            program.emplace_back(SyntaxKind::UnaryMinusExpression);
-        }
-        else if (op == "!")
-        {
-            program.emplace_back(SyntaxKind::LogicalNotExpression);
-        }
-        else if (op == "~")
-        {
-            program.emplace_back(SyntaxKind::BitwiseNotExpression);
-        }
-        else if (op == "++")
-        {
-            // TODO implement in evalstackmachine.cpp before uncomment this code
-            // program.emplace_back(SyntaxKind::PreIncrementExpression);
-            output = "Pre-increment expression not implemented.";
-            return E_NOTIMPL;
-        }
-        else if (op == "--")
-        {
-            // TODO implement in evalstackmachine.cpp before uncomment this code
-            // program.emplace_back(SyntaxKind::PreDecrementExpression);
-            output = "Pre-decrement expression not implemented.";
-            return E_NOTIMPL;
-        }
-        else
-        {
-            const std::string_view rawText = GetNodeText(node, source);
-            output = "Unknown prefix unary expression: " + std::string(rawText);
-            return E_INVALIDARG;
-        }
-        return S_OK;
-    }
-
-    // Roslyn Unary Group: PostIncrement, PostDecrement
-    if (type == "postfix_unary_expression")
-    {
-        const TSNode operand = ts_node_named_child(node, 0);
-        const std::string op = std::string(GetNodeText(ts_node_child(node, 1), source));
-        IfFailRet(GenerateExecutionSteps(operand, source, program, output));
-
-        if (op == "++")
-        {
-            // TODO implement in evalstackmachine.cpp before uncomment this code
-            // program.emplace_back(SyntaxKind::PostIncrementExpression);
-            output = "Post-increment expression not implemented.";
-            return E_NOTIMPL;
-        }
-        else if (op == "--")
-        {
-            // TODO implement in evalstackmachine.cpp before uncomment this code
-            // program.emplace_back(SyntaxKind::PostDecrementExpression);
-            output = "Post-decrement expression not implemented.";
-            return E_NOTIMPL;
-        }
-        else
-        {
-            const std::string_view rawText = GetNodeText(node, source);
-            output = "Unknown postfix unary expression: " + std::string(rawText);
-            return E_INVALIDARG;
-        }
-    }
-
-    // Roslyn: CastExpression (e.g., (int)a or (Object)this)
-    if (type == "cast_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // In Tree-sitter C#, cast_expression structure:
-        // child 0: "("
-        // child 1: type node
-        // child 2: ")"
-        // child 3: target expression node (can be anonymous)
-        // const TSNode typeNode = ts_node_child(node, 1);
-        // const TSNode exprNode = ts_node_child(node, 3);
-
-        // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
-        // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        // program.emplace_back(SyntaxKind::CastExpression);
-        // return S_OK;
-
-        output = "Cast expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: AsExpression (e.g., a as Foo or this as Foo)
-    if (type == "as_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // child 0: left expression node (can be anonymous)
-        // child 1: "as" keyword
-        // child 2: type node
-        // const TSNode exprNode = ts_node_child(node, 0);
-        // const TSNode typeNode = ts_node_child(node, 2);
-
-        // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
-        // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        // program.emplace_back(SyntaxKind::AsExpression);
-        // return S_OK;
-
-        output = "AS expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: IsExpression (e.g., a is Foo or null is Foo)
-    if (type == "is_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // child 0: left expression node (can be anonymous)
-        // child 1: "is" keyword
-        // child 2: type or pattern node
-        // const TSNode exprNode = ts_node_child(node, 0);
-        // const TSNode typeNode = ts_node_child(node, 2);
-
-        // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
-        // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        // program.emplace_back(SyntaxKind::IsExpression);
-        // return S_OK;
-
-        output = "IS expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: SizeOfExpression (e.g., sizeof(int))
-    if (type == "sizeof_expression")
-    {
-        const TSNode typeNode = ts_node_named_child(node, 0);
-        IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        program.emplace_back(SyntaxKind::SizeOfExpression);
-        return S_OK;
-    }
-
-    // Roslyn: TypeOfExpression (e.g., typeof(List<int>))
-    if (type == "typeof_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // child 0: "typeof", child 1: "(", child 2: type node, child 3: ")"
-        // const TSNode typeNode = ts_node_child(node, 2);
-        // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
-        // program.emplace_back(SyntaxKind::TypeOfExpression);
-        // return S_OK;
-
-        output = "TypeOf expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: ConditionalExpression (e.g., a ? b : c)
-    if (type == "conditional_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // In Tree-sitter C#, a conditional expression has exactly 5 children:
-        // index 0: condition node
-        // index 1: "?" token
-        // index 2: true branch node (can be anonymous like null or this)
-        // index 3: ":" token
-        // index 4: false branch node (can be anonymous like null or this)
-        // const TSNode condition = ts_node_child(node, 0);
-        // const TSNode conTrue = ts_node_child(node, 2);
-        // const TSNode conFalse = ts_node_child(node, 4);
-
-        // IfFailRet(GenerateExecutionSteps(condition, source, program, output));
-        // "JUMP_IF_FALSE_TO_ELSE"
-        // IfFailRet(GenerateExecutionSteps(conTrue, source, program, output));
-        // "JUMP_TO_END"
-        // IfFailRet(GenerateExecutionSteps(conFalse, source, program, output));
-        // "MARK_END"
-        // return S_OK;
-
-        output = "Conditional expression not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: CheckedExpression AND UncheckedExpression (e.g., checked(a + b) or unchecked(x * y))
-    if (type == "checked_expression")
-    {
-        // TODO implement in evalstackmachine.cpp before uncomment this code
-
-        // In Tree-sitter C#, checked_expression has exactly 4 children:
-        // child 0: "checked" or "unchecked" keyword token
-        // child 1: "(" token
-        // child 2: the inner expression node being guarded
-        // child 3: ")" token
-        // const TSNode keywordNode = ts_node_child(node, 0);
-        // const TSNode innerExpr = ts_node_child(node, 2);
-
-        // const std::string_view keyword = GetNodeText(keywordNode, source);
-
-        // if (keyword == "checked")
-        // {
-        //     // "SET_ARITHMETIC_CHECKED(true)"
-        //     IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
-        //     // "RESTORE_ARITHMETIC_CHECKED"
-        // }
-        // else
-        // {
-        //     // "SET_ARITHMETIC_CHECKED(false)"
-        //     IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
-        //     // "RESTORE_ARITHMETIC_CHECKED"
-        // }
-        // return S_OK;
-
-        output = "Checked and Unchecked expressions not implemented.";
-        return E_NOTIMPL;
-    }
-
-    // Roslyn: ParenthesizedExpression (e.g., "(a + b)")
-    if (type == "parenthesized_expression")
-    {
-        // child 0: "("
-        // child 1: core inner expression node
-        // child 2: ")"
-        const TSNode innerExpr = ts_node_child(node, 1);
-
-        // Just drill straight into the parenthesized code.
-        // The tree shape guarantees mathematical ordering automatically.
-        IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
-        return S_OK;
-    }
-
-    // Roslyn: Argument (Wraps modifiers like 'ref', 'out', 'in' or named args like 'x:')
-    if (type == "argument")
-    {
-        const uint32_t childCount = ts_node_child_count(node);
-        const TSNode exprNode = ts_node_child(node, childCount - 1); // The core value expression is always last
-
-        IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
-
-        // Scan for ref/out modifiers to tell the debugger how to pass the variable descriptor
-        for (uint32_t i = 0; i < childCount - 1; ++i)
-        {
-            const std::string_view txt = GetNodeText(ts_node_child(node, i), source);
-            if (txt == "ref" || txt == "out" || txt == "in")
+            else if (rawText == "false")
             {
-                // TODO implement ref/out/in modifiers
-                output = "ref/out/in modifiers not implemented.";
+                program.emplace_back(SyntaxKind::FalseLiteralExpression);
+            }
+            else
+            {
+                output = "Unknown boolean literal expression: " + std::string(rawText);
+                return E_INVALIDARG;
+            }
+            return S_OK;
+        }
+    },
+    // Roslyn: IdentifierName
+    {"identifier",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            program.emplace_back(SyntaxKind::IdentifierName, std::string(rawText));
+            return S_OK;
+        }
+    },
+    // Roslyn: GenericName (e.g., List<int>)
+    {"generic_name",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode nameNode = ts_node_named_child(node, 0);
+            const TSNode typeArgs = ts_node_named_child(node, 1);
+            const uint32_t count = ts_node_named_child_count(typeArgs);
+            HRESULT Status = S_OK;
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                IfFailRet(GenerateExecutionSteps(ts_node_named_child(typeArgs, i), source, program, output));
+            }
+            program.emplace_back(SyntaxKind::GenericName, std::string(GetNodeText(nameNode, source)), count);
+            return S_OK;
+        }
+    },
+    // Roslyn: QualifiedName (e.g., System.Collections)
+    {"qualified_name", 
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode left = ts_node_named_child(node, 0);
+            const TSNode right = ts_node_named_child(node, 1);
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(left, source, program, output));
+            IfFailRet(GenerateExecutionSteps(right, source, program, output));
+            program.emplace_back(SyntaxKind::QualifiedName);
+            return S_OK;
+        }
+    },
+    // Roslyn: AliasQualifiedName (e.g., global::System)
+    {"alias_qualified_name",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // TSNode alias = ts_node_named_child(node, 0);
+            // TSNode name = ts_node_named_child(node, 1);
+            // "PUSH_ALIAS(" + std::string(GetNodeText(alias, source)) + ")"
+            // generate_execution_steps(name, source, steps);
+            // "RESOLVE_ALIAS_NAME"
+
+            output = "Alias qualified name not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: NumericLiteralExpression
+    {"integer_literal",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText), false);
+            return S_OK;
+        }
+    },
+    // Roslyn: NumericLiteralExpression
+    {"real_literal",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(rawText), true);
+            return S_OK;
+        }
+    },
+    // Roslyn: StringLiteralExpression
+    {"string_literal", StringLiteralKindParser},
+    // Roslyn: StringLiteralExpression
+    {"verbatim_string_literal", StringLiteralKindParser},
+    // Roslyn: CharacterLiteralExpression
+    {"character_literal",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
+        {
+            std::string_view ch = GetNodeText(node, source);
+            if (ch.size() >= 2 && ch.front() == '\'' && ch.back() == '\'')
+            {
+                ch.remove_prefix(1);
+                ch.remove_suffix(1);
+            }
+            program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(ch));
+            return S_OK;
+        }
+    },
+    // Roslyn: PredefinedType (e.g., int, string, void)
+    {"predefined_type",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/) -> HRESULT
+        {
+            const std::string_view rawText = GetNodeText(node, source);
+            program.emplace_back(SyntaxKind::PredefinedType, std::string(rawText));
+            return S_OK;
+        }
+    },
+    // Roslyn: ObjectCreationExpression (e.g., new Foo())
+    {"object_creation_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // const TSNode typeNode = ts_node_named_child(node, 0);
+            // const TSNode argList = ts_node_named_child(node, 1);
+            // uint32_t argCount = 0;
+            // HRESULT Status = S_OK;
+            // if (!ts_node_is_null(argList) && std::string_view(ts_node_type(argList)) == "argument_list")
+            // {
+            //     argCount = ts_node_named_child_count(argList);
+            //     for (uint32_t i = 0; i < argCount; ++i)
+            //     {
+            //         IfFailRet(GenerateExecutionSteps(ts_node_named_child(argList, i), source, program, output));
+            //     }
+            // }
+            // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            // program.emplace_back(SyntaxKind::ObjectCreationExpression, argCount);
+            // return S_OK;
+
+            output = "Object creation expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: SimpleMemberAccessExpression (a.b) AND PointerMemberAccessExpression (a->b)
+    {"member_access_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode expr = ts_node_child(node, 0);
+            const TSNode op = ts_node_child(node, 1); // The operator token (. or ->)
+            const TSNode name = ts_node_child(node, 2);
+            HRESULT Status = S_OK;
+
+            IfFailRet(GenerateExecutionSteps(expr, source, program, output));
+            IfFailRet(GenerateExecutionSteps(name, source, program, output));
+
+            // Check what kind of separator is used in the source code
+            const std::string_view opText = GetNodeText(op, source);
+            if (opText == "->")
+            {
+                // TODO implement in evalstackmachine.cpp before uncommenting this code
+                // program.emplace_back(SyntaxKind::PointerMemberAccessExpression);
+                output = "Pointer member access expression not implemented.";
                 return E_NOTIMPL;
             }
             else
             {
-                output = "Unknown argument modifier: " + std::string(txt);
+                program.emplace_back(SyntaxKind::SimpleMemberAccessExpression);
+            }
+            return S_OK;
+        }
+    },
+    // Roslyn: MemberBindingExpression
+    {"member_binding_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode name = ts_node_named_child(node, 0);
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(name, source, program, output));
+            program.emplace_back(SyntaxKind::MemberBindingExpression);
+            return S_OK;
+        }
+    },
+    // Roslyn: ElementBindingExpression
+    {"element_binding_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode indexList = ts_node_named_child(node, 0);
+            const uint32_t argCount = ts_node_named_child_count(indexList);
+            HRESULT Status = S_OK;
+            for (uint32_t i = 0; i < argCount; ++i)
+            {
+                IfFailRet(GenerateExecutionSteps(ts_node_named_child(indexList, i), source, program, output));
+            }
+            program.emplace_back(SyntaxKind::ElementBindingExpression, argCount);
+            return S_OK;
+        }
+    },
+    // Roslyn: ConditionalAccessExpression (e.g., user?.Name or array?[0])
+    {"conditional_access_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            // In Tree-sitter C#, conditional_access_expression always has exactly 3 children:
+            // child 0: The base expression (e.g., 'user' or 'array')
+            // child 1: The operator token ('?.' or '?[')
+            // child 2: The binding expression (member_binding_expression or element_binding_expression)
+            const TSNode baseExpr = ts_node_child(node, 0);
+            const TSNode binding = ts_node_child(node, 2);
+            HRESULT Status = S_OK;
+
+            // 1. Evaluate the base object first
+            IfFailRet(GenerateExecutionSteps(baseExpr, source, program, output));
+
+            // FIXME: Binding now works with null check all the time. Emit the conditional jump or
+            //        provide as marker in MemberBindingExpression and ElementBindingExpression.
+
+            // 2. Evaluate the binding (e.g., fetching the member or the element)
+            IfFailRet(GenerateExecutionSteps(binding, source, program, output));
+            return S_OK;
+        }
+    },
+    // Roslyn: InvocationExpression (e.g., Method())
+    {"invocation_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode function = ts_node_named_child(node, 0);
+            const TSNode argList = ts_node_named_child(node, 1);
+            uint32_t argCount = 0;
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(function, source, program, output));
+            if (!ts_node_is_null(argList))
+            {
+                argCount = ts_node_named_child_count(argList);
+                for (uint32_t i = 0; i < argCount; ++i)
+                {
+                    IfFailRet(GenerateExecutionSteps(ts_node_named_child(argList, i), source, program, output));
+                }
+            }
+            program.emplace_back(SyntaxKind::InvocationExpression, argCount);
+            return S_OK;
+        }
+    },
+    // Roslyn: ElementAccessExpression (e.g., array[index])
+    {"element_access_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode expression = ts_node_named_child(node, 0);
+            const TSNode indexList = ts_node_named_child(node, 1);
+            const uint32_t argCount = ts_node_named_child_count(indexList);
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(expression, source, program, output));
+            for (uint32_t i = 0; i < argCount; ++i)
+            {
+                IfFailRet(GenerateExecutionSteps(ts_node_named_child(indexList, i), source, program, output));
+            }
+            program.emplace_back(SyntaxKind::ElementAccessExpression, argCount);
+            return S_OK;
+        }
+    },
+    // Roslyn Binary Group: Handles Add, Multiply, Subtract, Divide, Modulo, LeftShift, RightShift,
+    // BitwiseAnd, BitwiseOr, ExclusiveOr, LogicalAnd, LogicalOr, Equals, NotEquals,
+    // GreaterThan, LessThan, GreaterThanOrEqual, LessThanOrEqual, Coalesce Expressions.
+    {"binary_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
+            const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
+            const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // Operator is index 1
+
+            if (op.empty() || op.size() > 2)
+            {
+                output = "Unknown binary expression: " + std::string(op);
+                return E_INVALIDARG;
+            }
+
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(left, source, program, output));
+            IfFailRet(GenerateExecutionSteps(right, source, program, output));
+
+            static const std::unordered_map<uint16_t, SyntaxKind> opMap{
+                { packString("+"),  SyntaxKind::AddExpression },
+                { packString("-"),  SyntaxKind::SubtractExpression },
+                { packString("*"),  SyntaxKind::MultiplyExpression },
+                { packString("/"),  SyntaxKind::DivideExpression },
+                { packString("%"),  SyntaxKind::ModuloExpression },
+                { packString("<<"), SyntaxKind::LeftShiftExpression },
+                { packString(">>"), SyntaxKind::RightShiftExpression },
+                { packString("&"),  SyntaxKind::BitwiseAndExpression },
+                { packString("|"),  SyntaxKind::BitwiseOrExpression },
+                { packString("^"),  SyntaxKind::ExclusiveOrExpression },
+                { packString("&&"), SyntaxKind::LogicalAndExpression },
+                { packString("||"), SyntaxKind::LogicalOrExpression },
+                { packString("=="), SyntaxKind::EqualsExpression },
+                { packString("!="), SyntaxKind::NotEqualsExpression },
+                { packString(">"),  SyntaxKind::GreaterThanExpression },
+                { packString("<"),  SyntaxKind::LessThanExpression },
+                { packString(">="), SyntaxKind::GreaterThanOrEqualExpression },
+                { packString("<="), SyntaxKind::LessThanOrEqualExpression },
+                { packString("??"), SyntaxKind::CoalesceExpression }
+            };
+
+            const auto findOp = opMap.find(packString(op));
+            if (findOp == opMap.end())
+            {
+                output = "Unknown binary expression: " + std::string(op);
+                return E_INVALIDARG;
+            }
+            program.emplace_back(findOp->second);
+            return S_OK;
+        }
+    },
+    // Roslyn Unary Group: UnaryPlus, UnaryMinus, LogicalNot, BitwiseNot, PreIncrement, PreDecrement
+    {"prefix_unary_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode operand = ts_node_named_child(node, 0);
+            const std::string op = std::string(GetNodeText(ts_node_child(node, 0), source)); // Operator is first child
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(operand, source, program, output));
+
+            if (op == "+")
+            {
+                program.emplace_back(SyntaxKind::UnaryPlusExpression);
+            }
+            else if (op == "-")
+            {
+                program.emplace_back(SyntaxKind::UnaryMinusExpression);
+            }
+            else if (op == "!")
+            {
+                program.emplace_back(SyntaxKind::LogicalNotExpression);
+            }
+            else if (op == "~")
+            {
+                program.emplace_back(SyntaxKind::BitwiseNotExpression);
+            }
+            else if (op == "++")
+            {
+                // TODO implement in evalstackmachine.cpp before uncommenting this code
+                // program.emplace_back(SyntaxKind::PreIncrementExpression);
+                output = "Pre-increment expression not implemented.";
+                return E_NOTIMPL;
+            }
+            else if (op == "--")
+            {
+                // TODO implement in evalstackmachine.cpp before uncommenting this code
+                // program.emplace_back(SyntaxKind::PreDecrementExpression);
+                output = "Pre-decrement expression not implemented.";
+                return E_NOTIMPL;
+            }
+            else
+            {
+                const std::string_view rawText = GetNodeText(node, source);
+                output = "Unknown prefix unary expression: " + std::string(rawText);
+                return E_INVALIDARG;
+            }
+            return S_OK;
+        }
+    },
+    // Roslyn Unary Group: PostIncrement, PostDecrement
+    {"postfix_unary_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode operand = ts_node_named_child(node, 0);
+            const std::string op = std::string(GetNodeText(ts_node_child(node, 1), source));
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(operand, source, program, output));
+
+            if (op == "++")
+            {
+                // TODO implement in evalstackmachine.cpp before uncommenting this code
+                // program.emplace_back(SyntaxKind::PostIncrementExpression);
+                output = "Post-increment expression not implemented.";
+                return E_NOTIMPL;
+            }
+            else if (op == "--")
+            {
+                // TODO implement in evalstackmachine.cpp before uncommenting this code
+                // program.emplace_back(SyntaxKind::PostDecrementExpression);
+                output = "Post-decrement expression not implemented.";
+                return E_NOTIMPL;
+            }
+            else
+            {
+                const std::string_view rawText = GetNodeText(node, source);
+                output = "Unknown postfix unary expression: " + std::string(rawText);
                 return E_INVALIDARG;
             }
         }
+    },
+    // Roslyn: CastExpression (e.g., (int)a or (Object)this)
+    {"cast_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
 
+            // In Tree-sitter C#, cast_expression structure:
+            // child 0: "("
+            // child 1: type node
+            // child 2: ")"
+            // child 3: target expression node (can be anonymous)
+            // const TSNode typeNode = ts_node_child(node, 1);
+            // const TSNode exprNode = ts_node_child(node, 3);
+            // HRESULT Status = S_OK;
+
+            // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
+            // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            // program.emplace_back(SyntaxKind::CastExpression);
+            // return S_OK;
+
+            output = "Cast expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: AsExpression (e.g., a as Foo or this as Foo)
+    {"as_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // child 0: left expression node (can be anonymous)
+            // child 1: "as" keyword
+            // child 2: type node
+            // const TSNode exprNode = ts_node_child(node, 0);
+            // const TSNode typeNode = ts_node_child(node, 2);
+            // HRESULT Status = S_OK;
+
+            // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
+            // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            // program.emplace_back(SyntaxKind::AsExpression);
+            // return S_OK;
+
+            output = "AS expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: IsExpression (e.g., a is Foo or null is Foo)
+    {"is_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // child 0: left expression node (can be anonymous)
+            // child 1: "is" keyword
+            // child 2: type or pattern node
+            // const TSNode exprNode = ts_node_child(node, 0);
+            // const TSNode typeNode = ts_node_child(node, 2);
+            // HRESULT Status = S_OK;
+
+            // IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
+            // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            // program.emplace_back(SyntaxKind::IsExpression);
+            // return S_OK;
+
+            output = "IS expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: SizeOfExpression (e.g., sizeof(int))
+    {"sizeof_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const TSNode typeNode = ts_node_named_child(node, 0);
+            HRESULT Status = S_OK;
+            IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            program.emplace_back(SyntaxKind::SizeOfExpression);
+            return S_OK;
+        }
+    },
+    // Roslyn: TypeOfExpression (e.g., typeof(List<int>))
+    {"typeof_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // child 0: "typeof", child 1: "(", child 2: type node, child 3: ")"
+            // const TSNode typeNode = ts_node_child(node, 2);
+            // HRESULT Status = S_OK;
+            // IfFailRet(GenerateExecutionSteps(typeNode, source, program, output));
+            // program.emplace_back(SyntaxKind::TypeOfExpression);
+            // return S_OK;
+
+            output = "TypeOf expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: ConditionalExpression (e.g., a ? b : c)
+    {"conditional_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // In Tree-sitter C#, a conditional expression has exactly 5 children:
+            // index 0: condition node
+            // index 1: "?" token
+            // index 2: true branch node (can be anonymous like null or this)
+            // index 3: ":" token
+            // index 4: false branch node (can be anonymous like null or this)
+            // const TSNode condition = ts_node_child(node, 0);
+            // const TSNode conTrue = ts_node_child(node, 2);
+            // const TSNode conFalse = ts_node_child(node, 4);
+            // HRESULT Status = S_OK;
+
+            // IfFailRet(GenerateExecutionSteps(condition, source, program, output));
+            // "JUMP_IF_FALSE_TO_ELSE"
+            // IfFailRet(GenerateExecutionSteps(conTrue, source, program, output));
+            // "JUMP_TO_END"
+            // IfFailRet(GenerateExecutionSteps(conFalse, source, program, output));
+            // "MARK_END"
+            // return S_OK;
+
+            output = "Conditional expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: CheckedExpression AND UncheckedExpression (e.g., checked(a + b) or unchecked(x * y))
+    {"checked_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output) -> HRESULT
+        {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
+            // In Tree-sitter C#, checked_expression has exactly 4 children:
+            // child 0: "checked" or "unchecked" keyword token
+            // child 1: "(" token
+            // child 2: the inner expression node being guarded
+            // child 3: ")" token
+            // const TSNode keywordNode = ts_node_child(node, 0);
+            // const TSNode innerExpr = ts_node_child(node, 2);
+
+            // const std::string_view keyword = GetNodeText(keywordNode, source);
+            // HRESULT Status = S_OK;
+
+            // if (keyword == "checked")
+            // {
+            //     // "SET_ARITHMETIC_CHECKED(true)"
+            //     IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
+            //     // "RESTORE_ARITHMETIC_CHECKED"
+            // }
+            // else
+            // {
+            //     // "SET_ARITHMETIC_CHECKED(false)"
+            //     IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
+            //     // "RESTORE_ARITHMETIC_CHECKED"
+            // }
+            // return S_OK;
+
+            output = "Checked and Unchecked expressions not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: ParenthesizedExpression (e.g., "(a + b)")
+    {"parenthesized_expression",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            // child 0: "("
+            // child 1: core inner expression node
+            // child 2: ")"
+            const TSNode innerExpr = ts_node_child(node, 1);
+            HRESULT Status = S_OK;
+
+            // Just drill straight into the parenthesized code.
+            // The tree shape guarantees mathematical ordering automatically.
+            IfFailRet(GenerateExecutionSteps(innerExpr, source, program, output));
+            return S_OK;
+        }
+    },
+    // Roslyn: Argument (Wraps modifiers like 'ref', 'out', 'in' or named args like 'x:')
+    {"argument",
+        [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &output) -> HRESULT
+        {
+            const uint32_t childCount = ts_node_child_count(node);
+            const TSNode exprNode = ts_node_child(node, childCount - 1); // The core value expression is always last
+            HRESULT Status = S_OK;
+
+            IfFailRet(GenerateExecutionSteps(exprNode, source, program, output));
+
+            // Scan for ref/out modifiers to tell the debugger how to pass the variable descriptor
+            for (uint32_t i = 0; i < childCount - 1; ++i)
+            {
+                const std::string_view txt = GetNodeText(ts_node_child(node, i), source);
+                if (txt == "ref" || txt == "out" || txt == "in")
+                {
+                    // TODO implement ref/out/in modifiers
+                    output = "ref/out/in modifiers not implemented.";
+                    return E_NOTIMPL;
+                }
+                else
+                {
+                    output = "Unknown argument modifier: " + std::string(txt);
+                    return E_INVALIDARG;
+                }
+            }
+
+            return S_OK;
+        }
+    }};
+
+    if (ts_node_is_null(node) ||
+        // Skip zero-width recovery nodes that aren't explicit errors
+        ts_node_start_byte(node) == ts_node_end_byte(node))
+    {
         return S_OK;
+    }
+
+    const std::string_view type = ts_node_type(node);
+
+    auto findParser = syntaxKindParserMap.find(type);
+    if (findParser != syntaxKindParserMap.end())
+    {
+        return findParser->second(node, source, program, output);
     }
 
     const std::string_view rawText = GetNodeText(node, source);
