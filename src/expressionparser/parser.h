@@ -6,6 +6,10 @@
 #define EXPRESSIONPARSER_PARSER_H
 
 #include <corerror.h>
+#ifdef FEATURE_PAL
+#include <specstrings_undef.h>
+#endif
+
 #include <list>
 #include <string>
 
