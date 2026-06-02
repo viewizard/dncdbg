@@ -519,13 +519,6 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             {
                 // TODO implement in evalstackmachine.cpp before uncommenting this code
                 // kind = SyntaxKind::PreIncrementExpression;
-                // workStack.emplace(EmitAction{[kind](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-                // {
-                //     prog.emplace_back(kind);
-                //     return S_OK;
-                // }});
-                // workStack.emplace(VisitNode{operand});
-                // return S_OK;
                 output = "Pre-increment expression not implemented.";
                 return E_NOTIMPL;
             }
@@ -533,13 +526,6 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             {
                 // TODO implement in evalstackmachine.cpp before uncommenting this code
                 // kind = SyntaxKind::PreDecrementExpression;
-                // workStack.emplace(EmitAction{[kind](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-                // {
-                //     prog.emplace_back(kind);
-                //     return S_OK;
-                // }});
-                // workStack.emplace(VisitNode{operand});
-                // return S_OK;
                 output = "Pre-decrement expression not implemented.";
                 return E_NOTIMPL;
             }
@@ -564,32 +550,21 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
     {"postfix_unary_expression",
         [](TSNode node, const std::string &source, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
         {
+            // TODO implement in evalstackmachine.cpp before uncommenting this code
+
             // const TSNode operand = ts_node_named_child(node, 0);
             const std::string op = std::string(GetNodeText(ts_node_child(node, 1), source));
 
+            // SyntaxKind kind{};
             if (op == "++")
             {
-                // TODO implement in evalstackmachine.cpp before uncommenting this code
-                // workStack.emplace(EmitAction{[](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-                // {
-                //     prog.emplace_back(SyntaxKind::PostIncrementExpression);
-                //     return S_OK;
-                // }});
-                // workStack.emplace(VisitNode{operand});
-                // return S_OK;
+                // kind = SyntaxKind::PostIncrementExpression;
                 output = "Post-increment expression not implemented.";
                 return E_NOTIMPL;
             }
             else if (op == "--")
             {
-                // TODO implement in evalstackmachine.cpp before uncommenting this code
-                // workStack.emplace(EmitAction{[](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-                // {
-                //     prog.emplace_back(SyntaxKind::PostDecrementExpression);
-                //     return S_OK;
-                // }});
-                // workStack.emplace(VisitNode{operand});
-                // return S_OK;
+                // kind = SyntaxKind::PostDecrementExpression;
                 output = "Post-decrement expression not implemented.";
                 return E_NOTIMPL;
             }
@@ -599,6 +574,15 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
                 output = "Unknown postfix unary expression: " + std::string(rawText);
                 return E_INVALIDARG;
             }
+
+            // Push in reverse: post-action, then operand.
+            // workStack.emplace(EmitAction{[kind](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
+            // {
+            //     prog.emplace_back(kind);
+            //     return S_OK;
+            // }});
+            // workStack.emplace(VisitNode{operand});
+            // return S_OK;
         }
     },
     // Roslyn: CastExpression (e.g., (int)a or (Object)this)
