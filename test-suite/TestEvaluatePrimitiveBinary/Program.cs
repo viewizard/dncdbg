@@ -27,7 +27,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // Test all primitive types with all test_binary operators
+        // Test all primitive types with all binary operators
 
         bool bool1 = true;
         char char1 = 'G';
