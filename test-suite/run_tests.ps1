@@ -43,6 +43,7 @@ $ALL_TEST_NAMES = @(
     "TestTracePoint"
     "TestRemoteConsole"
     "TestSourceFileMap"
+    "TestEvaluatePrimitiveUnary"
 )
 
 $TEST_NAMES = $tests
