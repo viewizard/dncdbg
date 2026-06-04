@@ -174,9 +174,9 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     // Create value (without calling a constructor)
     IfFailRet(pEvalWaiter->WaitEvalResult(pThread, ppValue, [&](ICorDebugEval *pEval) -> HRESULT {
         // Note, this code execution is protected by EvalWaiter mutex.
-        ToRelease<ICorDebugEval2> pEval2;
-        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&pEval2)));
-        IfFailRet(pEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
+        ToRelease<ICorDebugEval2> trEval2;
+        IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+        IfFailRet(trEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
         return S_OK;
     }));
 
