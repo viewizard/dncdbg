@@ -54,6 +54,7 @@ class Program
         long long1dev = 1;
 
         string string1null = null;
+        string string1full = "fullstring";
 
         int break_line1 = 1;                                              Label.Breakpoint("BREAK1");
 
@@ -3378,6 +3379,9 @@ class Program
 
                 // ??
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "string1null??string1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"fullstring\"", "string", "string1full??string1");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "string1null??bool1", "error CS0019: Operator ?? cannot be applied to operands of type 'string' and 'bool'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "string1full??bool1", "error CS0019: Operator ?? cannot be applied to operands of type 'string' and 'bool'");
 
 
                 Context.Continue(@"__FILE__:__LINE__");
