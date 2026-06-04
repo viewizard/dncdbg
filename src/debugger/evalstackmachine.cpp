@@ -1904,6 +1904,8 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     std::string typeNameLeft;
     std::string typeNameRight;
 
+    // TODO implement nullable type support
+
     // TODO add implementation for object type ?? other
     if ((elemTypeRightOp == ELEMENT_TYPE_STRING && elemTypeLeftOp == ELEMENT_TYPE_STRING) ||
         ((elemTypeRightOp == ELEMENT_TYPE_CLASS && elemTypeLeftOp == ELEMENT_TYPE_CLASS) &&
