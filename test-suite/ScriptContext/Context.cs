@@ -1232,6 +1232,26 @@ class Context
         }
     }
 
+    public void CheckVariableNameCount(string caller_trace, int variablesReference, string name, int expectedCount)
+    {
+        VariablesRequest variablesRequest = new VariablesRequest();
+        variablesRequest.arguments.variablesReference = variablesReference;
+        var ret = DAPDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
+
+        VariablesResponse variablesResponse =
+            JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
+
+        int count = 0;
+        foreach (var variable in variablesResponse.body.variables)
+        {
+            if (variable.name == name)
+                count++;
+        }
+
+        Assert.Equal(expectedCount, count, @"__FILE__:__LINE__"+"\n"+caller_trace);
+    }
+
     public string? GetSourceFilesPath()
     {
         return ControlInfo.SourceFilesPath;

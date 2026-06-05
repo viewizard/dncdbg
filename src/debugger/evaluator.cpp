@@ -170,7 +170,8 @@ enum class GeneratedNameKind : uint8_t
     None,
     ThisProxyField,
     HoistedLocalField,
-    DisplayClassLocalOrField
+    DisplayClassLocalOrField,
+    PrimaryConstructorParameterField
 };
 
 GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
@@ -182,10 +183,16 @@ GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
     //  and where c is a single character in [1-9a-z]
     //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
 
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
-    //  ThisProxyField = '4',
-    //  HoistedLocalField = '5',
-    //  DisplayClassLocalOrField = '8',
+    // https://github.com/dotnet/roslyn/blob/f7c7a5972ea0c8c645ddef58ec00a0e03136fd70/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
+    //  ThisProxyField = '4'
+    //  HoistedLocalField = '5'
+    //  DisplayClassLocalOrField = '8'
+    //  PrimaryConstructorParameter = 'P'
+
+    if (localOrFieldName.length() <= 3)
+    {
+        return GeneratedNameKind::None;
+    }
 
     if (localOrFieldName.find(W(">4")) != WSTRING::npos)
     {
@@ -198,6 +205,10 @@ GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
     else if (localOrFieldName.find(W(">8")) != WSTRING::npos)
     {
         return GeneratedNameKind::DisplayClassLocalOrField;
+    }
+    else if (localOrFieldName.find(W(">P")) != WSTRING::npos)
+    {
+        return GeneratedNameKind::PrimaryConstructorParameterField;
     }
 
     return GeneratedNameKind::None;
@@ -315,18 +326,15 @@ HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
 }
 
 // https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
-HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
+HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
 {
-    WSTRING::size_type nameStartOffset = 0;
-    if (mdName.find(W('<')) == 0)
+    if (mdName.length() <= 3)
     {
-        nameStartOffset = 1;
+        return E_FAIL;
     }
-    else if (mdName.find(W("CS$<")) == 0)
-    {
-        nameStartOffset = 4;
-    }
-    else
+
+    const WSTRING::size_type nameStartOffset = mdName.find(W('<'));
+    if (mdName.find(W('<')) == WSTRING::npos)
     {
         return E_FAIL;
     }
@@ -337,7 +345,7 @@ HRESULT TryParseHoistedLocalName(const WSTRING &mdName, WSTRING &wLocalName)
         return E_FAIL;
     }
 
-    wLocalName = mdName.substr(nameStartOffset, closeBracketOffset - nameStartOffset);
+    wGeneratedName = mdName.substr(nameStartOffset + 1, closeBracketOffset - nameStartOffset - 1);
     return S_OK;
 }
 
@@ -381,8 +389,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                 &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
                 (fieldAttr & fdStatic) != 0 ||
-                (fieldAttr & fdLiteral) != 0 ||
-                usedNames.find(mdName) != usedNames.end())
+                (fieldAttr & fdLiteral) != 0)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -439,8 +446,13 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                     return S_OK; // Return with success to continue walk.
                 }
 
+                if (usedNames.find(mdName) != usedNames.end())
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
                 WSTRING wLocalName;
-                if (FAILED(TryParseHoistedLocalName(mdName, wLocalName)))
+                if (FAILED(TryParseGeneratedName(mdName, wLocalName)))
                 {
                     return S_OK; // Return with success to continue walk.
                 }
@@ -453,7 +465,8 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 usedNames.insert(wLocalName);
             }
             // Ignore any other compiler generated fields, show only normal fields.
-            else if (!IsSynthesizedLocalName(mdName))
+            else if (!IsSynthesizedLocalName(mdName) &&
+                     usedNames.find(mdName) == usedNames.end())
             {
                 IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
@@ -533,6 +546,88 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     }
 
     return E_FAIL;
+}
+
+HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typeDef, mdTypeDef &userTypeDef)
+{
+    HRESULT Status = S_OK;
+
+    while (true)
+    {
+        ULONG nameLen = 0;
+        IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        IfFailRet(pMDImport->GetTypeDefProps(typeDef, mdName.data(), nameLen, nullptr, nullptr, nullptr));
+
+        if (!IsSynthesizedLocalName(mdName))
+        {
+            userTypeDef = typeDef;
+            break;
+        }
+
+        IfFailRet(pMDImport->GetNestedClassProps(typeDef, &typeDef));
+    };
+
+    return S_OK;
+}
+
+HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
+                                              ICorDebugValue *pInputValue, std::unordered_set<WSTRING> &usedNames,
+                                              Evaluator::WalkStackVarsCallback cb)
+{
+    HRESULT Status = S_OK;
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return S_OK;
+    }
+
+    return ForEachFields(pMDImport, typeDef, [&](mdFieldDef fieldDef) -> HRESULT
+    {
+        ULONG nameLen = 0;
+        IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        DWORD fieldAttr = 0;
+        if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
+                                            &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+            (fieldAttr & fdStatic) != 0 ||
+            (fieldAttr & fdLiteral) != 0)
+        {
+            return S_OK; // Return with success to continue walk.
+        }
+
+        WSTRING wParameterName;
+        if (GetLocalOrFieldNameKind(mdName) != GeneratedNameKind::PrimaryConstructorParameterField ||
+            FAILED(TryParseGeneratedName(mdName, wParameterName)) ||
+            usedNames.find(wParameterName) != usedNames.end())
+        {
+            return S_OK; // Return with success to continue walk.
+        }
+
+        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+        {
+            trValue.Free();
+            IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
+            ToRelease<ICorDebugObjectValue> trObjValue;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+            IfFailRet(trObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
+            return S_OK;
+        };
+
+        IfFailRet(cb(to_utf8(wParameterName.c_str()), getValue));
+        if (Status == S_CAN_EXIT)
+        {
+            return S_CAN_EXIT; // Fast exit from loop.
+        }
+        usedNames.insert(wParameterName);
+
+        return S_OK;
+    });
 }
 
 } // unnamed namespace
@@ -1270,31 +1365,10 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     haveThis = (trUserThis != nullptr);
 
     // Find first user code enclosing class, since compiler add async/lambda as nested class.
-    do
-    {
-        ULONG nameLen = 0;
-        IfFailRet(trMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+    mdTypeDef userTypeDef = mdTypeDefNil;
+    IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userTypeDef));
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
-        IfFailRet(trMDImport->GetTypeDefProps(typeDef, mdName.data(), nameLen, nullptr, nullptr, nullptr));
-
-        if (!IsSynthesizedLocalName(mdName))
-        {
-            break;
-        }
-
-        mdTypeDef enclosingClass = mdTypeDefNil;
-        if (SUCCEEDED(Status = trMDImport->GetNestedClassProps(typeDef, &enclosingClass)))
-        {
-            typeDef = enclosingClass;
-        }
-        else
-        {
-            return Status;
-        }
-    } while (true);
-
-    return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
+    return TypePrinter::NameForTypeDef(userTypeDef, trMDImport, methodClass, nullptr);
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
@@ -1362,6 +1436,9 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     ToRelease<ICorDebugValue> trCurrentThis; // Current This. Note, in case async method or lambda - this is special object (non-user's "this").
+    ToRelease<ICorDebugValue> trUserThis;
+    ToRelease<ICorDebugClass> trUserThisClass;
+    mdTypeDef userThisTypeDef = mdTypeDefNil;
     // In case this is static method, this is not async/lambda case for sure.
     if ((methodAttr & mdStatic) == 0)
     {
@@ -1372,16 +1449,23 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
         IfFailRet(trILFrame->GetArgument(0, &trCurrentThis));
 
-        ToRelease<ICorDebugValue> trUserThis;
         if (generatedCodeKind == GeneratedCodeKind::Normal)
         {
             trCurrentThis->AddRef();
             trUserThis = trCurrentThis.GetPtr();
+            trClass->AddRef();
+            trUserThisClass = trClass.GetPtr();
+            userThisTypeDef = typeDef;
         }
         else
         {
-            // Check do we have real This value (that should be stored in ThisProxyField).
+            // Check if we have real This value (that should be stored in ThisProxyField).
             IfFailRet(FindThisProxyFieldValue(trMDImport, trClass, typeDef, trCurrentThis, &trUserThis));
+            if (trUserThis != nullptr)
+            {
+                IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userThisTypeDef));
+                IfFailRet(trModule->GetClassFromToken(userThisTypeDef, &trUserThisClass));
+            }
         }
 
         if (trUserThis != nullptr)
@@ -1404,8 +1488,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     }
 
     // Lambda could duplicate arguments into display class local object. Make sure we call "cb" only once for unique name.
-    // Note, we don't use usedNames with 'this' related code above, since it have logic "find first and return".
-    // In the same time, all code below ignore 'this' argument/field check.
+    // Note, we don't use usedNames with 'this' related code above, since it has logic "find first and return".
+    // At the same time, all code below ignores 'this' argument/field check.
     std::unordered_set<WSTRING> usedNames;
 
     for (ULONG i = (methodAttr & mdStatic) == 0 ? 1 : 0; i < cArguments; i++)
@@ -1546,10 +1630,17 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
         IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));
-        // Note: WalkGeneratedClassFields() could return S_CAN_EXIT.
-        return S_OK;
+        if (Status == S_CAN_EXIT)
+        {
+            return S_OK;
+        }
     }
 
+    if (trUserThis != nullptr && trUserThisClass != nullptr && TypeFromToken(userThisTypeDef) == mdtTypeDef)
+    {
+        IfFailRet(WalkPrimaryConstructorParameterFields(trMDImport, trUserThisClass, userThisTypeDef, trUserThis, usedNames, cb));
+        // Note: WalkPrimaryConstructorParameterFields() could return S_CAN_EXIT.
+    }
     return S_OK;
 }
 

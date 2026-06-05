@@ -22,6 +22,7 @@ Upcoming changes compared to previous version.
 - Added shrunk [tree-sitter-c-sharp](https://github.com/tree-sitter/tree-sitter-c-sharp) sources v0.23.5.
 - Added TestEvaluatePrimitiveUnary.
 - Added TestEvaluatePrimitiveBinary.
+- Added support for inspecting primary constructor parameters.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.
