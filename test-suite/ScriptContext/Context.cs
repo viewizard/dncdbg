@@ -1240,7 +1240,7 @@ class Context
         Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
 
         VariablesResponse variablesResponse =
-            JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr);
+            JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
 
         int count = 0;
         foreach (var variable in variablesResponse.body.variables)
