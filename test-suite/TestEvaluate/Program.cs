@@ -653,12 +653,12 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 % not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "4", "int", "1 << 2");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m << 2m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m << 2m", "error: Operator '<<' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "true << 2", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 << not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "4 >> 2");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m >> 2m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m >> 2m", "error: Operator '>>' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "true >> 2", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 >> not_var", "error");
 

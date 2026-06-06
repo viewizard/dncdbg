@@ -16,6 +16,9 @@ namespace dncdbg::PrimitiveTypes
 namespace
 {
 
+constexpr int maxShift4Byte = 32;
+constexpr int maxShift8Byte = 64;
+
 void FillBinaryErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     const std::string_view leftTypeName = std::visit(
@@ -419,6 +422,102 @@ HRESULT ModuloExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
     return Status;
 }
 
+HRESULT LeftShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+    static constexpr std::string_view opName = "<<";
+
+    auto setError =
+        [&]() -> void
+        {
+            FillBinaryErrorOutput(opName, leftValue, rightValue, output);
+            Status = E_INVALIDARG;
+        };
+
+
+
+    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
+        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
+        std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
+        std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
+                                                          std::holds_alternative<uint32_t>(rightValue.value) ||
+                                                          std::holds_alternative<uint64_t>(rightValue.value) ||
+                                                          std::holds_alternative<int64_t>(rightValue.value))
+    {
+        setError();
+    }
+    else if (std::holds_alternative<int64_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_I8;
+        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+    }
+    else if (std::holds_alternative<uint64_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_U8;
+        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+    }
+    else if (std::holds_alternative<uint32_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_U4;
+        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+    }
+    else
+    {
+        outputValue.type = ELEMENT_TYPE_I4;
+        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+    }
+
+    return Status;
+}
+
+HRESULT RightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+    static constexpr std::string_view opName = ">>";
+
+    auto setError =
+        [&]() -> void
+        {
+            FillBinaryErrorOutput(opName, leftValue, rightValue, output);
+            Status = E_INVALIDARG;
+        };
+
+
+
+    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
+        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
+        std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
+        std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
+                                                          std::holds_alternative<uint32_t>(rightValue.value) ||
+                                                          std::holds_alternative<uint64_t>(rightValue.value) ||
+                                                          std::holds_alternative<int64_t>(rightValue.value))
+    {
+        setError();
+    }
+    else if (std::holds_alternative<int64_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_I8;
+        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+    }
+    else if (std::holds_alternative<uint64_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_U8;
+        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+    }
+    else if (std::holds_alternative<uint32_t>(leftValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_U4;
+        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+    }
+    else
+    {
+        outputValue.type = ELEMENT_TYPE_I4;
+        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+    }
+
+    return Status;
+}
+
 } // unnamed namespace
 
 HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
@@ -430,7 +529,9 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue
         {Parser::SyntaxKind::SubtractExpression, SubtractExpression},
         {Parser::SyntaxKind::MultiplyExpression, MultiplyExpression},
         {Parser::SyntaxKind::DivideExpression, DivideExpression},
-        {Parser::SyntaxKind::ModuloExpression, ModuloExpression}
+        {Parser::SyntaxKind::ModuloExpression, ModuloExpression},
+        {Parser::SyntaxKind::LeftShiftExpression, LeftShiftExpression},
+        {Parser::SyntaxKind::RightShiftExpression, RightShiftExpression}
     };
 
     auto findOperator = OperatorImplementation.find(kind);
