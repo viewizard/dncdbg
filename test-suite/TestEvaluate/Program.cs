@@ -665,7 +665,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-2", "int", "~1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-13", "int", "~testClass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-6", "int", "~testStruct");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "~1m", "error CS0023");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "~1m", "error: Operator '~' cannot be applied to operand of type 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "~true", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "~not_var", "error");
 
@@ -744,7 +744,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "!testClass");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "!testStruct");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "!1", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "!1m", "error CS0023");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "!1m", "error: Operator '!' cannot be applied to operand of type 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "!not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "1 == 1");
@@ -1275,8 +1275,8 @@ class Program
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK12");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "TWO", "TestEvaluate.enumUnary_t", "enumUnary");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "+enumUnary", "error CS0023");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "-enumUnary", "error CS0023");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "+enumUnary", "error: Operator '+' cannot be applied to operand of type 'TestEvaluate.enumUnary_t'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "-enumUnary", "error: Operator '-' cannot be applied to operand of type 'TestEvaluate.enumUnary_t'");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "49", "int", "+'1'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-49", "int", "-'1'");

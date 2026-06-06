@@ -64,21 +64,17 @@ public partial class Evaluation
         ModuloExpression,
         RightShiftExpression,
         LeftShiftExpression,
-        BitwiseNotExpression,
         LogicalAndExpression,
         LogicalOrExpression,
         ExclusiveOrExpression,
         BitwiseAndExpression,
         BitwiseOrExpression,
-        LogicalNotExpression,
         EqualsExpression,
         NotEqualsExpression,
         LessThanExpression,
         GreaterThanExpression,
         LessThanOrEqualExpression,
-        GreaterThanOrEqualExpression,
-        UnaryPlusExpression,
-        UnaryMinusExpression
+        GreaterThanOrEqualExpression
     }
 
     /// <summary>
@@ -98,21 +94,17 @@ public partial class Evaluation
             { OperationType.SubtractExpression, SubtractExpression },
             { OperationType.RightShiftExpression, RightShiftExpression },
             { OperationType.LeftShiftExpression, LeftShiftExpression },
-            { OperationType.BitwiseNotExpression, (firstOp, _) => BitwiseNotExpression(firstOp) },
             { OperationType.LogicalAndExpression, (firstOp, secondOp) => LogicalAndExpression(firstOp, secondOp) },
             { OperationType.LogicalOrExpression, (firstOp, secondOp) => LogicalOrExpression(firstOp, secondOp) },
             { OperationType.ExclusiveOrExpression, ExclusiveOrExpression },
             { OperationType.BitwiseAndExpression, BitwiseAndExpression },
             { OperationType.BitwiseOrExpression, BitwiseOrExpression },
-            { OperationType.LogicalNotExpression, (firstOp, _) => LogicalNotExpression(firstOp) },
             { OperationType.EqualsExpression, (firstOp, secondOp) => EqualsExpression(firstOp, secondOp) },
             { OperationType.NotEqualsExpression, (firstOp, secondOp) => NotEqualsExpression(firstOp, secondOp) },
             { OperationType.LessThanExpression, (firstOp, secondOp) => LessThanExpression(firstOp, secondOp) },
             { OperationType.GreaterThanExpression, (firstOp, secondOp) => GreaterThanExpression(firstOp, secondOp) },
             { OperationType.LessThanOrEqualExpression, (firstOp, secondOp) => LessThanOrEqualExpression(firstOp, secondOp) },
-            { OperationType.GreaterThanOrEqualExpression, (firstOp, secondOp) => GreaterThanOrEqualExpression(firstOp, secondOp) },
-            { OperationType.UnaryPlusExpression, (firstOp, _) => UnaryPlusExpression(firstOp) },
-            { OperationType.UnaryMinusExpression, (firstOp, _) => UnaryMinusExpression(firstOp) }
+            { OperationType.GreaterThanOrEqualExpression, (firstOp, secondOp) => GreaterThanOrEqualExpression(firstOp, secondOp) }
         };
 
     /// <summary>
@@ -337,11 +329,6 @@ public partial class Evaluation
         return first << second;
     }
 
-    private static object BitwiseNotExpression(dynamic first)
-    {
-        return ~first;
-    }
-
     private static object ExclusiveOrExpression(dynamic first, dynamic second)
     {
         return first ^ second;
@@ -365,11 +352,6 @@ public partial class Evaluation
     private static bool LogicalOrExpression(dynamic first, dynamic second)
     {
         return first || second;
-    }
-
-    private static object LogicalNotExpression(dynamic first)
-    {
-        return !first;
     }
 
     private static bool EqualsExpression(dynamic first, dynamic second)
@@ -400,16 +382,6 @@ public partial class Evaluation
     private static bool GreaterThanOrEqualExpression(dynamic first, dynamic second)
     {
         return first >= second;
-    }
-
-    private static object UnaryPlusExpression(dynamic first)
-    {
-        return +first;
-    }
-
-    private static object UnaryMinusExpression(dynamic first)
-    {
-        return -first;
     }
 
     #endregion // Type Definitions

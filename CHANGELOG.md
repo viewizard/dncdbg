@@ -31,6 +31,7 @@ Upcoming changes compared to previous version.
 - Updated diagnostics source version to 10.0.721401.
 - Simplified decimal type parsing in print code.
 - Replaced managed Roslyn parser with native tree-sitter implementation.
+- Implemented native unary operators for managed primitive types.
 
 #### Removed
 - Removed unused code.
