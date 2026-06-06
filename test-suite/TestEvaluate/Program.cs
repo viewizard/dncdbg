@@ -674,7 +674,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false && true");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false && false");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 && 1", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m && 1m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m && 1m", "error: Operator '&&' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "true && not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "true || true");
@@ -682,7 +682,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "false || true");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "false || false");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 || 1", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m || 1m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m || 1m", "error: Operator '||' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "true || not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "true ^ true");
@@ -699,8 +699,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "int", "testStruct ^ 2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "int", "2 ^ testStruct");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0", "int", "testStruct ^ testStruct");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 ^ testStruct2", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m ^ 1m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 ^ testStruct2", "error: Operator '^' cannot be applied to operands of type 'TestEvaluate.TestOperators3' and 'TestEvaluate.TestOperators3'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m ^ 1m", "error: Operator '^' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 ^ not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "true & true");
@@ -718,8 +718,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0", "int", "testStruct & 2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0", "int", "2 & testStruct");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "testStruct & testStruct");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 & testStruct2", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m & 1m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 & testStruct2", "error: Operator '&' cannot be applied to operands of type 'TestEvaluate.TestOperators3' and 'TestEvaluate.TestOperators3'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m & 1m", "error: Operator '&' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 & not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "true | true");
@@ -736,8 +736,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "int", "testStruct | 2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "int", "2 | testStruct");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "testStruct | testStruct");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 | testStruct2", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m | 1m", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct2 | testStruct2", "error: Operator '|' cannot be applied to operands of type 'TestEvaluate.TestOperators3' and 'TestEvaluate.TestOperators3'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1m | 1m", "error: Operator '|' cannot be applied to operands of type 'decimal' and 'decimal'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 | not_var", "error");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "!true");

@@ -39,6 +39,20 @@ void FillBinaryErrorOutput(const std::string_view &opName, const PrimitiveValue 
     output = ss.str();
 }
 
+void FillBinaryConvertErrorOutput(const PrimitiveValue &primValue, std::string &output)
+{
+    const std::string_view typeName = std::visit(
+        [](auto &arg) -> std::string_view
+        {
+            using ActiveType = std::decay_t<decltype(arg)>;
+            return TypeMapping<ActiveType>::description;
+        }, primValue.value);
+
+    std::ostringstream ss;
+    ss << "error: Cannot implicitly convert type '" << typeName << "' to 'bool'";
+    output = ss.str();
+}
+
 // Helper template to convert PrimitiveTypeNativeValue to target numeric type.
 // Handles int8_t specially by casting through uint8_t to preserve bit pattern.
 template <typename TargetType>
@@ -712,6 +726,78 @@ HRESULT ExclusiveOrExpression(const PrimitiveValue &leftValue, const PrimitiveVa
     return Status;
 }
 
+HRESULT LogicalAndExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+    static constexpr std::string_view opName = "&&";
+
+    auto setError =
+        [&]() -> void
+        {
+            FillBinaryErrorOutput(opName, leftValue, rightValue, output);
+            Status = E_INVALIDARG;
+        };
+
+    auto setConvertError =
+        [&](const PrimitiveValue &primValue) -> void
+        {
+            FillBinaryConvertErrorOutput(primValue, output);
+            Status = E_INVALIDARG;
+        };
+
+    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_BOOLEAN;
+        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) && std::get<bool>(rightValue.value));
+    }
+    else if (std::holds_alternative<bool>(leftValue.value))
+    {
+            setError();
+    }
+    else
+    {
+        setConvertError(leftValue);
+    }
+
+    return Status;
+}
+
+HRESULT LogicalOrExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+    static constexpr std::string_view opName = "||";
+
+    auto setError =
+        [&]() -> void
+        {
+            FillBinaryErrorOutput(opName, leftValue, rightValue, output);
+            Status = E_INVALIDARG;
+        };
+
+    auto setConvertError =
+        [&](const PrimitiveValue &primValue) -> void
+        {
+            FillBinaryConvertErrorOutput(primValue, output);
+            Status = E_INVALIDARG;
+        };
+
+    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    {
+        outputValue.type = ELEMENT_TYPE_BOOLEAN;
+        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) || std::get<bool>(rightValue.value));
+    }
+    else if (std::holds_alternative<bool>(leftValue.value))
+    {
+        setError();
+    }
+    else
+    {
+        setConvertError(leftValue);
+    }
+
+    return Status;
+}
+
 } // unnamed namespace
 
 HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
@@ -728,7 +814,9 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue
         {Parser::SyntaxKind::RightShiftExpression, RightShiftExpression},
         {Parser::SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
         {Parser::SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
-        {Parser::SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression}
+        {Parser::SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},
+        {Parser::SyntaxKind::LogicalAndExpression, LogicalAndExpression},
+        {Parser::SyntaxKind::LogicalOrExpression, LogicalOrExpression}
     };
 
     auto findOperator = OperatorImplementation.find(kind);

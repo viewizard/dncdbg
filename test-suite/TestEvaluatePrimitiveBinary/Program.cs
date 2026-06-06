@@ -30,6 +30,7 @@ class Program
         // Test all primitive types with all binary operators
 
         bool bool1 = true;
+        bool bool2 = false;
         char char1 = 'G';
         string string1 = "test";
         byte byte1 = 35;
@@ -1920,6 +1921,20 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1&&double1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'double'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1&&float1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'float'");
 
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "bool2&&bool2");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&char1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'char'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&string1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'string'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&byte1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'byte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&ushort1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'ushort'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&uint1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'uint'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&ulong1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&sbyte1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&short1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&int1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&long1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&double1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'double'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2&&float1", "error: Operator '&&' cannot be applied to operands of type 'bool' and 'float'");
+
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "char1&&bool1", "error: Cannot implicitly convert type 'char' to 'bool'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "char1&&char1", "error: Cannot implicitly convert type 'char' to 'bool'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "char1&&string1", "error: Cannot implicitly convert type 'char' to 'bool'");
@@ -2091,18 +2106,32 @@ class Program
 
                 // ||
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||bool1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||char1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||string1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||byte1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||ushort1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||uint1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||ulong1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||sbyte1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||short1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||int1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||long1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||double1");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "bool1||float1");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||char1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'char'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||string1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'string'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||byte1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'byte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||ushort1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'ushort'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||uint1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'uint'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||ulong1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||sbyte1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||short1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||int1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||long1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||double1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'double'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool1||float1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'float'");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "bool2||bool2");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||char1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'char'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||string1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'string'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||byte1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'byte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||ushort1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'ushort'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||uint1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'uint'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||ulong1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||sbyte1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||short1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||int1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||long1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||double1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'double'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "bool2||float1", "error: Operator '||' cannot be applied to operands of type 'bool' and 'float'");
 
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "char1||bool1", "error: Cannot implicitly convert type 'char' to 'bool'");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "char1||char1", "error: Cannot implicitly convert type 'char' to 'bool'");
