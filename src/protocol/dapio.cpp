@@ -319,7 +319,7 @@ void DAPIO::EmitOutputEvent(const OutputEvent &event)
 {
     json body;
 
-    switch(event.category)
+    switch (event.category)
     {
         case OutputCategory::Console:
             body.emplace("category", "console");
