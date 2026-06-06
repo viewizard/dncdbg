@@ -8,10 +8,8 @@
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
 #include "debugger/primitivetypes/types.h"
-#include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
-#include "managed/interop.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
@@ -47,29 +45,6 @@ enum class BasicTypes : uint8_t
     TypeInt16,
     TypeUInt16,
     TypeString
-};
-
-// Keep in sync with OperationType enum in Evaluation.cs
-enum class OperationType : uint8_t
-{
-    AddExpression = 1,
-    SubtractExpression,
-    MultiplyExpression,
-    DivideExpression,
-    ModuloExpression,
-    RightShiftExpression,
-    LeftShiftExpression,
-    LogicalAndExpression,
-    LogicalOrExpression,
-    ExclusiveOrExpression,
-    BitwiseAndExpression,
-    BitwiseOrExpression,
-    EqualsExpression,
-    NotEqualsExpression,
-    LessThanExpression,
-    GreaterThanExpression,
-    LessThanOrEqualExpression,
-    GreaterThanOrEqualExpression
 };
 
 void ReplaceAllSubstring(std::string &str, const std::string &from, const std::string &to)
@@ -669,71 +644,6 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
     return E_INVALIDARG;
 }
 
-HRESULT GetOperandDataTypeByValue(ICorDebugValue *pValue, CorElementType elemType, void **resultData, int32_t &resultType)
-{
-    HRESULT Status = S_OK;
-
-    if (elemType == ELEMENT_TYPE_STRING)
-    {
-        resultType = static_cast<int32_t>(BasicTypes::TypeString);
-        ToRelease<ICorDebugValue> trValue;
-        BOOL isNull = FALSE;
-        IfFailRet(DereferenceAndUnboxValue(pValue, &trValue, &isNull));
-        *resultData = nullptr;
-        if (isNull == FALSE)
-        {
-            std::string String;
-            IfFailRet(PrintStringValue(trValue, String));
-            *resultData = Interop::AllocString(String);
-        }
-        return S_OK;
-    }
-
-    static std::unordered_map<CorElementType, BasicTypes> basicTypesMap{
-        {ELEMENT_TYPE_BOOLEAN, BasicTypes::TypeBoolean}, {ELEMENT_TYPE_U1, BasicTypes::TypeByte},
-        {ELEMENT_TYPE_I1, BasicTypes::TypeSByte},        {ELEMENT_TYPE_CHAR, BasicTypes::TypeChar},
-        {ELEMENT_TYPE_R8, BasicTypes::TypeDouble},       {ELEMENT_TYPE_R4, BasicTypes::TypeSingle},
-        {ELEMENT_TYPE_I4, BasicTypes::TypeInt32},        {ELEMENT_TYPE_U4, BasicTypes::TypeUInt32},
-        {ELEMENT_TYPE_I8, BasicTypes::TypeInt64},        {ELEMENT_TYPE_U8, BasicTypes::TypeUInt64},
-        {ELEMENT_TYPE_I2, BasicTypes::TypeInt16},        {ELEMENT_TYPE_U2, BasicTypes::TypeUInt16}};
-
-    auto findType = basicTypesMap.find(elemType);
-    if (findType == basicTypesMap.end())
-    {
-        return E_FAIL;
-    }
-    resultType = static_cast<int32_t>(findType->second);
-
-    ToRelease<ICorDebugGenericValue> trGenValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
-    return trGenValue->GetValue(*resultData);
-}
-
-HRESULT GetValueByOperandDataType(void *valueData, BasicTypes valueType, ICorDebugValue **ppValue, EvalData &ed)
-{
-    if (valueType == BasicTypes::TypeString)
-    {
-        const std::string String = to_utf8(static_cast<WCHAR *>(valueData));
-        return ed.pEvalHelpers->CreateString(ed.pThread, String, ppValue);
-    }
-
-    static std::unordered_map<BasicTypes, CorElementType> basicTypesMap{
-        {BasicTypes::TypeBoolean, ELEMENT_TYPE_BOOLEAN}, {BasicTypes::TypeByte, ELEMENT_TYPE_U1},
-        {BasicTypes::TypeSByte, ELEMENT_TYPE_I1},        {BasicTypes::TypeChar, ELEMENT_TYPE_CHAR},
-        {BasicTypes::TypeDouble, ELEMENT_TYPE_R8},       {BasicTypes::TypeSingle, ELEMENT_TYPE_R4},
-        {BasicTypes::TypeInt32, ELEMENT_TYPE_I4},        {BasicTypes::TypeUInt32, ELEMENT_TYPE_U4},
-        {BasicTypes::TypeInt64, ELEMENT_TYPE_I8},        {BasicTypes::TypeUInt64, ELEMENT_TYPE_U8},
-        {BasicTypes::TypeInt16, ELEMENT_TYPE_I2},        {BasicTypes::TypeUInt16, ELEMENT_TYPE_U2}};
-
-    auto findType = basicTypesMap.find(valueType);
-    if (findType == basicTypesMap.end())
-    {
-        return E_FAIL;
-    }
-
-    return PrimitiveTypes::CreateICorValue(ed.pThread, findType->second, valueData, ppValue);
-}
-
 HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pType1Value,
                            ICorDebugValue *pType2Value, ICorDebugValue **pResultValue, EvalData &ed)
 {
@@ -848,17 +758,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     });
 }
 
-bool SupportedByCalculationType(CorElementType elemType)
-{
-    static const std::unordered_set<CorElementType> supportedElementTypes{
-        ELEMENT_TYPE_BOOLEAN, ELEMENT_TYPE_U1, ELEMENT_TYPE_I1,    ELEMENT_TYPE_CHAR, ELEMENT_TYPE_R8,
-        ELEMENT_TYPE_R4,      ELEMENT_TYPE_I4, ELEMENT_TYPE_U4,    ELEMENT_TYPE_I8,   ELEMENT_TYPE_U8,
-        ELEMENT_TYPE_I2,      ELEMENT_TYPE_U2, ELEMENT_TYPE_STRING};
-
-    return supportedElementTypes.find(elemType) != supportedElementTypes.end();
-}
-
-HRESULT CalculateTwoOperands(OperationType opType, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue2;
@@ -878,62 +778,78 @@ HRESULT CalculateTwoOperands(OperationType opType, std::list<EvalStackEntry> &ev
     if (elemType1 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_VALUETYPE ||
         elemType1 == ELEMENT_TYPE_CLASS || elemType2 == ELEMENT_TYPE_CLASS)
     {
-        static std::unordered_map<OperationType, std::pair<std::string, std::string>> opMap{
-            {OperationType::AddExpression, {"op_Addition", "+"}},
-            {OperationType::SubtractExpression, {"op_Subtraction", "-"}},
-            {OperationType::MultiplyExpression, {"op_Multiply", "*"}},
-            {OperationType::DivideExpression, {"op_Division", "/"}},
-            {OperationType::ModuloExpression, {"op_Modulus", "%"}},
-            {OperationType::RightShiftExpression, {"op_RightShift", ">>"}},
-            {OperationType::LeftShiftExpression, {"op_LeftShift", "<<"}},
-            {OperationType::LogicalAndExpression, {"op_LogicalAnd", "&&"}},
-            {OperationType::LogicalOrExpression, {"op_LogicalOr", "||"}},
-            {OperationType::ExclusiveOrExpression, {"op_ExclusiveOr", "^"}},
-            {OperationType::BitwiseAndExpression, {"op_BitwiseAnd", "&"}},
-            {OperationType::BitwiseOrExpression, {"op_BitwiseOr", "|"}},
-            {OperationType::EqualsExpression, {"op_Equality", "=="}},
-            {OperationType::NotEqualsExpression, {"op_Inequality", "!="}},
-            {OperationType::LessThanExpression, {"op_LessThan", "<"}},
-            {OperationType::GreaterThanExpression, {"op_GreaterThan", ">"}},
-            {OperationType::LessThanOrEqualExpression, {"op_LessThanOrEqual", "<="}},
-            {OperationType::GreaterThanOrEqualExpression, {"op_GreaterThanOrEqual", ">="}}};
+        static std::unordered_map<Parser::SyntaxKind, std::pair<std::string, std::string>> opMap{
+            {Parser::SyntaxKind::AddExpression, {"op_Addition", "+"}},
+            {Parser::SyntaxKind::SubtractExpression, {"op_Subtraction", "-"}},
+            {Parser::SyntaxKind::MultiplyExpression, {"op_Multiply", "*"}},
+            {Parser::SyntaxKind::DivideExpression, {"op_Division", "/"}},
+            {Parser::SyntaxKind::ModuloExpression, {"op_Modulus", "%"}},
+            {Parser::SyntaxKind::RightShiftExpression, {"op_RightShift", ">>"}},
+            {Parser::SyntaxKind::LeftShiftExpression, {"op_LeftShift", "<<"}},
+            {Parser::SyntaxKind::LogicalAndExpression, {"op_LogicalAnd", "&&"}},
+            {Parser::SyntaxKind::LogicalOrExpression, {"op_LogicalOr", "||"}},
+            {Parser::SyntaxKind::ExclusiveOrExpression, {"op_ExclusiveOr", "^"}},
+            {Parser::SyntaxKind::BitwiseAndExpression, {"op_BitwiseAnd", "&"}},
+            {Parser::SyntaxKind::BitwiseOrExpression, {"op_BitwiseOr", "|"}},
+            {Parser::SyntaxKind::EqualsExpression, {"op_Equality", "=="}},
+            {Parser::SyntaxKind::NotEqualsExpression, {"op_Inequality", "!="}},
+            {Parser::SyntaxKind::LessThanExpression, {"op_LessThan", "<"}},
+            {Parser::SyntaxKind::GreaterThanExpression, {"op_GreaterThan", ">"}},
+            {Parser::SyntaxKind::LessThanOrEqualExpression, {"op_LessThanOrEqual", "<="}},
+            {Parser::SyntaxKind::GreaterThanOrEqualExpression, {"op_GreaterThanOrEqual", ">="}}};
 
-        auto findOpName = opMap.find(opType);
+        auto findOpName = opMap.find(opcode.kind);
         if (findOpName == opMap.end())
         {
             return E_FAIL;
         }
 
-        if (((elemType1 == ELEMENT_TYPE_VALUETYPE || elemType1 == ELEMENT_TYPE_CLASS) &&
-             SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue1, trRealValue1, trRealValue2,
-                                          &evalStack.front().trValue, ed))) ||
-            ((elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS) &&
-             SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue2, trRealValue1, trRealValue2,
-                                          &evalStack.front().trValue, ed))))
+        if ((elemType1 == ELEMENT_TYPE_VALUETYPE || elemType1 == ELEMENT_TYPE_CLASS) &&
+            SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue1, trRealValue1, trRealValue2,
+                                         &evalStack.front().trValue, ed)))
         {
             return S_OK;
+        }
+
+        // AddExpression can't be added since strings will not work properly in this case.
+        if (opcode.kind == Parser::SyntaxKind::AddExpression ||
+            opcode.kind == Parser::SyntaxKind::MultiplyExpression ||
+            opcode.kind == Parser::SyntaxKind::LogicalAndExpression ||
+            opcode.kind == Parser::SyntaxKind::LogicalOrExpression ||
+            opcode.kind == Parser::SyntaxKind::ExclusiveOrExpression ||
+            opcode.kind == Parser::SyntaxKind::BitwiseAndExpression ||
+            opcode.kind == Parser::SyntaxKind::BitwiseOrExpression ||
+            opcode.kind == Parser::SyntaxKind::EqualsExpression ||
+            opcode.kind == Parser::SyntaxKind::NotEqualsExpression)
+        {
+            if ((elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS) &&
+                SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue2, trRealValue1, trRealValue2,
+                                             &evalStack.front().trValue, ed)))
+            {
+                return S_OK;
+            }
         }
 
         std::string typeRetName;
         CorElementType elemRetType = ELEMENT_TYPE_MAX;
         ToRelease<ICorDebugValue> trResultValue;
-        // Try to implicitly cast struct/class object into build-in type supported by CalculationDelegate().
-        if (SupportedByCalculationType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        // Try to implicitly cast struct/class object into primitive type.
+        if (PrimitiveTypes::IsPrimitiveType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
             SUCCEEDED(GetArgData(trRealValue2, typeRetName, elemRetType)) &&
             SUCCEEDED(CallCastOperator("op_Implicit", trRealValue1, elemRetType, typeRetName, trRealValue1,
                                        &trResultValue, ed)))
         {
             trRealValue1.Free();
             IfFailRet(GetRealValueWithType(trResultValue, &trRealValue1, &elemType1));
-            // goto CalculationDelegate() related routine (see code below this 'if' statement scope)
+            // goto PrimitiveTypes::CalculateBinary() related routine (see code below this 'if' statement scope)
         }
-        else if (SupportedByCalculationType(elemType1) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        else if (PrimitiveTypes::IsPrimitiveType(elemType1) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
                  SUCCEEDED(GetArgData(trRealValue1, typeRetName, elemRetType)) &&
                  SUCCEEDED(CallCastOperator("op_Implicit", trRealValue2, elemRetType, typeRetName, trRealValue2, &trResultValue, ed)))
         {
             trRealValue2.Free();
             IfFailRet(GetRealValueWithType(trResultValue, &trRealValue2, &elemType2));
-            // goto CalculationDelegate() related routine (see code below this 'if' statement scope)
+            // goto PrimitiveTypes::CalculateBinary() related routine (see code below this 'if' statement scope)
         }
         else
         {
@@ -941,51 +857,25 @@ HRESULT CalculateTwoOperands(OperationType opType, std::list<EvalStackEntry> &ev
             IfFailRet(TypePrinter::GetTypeOfValue(trRealValue1, typeName1));
             std::string typeName2;
             IfFailRet(TypePrinter::GetTypeOfValue(trRealValue2, typeName2));
-            output = "error CS0019: Operator '" + findOpName->second.second +
+            output = "error: Operator '" + findOpName->second.second +
                      "' cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
             return E_INVALIDARG;
         }
     }
-    else if (!SupportedByCalculationType(elemType1) || !SupportedByCalculationType(elemType2))
+    else if (!PrimitiveTypes::IsPrimitiveType(elemType1) || !PrimitiveTypes::IsPrimitiveType(elemType2))
     {
         return E_INVALIDARG;
     }
 
-    int64_t valueDataHolder1 = 0;
-    void *valueData1 = &valueDataHolder1;
-    int32_t valueType1 = 0;
-    int64_t valueDataHolder2 = 0;
-    void *valueData2 = &valueDataHolder2;
-    int32_t valueType2 = 0;
-    void *resultData = nullptr;
-    int32_t resultType = 0;
-    if (SUCCEEDED(Status = GetOperandDataTypeByValue(trRealValue1, elemType1, &valueData1, valueType1)) &&
-        SUCCEEDED(Status = GetOperandDataTypeByValue(trRealValue2, elemType2, &valueData2, valueType2)) &&
-        SUCCEEDED(Status = Interop::Calculation(valueData1, valueType1, valueData2, valueType2,
-                                                static_cast<int32_t>(opType), resultType, &resultData, output)))
-    {
-        Status = GetValueByOperandDataType(resultData, static_cast<BasicTypes>(resultType), &evalStack.front().trValue, ed);
-        if (resultType == static_cast<int32_t>(BasicTypes::TypeString))
-        {
-            Interop::SysFreeString(reinterpret_cast<BSTR>(resultData));
-        }
-        else
-        {
-            Interop::CoTaskMemFree(resultData);
-        }
-    }
+    PrimitiveTypes::PrimitiveValue leftValue;
+    PrimitiveTypes::PrimitiveValue rightValue;
+    PrimitiveTypes::PrimitiveValue outputValue;
+    IfFailRet(PrimitiveTypes::GetOperandData(trRealValue1, elemType1, leftValue));
+    IfFailRet(PrimitiveTypes::GetOperandData(trRealValue2, elemType2, rightValue));
+    IfFailRet(PrimitiveTypes::CalculateBinary(opcode.kind, leftValue, rightValue, outputValue, output));
+    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, ed.pEvalHelpers, outputValue, &evalStack.front().trValue));
 
-    if (valueType1 == static_cast<int32_t>(BasicTypes::TypeString) && (valueData1 != nullptr))
-    {
-        Interop::SysFreeString(reinterpret_cast<BSTR>(valueData1));
-    }
-
-    if (valueType2 == static_cast<int32_t>(BasicTypes::TypeString) && (valueData2 != nullptr))
-    {
-        Interop::SysFreeString(reinterpret_cast<BSTR>(valueData2));
-    }
-
-    return Status;
+    return S_OK;
 }
 
 HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
@@ -1654,96 +1544,6 @@ HRESULT QualifiedName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
     return SimpleMemberAccessExpression(opcode, evalStack, output, ed);
 }
 
-HRESULT AddExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::AddExpression, evalStack, output, ed);
-}
-
-HRESULT MultiplyExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::MultiplyExpression, evalStack, output, ed);
-}
-
-HRESULT SubtractExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::SubtractExpression, evalStack, output, ed);
-}
-
-HRESULT DivideExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::DivideExpression, evalStack, output, ed);
-}
-
-HRESULT ModuloExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::ModuloExpression, evalStack, output, ed);
-}
-
-HRESULT LeftShiftExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::LeftShiftExpression, evalStack, output, ed);
-}
-
-HRESULT RightShiftExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::RightShiftExpression, evalStack, output, ed);
-}
-
-HRESULT BitwiseAndExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::BitwiseAndExpression, evalStack, output, ed);
-}
-
-HRESULT BitwiseOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::BitwiseOrExpression, evalStack, output, ed);
-}
-
-HRESULT ExclusiveOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::ExclusiveOrExpression, evalStack, output, ed);
-}
-
-HRESULT LogicalAndExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::LogicalAndExpression, evalStack, output, ed);
-}
-
-HRESULT LogicalOrExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::LogicalOrExpression, evalStack, output, ed);
-}
-
-HRESULT EqualsExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::EqualsExpression, evalStack, output, ed);
-}
-
-HRESULT NotEqualsExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::NotEqualsExpression, evalStack, output, ed);
-}
-
-HRESULT GreaterThanExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::GreaterThanExpression, evalStack, output, ed);
-}
-
-HRESULT LessThanExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::LessThanExpression, evalStack, output, ed);
-}
-
-HRESULT GreaterThanOrEqualExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::GreaterThanOrEqualExpression, evalStack, output, ed);
-}
-
-HRESULT LessThanOrEqualExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
-{
-    return CalculateTwoOperands(OperationType::LessThanOrEqualExpression, evalStack, output, ed);
-}
-
 HRESULT TrueLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
 {
     evalStack.emplace_front();
@@ -1899,24 +1699,25 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         {Parser::SyntaxKind::QualifiedName, QualifiedName},
         {Parser::SyntaxKind::MemberBindingExpression, MemberBindingExpression},
         {Parser::SyntaxKind::SimpleMemberAccessExpression, SimpleMemberAccessExpression},
-        {Parser::SyntaxKind::AddExpression, AddExpression},
-        {Parser::SyntaxKind::MultiplyExpression, MultiplyExpression},
-        {Parser::SyntaxKind::SubtractExpression, SubtractExpression},
-        {Parser::SyntaxKind::DivideExpression, DivideExpression},
-        {Parser::SyntaxKind::ModuloExpression, ModuloExpression},
-        {Parser::SyntaxKind::LeftShiftExpression, LeftShiftExpression},
-        {Parser::SyntaxKind::RightShiftExpression, RightShiftExpression},
-        {Parser::SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
-        {Parser::SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
-        {Parser::SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},
-        {Parser::SyntaxKind::LogicalAndExpression, LogicalAndExpression},
-        {Parser::SyntaxKind::LogicalOrExpression, LogicalOrExpression},
-        {Parser::SyntaxKind::EqualsExpression, EqualsExpression},
-        {Parser::SyntaxKind::NotEqualsExpression, NotEqualsExpression},
-        {Parser::SyntaxKind::GreaterThanExpression, GreaterThanExpression},
-        {Parser::SyntaxKind::LessThanExpression, LessThanExpression},
-        {Parser::SyntaxKind::GreaterThanOrEqualExpression, GreaterThanOrEqualExpression},
-        {Parser::SyntaxKind::LessThanOrEqualExpression, LessThanOrEqualExpression},
+        {Parser::SyntaxKind::AddExpression, BinaryOperator},
+        {Parser::SyntaxKind::MultiplyExpression, BinaryOperator},
+        {Parser::SyntaxKind::SubtractExpression, BinaryOperator},
+        {Parser::SyntaxKind::DivideExpression, BinaryOperator},
+        {Parser::SyntaxKind::ModuloExpression, BinaryOperator},
+        {Parser::SyntaxKind::LeftShiftExpression, BinaryOperator},
+        {Parser::SyntaxKind::RightShiftExpression, BinaryOperator},
+        {Parser::SyntaxKind::BitwiseAndExpression, BinaryOperator},
+        {Parser::SyntaxKind::BitwiseOrExpression, BinaryOperator},
+        {Parser::SyntaxKind::ExclusiveOrExpression, BinaryOperator},
+        {Parser::SyntaxKind::LogicalAndExpression, BinaryOperator},
+        {Parser::SyntaxKind::LogicalOrExpression, BinaryOperator},
+        {Parser::SyntaxKind::EqualsExpression, BinaryOperator},
+        {Parser::SyntaxKind::NotEqualsExpression, BinaryOperator},
+        {Parser::SyntaxKind::GreaterThanExpression, BinaryOperator},
+        {Parser::SyntaxKind::LessThanExpression, BinaryOperator},
+        {Parser::SyntaxKind::GreaterThanOrEqualExpression, BinaryOperator},
+        {Parser::SyntaxKind::LessThanOrEqualExpression, BinaryOperator},
+        {Parser::SyntaxKind::CoalesceExpression, BinaryOperator},
         {Parser::SyntaxKind::UnaryPlusExpression, UnaryOperator},
         {Parser::SyntaxKind::UnaryMinusExpression, UnaryOperator},
         {Parser::SyntaxKind::LogicalNotExpression, UnaryOperator},
@@ -1925,7 +1726,6 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         {Parser::SyntaxKind::FalseLiteralExpression, FalseLiteralExpression},
         {Parser::SyntaxKind::NullLiteralExpression, NullLiteralExpression},
         {Parser::SyntaxKind::SizeOfExpression, SizeOfExpression},
-        {Parser::SyntaxKind::CoalesceExpression, CoalesceExpression},
         {Parser::SyntaxKind::ThisExpression, ThisExpression}
     };
 

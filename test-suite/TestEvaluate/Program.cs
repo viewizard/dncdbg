@@ -619,12 +619,12 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1UL + 1", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "true + 1", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 + not_var", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1u + testClass", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass + 1u", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1u + testStruct", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct + 1u", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass + testStruct", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct + testClass", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1u + testClass", "error: Operator '+' cannot be applied to operands of type 'uint' and 'TestEvaluate.TestOperators1'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass + 1u", "error: Operator '+' cannot be applied to operands of type 'TestEvaluate.TestOperators1' and 'uint'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1u + testStruct", "error: Operator '+' cannot be applied to operands of type 'uint' and 'TestEvaluate.TestOperators2'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct + 1u", "error: Operator '+' cannot be applied to operands of type 'TestEvaluate.TestOperators2' and 'uint'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass + testStruct", "error: Operator '+' cannot be applied to operands of type 'TestEvaluate.TestOperators1' and 'TestEvaluate.TestOperators2'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct + testClass", "error: Operator '+' cannot be applied to operands of type 'TestEvaluate.TestOperators2' and 'TestEvaluate.TestOperators1'");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "3 - 1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "decimal", "3m - 1m");

@@ -32,6 +32,7 @@ Upcoming changes compared to previous version.
 - Simplified decimal type parsing in print code.
 - Replaced managed Roslyn parser with native tree-sitter implementation.
 - Implemented native unary operators for managed primitive types.
+- Implemented native binary operators for managed primitive types.
 
 #### Removed
 - Removed unused code.
@@ -42,6 +43,7 @@ Upcoming changes compared to previous version.
 - Fixed macOS arm64 and x86_64 builds (iconv proper detection).
 - Fixed Windows arm64 architecture detection during the build process.
 - Fixed macOS debuggee process exit code retrieval by using kqueue with NOTE_EXITSTATUS.
+- Fixed binary operators logic.
 
 </br>
 </br>

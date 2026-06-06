@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Evaluation.cs" />
     <Compile Include="SymbolReader.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
@@ -20,7 +19,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="[4.7,)" />
     <PackageReference Include="System.Reflection.Metadata" Version="[6.0.0,)" />
   </ItemGroup>
 

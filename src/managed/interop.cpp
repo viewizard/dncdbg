@@ -259,7 +259,6 @@ Interop::StringToUpperDelegate Interop::stringToUpperDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
 Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
 Interop::SysFreeStringDelegate Interop::sysFreeStringDelegate = nullptr;
-Interop::CalculationDelegate Interop::calculationDelegate = nullptr;
 
 HRESULT Interop::LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, const void *peAddress,
                                            uint64_t peSize, const void *inMemoryPdbAddress, uint64_t inMemoryPdbSize,
@@ -408,7 +407,6 @@ void Interop::Init(const std::string &coreClrPath)
 
     static const char *managedPartDllName = "ManagedPart";
     static const char *symbolReaderClassName = "DNCDbg.SymbolReader";
-    static const char *evaluationClassName = "DNCDbg.Evaluation";
     static const char *utilsClassName = "DNCDbg.Utils";
 
     const bool allDelegatesCreated =
@@ -423,7 +421,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, evaluationClassName, "Calculation", reinterpret_cast<void **>(&calculationDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
@@ -448,8 +445,7 @@ void Interop::Init(const std::string &coreClrPath)
                                     (stringToUpperDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
-                                    (sysFreeStringDelegate != nullptr) &&
-                                    (calculationDelegate != nullptr);
+                                    (sysFreeStringDelegate != nullptr);
 
     if (!allDelegatesInited)
     {
@@ -489,7 +485,6 @@ void Interop::Shutdown()
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
     sysFreeStringDelegate = nullptr;
-    calculationDelegate = nullptr;
 }
 
 HRESULT Interop::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
@@ -589,30 +584,6 @@ HRESULT Interop::GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef me
     const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
                                                           data, &hoistedLocalScopesCount);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT Interop::Calculation(void *firstOp, int32_t firstType, void *secondOp, int32_t secondType, int32_t operationType,
-                             int32_t &resultType, void **data, std::string &errorText)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if (calculationDelegate == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    BSTR werrorText = nullptr;
-    const RetCode retCode = calculationDelegate(firstOp, firstType, secondOp, secondType, operationType,
-                                                &resultType, data, &werrorText);
-    read_lock.unlock();
-
-    if (retCode != RetCode::OK)
-    {
-        errorText = to_utf8(werrorText);
-        Interop::SysFreeString(werrorText);
-        return E_FAIL;
-    }
-
-    return S_OK;
 }
 
 HRESULT Interop::GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,

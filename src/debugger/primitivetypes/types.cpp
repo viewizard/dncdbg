@@ -32,15 +32,14 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
         ToRelease<ICorDebugValue> trValue;
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &trValue, &isNull));
-        if (isNull == TRUE)
-        {
-            return E_INVALIDARG;
-        }
 
         if (elemType == ELEMENT_TYPE_STRING)
         {
             std::string String;
-            IfFailRet(PrintStringValue(trValue, String));
+            if (isNull == FALSE)
+            {
+                IfFailRet(PrintStringValue(trValue, String));
+            }
             primValue.type = ELEMENT_TYPE_STRING;
             primValue.value = String;
         }
