@@ -804,30 +804,14 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
             return E_FAIL;
         }
 
-        if ((elemType1 == ELEMENT_TYPE_VALUETYPE || elemType1 == ELEMENT_TYPE_CLASS) &&
-            SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue1, trRealValue1, trRealValue2,
-                                         &evalStack.front().trValue, ed)))
+        if (((elemType1 == ELEMENT_TYPE_VALUETYPE || elemType1 == ELEMENT_TYPE_CLASS) &&
+             SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue1, trRealValue1, trRealValue2,
+                                          &evalStack.front().trValue, ed))) ||
+            ((elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS) &&
+             SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue2, trRealValue1, trRealValue2,
+                                          &evalStack.front().trValue, ed))))
         {
             return S_OK;
-        }
-
-        // AddExpression can't be added since strings will not work properly in this case.
-        if (opcode.kind == Parser::SyntaxKind::AddExpression ||
-            opcode.kind == Parser::SyntaxKind::MultiplyExpression ||
-            opcode.kind == Parser::SyntaxKind::LogicalAndExpression ||
-            opcode.kind == Parser::SyntaxKind::LogicalOrExpression ||
-            opcode.kind == Parser::SyntaxKind::ExclusiveOrExpression ||
-            opcode.kind == Parser::SyntaxKind::BitwiseAndExpression ||
-            opcode.kind == Parser::SyntaxKind::BitwiseOrExpression ||
-            opcode.kind == Parser::SyntaxKind::EqualsExpression ||
-            opcode.kind == Parser::SyntaxKind::NotEqualsExpression)
-        {
-            if ((elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS) &&
-                SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue2, trRealValue1, trRealValue2,
-                                             &evalStack.front().trValue, ed)))
-            {
-                return S_OK;
-            }
         }
 
         std::string typeRetName;
