@@ -15,28 +15,6 @@ namespace dncdbg::PrimitiveTypes
 namespace
 {
 
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; }; // NOLINT(misc-multiple-inheritance)
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-template <typename T>
-struct TypeMapping
-{
-    static constexpr std::string_view description = "Unknown Type";
-};
-template <> struct TypeMapping<bool>        { static constexpr std::string_view description = "bool"; };
-template <> struct TypeMapping<WCHAR>       { static constexpr std::string_view description = "char"; };
-template <> struct TypeMapping<std::string> { static constexpr std::string_view description = "string"; };
-template <> struct TypeMapping<uint8_t>     { static constexpr std::string_view description = "byte"; };
-template <> struct TypeMapping<uint16_t>    { static constexpr std::string_view description = "ushort"; };
-template <> struct TypeMapping<uint32_t>    { static constexpr std::string_view description = "uint"; };
-template <> struct TypeMapping<uint64_t>    { static constexpr std::string_view description = "ulong"; };
-template <> struct TypeMapping<int8_t>      { static constexpr std::string_view description = "sbyte"; };
-template <> struct TypeMapping<int16_t>     { static constexpr std::string_view description = "short"; };
-template <> struct TypeMapping<int32_t>     { static constexpr std::string_view description = "int"; };
-template <> struct TypeMapping<int64_t>     { static constexpr std::string_view description = "long"; };
-template <> struct TypeMapping<double>      { static constexpr std::string_view description = "double"; };
-template <> struct TypeMapping<float>       { static constexpr std::string_view description = "float"; };
-
 void FillBinaryErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     const std::string_view leftTypeName = std::visit(
