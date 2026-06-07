@@ -30,15 +30,13 @@ HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &ou
     auto convertToInt32 =
         [&](auto &&arg) -> void
         {
-            outputValue.type = ELEMENT_TYPE_I4;
-            outputValue.value.emplace<int32_t>(arg);
+            outputValue.emplace<int32_t>(arg);
         };
 
     auto preserveType =
         [&](auto &&arg) -> void
         {
-            outputValue.type = inputValue.type;
-            outputValue.value.emplace<std::decay_t<decltype(arg)>>(arg);
+            outputValue.emplace<std::decay_t<decltype(arg)>>(arg);
         };
 
     auto setError =
@@ -63,7 +61,7 @@ HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &ou
         [&](const int64_t &arg) { preserveType(arg); },
         [&](const double &arg) { preserveType(arg); },
         [&](const float &arg) { preserveType(arg); }
-    }, inputValue.value);
+    }, inputValue);
 
     return Status;
 }
@@ -76,22 +74,19 @@ HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto convertToNegativeInt32 =
         [&](auto &&arg) -> void
         {
-            outputValue.type = ELEMENT_TYPE_I4;
-            outputValue.value.emplace<int32_t>(-1 * static_cast<int32_t>(arg));
+            outputValue.emplace<int32_t>(-1 * static_cast<int32_t>(arg));
         };
 
     auto convertToNegativeInt64 =
         [&](auto &&arg) -> void
         {
-            outputValue.type = ELEMENT_TYPE_I8;
-            outputValue.value.emplace<int64_t>(-1 * static_cast<int64_t>(arg));
+            outputValue.emplace<int64_t>(-1 * static_cast<int64_t>(arg));
         };
 
     auto preserveNegativeType =
         [&](auto &&arg) -> void
         {
-            outputValue.type = inputValue.type;
-            outputValue.value.emplace<std::decay_t<decltype(arg)>>(-1 * arg);
+            outputValue.emplace<std::decay_t<decltype(arg)>>(-1 * arg);
         };
 
     auto setError =
@@ -116,7 +111,7 @@ HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         [&](const int64_t &arg) { preserveNegativeType(arg); },
         [&](const double &arg) { preserveNegativeType(arg); },
         [&](const float &arg) { preserveNegativeType(arg); }
-    }, inputValue.value);
+    }, inputValue);
 
     return Status;
 }
@@ -129,15 +124,13 @@ HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto convertToInvertInt32 =
         [&](auto &&arg) -> void
         {
-            outputValue.type = ELEMENT_TYPE_I4;
-            outputValue.value.emplace<int32_t>(~static_cast<int32_t>(arg));
+            outputValue.emplace<int32_t>(~static_cast<int32_t>(arg));
         };
 
     auto preserveInvertType =
         [&](auto &&arg) -> void
         {
-            outputValue.type = inputValue.type;
-            outputValue.value.emplace<std::decay_t<decltype(arg)>>(~arg);
+            outputValue.emplace<std::decay_t<decltype(arg)>>(~arg);
         };
 
     auto setError =
@@ -162,7 +155,7 @@ HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         [&](const int64_t &arg) { preserveInvertType(arg); },
         [&](const double &arg) { setError(arg); },
         [&](const float &arg) { setError(arg); }
-    }, inputValue.value);
+    }, inputValue);
 
     return Status;
 }
@@ -175,8 +168,7 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto preserveNotType =
         [&](auto &&arg) -> void
         {
-            outputValue.type = inputValue.type;
-            outputValue.value.emplace<std::decay_t<decltype(arg)>>(!arg);
+            outputValue.emplace<std::decay_t<decltype(arg)>>(!arg);
         };
 
     auto setError =
@@ -201,7 +193,7 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         [&](const int64_t &arg) { setError(arg); },
         [&](const double &arg) { setError(arg); },
         [&](const float &arg) { setError(arg); }
-    }, inputValue.value);
+    }, inputValue);
 
     return Status;
 }
@@ -210,7 +202,7 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
 
 HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
 {
-    assert(!std::holds_alternative<std::monostate>(inputValue.value) && "inputValue not properly initialized.");
+    assert(!std::holds_alternative<std::monostate>(inputValue) && "inputValue not properly initialized.");
 
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, PrimitiveValue &, std::string &)>> OperatorImplementation{
         {Parser::SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},

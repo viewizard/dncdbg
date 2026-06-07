@@ -40,8 +40,7 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
             {
                 IfFailRet(PrintStringValue(trValue, String));
             }
-            primValue.type = ELEMENT_TYPE_STRING;
-            primValue.value = String;
+            primValue = String;
         }
         else if (elemType == ELEMENT_TYPE_BOOLEAN)
         {
@@ -49,8 +48,7 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
             ToRelease<ICorDebugGenericValue> trGenValue;
             IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
             IfFailRet(trGenValue->GetValue(&boolValue));
-            primValue.type = ELEMENT_TYPE_BOOLEAN;
-            primValue.value.emplace<bool>(boolValue == 1);
+            primValue.emplace<bool>(boolValue == 1);
         }
 
         return S_OK;
@@ -59,47 +57,47 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
     switch (elemType)
     {
     case ELEMENT_TYPE_U1:
-        primValue.value.emplace<uint8_t>(static_cast<uint8_t>(0));
+        primValue.emplace<uint8_t>(static_cast<uint8_t>(0));
         break;
 
     case ELEMENT_TYPE_I1:
-        primValue.value.emplace<int8_t>(static_cast<int8_t>(0));
+        primValue.emplace<int8_t>(static_cast<int8_t>(0));
         break;
 
     case ELEMENT_TYPE_CHAR:
-        primValue.value.emplace<WCHAR>(static_cast<WCHAR>(0));
+        primValue.emplace<WCHAR>(static_cast<WCHAR>(0));
         break;
 
     case ELEMENT_TYPE_R8:
-        primValue.value.emplace<double>(static_cast<double>(0));
+        primValue.emplace<double>(static_cast<double>(0));
         break;
 
     case ELEMENT_TYPE_R4:
-        primValue.value.emplace<float>(static_cast<float>(0));
+        primValue.emplace<float>(static_cast<float>(0));
         break;
 
     case ELEMENT_TYPE_I4:
-        primValue.value.emplace<int32_t>(static_cast<int32_t>(0));
+        primValue.emplace<int32_t>(static_cast<int32_t>(0));
         break;
 
     case ELEMENT_TYPE_U4:
-        primValue.value.emplace<uint32_t>(static_cast<uint32_t>(0));
+        primValue.emplace<uint32_t>(static_cast<uint32_t>(0));
         break;
 
     case ELEMENT_TYPE_I8:
-        primValue.value.emplace<int64_t>(static_cast<int64_t>(0));
+        primValue.emplace<int64_t>(static_cast<int64_t>(0));
         break;
 
     case ELEMENT_TYPE_U8:
-        primValue.value.emplace<uint64_t>(static_cast<uint64_t>(0));
+        primValue.emplace<uint64_t>(static_cast<uint64_t>(0));
         break;
 
     case ELEMENT_TYPE_I2:
-        primValue.value.emplace<int16_t>(static_cast<int16_t>(0));
+        primValue.emplace<int16_t>(static_cast<int16_t>(0));
         break;
 
     case ELEMENT_TYPE_U2:
-        primValue.value.emplace<uint16_t>(static_cast<uint16_t>(0));
+        primValue.emplace<uint16_t>(static_cast<uint16_t>(0));
         break;
 
     default:
@@ -114,9 +112,8 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
         {
             Status = trGenValue->GetValue(&arg);
         },
-        primValue.value);
+        primValue);
 
-    primValue.type = elemType;
     return Status;
 }
 
@@ -137,19 +134,45 @@ HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void 
     return trGenValue->SetValue(ptr);
 }
 
+CorElementType GetCorElementType(const PrimitiveValue &primValue)
+{
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+
+    std::visit(overloaded {
+        [](const std::monostate &) { ; },
+        [&](const bool &) { elemType = ELEMENT_TYPE_BOOLEAN; },
+        [&](const WCHAR &) { elemType = ELEMENT_TYPE_CHAR; },
+        [&](const std::string &) { elemType = ELEMENT_TYPE_STRING; },
+        [&](const uint8_t &) { elemType = ELEMENT_TYPE_U1; },
+        [&](const uint16_t &) { elemType = ELEMENT_TYPE_U2; },
+        [&](const uint32_t &) { elemType = ELEMENT_TYPE_U4; },
+        [&](const uint64_t &) { elemType = ELEMENT_TYPE_U8; },
+        [&](const int8_t &) { elemType = ELEMENT_TYPE_I1; },
+        [&](const int16_t &) { elemType = ELEMENT_TYPE_I2; },
+        [&](const int32_t &) { elemType = ELEMENT_TYPE_I4; },
+        [&](const int64_t &) { elemType = ELEMENT_TYPE_I8; },
+        [&](const double &) { elemType = ELEMENT_TYPE_R8; },
+        [&](const float &) { elemType = ELEMENT_TYPE_R4; }
+    }, primValue);
+
+    return elemType;
+}
+
 HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, PrimitiveValue &primValue, ICorDebugValue **ppValue)
 {
-    assert(!std::holds_alternative<std::monostate>(primValue.value) && "primValue not properly initialized.");
+    assert(!std::holds_alternative<std::monostate>(primValue) && "primValue not properly initialized.");
 
-    if (primValue.type == ELEMENT_TYPE_STRING)
+    CorElementType elemType = GetCorElementType(primValue);
+
+    if (elemType == ELEMENT_TYPE_STRING)
     {
-        assert(std::holds_alternative<std::string>(primValue.value));
-        return pEvalHelpers->CreateString(pThread, std::get<std::string>(primValue.value), ppValue);
+        assert(std::holds_alternative<std::string>(primValue));
+        return pEvalHelpers->CreateString(pThread, std::get<std::string>(primValue), ppValue);
     }
-    else if (primValue.type == ELEMENT_TYPE_BOOLEAN)
+    else if (elemType == ELEMENT_TYPE_BOOLEAN)
     {
-        assert(std::holds_alternative<bool>(primValue.value));
-        uint8_t boolValue = std::get<bool>(primValue.value) ? 1 : 0;
+        assert(std::holds_alternative<bool>(primValue));
+        uint8_t boolValue = std::get<bool>(primValue) ? 1 : 0;
         return CreateICorValue(pThread, ELEMENT_TYPE_BOOLEAN, &boolValue, ppValue);
     }
 
@@ -157,9 +180,9 @@ HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, Pri
     std::visit(
         [&](auto &arg)
         {
-            Status = CreateICorValue(pThread, primValue.type, &arg, ppValue);
+            Status = CreateICorValue(pThread, elemType, &arg, ppValue);
         },
-        primValue.value);
+        primValue);
 
     return Status;
 }

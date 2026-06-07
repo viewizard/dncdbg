@@ -49,16 +49,12 @@ template <> struct TypeMapping<int64_t>     { static constexpr std::string_view 
 template <> struct TypeMapping<double>      { static constexpr std::string_view description = "double"; };
 template <> struct TypeMapping<float>       { static constexpr std::string_view description = "float"; };
 
-using PrimitiveTypeNativeValue = std::variant<std::monostate, bool, uint8_t, int8_t, uint16_t, int16_t, uint32_t,
-                                              int32_t, uint64_t, int64_t, float, double, WCHAR, std::string>;
-struct PrimitiveValue
-{
-    CorElementType type = ELEMENT_TYPE_MAX;
-    PrimitiveTypeNativeValue value = std::monostate{};
-};
+using PrimitiveValue = std::variant<std::monostate, bool, uint8_t, int8_t, uint16_t, int16_t, uint32_t,
+                                    int32_t, uint64_t, int64_t, float, double, WCHAR, std::string>;
 
 bool IsPrimitiveType(CorElementType elemType);
 HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, PrimitiveValue &primValue);
+CorElementType GetCorElementType(const PrimitiveValue &primValue);
 HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue);
 HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, PrimitiveValue &primValue, ICorDebugValue **ppValue);
 

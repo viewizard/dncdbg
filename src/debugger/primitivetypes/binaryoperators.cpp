@@ -27,7 +27,7 @@ void FillBinaryErrorOutput(const std::string_view &opName, const PrimitiveValue 
         {
             ss << "error: Operator '" << opName << "' cannot be applied to operands of type '" << TypeMapping<std::decay_t<decltype(arg1)>>::description
                << "' and '" << TypeMapping<std::decay_t<decltype(arg2)>>::description << "'";
-        }, leftValue.value, rightValue.value);
+        }, leftValue, rightValue);
     output = ss.str();
 }
 
@@ -39,7 +39,7 @@ void FillBinaryAmbiguousErrorOutput(const std::string_view &opName, const Primit
         {
             ss << "error: Operator '" << opName << "' is ambiguous on operands of type '" << TypeMapping<std::decay_t<decltype(arg1)>>::description
                << "' and '" << TypeMapping<std::decay_t<decltype(arg2)>>::description << "'";
-        }, leftValue.value, rightValue.value);
+        }, leftValue, rightValue);
     output = ss.str();
 }
 
@@ -50,14 +50,14 @@ void FillBinaryConvertErrorOutput(const PrimitiveValue &primValue, std::string &
         [&](auto &arg) -> void
         {
             ss << "error: Cannot implicitly convert type '" << TypeMapping<std::decay_t<decltype(arg)>>::description << "' to 'bool'";
-        }, primValue.value);
+        }, primValue);
     output = ss.str();
 }
 
-// Helper template to convert PrimitiveTypeNativeValue to target numeric type.
+// Helper template to convert PrimitiveValue to target numeric type.
 // Handles int8_t specially by casting through uint8_t to preserve bit pattern.
 template <typename TargetType>
-TargetType ConvertToNumeric(const PrimitiveTypeNativeValue &value)
+TargetType ConvertToNumeric(const PrimitiveValue &value)
 {
     TargetType result{};
     std::visit(overloaded {
@@ -82,7 +82,7 @@ HRESULT AddExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rig
         };
 
     auto ConvertToString =
-        [&](const PrimitiveTypeNativeValue &value) -> std::string
+        [&](const PrimitiveValue &value) -> std::string
         {
             std::string ret;
             std::visit(overloaded {
@@ -97,64 +97,57 @@ HRESULT AddExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rig
             return ret;
         };
 
-    if (std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    if (std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
-        const std::string leftStrValue = ConvertToString(leftValue.value);
-        const std::string rightStrValue = ConvertToString(rightValue.value);
-        outputValue.type = ELEMENT_TYPE_STRING;
-        outputValue.value.emplace<std::string>(leftStrValue + rightStrValue);
+        const std::string leftStrValue = ConvertToString(leftValue);
+        const std::string rightStrValue = ConvertToString(rightValue);
+        outputValue.emplace<std::string>(leftStrValue + rightStrValue);
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value))
+    else if (std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R8;
-        outputValue.value.emplace<double>(ConvertToNumeric<double>(leftValue.value) + ConvertToNumeric<double>(rightValue.value));
+        outputValue.emplace<double>(ConvertToNumeric<double>(leftValue) + ConvertToNumeric<double>(rightValue));
     }
-    else if (std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value))
+    else if (std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R4;
-        outputValue.value.emplace<float>(ConvertToNumeric<float>(leftValue.value) + ConvertToNumeric<float>(rightValue.value));
+        outputValue.emplace<float>(ConvertToNumeric<float>(leftValue) + ConvertToNumeric<float>(rightValue));
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) + ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) + ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) + ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) + ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) + ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) + ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) + ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) + ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -172,58 +165,52 @@ HRESULT SubtractExpression(const PrimitiveValue &leftValue, const PrimitiveValue
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value))
+    else if (std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R8;
-        outputValue.value.emplace<double>(ConvertToNumeric<double>(leftValue.value) - ConvertToNumeric<double>(rightValue.value));
+        outputValue.emplace<double>(ConvertToNumeric<double>(leftValue) - ConvertToNumeric<double>(rightValue));
     }
-    else if (std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value))
+    else if (std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R4;
-        outputValue.value.emplace<float>(ConvertToNumeric<float>(leftValue.value) - ConvertToNumeric<float>(rightValue.value));
+        outputValue.emplace<float>(ConvertToNumeric<float>(leftValue) - ConvertToNumeric<float>(rightValue));
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) - ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) - ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) - ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) - ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) - ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) - ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) - ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) - ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -241,58 +228,52 @@ HRESULT MultiplyExpression(const PrimitiveValue &leftValue, const PrimitiveValue
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value))
+    else if (std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R8;
-        outputValue.value.emplace<double>(ConvertToNumeric<double>(leftValue.value) * ConvertToNumeric<double>(rightValue.value));
+        outputValue.emplace<double>(ConvertToNumeric<double>(leftValue) * ConvertToNumeric<double>(rightValue));
     }
-    else if (std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value))
+    else if (std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R4;
-        outputValue.value.emplace<float>(ConvertToNumeric<float>(leftValue.value) * ConvertToNumeric<float>(rightValue.value));
+        outputValue.emplace<float>(ConvertToNumeric<float>(leftValue) * ConvertToNumeric<float>(rightValue));
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) * ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) * ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) * ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) * ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) * ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) * ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) * ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) * ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -310,58 +291,52 @@ HRESULT DivideExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value))
+    else if (std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R8;
-        outputValue.value.emplace<double>(ConvertToNumeric<double>(leftValue.value) / ConvertToNumeric<double>(rightValue.value));
+        outputValue.emplace<double>(ConvertToNumeric<double>(leftValue) / ConvertToNumeric<double>(rightValue));
     }
-    else if (std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value))
+    else if (std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R4;
-        outputValue.value.emplace<float>(ConvertToNumeric<float>(leftValue.value) / ConvertToNumeric<float>(rightValue.value));
+        outputValue.emplace<float>(ConvertToNumeric<float>(leftValue) / ConvertToNumeric<float>(rightValue));
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) / ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) / ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) / ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) / ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) / ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) / ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) / ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) / ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -379,58 +354,52 @@ HRESULT ModuloExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value))
+    else if (std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R8;
-        outputValue.value.emplace<double>(std::fmod(ConvertToNumeric<double>(leftValue.value), ConvertToNumeric<double>(rightValue.value)));
+        outputValue.emplace<double>(std::fmod(ConvertToNumeric<double>(leftValue), ConvertToNumeric<double>(rightValue)));
     }
-    else if (std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value))
+    else if (std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_R4;
-        outputValue.value.emplace<float>(std::fmod(ConvertToNumeric<float>(leftValue.value), ConvertToNumeric<float>(rightValue.value)));
+        outputValue.emplace<float>(std::fmod(ConvertToNumeric<float>(leftValue), ConvertToNumeric<float>(rightValue)));
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) % ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) % ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) % ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) % ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) % ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) % ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) % ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) % ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -448,35 +417,31 @@ HRESULT LeftShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValu
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
-        std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
-                                                          std::holds_alternative<uint32_t>(rightValue.value) ||
-                                                          std::holds_alternative<uint64_t>(rightValue.value) ||
-                                                          std::holds_alternative<int64_t>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
+        std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
+                                                          std::holds_alternative<uint32_t>(rightValue) ||
+                                                          std::holds_alternative<uint64_t>(rightValue) ||
+                                                          std::holds_alternative<int64_t>(rightValue))
     {
         setError();
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value))
+    else if (std::holds_alternative<int64_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) << (ConvertToNumeric<uint64_t>(rightValue) % maxShift8Byte));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) << (ConvertToNumeric<uint64_t>(rightValue) % maxShift8Byte));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value))
+    else if (std::holds_alternative<uint32_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) << (ConvertToNumeric<uint64_t>(rightValue) % maxShift4Byte));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) << (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) << (ConvertToNumeric<uint64_t>(rightValue) % maxShift4Byte));
     }
 
     return Status;
@@ -494,35 +459,31 @@ HRESULT RightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveVal
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-        std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
-        std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
-                                                          std::holds_alternative<uint32_t>(rightValue.value) ||
-                                                          std::holds_alternative<uint64_t>(rightValue.value) ||
-                                                          std::holds_alternative<int64_t>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+        std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
+        std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
+                                                          std::holds_alternative<uint32_t>(rightValue) ||
+                                                          std::holds_alternative<uint64_t>(rightValue) ||
+                                                          std::holds_alternative<int64_t>(rightValue))
     {
         setError();
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value))
+    else if (std::holds_alternative<int64_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) >> (ConvertToNumeric<uint64_t>(rightValue) % maxShift8Byte));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift8Byte));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) >> (ConvertToNumeric<uint64_t>(rightValue) % maxShift8Byte));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value))
+    else if (std::holds_alternative<uint32_t>(leftValue))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) >> (ConvertToNumeric<uint64_t>(rightValue) % maxShift4Byte));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) >> (ConvertToNumeric<uint64_t>(rightValue.value) % maxShift4Byte));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) >> (ConvertToNumeric<uint64_t>(rightValue) % maxShift4Byte));
     }
 
     return Status;
@@ -540,55 +501,50 @@ HRESULT BitwiseAndExpression(const PrimitiveValue &leftValue, const PrimitiveVal
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) && std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) && std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-             std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
-             std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
-             (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+             std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
+             std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
+             (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) & ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) & ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) & ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) & ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) & ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) & ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) & ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) & ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -606,55 +562,50 @@ HRESULT BitwiseOrExpression(const PrimitiveValue &leftValue, const PrimitiveValu
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) || std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) || std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-             std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
-             std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
-             (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+             std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
+             std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
+             (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) | ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) | ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) | ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) | ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) | ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) | ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) | ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) | ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -672,55 +623,50 @@ HRESULT ExclusiveOrExpression(const PrimitiveValue &leftValue, const PrimitiveVa
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) ^ std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) ^ std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value) ||
-             std::holds_alternative<double>(leftValue.value) || std::holds_alternative<double>(rightValue.value) ||
-             std::holds_alternative<float>(leftValue.value) || std::holds_alternative<float>(rightValue.value) ||
-             (std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
+             std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
+             std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
+             (std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setError();
     }
-    else if (std::holds_alternative<int64_t>(leftValue.value) || std::holds_alternative<int64_t>(rightValue.value) ||
-             (std::holds_alternative<uint32_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value))) ||
-             (std::holds_alternative<uint32_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value))))
+    else if (std::holds_alternative<int64_t>(leftValue) || std::holds_alternative<int64_t>(rightValue) ||
+             (std::holds_alternative<uint32_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue))) ||
+             (std::holds_alternative<uint32_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue))))
     {
-        outputValue.type = ELEMENT_TYPE_I8;
-        outputValue.value.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue.value) ^ ConvertToNumeric<int64_t>(rightValue.value));
+        outputValue.emplace<int64_t>(ConvertToNumeric<int64_t>(leftValue) ^ ConvertToNumeric<int64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint64_t>(leftValue.value) || std::holds_alternative<uint64_t>(rightValue.value))
+    else if (std::holds_alternative<uint64_t>(leftValue) || std::holds_alternative<uint64_t>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_U8;
-        outputValue.value.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue.value) ^ ConvertToNumeric<uint64_t>(rightValue.value));
+        outputValue.emplace<uint64_t>(ConvertToNumeric<uint64_t>(leftValue) ^ ConvertToNumeric<uint64_t>(rightValue));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue.value) || (std::holds_alternative<uint32_t>(rightValue.value)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
     {
-        outputValue.type = ELEMENT_TYPE_U4;
-        outputValue.value.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue.value) ^ ConvertToNumeric<uint32_t>(rightValue.value));
+        outputValue.emplace<uint32_t>(ConvertToNumeric<uint32_t>(leftValue) ^ ConvertToNumeric<uint32_t>(rightValue));
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_I4;
-        outputValue.value.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue.value) ^ ConvertToNumeric<int32_t>(rightValue.value));
+        outputValue.emplace<int32_t>(ConvertToNumeric<int32_t>(leftValue) ^ ConvertToNumeric<int32_t>(rightValue));
     }
 
     return Status;
@@ -745,12 +691,12 @@ HRESULT LogicalAndExpression(const PrimitiveValue &leftValue, const PrimitiveVal
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) && std::get<bool>(rightValue.value));
+
+        outputValue.emplace<bool>(std::get<bool>(leftValue) && std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value))
+    else if (std::holds_alternative<bool>(leftValue))
     {
             setError();
     }
@@ -781,12 +727,11 @@ HRESULT LogicalOrExpression(const PrimitiveValue &leftValue, const PrimitiveValu
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) || std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) || std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value))
+    else if (std::holds_alternative<bool>(leftValue))
     {
         setError();
     }
@@ -817,38 +762,35 @@ HRESULT EqualsExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) == std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) == std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<std::string>(leftValue.value) && std::holds_alternative<std::string>(rightValue.value))
+    else if (std::holds_alternative<std::string>(leftValue) && std::holds_alternative<std::string>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<std::string>(leftValue.value) == std::get<std::string>(rightValue.value));
+;
+        outputValue.emplace<bool>(std::get<std::string>(leftValue) == std::get<std::string>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -874,9 +816,9 @@ HRESULT EqualsExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
                 {
                     return ConvertToNumeric<int64_t>(arg1) == ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -901,38 +843,34 @@ HRESULT NotEqualsExpression(const PrimitiveValue &leftValue, const PrimitiveValu
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) && std::holds_alternative<bool>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) && std::holds_alternative<bool>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<bool>(leftValue.value) != std::get<bool>(rightValue.value));
+        outputValue.emplace<bool>(std::get<bool>(leftValue) != std::get<bool>(rightValue));
     }
-    else if (std::holds_alternative<std::string>(leftValue.value) && std::holds_alternative<std::string>(rightValue.value))
+    else if (std::holds_alternative<std::string>(leftValue) && std::holds_alternative<std::string>(rightValue))
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-        outputValue.value.emplace<bool>(std::get<std::string>(leftValue.value) != std::get<std::string>(rightValue.value));
+        outputValue.emplace<bool>(std::get<std::string>(leftValue) != std::get<std::string>(rightValue));
     }
-    else if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-             std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -958,9 +896,9 @@ HRESULT NotEqualsExpression(const PrimitiveValue &leftValue, const PrimitiveValu
                 {
                     return ConvertToNumeric<int64_t>(arg1) != ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -985,28 +923,26 @@ HRESULT LessThanExpression(const PrimitiveValue &leftValue, const PrimitiveValue
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -1032,9 +968,9 @@ HRESULT LessThanExpression(const PrimitiveValue &leftValue, const PrimitiveValue
                 {
                     return ConvertToNumeric<int64_t>(arg1) < ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -1059,28 +995,26 @@ HRESULT GreaterThanExpression(const PrimitiveValue &leftValue, const PrimitiveVa
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -1106,9 +1040,9 @@ HRESULT GreaterThanExpression(const PrimitiveValue &leftValue, const PrimitiveVa
                 {
                     return ConvertToNumeric<int64_t>(arg1) > ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -1133,28 +1067,26 @@ HRESULT LessThanOrEqualExpression(const PrimitiveValue &leftValue, const Primiti
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -1180,9 +1112,9 @@ HRESULT LessThanOrEqualExpression(const PrimitiveValue &leftValue, const Primiti
                 {
                     return ConvertToNumeric<int64_t>(arg1) <= ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -1207,28 +1139,26 @@ HRESULT GreaterThanOrEqualExpression(const PrimitiveValue &leftValue, const Prim
             Status = E_INVALIDARG;
         };
 
-    if (std::holds_alternative<bool>(leftValue.value) || std::holds_alternative<bool>(rightValue.value) ||
-        std::holds_alternative<std::string>(leftValue.value) || std::holds_alternative<std::string>(rightValue.value))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
+        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
     {
         setError();
     }
-    else if ((std::holds_alternative<uint64_t>(leftValue.value) &&
-                (std::holds_alternative<int8_t>(rightValue.value) ||
-                 std::holds_alternative<int16_t>(rightValue.value) ||
-                 std::holds_alternative<int32_t>(rightValue.value) ||
-                 std::holds_alternative<int64_t>(rightValue.value))) ||
-             (std::holds_alternative<uint64_t>(rightValue.value) &&
-                (std::holds_alternative<int8_t>(leftValue.value) ||
-                 std::holds_alternative<int16_t>(leftValue.value) ||
-                 std::holds_alternative<int32_t>(leftValue.value) ||
-                 std::holds_alternative<int64_t>(leftValue.value))))
+    else if ((std::holds_alternative<uint64_t>(leftValue) &&
+                (std::holds_alternative<int8_t>(rightValue) ||
+                 std::holds_alternative<int16_t>(rightValue) ||
+                 std::holds_alternative<int32_t>(rightValue) ||
+                 std::holds_alternative<int64_t>(rightValue))) ||
+             (std::holds_alternative<uint64_t>(rightValue) &&
+                (std::holds_alternative<int8_t>(leftValue) ||
+                 std::holds_alternative<int16_t>(leftValue) ||
+                 std::holds_alternative<int32_t>(leftValue) ||
+                 std::holds_alternative<int64_t>(leftValue))))
     {
         setAmbiguousError();
     }
     else
     {
-        outputValue.type = ELEMENT_TYPE_BOOLEAN;
-
         const bool result = std::visit(
             [](auto &&arg1, auto &&arg2) -> bool
             {
@@ -1254,9 +1184,9 @@ HRESULT GreaterThanOrEqualExpression(const PrimitiveValue &leftValue, const Prim
                 {
                     return ConvertToNumeric<int64_t>(arg1) >= ConvertToNumeric<int64_t>(arg2);
                 }
-            }, leftValue.value, rightValue.value);
+            }, leftValue, rightValue);
 
-        outputValue.value.emplace<bool>(result);
+        outputValue.emplace<bool>(result);
     }
 
     return Status;
@@ -1267,8 +1197,8 @@ HRESULT GreaterThanOrEqualExpression(const PrimitiveValue &leftValue, const Prim
 HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
                         PrimitiveValue &outputValue, std::string &output)
 {
-    assert(!std::holds_alternative<std::monostate>(leftValue.value) && "leftValue not properly initialized.");
-    assert(!std::holds_alternative<std::monostate>(rightValue.value) && "rightValue not properly initialized.");
+    assert(!std::holds_alternative<std::monostate>(leftValue) && "leftValue not properly initialized.");
+    assert(!std::holds_alternative<std::monostate>(rightValue) && "rightValue not properly initialized.");
 
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, const PrimitiveValue &,
                                                                               PrimitiveValue &, std::string &)>> OperatorImplementation{
