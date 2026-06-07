@@ -15,7 +15,7 @@ namespace dncdbg::PrimitiveTypes
 namespace
 {
 
-void FillUnaryErrorOutput(const std::string_view &opName, const std::string_view &type, std::string &output)
+void FillErrorOutput(const std::string_view &opName, const std::string_view &type, std::string &output)
 {
     std::ostringstream ss;
     ss << "error: Operator '" << opName << "' cannot be applied to operand of type '" << type << "'";
@@ -42,25 +42,20 @@ HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &ou
     auto setError =
         [&](auto &&arg) -> void
         {
-            FillUnaryErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
             Status = E_INVALIDARG;
         };
 
     std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "inputValue not properly initialized."); },
+        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
         [&](const bool &arg) { setError(arg); },
         [&](const WCHAR &arg) { convertToInt32(arg); },
         [&](const std::string &arg) { setError(arg); },
         [&](const uint8_t &arg) { convertToInt32(arg); },
         [&](const uint16_t &arg) { convertToInt32(arg); },
-        [&](const uint32_t &arg) { preserveType(arg); },
-        [&](const uint64_t &arg) { preserveType(arg); },
         [&](const int8_t &arg) { convertToInt32(arg); },
         [&](const int16_t &arg) { convertToInt32(arg); },
-        [&](const int32_t &arg) { preserveType(arg); },
-        [&](const int64_t &arg) { preserveType(arg); },
-        [&](const double &arg) { preserveType(arg); },
-        [&](const float &arg) { preserveType(arg); }
+        [&](const auto &arg) { preserveType(arg); }
     }, inputValue);
 
     return Status;
@@ -92,25 +87,21 @@ HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto setError =
         [&](auto &&arg) -> void
         {
-            FillUnaryErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
             Status = E_INVALIDARG;
         };
 
     std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "inputValue not properly initialized."); },
+        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
         [&](const bool &arg) { setError(arg); },
-        [&](const WCHAR &arg) { convertToNegativeInt32(arg); },
         [&](const std::string &arg) { setError(arg); },
-        [&](const uint8_t &arg) { convertToNegativeInt32(arg); },
-        [&](const uint16_t &arg) { convertToNegativeInt32(arg); },
         [&](const uint32_t &arg) { convertToNegativeInt64(arg); },
         [&](const uint64_t &arg) { setError(arg); },
-        [&](const int8_t &arg) { convertToNegativeInt32(arg); },
-        [&](const int16_t &arg) { convertToNegativeInt32(arg); },
         [&](const int32_t &arg) { preserveNegativeType(arg); },
         [&](const int64_t &arg) { preserveNegativeType(arg); },
         [&](const double &arg) { preserveNegativeType(arg); },
-        [&](const float &arg) { preserveNegativeType(arg); }
+        [&](const float &arg) { preserveNegativeType(arg); },
+        [&](const auto &arg) { convertToNegativeInt32(arg); }
     }, inputValue);
 
     return Status;
@@ -136,25 +127,20 @@ HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto setError =
         [&](auto &&arg) -> void
         {
-            FillUnaryErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
             Status = E_INVALIDARG;
         };
 
     std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "inputValue not properly initialized."); },
+        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
         [&](const bool &arg) { setError(arg); },
-        [&](const WCHAR &arg) { convertToInvertInt32(arg); },
         [&](const std::string &arg) { setError(arg); },
-        [&](const uint8_t &arg) { convertToInvertInt32(arg); },
-        [&](const uint16_t &arg) { convertToInvertInt32(arg); },
         [&](const uint32_t &arg) { preserveInvertType(arg); },
         [&](const uint64_t &arg) { preserveInvertType(arg); },
-        [&](const int8_t &arg) { convertToInvertInt32(arg); },
-        [&](const int16_t &arg) { convertToInvertInt32(arg); },
-        [&](const int32_t &arg) { convertToInvertInt32(arg); },
         [&](const int64_t &arg) { preserveInvertType(arg); },
         [&](const double &arg) { setError(arg); },
-        [&](const float &arg) { setError(arg); }
+        [&](const float &arg) { setError(arg); },
+        [&](const auto &arg) { convertToInvertInt32(arg); }
     }, inputValue);
 
     return Status;
@@ -174,25 +160,14 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
     auto setError =
         [&](auto &&arg) -> void
         {
-            FillUnaryErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
             Status = E_INVALIDARG;
         };
 
     std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "inputValue not properly initialized."); },
+        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
         [&](const bool &arg) { preserveNotType(arg); },
-        [&](const WCHAR &arg) { setError(arg); },
-        [&](const std::string &arg) { setError(arg); },
-        [&](const uint8_t &arg) { setError(arg); },
-        [&](const uint16_t &arg) { setError(arg); },
-        [&](const uint32_t &arg) { setError(arg); },
-        [&](const uint64_t &arg) { setError(arg); },
-        [&](const int8_t &arg) { setError(arg); },
-        [&](const int16_t &arg) { setError(arg); },
-        [&](const int32_t &arg) { setError(arg); },
-        [&](const int64_t &arg) { setError(arg); },
-        [&](const double &arg) { setError(arg); },
-        [&](const float &arg) { setError(arg); }
+        [&](const auto &arg) { setError(arg); }
     }, inputValue);
 
     return Status;
