@@ -117,8 +117,8 @@ public class test_this_t
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"TestEvaluate.test_this_t\"", "string", "ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"TestEvaluate.test_this_t\"", "string", "this.ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Expression has been evaluated and has no value", "void", "TestVoidReturn()");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestVoidReturn() + 1", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 + TestVoidReturn()", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestVoidReturn() + 1", "error: Operator '+' cannot be applied to operands of type 'void' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1 + TestVoidReturn()", "error: Operator '+' cannot be applied to operands of type 'int' and 'void'");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
@@ -790,8 +790,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "testStruct << 2");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1f << 1", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1f << 1f", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass << testClass", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct << testStruct", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass << testClass", "error: Operator '<<' cannot be applied to operands of type 'TestEvaluate.TestOperators1' and 'TestEvaluate.TestOperators1'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct << testStruct", "error: Operator '<<' cannot be applied to operands of type 'TestEvaluate.TestOperators2' and 'TestEvaluate.TestOperators2'");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "4 >> 1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "777", "int", "testStruct2 >> testStruct2");
@@ -800,8 +800,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "testStruct >> 2");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1f >> 1", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "1f >> 1f", "error");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass >> testClass", "error CS0019");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct >> testStruct", "error CS0019");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testClass >> testClass", "error: Operator '>>' cannot be applied to operands of type 'TestEvaluate.TestOperators1' and 'TestEvaluate.TestOperators1'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "testStruct >> testStruct", "error: Operator '>>' cannot be applied to operands of type 'TestEvaluate.TestOperators2' and 'TestEvaluate.TestOperators2'");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

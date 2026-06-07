@@ -38,6 +38,7 @@ class Program
         uint uint1 = 34256;
         ulong ulong1 = 45265345;
         sbyte sbyte1 = 42;
+        sbyte sbyte2 = -35;
         short short1 = 3155;
         int int1 = 3549;
         long long1 = 2942426;
@@ -117,6 +118,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "34291", "uint", "byte1+uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "45265380", "ulong", "byte1+ulong1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "77", "int", "byte1+sbyte1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0", "int", "byte1+sbyte2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3190", "int", "byte1+short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3584", "int", "byte1+int1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2942461", "long", "byte1+long1");
@@ -2394,10 +2396,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1==ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1==uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1==ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==sbyte1", "error: Operator '==' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==short1", "error: Operator '==' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==int1", "error: Operator '==' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==long1", "error: Operator '==' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==sbyte1", "error: Operator '==' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==short1", "error: Operator '==' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==int1", "error: Operator '==' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1==long1", "error: Operator '==' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1==double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1==float1");
 
@@ -2407,7 +2409,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1==byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1==ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1==uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1==ulong1", "error: Operator '==' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1==ulong1", "error: Operator '==' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1==sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1==short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1==int1");
@@ -2421,7 +2423,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1==byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1==ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1==uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1==ulong1", "error: Operator '==' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1==ulong1", "error: Operator '==' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1==sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1==short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1==int1");
@@ -2435,7 +2437,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1==byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1==ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1==uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1==ulong1", "error: Operator '==' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1==ulong1", "error: Operator '==' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1==sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1==short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1==int1");
@@ -2449,7 +2451,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1==ulong1", "error: Operator '==' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1==ulong1", "error: Operator '==' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1==int1");
@@ -2578,10 +2580,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1!=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1!=uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1!=ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=sbyte1", "error: Operator '!=' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=short1", "error: Operator '!=' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=int1", "error: Operator '!=' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=long1", "error: Operator '!=' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=sbyte1", "error: Operator '!=' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=short1", "error: Operator '!=' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=int1", "error: Operator '!=' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1!=long1", "error: Operator '!=' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1!=double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1!=float1");
 
@@ -2591,7 +2593,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1!=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1!=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1!=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1!=ulong1", "error: Operator '!=' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1!=ulong1", "error: Operator '!=' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1!=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1!=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1!=int1");
@@ -2605,7 +2607,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1!=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1!=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1!=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1!=ulong1", "error: Operator '!=' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1!=ulong1", "error: Operator '!=' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1!=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1!=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1!=int1");
@@ -2619,7 +2621,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1!=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1!=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1!=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1!=ulong1", "error: Operator '!=' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1!=ulong1", "error: Operator '!=' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1!=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1!=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1!=int1");
@@ -2633,7 +2635,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1!=ulong1", "error: Operator '!=' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1!=ulong1", "error: Operator '!=' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1!=int1");
@@ -2762,10 +2764,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1>ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>sbyte1", "error: Operator '>' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>short1", "error: Operator '>' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>int1", "error: Operator '>' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>long1", "error: Operator '>' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>sbyte1", "error: Operator '>' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>short1", "error: Operator '>' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>int1", "error: Operator '>' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>long1", "error: Operator '>' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>float1");
 
@@ -2775,7 +2777,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1>byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1>ulong1", "error: Operator '>' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1>ulong1", "error: Operator '>' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>int1");
@@ -2789,7 +2791,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1>byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1>ulong1", "error: Operator '>' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1>ulong1", "error: Operator '>' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1>sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>int1");
@@ -2803,7 +2805,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1>ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1>uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1>ulong1", "error: Operator '>' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1>ulong1", "error: Operator '>' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1>int1");
@@ -2817,7 +2819,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1>ulong1", "error: Operator '>' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1>ulong1", "error: Operator '>' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>int1");
@@ -2946,10 +2948,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<sbyte1", "error: Operator '<' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<short1", "error: Operator '<' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<int1", "error: Operator '<' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<long1", "error: Operator '<' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<sbyte1", "error: Operator '<' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<short1", "error: Operator '<' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<int1", "error: Operator '<' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<long1", "error: Operator '<' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<float1");
 
@@ -2959,7 +2961,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1<byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1<ulong1", "error: Operator '<' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1<ulong1", "error: Operator '<' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1<sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<int1");
@@ -2973,7 +2975,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1<byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1<ulong1", "error: Operator '<' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1<ulong1", "error: Operator '<' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1<sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1<short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<int1");
@@ -2987,7 +2989,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1<ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1<uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1<ulong1", "error: Operator '<' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1<ulong1", "error: Operator '<' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<int1");
@@ -3001,7 +3003,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1<ulong1", "error: Operator '<' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1<ulong1", "error: Operator '<' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<int1");
@@ -3130,10 +3132,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>=uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>=ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=sbyte1", "error: Operator '>=' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=short1", "error: Operator '>=' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=int1", "error: Operator '>=' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=long1", "error: Operator '>=' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=sbyte1", "error: Operator '>=' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=short1", "error: Operator '>=' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=int1", "error: Operator '>=' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1>=long1", "error: Operator '>=' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>=double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1>=float1");
 
@@ -3143,7 +3145,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1>=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1>=ulong1", "error: Operator '>=' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1>=ulong1", "error: Operator '>=' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1>=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1>=int1");
@@ -3157,7 +3159,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1>=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1>=ulong1", "error: Operator '>=' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1>=ulong1", "error: Operator '>=' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1>=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1>=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1>=int1");
@@ -3171,7 +3173,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1>=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1>=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1>=ulong1", "error: Operator '>=' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1>=ulong1", "error: Operator '>=' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1>=int1");
@@ -3185,7 +3187,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1>=ulong1", "error: Operator '>=' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1>=ulong1", "error: Operator '>=' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "long1>=int1");
@@ -3314,10 +3316,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<=uint1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ulong1<=ulong1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=sbyte1", "error: Operator '<=' cannot be applied to operands of type 'ulong' and 'sbyte'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=short1", "error: Operator '<=' cannot be applied to operands of type 'ulong' and 'short'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=int1", "error: Operator '<=' cannot be applied to operands of type 'ulong' and 'int'");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=long1", "error: Operator '<=' cannot be applied to operands of type 'ulong' and 'long'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=sbyte1", "error: Operator '<=' is ambiguous on operands of type 'ulong' and 'sbyte'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=short1", "error: Operator '<=' is ambiguous on operands of type 'ulong' and 'short'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=int1", "error: Operator '<=' is ambiguous on operands of type 'ulong' and 'int'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ulong1<=long1", "error: Operator '<=' is ambiguous on operands of type 'ulong' and 'long'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<=double1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "ulong1<=float1");
 
@@ -3327,7 +3329,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "sbyte1<=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1<=ulong1", "error: Operator '<=' cannot be applied to operands of type 'sbyte' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sbyte1<=ulong1", "error: Operator '<=' is ambiguous on operands of type 'sbyte' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "sbyte1<=int1");
@@ -3341,7 +3343,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1<=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1<=ulong1", "error: Operator '<=' cannot be applied to operands of type 'short' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "short1<=ulong1", "error: Operator '<=' is ambiguous on operands of type 'short' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "short1<=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "short1<=int1");
@@ -3355,7 +3357,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1<=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1<=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1<=ulong1", "error: Operator '<=' cannot be applied to operands of type 'int' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "int1<=ulong1", "error: Operator '<=' is ambiguous on operands of type 'int' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "int1<=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "int1<=int1");
@@ -3369,7 +3371,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=byte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=ushort1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=uint1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1<=ulong1", "error: Operator '<=' cannot be applied to operands of type 'long' and 'ulong'");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "long1<=ulong1", "error: Operator '<=' is ambiguous on operands of type 'long' and 'ulong'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=sbyte1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=short1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "long1<=int1");

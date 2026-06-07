@@ -1700,7 +1700,6 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         {Parser::SyntaxKind::LessThanExpression, BinaryOperator},
         {Parser::SyntaxKind::GreaterThanOrEqualExpression, BinaryOperator},
         {Parser::SyntaxKind::LessThanOrEqualExpression, BinaryOperator},
-        {Parser::SyntaxKind::CoalesceExpression, BinaryOperator},
         {Parser::SyntaxKind::UnaryPlusExpression, UnaryOperator},
         {Parser::SyntaxKind::UnaryMinusExpression, UnaryOperator},
         {Parser::SyntaxKind::LogicalNotExpression, UnaryOperator},
@@ -1709,6 +1708,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         {Parser::SyntaxKind::FalseLiteralExpression, FalseLiteralExpression},
         {Parser::SyntaxKind::NullLiteralExpression, NullLiteralExpression},
         {Parser::SyntaxKind::SizeOfExpression, SizeOfExpression},
+        {Parser::SyntaxKind::CoalesceExpression, CoalesceExpression},
         {Parser::SyntaxKind::ThisExpression, ThisExpression}
     };
 
