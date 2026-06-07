@@ -27,30 +27,29 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
 {
     HRESULT Status = S_OK;
 
-    if (elemType == ELEMENT_TYPE_STRING || elemType == ELEMENT_TYPE_BOOLEAN)
+    if (elemType == ELEMENT_TYPE_STRING)
     {
         ToRelease<ICorDebugValue> trValue;
         BOOL isNull = FALSE;
         IfFailRet(DereferenceAndUnboxValue(pValue, &trValue, &isNull));
 
-        if (elemType == ELEMENT_TYPE_STRING)
+        std::string String;
+        if (isNull == FALSE)
         {
-            std::string String;
-            if (isNull == FALSE)
-            {
-                IfFailRet(PrintStringValue(trValue, String));
-            }
-            primValue = String;
+            IfFailRet(PrintStringValue(trValue, String));
         }
-        else if (elemType == ELEMENT_TYPE_BOOLEAN)
-        {
-            uint8_t boolValue = 0;
-            ToRelease<ICorDebugGenericValue> trGenValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
-            IfFailRet(trGenValue->GetValue(&boolValue));
-            primValue.emplace<bool>(boolValue == 1);
-        }
+        primValue = String;
+        return S_OK;
+    }
 
+    ToRelease<ICorDebugGenericValue> trGenValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
+
+    if (elemType == ELEMENT_TYPE_BOOLEAN)
+    {
+        uint8_t boolValue = 0;
+        IfFailRet(trGenValue->GetValue(&boolValue));
+        primValue.emplace<bool>(boolValue == 1);
         return S_OK;
     }
 
@@ -103,9 +102,6 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
     default:
         return E_INVALIDARG;
     }
-
-    ToRelease<ICorDebugGenericValue> trGenValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
 
     std::visit(
         [&](auto &arg)
