@@ -139,6 +139,8 @@ HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void 
 
 HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, PrimitiveValue &primValue, ICorDebugValue **ppValue)
 {
+    assert(!std::holds_alternative<std::monostate>(primValue.value) && "primValue not properly initialized.");
+
     if (primValue.type == ELEMENT_TYPE_STRING)
     {
         assert(std::holds_alternative<std::string>(primValue.value));

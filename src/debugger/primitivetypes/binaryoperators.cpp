@@ -60,9 +60,9 @@ TargetType ConvertToNumeric(const PrimitiveTypeNativeValue &value)
 {
     TargetType result{};
     std::visit(overloaded {
-        [](const std::monostate &) { assert(false); },
-        [](const bool &) { assert(false); },
-        [](const std::string &) { assert(false); },
+        [](const std::monostate &) { assert(false && "value not properly initialized."); },
+        [](const bool &) { assert(false && "value not supported."); },
+        [](const std::string &) { assert(false && "value not supported."); },
         [&result](const int8_t &arg) { result = static_cast<TargetType>(static_cast<uint8_t>(arg)); },
         [&result](auto &arg) { result = static_cast<TargetType>(arg); }
     }, value);
@@ -86,7 +86,7 @@ HRESULT AddExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rig
         {
             std::string ret;
             std::visit(overloaded {
-                [](const std::monostate &) { assert(false && "inputValue not properly initialized."); },
+                [](const std::monostate &) { assert(false && "value not properly initialized."); },
                 [&](const bool &arg) { ret = arg ? "True" : "False"; },
                 [&](const WCHAR &arg) { WSTRING tmp(2, '\0'); tmp.at(0) = arg; ret = to_utf8(tmp.c_str()); },
                 [&](const std::string &arg) { ret = arg; },
@@ -803,6 +803,9 @@ HRESULT LogicalOrExpression(const PrimitiveValue &leftValue, const PrimitiveValu
 HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
                         PrimitiveValue &outputValue, std::string &output)
 {
+    assert(!std::holds_alternative<std::monostate>(leftValue.value) && "leftValue not properly initialized.");
+    assert(!std::holds_alternative<std::monostate>(rightValue.value) && "rightValue not properly initialized.");
+
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, const PrimitiveValue &,
                                                                               PrimitiveValue &, std::string &)>> OperatorImplementation{
         {Parser::SyntaxKind::AddExpression, AddExpression},

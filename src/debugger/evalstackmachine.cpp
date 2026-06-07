@@ -1149,8 +1149,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
                                            pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 
-    // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is
-    // void.
+    // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
     {
         // We can't create ELEMENT_TYPE_VOID, so, we are forced to use System.Void instead.

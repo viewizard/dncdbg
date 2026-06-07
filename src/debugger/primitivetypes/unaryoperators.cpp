@@ -210,6 +210,8 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
 
 HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
 {
+    assert(!std::holds_alternative<std::monostate>(inputValue.value) && "inputValue not properly initialized.");
+
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, PrimitiveValue &, std::string &)>> OperatorImplementation{
         {Parser::SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},
         {Parser::SyntaxKind::UnaryMinusExpression, UnaryMinusExpression},
