@@ -56,47 +56,47 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
     switch (elemType)
     {
     case ELEMENT_TYPE_U1:
-        primValue.emplace<uint8_t>(static_cast<uint8_t>(0));
+        primValue = uint8_t{0};
         break;
 
     case ELEMENT_TYPE_I1:
-        primValue.emplace<int8_t>(static_cast<int8_t>(0));
+        primValue = int8_t{0};
         break;
 
     case ELEMENT_TYPE_CHAR:
-        primValue.emplace<WCHAR>(static_cast<WCHAR>(0));
+        primValue = WCHAR{0};
         break;
 
     case ELEMENT_TYPE_R8:
-        primValue.emplace<double>(static_cast<double>(0));
+        primValue = double{0};
         break;
 
     case ELEMENT_TYPE_R4:
-        primValue.emplace<float>(static_cast<float>(0));
+        primValue = float{0};
         break;
 
     case ELEMENT_TYPE_I4:
-        primValue.emplace<int32_t>(static_cast<int32_t>(0));
+        primValue = int32_t{0};
         break;
 
     case ELEMENT_TYPE_U4:
-        primValue.emplace<uint32_t>(static_cast<uint32_t>(0));
+        primValue = uint32_t{0};
         break;
 
     case ELEMENT_TYPE_I8:
-        primValue.emplace<int64_t>(static_cast<int64_t>(0));
+        primValue = int64_t{0};
         break;
 
     case ELEMENT_TYPE_U8:
-        primValue.emplace<uint64_t>(static_cast<uint64_t>(0));
+        primValue = uint64_t{0};
         break;
 
     case ELEMENT_TYPE_I2:
-        primValue.emplace<int16_t>(static_cast<int16_t>(0));
+        primValue = int16_t{0};
         break;
 
     case ELEMENT_TYPE_U2:
-        primValue.emplace<uint16_t>(static_cast<uint16_t>(0));
+        primValue = uint16_t{0};
         break;
 
     default:
