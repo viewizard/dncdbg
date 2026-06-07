@@ -113,23 +113,6 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
     return Status;
 }
 
-HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugEval> trEval;
-    IfFailRet(pThread->CreateEval(&trEval));
-    IfFailRet(trEval->CreateValue(elemType, nullptr, ppValue));
-
-    if (ptr == nullptr)
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugGenericValue> trGenValue;
-    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
-    return trGenValue->SetValue(ptr);
-}
-
 CorElementType GetCorElementType(const PrimitiveValue &primValue)
 {
     CorElementType elemType = ELEMENT_TYPE_MAX;
@@ -152,6 +135,47 @@ CorElementType GetCorElementType(const PrimitiveValue &primValue)
     }, primValue);
 
     return elemType;
+}
+
+std::string_view GetManagedTypeName(const PrimitiveValue &primValue)
+{
+    std::string_view name = "Unknown Type";
+
+    std::visit(overloaded {
+        [](const std::monostate &) { ; },
+        [&](const bool &) { name = "bool"; },
+        [&](const WCHAR &) { name = "char"; },
+        [&](const std::string &) { name = "string"; },
+        [&](const uint8_t &) { name = "byte"; },
+        [&](const uint16_t &) { name = "ushort"; },
+        [&](const uint32_t &) { name = "uint"; },
+        [&](const uint64_t &) { name = "ulong"; },
+        [&](const int8_t &) { name = "sbyte"; },
+        [&](const int16_t &) { name = "short"; },
+        [&](const int32_t &) { name = "int"; },
+        [&](const int64_t &) { name = "long"; },
+        [&](const double &) { name = "double"; },
+        [&](const float &) { name = "float"; }
+    }, primValue);
+
+    return name;
+}
+
+HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugEval> trEval;
+    IfFailRet(pThread->CreateEval(&trEval));
+    IfFailRet(trEval->CreateValue(elemType, nullptr, ppValue));
+
+    if (ptr == nullptr)
+    {
+        return S_OK;
+    }
+
+    ToRelease<ICorDebugGenericValue> trGenValue;
+    IfFailRet((*ppValue)->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
+    return trGenValue->SetValue(ptr);
 }
 
 HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, PrimitiveValue &primValue, ICorDebugValue **ppValue)

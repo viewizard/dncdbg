@@ -15,10 +15,10 @@ namespace dncdbg::PrimitiveTypes
 namespace
 {
 
-void FillErrorOutput(const std::string_view &opName, const std::string_view &type, std::string &output)
+void FillErrorOutput(const std::string_view &opName, const PrimitiveValue &primValue, std::string &output)
 {
     std::ostringstream ss;
-    ss << "error: Operator '" << opName << "' cannot be applied to operand of type '" << type << "'";
+    ss << "error: Operator '" << opName << "' cannot be applied to operand of type '" << GetManagedTypeName(primValue) << "'";
     output = ss.str();
 }
 
@@ -40,9 +40,9 @@ HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &ou
         };
 
     auto setError =
-        [&](auto &&arg) -> void
+        [&](const auto &arg) -> void
         {
-            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, arg, output);
             Status = E_INVALIDARG;
         };
 
@@ -85,9 +85,9 @@ HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         };
 
     auto setError =
-        [&](auto &&arg) -> void
+        [&](const auto &arg) -> void
         {
-            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, arg, output);
             Status = E_INVALIDARG;
         };
 
@@ -125,9 +125,9 @@ HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         };
 
     auto setError =
-        [&](auto &&arg) -> void
+        [&](const auto &arg) -> void
         {
-            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, arg, output);
             Status = E_INVALIDARG;
         };
 
@@ -158,9 +158,9 @@ HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
         };
 
     auto setError =
-        [&](auto &&arg) -> void
+        [&](const auto &arg) -> void
         {
-            FillErrorOutput(opName, TypeMapping<std::decay_t<decltype(arg)>>::description, output);
+            FillErrorOutput(opName, arg, output);
             Status = E_INVALIDARG;
         };
 

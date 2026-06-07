@@ -22,35 +22,23 @@ constexpr int maxShift8Byte = 64;
 void FillErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     std::ostringstream ss;
-    std::visit(
-        [&](auto &arg1, auto &arg2) -> void
-        {
-            ss << "error: Operator '" << opName << "' cannot be applied to operands of type '" << TypeMapping<std::decay_t<decltype(arg1)>>::description
-               << "' and '" << TypeMapping<std::decay_t<decltype(arg2)>>::description << "'";
-        }, leftValue, rightValue);
+    ss << "error: Operator '" << opName << "' cannot be applied to operands of type '" << GetManagedTypeName(leftValue)
+       << "' and '" << GetManagedTypeName(rightValue) << "'";
     output = ss.str();
 }
 
 void FillAmbiguousErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     std::ostringstream ss;
-    std::visit(
-        [&](auto &arg1, auto &arg2) -> void
-        {
-            ss << "error: Operator '" << opName << "' is ambiguous on operands of type '" << TypeMapping<std::decay_t<decltype(arg1)>>::description
-               << "' and '" << TypeMapping<std::decay_t<decltype(arg2)>>::description << "'";
-        }, leftValue, rightValue);
+    ss << "error: Operator '" << opName << "' is ambiguous on operands of type '" << GetManagedTypeName(leftValue)
+       << "' and '" << GetManagedTypeName(rightValue) << "'";
     output = ss.str();
 }
 
 void FillConvertErrorOutput(const PrimitiveValue &primValue, std::string &output)
 {
     std::ostringstream ss;
-    std::visit(
-        [&](auto &arg) -> void
-        {
-            ss << "error: Cannot implicitly convert type '" << TypeMapping<std::decay_t<decltype(arg)>>::description << "' to 'bool'";
-        }, primValue);
+    ss << "error: Cannot implicitly convert type '" << GetManagedTypeName(primValue) << "' to 'bool'";
     output = ss.str();
 }
 
