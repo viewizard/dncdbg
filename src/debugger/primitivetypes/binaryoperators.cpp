@@ -43,7 +43,7 @@ void FillAmbiguousErrorOutput(const std::string_view &opName, const PrimitiveVal
     output = ss.str();
 }
 
-void FillBinaryConvertErrorOutput(const PrimitiveValue &primValue, std::string &output)
+void FillConvertErrorOutput(const PrimitiveValue &primValue, std::string &output)
 {
     std::ostringstream ss;
     std::visit(
@@ -333,7 +333,7 @@ HRESULT LogicalExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveVa
     }
     else
     {
-        FillBinaryConvertErrorOutput(leftValue, output);
+        FillConvertErrorOutput(leftValue, output);
         Status = E_INVALIDARG;
     }
 
