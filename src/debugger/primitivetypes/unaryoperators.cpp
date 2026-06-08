@@ -5,6 +5,7 @@
 #include "debugger/primitivetypes/types.h"
 #include <cassert>
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <string_view>
 #include <unordered_map>
@@ -15,162 +16,118 @@ namespace dncdbg::PrimitiveTypes
 namespace
 {
 
-void FillErrorOutput(const std::string_view &opName, const PrimitiveValue &primValue, std::string &output)
+void FillErrorOutput(std::string_view opName, const PrimitiveValue &primValue, std::string &output)
 {
     std::ostringstream ss;
     ss << "error: Operator '" << opName << "' cannot be applied to operand of type '" << GetManagedTypeName(primValue) << "'";
     output = ss.str();
 }
 
-HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
+template <typename OpFunc>
+HRESULT ExecuteUnaryExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output,
+                               std::string_view opName, const OpFunc &opFunc)
 {
-    HRESULT Status = S_OK;
-    static constexpr std::string_view opName = "+";
-
-    auto convertToInt32 =
-        [&](auto &&arg) -> void
+    return std::visit(overloaded {
+        [&](const std::monostate &arg) -> HRESULT
         {
-            outputValue.emplace<int32_t>(arg);
-        };
-
-    auto preserveType =
-        [&](auto &&arg) -> void
-        {
-            outputValue.emplace<std::decay_t<decltype(arg)>>(arg);
-        };
-
-    auto setError =
-        [&](const auto &arg) -> void
+            assert(false && "inputValue not properly initialized.");
+            FillErrorOutput(opName, arg, output);
+            return E_INVALIDARG;
+        },
+        [&](const std::string &arg) -> HRESULT
         {
             FillErrorOutput(opName, arg, output);
-            Status = E_INVALIDARG;
-        };
-
-    std::visit(overloaded {
-        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
-        [&](const bool &arg) { setError(arg); },
-        [&](const WCHAR &arg) { convertToInt32(arg); },
-        [&](const std::string &arg) { setError(arg); },
-        [&](const uint8_t &arg) { convertToInt32(arg); },
-        [&](const uint16_t &arg) { convertToInt32(arg); },
-        [&](const int8_t &arg) { convertToInt32(arg); },
-        [&](const int16_t &arg) { convertToInt32(arg); },
-        [&](const auto &arg) { preserveType(arg); }
-    }, inputValue);
-
-    return Status;
-}
-
-HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
-{
-    HRESULT Status = S_OK;
-    static constexpr std::string_view opName = "-";
-
-    auto convertToNegativeInt32 =
-        [&](auto &&arg) -> void
+            return E_INVALIDARG;
+        },
+        [&](auto arg) -> HRESULT
         {
-            outputValue.emplace<int32_t>(-1 * static_cast<int32_t>(arg));
-        };
-
-    auto convertToNegativeInt64 =
-        [&](auto &&arg) -> void
-        {
-            outputValue.emplace<int64_t>(-1 * static_cast<int64_t>(arg));
-        };
-
-    auto preserveNegativeType =
-        [&](auto &&arg) -> void
-        {
-            outputValue.emplace<std::decay_t<decltype(arg)>>(-1 * arg);
-        };
-
-    auto setError =
-        [&](const auto &arg) -> void
-        {
+            if (auto result = opFunc(arg))
+            {
+                outputValue = std::move(*result);
+                return S_OK;
+            }
             FillErrorOutput(opName, arg, output);
-            Status = E_INVALIDARG;
-        };
-
-    std::visit(overloaded {
-        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
-        [&](const bool &arg) { setError(arg); },
-        [&](const std::string &arg) { setError(arg); },
-        [&](const uint32_t &arg) { convertToNegativeInt64(arg); },
-        [&](const uint64_t &arg) { setError(arg); },
-        [&](const int32_t &arg) { preserveNegativeType(arg); },
-        [&](const int64_t &arg) { preserveNegativeType(arg); },
-        [&](const double &arg) { preserveNegativeType(arg); },
-        [&](const float &arg) { preserveNegativeType(arg); },
-        [&](const auto &arg) { convertToNegativeInt32(arg); }
+            return E_INVALIDARG;
+        }
     }, inputValue);
-
-    return Status;
-}
-
-HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
-{
-    HRESULT Status = S_OK;
-    static constexpr std::string_view opName = "~";
-
-    auto convertToInvertInt32 =
-        [&](auto &&arg) -> void
-        {
-            outputValue.emplace<int32_t>(~static_cast<int32_t>(arg));
-        };
-
-    auto preserveInvertType =
-        [&](auto &&arg) -> void
-        {
-            outputValue.emplace<std::decay_t<decltype(arg)>>(~arg);
-        };
-
-    auto setError =
-        [&](const auto &arg) -> void
-        {
-            FillErrorOutput(opName, arg, output);
-            Status = E_INVALIDARG;
-        };
-
-    std::visit(overloaded {
-        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
-        [&](const bool &arg) { setError(arg); },
-        [&](const std::string &arg) { setError(arg); },
-        [&](const uint32_t &arg) { preserveInvertType(arg); },
-        [&](const uint64_t &arg) { preserveInvertType(arg); },
-        [&](const int64_t &arg) { preserveInvertType(arg); },
-        [&](const double &arg) { setError(arg); },
-        [&](const float &arg) { setError(arg); },
-        [&](const auto &arg) { convertToInvertInt32(arg); }
-    }, inputValue);
-
-    return Status;
 }
 
 HRESULT LogicalNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
 {
-    HRESULT Status = S_OK;
-    static constexpr std::string_view opName = "!";
-
-    auto preserveNotType =
-        [&](auto &&arg) -> void
+    return ExecuteUnaryExpression(inputValue, outputValue, output, "!",
+        [](auto arg) -> std::optional<PrimitiveValue>
         {
-            outputValue.emplace<std::decay_t<decltype(arg)>>(!arg);
-        };
+            using T = decltype(arg);
+            if constexpr (std::is_same_v<T, bool>)
+            {
+                return !arg;
+            }
+            return std::nullopt;
+        });
+}
 
-    auto setError =
-        [&](const auto &arg) -> void
+HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
+{
+    return ExecuteUnaryExpression(inputValue, outputValue, output, "~",
+        [](auto arg) -> std::optional<PrimitiveValue>
         {
-            FillErrorOutput(opName, arg, output);
-            Status = E_INVALIDARG;
-        };
+            using T = decltype(arg);
 
-    std::visit(overloaded {
-        [&](const std::monostate &arg) { assert(false && "inputValue not properly initialized."); setError(arg); },
-        [&](const bool &arg) { preserveNotType(arg); },
-        [&](const auto &arg) { setError(arg); }
-    }, inputValue);
+            if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int64_t>)
+            {
+                return ~arg;
+            }
+            else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>)
+            {
+                return ~static_cast<int32_t>(arg);
+            }
+            return std::nullopt;
+        });
+}
 
-    return Status;
+HRESULT UnaryMinusExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
+{
+    return ExecuteUnaryExpression(inputValue, outputValue, output, "-",
+        [](auto arg) -> std::optional<PrimitiveValue>
+        {
+            using T = decltype(arg);
+
+            if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t> ||
+                          std::is_same_v<T, float>   || std::is_same_v<T, double>)
+            {
+                return -arg;
+            }
+            else if constexpr (std::is_same_v<T, uint32_t>)
+            {
+                return -static_cast<int64_t>(arg);
+            }
+            else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, uint64_t>)
+            {
+                return -static_cast<int32_t>(arg);
+            }
+            return std::nullopt;
+        });
+}
+
+HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
+{
+    return ExecuteUnaryExpression(inputValue, outputValue, output, "+",
+        [](auto arg) -> std::optional<PrimitiveValue>
+        {
+            using T = decltype(arg);
+
+            if constexpr (std::is_same_v<T, int8_t>  || std::is_same_v<T, uint8_t> ||
+                          std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> ||
+                          std::is_same_v<T, WCHAR>)
+            {
+                return static_cast<int32_t>(arg);
+            }
+            else if constexpr (std::is_arithmetic_v<T> && !std::is_same_v<T, bool>)
+            {
+                return arg;
+            }
+            return std::nullopt;
+        });
 }
 
 } // unnamed namespace
