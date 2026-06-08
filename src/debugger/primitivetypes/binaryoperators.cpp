@@ -19,7 +19,7 @@ namespace
 constexpr int maxShift4Byte = 32;
 constexpr int maxShift8Byte = 64;
 
-void FillErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
+void FillErrorOutput(std::string_view opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     std::ostringstream ss;
     ss << "error: Operator '" << opName << "' cannot be applied to operands of type '" << GetManagedTypeName(leftValue)
@@ -27,7 +27,7 @@ void FillErrorOutput(const std::string_view &opName, const PrimitiveValue &leftV
     output = ss.str();
 }
 
-void FillAmbiguousErrorOutput(const std::string_view &opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
+void FillAmbiguousErrorOutput(std::string_view opName, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, std::string &output)
 {
     std::ostringstream ss;
     ss << "error: Operator '" << opName << "' is ambiguous on operands of type '" << GetManagedTypeName(leftValue)
@@ -59,7 +59,7 @@ TargetType ConvertToNumeric(const PrimitiveValue &value)
 // Helper template for arithmetic operations (Add, Subtract, Multiply, Divide, Modulo)
 template <typename FloatOp, typename IntOp>
 HRESULT ArithmeticExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                                 std::string &output, const std::string_view &opName, FloatOp floatOp, IntOp intOp)
+                                 std::string &output, std::string_view opName, FloatOp floatOp, IntOp intOp)
 {
     HRESULT Status = S_OK;
 
@@ -178,7 +178,7 @@ HRESULT ModuloExpression(const PrimitiveValue &leftValue, const PrimitiveValue &
 // Helper template for shift operations (Left, Right)
 template <typename ShiftOp>
 HRESULT ShiftExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                            std::string &output, const std::string_view &opName, ShiftOp shiftOp)
+                            std::string &output, std::string_view opName, ShiftOp shiftOp)
 {
     HRESULT Status = S_OK;
 
@@ -228,7 +228,7 @@ HRESULT RightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveVal
 // Helper template for bitwise operations (AND, OR, XOR)
 template <typename BoolOp, typename BitwiseOp>
 HRESULT BitwiseExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                              std::string &output, const std::string_view &opName, BoolOp boolOp, BitwiseOp bitwiseOp)
+                              std::string &output, std::string_view opName, BoolOp boolOp, BitwiseOp bitwiseOp)
 {
     HRESULT Status = S_OK;
 
@@ -306,7 +306,7 @@ HRESULT ExclusiveOrExpression(const PrimitiveValue &leftValue, const PrimitiveVa
 // Helper template for logical operations (AND, OR)
 template <typename LogicalOp>
 HRESULT LogicalExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                              std::string &output, const std::string_view &opName, LogicalOp op)
+                              std::string &output, std::string_view opName, LogicalOp op)
 {
     HRESULT Status = S_OK;
 
@@ -343,7 +343,7 @@ HRESULT LogicalOrExpression(const PrimitiveValue &leftValue, const PrimitiveValu
 // Helper template for equality operations (Equals, NotEquals)
 template <typename CompareOp>
 HRESULT EqualityExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                               std::string &output, const std::string_view &opName, CompareOp compareOp)
+                               std::string &output, std::string_view opName, CompareOp compareOp)
 {
     HRESULT Status = S_OK;
 
@@ -410,7 +410,7 @@ HRESULT NotEqualsExpression(const PrimitiveValue &leftValue, const PrimitiveValu
 // Helper template for comparison operations (<, >, <=, >=)
 template <typename CompareOp>
 HRESULT ComparisonExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue,
-                                 std::string &output, const std::string_view &opName, CompareOp compareOp)
+                                 std::string &output, std::string_view opName, CompareOp compareOp)
 {
     HRESULT Status = S_OK;
 

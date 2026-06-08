@@ -393,7 +393,7 @@ void DAPIO::EmitMessage(nlohmann::json &message, std::string &output)
     std::cout.flush();
 }
 
-void DAPIO::EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message)
+void DAPIO::EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message)
 {
     const std::scoped_lock<std::mutex> lock(m_outMutex);
     std::string output;
@@ -411,7 +411,7 @@ void DAPIO::EmitEvent(const std::string &name, const nlohmann::json &body)
 }
 
 // Caller must care about m_outMutex.
-void DAPIO::LogInternal(const std::string_view &prefix, const std::string &text)
+void DAPIO::LogInternal(std::string_view prefix, const std::string &text)
 {
     if (!GetProtocolLog().is_open())
     {
@@ -421,7 +421,7 @@ void DAPIO::LogInternal(const std::string_view &prefix, const std::string &text)
     GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 
-void DAPIO::Log(const std::string_view &prefix, const std::string &text)
+void DAPIO::Log(std::string_view prefix, const std::string &text)
 {
     const std::scoped_lock<std::mutex> lock(m_outMutex);
     LogInternal(prefix, text);

@@ -42,7 +42,7 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::functi
 
 } // unnamed namespace
 
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string_view &attrName)
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName)
 {
     return ForEachAttribute(pMDImport, tok,
         [&attrName](const std::string &AttrName) -> bool

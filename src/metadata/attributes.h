@@ -36,7 +36,7 @@ struct DebuggerAttribute
     static constexpr std::string_view Hidden = "System.Diagnostics.DebuggerHiddenAttribute..ctor";
 };
 
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string_view &attrName);
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames);
 
 } // namespace dncdbg

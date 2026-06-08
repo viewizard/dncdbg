@@ -52,8 +52,8 @@ class DAPIO
     static void EmitInitializedEvent();
     static void EmitCapabilitiesEvent();
 
-    static void EmitMessageWithLog(const std::string_view &message_prefix, nlohmann::json &message);
-    static void Log(const std::string_view &prefix, const std::string &text);
+    static void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
+    static void Log(std::string_view prefix, const std::string &text);
 
   private:
 
@@ -69,7 +69,7 @@ class DAPIO
 
     static void EmitMessage(nlohmann::json &message, std::string &output);
     static void EmitEvent(const std::string &name, const nlohmann::json &body);
-    static void LogInternal(const std::string_view &prefix, const std::string &text);
+    static void LogInternal(std::string_view prefix, const std::string &text);
 };
 
 } // namespace dncdbg

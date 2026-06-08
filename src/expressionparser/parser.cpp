@@ -36,7 +36,7 @@ std::string_view GetNodeText(TSNode node, const std::string &source)
 
 // Pack 1 or 2 character string into uint16_t for use as map key.
 // First character goes in low byte, second character (if present) in high byte.
-constexpr uint16_t packString(const std::string_view &str)
+constexpr uint16_t packString(std::string_view str)
 {
     if (str.empty() || str.size() > 2)
     {
