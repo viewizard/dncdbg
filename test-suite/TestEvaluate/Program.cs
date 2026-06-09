@@ -394,6 +394,7 @@ public struct TestOperators3
     // Note, in order to test that was used proper operator, we use fixed return here.
 
     public static implicit operator int(TestOperators3 value) => 777;
+    public static implicit operator string(TestOperators3 value) => "text";
 
     public static int operator +(TestOperators3 d1, int d2) => 555;
     public static int operator +(int d1, TestOperators3 d2) => 666;
@@ -607,6 +608,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "55", "int", "testStruct + 1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "666", "int", "1 + testStruct2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "555", "int", "testStruct2 + 1");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"testtext\"", "string", "\"test\" + testStruct2");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"texttest\"", "string", "testStruct2 + \"test\"");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"stringC\"", "string", "\"string\" + 'C'");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "testString1 + testString2");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "testString2 + testString1");

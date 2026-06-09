@@ -50,7 +50,6 @@ TargetType ConvertToNumeric(const PrimitiveValue &value)
     std::visit(overloaded {
         [](const std::monostate &) { assert(false && "value not properly initialized."); },
         [](const bool &) { assert(false && "value not supported."); },
-        [](const std::string &) { assert(false && "value not supported."); },
         [&result](auto &arg) { result = static_cast<TargetType>(arg); } // NOLINT(bugprone-signed-char-misuse,cert-str34-c)
     }, value);
     return result;
@@ -64,7 +63,6 @@ HRESULT ArithmeticExpressionImpl(const PrimitiveValue &leftValue, const Primitiv
     HRESULT Status = S_OK;
 
     if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
-        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
         (std::holds_alternative<uint64_t>(leftValue) &&
                 (std::holds_alternative<int8_t>(rightValue) ||
                  std::holds_alternative<int16_t>(rightValue) ||
@@ -117,31 +115,6 @@ HRESULT ArithmeticExpressionImpl(const PrimitiveValue &leftValue, const Primitiv
 
 HRESULT AddExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
-    // Special handling for string concatenation
-    if (std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
-    {
-        auto ConvertToString =
-            [](const PrimitiveValue &value) -> std::string
-            {
-                std::string ret;
-                std::visit(overloaded {
-                    [](const std::monostate &) { assert(false && "value not properly initialized."); },
-                    [&](const bool &arg) { ret = arg ? "True" : "False"; },
-                    [&](const WCHAR &arg) { WSTRING tmp(2, '\0'); tmp.at(0) = arg; ret = to_utf8(tmp.c_str()); },
-                    [&](const std::string &arg) { ret = arg; },
-                    [&](const double &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
-                    [&](const float &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
-                    [&](auto &arg) { ret = std::to_string(arg); },
-                }, value);
-                return ret;
-            };
-
-        const std::string leftStrValue = ConvertToString(leftValue);
-        const std::string rightStrValue = ConvertToString(rightValue);
-        outputValue.emplace<std::string>(leftStrValue + rightStrValue);
-        return S_OK;
-    }
-
     return ArithmeticExpressionImpl(leftValue, rightValue, outputValue, output, "+",
                                     [](const auto &left, const auto &right) { return left + right; },
                                     [](const auto &left, const auto &right) { return left + right; });
@@ -183,7 +156,6 @@ HRESULT ShiftExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValu
     HRESULT Status = S_OK;
 
     if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
-        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
         std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
         std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
                                                     std::holds_alternative<uint32_t>(rightValue) ||
@@ -237,7 +209,6 @@ HRESULT BitwiseExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveVa
         outputValue.emplace<bool>(boolOp(std::get<bool>(leftValue), std::get<bool>(rightValue)));
     }
     else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
-             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue) ||
              std::holds_alternative<double>(leftValue) || std::holds_alternative<double>(rightValue) ||
              std::holds_alternative<float>(leftValue) || std::holds_alternative<float>(rightValue) ||
              (std::holds_alternative<uint64_t>(leftValue) &&
@@ -351,12 +322,7 @@ HRESULT EqualityExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveV
     {
         outputValue.emplace<bool>(compareOp(std::get<bool>(leftValue), std::get<bool>(rightValue)));
     }
-    else if (std::holds_alternative<std::string>(leftValue) && std::holds_alternative<std::string>(rightValue))
-    {
-        outputValue.emplace<bool>(compareOp(std::get<std::string>(leftValue), std::get<std::string>(rightValue)));
-    }
-    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
-             std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
+    else if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue))
     {
         FillErrorOutput(opName, leftValue, rightValue, output);
         Status = E_INVALIDARG;
@@ -414,8 +380,7 @@ HRESULT ComparisonExpressionImpl(const PrimitiveValue &leftValue, const Primitiv
 {
     HRESULT Status = S_OK;
 
-    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue) ||
-        std::holds_alternative<std::string>(leftValue) || std::holds_alternative<std::string>(rightValue))
+    if (std::holds_alternative<bool>(leftValue) || std::holds_alternative<bool>(rightValue))
     {
         FillErrorOutput(opName, leftValue, rightValue, output);
         Status = E_INVALIDARG;

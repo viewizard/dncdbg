@@ -8,6 +8,7 @@
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
 #include "debugger/evaluation/primitivetypes/types.h"
+#include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
 #include "metadata/typeprinter.h"
@@ -775,35 +776,45 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     CorElementType elemType1 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(trValue1, &trRealValue1, &elemType1));
 
+    static std::unordered_map<Parser::SyntaxKind, std::pair<std::string, std::string>> opMap{
+        {Parser::SyntaxKind::AddExpression, {"op_Addition", "+"}},
+        {Parser::SyntaxKind::SubtractExpression, {"op_Subtraction", "-"}},
+        {Parser::SyntaxKind::MultiplyExpression, {"op_Multiply", "*"}},
+        {Parser::SyntaxKind::DivideExpression, {"op_Division", "/"}},
+        {Parser::SyntaxKind::ModuloExpression, {"op_Modulus", "%"}},
+        {Parser::SyntaxKind::RightShiftExpression, {"op_RightShift", ">>"}},
+        {Parser::SyntaxKind::LeftShiftExpression, {"op_LeftShift", "<<"}},
+        {Parser::SyntaxKind::LogicalAndExpression, {"op_LogicalAnd", "&&"}},
+        {Parser::SyntaxKind::LogicalOrExpression, {"op_LogicalOr", "||"}},
+        {Parser::SyntaxKind::ExclusiveOrExpression, {"op_ExclusiveOr", "^"}},
+        {Parser::SyntaxKind::BitwiseAndExpression, {"op_BitwiseAnd", "&"}},
+        {Parser::SyntaxKind::BitwiseOrExpression, {"op_BitwiseOr", "|"}},
+        {Parser::SyntaxKind::EqualsExpression, {"op_Equality", "=="}},
+        {Parser::SyntaxKind::NotEqualsExpression, {"op_Inequality", "!="}},
+        {Parser::SyntaxKind::LessThanExpression, {"op_LessThan", "<"}},
+        {Parser::SyntaxKind::GreaterThanExpression, {"op_GreaterThan", ">"}},
+        {Parser::SyntaxKind::LessThanOrEqualExpression, {"op_LessThanOrEqual", "<="}},
+        {Parser::SyntaxKind::GreaterThanOrEqualExpression, {"op_GreaterThanOrEqual", ">="}}};
+
+    auto findOpName = opMap.find(opcode.kind);
+    if (findOpName == opMap.end())
+    {
+        return E_FAIL;
+    }
+
+    auto fillErrorOutput = [&]() -> void
+    {
+        std::string typeName1 = "unknown";
+        TypePrinter::GetTypeOfValue(trRealValue1, typeName1);
+        std::string typeName2 = "unknown";
+        TypePrinter::GetTypeOfValue(trRealValue2, typeName2);
+        output = "error: Operator '" + findOpName->second.second +
+                    "' cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
+    };
+
     if (elemType1 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_VALUETYPE ||
         elemType1 == ELEMENT_TYPE_CLASS || elemType2 == ELEMENT_TYPE_CLASS)
     {
-        static std::unordered_map<Parser::SyntaxKind, std::pair<std::string, std::string>> opMap{
-            {Parser::SyntaxKind::AddExpression, {"op_Addition", "+"}},
-            {Parser::SyntaxKind::SubtractExpression, {"op_Subtraction", "-"}},
-            {Parser::SyntaxKind::MultiplyExpression, {"op_Multiply", "*"}},
-            {Parser::SyntaxKind::DivideExpression, {"op_Division", "/"}},
-            {Parser::SyntaxKind::ModuloExpression, {"op_Modulus", "%"}},
-            {Parser::SyntaxKind::RightShiftExpression, {"op_RightShift", ">>"}},
-            {Parser::SyntaxKind::LeftShiftExpression, {"op_LeftShift", "<<"}},
-            {Parser::SyntaxKind::LogicalAndExpression, {"op_LogicalAnd", "&&"}},
-            {Parser::SyntaxKind::LogicalOrExpression, {"op_LogicalOr", "||"}},
-            {Parser::SyntaxKind::ExclusiveOrExpression, {"op_ExclusiveOr", "^"}},
-            {Parser::SyntaxKind::BitwiseAndExpression, {"op_BitwiseAnd", "&"}},
-            {Parser::SyntaxKind::BitwiseOrExpression, {"op_BitwiseOr", "|"}},
-            {Parser::SyntaxKind::EqualsExpression, {"op_Equality", "=="}},
-            {Parser::SyntaxKind::NotEqualsExpression, {"op_Inequality", "!="}},
-            {Parser::SyntaxKind::LessThanExpression, {"op_LessThan", "<"}},
-            {Parser::SyntaxKind::GreaterThanExpression, {"op_GreaterThan", ">"}},
-            {Parser::SyntaxKind::LessThanOrEqualExpression, {"op_LessThanOrEqual", "<="}},
-            {Parser::SyntaxKind::GreaterThanOrEqualExpression, {"op_GreaterThanOrEqual", ">="}}};
-
-        auto findOpName = opMap.find(opcode.kind);
-        if (findOpName == opMap.end())
-        {
-            return E_FAIL;
-        }
-
         if (((elemType1 == ELEMENT_TYPE_VALUETYPE || elemType1 == ELEMENT_TYPE_CLASS) &&
              SUCCEEDED(CallBinaryOperator(findOpName->second.first, trRealValue1, trRealValue1, trRealValue2,
                                           &evalStack.front().trValue, ed))) ||
@@ -817,37 +828,90 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         std::string typeRetName;
         CorElementType elemRetType = ELEMENT_TYPE_MAX;
         ToRelease<ICorDebugValue> trResultValue;
-        // Try to implicitly cast struct/class object into primitive type.
-        if (PrimitiveTypes::IsPrimitiveType(elemType2) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        // Try to implicitly cast struct/class object into primitive type or string.
+        if ((PrimitiveTypes::IsPrimitiveType(elemType2) || elemType2 == ELEMENT_TYPE_STRING) && // First is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
             SUCCEEDED(GetArgData(trRealValue2, typeRetName, elemRetType)) &&
             SUCCEEDED(CallCastOperator("op_Implicit", trRealValue1, elemRetType, typeRetName, trRealValue1,
                                        &trResultValue, ed)))
         {
             trRealValue1.Free();
             IfFailRet(GetRealValueWithType(trResultValue, &trRealValue1, &elemType1));
-            // goto PrimitiveTypes::CalculateBinary() related routine (see code below this 'if' statement scope)
+            // goto string and primitive types (see code below this 'if' statement scope)
         }
-        else if (PrimitiveTypes::IsPrimitiveType(elemType1) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
+        else if ((PrimitiveTypes::IsPrimitiveType(elemType1) || elemType1 == ELEMENT_TYPE_STRING) && // Second is ELEMENT_TYPE_VALUETYPE or ELEMENT_TYPE_CLASS
                  SUCCEEDED(GetArgData(trRealValue1, typeRetName, elemRetType)) &&
                  SUCCEEDED(CallCastOperator("op_Implicit", trRealValue2, elemRetType, typeRetName, trRealValue2, &trResultValue, ed)))
         {
             trRealValue2.Free();
             IfFailRet(GetRealValueWithType(trResultValue, &trRealValue2, &elemType2));
-            // goto PrimitiveTypes::CalculateBinary() related routine (see code below this 'if' statement scope)
+            // goto string and primitive types (see code below this 'if' statement scope)
         }
         else
         {
-            std::string typeName1;
-            IfFailRet(TypePrinter::GetTypeOfValue(trRealValue1, typeName1));
-            std::string typeName2;
-            IfFailRet(TypePrinter::GetTypeOfValue(trRealValue2, typeName2));
-            output = "error: Operator '" + findOpName->second.second +
-                     "' cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
+            fillErrorOutput();
             return E_INVALIDARG;
         }
     }
-    else if (!PrimitiveTypes::IsPrimitiveType(elemType1) || !PrimitiveTypes::IsPrimitiveType(elemType2))
+
+    if ((elemType1 == ELEMENT_TYPE_STRING && (elemType2 == ELEMENT_TYPE_STRING || PrimitiveTypes::IsPrimitiveType(elemType2))) ||
+        (elemType2 == ELEMENT_TYPE_STRING && (elemType1 == ELEMENT_TYPE_STRING || PrimitiveTypes::IsPrimitiveType(elemType1))))
     {
+        auto getString = [](ICorDebugValue *pValue, CorElementType elemType, std::string &strValue) -> HRESULT
+        {
+            HRESULT Status = S_OK;
+            BOOL isNull = FALSE;
+            ToRelease<ICorDebugValue> trStrValue;
+            if (elemType == ELEMENT_TYPE_STRING)
+            {
+                IfFailRet(DereferenceAndUnboxValue(pValue, &trStrValue, &isNull));
+                if (isNull == TRUE)
+                {
+                    return S_OK;
+                }
+                return PrintStringValue(trStrValue, strValue);
+            }
+
+            PrimitiveTypes::PrimitiveValue primValue;
+            PrimitiveTypes::GetOperandData(pValue, elemType, primValue);
+            strValue = PrimitiveTypes::ToString(primValue);
+            return S_OK;
+        };
+
+        std::string string1;
+        IfFailRet(getString(trRealValue1, elemType1, string1));
+        std::string string2;
+        IfFailRet(getString(trRealValue2, elemType2, string2));
+
+        if ((elemType1 == ELEMENT_TYPE_STRING && elemType2 == ELEMENT_TYPE_STRING) &&
+            (opcode.kind == Parser::SyntaxKind::EqualsExpression || opcode.kind == Parser::SyntaxKind::NotEqualsExpression))
+        {
+            PrimitiveTypes::PrimitiveValue result =
+                opcode.kind == Parser::SyntaxKind::EqualsExpression ? string1 == string2 : string1 != string2;
+            return PrimitiveTypes::CreateICorValue(ed.pThread, result, &evalStack.front().trValue);
+        }
+        else if (opcode.kind == Parser::SyntaxKind::AddExpression)
+        {
+            return ed.pEvalHelpers->CreateString(ed.pThread, string1 + string2, &evalStack.front().trValue);
+        }
+        else if (elemType1 != ELEMENT_TYPE_BOOLEAN &&
+                 (opcode.kind == Parser::SyntaxKind::LogicalAndExpression ||
+                  opcode.kind == Parser::SyntaxKind::LogicalOrExpression))
+        {
+            std::string typeName = "unknown";
+            TypePrinter::GetTypeOfValue(trRealValue1, typeName);
+            output = "error: Cannot implicitly convert type '" + typeName + "' to 'bool'";
+            return E_INVALIDARG;
+        }
+        else
+        {
+            fillErrorOutput();
+            return E_INVALIDARG;
+        }
+    }
+
+    if (!PrimitiveTypes::IsPrimitiveType(elemType1) || !PrimitiveTypes::IsPrimitiveType(elemType2))
+    {
+        fillErrorOutput();
         return E_INVALIDARG;
     }
 
@@ -857,7 +921,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     IfFailRet(PrimitiveTypes::GetOperandData(trRealValue1, elemType1, leftValue));
     IfFailRet(PrimitiveTypes::GetOperandData(trRealValue2, elemType2, rightValue));
     IfFailRet(PrimitiveTypes::CalculateBinary(opcode.kind, leftValue, rightValue, outputValue, output));
-    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, ed.pEvalHelpers, outputValue, &evalStack.front().trValue));
+    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
 
     return S_OK;
 }
@@ -872,34 +936,40 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(trValue, &trRealValue, &elemType));
 
+    static const std::unordered_map<Parser::SyntaxKind, std::pair<std::string, std::string>> opMap{
+        {Parser::SyntaxKind::LogicalNotExpression, {"op_LogicalNot", "!"}},
+        {Parser::SyntaxKind::BitwiseNotExpression, {"op_OnesComplement", "~"}},
+        {Parser::SyntaxKind::UnaryPlusExpression, {"op_UnaryPlus", "+"}},
+        {Parser::SyntaxKind::UnaryMinusExpression, {"op_UnaryNegation", "-"}}};
+
+    auto findOpName = opMap.find(opcode.kind);
+    if (findOpName == opMap.end())
+    {
+        return E_FAIL;
+    }
+
+    auto fillErrorOutput = [&]() -> void
+    {
+        std::string typeName = "unknown";
+        TypePrinter::GetTypeOfValue(trRealValue, typeName);
+        output = "error: Operator '" + findOpName->second.second + "' cannot be applied to operand of type '" + typeName + "'";
+    };
+
     if (elemType == ELEMENT_TYPE_VALUETYPE || elemType == ELEMENT_TYPE_CLASS)
     {
-        static const std::unordered_map<Parser::SyntaxKind, std::pair<std::string, std::string>> opMap{
-            {Parser::SyntaxKind::LogicalNotExpression, {"op_LogicalNot", "!"}},
-            {Parser::SyntaxKind::BitwiseNotExpression, {"op_OnesComplement", "~"}},
-            {Parser::SyntaxKind::UnaryPlusExpression, {"op_UnaryPlus", "+"}},
-            {Parser::SyntaxKind::UnaryMinusExpression, {"op_UnaryNegation", "-"}}};
-
-        auto findOpName = opMap.find(opcode.kind);
-        if (findOpName == opMap.end())
-        {
-            return E_FAIL;
-        }
-
         if (SUCCEEDED(CallUnaryOperator(findOpName->second.first, trRealValue, &evalStack.front().trValue, ed)))
         {
             return S_OK;
         }
         else
         {
-            std::string typeName;
-            IfFailRet(TypePrinter::GetTypeOfValue(trRealValue, typeName));
-            output = "error: Operator '" + findOpName->second.second + "' cannot be applied to operand of type '" + typeName + "'";
+            fillErrorOutput();
             return E_INVALIDARG;
         }
     }
     else if (!PrimitiveTypes::IsPrimitiveType(elemType))
     {
+        fillErrorOutput();
         return E_INVALIDARG;
     }
 
@@ -907,7 +977,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
     PrimitiveTypes::PrimitiveValue outputValue;
     IfFailRet(PrimitiveTypes::GetOperandData(trRealValue, elemType, inputValue));
     IfFailRet(PrimitiveTypes::CalculateUnary(opcode.kind, inputValue, outputValue, output));
-    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, ed.pEvalHelpers, outputValue, &evalStack.front().trValue));
+    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
 
     return S_OK;
 }

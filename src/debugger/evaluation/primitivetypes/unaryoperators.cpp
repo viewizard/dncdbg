@@ -34,11 +34,6 @@ HRESULT ExecuteUnaryExpression(const PrimitiveValue &inputValue, PrimitiveValue 
             FillErrorOutput(opName, arg, output);
             return E_INVALIDARG;
         },
-        [&](const std::string &arg) -> HRESULT
-        {
-            FillErrorOutput(opName, arg, output);
-            return E_INVALIDARG;
-        },
         [&](auto arg) -> HRESULT
         {
             if (auto result = opFunc(arg))

@@ -3,11 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/primitivetypes/types.h"
-#include "debugger/evalhelpers.h"
-#include "debugger/valueprint.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <cassert>
+#include <sstream>
 #include <unordered_set>
 
 namespace dncdbg::PrimitiveTypes
@@ -16,9 +15,9 @@ namespace dncdbg::PrimitiveTypes
 bool IsPrimitiveType(CorElementType elemType)
 {
     static const std::unordered_set<CorElementType> supportedElementTypes{
-        ELEMENT_TYPE_BOOLEAN, ELEMENT_TYPE_U1, ELEMENT_TYPE_I1,    ELEMENT_TYPE_CHAR, ELEMENT_TYPE_R8,
-        ELEMENT_TYPE_R4,      ELEMENT_TYPE_I4, ELEMENT_TYPE_U4,    ELEMENT_TYPE_I8,   ELEMENT_TYPE_U8,
-        ELEMENT_TYPE_I2,      ELEMENT_TYPE_U2, ELEMENT_TYPE_STRING};
+        ELEMENT_TYPE_BOOLEAN, ELEMENT_TYPE_U1, ELEMENT_TYPE_I1, ELEMENT_TYPE_CHAR,
+        ELEMENT_TYPE_R4,      ELEMENT_TYPE_R8, ELEMENT_TYPE_I4, ELEMENT_TYPE_U4,
+        ELEMENT_TYPE_I2,      ELEMENT_TYPE_U2, ELEMENT_TYPE_I8, ELEMENT_TYPE_U8};
 
     return supportedElementTypes.find(elemType) != supportedElementTypes.end();
 }
@@ -26,21 +25,6 @@ bool IsPrimitiveType(CorElementType elemType)
 HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, PrimitiveValue &primValue)
 {
     HRESULT Status = S_OK;
-
-    if (elemType == ELEMENT_TYPE_STRING)
-    {
-        ToRelease<ICorDebugValue> trValue;
-        BOOL isNull = FALSE;
-        IfFailRet(DereferenceAndUnboxValue(pValue, &trValue, &isNull));
-
-        std::string String;
-        if (isNull == FALSE)
-        {
-            IfFailRet(PrintStringValue(trValue, String));
-        }
-        primValue = String;
-        return S_OK;
-    }
 
     ToRelease<ICorDebugGenericValue> trGenValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
@@ -121,7 +105,6 @@ CorElementType GetCorElementType(const PrimitiveValue &primValue)
         [](const std::monostate &) { ; },
         [&](const bool &) { elemType = ELEMENT_TYPE_BOOLEAN; },
         [&](const WCHAR &) { elemType = ELEMENT_TYPE_CHAR; },
-        [&](const std::string &) { elemType = ELEMENT_TYPE_STRING; },
         [&](const uint8_t &) { elemType = ELEMENT_TYPE_U1; },
         [&](const uint16_t &) { elemType = ELEMENT_TYPE_U2; },
         [&](const uint32_t &) { elemType = ELEMENT_TYPE_U4; },
@@ -145,7 +128,6 @@ std::string_view GetManagedTypeName(const PrimitiveValue &primValue)
         [](const std::monostate &) { ; },
         [&](const bool &) { name = "bool"; },
         [&](const WCHAR &) { name = "char"; },
-        [&](const std::string &) { name = "string"; },
         [&](const uint8_t &) { name = "byte"; },
         [&](const uint16_t &) { name = "ushort"; },
         [&](const uint32_t &) { name = "uint"; },
@@ -159,6 +141,22 @@ std::string_view GetManagedTypeName(const PrimitiveValue &primValue)
     }, primValue);
 
     return name;
+}
+
+std::string ToString(const PrimitiveValue &primValue)
+{
+    std::string ret;
+
+    std::visit(overloaded {
+        [](const std::monostate &) { assert(false && "value not properly initialized."); },
+        [&](const bool &arg) { ret = arg ? "True" : "False"; },
+        [&](const WCHAR &arg) { WSTRING tmp(2, '\0'); tmp.at(0) = arg; ret = to_utf8(tmp.c_str()); },
+        [&](const double &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
+        [&](const float &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
+        [&](auto &arg) { ret = std::to_string(arg); },
+    }, primValue);
+
+    return ret;
 }
 
 HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue)
@@ -178,18 +176,13 @@ HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void 
     return trGenValue->SetValue(ptr);
 }
 
-HRESULT CreateICorValue(ICorDebugThread *pThread, EvalHelpers *pEvalHelpers, PrimitiveValue &primValue, ICorDebugValue **ppValue)
+HRESULT CreateICorValue(ICorDebugThread *pThread, PrimitiveValue &primValue, ICorDebugValue **ppValue)
 {
     assert(!std::holds_alternative<std::monostate>(primValue) && "primValue not properly initialized.");
 
     CorElementType elemType = GetCorElementType(primValue);
 
-    if (elemType == ELEMENT_TYPE_STRING)
-    {
-        assert(std::holds_alternative<std::string>(primValue));
-        return pEvalHelpers->CreateString(pThread, std::get<std::string>(primValue), ppValue);
-    }
-    else if (elemType == ELEMENT_TYPE_BOOLEAN)
+    if (elemType == ELEMENT_TYPE_BOOLEAN)
     {
         assert(std::holds_alternative<bool>(primValue));
         uint8_t boolValue = std::get<bool>(primValue) ? 1 : 0;
