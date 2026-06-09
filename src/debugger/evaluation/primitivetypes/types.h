@@ -2,8 +2,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_PRIMITIVETYPES_TYPES_H
-#define DEBUGGER_PRIMITIVETYPES_TYPES_H
+#ifndef DEBUGGER_EVALUATION_PRIMITIVETYPES_TYPES_H
+#define DEBUGGER_EVALUATION_PRIMITIVETYPES_TYPES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -46,4 +46,4 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue
 
 } // namespace dncdbg::PrimitiveTypes
 
-#endif // DEBUGGER_PRIMITIVETYPES_TYPES_H
+#endif // DEBUGGER_EVALUATION_PRIMITIVETYPES_TYPES_H

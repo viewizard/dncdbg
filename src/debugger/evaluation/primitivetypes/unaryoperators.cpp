@@ -2,7 +2,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/primitivetypes/types.h"
+#include "debugger/evaluation/primitivetypes/types.h"
 #include <cassert>
 #include <functional>
 #include <optional>

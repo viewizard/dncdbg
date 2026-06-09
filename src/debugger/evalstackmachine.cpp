@@ -7,7 +7,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evalutils.h"
 #include "debugger/evalwaiter.h"
-#include "debugger/primitivetypes/types.h"
+#include "debugger/evaluation/primitivetypes/types.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
 #include "metadata/typeprinter.h"
