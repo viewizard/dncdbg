@@ -91,7 +91,7 @@ HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, st
     if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
         fetchedFrames == cInternalFrames)
     {
-        std::transform(pInternalFrames.begin(), pInternalFrames.end(), 
+        std::transform(pInternalFrames.begin(), pInternalFrames.end(),
                        std::back_inserter(trInternalFrames), [](ICorDebugInternalFrame2 *p)
                        {
                            return ToRelease<ICorDebugInternalFrame2>(p);

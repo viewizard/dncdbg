@@ -936,7 +936,7 @@ HRESULT GenerateProgram(const std::string &expression, std::list<Opcode> &progra
 
     // Trim trailing whitespace from the input expression.
     std::string trimmedExpression = expression;
-    trimmedExpression.erase(std::find_if(trimmedExpression.rbegin(), trimmedExpression.rend(), 
+    trimmedExpression.erase(std::find_if(trimmedExpression.rbegin(), trimmedExpression.rend(),
                                          [](unsigned char ch) { return !std::isspace(ch); }).base(),
                             trimmedExpression.end());
 
