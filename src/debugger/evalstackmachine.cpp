@@ -30,24 +30,6 @@ namespace dncdbg
 namespace
 {
 
-// Keep in sync with BasicTypes enum in Evaluation.cs
-enum class BasicTypes : uint8_t
-{
-    TypeBoolean = 1,
-    TypeByte,
-    TypeSByte,
-    TypeChar,
-    TypeDouble,
-    TypeSingle,
-    TypeInt32,
-    TypeUInt32,
-    TypeInt64,
-    TypeUInt64,
-    TypeInt16,
-    TypeUInt16,
-    TypeString
-};
-
 void ReplaceAllSubstring(std::string &str, const std::string &from, const std::string &to)
 {
     size_t start = 0;
