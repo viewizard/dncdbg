@@ -24,10 +24,12 @@ bool IsPrimitiveType(CorElementType elemType)
     return supportedElementTypes.find(elemType) != supportedElementTypes.end();
 }
 
-HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, PrimitiveValue &primValue)
+HRESULT GetPrimitiveData(ICorDebugValue *pValue, PrimitiveValue &primValue)
 {
     HRESULT Status = S_OK;
 
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(pValue->GetType(&elemType));
     ToRelease<ICorDebugGenericValue> trGenValue;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenValue)));
 

@@ -44,7 +44,8 @@ Upcoming changes compared to previous version.
 - Fixed Windows arm64 architecture detection during the build process.
 - Fixed macOS debuggee process exit code retrieval by using kqueue with NOTE_EXITSTATUS.
 - Fixed binary operators logic.
-- Fixed index casting logic in managed expressions to properly support all integer input types.
+- Fixed index casting logic in managed expressions to properly support all integer types.
+- Fixed implicit casting logic in managed expressions to properly support all primitive types.
 
 </br>
 </br>

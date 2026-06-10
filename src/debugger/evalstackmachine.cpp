@@ -290,92 +290,6 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICor
     return CallCastOperator(opName, pValue, elemRetType, typeRetName, pTypeValue, pResultValue, ed);
 }
 
-template <typename T1, typename T2>
-HRESULT ImplicitCastElemType(ICorDebugValue *pValue1, ICorDebugValue *pValue2, bool testRange)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugGenericValue> trGenericValue1;
-    IfFailRet(pValue1->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue1)));
-    T1 value1 = 0;
-    IfFailRet(trGenericValue1->GetValue(&value1));
-
-    if (testRange &&
-        ((value1 < 0 && (std::numeric_limits<T2>::min() == 0 || value1 - std::numeric_limits<T2>::min() < 0)) ||
-         (value1 > 0 && std::numeric_limits<T2>::max() - value1 < 0)))
-    {
-        return E_INVALIDARG;
-    }
-
-    ToRelease<ICorDebugGenericValue> trGenericValue2;
-    IfFailRet(pValue2->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue2)));
-    T2 value2 = static_cast<T2>(value1); // NOLINT(cert-str34-c,bugprone-signed-char-misuse)
-    return trGenericValue2->SetValue(&value2);
-}
-
-using ImplicitCastMap_t = std::array<std::array<std::function<HRESULT(ICorDebugValue *, ICorDebugValue *, bool)>, ELEMENT_TYPE_MAX>, ELEMENT_TYPE_MAX>;
-
-ImplicitCastMap_t InitImplicitCastMap()
-{
-    ImplicitCastMap_t implicitCastMap;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<uint16_t, uint16_t>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint16_t, int32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint16_t, uint32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint16_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint16_t, uint64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint16_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_CHAR).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint16_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<int8_t, int16_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<int8_t, int32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int8_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int8_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_I1).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int8_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<uint8_t, int16_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<uint8_t, uint16_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint8_t, int32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint8_t, uint32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint8_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint8_t, uint64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint8_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_U1).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint8_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<int16_t, int32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int16_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int16_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_I2).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int16_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_I4) = ImplicitCastElemType<uint16_t, int32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<uint16_t, uint32_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint16_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint16_t, uint64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint16_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_U2).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint16_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<int32_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int32_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int32_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_I8) = ImplicitCastElemType<uint32_t, int64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<uint32_t, uint64_t>;
-    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint32_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_U4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint32_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_I8).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<int64_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_I8).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<int64_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_U8).at(ELEMENT_TYPE_R4) = ImplicitCastElemType<uint64_t, float>;
-    implicitCastMap.at(ELEMENT_TYPE_U8).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<uint64_t, double>;
-    implicitCastMap.at(ELEMENT_TYPE_R4).at(ELEMENT_TYPE_R8) = ImplicitCastElemType<float, double>;
-
-    return implicitCastMap;
-}
-
-ImplicitCastMap_t InitImplicitCastLiteralMap()
-{
-    ImplicitCastMap_t implicitCastLiteralMap;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I1) = ImplicitCastElemType<int32_t, int8_t>;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U1) = ImplicitCastElemType<int32_t, uint8_t>;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_I2) = ImplicitCastElemType<int32_t, int16_t>;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U2) = ImplicitCastElemType<int32_t, uint16_t>;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U4) = ImplicitCastElemType<int32_t, uint32_t>;
-    implicitCastLiteralMap.at(ELEMENT_TYPE_I4).at(ELEMENT_TYPE_U8) = ImplicitCastElemType<int32_t, uint64_t>;
-
-    return implicitCastLiteralMap;
-}
-
 HRESULT GetRealValueWithType(ICorDebugValue *pValue, ICorDebugValue **ppResultValue, CorElementType *pElemType = nullptr)
 {
     HRESULT Status = S_OK;
@@ -485,7 +399,8 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
     }
 
     if (!haveSameType && (elemType1 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_VALUETYPE ||
-                          elemType1 == ELEMENT_TYPE_CLASS || elemType2 == ELEMENT_TYPE_CLASS))
+                          elemType1 == ELEMENT_TYPE_CLASS || elemType2 == ELEMENT_TYPE_CLASS ||
+                          elemType1 == ELEMENT_TYPE_STRING || elemType2 == ELEMENT_TYPE_STRING))
     {
         ToRelease<ICorDebugValue> trResultValue;
         if (FAILED(Status = CallCastOperator("op_Implicit", trRealValue1, trRealValue2, trRealValue1, &trResultValue, ed)) &&
@@ -505,20 +420,17 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
         return CopyValue(trRealValue1, trRealValue2, elemType1, elemType2);
     }
 
-    static ImplicitCastMap_t implicitCastMap = InitImplicitCastMap();
-    static ImplicitCastMap_t implicitCastLiteralMap = InitImplicitCastLiteralMap();
-
-    if (srcLiteral && implicitCastLiteralMap.at(elemType1).at(elemType2) != nullptr)
+    if (!PrimitiveTypes::IsPrimitiveType(elemType1) || !PrimitiveTypes::IsPrimitiveType(elemType2))
     {
-        return implicitCastLiteralMap.at(elemType1).at(elemType2)(trRealValue1, trRealValue2, true);
+        return E_INVALIDARG;
     }
 
-    if (implicitCastMap.at(elemType1).at(elemType2) != nullptr)
+    if (srcLiteral && elemType1 == ELEMENT_TYPE_I4)
     {
-        return implicitCastMap.at(elemType1).at(elemType2)(trRealValue1, trRealValue2, false);
+        return PrimitiveTypes::ImplicitCastIntLiteral(trRealValue1, trRealValue2);
     }
 
-    return E_INVALIDARG;
+    return PrimitiveTypes::ImplicitCast(trRealValue1, trRealValue2);
 }
 
 HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pType1Value,
@@ -748,7 +660,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
             }
 
             PrimitiveTypes::PrimitiveValue primValue;
-            PrimitiveTypes::GetOperandData(pValue, elemType, primValue);
+            PrimitiveTypes::GetPrimitiveData(pValue, primValue);
             strValue = PrimitiveTypes::ToString(primValue);
             return S_OK;
         };
@@ -794,8 +706,8 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     PrimitiveTypes::PrimitiveValue leftValue;
     PrimitiveTypes::PrimitiveValue rightValue;
     PrimitiveTypes::PrimitiveValue outputValue;
-    IfFailRet(PrimitiveTypes::GetOperandData(trRealValue1, elemType1, leftValue));
-    IfFailRet(PrimitiveTypes::GetOperandData(trRealValue2, elemType2, rightValue));
+    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue1, leftValue));
+    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue2, rightValue));
     IfFailRet(PrimitiveTypes::CalculateBinary(opcode.kind, leftValue, rightValue, outputValue, output));
     IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
 
@@ -851,7 +763,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
 
     PrimitiveTypes::PrimitiveValue inputValue;
     PrimitiveTypes::PrimitiveValue outputValue;
-    IfFailRet(PrimitiveTypes::GetOperandData(trRealValue, elemType, inputValue));
+    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue, inputValue));
     IfFailRet(PrimitiveTypes::CalculateUnary(opcode.kind, inputValue, outputValue, output));
     IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
 
