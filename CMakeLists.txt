@@ -112,6 +112,7 @@ set(FEATURE_EVENT_TRACE 0)
 #           dwCreationFlags |= CREATE_NEW_CONSOLE;
 #       }
 #   #endif // _WIN32
+# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` change CMAKE_OSX_DEPLOYMENT_TARGET to "13.3"
 #
 ###
 
