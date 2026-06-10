@@ -38,6 +38,8 @@ HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue
 HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
                         PrimitiveValue &outputValue, std::string &output);
 
+HRESULT ForceCastToUint(ICorDebugValue *pInputValue, uint32_t &number);
+
 } // namespace dncdbg::PrimitiveTypes
 
 #endif // DEBUGGER_EVALUATION_PRIMITIVETYPES_TYPES_H

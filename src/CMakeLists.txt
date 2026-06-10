@@ -23,8 +23,9 @@ set(dncdbg_SRC
     debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
     debugger/breakpoints/breakpointutils.cpp
-    debugger/evaluation/primitivetypes/types.cpp
     debugger/evaluation/primitivetypes/binaryoperators.cpp
+    debugger/evaluation/primitivetypes/cast.cpp
+    debugger/evaluation/primitivetypes/types.cpp
     debugger/evaluation/primitivetypes/unaryoperators.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp

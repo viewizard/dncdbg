@@ -149,109 +149,6 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     return trGenericValue->SetValue(ptr);
 }
 
-HRESULT GetElementIndex(ICorDebugValue *pInputValue, uint32_t &index)
-{
-    // `uint32_t &index` - ICorDebugArrayValue::GetElement expect uint32_t indices
-
-    HRESULT Status = S_OK;
-
-    BOOL isNull = TRUE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-
-    if (isNull == TRUE)
-    {
-        return E_INVALIDARG;
-    }
-
-    uint32_t cbSize = 0;
-    IfFailRet(trValue->GetSize(&cbSize));
-    std::vector<uint8_t> indexValue(cbSize, 0);
-
-    ToRelease<ICorDebugGenericValue> trGenericValue;
-    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    IfFailRet(trGenericValue->GetValue(static_cast<void *>(indexValue.data())));
-
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(trValue->GetType(&elemType));
-
-    switch (elemType)
-    {
-    case ELEMENT_TYPE_I1:
-    {
-        assert(indexValue.size() == 1);
-        const int8_t tmp = *reinterpret_cast<int8_t *>(indexValue.data());
-        if (tmp < 0)
-        {
-            return E_INVALIDARG;
-        }
-        index = static_cast<uint32_t>(static_cast<uint8_t>(tmp));
-        break;
-    }
-    case ELEMENT_TYPE_U1:
-    {
-        assert(indexValue.size() == 1);
-        index = static_cast<uint32_t>(indexValue.at(0));
-        break;
-    }
-    case ELEMENT_TYPE_I2:
-    {
-        assert(indexValue.size() == 2);
-        const int16_t tmp = *reinterpret_cast<int16_t *>(indexValue.data());
-        if (tmp < 0)
-        {
-            return E_INVALIDARG;
-        }
-        index = static_cast<uint32_t>(static_cast<uint16_t>(tmp));
-        break;
-    }
-    case ELEMENT_TYPE_U2:
-    {
-        assert(indexValue.size() == 2);
-        index = static_cast<uint32_t>(*reinterpret_cast<uint16_t *>(indexValue.data()));
-        break;
-    }
-    case ELEMENT_TYPE_I4:
-    {
-        assert(indexValue.size() == 4);
-        const int32_t tmp = *reinterpret_cast<int32_t *>(indexValue.data());
-        if (tmp < 0)
-        {
-            return E_INVALIDARG;
-        }
-        index = static_cast<uint32_t>(tmp);
-        break;
-    }
-    case ELEMENT_TYPE_U4:
-    {
-        assert(indexValue.size() == 4);
-        index = *reinterpret_cast<uint32_t *>(indexValue.data());
-        break;
-    }
-    case ELEMENT_TYPE_I8:
-    {
-        assert(indexValue.size() == 8);
-        const int64_t tmp = *reinterpret_cast<int64_t *>(indexValue.data());
-        if (tmp < 0)
-        {
-            return E_INVALIDARG;
-        }
-        index = static_cast<uint32_t>(tmp);
-        break;
-    }
-    case ELEMENT_TYPE_U8:
-    {
-        assert(indexValue.size() == 8);
-        index = static_cast<uint32_t>(*reinterpret_cast<uint64_t *>(indexValue.data()));
-        break;
-    }
-    default:
-        return E_INVALIDARG;
-    }
-
-    return S_OK;
-}
-
 HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData,
                                 std::list<EvalStackEntry> &evalStack, EvalData &ed, std::string &output)
@@ -549,10 +446,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
     }
 
     // Copy data.
-    if (elemTypeDst == ELEMENT_TYPE_BOOLEAN || elemTypeDst == ELEMENT_TYPE_CHAR || elemTypeDst == ELEMENT_TYPE_I1 ||
-        elemTypeDst == ELEMENT_TYPE_U1 || elemTypeDst == ELEMENT_TYPE_I2 || elemTypeDst == ELEMENT_TYPE_U2 ||
-        elemTypeDst == ELEMENT_TYPE_U4 || elemTypeDst == ELEMENT_TYPE_I4 || elemTypeDst == ELEMENT_TYPE_I8 ||
-        elemTypeDst == ELEMENT_TYPE_U8 || elemTypeDst == ELEMENT_TYPE_R4 || elemTypeDst == ELEMENT_TYPE_R8 ||
+    if (PrimitiveTypes::IsPrimitiveType(elemTypeDst) ||
         elemTypeDst == ELEMENT_TYPE_VALUETYPE)
     {
         uint32_t cbSize = 0;
@@ -1263,11 +1157,10 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         while (tmpArgCount > 0)
         {
             tmpArgCount--;
-            uint32_t result_index = 0;
-            // TODO implicitly convert ICorValue to int, if type is not int
-            // currently GetElementIndex() works with integer types only
-            IfFailRet(GetElementIndex(trIndexValues.at(tmpArgCount), result_index));
-            indexes.insert(indexes.begin(), result_index);
+            uint32_t index = 0;
+            // ICorDebugArrayValue::GetElement expects uint32_t indices
+            IfFailRet(PrimitiveTypes::ForceCastToUint(trIndexValues.at(tmpArgCount), index));
+            indexes.insert(indexes.begin(), index);
         }
         evalStack.front().trValue.Free();
         evalStack.front().identifiers.clear();
@@ -1382,12 +1275,11 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         uint32_t tmpArgCount = argCount;
         while (tmpArgCount > 0)
         {
-            uint32_t result_index = 0;
             tmpArgCount--;
-            // TODO implicitly convert ICorValue to int, if type is not int
-            // currently GetElementIndex() works with integer types only
-            IfFailRet(GetElementIndex(trIndexValues.at(tmpArgCount), result_index));
-            indexes.insert(indexes.begin(), result_index);
+            uint32_t index = 0;
+            // ICorDebugArrayValue::GetElement expects uint32_t indices
+            IfFailRet(PrimitiveTypes::ForceCastToUint(trIndexValues.at(tmpArgCount), index));
+            indexes.insert(indexes.begin(), index);
         }
         evalStack.front().trValue.Free();
         evalStack.front().identifiers.clear();
