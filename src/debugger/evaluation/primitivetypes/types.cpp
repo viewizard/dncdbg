@@ -5,8 +5,10 @@
 #include "debugger/evaluation/primitivetypes/types.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include "utils/utf.h"
+#include <array>
 #include <cassert>
-#include <sstream>
+#include <charconv>
 #include <unordered_set>
 
 namespace dncdbg::PrimitiveTypes
@@ -99,64 +101,83 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
 
 CorElementType GetCorElementType(const PrimitiveValue &primValue)
 {
-    CorElementType elemType = ELEMENT_TYPE_MAX;
+    return std::visit([](const auto &arg) -> CorElementType
+    {
+        using T = std::decay_t<decltype(arg)>;
 
-    std::visit(overloaded {
-        [](const std::monostate &) { ; },
-        [&](const bool &) { elemType = ELEMENT_TYPE_BOOLEAN; },
-        [&](const WCHAR &) { elemType = ELEMENT_TYPE_CHAR; },
-        [&](const uint8_t &) { elemType = ELEMENT_TYPE_U1; },
-        [&](const uint16_t &) { elemType = ELEMENT_TYPE_U2; },
-        [&](const uint32_t &) { elemType = ELEMENT_TYPE_U4; },
-        [&](const uint64_t &) { elemType = ELEMENT_TYPE_U8; },
-        [&](const int8_t &) { elemType = ELEMENT_TYPE_I1; },
-        [&](const int16_t &) { elemType = ELEMENT_TYPE_I2; },
-        [&](const int32_t &) { elemType = ELEMENT_TYPE_I4; },
-        [&](const int64_t &) { elemType = ELEMENT_TYPE_I8; },
-        [&](const double &) { elemType = ELEMENT_TYPE_R8; },
-        [&](const float &) { elemType = ELEMENT_TYPE_R4; }
+        if constexpr (std::is_same_v<T, bool>)          { return ELEMENT_TYPE_BOOLEAN; }
+        else if constexpr (std::is_same_v<T, WCHAR>)    { return ELEMENT_TYPE_CHAR; }
+        else if constexpr (std::is_same_v<T, uint8_t>)  { return ELEMENT_TYPE_U1; }
+        else if constexpr (std::is_same_v<T, int8_t>)   { return ELEMENT_TYPE_I1; }
+        else if constexpr (std::is_same_v<T, uint16_t>) { return ELEMENT_TYPE_U2; }
+        else if constexpr (std::is_same_v<T, int16_t>)  { return ELEMENT_TYPE_I2; }
+        else if constexpr (std::is_same_v<T, uint32_t>) { return ELEMENT_TYPE_U4; }
+        else if constexpr (std::is_same_v<T, int32_t>)  { return ELEMENT_TYPE_I4; }
+        else if constexpr (std::is_same_v<T, uint64_t>) { return ELEMENT_TYPE_U8; }
+        else if constexpr (std::is_same_v<T, int64_t>)  { return ELEMENT_TYPE_I8; }
+        else if constexpr (std::is_same_v<T, float>)    { return ELEMENT_TYPE_R4; }
+        else if constexpr (std::is_same_v<T, double>)   { return ELEMENT_TYPE_R8; }
+        else                                            { return ELEMENT_TYPE_MAX; }
     }, primValue);
-
-    return elemType;
 }
 
 std::string_view GetManagedTypeName(const PrimitiveValue &primValue)
 {
-    std::string_view name = "Unknown Type";
+    return std::visit([](const auto &arg) -> std::string_view
+    {
+        using T = std::decay_t<decltype(arg)>;
 
-    std::visit(overloaded {
-        [](const std::monostate &) { ; },
-        [&](const bool &) { name = "bool"; },
-        [&](const WCHAR &) { name = "char"; },
-        [&](const uint8_t &) { name = "byte"; },
-        [&](const uint16_t &) { name = "ushort"; },
-        [&](const uint32_t &) { name = "uint"; },
-        [&](const uint64_t &) { name = "ulong"; },
-        [&](const int8_t &) { name = "sbyte"; },
-        [&](const int16_t &) { name = "short"; },
-        [&](const int32_t &) { name = "int"; },
-        [&](const int64_t &) { name = "long"; },
-        [&](const double &) { name = "double"; },
-        [&](const float &) { name = "float"; }
+        if constexpr (std::is_same_v<T, bool>)          { return "bool"; }
+        else if constexpr (std::is_same_v<T, WCHAR>)    { return "char"; }
+        else if constexpr (std::is_same_v<T, uint8_t>)  { return "byte"; }
+        else if constexpr (std::is_same_v<T, int8_t>)   { return "sbyte"; }
+        else if constexpr (std::is_same_v<T, uint16_t>) { return "ushort"; }
+        else if constexpr (std::is_same_v<T, int16_t>)  { return "short"; }
+        else if constexpr (std::is_same_v<T, uint32_t>) { return "uint"; }
+        else if constexpr (std::is_same_v<T, int32_t>)  { return "int"; }
+        else if constexpr (std::is_same_v<T, uint64_t>) { return "ulong"; }
+        else if constexpr (std::is_same_v<T, int64_t>)  { return "long"; }
+        else if constexpr (std::is_same_v<T, float>)    { return "float"; }
+        else if constexpr (std::is_same_v<T, double>)   { return "double"; }
+        else                                            { return "Unknown Type"; }
     }, primValue);
-
-    return name;
 }
 
 std::string ToString(const PrimitiveValue &primValue)
 {
-    std::string ret;
+    return std::visit([](const auto &arg) -> std::string
+    {
+        using T = std::decay_t<decltype(arg)>;
 
-    std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "value not properly initialized."); },
-        [&](const bool &arg) { ret = arg ? "True" : "False"; },
-        [&](const WCHAR &arg) { WSTRING tmp(2, '\0'); tmp.at(0) = arg; ret = to_utf8(tmp.c_str()); },
-        [&](const double &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
-        [&](const float &arg) { std::ostringstream ss; ss << arg; ret = ss.str(); },
-        [&](auto &arg) { ret = std::to_string(arg); },
+        if constexpr (std::is_same_v<T, std::monostate>)
+        {
+            assert(false && "value not properly initialized.");
+            return {};
+        }
+        else if constexpr (std::is_same_v<T, bool>)
+        {
+            return arg ? "True" : "False";
+        }
+        else if constexpr (std::is_same_v<T, WCHAR>)
+        {
+            const std::array<WCHAR, 2> tmp{ arg, L'\0' };
+            return to_utf8(tmp.data());
+        }
+        else
+        {
+            static constexpr int maxSymbols = 48;
+            std::array<char, maxSymbols> buffer{};
+
+            auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), arg);
+
+            if (ec == std::errc{})
+            {
+                return std::string(buffer.data(), ptr - buffer.data());
+            }
+
+            return std::to_string(arg);
+        }
     }, primValue);
-
-    return ret;
 }
 
 HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue)

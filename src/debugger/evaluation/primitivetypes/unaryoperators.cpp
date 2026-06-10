@@ -27,18 +27,21 @@ template <typename OpFunc>
 HRESULT ExecuteUnaryExpression(const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output,
                                std::string_view opName, const OpFunc &opFunc)
 {
-    return std::visit(overloaded {
-        [&](const std::monostate &arg) -> HRESULT
+    return std::visit([&](const auto &arg) -> HRESULT
+    {
+        using T = std::decay_t<decltype(arg)>;
+
+        if constexpr (std::is_same_v<T, std::monostate>)
         {
             assert(false && "inputValue not properly initialized.");
             FillErrorOutput(opName, arg, output);
             return E_INVALIDARG;
-        },
-        [&](auto arg) -> HRESULT
+        }
+        else
         {
             if (auto result = opFunc(arg))
             {
-                outputValue = std::move(*result);
+                outputValue = *result;
                 return S_OK;
             }
             FillErrorOutput(opName, arg, output);

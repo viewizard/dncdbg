@@ -46,13 +46,20 @@ void FillConvertErrorOutput(const PrimitiveValue &primValue, std::string &output
 template <typename TargetType>
 TargetType ConvertToNumeric(const PrimitiveValue &value)
 {
-    TargetType result{};
-    std::visit(overloaded {
-        [](const std::monostate &) { assert(false && "value not properly initialized."); },
-        [](const bool &) { assert(false && "value not supported."); },
-        [&result](auto &arg) { result = static_cast<TargetType>(arg); } // NOLINT(bugprone-signed-char-misuse,cert-str34-c)
+    return std::visit([](const auto &arg) -> TargetType
+    {
+        using T = std::decay_t<decltype(arg)>;
+
+        if constexpr (std::is_same_v<T, std::monostate> || std::is_same_v<T, bool>)
+        {
+            assert(false && "value not properly initialized or not supported.");
+            return TargetType{};
+        }
+        else
+        {
+            return static_cast<TargetType>(arg); // NOLINT(bugprone-signed-char-misuse,cert-str34-c)
+        }
     }, value);
-    return result;
 }
 
 // Helper template for arithmetic operations (Add, Subtract, Multiply, Divide, Modulo)

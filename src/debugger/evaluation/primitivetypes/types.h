@@ -20,9 +20,6 @@
 namespace dncdbg::PrimitiveTypes
 {
 
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; }; // NOLINT(misc-multiple-inheritance)
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 using PrimitiveValue = std::variant<std::monostate, bool, uint8_t, int8_t, uint16_t, int16_t,
                                     uint32_t, int32_t, uint64_t, int64_t, float, double, WCHAR>;
 

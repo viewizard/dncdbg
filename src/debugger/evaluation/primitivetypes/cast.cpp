@@ -6,7 +6,7 @@
 #include "debugger/evalhelpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <limits>
+#include <cstdint>
 
 namespace dncdbg::PrimitiveTypes
 {
@@ -33,76 +33,36 @@ HRESULT ForceCastToUint(ICorDebugValue *pInputValue, uint32_t &number)
     PrimitiveValue primValue;
     IfFailRet(GetOperandData(trValue, elemType, primValue));
 
-    return std::visit(overloaded {
-        [&](const WCHAR &arg)-> HRESULT
-        {
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const uint8_t &arg)-> HRESULT
-        {
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const uint16_t &arg)-> HRESULT
-        {
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const uint32_t &arg) -> HRESULT
-        {
-            number = arg;
-            return S_OK;
-        },
-        [&](const uint64_t &arg) -> HRESULT
-        {
-            if (arg > static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()))
-            {
-                return E_INVALIDARG;
-            }
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const int8_t &arg) -> HRESULT
-        {
-            if (arg < 0)
-            {
-                return E_INVALIDARG;
-            }
-            number = static_cast<uint32_t>(arg); // NOLINT(bugprone-signed-char-misuse,cert-str34-c)
-            return S_OK;
-        },
-        [&](const int16_t &arg) -> HRESULT
-        {
-            if (arg < 0)
-            {
-                return E_INVALIDARG;
-            }
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const int32_t &arg) -> HRESULT
-        {
-            if (arg < 0)
-            {
-                return E_INVALIDARG;
-            }
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [&](const int64_t &arg) -> HRESULT
-        {
-            if (arg < 0 ||
-                arg > static_cast<int64_t>(std::numeric_limits<uint32_t>::max()))
-            {
-                return E_INVALIDARG;
-            }
-            number = static_cast<uint32_t>(arg);
-            return S_OK;
-        },
-        [](const auto &) -> HRESULT
+    return std::visit([&](const auto &arg) -> HRESULT
+    {
+        using T = std::decay_t<decltype(arg)>;
+
+        if constexpr (std::is_same_v<T, std::monostate> ||
+                      std::is_same_v<T, bool> ||
+                      std::is_floating_point_v<T>)
         {
             return E_INVALIDARG;
+        }
+        else
+        {
+            if constexpr (std::is_signed_v<T>)
+            {
+                if (arg < 0)
+                {
+                    return E_INVALIDARG;
+                }
+            }
+
+            if constexpr (sizeof(T) > sizeof(uint32_t))
+            {
+                if (arg > static_cast<T>(UINT32_MAX))
+                {
+                    return E_INVALIDARG;
+                }
+            }
+
+            number = static_cast<uint32_t>(arg); // NOLINT(bugprone-signed-char-misuse,cert-str34-c)
+            return S_OK;
         }
     }, primValue);
 }
