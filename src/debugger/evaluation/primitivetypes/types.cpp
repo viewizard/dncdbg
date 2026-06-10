@@ -39,64 +39,28 @@ HRESULT GetOperandData(ICorDebugValue *pValue, CorElementType elemType, Primitiv
         return S_OK;
     }
 
+    auto readValue = [&](auto typeDummy) -> HRESULT
+    {
+        using T = decltype(typeDummy);
+        auto &addr = primValue.emplace<T>();
+        return trGenValue->GetValue(&addr);
+    };
+
     switch (elemType)
     {
-    case ELEMENT_TYPE_U1:
-        primValue = uint8_t{0};
-        break;
-
-    case ELEMENT_TYPE_I1:
-        primValue = int8_t{0};
-        break;
-
-    case ELEMENT_TYPE_CHAR:
-        primValue = WCHAR{0};
-        break;
-
-    case ELEMENT_TYPE_R8:
-        primValue = double{0};
-        break;
-
-    case ELEMENT_TYPE_R4:
-        primValue = float{0};
-        break;
-
-    case ELEMENT_TYPE_I4:
-        primValue = int32_t{0};
-        break;
-
-    case ELEMENT_TYPE_U4:
-        primValue = uint32_t{0};
-        break;
-
-    case ELEMENT_TYPE_I8:
-        primValue = int64_t{0};
-        break;
-
-    case ELEMENT_TYPE_U8:
-        primValue = uint64_t{0};
-        break;
-
-    case ELEMENT_TYPE_I2:
-        primValue = int16_t{0};
-        break;
-
-    case ELEMENT_TYPE_U2:
-        primValue = uint16_t{0};
-        break;
-
-    default:
-        return E_INVALIDARG;
+        case ELEMENT_TYPE_CHAR: return readValue(WCHAR{0});
+        case ELEMENT_TYPE_U1:   return readValue(uint8_t{0});
+        case ELEMENT_TYPE_I1:   return readValue(int8_t{0});
+        case ELEMENT_TYPE_U2:   return readValue(uint16_t{0});
+        case ELEMENT_TYPE_I2:   return readValue(int16_t{0});
+        case ELEMENT_TYPE_U4:   return readValue(uint32_t{0});
+        case ELEMENT_TYPE_I4:   return readValue(int32_t{0});
+        case ELEMENT_TYPE_U8:   return readValue(uint64_t{0});
+        case ELEMENT_TYPE_I8:   return readValue(int64_t{0});
+        case ELEMENT_TYPE_R4:   return readValue(float{0});
+        case ELEMENT_TYPE_R8:   return readValue(double{0});
+        default:                return E_INVALIDARG;
     }
-
-    std::visit(
-        [&](auto &arg)
-        {
-            Status = trGenValue->GetValue(&arg);
-        },
-        primValue);
-
-    return Status;
 }
 
 CorElementType GetCorElementType(const PrimitiveValue &primValue)
