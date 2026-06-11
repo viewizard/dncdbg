@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/primitivetypes/types.h"
+#include "utils/hresult.h"
 #include <cassert>
 #include <functional>
 #include <optional>
@@ -130,9 +131,12 @@ HRESULT UnaryPlusExpression(const PrimitiveValue &inputValue, PrimitiveValue &ou
 
 } // unnamed namespace
 
-HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output)
+HRESULT CalculateUnary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorDebugValue *pInputValue,
+                       ICorDebugValue **ppResultValue, std::string &output)
 {
-    assert(!std::holds_alternative<std::monostate>(inputValue) && "inputValue not properly initialized.");
+    HRESULT Status = S_OK;
+    PrimitiveValue inputValue;
+    IfFailRet(GetPrimitiveData(pInputValue, inputValue));
 
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, PrimitiveValue &, std::string &)>> OperatorImplementation{
         {Parser::SyntaxKind::UnaryPlusExpression, UnaryPlusExpression},
@@ -148,7 +152,9 @@ HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue
         return E_INVALIDARG;
     }
 
-    return findOperator->second(inputValue, outputValue, output);
+    PrimitiveValue outputValue;
+    IfFailRet(findOperator->second(inputValue, outputValue, output));
+    return CreateICorValue(pThread, outputValue, ppResultValue);
 }
 
 } // namespace dncdbg::PrimitiveTypes

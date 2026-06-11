@@ -31,9 +31,10 @@ std::string ToString(const PrimitiveValue &primValue);
 HRESULT CreateICorValue(ICorDebugThread *pThread, CorElementType elemType, void *ptr, ICorDebugValue **ppValue);
 HRESULT CreateICorValue(ICorDebugThread *pThread, PrimitiveValue &primValue, ICorDebugValue **ppValue);
 
-HRESULT CalculateUnary(Parser::SyntaxKind kind, const PrimitiveValue &inputValue, PrimitiveValue &outputValue, std::string &output);
-HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
-                        PrimitiveValue &outputValue, std::string &output);
+HRESULT CalculateUnary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorDebugValue *pInputValue,
+                       ICorDebugValue **ppResultValue, std::string &output);
+HRESULT CalculateBinary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorDebugValue *pInputValue1,
+                        ICorDebugValue *pInputValue2, ICorDebugValue **ppResultValue, std::string &output);
 
 HRESULT ForceCastToUint(ICorDebugValue *pInputValue, uint32_t &number);
 HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue);

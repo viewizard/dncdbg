@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/primitivetypes/types.h"
+#include "utils/hresult.h"
 #include <cassert>
 #include <cmath>
 #include <functional>
@@ -452,11 +453,14 @@ HRESULT GreaterThanOrEqualExpression(const PrimitiveValue &leftValue, const Prim
 
 } // unnamed namespace
 
-HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue, const PrimitiveValue &rightValue,
-                        PrimitiveValue &outputValue, std::string &output)
+HRESULT CalculateBinary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorDebugValue *pInputValue1,
+                        ICorDebugValue *pInputValue2, ICorDebugValue **ppResultValue, std::string &output)
 {
-    assert(!std::holds_alternative<std::monostate>(leftValue) && "leftValue not properly initialized.");
-    assert(!std::holds_alternative<std::monostate>(rightValue) && "rightValue not properly initialized.");
+    HRESULT Status = S_OK;
+    PrimitiveValue leftValue;
+    IfFailRet(GetPrimitiveData(pInputValue1, leftValue));
+    PrimitiveValue rightValue;
+    IfFailRet(GetPrimitiveData(pInputValue2, rightValue));
 
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const PrimitiveValue &, const PrimitiveValue &,
                                                                               PrimitiveValue &, std::string &)>> OperatorImplementation{
@@ -487,7 +491,9 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, const PrimitiveValue &leftValue
         return E_INVALIDARG;
     }
 
-    return findOperator->second(leftValue, rightValue, outputValue, output);
+    PrimitiveValue outputValue;
+    IfFailRet(findOperator->second(leftValue, rightValue, outputValue, output));
+    return CreateICorValue(pThread, outputValue, ppResultValue);
 }
 
 } // namespace dncdbg::PrimitiveTypes

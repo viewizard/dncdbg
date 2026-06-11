@@ -425,12 +425,9 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
         return E_INVALIDARG;
     }
 
-    if (srcLiteral && elemType1 == ELEMENT_TYPE_I4)
-    {
-        return PrimitiveTypes::ImplicitCastIntLiteral(trRealValue1, trRealValue2);
-    }
-
-    return PrimitiveTypes::ImplicitCast(trRealValue1, trRealValue2);
+    return (srcLiteral && elemType1 == ELEMENT_TYPE_I4) ?
+        PrimitiveTypes::ImplicitCastIntLiteral(trRealValue1, trRealValue2) :
+        PrimitiveTypes::ImplicitCast(trRealValue1, trRealValue2);
 }
 
 HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pType1Value,
@@ -703,15 +700,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         return E_INVALIDARG;
     }
 
-    PrimitiveTypes::PrimitiveValue leftValue;
-    PrimitiveTypes::PrimitiveValue rightValue;
-    PrimitiveTypes::PrimitiveValue outputValue;
-    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue1, leftValue));
-    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue2, rightValue));
-    IfFailRet(PrimitiveTypes::CalculateBinary(opcode.kind, leftValue, rightValue, outputValue, output));
-    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
-
-    return S_OK;
+    return PrimitiveTypes::CalculateBinary(opcode.kind, ed.pThread, trRealValue1, trRealValue2, &evalStack.front().trValue, output);
 }
 
 HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
@@ -761,13 +750,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
         return E_INVALIDARG;
     }
 
-    PrimitiveTypes::PrimitiveValue inputValue;
-    PrimitiveTypes::PrimitiveValue outputValue;
-    IfFailRet(PrimitiveTypes::GetPrimitiveData(trRealValue, inputValue));
-    IfFailRet(PrimitiveTypes::CalculateUnary(opcode.kind, inputValue, outputValue, output));
-    IfFailRet(PrimitiveTypes::CreateICorValue(ed.pThread, outputValue, &evalStack.front().trValue));
-
-    return S_OK;
+    return PrimitiveTypes::CalculateUnary(opcode.kind, ed.pThread, trRealValue, &evalStack.front().trValue, output);
 }
 
 HRESULT IdentifierName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
