@@ -386,8 +386,8 @@ void Interop::Init(const std::string &coreClrPath)
 
     assert(propertyKeys.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     if (FAILED(Status = initializeCoreCLR(exe.c_str(), "debugger", static_cast<int>(propertyKeys.size()),
-                                          const_cast<const char**>(propertyKeys.data()),
-                                          const_cast<const char**>(propertyValues.data()),
+                                          const_cast<const char **>(propertyKeys.data()),
+                                          const_cast<const char **>(propertyValues.data()),
                                           &hostHandle, &domainId)))
     {
         throw std::runtime_error("Fail to initialize CoreCLR " + std::to_string(Status));

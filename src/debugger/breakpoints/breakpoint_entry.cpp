@@ -38,9 +38,9 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     IMAGE_DOS_HEADER dosHeader;
     IMAGE_NT_HEADERS32 ntHeaders;
 
-    if (!file.read(reinterpret_cast<char*>(&dosHeader), sizeof(dosHeader)) ||
+    if (!file.read(reinterpret_cast<char *>(&dosHeader), sizeof(dosHeader)) ||
         !file.seekg(VAL32(dosHeader.e_lfanew), std::ios::beg) ||
-        !file.read(reinterpret_cast<char*>(&ntHeaders), sizeof(ntHeaders)))
+        !file.read(reinterpret_cast<char *>(&ntHeaders), sizeof(ntHeaders)))
     {
         return mdMethodDefNil;
     }
@@ -54,7 +54,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     {
         IMAGE_NT_HEADERS64 ntHeaders64;
         if (!file.seekg(VAL32(dosHeader.e_lfanew), std::ios::beg) ||
-            !file.read(reinterpret_cast<char*>(&ntHeaders64), sizeof(ntHeaders64)))
+            !file.read(reinterpret_cast<char *>(&ntHeaders64), sizeof(ntHeaders64)))
         {
             return mdMethodDefNil;
         }
@@ -78,7 +78,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     {
         IMAGE_SECTION_HEADER sectionHeader;
 
-        if (!file.read(reinterpret_cast<char*>(&sectionHeader), sizeof(sectionHeader)))
+        if (!file.read(reinterpret_cast<char *>(&sectionHeader), sizeof(sectionHeader)))
         {
             return mdMethodDefNil;
         }
@@ -90,7 +90,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
             const ULONG offset = (corRVA - VAL32(sectionHeader.VirtualAddress)) + VAL32(sectionHeader.PointerToRawData);
             if ((offset > static_cast<ULONG>(lLONG_MAX)) ||
                 !file.seekg(offset, std::ios::beg) ||
-                !file.read(reinterpret_cast<char*>(&corHeader), sizeof(corHeader)) ||
+                !file.read(reinterpret_cast<char *>(&corHeader), sizeof(corHeader)) ||
 
                 (VAL32(corHeader.Flags) & COMIMAGE_FLAGS_NATIVE_ENTRYPOINT) != 0U)
             {

@@ -124,7 +124,7 @@ bool RemoteConsoleServer::AcceptOne()
     }
 
     int noDelay = 1;
-    if (::setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&noDelay), sizeof(noDelay)) < 0)
+    if (::setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&noDelay), sizeof(noDelay)) < 0)
     {
         LOGW(log << "RemoteConsoleServer: setsockopt(TCP_NODELAY) failed, errno=" << errno);
     }
