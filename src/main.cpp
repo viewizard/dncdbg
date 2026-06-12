@@ -89,13 +89,13 @@ int
 #endif
     main(int argc, char *argv[])
 {
-#ifdef FEATURE_PAL
+#if defined(FEATURE_PAL) && !defined(__APPLE__)
     if (std::setlocale(LC_ALL, "") == nullptr)
     {
         std::cerr << "Failed to set default locale.\n";
         return EXIT_FAILURE;
     }
-#endif // FEATURE_PAL
+#endif // defined(FEATURE_PAL) && !defined(__APPLE__)
 
     if (std::setlocale(LC_NUMERIC, "C") == nullptr)
     {
