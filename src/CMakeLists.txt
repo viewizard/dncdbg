@@ -3,17 +3,18 @@
 # =============================================================================
 
 if(NOT WIN32)
-    include_directories(SYSTEM PRIVATE
+    include_directories(SYSTEM
         ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc
         ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt
     )
 endif()
 
-include_directories(SYSTEM PRIVATE
+include_directories(SYSTEM
     ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc
     ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc
     ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc
     ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native
+    ${PROJECT_SOURCE_DIR}/third_party/dnmd/src/inc
     ${PROJECT_SOURCE_DIR}/third_party
 )
 
@@ -191,6 +192,7 @@ if(WIN32)
         corguids
         wsock32
         ws2_32
+        dnmd_pdb
         tree-sitter-csharp
     )
 else()
@@ -201,6 +203,7 @@ else()
             corguids
             dl
             pthread
+            dnmd_pdb
             Iconv::Iconv
             tree-sitter-csharp
             ${CORE_FOUNDATION_FRAMEWORK}
@@ -211,6 +214,7 @@ else()
             corguids
             dl
             pthread
+            dnmd_pdb
             Iconv::Iconv
             tree-sitter-csharp
             ICU::uc

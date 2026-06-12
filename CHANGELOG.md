@@ -23,6 +23,7 @@ Upcoming changes compared to previous version.
 - Added TestEvaluatePrimitiveUnary.
 - Added TestEvaluatePrimitiveBinary.
 - Added support for inspecting primary constructor parameters.
+- Added shrunk [DNMD](https://github.com/AaronRobinsonMSFT/DNMD) sources commit 51ebc20.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

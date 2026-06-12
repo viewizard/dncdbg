@@ -24,4 +24,5 @@ CheckOptions:
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: 'true'
 WarningsAsErrors: "*"
 HeaderFilterRegex: 'src/'
+ExcludeHeaderFilterRegex: 'third_party/'
 ...
