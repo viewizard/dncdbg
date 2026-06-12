@@ -30,8 +30,7 @@ std::string to_uppercase(const std::string &input)
 
     std::wstring wideStr(wideSize, L'\0');
     const int wideResult = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, input.data(),
-                                               static_cast<int>(input.size()), wideStr.data(), wideSize
-    );
+                                               static_cast<int>(input.size()), wideStr.data(), wideSize);
 
     if (wideResult <= 0)
     {
@@ -51,8 +50,7 @@ std::string to_uppercase(const std::string &input)
 
     std::wstring upperWideStr(upperWideSize, L'\0');
     const int upperResult = LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_UPPERCASE, wideStr.data(), wideResult,
-                                          upperWideStr.data(), upperWideSize, nullptr, nullptr, 0
-    );
+                                          upperWideStr.data(), upperWideSize, nullptr, nullptr, 0);
 
     if (upperResult <= 0)
     {

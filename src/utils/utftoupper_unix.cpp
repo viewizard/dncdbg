@@ -18,37 +18,39 @@ std::string to_uppercase(const std::string &input)
         return input;
     }
 
+    static constexpr std::size_t retError = static_cast<std::size_t>(-1);
+
     // Step 1: Convert UTF-8 to wide string (UTF-32)
-    const size_t wide_size = std::mbstowcs(nullptr, input.c_str(), 0);
-    if (wide_size == static_cast<size_t>(-1))
+    const std::size_t wideSize = std::mbstowcs(nullptr, input.c_str(), 0);
+    if (wideSize == retError)
     {
         LOGE(log << "std::mbstowcs (size calculation)");
         return input;
     }
 
-    std::vector<wchar_t> wide_buf(wide_size + 1, L'\0');
-    if (static_cast<size_t>(-1) == std::mbstowcs(wide_buf.data(), input.c_str(), wide_buf.size()))
+    std::vector<wchar_t> wideBuf(wideSize + 1, L'\0');
+    if (retError == std::mbstowcs(wideBuf.data(), input.c_str(), wideBuf.size()))
     {
         LOGE(log << "std::mbstowcs (conversion)");
         return input;
     }
 
     // Step 2: Convert wide string to uppercase using std::towupper
-    for (size_t i = 0; i < wide_size; ++i)
+    for (std::size_t i = 0; i < wideSize; ++i)
     {
-        wide_buf.at(i) = static_cast<wchar_t>(std::towupper(wide_buf.at(i)));
+        wideBuf.at(i) = static_cast<wchar_t>(std::towupper(wideBuf.at(i)));
     }
 
     // Step 3: Convert uppercase wide string back to UTF-8
-    const size_t utf8_size = std::wcstombs(nullptr, wide_buf.data(), 0);
-    if (utf8_size == static_cast<size_t>(-1))
+    const std::size_t utf8Size = std::wcstombs(nullptr, wideBuf.data(), 0);
+    if (utf8Size == retError)
     {
         LOGE(log << "std::wcstombs (size calculation)");
         return input;
     }
 
-    std::string output(utf8_size, '\0');
-    if (static_cast<size_t>(-1) == std::wcstombs(output.data(), wide_buf.data(), output.size() + 1))
+    std::string output(utf8Size, '\0');
+    if (retError == std::wcstombs(output.data(), wideBuf.data(), output.size() + 1))
     {
         LOGE(log << "std::wcstombs (conversion)");
         return input;
