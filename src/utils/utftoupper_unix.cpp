@@ -6,7 +6,6 @@
 
 #include "utils/utftoupper.h"
 #include "utils/logger.h"
-#include <unicode/ustring.h>
 #include <vector>
 
 namespace dncdbg
@@ -16,72 +15,46 @@ std::string to_uppercase(const std::string &input)
 {
     if (input.empty())
     {
-        return {};
-    }
-
-    // Step 1: Convert UTF-8 to wide string (UTF-16)
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t u16_len = 0;
-    u_strFromUTF8(nullptr, 0, &u16_len, input.data(), static_cast<int32_t>(input.size()), &status);
-
-    if (status != U_BUFFER_OVERFLOW_ERROR && status > U_ZERO_ERROR)
-    {
-        LOGE(log << "u_strFromUTF8 (size calculation)");
         return input;
     }
 
-    std::vector<UChar> u16_buf(u16_len);
-    status = U_ZERO_ERROR;
-    u_strFromUTF8(u16_buf.data(), u16_len, nullptr, input.data(), static_cast<int32_t>(input.size()), &status);
-
-    if (status > U_ZERO_ERROR)
+    // Step 1: Convert UTF-8 to wide string (UTF-32)
+    const size_t wide_size = std::mbstowcs(nullptr, input.c_str(), 0);
+    if (wide_size == static_cast<size_t>(-1))
     {
-        LOGE(log << "u_strFromUTF8 (conversion)");
+        LOGE(log << "std::mbstowcs (size calculation)");
         return input;
     }
 
-    // Step 2: Convert UTF-16 to uppercase
-    status = U_ZERO_ERROR;
-    const int32_t dest_u16_len = u_strToUpper(nullptr, 0, u16_buf.data(), u16_len, "", &status);
-
-    if (status != U_BUFFER_OVERFLOW_ERROR && status > U_ZERO_ERROR)
+    std::vector<wchar_t> wide_buf(wide_size + 1, L'\0');
+    if (static_cast<size_t>(-1) == std::mbstowcs(wide_buf.data(), input.c_str(), wide_buf.size()))
     {
-        LOGE(log << "u_strToUpper (size calculation)");
+        LOGE(log << "std::mbstowcs (conversion)");
         return input;
     }
 
-    std::vector<UChar> dest_u16_buf(dest_u16_len);
-    status = U_ZERO_ERROR;
-    u_strToUpper(dest_u16_buf.data(), dest_u16_len, u16_buf.data(), u16_len, "", &status);
-
-    if (status > U_ZERO_ERROR)
+    // Step 2: Convert wide string to uppercase using std::towupper
+    for (size_t i = 0; i < wide_size; ++i)
     {
-        LOGE(log << "u_strToUpper (conversion)");
+        wide_buf.at(i) = static_cast<wchar_t>(std::towupper(wide_buf.at(i)));
+    }
+
+    // Step 3: Convert uppercase wide string back to UTF-8
+    const size_t utf8_size = std::wcstombs(nullptr, wide_buf.data(), 0);
+    if (utf8_size == static_cast<size_t>(-1))
+    {
+        LOGE(log << "std::wcstombs (size calculation)");
         return input;
     }
 
-    // Step 3: Convert back to UTF-8
-    status = U_ZERO_ERROR;
-    int32_t utf8_len = 0;
-    u_strToUTF8(nullptr, 0, &utf8_len, dest_u16_buf.data(), dest_u16_len, &status);
-
-    if (status != U_BUFFER_OVERFLOW_ERROR && status > U_ZERO_ERROR)
+    std::string output(utf8_size, '\0');
+    if (static_cast<size_t>(-1) == std::wcstombs(output.data(), wide_buf.data(), output.size() + 1))
     {
-        LOGE(log << "u_strToUTF8 (size calculation)");
+        LOGE(log << "std::wcstombs (conversion)");
         return input;
     }
 
-    std::string result(utf8_len, 0);
-    status = U_ZERO_ERROR;
-    u_strToUTF8(result.data(), utf8_len, nullptr, dest_u16_buf.data(), dest_u16_len, &status);
-
-    if (status > U_ZERO_ERROR)
-    {
-        LOGE(log << "u_strToUTF8 (conversion)");
-        return input;
-    }
-
-    return result;
+    return output;
 }
 
 } // namespace dncdbg

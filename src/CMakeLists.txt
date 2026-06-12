@@ -209,7 +209,6 @@ else()
             ${CORE_FOUNDATION_FRAMEWORK}
         )
     else()
-        find_package(ICU REQUIRED COMPONENTS uc)
         target_link_libraries(dncdbg PRIVATE
             corguids
             dl
@@ -217,7 +216,6 @@ else()
             dnmd_pdb
             Iconv::Iconv
             tree-sitter-csharp
-            ICU::uc
         )
     endif()
 endif()

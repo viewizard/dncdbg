@@ -3,13 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 #include "expressionparser/helpers.h"
-#include "utils/logger.h"
 #include "utils/hresult.h"
 #include <algorithm>
-#include <clocale>
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <tuple>
 #include <unordered_map>
 
@@ -177,11 +176,6 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
 HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElementType &type,
                                         std::vector<uint8_t> &data, std::string &output)
 {
-    if (std::setlocale(LC_NUMERIC, "C") == nullptr)
-    {
-        LOGW(log << "Failed to set numeric locale to C.");
-    }
-
     if (upperText.back() == 'F') // float
     {
         type = ELEMENT_TYPE_R4;

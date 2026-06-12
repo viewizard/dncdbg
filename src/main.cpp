@@ -9,6 +9,7 @@
 #include "utils/logger.h"
 
 #include <algorithm>
+#include <clocale>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -88,6 +89,20 @@ int
 #endif
     main(int argc, char *argv[])
 {
+#ifdef FEATURE_PAL
+    if (std::setlocale(LC_ALL, "") == nullptr)
+    {
+        std::cerr << "Failed to set default locale.\n";
+        return EXIT_FAILURE;
+    }
+#endif // FEATURE_PAL
+
+    if (std::setlocale(LC_NUMERIC, "C") == nullptr)
+    {
+        std::cerr << "Failed to set numeric locale to C.\n";
+        return EXIT_FAILURE;
+    }
+
     // prevent std::cout flush triggered by read operation on std::cin
     std::cin.tie(nullptr);
 
