@@ -863,33 +863,6 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 
 void DAP::CommandLoop()
 {
-#ifdef DEBUG_INTERNAL_TESTS
-    // TODO move to standalone tests
-    // nlohmann/json has internal dump serializer and cares about escaped characters, test it
-    nlohmann::json testj;
-    testj.emplace("test", std::string("te\023st\nte\023st\nte\023st\nte\023st\nte\023st234\n"));
-    const std::string expected(R"({"test":"te\u0013st\nte\u0013st\nte\u0013st\nte\u0013st\nte\u0013st234\n"})");
-    assert(testj.dump() == expected);
-#endif // DEBUG_INTERNAL_TESTS
-
-#ifdef DEBUG_INTERNAL_TESTS
-    // TODO move to standalone tests
-    SourceFileMap::GetMap().emplace(R"(C:\Dir1)", "/dir1");
-    SourceFileMap::GetMap().emplace("/dir2", R"(C:\Dir2)");
-    SourceFileMap::GetMap().emplace(R"(C:\Test)", "/testdir");
-    SourceFileMap::GetMap().emplace(R"(C:\Test\Sub)", "/testdir/sub");
-    SourceFileMap::GetMap().emplace("/testdir", R"(C:\Test\Sub)");
-    SourceFileMap::GetMap().emplace(R"(C:\Test2\Sub2)", "/test\\dir/sub");
-    SourceFileMap::GetMap().emplace(R"(C:\test1\test3\Project.cs)", "/test1/test2/file.cs");
-    assert(std::string{"/dir1/Project.cs"} == SourceFileMap::Path(R"(C:\Dir1\Project.cs)"));
-    assert(std::string{R"(C:\Dir2\Project.cs)"} == SourceFileMap::Path("/dir2/Project.cs"));
-    assert(std::string{"/testdir/sub/Project.cs"} == SourceFileMap::Path(R"(C:\Test\Sub\Project.cs)"));
-    assert(std::string{R"(C:\Test\Sub\Project.cs)"} == SourceFileMap::Path("/testdir/Project.cs"));
-    assert(std::string{"/test\\dir/sub/Project.cs"} == SourceFileMap::Path(R"(C:\Test2\Sub2\Project.cs)"));
-    assert(std::string{"/test1/test2/file.cs"} == SourceFileMap::Path(R"(C:\test1\test3\Project.cs)"));
-    SourceFileMap::GetMap().clear();
-#endif // DEBUG_INTERNAL_TESTS
-
     CreateManagedDebugger();
     std::thread commandsWorker{&DAP::CommandsWorker, this};
 

@@ -21,6 +21,10 @@
 static void setenv(const char *var, const char *val, int) { _putenv_s(var, val); }
 #endif
 
+#ifdef DEBUG_INTERNAL_TESTS
+extern void RunInternalTests();
+#endif // DEBUG_INTERNAL_TESTS
+
 namespace
 {
 
@@ -90,6 +94,10 @@ int
     std::string protocolLogFilePath;
     try
     {
+#ifdef DEBUG_INTERNAL_TESTS
+        RunInternalTests();
+#endif // DEBUG_INTERNAL_TESTS
+
         // Converts all arguments, skip the program name (argv[0])
         const std::vector<std::string> args(argv + 1, argv + argc);
 
