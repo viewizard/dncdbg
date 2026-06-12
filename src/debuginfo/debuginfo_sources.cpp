@@ -10,6 +10,7 @@
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/utf.h"
+#include "utils/utftoupper.h"
 #include <algorithm>
 #include <cstring>
 #include <list>
@@ -343,8 +344,7 @@ HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathInde
     const std::string initialFullPath = to_utf8(document);
     std::string fullPath = SourceFileMap::Path(initialFullPath);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status = S_OK;
-    IfFailRet(Interop::StringToUpper(fullPath));
+    fullPath = to_uppercase(fullPath);
 #endif
     auto findPathIndex = m_sourcePathToIndex.find(fullPath);
     if (findPathIndex == m_sourcePathToIndex.end())
@@ -659,9 +659,7 @@ HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath, 
 #endif
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status = S_OK;
-    std::string fullPath = fullPath_;
-    IfFailRet(Interop::StringToUpper(fullPath));
+    const std::string fullPath = to_uppercase(fullPath_);
 #endif
 
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);

@@ -9,7 +9,7 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW) # install() paths are normalized
 endif(POLICY CMP0177)
 
-project(dncdbg LANGUAGES C CXX)
+project(dncdbg LANGUAGES C CXX OBJCXX)
 
 # Require Clang compiler on non-Windows platforms
 if(NOT WIN32)

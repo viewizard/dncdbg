@@ -10,6 +10,7 @@
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
+#include "utils/utftoupper.h"
 #include <cstring>
 #include <vector>
 
@@ -564,9 +565,7 @@ HRESULT DebugInfo::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
                                    /*out*/ std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    HRESULT Status = S_OK;
-    std::string filename = filename_;
-    IfFailRet(Interop::StringToUpper(filename));
+    const std::string filename = to_uppercase(filename_);
 #endif
 
     // Note, in all code we use m_debugInfoMutex > m_sourcesInfoMutex lock sequence.

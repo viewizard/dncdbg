@@ -255,7 +255,6 @@ Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate 
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
 Interop::GetAsyncMethodSteppingInfoDelegate Interop::getAsyncMethodSteppingInfoDelegate = nullptr;
 Interop::GetLocalConstantsDelegate Interop::getLocalConstantsDelegate = nullptr;
-Interop::StringToUpperDelegate Interop::stringToUpperDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
 Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
 Interop::SysFreeStringDelegate Interop::sysFreeStringDelegate = nullptr;
@@ -421,7 +420,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "StringToUpper", reinterpret_cast<void **>(&stringToUpperDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
@@ -442,7 +440,6 @@ void Interop::Init(const std::string &coreClrPath)
                                     (resolveBreakPointsDelegate != nullptr) &&
                                     (getAsyncMethodSteppingInfoDelegate != nullptr) &&
                                     (getLocalConstantsDelegate != nullptr) &&
-                                    (stringToUpperDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
                                     (sysFreeStringDelegate != nullptr);
@@ -481,7 +478,6 @@ void Interop::Shutdown()
     resolveBreakPointsDelegate = nullptr;
     getAsyncMethodSteppingInfoDelegate = nullptr;
     getLocalConstantsDelegate = nullptr;
-    stringToUpperDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
     sysFreeStringDelegate = nullptr;
@@ -686,29 +682,6 @@ void *Interop::AllocString(const std::string &str)
 
     memmove(bstr, wstr.data(), wstr.size() * sizeof(decltype(wstr.at(0))));
     return bstr;
-}
-
-HRESULT Interop::StringToUpper(std::string &String)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if (stringToUpperDelegate == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    BSTR wString = nullptr;
-    const RetCode retCode = stringToUpperDelegate(to_utf16(String).c_str(), &wString);
-    read_lock.unlock();
-
-    if ((retCode != RetCode::OK) || (wString == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    String = to_utf8(wString);
-    Interop::SysFreeString(wString);
-
-    return S_OK;
 }
 
 BSTR Interop::SysAllocStringLen(int32_t size)

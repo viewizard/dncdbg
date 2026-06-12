@@ -1,21 +1,29 @@
-# Include third_party headers as SYSTEM.
-# This ensures the compiler and clang-tidy recognize it as external, non-user code.
+# =============================================================================
+# Third-party dependencies (SYSTEM to suppress warnings and clang-tidy checks)
+# =============================================================================
 
-if (NOT WIN32)
-    include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc)
-    include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt)
+if(NOT WIN32)
+    include_directories(SYSTEM PRIVATE
+        ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc
+        ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt
+    )
 endif()
-include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc)
-include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc)
-include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc)
-include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native/)
-include_directories(SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party)
 
-# Build native part of the debugger
+include_directories(SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc
+    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc
+    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc
+    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native
+    ${PROJECT_SOURCE_DIR}/third_party
+)
+
+# =============================================================================
+# Source files
+# =============================================================================
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
-set(dncdbg_SRC
+set(DNCDBG_SOURCES
     debugger/breakpoints/breakpoint_break.cpp
     debugger/breakpoints/breakpoint_entry.cpp
     debugger/breakpoints/breakpoints_exception.cpp
@@ -74,89 +82,172 @@ set(dncdbg_SRC
     utils/remote_console_win32.cpp
     utils/remote_console.cpp
     utils/utf.cpp
+    utils/utftoupper_macos.mm
+    utils/utftoupper_unix.cpp
+    utils/utftoupper_win32.cpp
     utils/waitpid.cpp
     buildinfo.cpp
+    internaltests.cpp
     main.cpp
-    )
+)
+
+# =============================================================================
+# Static analysis tools
+# =============================================================================
 
 # clang-tidy for dncdbg build only
-if (CLANG_TIDY)
+if(CLANG_TIDY)
     set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+    set(CMAKE_OBJCXX_CLANG_TIDY "clang-tidy")
 endif()
 
 # cppcheck for dncdbg build only
-if (CPPCHECK)
-    set(CMAKE_CXX_CPPCHECK cppcheck
-                           --enable=all
-                           --check-level=exhaustive
-                           --quiet
-                           --suppress=preprocessorErrorDirective
-                           --suppress=constParameterReference
-                           --suppress=missingIncludeSystem
-                           --suppress=unusedFunction
-                           --suppress=unmatchedSuppression
-                           --suppress=*:*third_party/*)
+if(CPPCHECK)
+    set(CMAKE_CXX_CPPCHECK
+        cppcheck
+        --enable=all
+        --check-level=exhaustive
+        --quiet
+        --suppress=preprocessorErrorDirective
+        --suppress=constParameterReference
+        --suppress=missingIncludeSystem
+        --suppress=unusedFunction
+        --suppress=unmatchedSuppression
+        --suppress=*:*third_party/*
+    )
 endif()
 
-if (WIN32)
-    # fix issue with std::numeric_limits<T>::max() and std::max()
-    add_definitions(-DNOMINMAX)
+# =============================================================================
+# Platform-specific compile definitions
+# =============================================================================
+
+if(WIN32)
+    # Fix issue with std::numeric_limits<T>::max() and std::max()
+    add_compile_definitions(NOMINMAX)
+endif()
+
+if(MSVC)
+    # Force MSVC to use UTF-8 execution charset, preventing C4566 warnings for non-ASCII characters.
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/execution-charset:utf-8>) 
+endif()
+
+if(UNIX AND NOT APPLE)
+    # Build with old ICU version
+    add_compile_definitions(U_HAVE_INT64_T=1)
+    add_compile_definitions(U_HAVE_UINT64_T=1)
 endif()
 
 # By default, build with case-insensitive file name collision for all OSes.
-# Note, test-suite will count on this build option.
-if (CASE_SENSITIVE_FILENAME_COLLISION)
+# Note: test-suite will count on this build option.
+if(CASE_SENSITIVE_FILENAME_COLLISION)
     message(STATUS "Added compile option: CASE_SENSITIVE_FILENAME_COLLISION")
-    add_definitions(-DCASE_SENSITIVE_FILENAME_COLLISION)
+    add_compile_definitions(CASE_SENSITIVE_FILENAME_COLLISION)
 else()
     message(STATUS "Added compile option: CASE_INSENSITIVE_FILENAME_COLLISION")
-    add_definitions(-DCASE_INSENSITIVE_FILENAME_COLLISION)
+    add_compile_definitions(CASE_INSENSITIVE_FILENAME_COLLISION)
 endif()
 
-# special treatment of buildinfo.cpp -- this file rebuilds every time,
-# whatever it changed or not (because it contains version information and
-# date/time of the build).
-string(CONCAT buildinfo_flags
-    " " -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
-    " " -DDNCDBG_VCS_INFO=${DNCDBG_VCS_INFO}
-    " " -DOS_NAME=${CMAKE_SYSTEM_NAME}
-    " " -DCPU_ARCH=${CLR_CMAKE_TARGET_ARCH}
+# =============================================================================
+# Build info (rebuilds every time to capture version and build timestamp)
+# =============================================================================
+
+set(BUILDINFO_COMPILE_DEFINITIONS
+    BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    DNCDBG_VCS_INFO=${DNCDBG_VCS_INFO}
+    OS_NAME=${CMAKE_SYSTEM_NAME}
+    CPU_ARCH=${CLR_CMAKE_TARGET_ARCH}
 )
-set_source_files_properties(buildinfo.cpp PROPERTIES COMPILE_FLAGS "${buildinfo_flags}")
-add_custom_target(buildinfo ALL COMMAND
-    ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp")
 
-add_executable_clr(dncdbg ${dncdbg_SRC})
+set_source_files_properties(buildinfo.cpp
+    PROPERTIES COMPILE_DEFINITIONS "${BUILDINFO_COMPILE_DEFINITIONS}"
+)
+
+add_custom_target(buildinfo ALL
+    COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp"
+)
+
+# =============================================================================
+# Executable target
+# =============================================================================
+
+add_executable_clr(dncdbg ${DNCDBG_SOURCES})
+
 # Define "DEBUG" only when the configuration is "Debug"
-target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG>)
-# Define "DEBUG_INTERNAL_TESTS" only when the configuration is "Debug"
-target_compile_definitions(dncdbg PRIVATE $<$<CONFIG:Debug>:DEBUG_INTERNAL_TESTS>)
+target_compile_definitions(dncdbg PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+)
 
-if (WIN32)
-    target_link_libraries(dncdbg corguids wsock32 ws2_32 tree-sitter-csharp)
+# Define "DEBUG_INTERNAL_TESTS" only when the configuration is "Debug"
+target_compile_definitions(dncdbg PRIVATE
+    $<$<CONFIG:Debug>:DEBUG_INTERNAL_TESTS>
+)
+
+# =============================================================================
+# Link libraries
+# =============================================================================
+
+if(WIN32)
+    target_link_libraries(dncdbg PRIVATE
+        corguids
+        wsock32
+        ws2_32
+        tree-sitter-csharp
+    )
 else()
     find_package(Iconv REQUIRED)
-    target_link_libraries(dncdbg corguids dl pthread Iconv::Iconv tree-sitter-csharp)
+    if(APPLE)
+        find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+        target_link_libraries(dncdbg PRIVATE
+            corguids
+            dl
+            pthread
+            Iconv::Iconv
+            tree-sitter-csharp
+            ${CORE_FOUNDATION_FRAMEWORK}
+        )
+    else()
+        find_package(ICU REQUIRED COMPONENTS uc)
+        target_link_libraries(dncdbg PRIVATE
+            corguids
+            dl
+            pthread
+            Iconv::Iconv
+            tree-sitter-csharp
+            ICU::uc
+        )
+    endif()
 endif()
 
-install_clr(TARGETS dncdbg DESTINATIONS . )
+install_clr(TARGETS dncdbg DESTINATIONS .)
 
-# Build managed part of the debugger (ManagedPart.dll)
+# =============================================================================
+# Managed part (ManagedPart.dll)
+# =============================================================================
 
-set(MANAGEDPART_PROJECT ${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedPart.csproj)
-set(MANAGEDPART_DLL_NAME ManagedPart.dll)
-set(DOTNET_BUILD_RESULT ${CMAKE_CURRENT_BINARY_DIR}/${MANAGEDPART_DLL_NAME})
+set(MANAGEDPART_PROJECT "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedPart.csproj")
+set(MANAGEDPART_DLL_NAME "ManagedPart.dll")
+set(DOTNET_BUILD_RESULT "${CMAKE_CURRENT_BINARY_DIR}/${MANAGEDPART_DLL_NAME}")
 
-find_program(DOTNETCLI dotnet PATHS "${DOTNET_DIR}" ENV PATH NO_DEFAULT_PATH)
+find_program(DOTNETCLI dotnet
+    PATHS "${DOTNET_DIR}"
+    ENV PATH
+    NO_DEFAULT_PATH
+)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(MANAGEDPART_BUILD_TYPE "Debug")
-else() # CMAKE_BUILD_TYPE not set or Release, RelWithDebInfo, MinSizeRel, ...
+else()
+    # Default to Release for non-Debug configurations
     set(MANAGEDPART_BUILD_TYPE "Release")
 endif()
 
 add_custom_command(OUTPUT ${DOTNET_BUILD_RESULT}
-    COMMAND ${DOTNETCLI} publish ${MANAGEDPART_PROJECT} --self-contained -c ${MANAGEDPART_BUILD_TYPE} -o ${CMAKE_CURRENT_BINARY_DIR} /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/ /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/
+    COMMAND ${DOTNETCLI} publish ${MANAGEDPART_PROJECT}
+        --self-contained
+        -c ${MANAGEDPART_BUILD_TYPE}
+        -o ${CMAKE_CURRENT_BINARY_DIR}
+        /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/
+        /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/managed/*.cs" "${MANAGEDPART_PROJECT}"
     COMMENT "Compiling ${MANAGEDPART_DLL_NAME}"
@@ -164,4 +255,5 @@ add_custom_command(OUTPUT ${DOTNET_BUILD_RESULT}
 )
 
 add_custom_target(managedpart_dll ALL DEPENDS ${DOTNET_BUILD_RESULT})
-install(FILES ${DOTNET_BUILD_RESULT} DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+install(FILES ${DOTNET_BUILD_RESULT} DESTINATION .)

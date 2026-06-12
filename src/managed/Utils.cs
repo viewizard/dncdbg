@@ -46,36 +46,6 @@ public static class Utils
     // ============================================================================
 
     /// <summary>
-    /// Converts the source string to uppercase using invariant culture and returns it as a BSTR.
-    /// The caller is responsible for freeing the returned BSTR using SysFreeString.
-    /// Corresponds to StringToUpperDelegate in interop.cpp.
-    /// </summary>
-    /// <param name="srcString">Source string (may be null).</param>
-    /// <param name="dstString">Output BSTR that must be freed by caller.</param>
-    /// <returns>RetCode.OK on success.</returns>
-    internal static RetCode StringToUpper([MarshalAs(UnmanagedType.LPWStr)] string srcString, out IntPtr dstString)
-    {
-        dstString = IntPtr.Zero;
-
-        if (srcString is null)
-        {
-            return RetCode.Fail;
-        }
-
-        try
-        {
-            // Use invariant culture to avoid culture-specific casing issues.
-            dstString = Marshal.StringToBSTR(srcString.ToUpperInvariant());
-        }
-        catch
-        {
-            return RetCode.Exception;
-        }
-
-        return RetCode.OK;
-    }
-
-    /// <summary>
     /// Allocates a BSTR of the specified length, filled with null characters.
     /// Corresponds to SysAllocStringLenDelegate in interop.cpp.
     /// </summary>

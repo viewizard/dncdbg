@@ -210,7 +210,6 @@ class Interop
     static HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                      void **data, int32_t &constantCount);
     static void *AllocString(const std::string &str);
-    static HRESULT StringToUpper(std::string &String);
     static BSTR SysAllocStringLen(int32_t size);
     static void SysFreeString(BSTR ptrBSTR);
     static void CoTaskMemFree(void *ptr);
@@ -249,7 +248,6 @@ class Interop
     using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
     using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
     using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
-    using StringToUpperDelegate = RetCode (*)(const WCHAR *, BSTR *);
     using CoTaskMemFreeDelegate = void (*)(void *);
     using SysAllocStringLenDelegate = void *(*)(int32_t);
     using SysFreeStringDelegate = void (*)(void *);
@@ -265,7 +263,6 @@ class Interop
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
     static GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate;
     static GetLocalConstantsDelegate getLocalConstantsDelegate;
-    static StringToUpperDelegate stringToUpperDelegate;
     static CoTaskMemFreeDelegate coTaskMemFreeDelegate;
     static SysAllocStringLenDelegate sysAllocStringLenDelegate;
     static SysFreeStringDelegate sysFreeStringDelegate;
