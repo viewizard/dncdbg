@@ -29,11 +29,17 @@ static void *ts_realloc_default(void *buffer, size_t size) {
   return result;
 }
 
+// Fixed Win x86 build with MSVC
+// error C2440: 'initializing': cannot convert from 'void (__cdecl *)(void *)' to 'void (__stdcall *)(void *)' 
+static void ts_free_default(void *buffer) {
+  free(buffer);
+}
+
 // Allow clients to override allocation functions dynamically
 TS_PUBLIC void *(*ts_current_malloc)(size_t) = ts_malloc_default;
 TS_PUBLIC void *(*ts_current_calloc)(size_t, size_t) = ts_calloc_default;
 TS_PUBLIC void *(*ts_current_realloc)(void *, size_t) = ts_realloc_default;
-TS_PUBLIC void (*ts_current_free)(void *) = free;
+TS_PUBLIC void (*ts_current_free)(void *) = ts_free_default;
 
 void ts_set_allocator(
   void *(*new_malloc)(size_t size),
@@ -44,5 +50,5 @@ void ts_set_allocator(
   ts_current_malloc = new_malloc ? new_malloc : ts_malloc_default;
   ts_current_calloc = new_calloc ? new_calloc : ts_calloc_default;
   ts_current_realloc = new_realloc ? new_realloc : ts_realloc_default;
-  ts_current_free = new_free ? new_free : free;
+  ts_current_free = new_free ? new_free : ts_free_default;
 }
