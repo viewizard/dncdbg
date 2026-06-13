@@ -13,6 +13,7 @@
 #endif
 
 #include "types/protocol.h"
+#include <array>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -22,10 +23,18 @@
 namespace dncdbg
 {
 
+constexpr uint16_t g_guid_size = 16;
+struct PdbIdentity
+{
+    std::array<uint8_t, g_guid_size> guid;
+    uint32_t age;
+};
+
 class Modules
 {
   public:
 
+    static HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, std::string &pathPdb);
     static HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
     static std::string GetModuleFileName(ICorDebugModule *pModule);
     static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);

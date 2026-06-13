@@ -129,7 +129,7 @@ endif()
 
 if(MSVC)
     # Force MSVC to use UTF-8 execution charset, preventing C4566 warnings for non-ASCII characters.
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/execution-charset:utf-8>) 
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/execution-charset:utf-8>)
 endif()
 
 if(UNIX AND NOT APPLE)
