@@ -169,8 +169,15 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
                 continue;
             }
 
+            uint32_t age = 0;
+            std::memcpy(&age, &rsds.age, sizeof(rsds.age));
+            if (age != 1)
+            {
+                continue;
+            }
+
             std::memcpy(pdbId.guid.data(), static_cast<void *>(rsds.guid), g_guid_size);
-            std::memcpy(&pdbId.age, &rsds.age, sizeof(rsds.age));
+            std::memcpy(&pdbId.time_date_stamp, &dir.time_date_stamp, sizeof(dir.time_date_stamp));
             const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
             if (pathLength == 0 || pathLength >= g_max_path_size)
             {
@@ -287,9 +294,16 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
             continue;
         }
 
+        uint32_t age = 0;
+        std::memcpy(&age, &rsds.age, sizeof(rsds.age));
+        if (age != 1)
+        {
+            continue;
+        }
+
         // Found valid RSDS header
         std::memcpy(pdbId.guid.data(), static_cast<void *>(rsds.guid), g_guid_size);
-        std::memcpy(&pdbId.age, &rsds.age, sizeof(rsds.age));
+        std::memcpy(&pdbId.time_date_stamp, &dir.time_date_stamp, sizeof(dir.time_date_stamp));
         const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
         if (pathLength == 0 || pathLength >= g_max_path_size)
         {

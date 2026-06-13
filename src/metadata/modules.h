@@ -27,7 +27,7 @@ constexpr uint16_t g_guid_size = 16;
 struct PdbIdentity
 {
     std::array<uint8_t, g_guid_size> guid;
-    uint32_t age;
+    uint32_t time_date_stamp;
 };
 
 class Modules
