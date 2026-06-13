@@ -920,7 +920,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
         stackFrame.endColumn = sp.endColumn;
     }
 
-    IfFailRet(Modules::GetModuleId(trModule, stackFrame.moduleId));
+    IfFailRet(Modules::GetModuleMvid(trModule, stackFrame.moduleId));
 
     return S_OK;
 }

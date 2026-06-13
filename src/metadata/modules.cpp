@@ -16,7 +16,7 @@
 namespace dncdbg
 {
 
-HRESULT Modules::GetModuleId(ICorDebugModule *pModule, std::string &id)
+HRESULT Modules::GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
 {
     HRESULT Status = S_OK;
 
@@ -45,7 +45,7 @@ HRESULT Modules::GetModuleId(ICorDebugModule *pModule, std::string &id)
         ss << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 
-    id = ss.str();
+    strMvid = ss.str();
 
     return S_OK;
 }
@@ -156,7 +156,7 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
         module.isOptimized = (dwFlags & 2UL) == 0;
     }
 
-    if (FAILED(Modules::GetModuleId(pModule, module.id)))
+    if (FAILED(Modules::GetModuleMvid(pModule, module.id)))
     {
         DAPIO::EmitOutputEvent({OutputCategory::StdErr,
             "Could not calculate module ID for module " + module.name + ".\n"});
@@ -192,7 +192,7 @@ HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
 {
     HRESULT Status = S_OK;
     std::string id;
-    IfFailRet(GetModuleId(pModule, id));
+    IfFailRet(GetModuleMvid(pModule, id));
 
     const std::scoped_lock<std::mutex> lock(m_moduleMutex);
 

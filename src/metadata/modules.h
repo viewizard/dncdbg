@@ -26,7 +26,7 @@ class Modules
 {
   public:
 
-    static HRESULT GetModuleId(ICorDebugModule *pModule, std::string &id);
+    static HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
     static std::string GetModuleFileName(ICorDebugModule *pModule);
     static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);
 
