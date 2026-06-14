@@ -110,11 +110,11 @@ class DebugInfo
     std::mutex m_debugInfoMutex;
     std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
 
-    // Note, m_debugInfoSources have its own mutex for private data state sync.
+    // Note, m_debugInfoSources has its own mutex for private data state sync.
     DebugInfoSources m_debugInfoSources;
 
     static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              ManagedSequencePoint *sequencePoint);
+                                              ManagedSequencePoint &sequencePoint);
 };
 
 } // namespace dncdbg

@@ -322,7 +322,7 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
             return E_FAIL;
         }
 
-        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
+        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
     });
 }
 
@@ -520,7 +520,7 @@ HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdM
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              ManagedSequencePoint *sequencePoint)
+                                              ManagedSequencePoint &sequencePoint)
 {
     Interop::SequencePoint symSequencePoint;
 
@@ -529,12 +529,12 @@ HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMetho
         return E_FAIL;
     }
 
-    sequencePoint->sourceFile = SourceFileMap::Path(to_utf8(symSequencePoint.document));
-    sequencePoint->startLine = symSequencePoint.startLine;
-    sequencePoint->startColumn = symSequencePoint.startColumn;
-    sequencePoint->endLine = symSequencePoint.endLine;
-    sequencePoint->endColumn = symSequencePoint.endColumn;
-    sequencePoint->offset = symSequencePoint.offset;
+    sequencePoint.sourceFile = SourceFileMap::Path(to_utf8(symSequencePoint.document));
+    sequencePoint.startLine = symSequencePoint.startLine;
+    sequencePoint.startColumn = symSequencePoint.startColumn;
+    sequencePoint.endLine = symSequencePoint.endLine;
+    sequencePoint.endColumn = symSequencePoint.endColumn;
+    sequencePoint.offset = symSequencePoint.offset;
 
     return S_OK;
 }
@@ -550,7 +550,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethod
                 return E_FAIL;
             }
 
-            return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, &sequencePoint);
+            return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
         });
 }
 
