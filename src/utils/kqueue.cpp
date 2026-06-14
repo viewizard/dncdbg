@@ -1,6 +1,5 @@
 // Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
-// Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
 #if (defined(__APPLE__) && defined(__MACH__))
