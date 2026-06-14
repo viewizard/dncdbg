@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
+
 #include "utils/dynlibs.h"
 #include <windows.h>
 
@@ -33,4 +34,5 @@ bool DLClose(DLHandle handle)
 }
 
 } // namespace dncdbg
+
 #endif // _WIN32

@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
+
 #include "utils/filesystem.h"
 #include <windows.h>
 #include <array>
@@ -44,4 +45,5 @@ bool SetWorkDir(const std::string &path)
 }
 
 } // namespace dncdbg
+
 #endif // _WIN32

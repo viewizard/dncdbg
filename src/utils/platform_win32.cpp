@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #ifdef _WIN32
+
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <cstdlib> // char **environ
@@ -47,4 +48,5 @@ std::string GetEnvUtf8(const std::string &name)
 }
 
 } // namespace dncdbg
-#endif
+
+#endif // _WIN32
