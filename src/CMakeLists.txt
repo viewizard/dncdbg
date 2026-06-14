@@ -77,6 +77,8 @@ set(DNCDBG_SOURCES
     utils/ioredirect.cpp
     utils/kqueue.cpp
     utils/logger.cpp
+    utils/memorybuffer_unix.cpp
+    utils/memorybuffer_win32.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
     utils/remote_console_unix.cpp
