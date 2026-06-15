@@ -165,30 +165,6 @@ std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
     return result;
 }
 
-std::string EscapeShellArg(const std::string &arg)
-{
-    std::string result;
-    result.reserve(arg.size() * 2); // Reserve space for worst case (all chars need escaping)
-
-    for (const char c : arg)
-    {
-        switch (c)
-        {
-        case '\"':
-            result += "\\\"";
-            break;
-        case '\\':
-            result += "\\\\";
-            break;
-        default:
-            result += c;
-            break;
-        }
-    }
-
-    return result;
-}
-
 bool IsDirExists(const char *const path)
 {
     struct stat info{};
@@ -637,7 +613,32 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     ss << "\"" << fileExec << "\"";
     for (const std::string &arg : execArgs)
     {
-        ss << " \"" << EscapeShellArg(arg) << "\"";
+        if (arg.empty())
+        {
+            continue;
+        }
+
+        // https://github.com/dotnet/diagnostics/blob/3a9d1f8a7ba2a6cae33f6953af77086bfbe02906/src/shared/pal/src/thread/process.cpp#L3898-L3902
+        // Note: dbgshim uses different logic for building arguments compared to Windows.
+        // dbgshim uses simpler logic and cannot properly handle arguments ending with `\"`, for example "D:\\path\\to to\\dir\\".
+        // When wrapped in quotes, dbgshim interprets the trailing `\"` as an escaped quote, resulting in
+        // `D:\path\to to\dir\"` which corrupts the next argument parsing.
+        if (arg.back() == '\\' && arg.find(' ') == std::string::npos)
+        {
+            ss << " " << arg;
+        }
+        else if (arg.back() == '\\')
+        {
+#ifdef _WIN32
+            ss << " \"" << arg << R"(\")";
+#else
+            LOGE(log << "Arguments with spaces and a trailing backslash are not supported by dbgshim: " << arg);
+#endif
+        }
+        else
+        {
+            ss << " \"" << arg << "\"";
+        }
     }
 
     m_clrPath.clear();
