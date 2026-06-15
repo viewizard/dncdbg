@@ -482,70 +482,6 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-void EscapeString(std::string &s, char q = '\"')
-{
-    for (std::size_t i = 0; i < s.size(); ++i)
-    {
-        int count = 0;
-        const char c = s.at(i);
-        switch (c)
-        {
-        case '\'':
-        case '\"':
-            count = c != q ? 0 : 1;
-            s.insert(i, count, '\\');
-            break;
-        case '\\':
-            count = 1;
-            s.insert(i, count, '\\');
-            break;
-        case '\0':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = '0';
-            break;
-        case '\a':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'a';
-            break;
-        case '\b':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'b';
-            break;
-        case '\f':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'f';
-            break;
-        case '\n':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'n';
-            break;
-        case '\r':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'r';
-            break;
-        case '\t':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 't';
-            break;
-        case '\v':
-            count = 1;
-            s.insert(i, count, '\\');
-            s.at(i + count) = 'v';
-            break;
-        default:
-            break;
-        }
-        i += count;
-    }
-}
-
 } // unnamed namespace
 
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
@@ -632,7 +568,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape)
+HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool quote)
 {
     HRESULT Status = S_OK;
 
@@ -666,17 +602,13 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             std::string raw_str;
             IfFailRet(PrintStringValue(trValue, raw_str));
 
-            if (!escape)
+            if (!quote)
             {
                 output = raw_str;
                 return S_OK;
             }
 
-            EscapeString(raw_str, '"');
-
-            std::ostringstream ss;
-            ss << "\"" << raw_str << "\"";
-            output = ss.str();
+            output = "\"" + raw_str + "\"";
             return S_OK;
         }
 
@@ -770,14 +702,37 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
         case ELEMENT_TYPE_CHAR:
         {
             const WSTRING wstr{*reinterpret_cast<WCHAR *>(genericValue.data()) , '\0'};
-            std::string printableVal = to_utf8(wstr.c_str());
-            if (!escape)
+            const std::string printableVal = to_utf8(wstr.c_str());
+            if (!quote)
             {
                 output = printableVal;
                 return S_OK;
             }
-            EscapeString(printableVal, '\'');
-            ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
+            // Escape special characters for proper display in single quotes.
+            std::string escapedVal;
+            if (printableVal.size() == 1)
+            {
+                const char c = printableVal.front();
+                switch (c)
+                {
+                case '\'': escapedVal = "\\'"; break;
+                case '\\': escapedVal = "\\\\"; break;
+                case '\0': escapedVal = "\\0"; break;
+                case '\a': escapedVal = "\\a"; break;
+                case '\b': escapedVal = "\\b"; break;
+                case '\f': escapedVal = "\\f"; break;
+                case '\n': escapedVal = "\\n"; break;
+                case '\r': escapedVal = "\\r"; break;
+                case '\t': escapedVal = "\\t"; break;
+                case '\v': escapedVal = "\\v"; break;
+                default: escapedVal = printableVal; break;
+                }
+            }
+            else
+            {
+                escapedVal = printableVal;
+            }
+            ss << static_cast<unsigned int>(wstr.at(0)) << " '" << escapedVal << "'";
         }
         break;
 

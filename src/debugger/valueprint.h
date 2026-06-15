@@ -17,7 +17,7 @@
 namespace dncdbg
 {
 
-HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape = true);
+HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool quote = true);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue);
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output);
 

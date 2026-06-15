@@ -35,6 +35,7 @@ Upcoming changes compared to previous version.
 - Implemented native unary operators for managed primitive types.
 - Implemented native binary operators for managed primitive types.
 - Implemented native UTF-8 string to uppercase conversion.
+- Cleaned up redundant character escaping in strings.
 
 #### Removed
 - Removed unused code.
