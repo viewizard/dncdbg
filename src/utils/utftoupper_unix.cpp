@@ -18,7 +18,7 @@ std::string to_uppercase(const std::string &input)
         return input;
     }
 
-    static constexpr std::size_t retError = static_cast<std::size_t>(-1);
+    static constexpr auto retError = static_cast<std::size_t>(-1);
 
     // Step 1: Convert UTF-8 to wide string (UTF-32)
     const std::size_t wideSize = std::mbstowcs(nullptr, input.c_str(), 0);
