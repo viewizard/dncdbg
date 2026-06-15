@@ -41,6 +41,11 @@ class Context
         launchRequest.arguments.cwd = "";
         launchRequest.arguments.stopAtEntry = true;
 
+        if (argsList.Count != 0)
+        {
+            launchRequest.arguments.args = argsList;
+        }
+
         if (RemoteConsole)
         {
             launchRequest.arguments.env = new Dictionary<string, string>();
@@ -1262,6 +1267,11 @@ class Context
         sourceFileMap.Add(OldPath, NewPath);
     }
 
+    public void AddArgsListEntry(string NewArg)
+    {
+        argsList.Add(NewArg);
+    }
+
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
@@ -1288,5 +1298,6 @@ class Context
 
     public RemoteConsole? RemoteConsole = null;
     Dictionary<string, string> sourceFileMap = new Dictionary<string, string>();
+    List<string> argsList = new List<string>();
 }
 }

@@ -45,6 +45,7 @@ $ALL_TEST_NAMES = @(
     "TestSourceFileMap"
     "TestEvaluatePrimitiveUnary"
     "TestEvaluatePrimitiveBinary"
+    "TestArgs"
 )
 
 $TEST_NAMES = $tests
