@@ -48,6 +48,7 @@ Upcoming changes compared to previous version.
 - Fixed binary operators logic.
 - Fixed index casting logic in managed expressions to properly support all integer types.
 - Fixed implicit casting logic in managed expressions to properly support all primitive types.
+- Fixed argument handling for paths with trailing backslash.
 
 </br>
 </br>
