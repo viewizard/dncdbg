@@ -672,6 +672,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 return S_OK;
             }
 
+            // Same behaviour as MS vsdbg and MSVS C# debugger have - add character escaping in strings.
             EscapeString(raw_str, '"');
 
             std::ostringstream ss;
@@ -776,6 +777,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 output = printableVal;
                 return S_OK;
             }
+            // Same behaviour as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
             ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
         }
