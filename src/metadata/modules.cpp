@@ -97,12 +97,14 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return (bytesRead == size) ? S_OK : E_FAIL;
     };
 
+    // Read and validate DOS header
     MemoryDosHeader dos{};
     if (FAILED(readProcessMemory(moduleBaseAddress, &dos, sizeof(dos))) || dos.e_magic != g_dos_e_magic)
     {
         return E_FAIL;
     }
 
+    // Read and validate NT signature
     const CORDB_ADDRESS ntHeaderAddr = moduleBaseAddress + dos.e_lfanew;
     uint32_t ntSig = 0;
     if (FAILED(readProcessMemory(ntHeaderAddr, &ntSig, sizeof(ntSig))) || ntSig != g_ntsig_magic)
@@ -110,59 +112,55 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return E_FAIL;
     }
 
+    // Read optional header magic to determine PE32 vs PE32+
     const CORDB_ADDRESS optionalHeaderAddr = ntHeaderAddr + 4 + 20;
     uint16_t magic = 0;
     IfFailRet(readProcessMemory(optionalHeaderAddr, &magic, sizeof(magic)));
 
-    // =========================================================================
-    // Parse PE-header for loaded layout (ReadyToRun DLLs)
-    // =========================================================================
-    auto parsePEHeader = [&]() -> HRESULT
+    if (magic != g_opt_header32_magic && magic != g_opt_header64_magic)
     {
-        uint32_t debugDirRva = 0;
-        uint32_t debugDirSize = 0;
+        return E_FAIL;
+    }
 
-        assert(magic == g_opt_header32_magic || magic == g_opt_header64_magic);
+    // Data Directory index 6 (IMAGE_DIRECTORY_ENTRY_DEBUG) offset differs between PE32 and PE32+
+    const uint32_t debugDirEntryOffset = (magic == g_opt_header32_magic) ? 144 : 160;
+    const CORDB_ADDRESS debugDirEntryAddr = optionalHeaderAddr + debugDirEntryOffset;
 
-        // Read Debug Directory entry from Optional Header Data Directory array.
-        // Data Directory index 6 (IMAGE_DIRECTORY_ENTRY_DEBUG) contains debug info location.
-        // Offset differs between PE32 (144) and PE32+ (160) due to structure size differences.
-        const uint32_t debugDirEntryOffset = (magic == g_opt_header32_magic) ? 144 : 160;
-        const CORDB_ADDRESS debugDirEntryAddr = optionalHeaderAddr + debugDirEntryOffset;
-        MemoryDataDirectory dir{};
-        if (SUCCEEDED(readProcessMemory(debugDirEntryAddr, &dir, sizeof(dir))))
-        {
-            debugDirRva = dir.virtual_address;
-            debugDirSize = dir.size;
-        }
+    // Read debug directory data directory entry
+    MemoryDataDirectory debugDataDir{};
+    IfFailRet(readProcessMemory(debugDirEntryAddr, &debugDataDir, sizeof(debugDataDir)));
 
-        if (debugDirRva == 0 || debugDirSize == 0)
-        {
-            return E_FAIL;
-        }
+    if (debugDataDir.virtual_address == 0 || debugDataDir.size == 0)
+    {
+        return E_FAIL;
+    }
 
-        // Sanity check: limit number of debug directory entries to prevent memory issues
-        static constexpr uint32_t entriesCountLimit = 50;
-        const uint32_t entriesCount = debugDirSize / sizeof(MemoryDebugDirectory);
-        if (entriesCount == 0 || entriesCount > entriesCountLimit)
-        {
-            return E_FAIL;
-        }
+    static constexpr uint32_t entriesCountLimit = 50;
+    const uint32_t entriesCount = debugDataDir.size / sizeof(MemoryDebugDirectory);
+    if (entriesCount == 0 || entriesCount > entriesCountLimit)
+    {
+        return E_FAIL;
+    }
 
-        // Read all debug directory entries from memory.
-        // For loaded layout: RVA directly maps to VA (baseAddress + RVA).
-        std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
-        IfFailRet(readProcessMemory(moduleBaseAddress + debugDirRva, debugDirs.data(), debugDirSize));
-
-        for (const auto &dir : debugDirs)
+    // =========================================================================
+    // Helper: Process debug directories and extract PDB info
+    // =========================================================================
+    auto processDebugDirectories = [&](const std::vector<MemoryDebugDirectory> &dirs,
+                                       const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRsdsAddr) -> bool
+    {
+        for (const auto &dir : dirs)
         {
             if (dir.type != g_debug_type_codeview || dir.size_of_data < sizeof(MemoryRsdsHeader))
             {
                 continue;
             }
 
-            // Read and validate RSDS header (must have "RSDS" signature)
-            const CORDB_ADDRESS rsdsAddr = moduleBaseAddress + dir.address_of_raw_data;
+            const CORDB_ADDRESS rsdsAddr = getRsdsAddr(dir);
+            if (rsdsAddr == 0)
+            {
+                continue;
+            }
+
             MemoryRsdsHeader rsds{};
             if (FAILED(readProcessMemory(rsdsAddr, &rsds, sizeof(rsds))) || rsds.signature != g_rsds_magic)
             {
@@ -178,30 +176,43 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
 
             std::memcpy(pdbId.guid.data(), static_cast<void *>(rsds.guid), g_guid_size);
             std::memcpy(&pdbId.time_date_stamp, &dir.time_date_stamp, sizeof(dir.time_date_stamp));
+
             const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
             if (pathLength == 0 || pathLength >= g_max_path_size)
             {
                 continue;
             }
 
-            // Read PDB path string (null-terminated UTF-8) following RSDS header
             std::vector<char> pathBuffer(pathLength + 1, '\0');
-            const CORDB_ADDRESS pathAddr = rsdsAddr + sizeof(MemoryRsdsHeader);
-            if (SUCCEEDED(readProcessMemory(pathAddr, pathBuffer.data(), pathLength)))
+            if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), pathBuffer.data(), pathLength)))
             {
                 pathPdb = std::string(pathBuffer.data());
-                return S_OK;
+                return true;
             }
         }
-        return E_FAIL;
+        return false;
     };
-    if (SUCCEEDED(parsePEHeader()))
+
+    // =========================================================================
+    // Try loaded layout first (ReadyToRun DLLs): RVA directly maps to VA
+    // =========================================================================
+    std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
+    if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
+                                    debugDirs.data(), debugDataDir.size)))
     {
-        return S_OK;
+        auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+        {
+            return moduleBaseAddress + dir.address_of_raw_data;
+        };
+
+        if (processDebugDirectories(debugDirs, getRsdsAddrLoaded))
+        {
+            return S_OK;
+        }
     }
 
     // =========================================================================
-    // Fallback for JIT-ed DLL (in-memory module with file/flat layout)
+    // Fallback for JIT-ed DLL (file/flat layout): Convert RVA to file offset
     // =========================================================================
 
     // Read FILE_HEADER to get section count and optional header size
@@ -216,7 +227,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return E_FAIL;
     }
 
-    // Read section headers
+    // Read section headers for RVA to file offset conversion
     const CORDB_ADDRESS sectionHeadersAddr = optionalHeaderAddr + sizeOfOptionalHeader;
     std::vector<MemorySectionHeader> sections(numberOfSections);
     if (FAILED(readProcessMemory(sectionHeadersAddr, sections.data(),
@@ -225,27 +236,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return E_FAIL;
     }
 
-    assert(magic == g_opt_header32_magic || magic == g_opt_header64_magic);
-
-    // Read debug directory data directory entry
-    const uint32_t debugDirEntryOffset = (magic == g_opt_header32_magic) ? 144 : 160;
-    MemoryDataDirectory debugDir{};
-    IfFailRet(readProcessMemory(optionalHeaderAddr + debugDirEntryOffset, &debugDir, sizeof(debugDir)));
-
-    if (debugDir.virtual_address == 0 || debugDir.size == 0)
-    {
-        return E_FAIL;
-    }
-
-    static constexpr uint32_t entriesCountLimit = 50;
-    const uint32_t entriesCount = debugDir.size / sizeof(MemoryDebugDirectory);
-    if (entriesCount == 0 || entriesCount > entriesCountLimit)
-    {
-        return E_FAIL;
-    }
-
     // Helper: Convert RVA to file offset using section table
-    // This is needed because the debug directory RVA is in the data directory
     auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
     {
         for (const auto &section : sections)
@@ -259,64 +250,28 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return 0;
     };
 
-    // For file layout: convert debug directory RVA to file offset
-    const uint32_t debugDirFileOffset = rvaToFileOffset(debugDir.virtual_address);
+    // Convert debug directory RVA to file offset
+    const uint32_t debugDirFileOffset = rvaToFileOffset(debugDataDir.virtual_address);
     if (debugDirFileOffset == 0)
     {
         return E_FAIL;
     }
 
     // Read debug directory entries from file offset
-    std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
-    IfFailRet(readProcessMemory(moduleBaseAddress + debugDirFileOffset, debugDirs.data(), debugDir.size));
-
-    // Search for CODEVIEW/RSDS entry
-    for (const auto &dir : debugDirs)
+    if (FAILED(readProcessMemory(moduleBaseAddress + debugDirFileOffset,
+                                 debugDirs.data(), debugDataDir.size)))
     {
-        if (dir.type != g_debug_type_codeview || dir.size_of_data < sizeof(MemoryRsdsHeader))
-        {
-            continue;
-        }
+        return E_FAIL;
+    }
 
-        // For file layout: use pointer_to_raw_data (file offset)
-        // address_of_raw_data is RVA which is invalid for file layout
-        if (dir.pointer_to_raw_data == 0)
-        {
-            continue;
-        }
+    auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+    {
+        return (dir.pointer_to_raw_data != 0) ? moduleBaseAddress + dir.pointer_to_raw_data : 0;
+    };
 
-        // Calculate the address of RSDS data in target memory
-        // Base address + file offset gives us the actual memory location
-        const CORDB_ADDRESS rsdsAddr = moduleBaseAddress + dir.pointer_to_raw_data;
-        MemoryRsdsHeader rsds{};
-        if (FAILED(readProcessMemory(rsdsAddr, &rsds, sizeof(rsds))) || rsds.signature != g_rsds_magic)
-        {
-            continue;
-        }
-
-        uint32_t age = 0;
-        std::memcpy(&age, &rsds.age, sizeof(rsds.age));
-        if (age != 1)
-        {
-            continue;
-        }
-
-        // Found valid RSDS header
-        std::memcpy(pdbId.guid.data(), static_cast<void *>(rsds.guid), g_guid_size);
-        std::memcpy(&pdbId.time_date_stamp, &dir.time_date_stamp, sizeof(dir.time_date_stamp));
-        const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
-        if (pathLength == 0 || pathLength >= g_max_path_size)
-        {
-            continue;
-        }
-
-        // Read PDB path string (null-terminated UTF-8) following RSDS header
-        std::vector<char> pathBuffer(pathLength + 1, '\0');
-        if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), pathBuffer.data(), pathLength)))
-        {
-            pathPdb = std::string(pathBuffer.data());
-            return S_OK;
-        }
+    if (processDebugDirectories(debugDirs, getRsdsAddrFile))
+    {
+        return S_OK;
     }
 
     return E_FAIL;
