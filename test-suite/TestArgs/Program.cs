@@ -71,18 +71,18 @@ class Program
 
                 if (isWindows)
                 {
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug\\test.dll\"", "string", "args[0]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\path\\to\\dir\\\"", "string", "args[1]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\path\\t o\\dir\\\"", "string", "args[2]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug\\\"", "string", "args[3]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug Folder\\test.dll\"", "string", "args[4]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug\\\\test.dll\"", "string", "args[0]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\\\path\\\\to\\\\dir\\\\\"", "string", "args[1]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\\\path\\\\t o\\\\dir\\\\\"", "string", "args[2]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug\\\\\"", "string", "args[3]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug Folder\\\\test.dll\"", "string", "args[4]");
                 }
                 else
                 {
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug\\test.dll\"", "string", "args[0]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\path\\to\\dir\\\"", "string", "args[1]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug\\\"", "string", "args[2]");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\Debug Folder\\test.dll\"", "string", "args[3]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug\\\\test.dll\"", "string", "args[0]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"D:\\\\path\\\\to\\\\dir\\\\\"", "string", "args[1]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug\\\\\"", "string", "args[2]");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"bin\\\\Debug Folder\\\\test.dll\"", "string", "args[3]");
                 }
 
                 Context.Continue(@"__FILE__:__LINE__");
