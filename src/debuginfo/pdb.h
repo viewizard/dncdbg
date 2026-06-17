@@ -32,6 +32,7 @@ struct PDBHolder
     MemoryBuffer m_memBuff;
     ToRelease<ICorDebugModule> m_trModule;
 
+    PDBHolder() = default;
     PDBHolder(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule)
         : m_handle(handle),
           m_memBuff(std::move(memBuff)),

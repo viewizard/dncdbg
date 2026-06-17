@@ -77,6 +77,32 @@ MemoryBuffer::~MemoryBuffer()
     }
 }
 
+MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other) noexcept
+{
+    if (this == std::addressof(other))
+    {
+        return *this;
+    }
+
+    // Clean up existing resources before taking ownership of new ones
+    if (m_mappedData != nullptr)
+    {
+        munmap(m_mappedData, m_fileSize);
+    }
+    if (m_fd != -1)
+    {
+        close(m_fd);
+    }
+
+    m_mappedData = other.m_mappedData;
+    other.m_mappedData = nullptr;
+    m_fileSize = other.m_fileSize;
+    other.m_fileSize = 0;
+    m_fd = other.m_fd;
+    other.m_fd = -1;
+    return *this;
+}
+
 } // namespace dncdbg
 
 #endif // FEATURE_PAL

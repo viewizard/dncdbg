@@ -6,11 +6,18 @@
 #define DEBUGINFO_PDBREADER_H
 
 #include "debuginfo/pdb.h"
+#include <string>
 
 namespace dncdbg
 {
 
+class PDBReader
+{
+  public:
 
+    static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
+
+};
 
 } // namespace dncdbg
 

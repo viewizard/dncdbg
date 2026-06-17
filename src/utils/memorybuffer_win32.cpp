@@ -87,6 +87,38 @@ MemoryBuffer::~MemoryBuffer()
     }
 }
 
+MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other) noexcept
+{
+    if (this == std::addressof(other))
+    {
+        return *this;
+    }
+
+    // Clean up existing resources before taking ownership of new ones
+    if (m_mappedData != nullptr)
+    {
+        UnmapViewOfFile(m_mappedData);
+    }
+    if (m_mappingHandle != nullptr)
+    {
+        CloseHandle(m_mappingHandle);
+    }
+    if (m_fileHandle != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(m_fileHandle);
+    }
+
+    m_mappedData = other.m_mappedData;
+    other.m_mappedData = nullptr;
+    m_fileSize = other.m_fileSize;
+    other.m_fileSize = 0;
+    m_fileHandle = other.m_fileHandle;
+    other.m_fileHandle = INVALID_HANDLE_VALUE;
+    m_mappingHandle = other.m_mappingHandle;
+    other.m_mappingHandle = nullptr;
+    return *this;
+}
+
 } // namespace dncdbg
 
 #endif // _WIN32
