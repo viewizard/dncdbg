@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include "types/protocol.h"
 #include <array>
 #include <functional>
@@ -22,13 +23,6 @@
 
 namespace dncdbg
 {
-
-constexpr uint16_t g_guid_size = 16;
-struct PdbIdentity
-{
-    std::array<uint8_t, g_guid_size> guid;
-    uint32_t time_date_stamp;
-};
 
 class Modules
 {

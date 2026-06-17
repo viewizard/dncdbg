@@ -53,6 +53,7 @@ set(DNCDBG_SOURCES
     debugger/variables.cpp
     debuginfo/async_info.cpp
     debuginfo/debuginfo_sources.cpp
+    debuginfo/pdbreader.cpp
     debuginfo/debuginfo.cpp
     debuginfo/sourcefilemap.cpp
     expressionparser/helpers.cpp

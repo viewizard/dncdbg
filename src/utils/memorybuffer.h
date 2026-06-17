@@ -24,8 +24,27 @@ class MemoryBuffer
 
     MemoryBuffer(const MemoryBuffer &) = delete;
     MemoryBuffer &operator=(const MemoryBuffer &) = delete;
-    MemoryBuffer(MemoryBuffer &&other) = delete;
     MemoryBuffer &operator=(MemoryBuffer &&other) = delete;
+
+    MemoryBuffer(MemoryBuffer &&other) noexcept
+        : m_mappedData(other.m_mappedData),
+          m_fileSize(other.m_fileSize),
+#ifdef _WIN32
+          m_fileHandle(other.m_fileHandle),
+          m_mappingHandle(other.m_mappingHandle)
+#else
+          m_fd(other.m_fd)
+#endif
+    {
+        other.m_mappedData = nullptr;
+        other.m_fileSize = 0;
+#ifdef _WIN32
+        other.m_fileHandle = INVALID_HANDLE_VALUE;
+        other.m_mappingHandle = nullptr;
+#else
+        other.m_fd = -1;
+#endif
+    }
 
     // Opens and memory-maps the specified file for read-only access.
     // Returns true on success, false on failure.

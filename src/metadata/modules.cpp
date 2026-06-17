@@ -24,12 +24,12 @@ constexpr uint16_t g_dos_e_magic = 0x5A4D;
 constexpr uint32_t g_ntsig_magic = 0x00004550;
 constexpr uint16_t g_opt_header32_magic = 0x10B;
 constexpr uint16_t g_opt_header64_magic = 0x20B;
-constexpr uint32_t g_max_path_size = 4096;
+constexpr uint16_t g_max_path_size = 4096;
 constexpr uint32_t g_rsds_magic = 0x53445352;
-constexpr uint32_t g_debug_type_codeview = 2;
-constexpr uint16_t g_section_name_size = 8;
-constexpr uint16_t g_max_sections_count = 96;
-constexpr uint16_t g_ignored_size = 58;
+constexpr uint8_t g_debug_type_codeview = 2;
+constexpr uint8_t g_section_name_size = 8;
+constexpr uint8_t g_max_sections_count = 96;
+constexpr uint8_t g_ignored_size = 58;
 
 #pragma pack(push, 1)
 struct MemoryDosHeader
@@ -174,8 +174,9 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
                 continue;
             }
 
-            std::memcpy(pdbId.guid.data(), static_cast<void *>(rsds.guid), g_guid_size);
-            std::memcpy(&pdbId.time_date_stamp, &dir.time_date_stamp, sizeof(dir.time_date_stamp));
+            std::memcpy(pdbId.data(), static_cast<void *>(rsds.guid), g_guid_size);
+            static_assert(sizeof(dir.time_date_stamp) == g_stamp_size);
+            std::memcpy(pdbId.data() + g_guid_size, &dir.time_date_stamp, g_stamp_size);
 
             const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
             if (pathLength == 0 || pathLength >= g_max_path_size)

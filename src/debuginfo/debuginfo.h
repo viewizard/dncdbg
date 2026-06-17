@@ -13,6 +13,7 @@
 #endif
 
 #include "debuginfo/debuginfo_sources.h"
+#include "debuginfo/pdb.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
@@ -109,6 +110,7 @@ class DebugInfo
 
     std::mutex m_debugInfoMutex;
     std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
+    std::unordered_map<CORDB_ADDRESS, PDBHolder> m_pdbHolders;
 
     // Note, m_debugInfoSources has its own mutex for private data state sync.
     DebugInfoSources m_debugInfoSources;
