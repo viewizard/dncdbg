@@ -7,6 +7,7 @@
 
 #include "debuginfo/pdb.h"
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -16,6 +17,7 @@ class PDBReader
   public:
 
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
+    static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
 
 };
 
