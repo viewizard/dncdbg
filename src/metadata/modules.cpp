@@ -85,6 +85,9 @@ struct MemoryDebugDirectory
 HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, std::string &pathPdb)
 {
     HRESULT Status = S_OK;
+    BOOL isInMemory = FALSE;
+    IfFailRet(pModule->IsInMemory(&isInMemory));
+
     CORDB_ADDRESS moduleBaseAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&moduleBaseAddress));
     ToRelease<ICorDebugProcess> trProcess;
@@ -141,10 +144,9 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
     {
         return E_FAIL;
     }
+    std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
 
-    // =========================================================================
     // Helper: Process debug directories and extract PDB info
-    // =========================================================================
     auto processDebugDirectories = [&](const std::vector<MemoryDebugDirectory> &dirs,
                                        const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRsdsAddr) -> bool
     {
@@ -194,85 +196,106 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
         return false;
     };
 
-    // =========================================================================
-    // Try loaded layout first (ReadyToRun DLLs): RVA directly maps to VA
-    // =========================================================================
-    std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
-    if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
-                                    debugDirs.data(), debugDataDir.size)))
+    // Loaded layout (ReadyToRun DLLs): RVA directly maps to VA
+    auto loadedLayout = [&]() -> HRESULT
     {
-        auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+        if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
+                                        debugDirs.data(), debugDataDir.size)))
         {
-            return moduleBaseAddress + dir.address_of_raw_data;
+            auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+            {
+                return moduleBaseAddress + dir.address_of_raw_data;
+            };
+
+            if (processDebugDirectories(debugDirs, getRsdsAddrLoaded))
+            {
+                return S_OK;
+            }
+        }
+
+        return E_FAIL;
+    };
+
+    // File layout (JIT-compiled DLL): Convert RVA to file offset
+    auto fileLayout = [&]() -> HRESULT
+    {
+        // Read FILE_HEADER to get section count and optional header size
+        const CORDB_ADDRESS fileHeaderAddr = ntHeaderAddr + 4;
+        uint16_t numberOfSections = 0;
+        uint16_t sizeOfOptionalHeader = 0;
+        IfFailRet(readProcessMemory(fileHeaderAddr + 2, &numberOfSections, sizeof(numberOfSections)));
+        IfFailRet(readProcessMemory(fileHeaderAddr + 16, &sizeOfOptionalHeader, sizeof(sizeOfOptionalHeader)));
+
+        if (numberOfSections == 0 || numberOfSections > g_max_sections_count)
+        {
+            return E_FAIL;
+        }
+
+        // Read section headers for RVA to file offset conversion
+        const CORDB_ADDRESS sectionHeadersAddr = optionalHeaderAddr + sizeOfOptionalHeader;
+        std::vector<MemorySectionHeader> sections(numberOfSections);
+        if (FAILED(readProcessMemory(sectionHeadersAddr, sections.data(),
+                                     static_cast<uint32_t>(numberOfSections * sizeof(MemorySectionHeader)))))
+        {
+            return E_FAIL;
+        }
+
+        // Helper: Convert RVA to file offset using section table
+        auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
+        {
+            for (const auto &section : sections)
+            {
+                if (rva >= section.virtual_address &&
+                    rva < section.virtual_address + section.size_of_raw_data)
+                {
+                    return section.pointer_to_raw_data + (rva - section.virtual_address);
+                }
+            }
+            return 0;
         };
 
-        if (processDebugDirectories(debugDirs, getRsdsAddrLoaded))
+        // Convert debug directory RVA to file offset
+        const uint32_t debugDirFileOffset = rvaToFileOffset(debugDataDir.virtual_address);
+        if (debugDirFileOffset == 0)
+        {
+            return E_FAIL;
+        }
+
+        // Read debug directory entries from file offset
+        if (FAILED(readProcessMemory(moduleBaseAddress + debugDirFileOffset,
+                                     debugDirs.data(), debugDataDir.size)))
+        {
+            return E_FAIL;
+        }
+
+        auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+        {
+            return (dir.pointer_to_raw_data != 0) ? moduleBaseAddress + dir.pointer_to_raw_data : 0;
+        };
+
+        if (processDebugDirectories(debugDirs, getRsdsAddrFile))
+        {
+            return S_OK;
+        }
+
+        return E_FAIL;
+    };
+
+    if (isInMemory == TRUE)
+    {
+        if (SUCCEEDED(loadedLayout()) ||
+            SUCCEEDED(fileLayout())) // Fallback to file layout.
         {
             return S_OK;
         }
     }
-
-    // =========================================================================
-    // Fallback for JIT-ed DLL (file/flat layout): Convert RVA to file offset
-    // =========================================================================
-
-    // Read FILE_HEADER to get section count and optional header size
-    const CORDB_ADDRESS fileHeaderAddr = ntHeaderAddr + 4;
-    uint16_t numberOfSections = 0;
-    uint16_t sizeOfOptionalHeader = 0;
-    IfFailRet(readProcessMemory(fileHeaderAddr + 2, &numberOfSections, sizeof(numberOfSections)));
-    IfFailRet(readProcessMemory(fileHeaderAddr + 16, &sizeOfOptionalHeader, sizeof(sizeOfOptionalHeader)));
-
-    if (numberOfSections == 0 || numberOfSections > g_max_sections_count)
+    else
     {
-        return E_FAIL;
-    }
-
-    // Read section headers for RVA to file offset conversion
-    const CORDB_ADDRESS sectionHeadersAddr = optionalHeaderAddr + sizeOfOptionalHeader;
-    std::vector<MemorySectionHeader> sections(numberOfSections);
-    if (FAILED(readProcessMemory(sectionHeadersAddr, sections.data(),
-                                 static_cast<uint32_t>(numberOfSections * sizeof(MemorySectionHeader)))))
-    {
-        return E_FAIL;
-    }
-
-    // Helper: Convert RVA to file offset using section table
-    auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
-    {
-        for (const auto &section : sections)
+        if (SUCCEEDED(fileLayout()) ||
+            SUCCEEDED(loadedLayout())) // Fallback to loaded layout.
         {
-            if (rva >= section.virtual_address &&
-                rva < section.virtual_address + section.size_of_raw_data)
-            {
-                return section.pointer_to_raw_data + (rva - section.virtual_address);
-            }
+            return S_OK;
         }
-        return 0;
-    };
-
-    // Convert debug directory RVA to file offset
-    const uint32_t debugDirFileOffset = rvaToFileOffset(debugDataDir.virtual_address);
-    if (debugDirFileOffset == 0)
-    {
-        return E_FAIL;
-    }
-
-    // Read debug directory entries from file offset
-    if (FAILED(readProcessMemory(moduleBaseAddress + debugDirFileOffset,
-                                 debugDirs.data(), debugDataDir.size)))
-    {
-        return E_FAIL;
-    }
-
-    auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
-    {
-        return (dir.pointer_to_raw_data != 0) ? moduleBaseAddress + dir.pointer_to_raw_data : 0;
-    };
-
-    if (processDebugDirectories(debugDirs, getRsdsAddrFile))
-    {
-        return S_OK;
     }
 
     return E_FAIL;
