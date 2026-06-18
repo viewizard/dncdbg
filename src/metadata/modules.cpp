@@ -164,14 +164,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, 
             }
 
             MemoryRsdsHeader rsds{};
-            if (FAILED(readProcessMemory(rsdsAddr, &rsds, sizeof(rsds))) || rsds.signature != g_rsds_magic)
-            {
-                continue;
-            }
-
-            uint32_t age = 0;
-            std::memcpy(&age, &rsds.age, sizeof(rsds.age));
-            if (age != 1)
+            if (FAILED(readProcessMemory(rsdsAddr, &rsds, sizeof(rsds))) || rsds.signature != g_rsds_magic || rsds.age != 1)
             {
                 continue;
             }
