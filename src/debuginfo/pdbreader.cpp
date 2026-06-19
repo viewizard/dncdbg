@@ -115,4 +115,149 @@ HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::stri
     return S_OK;
 }
 
+HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::set<mdMethodDef> &constrTokens,
+                                    std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Create cursor to the Document table
+    mdcursor_t docCursor{};
+    uint32_t docCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_Document, &docCursor, &docCount))
+    {
+        return E_FAIL;
+    }
+
+    // Reserve space for all sources
+    srcMethodsMap.clear();
+    srcMethodsMap.reserve(docCount);
+
+    // Create cursor to the MethodDebugInformation table
+    mdcursor_t mdiCursor{};
+    uint32_t mdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all method debug information entries
+    for (uint32_t i = 1; i <= mdiCount; ++i)
+    {
+        mdToken methodToken = TokenFromRid(i, mdtMethodDef);
+
+        // Get the SequencePoints blob
+        uint8_t const *seqPointsBlob = nullptr;
+        uint32_t blobLen = 0;
+        if (!md_get_column_value_as_blob(mdiCursor, mdtMethodDebugInformation_SequencePoints, &seqPointsBlob, &blobLen))
+        {
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+
+        if (seqPointsBlob == nullptr || blobLen == 0)
+        {
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+
+        // First, query the required buffer size
+        size_t bufferLen = 0;
+        md_blob_parse_result_t result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, nullptr, &bufferLen);
+        if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+        {
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+
+        // Allocate buffer and parse sequence points
+        std::vector<uint8_t> buffer(bufferLen, 0);
+        auto *seqPoints = reinterpret_cast<md_sequence_points_t *>(buffer.data());
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
+        if (result != mdbpr_Success)
+        {
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+
+        // Extract line range from sequence points
+        int32_t startLine = 0;
+        int32_t startColumn = 0;
+        int32_t endLine = 0;
+        int32_t endColumn = 0;
+        bool foundFirst = false;
+        // Document token and index in sourceFiles vector returned by GetAllSourceFiles() method
+        mdToken docToken{};
+        uint32_t docIndex = 0;
+
+        if (!md_cursor_to_token(seqPoints->document, &docToken))
+        {
+            // Document might be null for methods without source
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+        docIndex = RidFromToken(docToken) - 1;
+
+        // Check if this method is a constructor
+        const bool isCtor = constrTokens.find(methodToken) != constrTokens.end();
+
+        for (uint32_t j = 0; j < seqPoints->record_count; ++j)
+        {
+            const auto &record = seqPoints->records[j];
+
+            if (record.kind == md_sequence_points_t::record_t::mdsp_DocumentRecord)
+            {
+                if (!md_cursor_to_token(record.document.document, &docToken)) // NOLINT(cppcoreguidelines-pro-type-union-access)
+                {
+                    continue;
+                }
+                docIndex = RidFromToken(docToken) - 1;
+
+                continue;
+            }
+
+            if (record.kind == md_sequence_points_t::record_t::mdsp_SequencePointRecord)
+            {
+                if (!foundFirst)
+                {
+                    // First sequence point - set start position
+                    startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
+                    startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
+                    foundFirst = true;
+                }
+                // Update end position with each sequence point
+                endLine = static_cast<int32_t>(record.sequence_point.rolling_start_line + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                               static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
+                endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                 record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
+
+                if (isCtor)
+                {
+                    // Add sequence point range to the src's collection
+                    auto &methods = srcMethodsMap[docIndex];
+                    methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
+                    foundFirst = false;
+                }
+            }
+        }
+
+        if (!foundFirst || isCtor)
+        {
+            // No valid sequence points found, or this is a constructor that we add as sequence points
+            md_cursor_move(&mdiCursor, 1);
+            continue;
+        }
+
+        // Add method range to the src's collection
+        auto &methods = srcMethodsMap[docIndex];
+        methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
+
+        md_cursor_move(&mdiCursor, 1);
+    }
+
+    return S_OK;
+}
+
 } // namespace dncdbg

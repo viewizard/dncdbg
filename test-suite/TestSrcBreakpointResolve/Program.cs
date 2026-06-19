@@ -8,7 +8,7 @@ using DbgTest.Script;
 
 namespace TestSrcBreakpointResolve
 {
-class test_constructors
+public partial class test_constructors
 {
                          // bp here! make sure you correct code (test constructor)!
     int test_field1 = 1;

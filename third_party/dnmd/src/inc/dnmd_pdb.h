@@ -38,7 +38,7 @@ typedef struct md_sequence_points__
     mdToken signature;
     mdcursor_t document;
     uint32_t record_count;
-    struct
+    struct record_t
     {
         enum
         {

@@ -1,6 +1,14 @@
 using System;
 using System.IO;
 
+namespace TestSrcBreakpointResolve
+{
+    public partial class test_constructors
+    {
+        int test_field99 = 1;
+    }
+}
+
 namespace TestSrcBreakpointResolve2
 {
     class Program
