@@ -70,7 +70,7 @@ HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::stri
     for (uint32_t i = 0; i < docCount; ++i)
     {
         // Get the Name blob from the Document table
-        uint8_t const* nameBlob = nullptr;
+        uint8_t const *nameBlob = nullptr;
         uint32_t blobLen = 0;
         if (!md_get_column_value_as_blob(docCursor, mdtDocument_Name, &nameBlob, &blobLen))
         {
