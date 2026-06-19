@@ -146,7 +146,7 @@ HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::set<mdMetho
     // Iterate through all method debug information entries
     for (uint32_t i = 1; i <= mdiCount; ++i)
     {
-        mdToken methodToken = TokenFromRid(i, mdtMethodDef);
+        const mdToken methodToken = TokenFromRid(i, mdtMethodDef);
 
         // Get the SequencePoints blob
         uint8_t const *seqPointsBlob = nullptr;
