@@ -547,11 +547,11 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
                                              &nameLen, nullptr, nullptr));
 
         DWORD flags = 0;
-        WSTRING name(nameLen - 1, '\0'); // nameLen includes null terminator
+        std::vector<WCHAR> name(nameLen, '\0');
         IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
                                              nullptr, &flags, nullptr));
 
-        nameStack.push_back(to_utf8(name.c_str()));
+        nameStack.push_back(to_utf8(name.data()));
 
         if (!IsTdNested(flags))
         {
@@ -653,7 +653,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
         IfFailRet(pMDImport->GetMemberProps(mb, nullptr, nullptr, 0, &size, nullptr, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
         mdTypeDef mdClass = mdTypeDefNil;
-        WSTRING name(size - 1, '\0'); // size - string size + null terminated symbol
+        std::vector<WCHAR> name(size, '\0');
         IfFailRet(pMDImport->GetMemberProps(mb, &mdClass, name.data(), size, nullptr, nullptr, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
         if (mdClass != mdTypeDefNil && bClassName)
@@ -661,7 +661,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
             IfFailRet(NameForTypeDef(mdClass, pMDImport, mdName, args));
             mdName += ".";
         }
-        mdName += to_utf8(name.c_str());
+        mdName += to_utf8(name.data());
     }
     else if (TypeFromToken(mb) == mdtMethodDef)
     {
@@ -669,7 +669,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
         IfFailRet(pMDImport->GetMethodProps(mb, nullptr, nullptr, 0, &size,
                                             nullptr, nullptr, nullptr, nullptr, nullptr));
         mdTypeDef mdClass = mdTypeDefNil;
-        WSTRING name(size - 1, '\0'); // size - string size + null terminated symbol
+        std::vector<WCHAR> name(size, '\0');
         IfFailRet(pMDImport->GetMethodProps(mb, &mdClass, name.data(), size, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr));
         if (mdClass != mdTypeDefNil && bClassName)
@@ -677,14 +677,14 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
             IfFailRet(NameForTypeDef(mdClass, pMDImport, mdName, args));
             mdName += ".";
         }
-        mdName += to_utf8(name.c_str());
+        mdName += to_utf8(name.data());
     }
     else if (TypeFromToken(mb) == mdtMemberRef)
     {
         ULONG size = 0;
         IfFailRet(pMDImport->GetMemberRefProps(mb, nullptr, nullptr, 0, &size, nullptr, nullptr));
         mdTypeDef mdClass = mdTypeDefNil;
-        WSTRING name(size - 1, '\0'); // size - string size + null terminated symbol
+        std::vector<WCHAR> name(size, '\0');
         IfFailRet(pMDImport->GetMemberRefProps(mb, &mdClass, name.data(), size, nullptr, nullptr, nullptr));
         if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
         {
@@ -697,7 +697,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
             mdName += ".";
         }
         // TODO TypeSpec
-        mdName += to_utf8(name.c_str());
+        mdName += to_utf8(name.data());
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
@@ -791,11 +791,11 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
     mdTypeDef memTypeDef = mdTypeDefNil;
-    WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
+    std::vector<WCHAR> szFunctionName(nameLen, '\0');
     IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-    std::string funcName = to_utf8(szFunctionName.c_str());
+    std::string funcName = to_utf8(szFunctionName.data());
 
     ULONG methodGenericsCount = 0;
     HCORENUM hEnum = nullptr;
@@ -898,7 +898,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
                 continue;
             }
 
-            WSTRING wParamName(paramNameLen - 1, '\0'); // paramNameLen - string size + null terminated symbol
+            std::vector<WCHAR> wParamName(paramNameLen, '\0');
             if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
@@ -924,7 +924,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
             // else
             //    in case of fail, ignore parameter type, print only parameter name
 
-            ss << to_utf8(wParamName.c_str());
+            ss << to_utf8(wParamName.data());
         }
         return S_OK;
     };

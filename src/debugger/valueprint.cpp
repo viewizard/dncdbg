@@ -150,7 +150,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         }
 
         DWORD fieldAttr = 0;
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        std::vector<WCHAR> mdName(nameLen, '\0');
         UVCP_CONSTANT pRawValue = nullptr;
         ULONG rawValueLength = 0;
         if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
@@ -166,7 +166,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
             if (currentConstValue == curValue)
             {
                 trMDImport->CloseEnum(fEnum);
-                output = to_utf8(mdName.c_str());
+                output = to_utf8(mdName.data());
 
                 return S_OK;
             }
@@ -181,7 +181,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
                 if (currentConstValue == remainingValue ||
                     (currentConstValue & remainingValue) == currentConstValue)
                 {
-                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.c_str()));
+                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.data()));
                     remainingValue &= ~currentConstValue;
                 }
             }
@@ -249,7 +249,7 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, uint32_t &hi, uint32_t &mid, ui
         }
 
         DWORD fieldAttr = 0;
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        std::vector<WCHAR> mdName(nameLen, '\0');
         if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
@@ -264,7 +264,7 @@ HRESULT GetDecimalFields(ICorDebugValue *pValue, uint32_t &hi, uint32_t &mid, ui
             ToRelease<ICorDebugValue> trFieldVal;
             IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, &trFieldVal));
 
-            const std::string name = to_utf8(mdName.c_str());
+            const std::string name = to_utf8(mdName.data());
 
             if (name == "hi" || name == "_hi32")
             {
@@ -609,11 +609,17 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
             continue;
         }
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING mdName(nameLen, '\0');
         if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                              nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!mdName.empty() && mdName.back() == '\0')
+        {
+            mdName.pop_back();
         }
 
         // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24

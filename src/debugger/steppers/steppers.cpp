@@ -163,10 +163,16 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             return false;
         }
 
-        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING szFunctionName(nameLen, '\0');
         if (SUCCEEDED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
+            // Remove null terminator that was included in the length
+            if (!szFunctionName.empty() && szFunctionName.back() == '\0')
+            {
+                szFunctionName.pop_back();
+            }
+
             if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.end())
             {
                 return true;

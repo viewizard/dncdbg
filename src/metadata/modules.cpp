@@ -336,13 +336,13 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
         return {};
     }
 
-    WSTRING wModName(nameLen - 1, '\0'); // nameLen includes null terminator
+    std::vector<WCHAR> wModName(nameLen, '\0');
     if (FAILED(pModule->GetName(nameLen, nullptr, wModName.data())))
     {
         return {};
     }
 
-    std::string moduleName = to_utf8(wModName.c_str());
+    std::string moduleName = to_utf8(wModName.data());
 
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`

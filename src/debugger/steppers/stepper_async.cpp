@@ -85,11 +85,17 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
             continue;
         }
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING mdName(nameLen, '\0');
         if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!mdName.empty() && mdName.back() == '\0')
+        {
+            mdName.pop_back();
         }
 
         if (mdName != W("<>t__builder"))
@@ -160,13 +166,19 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
             continue;
         }
 
-        WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
+        WSTRING propertyName(propertyNameLen, '\0');
         mdMethodDef mdGetter = mdMethodDefNil;
         if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr,
                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
                                                 nullptr, 0, nullptr)))
         {
             continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!propertyName.empty() && propertyName.back() == '\0')
+        {
+            propertyName.pop_back();
         }
 
         if (propertyName != W("ObjectIdForDebugger"))
@@ -231,12 +243,18 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
             continue;
         }
 
-        WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING szFunctionName(nameLen, '\0');
         mdTypeDef memTypeDef = mdTypeDefNil;
         if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
                                               nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!szFunctionName.empty() && szFunctionName.back() == '\0')
+        {
+            szFunctionName.pop_back();
         }
 
         if (szFunctionName != W("SetNotificationForWaitCompletion"))

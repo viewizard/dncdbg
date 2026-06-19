@@ -232,11 +232,17 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
             }
 
             DWORD methodAttr = 0;
-            WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+            WSTRING funcName(funcNameLen, '\0');
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
+            }
+
+            // Remove null terminator that was included in the length
+            if (!funcName.empty() && funcName.back() == '\0')
+            {
+                funcName.pop_back();
             }
 
             static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName;

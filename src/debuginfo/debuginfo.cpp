@@ -79,7 +79,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             }
 
             mdTypeDef memTypeDef = mdTypeDefNil;
-            WSTRING szFuncName(nameLen - 1, '\0'); // nameLen includes null terminator
+            std::vector<WCHAR> szFuncName(nameLen, '\0');
             if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,
                                                   nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
@@ -104,7 +104,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                 }
 
                 mdMethodDef memMethodDef = mdMethodDefNil;
-                WSTRING szGenName(genNameLen - 1, '\0'); // genNameLen - string size + null terminated symbol
+                std::vector<WCHAR> szGenName(genNameLen, '\0');
                 if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
                                                              szGenName.data(), genNameLen, nullptr)))
                 {
@@ -112,12 +112,12 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                 }
 
                 // Add comma for each element. The last one will be stripped later.
-                genParams += to_utf8(szGenName.c_str()) + ",";
+                genParams += to_utf8(szGenName.data()) + ",";
             }
 
             trMDImport2->CloseEnum(fGenEnum);
 
-            std::string fullName = to_utf8(szFuncName.c_str());
+            std::string fullName = to_utf8(szFuncName.data());
             if (!genParams.empty())
             {
                 // Last symbol is comma and it is useless, so remove

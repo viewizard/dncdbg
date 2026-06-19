@@ -130,8 +130,13 @@ HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodNa
     ULONG nameLen = 0;
     IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
 
-    WSTRING typeName(nameLen - 1, '\0'); // nameLen includes null terminator
+    WSTRING typeName(nameLen, '\0');
     IfFailRet(pMDImport->GetTypeDefProps(typeDef, typeName.data(), nameLen, nullptr, nullptr, nullptr));
+    // Remove null terminator that was included in the length
+    if (!typeName.empty() && typeName.back() == '\0')
+    {
+        typeName.pop_back();
+    }
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
     //  Parse the generated name. Returns true for names of the form
@@ -245,10 +250,16 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
             IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-            WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+            WSTRING mdName(nameLen, '\0');
             if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
+                // Remove null terminator that was included in the length
+                if (!mdName.empty() && mdName.back() == '\0')
+                {
+                    mdName.pop_back();
+                }
+
                 auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
                 {
                     ToRelease<ICorDebugObjectValue> trObjValue;
@@ -384,7 +395,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-            WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+            WSTRING mdName(nameLen, '\0');
             DWORD fieldAttr = 0;
             if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                                 &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
@@ -392,6 +403,11 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 (fieldAttr & fdLiteral) != 0)
             {
                 return S_OK; // Return with success to continue walk.
+            }
+            // Remove null terminator that was included in the length
+            if (!mdName.empty() && mdName.back() == '\0')
+            {
+                mdName.pop_back();
             }
 
             auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
@@ -557,8 +573,13 @@ HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typ
         ULONG nameLen = 0;
         IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING mdName(nameLen, '\0');
         IfFailRet(pMDImport->GetTypeDefProps(typeDef, mdName.data(), nameLen, nullptr, nullptr, nullptr));
+        // Remove null terminator that was included in the length
+        if (!mdName.empty() && mdName.back() == '\0')
+        {
+            mdName.pop_back();
+        }
 
         if (!IsSynthesizedLocalName(mdName))
         {
@@ -591,7 +612,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
         IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-        WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+        WSTRING mdName(nameLen, '\0');
         DWORD fieldAttr = 0;
         if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
                                             &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
@@ -599,6 +620,11 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
             (fieldAttr & fdLiteral) != 0)
         {
             return S_OK; // Return with success to continue walk.
+        }
+        // Remove null terminator that was included in the length
+        if (!mdName.empty() && mdName.back() == '\0')
+        {
+            mdName.pop_back();
         }
 
         WSTRING wParameterName;
@@ -750,7 +776,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             }
 
             mdTypeDef memTypeDef = mdTypeDefNil;
-            WSTRING szFunctionName(nameLen - 1, '\0'); // nameLen includes null terminator
+            std::vector<WCHAR> szFunctionName(nameLen, '\0');
             DWORD methodAttr = 0;
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
@@ -792,7 +818,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
                 return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
 
-            IfFailRet(cb(is_static, to_utf8(szFunctionName.c_str()), returnElementType, argElementTypes, getFunction));
+            IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 *ppResultType = trInputType.Detach();
@@ -1043,7 +1069,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                     nullptr, nullptr, nullptr, nullptr, nullptr));
 
                 DWORD fieldAttr = 0;
-                WSTRING mdName(nameLen - 1, '\0'); // nameLen includes null terminator
+                WSTRING mdName(nameLen, '\0');
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
                 UVCP_CONSTANT pRawValue = nullptr;
@@ -1051,6 +1077,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                         &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
                 {
+                    // Remove null terminator that was included in the length
+                    if (!mdName.empty() && mdName.back() == '\0')
+                    {
+                        mdName.pop_back();
+                    }
+
                     // Prevent access to internal compiler added fields (without visible name).
                     // Should be accessed by debugger routine only and hidden from user/ide.
                     // More about compiler generated names in Roslyn sources:
@@ -1128,7 +1160,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                 mdMethodDef mdGetter = mdMethodDefNil;
                 mdMethodDef mdSetter = mdMethodDefNil;
-                WSTRING propertyName(propertyNameLen - 1, '\0'); // propertyNameLen - string size + null terminated symbol
+                std::vector<WCHAR> propertyName(propertyNameLen, '\0');
                 if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
                                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                                                            nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
@@ -1215,7 +1247,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         return S_OK; // Return with success to continue walk.
                     }
 
-                    const std::string name = to_utf8(propertyName.c_str());
+                    const std::string name = to_utf8(propertyName.data());
 
                     auto getValue =
                         [&](ICorDebugValue **ppResultValue, bool ignoreEvalFlags) -> HRESULT
@@ -1326,9 +1358,14 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
     DWORD methodAttr = 0;
-    WSTRING szMethod(szMethodLen - 1, '\0'); // szMethodLen - string size + null terminated symbol
+    WSTRING szMethod(szMethodLen, '\0');
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), szMethodLen, nullptr,
                                          &methodAttr, nullptr, nullptr, nullptr, nullptr));
+    // Remove null terminator that was included in the length
+    if (!szMethod.empty() && szMethod.back() == '\0')
+    {
+        szMethod.pop_back();
+    }
 
     ToRelease<ICorDebugClass> trClass;
     IfFailRet(trFunction->GetClass(&trClass));
@@ -1430,9 +1467,14 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
     DWORD methodAttr = 0;
-    WSTRING szMethod(szMethodLen - 1, '\0'); // szMethodLen - string size + null terminated symbol
+    WSTRING szMethod(szMethodLen, '\0');
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), szMethodLen, nullptr,
                                          &methodAttr, nullptr, nullptr, nullptr, nullptr));
+    // Remove null terminator that was included in the length
+    if (!szMethod.empty() && szMethod.back() == '\0')
+    {
+        szMethod.pop_back();
+    }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     ToRelease<ICorDebugValue> trCurrentThis; // Current This. Note, in case async method or lambda - this is special object (non-user's "this").
@@ -1507,11 +1549,16 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             continue;
         }
 
-        WSTRING wParamName(paramNameLen - 1, '\0'); // paramNameLen - string size + null terminated symbol
+        WSTRING wParamName(paramNameLen, '\0');
         if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
+        }
+        // Remove null terminator that was included in the length
+        if (!wParamName.empty() && wParamName.back() == '\0')
+        {
+            wParamName.pop_back();
         }
 
         auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
@@ -2009,7 +2056,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                 }
 
                 mdTypeDef memTypeDef = mdTypeDefNil;
-                WSTRING szFuncName(nameLen - 1, '\0'); // nameLen includes null terminator
+                std::vector<WCHAR> szFuncName(nameLen, '\0');
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
                 if (FAILED(trMDImport->GetMethodProps(mdMethod, &memTypeDef, szFuncName.data(), nameLen, nullptr,
@@ -2019,7 +2066,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                     continue;
                 }
 
-                const std::string fullName = to_utf8(szFuncName.c_str());
+                const std::string fullName = to_utf8(szFuncName.data());
                 if (fullName != methodName)
                 {
                     continue;

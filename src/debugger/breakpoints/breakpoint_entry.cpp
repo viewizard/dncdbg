@@ -138,8 +138,13 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &classNameLen, nullptr, nullptr));
 
         DWORD flags = 0;
-        WSTRING className(classNameLen - 1, '\0'); // classNameLen - string size + null terminated symbol
+        WSTRING className(classNameLen, '\0');
         IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), classNameLen, nullptr, &flags, nullptr));
+        // Remove null terminator that was included in the length
+        if (!className.empty() && className.back() == '\0')
+        {
+            className.pop_back();
+        }
         if (className.find(W("<Main>d__")) != 0)
         {
             continue;
@@ -158,11 +163,17 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
             }
 
             mdTypeDef memTypeDef = mdTypeDefNil;
-            WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+            WSTRING funcName(funcNameLen, '\0');
             if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, funcName.data(), funcNameLen, nullptr,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
+            }
+
+            // Remove null terminator that was included in the length
+            if (!funcName.empty() && funcName.back() == '\0')
+            {
+                funcName.pop_back();
             }
 
             if (funcName == W("MoveNext"))
@@ -220,9 +231,14 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         IfFailRet(trMDImport->GetMethodProps(entryPointToken, nullptr, nullptr, 0, &funcNameLen,
                                              nullptr, nullptr, nullptr, nullptr, nullptr));
         mdTypeDef mdMainClass = mdTypeDefNil;
-        WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
+        WSTRING funcName(funcNameLen, '\0');
         IfFailRet(trMDImport->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), funcNameLen, nullptr,
                                              nullptr, nullptr, nullptr, nullptr, nullptr));
+        // Remove null terminator that was included in the length
+        if (!funcName.empty() && funcName.back() == '\0')
+        {
+            funcName.pop_back();
+        }
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/main-and-command-args/
         // In case of async method as entry method, GetEntryPointTokenFromFile() should return compiler's generated method `<Main>`, plus,
