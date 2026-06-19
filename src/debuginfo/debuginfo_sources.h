@@ -143,9 +143,7 @@ class DebugInfoSources
 
     HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);
     HRESULT ResolveRelativeSourceFileName(std::string &filename);
-    HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
-                                std::unordered_set<mdMethodDef> *methodTokens,
-                                std::vector<file_data_t> &inputData);
+    HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle, std::vector<file_data_t> &inputData);
 
     // Source file names could be converted to uppercase in containers above or changed by SourceFileMap,
     // this vector holds initial full path names

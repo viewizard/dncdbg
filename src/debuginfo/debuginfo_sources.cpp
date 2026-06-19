@@ -201,7 +201,6 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
 } // unnamed namespace
 
 HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
-                                              std::unordered_set<mdMethodDef> *methodTokens,
                                               std::vector<file_data_t> &inputData)
 {
     HRESULT Status = S_OK;
@@ -219,11 +218,6 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
         mdMethodDef methodDef = mdMethodDefNil;
         while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
-            if ((methodTokens != nullptr) && methodTokens->find(methodDef) == methodTokens->end())
-            {
-                continue;
-            }
-
             ULONG funcNameLen = 0;
             DWORD methodAttr = 0;
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
@@ -384,7 +378,7 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
 
     HRESULT Status = S_OK;
     std::vector<file_data_t> inputData;
-    IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, nullptr, inputData));
+    IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, inputData));
     if (inputData.empty())
     {
         return S_OK;
