@@ -225,16 +225,23 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
             }
 
             ULONG funcNameLen = 0;
+            DWORD methodAttr = 0;
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+                                                 &methodAttr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
-            DWORD methodAttr = 0;
+            static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName; // ".ctor", ".cctor" or "Finalize"
+            if ((methodAttr & ctorMask) != ctorMask)
+            {
+                normalTokens.emplace_back(methodDef);
+                continue;
+            }
+
             WSTRING funcName(funcNameLen, '\0');
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                 &methodAttr, nullptr, nullptr, nullptr, nullptr)))
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -245,9 +252,7 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
                 funcName.pop_back();
             }
 
-            static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName;
-            if ((methodAttr & ctorMask) == ctorMask && // ".ctor", ".cctor" or "Finalize"
-                (funcName == W(".ctor") || funcName == W(".cctor")))
+            if (funcName == W(".ctor") || funcName == W(".cctor"))
             {
                 constrTokens.emplace_back(methodDef);
             }
