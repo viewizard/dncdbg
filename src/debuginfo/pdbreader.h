@@ -6,10 +6,10 @@
 #define DEBUGINFO_PDBREADER_H
 
 #include "debuginfo/pdb.h"
-#include <set>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace dncdbg
 {
@@ -67,7 +67,7 @@ class PDBReader
 
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
     static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
-    static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::set<mdMethodDef> &constrTokens,
+    static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
                                     std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap);
 
 };

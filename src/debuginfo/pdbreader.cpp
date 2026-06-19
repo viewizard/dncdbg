@@ -115,7 +115,7 @@ HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::stri
     return S_OK;
 }
 
-HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::set<mdMethodDef> &constrTokens,
+HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
                                     std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap)
 {
     if (pdbHandle == nullptr)
