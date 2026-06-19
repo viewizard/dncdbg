@@ -231,15 +231,17 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
                 continue;
             }
 
+            DWORD methodAttr = 0;
             WSTRING funcName(funcNameLen - 1, '\0'); // funcNameLen - string size + null terminated symbol
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+                                                 &methodAttr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
 
-            if (funcName == W(".ctor") ||
-                funcName == W(".cctor"))
+            static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName;
+            if ((methodAttr & ctorMask) == ctorMask && // ".ctor", ".cctor" or "Finalize"
+                (funcName == W(".ctor") || funcName == W(".cctor")))
             {
                 constrTokens.emplace_back(methodDef);
             }
