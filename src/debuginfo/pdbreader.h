@@ -6,6 +6,7 @@
 #define DEBUGINFO_PDBREADER_H
 
 #include "debuginfo/pdb.h"
+#include "utils/utf.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -65,10 +66,18 @@ class PDBReader
         }
     };
 
+    struct LocalConstant
+    {
+        WSTRING name;                   // constant name in UTF-16 encoding
+        std::vector<uint8_t> signature; // constant signature blob from PDB
+    };
+
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
     static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
     static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
                                     std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap);
+    static HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                     std::vector<LocalConstant> &localConsts);
 
 };
 

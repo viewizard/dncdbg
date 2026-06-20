@@ -284,4 +284,105 @@ HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_s
     return S_OK;
 }
 
+HRESULT PDBReader::GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                     std::vector<LocalConstant> &localConsts)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    localConsts.clear();
+
+    // Create cursor to the LocalScope table
+    mdcursor_t lscopeCursor{};
+    uint32_t lscopeCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_LocalScope, &lscopeCursor, &lscopeCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all local scopes
+    for (uint32_t i = 0; i < lscopeCount; ++i)
+    {
+        // Get the Method column to check if this scope belongs to our method
+        mdToken scopeMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(lscopeCursor, mdtLocalScope_Method, &scopeMethodToken))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Check if this scope belongs to the requested method
+        if (scopeMethodToken != methodToken)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Get StartOffset and Length to check IL offset range
+        uint32_t startOffset = 0;
+        uint32_t length = 0;
+        if (!md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_StartOffset, &startOffset) ||
+            !md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_Length, &length))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        const uint32_t endOffset = startOffset + length;
+
+        // Check if IL offset is within this scope [startOffset, endOffset)
+        if (ilOffset < startOffset || ilOffset >= endOffset)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Get the ConstantList range for this scope
+        mdcursor_t constCursor{};
+        uint32_t constCount = 0;
+        if (!md_get_column_value_as_range(lscopeCursor, mdtLocalScope_ConstantList, &constCursor, &constCount))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Iterate through all local constants in this scope
+        for (uint32_t j = 0; j < constCount; ++j)
+        {
+            // Get the constant name
+            char const *namePtr = nullptr;
+            if (!md_get_column_value_as_utf8(constCursor, mdtLocalConstant_Name, &namePtr))
+            {
+                md_cursor_move(&constCursor, 1);
+                continue;
+            }
+
+            // Get the signature blob
+            uint8_t const *sigBlob = nullptr;
+            uint32_t sigLen = 0;
+            if (!md_get_column_value_as_blob(constCursor, mdtLocalConstant_Signature, &sigBlob, &sigLen))
+            {
+                md_cursor_move(&constCursor, 1);
+                continue;
+            }
+
+            if (namePtr != nullptr && sigBlob != nullptr && sigLen > 0)
+            {
+                LocalConstant localConst;
+                localConst.name = to_utf16(namePtr);
+                localConst.signature.assign(sigBlob, sigBlob + sigLen);
+                localConsts.push_back(std::move(localConst));
+            }
+
+            md_cursor_move(&constCursor, 1);
+        }
+
+        md_cursor_move(&lscopeCursor, 1);
+    }
+
+    return S_OK;
+}
+
 } // namespace dncdbg
