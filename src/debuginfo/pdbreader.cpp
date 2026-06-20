@@ -5,9 +5,31 @@
 #include "debuginfo/pdbreader.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
+#include <cstddef>
+#include <memory>
 
 namespace dncdbg
 {
+
+namespace
+{
+
+// RAII wrapper for properly aligned md_sequence_points_t buffer.
+// md_sequence_points_t contains int64_t and mdcursor_t (intptr_t) members,
+// which require 8-byte alignment. On Linux arm32, misaligned 64-bit access
+// can cause SIGBUS. Using aligned operator new guarantees correct alignment
+// regardless of platform, unlike std::vector<uint8_t> which only guarantees
+// alignment for uint8_t (1 byte).
+struct SeqPointsDeleter
+{
+    void operator()(md_sequence_points_t *p) const noexcept
+    {
+        ::operator delete(p, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+    }
+};
+using SeqPointsPtr = std::unique_ptr<md_sequence_points_t, SeqPointsDeleter>;
+
+} // unnamed namespace
 
 HRESULT PDBReader::OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder)
 {
@@ -172,10 +194,12 @@ HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_s
             continue;
         }
 
-        // Allocate buffer and parse sequence points
-        std::vector<uint8_t> buffer(bufferLen, 0);
-        auto *seqPoints = reinterpret_cast<md_sequence_points_t *>(buffer.data());
-        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
+        // Allocate properly aligned buffer and parse sequence points
+        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
+        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
+        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
         if (result != mdbpr_Success)
         {
             md_cursor_move(&mdiCursor, 1);
