@@ -385,4 +385,105 @@ HRESULT PDBReader::GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodTok
     return S_OK;
 }
 
+HRESULT PDBReader::GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                        uint32_t localVarIndex, WSTRING &localVarName)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Create cursor to the LocalScope table
+    mdcursor_t lscopeCursor{};
+    uint32_t lscopeCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_LocalScope, &lscopeCursor, &lscopeCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all local scopes
+    for (uint32_t i = 0; i < lscopeCount; ++i)
+    {
+        // Get the Method column to check if this scope belongs to our method
+        mdToken scopeMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(lscopeCursor, mdtLocalScope_Method, &scopeMethodToken))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Check if this scope belongs to the requested method
+        if (scopeMethodToken != methodToken)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Get StartOffset and Length to check IL offset range
+        uint32_t startOffset = 0;
+        uint32_t length = 0;
+        if (!md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_StartOffset, &startOffset) ||
+            !md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_Length, &length))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        const uint32_t endOffset = startOffset + length;
+
+        // Check if IL offset is within this scope [startOffset, endOffset)
+        if (ilOffset < startOffset || ilOffset >= endOffset)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Get the VariableList range for this scope
+        mdcursor_t varCursor{};
+        uint32_t varCount = 0;
+        if (!md_get_column_value_as_range(lscopeCursor, mdtLocalScope_VariableList, &varCursor, &varCount))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Iterate through all local variables in this scope
+        for (uint32_t j = 0; j < varCount; ++j)
+        {
+            // Check local variable index
+            uint32_t index = 0;
+            if (!md_get_column_value_as_constant(varCursor, mdtLocalVariable_Index, &index) ||
+                index != localVarIndex)
+            {
+                md_cursor_move(&varCursor, 1);
+                continue;
+            }
+
+            // Check local variable attributes
+            uint32_t attributes = 0;
+            static constexpr uint32_t debuggerHidden = 0x0001;
+            if (!md_get_column_value_as_constant(varCursor, mdtLocalVariable_Attributes, &attributes) ||
+                (attributes & debuggerHidden) == debuggerHidden)
+            {
+                return E_FAIL;
+            }
+
+            // Get the variable name
+            char const *namePtr = nullptr;
+            if (!md_get_column_value_as_utf8(varCursor, mdtLocalVariable_Name, &namePtr) ||
+                namePtr == nullptr)
+            {
+                return E_FAIL;
+            }
+
+            localVarName = to_utf16(namePtr);
+            return S_OK;
+        }
+
+        md_cursor_move(&lscopeCursor, 1);
+    }
+
+    return E_FAIL;
+}
+
 } // namespace dncdbg

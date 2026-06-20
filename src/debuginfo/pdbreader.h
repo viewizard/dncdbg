@@ -78,6 +78,8 @@ class PDBReader
                                     std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap);
     static HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                      std::vector<LocalConstant> &localConsts);
+    static HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                        uint32_t localVarIndex, WSTRING &localVarName);
 
 };
 
