@@ -14,6 +14,32 @@ namespace dncdbg
 namespace
 {
 
+// GUID is taken from Roslyn source code:
+// https://github.com/dotnet/roslyn/blob/afd10305a37c0ffb2cfb2c2d8446154c68cfa87a/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L14
+// {6DA9A61E-F8C7-4874-BE62-68BC5630DF71}
+constexpr std::array<uint8_t, 16> guidStateMachineHoistedLocalScopes{
+    0x1e, 0xa6, 0xa9, 0x6d,                        // Data1 (0x6DA9A61E)
+    0xc7, 0xf8,                                    // Data2 (0xF8C7)
+    0x74, 0x48,                                    // Data3 (0x4874)
+    0xbe, 0x62, 0x68, 0xbc, 0x56, 0x30, 0xdf, 0x71 // Data4 (BE62-68BC5630DF71)
+};
+
+// Constants for parsing StateMachineHoistedLocalScopes blob
+constexpr uint32_t int32Size = 4;
+constexpr uint32_t hoistedLocalEntrySize = 8; // 2 int32 values: startOffset + length
+constexpr uint32_t bitShift8 = 8;
+constexpr uint32_t bitShift16 = 16;
+constexpr uint32_t bitShift24 = 24;
+
+// Read little-endian uint32 from blob at given offset
+uint32_t ReadLittleEndianUInt32(const uint8_t *blob, uint32_t offset)
+{
+    return static_cast<uint32_t>(blob[offset]) |
+           (static_cast<uint32_t>(blob[offset + 1]) << bitShift8) |
+           (static_cast<uint32_t>(blob[offset + 2]) << bitShift16) |
+           (static_cast<uint32_t>(blob[offset + 3]) << bitShift24);
+}
+
 // RAII wrapper for properly aligned md_sequence_points_t buffer.
 // md_sequence_points_t contains int64_t and mdcursor_t (intptr_t) members,
 // which require 8-byte alignment. On Linux arm32, misaligned 64-bit access
@@ -484,6 +510,83 @@ HRESULT PDBReader::GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef method
     }
 
     return E_FAIL;
+}
+
+bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex)
+{
+    if (pdbHandle == nullptr)
+    {
+        return false;
+    }
+
+    // Create cursor to the CustomDebugInformation table
+    mdcursor_t cdiCursor;
+    uint32_t cdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
+    {
+        return false;
+    }
+
+    // Iterate through all custom debug information
+    for (uint32_t i = 0; i < cdiCount; ++i)
+    {
+        // Get the Method column to check if this information belongs to our method
+        mdToken cdiMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &cdiMethodToken) ||
+            cdiMethodToken != methodToken)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Get the GUID column to check if this information belongs to hoisted locals
+        mdguid_t guid;
+        if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
+            std::memcmp(&guid, guidStateMachineHoistedLocalScopes.data(), sizeof(mdguid_t)) != 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+        // Get the hoisted locals blob
+        uint8_t const *hlBlob = nullptr;
+        uint32_t hlBlobSize = 0;
+        if (!md_get_column_value_as_blob(cdiCursor, mdtCustomDebugInformation_Value, &hlBlob, &hlBlobSize) ||
+            hlBlobSize == 0)
+        {
+            break;
+        }
+
+        // Parse the hoisted locals blob
+        // Format: sequence of (int32 startOffset, int32 length) pairs, no count prefix
+        const uint32_t count = hlBlobSize / hoistedLocalEntrySize;
+
+        for (uint32_t slotIndex = 0; slotIndex < count; ++slotIndex)
+        {
+            const uint32_t offset = slotIndex * hoistedLocalEntrySize;
+            if (offset + hoistedLocalEntrySize > hlBlobSize)
+            {
+                break;
+            }
+
+            // Note: While stored as int32 in PDB, startOffset and length are always non-negative
+            const uint32_t startOffset = ReadLittleEndianUInt32(hlBlob, offset);
+            const uint32_t length = ReadLittleEndianUInt32(hlBlob, offset + int32Size);
+
+            if (slotIndex != hoistedLocalIndex)
+            {
+                continue;
+            }
+
+            const uint32_t endOffset = startOffset + length;
+
+            // Check if IL offset is within this scope [startOffset, endOffset)
+            return ilOffset >= startOffset && ilOffset < endOffset;
+        }
+
+        break;
+    }
+
+    return false;
 }
 
 } // namespace dncdbg

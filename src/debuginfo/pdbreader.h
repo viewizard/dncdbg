@@ -80,6 +80,7 @@ class PDBReader
                                      std::vector<LocalConstant> &localConsts);
     static HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                         uint32_t localVarIndex, WSTRING &localVarName);
+    static bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex);
 
 };
 
