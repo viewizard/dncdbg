@@ -6,6 +6,7 @@
 #include <dnmd.h>
 #include <dnmd_pdb.h>
 #include <cstddef>
+#include <cstring>
 #include <memory>
 
 namespace dncdbg
