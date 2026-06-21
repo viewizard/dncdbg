@@ -696,6 +696,8 @@ HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef 
         // Parse await info blocks: each entry has yield/resume offsets (8 bytes) + compressed RID
         static constexpr uint32_t awaitEntryFixedSize = int32Size * 2; // yieldOffset + resumeOffset
 
+        awaitInfos.reserve(asyncBlobSize / (awaitEntryFixedSize + 1));
+
         while (asyncBlobSize > awaitEntryFixedSize) // Need fixed part (8 bytes) + at least 1 byte for compressed RID
         {
             const uint32_t yieldOffset = ReadLittleEndianUInt32(asyncBlob, 0);
