@@ -91,7 +91,7 @@ class PDBReader
         int32_t endLine{0};
         int32_t endColumn{0};
         uint32_t ilOffset{0};
-        uint32_t sourceFileRid{0}; // Same RID as returned by GetAllSourceFiles() in srcMethodsMap key
+        uint32_t sourceFileIndex{0}; // Same index as returned by GetAllSourceFiles() in srcMethodsMap key
     };
 
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);

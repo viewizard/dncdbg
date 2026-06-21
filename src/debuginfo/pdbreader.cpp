@@ -736,7 +736,7 @@ HRESULT PDBReader::GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef 
     sequencePoint.endLine = 0;
     sequencePoint.endColumn = 0;
     sequencePoint.ilOffset = 0;
-    sequencePoint.sourceFileRid = 0;
+    sequencePoint.sourceFileIndex = 0;
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -836,7 +836,7 @@ HRESULT PDBReader::GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef 
         sequencePoint.endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
                                                        record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
         sequencePoint.ilOffset = recordIlOffset;
-        sequencePoint.sourceFileRid = docIndex;
+        sequencePoint.sourceFileIndex = docIndex;
         found = true;
     }
 
