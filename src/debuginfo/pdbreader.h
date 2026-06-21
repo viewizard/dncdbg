@@ -72,6 +72,18 @@ class PDBReader
         std::vector<uint8_t> signature; // constant signature blob from PDB
     };
 
+    struct AsyncAwaitInfoBlock
+    {
+        uint32_t yieldOffset{0};  // IL offset where execution yields
+        uint32_t resumeOffset{0}; // IL offset where execution resumes
+
+        AsyncAwaitInfoBlock(uint32_t yield, uint32_t resume)
+            : yieldOffset(yield),
+              resumeOffset(resume)
+        {
+        }
+    };
+
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
     static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
     static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
@@ -81,6 +93,8 @@ class PDBReader
     static HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                         uint32_t localVarIndex, WSTRING &localVarName);
     static bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex);
+    static HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
+                                              std::vector<AsyncAwaitInfoBlock> &awaitInfos);
 
 };
 

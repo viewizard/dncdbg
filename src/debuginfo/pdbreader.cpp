@@ -14,7 +14,7 @@ namespace dncdbg
 namespace
 {
 
-// GUID is taken from Roslyn source code:
+// GUIDs are taken from Roslyn source code:
 // https://github.com/dotnet/roslyn/blob/afd10305a37c0ffb2cfb2c2d8446154c68cfa87a/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L14
 // {6DA9A61E-F8C7-4874-BE62-68BC5630DF71}
 constexpr std::array<uint8_t, 16> guidStateMachineHoistedLocalScopes{
@@ -22,6 +22,13 @@ constexpr std::array<uint8_t, 16> guidStateMachineHoistedLocalScopes{
     0xc7, 0xf8,                                    // Data2 (0xF8C7)
     0x74, 0x48,                                    // Data3 (0x4874)
     0xbe, 0x62, 0x68, 0xbc, 0x56, 0x30, 0xdf, 0x71 // Data4 (BE62-68BC5630DF71)
+};
+// {54FD2AC5-E925-401A-9C2A-F94F171072F8}
+constexpr std::array<uint8_t, 16> asyncMethodSteppingInformation{
+    0xc5, 0x2a, 0xfd, 0x54,                        // Data1 (0x54FD2AC5)
+    0x25, 0xe9,                                    // Data2 (0xE925)
+    0x1a, 0x40,                                    // Data3 (0x401A)
+    0x9c, 0x2a, 0xf9, 0x4f, 0x17, 0x10, 0x72, 0xf8 // Data4 (9C2A-F94F171072F8)
 };
 
 // Constants for parsing StateMachineHoistedLocalScopes blob
@@ -31,6 +38,13 @@ constexpr uint32_t bitShift8 = 8;
 constexpr uint32_t bitShift16 = 16;
 constexpr uint32_t bitShift24 = 24;
 
+// Constants for compressed integer parsing (ECMA-335 II.23.2 Blobs and sigs)
+constexpr uint8_t compressedIntOneByteMask = 0x80;      // Top bit unset: 1-byte encoding
+constexpr uint8_t compressedIntTwoBytePattern = 0x80;   // Top 2 bits: 10 = 2-byte encoding
+constexpr uint8_t compressedIntFourBytePattern = 0xC0;  // Top 3 bits: 110 = 4-byte encoding
+constexpr uint8_t compressedIntTwoByteMask = 0xC0;      // Mask for checking 2-byte pattern
+constexpr uint8_t compressedIntFourByteMask = 0xE0;     // Mask for checking 4-byte pattern
+
 // Read little-endian uint32 from blob at given offset
 uint32_t ReadLittleEndianUInt32(const uint8_t *blob, uint32_t offset)
 {
@@ -38,6 +52,39 @@ uint32_t ReadLittleEndianUInt32(const uint8_t *blob, uint32_t offset)
            (static_cast<uint32_t>(blob[offset + 1]) << bitShift8) |
            (static_cast<uint32_t>(blob[offset + 2]) << bitShift16) |
            (static_cast<uint32_t>(blob[offset + 3]) << bitShift24);
+}
+
+// Returns the size in bytes of a compressed integer at the given offset, or 0 on error.
+// Note: This function only returns the byte count and does not decode the actual value.
+uint32_t SkipCompressedInteger(const uint8_t *blob, uint32_t offset)
+{
+    if (blob == nullptr)
+    {
+        return 0;
+    }
+
+    const uint8_t firstByte = blob[offset];
+
+    // Top bit unset: 1-byte encoding (values 0x00-0x7F)
+    if ((firstByte & compressedIntOneByteMask) == 0)
+    {
+        return 1;
+    }
+
+    // Top 2 bits are 10: 2-byte encoding (values 0x80-0x3FFF)
+    if ((firstByte & compressedIntTwoByteMask) == compressedIntTwoBytePattern)
+    {
+        return 2;
+    }
+
+    // Top 3 bits are 110: 4-byte encoding (values 0x4000-0x1FFFFFFF)
+    if ((firstByte & compressedIntFourByteMask) == compressedIntFourBytePattern)
+    {
+        return 4;
+    }
+
+    // Invalid encoding (top 3 bits are 111)
+    return 0;
 }
 
 // RAII wrapper for properly aligned md_sequence_points_t buffer.
@@ -530,7 +577,7 @@ bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodTo
     // Iterate through all custom debug information
     for (uint32_t i = 0; i < cdiCount; ++i)
     {
-        // Get the Method column to check if this information belongs to our method
+        // Get the Parent column to check if this information belongs to our method
         mdToken cdiMethodToken = mdTokenNil;
         if (!md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &cdiMethodToken) ||
             cdiMethodToken != methodToken)
@@ -539,7 +586,7 @@ bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodTo
             continue;
         }
 
-        // Get the GUID column to check if this information belongs to hoisted locals
+        // Get the Kind column to check if this information belongs to hoisted locals
         mdguid_t guid;
         if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
             std::memcmp(&guid, guidStateMachineHoistedLocalScopes.data(), sizeof(mdguid_t)) != 0)
@@ -547,6 +594,7 @@ bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodTo
             md_cursor_move(&cdiCursor, 1);
             continue;
         }
+
         // Get the hoisted locals blob
         uint8_t const *hlBlob = nullptr;
         uint32_t hlBlobSize = 0;
@@ -587,6 +635,89 @@ bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodTo
     }
 
     return false;
+}
+
+HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
+                                              std::vector<AsyncAwaitInfoBlock> &awaitInfos)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    catchHandlerOffset = 0;
+    awaitInfos.clear();
+
+    // Create cursor to the CustomDebugInformation table
+    mdcursor_t cdiCursor;
+    uint32_t cdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all custom debug information
+    for (uint32_t i = 0; i < cdiCount; ++i)
+    {
+        // Get the Parent column to check if this information belongs to our method
+        mdToken cdiMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &cdiMethodToken) ||
+            cdiMethodToken != methodToken)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Get the Kind column to check if this is async method stepping information
+        mdguid_t guid;
+        if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
+            std::memcmp(&guid, asyncMethodSteppingInformation.data(), sizeof(mdguid_t)) != 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Get the async method stepping blob
+        // Format: catchHandlerOffset (4 bytes) followed by sequence of:
+        //   yieldOffset (4 bytes) + resumeOffset (4 bytes) + kickoffMethodRid (compressed integer)
+        uint8_t const *asyncBlob = nullptr;
+        uint32_t asyncBlobSize = 0;
+        if (!md_get_column_value_as_blob(cdiCursor, mdtCustomDebugInformation_Value, &asyncBlob, &asyncBlobSize) ||
+            asyncBlobSize < int32Size)
+        {
+            return E_FAIL;
+        }
+
+        // Read catch handler offset (first 4 bytes)
+        catchHandlerOffset = ReadLittleEndianUInt32(asyncBlob, 0);
+        asyncBlob += int32Size;
+        asyncBlobSize -= int32Size;
+
+        // Parse await info blocks: each entry has yield/resume offsets (8 bytes) + compressed RID
+        static constexpr uint32_t awaitEntryFixedSize = int32Size * 2; // yieldOffset + resumeOffset
+
+        while (asyncBlobSize > awaitEntryFixedSize) // Need fixed part (8 bytes) + at least 1 byte for compressed RID
+        {
+            const uint32_t yieldOffset = ReadLittleEndianUInt32(asyncBlob, 0);
+            const uint32_t resumeOffset = ReadLittleEndianUInt32(asyncBlob, int32Size);
+
+            // Skip the kickoff method MethodDef RID (compressed integer)
+            const uint32_t ridSize = SkipCompressedInteger(asyncBlob, awaitEntryFixedSize);
+            if (ridSize == 0 || asyncBlobSize < awaitEntryFixedSize + ridSize)
+            {
+                return E_FAIL;
+            }
+
+            asyncBlob += awaitEntryFixedSize + ridSize;
+            asyncBlobSize -= awaitEntryFixedSize + ridSize;
+
+            awaitInfos.emplace_back(yieldOffset, resumeOffset);
+        }
+
+        break;
+    }
+
+    return S_OK;
 }
 
 } // namespace dncdbg
