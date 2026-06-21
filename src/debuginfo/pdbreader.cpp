@@ -717,7 +717,7 @@ HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef 
         break;
     }
 
-    return S_OK;
+    return awaitInfos.empty() ? E_FAIL : S_OK;
 }
 
 } // namespace dncdbg
