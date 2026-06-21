@@ -722,4 +722,124 @@ HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef 
     return awaitInfos.empty() ? E_FAIL : S_OK;
 }
 
+HRESULT PDBReader::GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                              SequencePoint &sequencePoint)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    sequencePoint.startLine = 0;
+    sequencePoint.startColumn = 0;
+    sequencePoint.endLine = 0;
+    sequencePoint.endColumn = 0;
+    sequencePoint.ilOffset = 0;
+    sequencePoint.sourceFileRid = 0;
+
+    // Create cursor to the MethodDebugInformation table
+    mdcursor_t mdiCursor{};
+    uint32_t mdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
+    {
+        return E_FAIL;
+    }
+
+    const uint32_t methodIndex = RidFromToken(methodToken) - 1;
+    if (methodIndex >= mdiCount)
+    {
+        return E_FAIL;
+    }
+
+    // Move cursor for requested method
+    if (methodIndex != 0)
+    {
+        md_cursor_move(&mdiCursor, static_cast<int32_t>(methodIndex));
+    }
+
+    // Get the SequencePoints blob
+    uint8_t const *seqPointsBlob = nullptr;
+    uint32_t blobLen = 0;
+    if (!md_get_column_value_as_blob(mdiCursor, mdtMethodDebugInformation_SequencePoints, &seqPointsBlob, &blobLen))
+    {
+        return E_FAIL;
+    }
+
+    if (seqPointsBlob == nullptr || blobLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // First, query the required buffer size
+    size_t bufferLen = 0;
+    md_blob_parse_result_t result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, nullptr, &bufferLen);
+    if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // Allocate properly aligned buffer and parse sequence points
+    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
+    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
+    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    if (result != mdbpr_Success)
+    {
+        return E_FAIL;
+    }
+
+    // Document token and index in sourceFiles vector returned by GetAllSourceFiles() method
+    mdToken docToken{};
+    uint32_t docIndex = 0;
+
+    if (!md_cursor_to_token(seqPoints->document, &docToken))
+    {
+        // Document might be null for methods without source
+        return E_FAIL;
+    }
+    docIndex = RidFromToken(docToken) - 1;
+    bool found = false;
+
+    for (uint32_t j = 0; j < seqPoints->record_count; ++j)
+    {
+        const auto &record = seqPoints->records[j];
+
+        if (record.kind == md_sequence_points_t::record_t::mdsp_DocumentRecord)
+        {
+            if (!md_cursor_to_token(record.document.document, &docToken)) // NOLINT(cppcoreguidelines-pro-type-union-access)
+            {
+                continue;
+            }
+            docIndex = RidFromToken(docToken) - 1;
+
+            continue;
+        }
+
+        if (record.kind != md_sequence_points_t::record_t::mdsp_SequencePointRecord)
+        {
+            continue;
+        }
+
+        const uint32_t recordIlOffset = record.sequence_point.rolling_il_offset; // NOLINT(cppcoreguidelines-pro-type-union-access)
+
+        if (recordIlOffset > ilOffset)
+        {
+            break;
+        }
+
+        sequencePoint.startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
+        sequencePoint.startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
+        sequencePoint.endLine = static_cast<int32_t>(record.sequence_point.rolling_start_line + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                     static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
+        sequencePoint.endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                       record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
+        sequencePoint.ilOffset = recordIlOffset;
+        sequencePoint.sourceFileRid = docIndex;
+        found = true;
+    }
+
+    return found ? S_OK : E_FAIL;
+}
+
 } // namespace dncdbg

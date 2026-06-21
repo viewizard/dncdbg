@@ -84,6 +84,16 @@ class PDBReader
         }
     };
 
+    struct SequencePoint
+    {
+        int32_t startLine{0};
+        int32_t startColumn{0};
+        int32_t endLine{0};
+        int32_t endColumn{0};
+        uint32_t ilOffset{0};
+        uint32_t sourceFileRid{0}; // Same RID as returned by GetAllSourceFiles() in srcMethodsMap key
+    };
+
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
     static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
     static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
@@ -95,6 +105,8 @@ class PDBReader
     static bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex);
     static HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
                                               std::vector<AsyncAwaitInfoBlock> &awaitInfos);
+    static HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                              SequencePoint &sequencePoint);
 
 };
 
