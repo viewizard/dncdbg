@@ -931,10 +931,97 @@ HRESULT PDBReader::GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef met
     return CORDBG_E_CODE_NOT_AVAILABLE;
 }
 
-HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t /*pdbHandle*/, mdMethodDef /*methodToken*/, uint32_t /*ilOffset*/,
-                                            uint32_t &/*ilRangeStartOffset*/, uint32_t &/*ilRangeEndOffset*/)
+HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                            uint32_t &ilStartOffset, uint32_t &ilEndOffset)
 {
-    return S_OK;
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    ilStartOffset = 0;
+    ilEndOffset = 0;
+
+    // Create cursor to the MethodDebugInformation table
+    mdcursor_t mdiCursor{};
+    uint32_t mdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
+    {
+        return E_FAIL;
+    }
+
+    const uint32_t methodIndex = RidFromToken(methodToken) - 1;
+    if (methodIndex >= mdiCount)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Move cursor for requested method
+    if (methodIndex != 0)
+    {
+        md_cursor_move(&mdiCursor, static_cast<int32_t>(methodIndex));
+    }
+
+    // Get the SequencePoints blob
+    uint8_t const *seqPointsBlob = nullptr;
+    uint32_t blobLen = 0;
+    if (!md_get_column_value_as_blob(mdiCursor, mdtMethodDebugInformation_SequencePoints, &seqPointsBlob, &blobLen))
+    {
+        return E_FAIL;
+    }
+
+    if (seqPointsBlob == nullptr || blobLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // First, query the required buffer size
+    size_t bufferLen = 0;
+    md_blob_parse_result_t result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, nullptr, &bufferLen);
+    if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // Allocate properly aligned buffer and parse sequence points
+    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
+    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
+    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    if (result != mdbpr_Success)
+    {
+        return E_FAIL;
+    }
+
+    bool found = false;
+    for (uint32_t j = 0; j < seqPoints->record_count; ++j)
+    {
+        const auto &record = seqPoints->records[j];
+
+        if (record.kind != md_sequence_points_t::record_t::mdsp_SequencePointRecord)
+        {
+            continue;
+        }
+
+        const uint32_t recordIlOffset = record.sequence_point.rolling_il_offset; // NOLINT(cppcoreguidelines-pro-type-union-access)
+
+        if (recordIlOffset <= ilOffset)
+        {
+            ilStartOffset = recordIlOffset;
+            // If returning [recordIlOffset, recordIlOffset] (last sequence point in method), caller should calculate end offset by IL code size
+            ilEndOffset = recordIlOffset;
+            found = true;
+            continue;
+        }
+
+        // Could return [0, recordIlOffset] range; this is OK
+        ilEndOffset = recordIlOffset;
+        found = true;
+        break;
+    }
+
+    return found ? S_OK : E_FAIL;
 }
 
 } // namespace dncdbg

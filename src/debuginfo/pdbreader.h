@@ -109,7 +109,7 @@ class PDBReader
                                               SequencePoint &sequencePoint);
     static HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
     static HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                            uint32_t &ilRangeStartOffset, uint32_t &ilRangeEndOffset);
+                                            uint32_t &ilStartOffset, uint32_t &ilEndOffset);
 
 };
 
