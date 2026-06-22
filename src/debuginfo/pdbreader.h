@@ -107,6 +107,7 @@ class PDBReader
                                               std::vector<AsyncAwaitInfoBlock> &awaitInfos);
     static HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                               SequencePoint &sequencePoint);
+    static HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
 
 };
 
