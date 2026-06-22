@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/pdbreader.h"
+#include "utils/utftoupper.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
 #include <cstddef>
@@ -203,6 +204,10 @@ HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::stri
         {
             docName.pop_back();
         }
+
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+        docName = to_uppercase(docName);
+#endif
 
         sourceFiles.push_back(std::move(docName));
         md_cursor_move(&docCursor, 1);
@@ -924,6 +929,12 @@ HRESULT PDBReader::GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef met
 
     // No user code found after ilOffset
     return CORDBG_E_CODE_NOT_AVAILABLE;
+}
+
+HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t /*pdbHandle*/, mdMethodDef /*methodToken*/, uint32_t /*ilOffset*/,
+                                            uint32_t &/*ilRangeStartOffset*/, uint32_t &/*ilRangeEndOffset*/)
+{
+    return S_OK;
 }
 
 } // namespace dncdbg
