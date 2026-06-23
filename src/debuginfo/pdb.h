@@ -15,8 +15,9 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
-#include <dnmd.h>
 #include <cstdint>
+#include <dnmd.h>
+#include <vector>
 
 namespace dncdbg
 {
