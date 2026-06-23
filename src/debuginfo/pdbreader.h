@@ -21,20 +21,20 @@ class PDBReader
 
     struct MethodRange
     {
-        mdMethodDef methodDef{mdMethodDefNil};
+        mdMethodDef methodToken{mdMethodDefNil};
         int32_t startLine{0};   // first segment/method SequencePoint's startLine
         int32_t endLine{0};     // last segment/method SequencePoint's endLine
         int32_t startColumn{0}; // first segment/method SequencePoint's startColumn
         int32_t endColumn{0};   // last segment/method SequencePoint's endColumn
         bool isCtor{false};     // whether method data is constructor-related
 
-        MethodRange(mdMethodDef methodDef_,
+        MethodRange(mdMethodDef methodToken_,
                    int32_t startLine_,
                    int32_t endLine_,
                    int32_t startColumn_,
                    int32_t endColumn_,
                    bool isCtor_)
-            : methodDef(methodDef_),
+            : methodToken(methodToken_),
               startLine(startLine_),
               endLine(endLine_),
               startColumn(startColumn_),
@@ -55,7 +55,7 @@ class PDBReader
 
         bool operator==(const MethodRange &other) const
         {
-            return methodDef == other.methodDef && startLine == other.startLine && endLine == other.endLine &&
+            return methodToken == other.methodToken && startLine == other.startLine && endLine == other.endLine &&
                 startColumn == other.startColumn && endColumn == other.endColumn;
         }
 
