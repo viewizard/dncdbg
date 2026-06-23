@@ -84,7 +84,7 @@ struct MemoryDebugDirectory
 
 } // unnamed namespace
 
-HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PdbIdentity &pdbId, std::string &pathPdb)
+HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb)
 {
     HRESULT Status = S_OK;
     BOOL isInMemory = FALSE;

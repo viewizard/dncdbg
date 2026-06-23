@@ -10,7 +10,7 @@
 #include <cstring>
 #include <memory>
 
-namespace dncdbg
+namespace dncdbg::PDBReader
 {
 
 namespace
@@ -106,7 +106,7 @@ using SeqPointsPtr = std::unique_ptr<md_sequence_points_t, SeqPointsDeleter>;
 
 } // unnamed namespace
 
-HRESULT PDBReader::OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder)
+HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, PDBHolder &pdbHolder)
 {
     MemoryBuffer mBuff;
     if (!mBuff.Open(pdbPath))
@@ -120,8 +120,8 @@ HRESULT PDBReader::OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId,
         return E_FAIL;
     }
 
-    std::array<uint8_t, g_pdbid_size> rawPdbId{};
-    size_t size = g_pdbid_size;
+    std::array<uint8_t, PDB::IDSize> rawPdbId{};
+    size_t size = PDB::IDSize;
     if (!md_get_pdb_id(handle, &size, rawPdbId.data()))
     {
         md_destroy_handle(handle);
@@ -144,7 +144,7 @@ HRESULT PDBReader::OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId,
     return S_OK;
 }
 
-HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles)
+HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles)
 {
     if (pdbHandle == nullptr)
     {
@@ -216,8 +216,8 @@ HRESULT PDBReader::GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::stri
     return S_OK;
 }
 
-HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
-                                    std::unordered_map<uint32_t, std::vector<MethodRange>> &srcMethodsMap)
+HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
+                         std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> &srcMethodsMap)
 {
     if (pdbHandle == nullptr)
     {
@@ -363,8 +363,8 @@ HRESULT PDBReader::GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_s
     return S_OK;
 }
 
-HRESULT PDBReader::GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                     std::vector<LocalConstant> &localConsts)
+HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                          std::vector<PDB::LocalConstant> &localConsts)
 {
     if (pdbHandle == nullptr)
     {
@@ -449,7 +449,7 @@ HRESULT PDBReader::GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodTok
 
             if (namePtr != nullptr && sigBlob != nullptr && sigLen > 0)
             {
-                LocalConstant localConst;
+                PDB::LocalConstant localConst;
                 localConst.name = to_utf16(namePtr);
                 localConst.signature.assign(sigBlob, sigBlob + sigLen);
                 localConsts.push_back(std::move(localConst));
@@ -464,8 +464,8 @@ HRESULT PDBReader::GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodTok
     return S_OK;
 }
 
-HRESULT PDBReader::GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                        uint32_t localVarIndex, WSTRING &localVarName)
+HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                             uint32_t localVarIndex, WSTRING &localVarName)
 {
     if (pdbHandle == nullptr)
     {
@@ -565,7 +565,7 @@ HRESULT PDBReader::GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef method
     return E_FAIL;
 }
 
-bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex)
+bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex)
 {
     if (pdbHandle == nullptr)
     {
@@ -643,8 +643,8 @@ bool PDBReader::IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodTo
     return false;
 }
 
-HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
-                                              std::vector<AsyncAwaitInfoBlock> &awaitInfos)
+HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
+                                   std::vector<PDB::AsyncAwaitInfoBlock> &awaitInfos)
 {
     if (pdbHandle == nullptr)
     {
@@ -728,8 +728,8 @@ HRESULT PDBReader::GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef 
     return awaitInfos.empty() ? E_FAIL : S_OK;
 }
 
-HRESULT PDBReader::GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              SequencePoint &sequencePoint)
+HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                   PDB::SequencePoint &sequencePoint)
 {
     if (pdbHandle == nullptr)
     {
@@ -848,7 +848,7 @@ HRESULT PDBReader::GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef 
     return found ? S_OK : E_FAIL;
 }
 
-HRESULT PDBReader::GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset)
+HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset)
 {
     if (pdbHandle == nullptr)
     {
@@ -931,8 +931,8 @@ HRESULT PDBReader::GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef met
     return CORDBG_E_CODE_NOT_AVAILABLE;
 }
 
-HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                            uint32_t &ilStartOffset, uint32_t &ilEndOffset)
+HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                                 uint32_t &ilStartOffset, uint32_t &ilEndOffset)
 {
     if (pdbHandle == nullptr)
     {
@@ -1024,8 +1024,8 @@ HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef me
     return found ? S_OK : E_FAIL;
 }
 
-HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
-                                      uint32_t sourceFileIndex, int32_t sourceLine, std::vector<ResolvedBreakpoint> &resolvedBreakpoints)
+HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
+                           uint32_t sourceFileIndex, int32_t sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints)
 {
     if (pdbHandle == nullptr || methodTokens.empty())
     {
@@ -1041,7 +1041,7 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
         Last
     };
 
-    auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, SequencePoint &nearestSP) -> HRESULT
+    auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, PDB::SequencePoint &nearestSP) -> HRESULT
     {
         // Create cursor to the MethodDebugInformation table
         mdcursor_t mdiCursor{};
@@ -1148,8 +1148,8 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
             const auto endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
                                                         record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
 
-            // Note, in case of constructors, we must care about source too, since we may have situation when
-            // field/property have same line in another source.
+            // Note: in case of constructors, we must care about source too, since we may have a situation when
+            // a field/property has the same line in another source.
             if (sourceFileIndex != docIndex ||
                 endLine < sourceLine)
             {
@@ -1190,7 +1190,7 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
 
     for (const auto &token : methodTokens)
     {
-        SequencePoint currentSP;
+        PDB::SequencePoint currentSP;
         if (FAILED(SequencePointForSourceLine(Position::First, token, currentSP)))
         {
             continue;
@@ -1208,8 +1208,8 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
             //     });
             // nestedMethodToken here is the anonymous async func, and having a breakpoint at the 1st line should
             // break on the outer call.
-            SequencePoint nestedStartSP;
-            SequencePoint nestedEndSP;
+            PDB::SequencePoint nestedStartSP;
+            PDB::SequencePoint nestedEndSP;
             if (FAILED(SequencePointForSourceLine(Position::First, nestedMethodToken, nestedStartSP)) || 
                 FAILED(SequencePointForSourceLine(Position::Last, nestedMethodToken, nestedEndSP)))
             {
@@ -1222,13 +1222,13 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
                 break;
             }
 
-            // Note: sequence points can't partially overlap each other, since the same lemmas can't belong to 2 different sequence points for sure.
+            // Note: sequence points can't partially overlap each other, since the same lexemes can't belong to 2 different sequence points.
             // In this case, we can check not the "line" (start line - end line data) but only the "point" (end line data) for
             // the current method sequence point and the first nested method sequence point.
             if (currentSP.endLine > nestedStartSP.endLine || (currentSP.endLine == nestedStartSP.endLine && currentSP.endColumn > nestedStartSP.endColumn))
             {
                 resolvedBreakpoints.emplace_back(nestedMethodToken, nestedStartSP.startLine, nestedStartSP.endLine, nestedStartSP.ilOffset);
-                // (methodTokens.size() > 1) can have only lines that are added to multiple constructors. In this case, we will have the same for all methodTokens.
+                // When methodTokens.size() > 1, we can have lines added to multiple constructors. In this case, the result will be the same for all methodTokens.
                 // We need unique tokens only for breakpoints, to prevent adding nestedMethodToken multiple times.
                 break;
             }
@@ -1239,7 +1239,7 @@ HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<md
         resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.endLine, currentSP.ilOffset);
     }
 
-    return resolvedBreakpoints.empty() ? E_FAIL: S_OK;
+    return resolvedBreakpoints.empty() ? E_FAIL : S_OK;
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::PDBReader
