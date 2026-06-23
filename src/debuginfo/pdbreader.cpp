@@ -1024,4 +1024,222 @@ HRESULT PDBReader::GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef me
     return found ? S_OK : E_FAIL;
 }
 
+HRESULT PDBReader::ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
+                                      uint32_t sourceFileIndex, int32_t sourceLine, std::vector<ResolvedBreakpoint> &resolvedBreakpoints)
+{
+    if (pdbHandle == nullptr || methodTokens.empty())
+    {
+        return E_INVALIDARG;
+    }
+
+    resolvedBreakpoints.clear();
+    resolvedBreakpoints.reserve(methodTokens.size());
+
+    enum class Position : uint8_t
+    {
+        First,
+        Last
+    };
+
+    auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, SequencePoint &nearestSP) -> HRESULT
+    {
+        // Create cursor to the MethodDebugInformation table
+        mdcursor_t mdiCursor{};
+        uint32_t mdiCount = 0;
+        if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
+        {
+            return E_FAIL;
+        }
+
+        const uint32_t methodIndex = RidFromToken(methodToken) - 1;
+        if (methodIndex >= mdiCount)
+        {
+            return E_INVALIDARG;
+        }
+
+        // Move cursor for requested method
+        if (methodIndex != 0)
+        {
+            md_cursor_move(&mdiCursor, static_cast<int32_t>(methodIndex));
+        }
+
+        // Get the SequencePoints blob
+        uint8_t const *seqPointsBlob = nullptr;
+        uint32_t blobLen = 0;
+        if (!md_get_column_value_as_blob(mdiCursor, mdtMethodDebugInformation_SequencePoints, &seqPointsBlob, &blobLen))
+        {
+            return E_FAIL;
+        }
+
+        if (seqPointsBlob == nullptr || blobLen == 0)
+        {
+            return E_FAIL;
+        }
+
+        // First, query the required buffer size
+        size_t bufferLen = 0;
+        md_blob_parse_result_t result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, nullptr, &bufferLen);
+        if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+        {
+            return E_FAIL;
+        }
+
+        // Allocate properly aligned buffer and parse sequence points
+        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
+        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
+        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+        if (result != mdbpr_Success)
+        {
+            return E_FAIL;
+        }
+
+        // Document token and index in sourceFiles vector returned by GetAllSourceFiles() method
+        mdToken docToken{};
+        uint32_t docIndex = 0;
+
+        if (!md_cursor_to_token(seqPoints->document, &docToken))
+        {
+            // Document might be null for methods without source
+            return E_FAIL;
+        }
+        docIndex = RidFromToken(docToken) - 1;
+
+        // In case nestedMethodToken + sourceLine is part of a constructor (tokenNum > 1), we could have cases:
+        // 1. type FieldName1 = new Type();
+        //    void MethodName() {}; type FieldName2 = new Type(); ...  <-- sourceLine
+        // 2. type FieldName1 = new Type(); void MethodName() {}; ...  <-- sourceLine
+        //    type FieldName2 = new Type();
+        // In the first case, we need to set up a breakpoint in nestedMethodToken's method (MethodName in examples above),
+        // in the second case - ignore it.
+
+        // In case nestedMethodToken + sourceLine is in a normal method, we could have cases:
+        // 1. ... line without code ...                                <-- sourceLine
+        //    void MethodName { ...
+        // 2. ... line with code ... void MethodName { ...             <-- sourceLine
+        // We need to check if nestedMethodToken's method code is closer to sourceLine than code from methodToken's method.
+        // If sourceLine is closer to nestedMethodToken's method code - set up a breakpoint in nestedMethodToken's method.
+
+        bool found = false;
+
+        for (uint32_t j = 0; j < seqPoints->record_count; ++j)
+        {
+            const auto &record = seqPoints->records[j];
+
+            if (record.kind == md_sequence_points_t::record_t::mdsp_DocumentRecord)
+            {
+                if (!md_cursor_to_token(record.document.document, &docToken)) // NOLINT(cppcoreguidelines-pro-type-union-access)
+                {
+                    continue;
+                }
+                docIndex = RidFromToken(docToken) - 1;
+
+                continue;
+            }
+
+            if (record.kind != md_sequence_points_t::record_t::mdsp_SequencePointRecord)
+            {
+                continue;
+            }
+
+            const auto endLine = static_cast<int32_t>(record.sequence_point.rolling_start_line + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                      static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            const auto endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                        record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
+
+            // Note, in case of constructors, we must care about source too, since we may have situation when
+            // field/property have same line in another source.
+            if (sourceFileIndex != docIndex ||
+                endLine < sourceLine)
+            {
+                continue;
+            }
+
+            if (!found)
+            {
+                found = true;
+            }
+            else if (endLine != nearestSP.endLine)
+            {
+                if ((reqPos != Position::First || endLine >= nearestSP.endLine) &&
+                    (reqPos != Position::Last || endLine <= nearestSP.endLine))
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                if ((reqPos != Position::First || endColumn >= nearestSP.endColumn) &&
+                    (reqPos != Position::Last || endColumn <= nearestSP.endColumn))
+                {
+                    continue;
+                }
+            }
+
+            nearestSP.startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            nearestSP.startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            nearestSP.endLine = endLine;
+            nearestSP.endColumn = endColumn;
+            nearestSP.ilOffset = record.sequence_point.rolling_il_offset; // NOLINT(cppcoreguidelines-pro-type-union-access)
+            nearestSP.sourceFileIndex = docIndex;
+        }
+
+        return S_OK;
+    };
+
+    for (const auto &token : methodTokens)
+    {
+        SequencePoint currentSP;
+        if (FAILED(SequencePointForSourceLine(Position::First, token, currentSP)))
+        {
+            continue;
+        }
+
+        // Note: we don't check whether currentSP was found or not, since we know for sure that sourceLine can be resolved in the method.
+        // Same idea for the nested SequencePoint below: if we have nestedMethodToken - it will be resolved for sure.
+
+        if (nestedMethodToken != 0 && nestedMethodToken != mdMethodDefNil)
+        {
+            // Check if nestedMethodToken is within range of currentSP. Example -
+            //     await Parallel.ForEachAsync(userHandlers, parallelOptions, async (uri, token) =>   <- breakpoint at this line
+            //     {
+            //        await new HttpClient().GetAsync("https://google.com");
+            //     });
+            // nestedMethodToken here is the anonymous async func, and having a breakpoint at the 1st line should
+            // break on the outer call.
+            SequencePoint nestedStartSP;
+            SequencePoint nestedEndSP;
+            if (FAILED(SequencePointForSourceLine(Position::First, nestedMethodToken, nestedStartSP)) || 
+                FAILED(SequencePointForSourceLine(Position::Last, nestedMethodToken, nestedEndSP)))
+            {
+                continue;
+            }
+            if ((nestedStartSP.startLine > currentSP.startLine || (nestedStartSP.startLine == currentSP.startLine && nestedStartSP.startColumn > currentSP.startColumn)) &&
+                (nestedEndSP.endLine < currentSP.endLine || (nestedEndSP.endLine == currentSP.endLine && nestedEndSP.endColumn < currentSP.endColumn)))
+            {
+                resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.endLine, currentSP.ilOffset);
+                break;
+            }
+
+            // Note: sequence points can't partially overlap each other, since the same lemmas can't belong to 2 different sequence points for sure.
+            // In this case, we can check not the "line" (start line - end line data) but only the "point" (end line data) for
+            // the current method sequence point and the first nested method sequence point.
+            if (currentSP.endLine > nestedStartSP.endLine || (currentSP.endLine == nestedStartSP.endLine && currentSP.endColumn > nestedStartSP.endColumn))
+            {
+                resolvedBreakpoints.emplace_back(nestedMethodToken, nestedStartSP.startLine, nestedStartSP.endLine, nestedStartSP.ilOffset);
+                // (methodTokens.size() > 1) can have only lines that are added to multiple constructors. In this case, we will have the same for all methodTokens.
+                // We need unique tokens only for breakpoints, to prevent adding nestedMethodToken multiple times.
+                break;
+            }
+        }
+
+        nestedMethodToken = 0; // Don't check nested block in the next cycle (will have the same results).
+
+        resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.endLine, currentSP.ilOffset);
+    }
+
+    return resolvedBreakpoints.empty() ? E_FAIL: S_OK;
+}
+
 } // namespace dncdbg

@@ -94,6 +94,22 @@ class PDBReader
         uint32_t sourceFileIndex{0}; // Same index as returned by GetAllSourceFiles() in sourceFiles
     };
 
+    struct ResolvedBreakpoint
+    {
+        mdMethodDef methodToken{mdMethodDefNil};
+        int32_t startLine{0};
+        int32_t endLine{0};
+        uint32_t ilOffset{0};
+
+        ResolvedBreakpoint(mdMethodDef method, int32_t start, int32_t end, uint32_t offset)
+            : methodToken(method),
+              startLine(start),
+              endLine(end),
+              ilOffset(offset)
+        {
+        }
+    };
+
     static HRESULT OpenPDB(const std::string &pdbPath, const PdbIdentity &pdbId, PDBHolder &pdbHolder);
     static HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles);
     static HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
@@ -110,7 +126,8 @@ class PDBReader
     static HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
     static HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                             uint32_t &ilStartOffset, uint32_t &ilEndOffset);
-
+    static HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
+                                      uint32_t sourceFileIndex, int32_t sourceLine, std::vector<ResolvedBreakpoint> &resolvedBreakpoints);
 };
 
 } // namespace dncdbg
