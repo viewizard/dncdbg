@@ -106,13 +106,8 @@ class DebugInfoSources
         }
     };
 
-    HRESULT ResolveBreakpoint(
-        /*in*/ DebugInfo *pDebugInfo,
-        /*in*/ CORDB_ADDRESS modAddress,
-        /*in*/ const std::string &filename,
-        /*out*/ unsigned &fullname_index,
-        /*in*/ int sourceLine,
-        /*out*/ std::vector<resolved_bp_t> &resolvedPoints);
+    HRESULT ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine,
+                              unsigned &fullname_index, std::vector<resolved_bp_t> &resolvedPoints);
 
     HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, void *pSymbolReaderHandle);
     HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
@@ -123,21 +118,21 @@ class DebugInfoSources
     struct FileMethodsData
     {
         CORDB_ADDRESS modAddress = 0;
-        // properly ordered on each nested level arrays of methods data
+        // properly ordered arrays of method data on each nested level
         std::vector<std::vector<Interop::method_data_t>> methodsData;
     };
 
-    // Note, breakpoints setup and ran debuggee's process could be in the same time.
+    // Note, breakpoints setup and running debuggee's process could happen at the same time.
     std::mutex m_sourcesInfoMutex;
-    // Note, we only add to m_sourceIndexToPath/m_sourcePathToIndex/m_sourceIndexToInitialFullPath, "size()" used as
-    // index in map at new element add. m_sourceIndexToPath - mapping index to full path
+    // Note, we only add to m_sourceIndexToPath/m_sourcePathToIndex/m_sourceIndexToInitialFullPath, "size()" is used as
+    // the index in the map when a new element is added. m_sourceIndexToPath - mapping index to full path
     std::vector<std::string> m_sourceIndexToPath;
     // m_sourcePathToIndex - mapping full path to index
     std::unordered_map<std::string, unsigned> m_sourcePathToIndex;
     // m_sourceNameToFullPathsIndexes - mapping file name to set of paths with this file name
     std::unordered_map<std::string, std::set<unsigned>> m_sourceNameToFullPathsIndexes;
-    // m_sourcesMethodsData - all methods data indexed by full path, second vector hold data with same full path for different modules,
-    //                        since we may have modules with same source full path
+    // m_sourcesMethodsData - all method data indexed by full path, the second vector holds data with the same full path for different modules,
+    //                        since we may have modules with the same source full path
     std::vector<std::vector<FileMethodsData>> m_sourcesMethodsData;
 
     HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);

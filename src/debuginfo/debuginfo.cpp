@@ -554,15 +554,14 @@ HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethod
         });
 }
 
-HRESULT DebugInfo::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
+HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress,
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-                                   /*in*/ const std::string &filename_,
+                                     const std::string &filename_,
 #else
-                                   /*in*/ const std::string &filename,
+                                     const std::string &filename,
 #endif
-                                   /*out*/ unsigned &fullname_index,
-                                   /*in*/ int sourceLine,
-                                   /*out*/ std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
+                                     int sourceLine, unsigned &fullname_index,
+                                     std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     const std::string filename = to_uppercase(filename_);
@@ -570,7 +569,7 @@ HRESULT DebugInfo::ResolveBreakpoint(/*in*/ CORDB_ADDRESS modAddress,
 
     // Note, in all code we use m_debugInfoMutex > m_sourcesInfoMutex lock sequence.
     const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
-    return m_debugInfoSources.ResolveBreakpoint(this, modAddress, filename, fullname_index, sourceLine, resolvedPoints);
+    return m_debugInfoSources.ResolveBreakpoint(this, modAddress, filename, sourceLine, fullname_index, resolvedPoints);
 }
 
 HRESULT DebugInfo::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)

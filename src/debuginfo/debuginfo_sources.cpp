@@ -542,12 +542,8 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
     return E_FAIL;
 }
 
-HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
-                                            /*in*/ CORDB_ADDRESS modAddress,
-                                            /*in*/ const std::string &filename,
-                                            /*out*/ unsigned &fullname_index,
-                                            /*in*/ int sourceLine,
-                                            /*out*/ std::vector<resolved_bp_t> &resolvedPoints)
+HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine,
+                                            unsigned &fullname_index, std::vector<resolved_bp_t> &resolvedPoints)
 {
     const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
@@ -600,8 +596,8 @@ HRESULT DebugInfoSources::ResolveBreakpoint(/*in*/ DebugInfo *pDebugInfo,
         {
             continue;
         }
-        // correctedStartLine - in case line doesn't belong to any methods, if possible, will be "moved" to first line of
-        // method below sourceLine.
+        // correctedStartLine - in case the line doesn't belong to any method, if possible, will be "moved" to the first line of
+        // the method below sourceLine.
         if (Tokens.size() > static_cast<size_t>(std::numeric_limits<int32_t>::max()))
         {
             LOGE(log << "Too big token arrays.");
