@@ -21,8 +21,6 @@ namespace dncdbg
 {
 
 constexpr uint8_t g_pdbid_size = 20;
-constexpr uint8_t g_guid_size = 16;
-constexpr uint8_t g_stamp_size = 4;
 // PDB ID = GUID (16 bytes) + date/time stamp (4 bytes)
 using PdbIdentity = std::array<uint8_t, g_pdbid_size>;
 

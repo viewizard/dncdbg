@@ -20,6 +20,8 @@ namespace dncdbg
 namespace
 {
 
+constexpr uint8_t g_stamp_size = 4;
+constexpr uint8_t g_guid_size = 16;
 constexpr uint16_t g_dos_e_magic = 0x5A4D;
 constexpr uint32_t g_ntsig_magic = 0x00004550;
 constexpr uint16_t g_opt_header32_magic = 0x10B;
