@@ -79,7 +79,6 @@ struct method_data_t_hash
 };
 
 class DebugInfo;
-struct PDBInfo;
 
 class DebugInfoSources
 {
