@@ -560,7 +560,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress,
 #else
                                      const std::string &filename,
 #endif
-                                     int sourceLine, unsigned &fullname_index,
+                                     int sourceLine, uint32_t &fullname_index,
                                      std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
@@ -572,12 +572,12 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress,
     return m_debugInfoSources.ResolveBreakpoint(this, modAddress, filename, sourceLine, fullname_index, resolvedPoints);
 }
 
-HRESULT DebugInfo::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
+HRESULT DebugInfo::GetSourceFullPathByIndex(uint32_t index, std::string &fullPath)
 {
     return m_debugInfoSources.GetSourceFullPathByIndex(index, fullPath);
 }
 
-HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
+HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index)
 {
     return m_debugInfoSources.GetIndexBySourceFullPath(fullPath, index);
 }

@@ -24,7 +24,7 @@ namespace
 // [in,out] bp - breakpoint data for resolve
 HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, const SourceBreakpoints::ManagedSourceBreakpoint &bp,
                                 const std::string &bp_fullname, std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints,
-                                unsigned &bp_fullname_index)
+                                uint32_t &bp_fullname_index)
 {
     if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
     {
@@ -142,7 +142,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     ManagedSequencePoint sp;
     IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
 
-    unsigned filenameIndex = 0;
+    uint32_t filenameIndex = 0;
     IfFailRet(m_sharedDebugInfo->GetIndexBySourceFullPath(sp.sourceFile, filenameIndex));
 
     auto breakpoints = m_sourceResolvedBreakpoints.find(filenameIndex);
@@ -272,7 +272,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
-            unsigned resolved_fullname_index = 0;
+            uint32_t resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
             if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialBreakpoints.first,
@@ -503,7 +503,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
-            unsigned resolved_fullname_index = 0;
+            uint32_t resolved_fullname_index = 0;
             std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
 
             if (haveProcess &&

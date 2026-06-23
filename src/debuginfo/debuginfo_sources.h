@@ -29,10 +29,10 @@ using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule 
 
 struct file_data_t
 {
-    unsigned fullPathIndex{0};
+    uint32_t fullPathIndex{0};
     std::vector<Interop::method_data_t> methodsData;
 
-    file_data_t(unsigned fullPathIndex_, std::vector<Interop::method_data_t> &&methodsData_) noexcept
+    file_data_t(uint32_t fullPathIndex_, std::vector<Interop::method_data_t> &&methodsData_) noexcept
         : fullPathIndex(fullPathIndex_),
           methodsData(std::move(methodsData_))
     {
@@ -107,11 +107,11 @@ class DebugInfoSources
     };
 
     HRESULT ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine,
-                              unsigned &fullname_index, std::vector<resolved_bp_t> &resolvedPoints);
+                              uint32_t &fullname_index, std::vector<resolved_bp_t> &resolvedPoints);
 
     HRESULT FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport, void *pSymbolReaderHandle);
-    HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
-    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
+    HRESULT GetSourceFullPathByIndex(uint32_t index, std::string &fullPath);
+    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index);
 
   private:
 
@@ -122,20 +122,20 @@ class DebugInfoSources
         std::vector<std::vector<Interop::method_data_t>> methodsData;
     };
 
-    // Note, breakpoints setup and running debuggee's process could happen at the same time.
+    // Note, breakpoints setup and running the debuggee process could happen at the same time.
     std::mutex m_sourcesInfoMutex;
     // Note, we only add to m_sourceIndexToPath/m_sourcePathToIndex/m_sourceIndexToInitialFullPath, "size()" is used as
     // the index in the map when a new element is added. m_sourceIndexToPath - mapping index to full path
     std::vector<std::string> m_sourceIndexToPath;
     // m_sourcePathToIndex - mapping full path to index
-    std::unordered_map<std::string, unsigned> m_sourcePathToIndex;
+    std::unordered_map<std::string, uint32_t> m_sourcePathToIndex;
     // m_sourceNameToFullPathsIndexes - mapping file name to set of paths with this file name
-    std::unordered_map<std::string, std::set<unsigned>> m_sourceNameToFullPathsIndexes;
+    std::unordered_map<std::string, std::set<uint32_t>> m_sourceNameToFullPathsIndexes;
     // m_sourcesMethodsData - all method data indexed by full path, the second vector holds data with the same full path for different modules,
     //                        since we may have modules with the same source full path
     std::vector<std::vector<FileMethodsData>> m_sourcesMethodsData;
 
-    HRESULT GetFullPathIndex(BSTR document, unsigned &fullPathIndex);
+    HRESULT GetFullPathIndex(BSTR document, uint32_t &fullPathIndex);
     HRESULT ResolveRelativeSourceFileName(std::string &filename);
     HRESULT GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle, std::vector<file_data_t> &inputData);
 

@@ -110,7 +110,7 @@ class SourceBreakpoints
     {
         SourceBreakpoint breakpoint{0, ""};
         uint32_t id{0};
-        unsigned resolved_fullname_index{0};
+        uint32_t resolved_fullname_index{0};
         int resolved_linenum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
         ManagedSourceBreakpointMapping() = default;
@@ -124,14 +124,14 @@ class SourceBreakpoints
 
     std::mutex m_breakpointsMutex;
     // Resolved line breakpoints:
-    // Mapped in order to fast search with mapping data (see container below):
+    // Mapped for fast search with mapping data (see container below):
     // resolved source full path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
-    std::unordered_map<unsigned, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_sourceResolvedBreakpoints;
+    std::unordered_map<uint32_t, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_sourceResolvedBreakpoints;
     // Mapping for input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
-    // Note, instead of FunctionBreakpoint for resolved breakpoint we could have changed source path and/or line number.
-    // In this way we could connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.
-    // Container have structure for fast compare current breakpoints data with new breakpoints data from protocol:
-    // path to source -> list of ManagedSourceBreakpointMapping that include SourceBreakpoint (from protocol) and resolve related data.
+    // Note, unlike FunctionBreakpoint, for a resolved breakpoint we could have changed source path and/or line number.
+    // In this way we can connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.
+    // Container has structure for fast comparison of current breakpoints data with new breakpoints data from protocol:
+    // path to source -> list of ManagedSourceBreakpointMapping that includes SourceBreakpoint (from protocol) and resolve related data.
     std::unordered_map<std::string, std::list<ManagedSourceBreakpointMapping>> m_sourceBreakpointMapping;
 
 };

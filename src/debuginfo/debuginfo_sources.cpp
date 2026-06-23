@@ -23,7 +23,7 @@ namespace dncdbg
 namespace
 {
 
-// Note, we use std::map since we need container that will not invalidate iterators on add new elements.
+// Note, we use std::map since we need a container that will not invalidate iterators on adding new elements.
 void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>> &methodData,
                    const Interop::method_data_t &entry, const size_t level)
 {
@@ -118,7 +118,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
         auto lower = std::lower_bound(it->cbegin(), it->cend(), lineNum);
         if (lower == it->cend())
         {
-            break; // point behind last method for this nested level
+            break; // point after last method for this nested level
         }
 
         // case with first line of method, for example:
@@ -126,7 +126,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
         //            void Method(){ void Method(){...  <- breakpoint at this line
         if (lineNum == lower->startLine)
         {
-            // At this point we can't check this case, let managed part decide (since it see Columns):
+            // At this point we can't check this case, let managed part decide (since it sees Columns):
             // void Method() {
             // ... code ...; void Method() {     <- breakpoint at this line
             //  };
@@ -322,7 +322,7 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
 
     while (curMethodsData != endMethodsData)
     {
-        unsigned fullPathIndex = 0;
+        uint32_t fullPathIndex = 0;
         if (curMethodsData->document == nullptr ||
             curMethodsData->methodsData == nullptr ||
             FAILED(GetFullPathIndex(curMethodsData->document, fullPathIndex)))
@@ -345,8 +345,8 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
     return S_OK;
 }
 
-// Caller must care about m_sourcesInfoMutex.
-HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathIndex)
+// Caller must hold m_sourcesInfoMutex.
+HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, uint32_t &fullPathIndex)
 {
     const std::string initialFullPath = to_utf8(document);
     std::string fullPath = SourceFileMap::Path(initialFullPath);
@@ -356,7 +356,7 @@ HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, unsigned &fullPathInde
     auto findPathIndex = m_sourcePathToIndex.find(fullPath);
     if (findPathIndex == m_sourcePathToIndex.end())
     {
-        fullPathIndex = static_cast<unsigned>(m_sourceIndexToPath.size());
+        fullPathIndex = static_cast<uint32_t>(m_sourceIndexToPath.size());
         m_sourcePathToIndex.emplace(fullPath, fullPathIndex);
         m_sourceIndexToPath.emplace_back(fullPath);
         m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
@@ -440,7 +440,7 @@ HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule
 
 HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
 {
-    // IMPORTANT! Caller should care about m_sourcesInfoMutex.
+    // IMPORTANT! Caller must hold m_sourcesInfoMutex.
     auto findIndexesByFileName = m_sourceNameToFullPathsIndexes.find(GetFileName(filename));
     if (findIndexesByFileName == m_sourceNameToFullPathsIndexes.end())
     {
@@ -450,7 +450,7 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
     auto const &possiblePathsIndexes = findIndexesByFileName->second;
     std::string result = filename;
 
-    // Care about all "./" and "../" first.
+    // Handle all "./" and "../" first.
     std::list<std::string> pathDirs;
     std::size_t i = 0;
     while ((i = result.find_first_of("/\\")) != std::string::npos)
@@ -475,13 +475,13 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
         result.insert(0, dir + '/');
     }
 
-    // The problem is - we could have several assemblies that could have same source file name with different path's
-    // root. We don't really have a lot of options here, so, we assume, that all possible sources paths have same root
-    // and just find the shortest.
+    // The problem is that we could have several assemblies that could have the same source file name with different
+    // path roots. We don't really have a lot of options here, so we assume that all possible source paths have the
+    // same root and just find the shortest.
     if (result == GetFileName(result))
     {
         auto it = std::min_element(possiblePathsIndexes.begin(), possiblePathsIndexes.end(),
-            [&](const unsigned a, const unsigned b)
+            [&](const uint32_t a, const uint32_t b)
             {
                 return m_sourceIndexToPath.at(a).size() < m_sourceIndexToPath.at(b).size();
             });
@@ -523,9 +523,9 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
             possibleResults.push_back(path);
         }
     }
-    // The problem is - we could have several assemblies that could have sources with same relative paths with different
-    // path's root. We don't really have a lot of options here, so, we assume, that all possible sources paths have same
-    // root and just find the shortest.
+    // The problem is that we could have several assemblies that could have sources with the same relative paths with
+    // different path roots. We don't really have a lot of options here, so we assume that all possible source paths
+    // have the same root and just find the shortest.
     if (!possibleResults.empty())
     {
         filename = possibleResults.front();
@@ -543,7 +543,7 @@ HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
 }
 
 HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine,
-                                            unsigned &fullname_index, std::vector<resolved_bp_t> &resolvedPoints)
+                                            uint32_t &fullname_index, std::vector<resolved_bp_t> &resolvedPoints)
 {
     const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
@@ -642,7 +642,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS
     return S_OK;
 }
 
-HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &fullPath)
+HRESULT DebugInfoSources::GetSourceFullPathByIndex(uint32_t index, std::string &fullPath)
 {
     const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
 
@@ -656,9 +656,9 @@ HRESULT DebugInfoSources::GetSourceFullPathByIndex(unsigned index, std::string &
 }
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath_, unsigned &index)
+HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath_, uint32_t &index)
 #else
-HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index)
+HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index)
 #endif
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION

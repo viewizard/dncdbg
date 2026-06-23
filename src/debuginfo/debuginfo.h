@@ -60,11 +60,11 @@ class DebugInfo
 {
   public:
 
-    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine, unsigned &fullname_index,
+    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine, uint32_t &fullname_index,
                               std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints);
 
-    HRESULT GetSourceFullPathByIndex(unsigned index, std::string &fullPath);
-    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, unsigned &index);
+    HRESULT GetSourceFullPathByIndex(uint32_t index, std::string &fullPath);
+    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index);
 
     using PDBInfoCallback = std::function<HRESULT(PDBInfo &)>;
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
