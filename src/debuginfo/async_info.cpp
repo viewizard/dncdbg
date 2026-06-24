@@ -31,16 +31,16 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
     asyncMethodSteppingInfo.retCode = m_sharedDebugInfo->GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
             HRESULT Status = S_OK;
             std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
-            IfFailRet(Interop::GetAsyncMethodSteppingInfo(mdInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo,
+            IfFailRet(Interop::GetAsyncMethodSteppingInfo(pdbInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo,
                                                           &asyncMethodSteppingInfo.lastIlOffset));
 
             for (const auto &entry : AsyncAwaitInfo)

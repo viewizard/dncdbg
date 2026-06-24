@@ -68,7 +68,7 @@ class DebugInfo
 
     using PDBInfoCallback = std::function<HRESULT(PDBInfo &)>;
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
-    HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo);
+    HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppPDBInfo);
 
     HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, ManagedSequencePoint &sequencePoint);
 

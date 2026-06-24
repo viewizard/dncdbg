@@ -604,9 +604,9 @@ HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS
             return E_FAIL;
         }
 
-        PDBInfo *pmdInfo = nullptr; // Note, pmdInfo must be covered by m_debugInfoMutex.
-        IfFailRet(pDebugInfo->GetPDBInfo(sourceData.modAddress, &pmdInfo)); // we must have it, since we loaded data from it
-        if (pmdInfo->m_symbolReaderHandle == nullptr)
+        PDBInfo *pPDBInfo = nullptr; // Note, pPDBInfo must be guarded by m_debugInfoMutex.
+        IfFailRet(pDebugInfo->GetPDBInfo(sourceData.modAddress, &pPDBInfo)); // we must have it, since we loaded data from it
+        if (pPDBInfo->m_symbolReaderHandle == nullptr)
         {
             continue;
         }
@@ -615,7 +615,7 @@ HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS
         int32_t resolvedCount = 0;
         const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
 
-        if (FAILED(Interop::ResolveBreakPoints(pmdInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
+        if (FAILED(Interop::ResolveBreakPoints(pPDBInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
                                                correctedStartLine, closestNestedToken, resolvedCount, fullName, &data)) ||
             data == nullptr)
         {
@@ -633,9 +633,9 @@ HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS
 
         for (auto &entry : inputData)
         {
-            pmdInfo->m_trModule->AddRef();
+            pPDBInfo->m_trModule->AddRef();
             resolvedPoints.emplace_back(entry.startLine, entry.endLine, entry.ilOffset,
-                                        entry.methodToken, pmdInfo->m_trModule.GetPtr());
+                                        entry.methodToken, pPDBInfo->m_trModule.GetPtr());
         }
     }
 

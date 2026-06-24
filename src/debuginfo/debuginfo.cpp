@@ -256,8 +256,8 @@ HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &c
     return (info_pair == m_debugInfo.end()) ? E_FAIL : cb(info_pair->second);
 }
 
-// Caller must care about m_debugInfoMutex.
-HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo)
+// Caller must hold m_debugInfoMutex.
+HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppPDBInfo)
 {
     auto info_pair = m_debugInfo.find(modAddress);
     if (info_pair == m_debugInfo.end())
@@ -265,7 +265,7 @@ HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppmdInfo)
         return E_FAIL;
     }
 
-    *ppmdInfo = &info_pair->second;
+    *ppPDBInfo = &info_pair->second;
     return S_OK;
 }
 
@@ -275,8 +275,8 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, c
 
     for (const auto &info_pair : m_debugInfo)
     {
-        const PDBInfo &mdInfo = info_pair.second;
-        ResolveMethodInModule(mdInfo.m_trModule, funcname, cb);
+        const PDBInfo &pdbInfo = info_pair.second;
+        ResolveMethodInModule(pdbInfo.m_trModule, funcname, cb);
     }
 
     return S_OK;
@@ -317,14 +317,14 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
+            return GetSequencePointByILOffset(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
         });
 }
 
@@ -394,14 +394,14 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     uint32_t ilEndOffset = 0;
 
     IfFailRet(GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
+            return Interop::GetStepRangesFromIP(pdbInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
         }));
 
     if (ilStartOffset == ilEndOffset)
@@ -440,9 +440,9 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
-            PDBInfo mdInfo{pSymbolReaderHandle, pModule};
+            PDBInfo pdbInfo{pSymbolReaderHandle, pModule};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-            m_debugInfo.insert(std::make_pair(baseAddress, std::move(mdInfo)));
+            m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }
         else
         {
@@ -470,14 +470,14 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     IfFailRet(GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return Interop::GetNamedLocalVariableAndScope(mdInfo.m_symbolReaderHandle, methodToken, localIndex,
+            return Interop::GetNamedLocalVariableAndScope(pdbInfo.m_symbolReaderHandle, methodToken, localIndex,
                                                           localName, pIlStart, pIlEnd);
         }));
 
@@ -492,14 +492,14 @@ HRESULT DebugInfo::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef m
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return Interop::GetHoistedLocalScopes(mdInfo.m_symbolReaderHandle, methodToken, data, hoistedLocalScopesCount);
+            return Interop::GetHoistedLocalScopes(pdbInfo.m_symbolReaderHandle, methodToken, data, hoistedLocalScopesCount);
         });
 }
 
@@ -511,14 +511,14 @@ HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdM
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return Interop::GetNextUserCodeILOffset(mdInfo.m_symbolReaderHandle, methodToken,
+            return Interop::GetNextUserCodeILOffset(pdbInfo.m_symbolReaderHandle, methodToken,
                                                     ilOffset, ilNextOffset, noUserCodeFound);
         });
 }
@@ -547,14 +547,14 @@ HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethod
                                               ManagedSequencePoint &sequencePoint)
 {
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &mdInfo) -> HRESULT
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (mdInfo.m_symbolReaderHandle == nullptr)
+            if (pdbInfo.m_symbolReaderHandle == nullptr)
             {
                 return E_FAIL;
             }
 
-            return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
+            return GetSequencePointByILOffset(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
         });
 }
 
