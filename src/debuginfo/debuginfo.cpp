@@ -316,14 +316,16 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    return GetPDBInfo(modAddress, [&](PDBInfo &mdInfo) -> HRESULT {
-        if (mdInfo.m_symbolReaderHandle == nullptr)
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
-            return E_FAIL;
-        }
+            if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
+                return E_FAIL;
+            }
 
-        return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
-    });
+            return GetSequencePointByILOffset(mdInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
+        });
 }
 
 HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
@@ -391,14 +393,16 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     uint32_t ilStartOffset = 0;
     uint32_t ilEndOffset = 0;
 
-    IfFailRet(GetPDBInfo(modAddress, [&](PDBInfo &mdInfo) -> HRESULT {
-        if (mdInfo.m_symbolReaderHandle == nullptr)
+    IfFailRet(GetPDBInfo(modAddress,
+        [&](PDBInfo &mdInfo) -> HRESULT
         {
-            return E_FAIL;
-        }
+            if (mdInfo.m_symbolReaderHandle == nullptr)
+            {
+                return E_FAIL;
+            }
 
-        return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
-    }));
+            return Interop::GetStepRangesFromIP(mdInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
+        }));
 
     if (ilStartOffset == ilEndOffset)
     {
@@ -589,45 +593,46 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    return GetPDBInfo(modAddress, [&](PDBInfo &pdbInfo) -> HRESULT
-    {
-        void *data = nullptr;
-        int32_t constantCount = 0;
-        IfFailRet(Interop::GetLocalConstants(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, &data, constantCount));
-        if (constantCount <= 0 || data == nullptr)
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &pdbInfo) -> HRESULT
         {
+            void *data = nullptr;
+            int32_t constantCount = 0;
+            IfFailRet(Interop::GetLocalConstants(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, &data, constantCount));
+            if (constantCount <= 0 || data == nullptr)
+            {
+                return S_OK;
+            }
+
+            auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
+            const Interop::LocalConstantInfo *endLoopPointer = interopConstants + constantCount;
+            constants.reserve(constantCount);
+
+            while (interopConstants != endLoopPointer)
+            {
+                LocalConstantInfo info;
+                const Interop::LocalConstantInfo &inConstant = *interopConstants;
+
+                if (inConstant.name != nullptr)
+                {
+                    info.name = inConstant.name;
+                    Interop::SysFreeString(inConstant.name);
+                }
+                if (inConstant.signature != nullptr && inConstant.signatureSize > 0)
+                {
+                    info.signature.resize(inConstant.signatureSize);
+                    std::memcpy(info.signature.data(), inConstant.signature, inConstant.signatureSize);
+                    Interop::CoTaskMemFree(inConstant.signature);
+                }
+
+                constants.emplace_back(std::move(info));
+                ++interopConstants;
+            }
+
+            Interop::CoTaskMemFree(data);
+
             return S_OK;
-        }
-
-        auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
-        const Interop::LocalConstantInfo *endLoopPointer = interopConstants + constantCount;
-        constants.reserve(constantCount);
-
-        while (interopConstants != endLoopPointer)
-        {
-            LocalConstantInfo info;
-            const Interop::LocalConstantInfo &inConstant = *interopConstants;
-
-            if (inConstant.name != nullptr)
-            {
-                info.name = inConstant.name;
-                Interop::SysFreeString(inConstant.name);
-            }
-            if (inConstant.signature != nullptr && inConstant.signatureSize > 0)
-            {
-                info.signature.resize(inConstant.signatureSize);
-                std::memcpy(info.signature.data(), inConstant.signature, inConstant.signatureSize);
-                Interop::CoTaskMemFree(inConstant.signature);
-            }
-
-            constants.emplace_back(std::move(info));
-            ++interopConstants;
-        }
-
-        Interop::CoTaskMemFree(data);
-
-        return S_OK;
-    });
+        });
 }
 
 } // namespace dncdbg
