@@ -383,7 +383,7 @@ void DAPIO::EmitCapabilitiesEvent()
     EmitEvent("capabilities", body);
 }
 
-// Caller must care about m_outMutex.
+// Caller must hold m_outMutex.
 void DAPIO::EmitMessage(nlohmann::json &message, std::string &output)
 {
     message.emplace("seq", m_seqCounter);
@@ -410,7 +410,7 @@ void DAPIO::EmitEvent(const std::string &name, const nlohmann::json &body)
     EmitMessageWithLog(LOG_EVENT, message);
 }
 
-// Caller must care about m_outMutex.
+// Caller must hold m_outMutex.
 void DAPIO::LogInternal(std::string_view prefix, const std::string &text)
 {
     if (!GetProtocolLog().is_open())

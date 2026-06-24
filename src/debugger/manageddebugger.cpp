@@ -240,7 +240,7 @@ HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &
 
 } // unnamed namespace
 
-// Caller must care about m_debugProcessRWLock.
+// Caller must hold m_debugProcessRWLock.
 HRESULT ManagedDebugger::CheckDebugProcess()
 {
     if (m_trProcess == nullptr)
@@ -282,7 +282,7 @@ void ManagedDebugger::NotifyProcessExited()
     m_processAttachedCV.notify_all();
 }
 
-// Caller must care about m_debugProcessRWLock.
+// Caller must hold m_debugProcessRWLock.
 void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
     m_uniqueSteppers->DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.

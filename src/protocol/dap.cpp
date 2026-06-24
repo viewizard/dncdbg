@@ -852,7 +852,7 @@ void DAP::CommandsWorker()
     m_exit = true;
 }
 
-// Caller must care about m_commandsMutex.
+// Caller must hold m_commandsMutex.
 std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<DAP::CommandQueueEntry>::iterator &iter)
 {
     iter->response.emplace("success", false);

@@ -11,7 +11,7 @@
 namespace dncdbg
 {
 
-// Caller must care about m_asyncMethodSteppingInfoMutex.
+// Caller must hold m_asyncMethodSteppingInfoMutex.
 HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
     // Note, for normal methods, `Interop::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset`
