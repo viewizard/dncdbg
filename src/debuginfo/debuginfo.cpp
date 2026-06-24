@@ -235,14 +235,6 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
 
 } // unnamed namespace
 
-PDBInfo::~PDBInfo() noexcept
-{
-    if (m_symbolReaderHandle != nullptr)
-    {
-        Interop::DisposeSymbols(m_symbolReaderHandle);
-    }
-}
-
 void DebugInfo::Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
@@ -440,7 +432,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
-            PDBInfo pdbInfo{pSymbolReaderHandle, pModule};
+            PDBInfo pdbInfo{pSymbolReaderHandle, nullptr, MemoryBuffer{}, pModule};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
             m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }
@@ -587,7 +579,7 @@ HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, uint32_
 }
 
 HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                     std::vector<LocalConstantInfo> &constants)
+                                     std::vector<PDB::LocalConstant> &constants)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -610,22 +602,22 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
 
             while (interopConstants != endLoopPointer)
             {
-                LocalConstantInfo info;
+                PDB::LocalConstant localConst;
                 const Interop::LocalConstantInfo &inConstant = *interopConstants;
 
                 if (inConstant.name != nullptr)
                 {
-                    info.name = inConstant.name;
+                    localConst.name = inConstant.name;
                     Interop::SysFreeString(inConstant.name);
                 }
                 if (inConstant.signature != nullptr && inConstant.signatureSize > 0)
                 {
-                    info.signature.resize(inConstant.signatureSize);
-                    std::memcpy(info.signature.data(), inConstant.signature, inConstant.signatureSize);
+                    localConst.signature.resize(inConstant.signatureSize);
+                    std::memcpy(localConst.signature.data(), inConstant.signature, inConstant.signatureSize);
                     Interop::CoTaskMemFree(inConstant.signature);
                 }
 
-                constants.emplace_back(std::move(info));
+                constants.emplace_back(std::move(localConst));
                 ++interopConstants;
             }
 

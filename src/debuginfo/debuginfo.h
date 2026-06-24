@@ -26,36 +26,6 @@
 namespace dncdbg
 {
 
-struct LocalConstantInfo
-{
-    WSTRING name;
-    std::vector<uint8_t> signature;
-};
-
-struct PDBInfo
-{
-    void *m_symbolReaderHandle = nullptr;
-    ToRelease<ICorDebugModule> m_trModule;
-
-    PDBInfo(void *Handle,
-            ICorDebugModule *Module)
-        : m_symbolReaderHandle(Handle),
-          m_trModule(Module)
-    {
-    }
-
-    PDBInfo(PDBInfo &&other) noexcept
-        : m_symbolReaderHandle(other.m_symbolReaderHandle),
-          m_trModule(std::move(other.m_trModule))
-    {
-        other.m_symbolReaderHandle = nullptr;
-    }
-    PDBInfo(const PDBInfo &) = delete;
-    PDBInfo &operator=(PDBInfo &&) = delete;
-    PDBInfo &operator=(const PDBInfo &) = delete;
-    ~PDBInfo() noexcept;
-};
-
 class DebugInfo
 {
   public:
@@ -94,7 +64,7 @@ class DebugInfo
                                   int32_t &hoistedLocalScopesCount);
 
     HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                             std::vector<LocalConstantInfo> &constants);
+                             std::vector<PDB::LocalConstant> &constants);
 
     HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                             uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);

@@ -106,41 +106,41 @@ using SeqPointsPtr = std::unique_ptr<md_sequence_points_t, SeqPointsDeleter>;
 
 } // unnamed namespace
 
-HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, PDBHolder &pdbHolder)
+HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBuffer &memBuffer, mdhandle_t &pdbHandle)
 {
-    MemoryBuffer mBuff;
-    if (!mBuff.Open(pdbPath))
+    MemoryBuffer tmpBuff;
+    if (!tmpBuff.Open(pdbPath))
     {
         return E_FAIL;
     }
 
-    mdhandle_t handle = nullptr;
-    if (!md_create_handle(mBuff.Data(), static_cast<uint32_t>(mBuff.Size()), &handle))
+    mdhandle_t tmpHandle = nullptr;
+    if (!md_create_handle(tmpBuff.Data(), static_cast<uint32_t>(tmpBuff.Size()), &tmpHandle))
     {
         return E_FAIL;
     }
 
     std::array<uint8_t, PDB::IDSize> rawPdbId{};
     size_t size = PDB::IDSize;
-    if (!md_get_pdb_id(handle, &size, rawPdbId.data()))
+    if (!md_get_pdb_id(tmpHandle, &size, rawPdbId.data()))
     {
-        md_destroy_handle(handle);
+        md_destroy_handle(tmpHandle);
         return E_FAIL;
     }
 
     if (rawPdbId != pdbId)
     {
-        md_destroy_handle(handle);
+        md_destroy_handle(tmpHandle);
         return E_FAIL;
     }
 
     // Destroy any existing handle before assigning a new one
-    if (pdbHolder.m_handle != nullptr)
+    if (pdbHandle != nullptr)
     {
-        md_destroy_handle(pdbHolder.m_handle);
+        md_destroy_handle(pdbHandle);
     }
-    pdbHolder.m_handle = handle;
-    pdbHolder.m_memBuff = std::move(mBuff);
+    pdbHandle = tmpHandle;
+    memBuffer = std::move(tmpBuff);
     return S_OK;
 }
 

@@ -12,6 +12,7 @@
 #endif
 
 #include "utils/memorybuffer.h"
+#include "managed/interop.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
@@ -122,37 +123,46 @@ using Identity = std::array<uint8_t, IDSize>;
 
 } // namespace PDB
 
-struct PDBHolder
+struct PDBInfo
 {
-    mdhandle_t m_handle = nullptr;
+    void *m_symbolReaderHandle = nullptr;
+    mdhandle_t m_pdbHandle = nullptr;
     MemoryBuffer m_memBuff;
     ToRelease<ICorDebugModule> m_trModule;
 
-    PDBHolder() = default;
-    PDBHolder(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule)
-        : m_handle(handle),
+    PDBInfo() = default;
+    PDBInfo(void *symHandle, mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule)
+        : m_symbolReaderHandle(symHandle),
+          m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
           m_trModule(pModule)
     {
     }
 
-    PDBHolder(PDBHolder &&other) noexcept
-        : m_handle(other.m_handle),
+    PDBInfo(PDBInfo &&other) noexcept
+        : m_symbolReaderHandle(other.m_symbolReaderHandle),
+          m_pdbHandle(other.m_pdbHandle),
           m_memBuff(std::move(other.m_memBuff)),
           m_trModule(std::move(other.m_trModule))
     {
-        other.m_handle = nullptr;
+        other.m_symbolReaderHandle = nullptr;
+        other.m_pdbHandle = nullptr;
     }
 
-    PDBHolder(const PDBHolder &) = delete;
-    PDBHolder &operator=(PDBHolder &&) = delete;
-    PDBHolder &operator=(const PDBHolder &) = delete;
+    PDBInfo(const PDBInfo &) = delete;
+    PDBInfo &operator=(PDBInfo &&) = delete;
+    PDBInfo &operator=(const PDBInfo &) = delete;
 
-    ~PDBHolder()
+    ~PDBInfo()
     {
-        if (m_handle != nullptr)
+        if (m_symbolReaderHandle != nullptr)
         {
-            md_destroy_handle(m_handle);
+            Interop::DisposeSymbols(m_symbolReaderHandle);
+        }
+
+        if (m_pdbHandle != nullptr)
+        {
+            md_destroy_handle(m_pdbHandle);
         }
     }
 };

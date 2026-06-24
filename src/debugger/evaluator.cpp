@@ -1641,7 +1641,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     // Enumerate local constants (literals) from PDB
     {
-        std::vector<LocalConstantInfo> localConstants;
+        std::vector<PDB::LocalConstant> localConstants;
         if (SUCCEEDED(m_sharedDebugInfo->GetLocalConstants(trModule, methodDef, currentIlOffset, localConstants)))
         {
             for (const auto &constant : localConstants)
