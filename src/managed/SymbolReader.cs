@@ -860,33 +860,6 @@ public class SymbolReader
         }
     }
 
-    internal static RetCode GetLocalVariableNameAndScope(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
-                                                         out IntPtr localVarName, out int ilStartOffset, out int ilEndOffset)
-    {
-        localVarName = IntPtr.Zero;
-        ilStartOffset = 0;
-        ilEndOffset = 0;
-
-        using (var resourceTracker = new ResourceTracker())
-        {
-            try
-            {
-                if (!GetLocalVariableAndScopeByIndex(symbolReaderHandle, methodToken, localIndex, out string localVar, out ilStartOffset, out ilEndOffset))
-                    return RetCode.Fail;
-
-                IntPtr allocatedBSTR = resourceTracker.TrackBSTR(Marshal.StringToBSTR(localVar));
-                localVarName = allocatedBSTR;
-
-                resourceTracker.TransferOwnership();
-                return RetCode.OK;
-            }
-            catch
-            {
-                return RetCode.Exception;
-            }
-        }
-    }
-
     internal static bool GetLocalVariableAndScopeByIndex(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
                                                          out string localVarName, out int ilStartOffset, out int ilEndOffset)
     {
@@ -931,38 +904,6 @@ public class SymbolReader
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Returns local variable name for given local index and IL offset.
-    /// </summary>
-    /// <param name="symbolReaderHandle">symbol reader handle returned by LoadSymbolsForModule</param>
-    /// <param name="methodToken">method token</param>
-    /// <param name="localIndex">local variable index</param>
-    /// <param name="localVarName">local variable name return</param>
-    /// <returns>true if name has been found</returns>
-    internal static bool GetLocalVariableName(IntPtr symbolReaderHandle, int methodToken, int localIndex, out IntPtr localVarName)
-    {
-        localVarName = IntPtr.Zero;
-
-        using (var resourceTracker = new ResourceTracker())
-        {
-            try
-            {
-                if (!GetLocalVariableByIndex(symbolReaderHandle, methodToken, localIndex, out string localVar))
-                    return false;
-
-                IntPtr allocatedBSTR = resourceTracker.TrackBSTR(Marshal.StringToBSTR(localVar));
-                localVarName = allocatedBSTR;
-
-                resourceTracker.TransferOwnership();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
     }
 
     /// <summary>

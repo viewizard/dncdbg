@@ -57,8 +57,8 @@ class DebugInfo
 
     void Cleanup();
 
-    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
-                                       WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
+    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                       uint32_t localIndex, WSTRING &localName);
 
     bool IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                uint32_t hoistedLocalIndex);

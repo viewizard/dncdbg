@@ -28,8 +28,8 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     IfFailRet(trStepper->QueryInterface(IID_ICorDebugStepper2, reinterpret_cast<void **>(&trStepper2)));
 
     // Note, we use JMC in runtime all the time (same behaviour as MS vsdbg and MSVS debugger have),
-    // since this is the only way provide good speed for stepping in case "JMC disabled".
-    // But in case "JMC disabled", debugger must care about different logic for exceptions/stepping/breakpoints.
+    // since this is the only way to provide good speed for stepping in case "JMC disabled".
+    // But in case "JMC disabled", debugger must handle different logic for exceptions/stepping/breakpoints.
     IfFailRet(trStepper2->SetJMC(TRUE));
 
     const ThreadId threadId(getThreadId(pThread));

@@ -487,8 +487,8 @@ void DebugInfo::UnloadModuleSymbols(ICorDebugModule *pModule)
     }
 }
 
-HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
-                                              WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
+HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                              uint32_t localIndex, WSTRING &localName)
 {
     HRESULT Status = S_OK;
 
@@ -498,13 +498,7 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
     IfFailRet(GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return Interop::GetNamedLocalVariableAndScope(pdbInfo.m_symbolReaderHandle, methodToken, localIndex,
-                                                          localName, pIlStart, pIlEnd);
+            return PDBReader::GetLocalVariableName(pdbInfo.m_pdbHandle, methodToken, ilOffset, localIndex, localName);
         }));
 
     return S_OK;

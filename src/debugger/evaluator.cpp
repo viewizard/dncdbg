@@ -1560,13 +1560,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     for (uint32_t i = 0; i < cLocals; i++)
     {
         WSTRING wLocalName;
-        int32_t ilStart = 0;
-        int32_t ilEnd = 0;
-        if (FAILED(m_sharedDebugInfo->GetFrameNamedLocalVariable(trModule, methodDef, i, wLocalName, &ilStart, &ilEnd)) ||
-            ilStart < 0 ||
-            ilEnd < 0 ||
-            currentIlOffset < static_cast<uint32_t>(ilStart) ||
-            currentIlOffset >= static_cast<uint32_t>(ilEnd))
+        if (FAILED(m_sharedDebugInfo->GetFrameNamedLocalVariable(trModule, methodDef, currentIlOffset, i, wLocalName)))
         {
             continue;
         }

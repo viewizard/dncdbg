@@ -183,8 +183,6 @@ class Interop
     static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
     static HRESULT GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset,
                                            uint32_t &ilNextOffset, bool *noUserCodeFound);
-    static HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
-                                                 WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
     static HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
     static HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
@@ -219,7 +217,6 @@ class Interop
     using ReadMemoryDelegate = int (*)(const void *, char *, int32_t);
     using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, const void *, int32_t, const void *, int32_t, ReadMemoryDelegate, BSTR *);
     using DisposeDelegate = void (*)(void *);
-    using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
     using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
     using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
     using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
@@ -230,7 +227,6 @@ class Interop
 
     static LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate;
     static DisposeDelegate disposeDelegate;
-    static GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate;
     static GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate;
     static GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate;
     static GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate;

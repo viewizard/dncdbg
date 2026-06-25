@@ -246,7 +246,6 @@ coreclr_shutdown_ptr Interop::shutdownCoreClr = nullptr;
 
 Interop::LoadSymbolsForModuleDelegate Interop::loadSymbolsForModuleDelegate = nullptr;
 Interop::DisposeDelegate Interop::disposeDelegate = nullptr;
-Interop::GetLocalVariableNameAndScopeDelegate Interop::getLocalVariableNameAndScopeDelegate = nullptr;
 Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetDelegate = nullptr;
 Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegate = nullptr;
 Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
@@ -407,7 +406,6 @@ void Interop::Init(const std::string &coreClrPath)
     const bool allDelegatesCreated =
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
@@ -423,7 +421,6 @@ void Interop::Init(const std::string &coreClrPath)
 
     const bool allDelegatesInited = (loadSymbolsForModuleDelegate != nullptr) &&
                                     (disposeDelegate != nullptr) &&
-                                    (getLocalVariableNameAndScopeDelegate != nullptr) &&
                                     (getSequencePointByILOffsetDelegate != nullptr) &&
                                     (getNextUserCodeILOffsetDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
@@ -457,7 +454,6 @@ void Interop::Shutdown()
     shutdownCoreClr = nullptr;
     loadSymbolsForModuleDelegate = nullptr;
     disposeDelegate = nullptr;
-    getLocalVariableNameAndScopeDelegate = nullptr;
     getSequencePointByILOffsetDelegate = nullptr;
     getNextUserCodeILOffsetDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
@@ -504,39 +500,6 @@ HRESULT Interop::GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef 
     }
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT Interop::GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
-                                               WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if ((getLocalVariableNameAndScopeDelegate == nullptr) || (pSymbolReaderHandle == nullptr) ||
-        (pIlStart == nullptr) || (pIlEnd == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    static constexpr int32_t mdNameLen = 2048;
-    BSTR wszLocalName = Interop::SysAllocStringLen(mdNameLen);
-    if (SysStringLen(wszLocalName) == 0)
-    {
-        return E_OUTOFMEMORY;
-    }
-
-    const RetCode retCode = getLocalVariableNameAndScopeDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken), localIndex,
-                                                                 &wszLocalName, pIlStart, pIlEnd);
-    read_lock.unlock();
-
-    if (retCode != RetCode::OK)
-    {
-        Interop::SysFreeString(wszLocalName);
-        return E_FAIL;
-    }
-
-    localName = wszLocalName;
-    Interop::SysFreeString(wszLocalName);
-
-    return S_OK;
 }
 
 HRESULT Interop::GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
