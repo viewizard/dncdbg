@@ -192,7 +192,6 @@ class Interop
                                            uint32_t &ilNextOffset, bool *noUserCodeFound);
     static HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
                                                  WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
-    static HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset);
     static HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
     static HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
@@ -232,7 +231,6 @@ class Interop
     using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
     using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
     using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
-    using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
     using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
     using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
     using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
@@ -245,7 +243,6 @@ class Interop
     static GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate;
     static GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate;
     static GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate;
-    static GetStepRangesFromIPDelegate getStepRangesFromIPDelegate;
     static GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate;
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
     static GetLocalConstantsDelegate getLocalConstantsDelegate;

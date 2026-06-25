@@ -383,7 +383,7 @@ HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uin
     return GetNextUserCodeILOffsetInMethod(trModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
 }
 
-HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE *range)
+HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -405,9 +405,9 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     ToRelease<ICorDebugILFrame> trILFrame;
     IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
-    uint32_t nOffset = 0;
+    uint32_t ilOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(trILFrame->GetIP(&nOffset, &mappingResult));
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
         mappingResult == MAPPING_NO_INFO)
     {
@@ -423,12 +423,7 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     IfFailRet(GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return Interop::GetStepRangesFromIP(pdbInfo.m_symbolReaderHandle, nOffset, methodToken, &ilStartOffset, &ilEndOffset);
+            return PDBReader::GetStepRangeFromILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, ilStartOffset, ilEndOffset);
         }));
 
     if (ilStartOffset == ilEndOffset)
@@ -438,8 +433,8 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
         IfFailRet(trCode->GetSize(&ilEndOffset));
     }
 
-    range->startOffset = ilStartOffset;
-    range->endOffset = ilEndOffset;
+    range.startOffset = ilStartOffset;
+    range.endOffset = ilEndOffset;
 
     return S_OK;
 }

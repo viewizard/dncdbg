@@ -860,69 +860,6 @@ public class SymbolReader
         }
     }
 
-    internal static RetCode GetStepRangesFromIP(IntPtr symbolReaderHandle, uint ip, int methodToken,
-                                                out uint ilStartOffset, out uint ilEndOffset)
-    {
-        Debug.Assert(symbolReaderHandle != IntPtr.Zero);
-        ilStartOffset = 0;
-        ilEndOffset = 0;
-
-        try
-        {
-            if (!TryGetReaderWithValidation(symbolReaderHandle, out MetadataReader reader))
-                return RetCode.Fail;
-
-            var list = new List<SequencePoint>();
-            foreach (SequencePoint p in GetSequencePointCollection(methodToken, reader))
-                list.Add(p);
-
-            var pointsArray = list.ToArray();
-
-            for (int i = 1; i < pointsArray.Length; i++)
-            {
-                SequencePoint p = pointsArray[i];
-
-                if (p.Offset > ip && p.StartLine != 0 && p.StartLine != SequencePoint.HiddenLine)
-                {
-                    ilStartOffset = (uint)pointsArray[0].Offset;
-                    for (int j = i - 1; j > 0; j--)
-                    {
-                        if (pointsArray[j].Offset <= ip)
-                        {
-                            ilStartOffset = (uint)pointsArray[j].Offset;
-                            break;
-                        }
-                    }
-                    ilEndOffset = (uint)p.Offset;
-                    return RetCode.OK;
-                }
-            }
-
-            // let's handle correctly last step range from last sequence point till
-            // end of the method.
-            if (pointsArray.Length > 0)
-            {
-                ilStartOffset = (uint)pointsArray[0].Offset;
-                for (int j = pointsArray.Length - 1; j > 0; j--)
-                {
-                    if (pointsArray[j].Offset <= ip)
-                    {
-                        ilStartOffset = (uint)pointsArray[j].Offset;
-                        break;
-                    }
-                }
-                ilEndOffset = ilStartOffset; // Should set this to IL code size in calling code
-                return RetCode.OK;
-            }
-        }
-        catch
-        {
-            return RetCode.Exception;
-        }
-
-        return RetCode.Fail;
-    }
-
     internal static RetCode GetLocalVariableNameAndScope(IntPtr symbolReaderHandle, int methodToken, uint localIndex,
                                                          out IntPtr localVarName, out int ilStartOffset, out int ilEndOffset)
     {
