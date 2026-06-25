@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -30,25 +31,8 @@ class AsyncInfo
     {
     }
 
-    struct AwaitInfo
-    {
-        uint32_t yield_offset;
-        uint32_t resume_offset;
-
-        AwaitInfo()
-          : yield_offset(0),
-            resume_offset(0)
-        {
-        };
-        AwaitInfo(uint32_t offset1, uint32_t offset2)
-          : yield_offset(offset1),
-            resume_offset(offset2)
-        {
-        };
-    };
-
     bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
-    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, AwaitInfo **awaitInfo);
+    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, PDB::AsyncAwaitInfoBlock &awaitInfo);
     bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset);
 
   private:
@@ -61,7 +45,8 @@ class AsyncInfo
         mdMethodDef methodToken{mdMethodDefNil};
         HRESULT retCode{S_OK};
 
-        std::vector<AwaitInfo> awaits;
+        uint32_t catchHandlerOffset{0};
+        std::vector<PDB::AsyncAwaitInfoBlock> awaits;
         // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
         uint32_t lastIlOffset{0};
     };

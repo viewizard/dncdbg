@@ -253,7 +253,6 @@ Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegat
 Interop::GetStepRangesFromIPDelegate Interop::getStepRangesFromIPDelegate = nullptr;
 Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
-Interop::GetAsyncMethodSteppingInfoDelegate Interop::getAsyncMethodSteppingInfoDelegate = nullptr;
 Interop::GetLocalConstantsDelegate Interop::getLocalConstantsDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
 Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
@@ -418,7 +417,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetAsyncMethodSteppingInfo", reinterpret_cast<void **>(&getAsyncMethodSteppingInfoDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
@@ -438,7 +436,6 @@ void Interop::Init(const std::string &coreClrPath)
                                     (getStepRangesFromIPDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
                                     (resolveBreakPointsDelegate != nullptr) &&
-                                    (getAsyncMethodSteppingInfoDelegate != nullptr) &&
                                     (getLocalConstantsDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
@@ -476,7 +473,6 @@ void Interop::Shutdown()
     getStepRangesFromIPDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
-    getAsyncMethodSteppingInfoDelegate = nullptr;
     getLocalConstantsDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
@@ -609,40 +605,6 @@ HRESULT Interop::ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum,
     const RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
                                                        to_utf16(sourcePath).c_str(), data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT Interop::GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
-                                            std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if ((getAsyncMethodSteppingInfoDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (ilOffset == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    AsyncAwaitInfoBlock *allocatedAsyncInfo = nullptr;
-    int32_t asyncInfoCount = 0;
-
-    const RetCode retCode = getAsyncMethodSteppingInfoDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                               reinterpret_cast<void **>(&allocatedAsyncInfo),
-                                                               &asyncInfoCount, ilOffset);
-    read_lock.unlock();
-
-    if (retCode != RetCode::OK)
-    {
-        return E_FAIL;
-    }
-
-    if (asyncInfoCount == 0)
-    {
-        assert(allocatedAsyncInfo == nullptr);
-        return S_OK;
-    }
-
-    AsyncAwaitInfo.assign(allocatedAsyncInfo, allocatedAsyncInfo + asyncInfoCount);
-
-    Interop::CoTaskMemFree(allocatedAsyncInfo);
-    return S_OK;
 }
 
 HRESULT Interop::GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,

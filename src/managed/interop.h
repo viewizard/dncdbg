@@ -87,13 +87,6 @@ class Interop
         }
     };
 
-    struct AsyncAwaitInfoBlock
-    {
-        uint32_t yield_offset{0};
-        uint32_t resume_offset{0};
-        uint32_t token{0}; // note, this is internal token number, runtime method token for module should be calculated as "mdMethodDefNil + token"
-    };
-
     struct LocalConstantInfo
     {
         BSTR name{nullptr};
@@ -205,8 +198,6 @@ class Interop
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
     static HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
                                       int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data);
-    static HRESULT GetAsyncMethodSteppingInfo(void *pSymbolReaderHandle, mdMethodDef methodToken,
-                                              std::vector<AsyncAwaitInfoBlock> &AsyncAwaitInfo, uint32_t *ilOffset);
     static HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                      void **data, int32_t &constantCount);
     static void *AllocString(const std::string &str);
@@ -246,7 +237,6 @@ class Interop
     using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
     using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
     using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
-    using GetAsyncMethodSteppingInfoDelegate = RetCode (*)(void *, mdMethodDef, void **, int32_t *, uint32_t *);
     using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
     using CoTaskMemFreeDelegate = void (*)(void *);
     using SysAllocStringLenDelegate = void *(*)(int32_t);
@@ -261,7 +251,6 @@ class Interop
     static GetStepRangesFromIPDelegate getStepRangesFromIPDelegate;
     static GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate;
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
-    static GetAsyncMethodSteppingInfoDelegate getAsyncMethodSteppingInfoDelegate;
     static GetLocalConstantsDelegate getLocalConstantsDelegate;
     static CoTaskMemFreeDelegate coTaskMemFreeDelegate;
     static SysAllocStringLenDelegate sysAllocStringLenDelegate;

@@ -372,26 +372,26 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return S_OK;
     }
 
-    AsyncInfo::AwaitInfo *awaitInfo = nullptr;
-    if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, &awaitInfo))
+    PDB::AsyncAwaitInfoBlock awaitInfo;
+    if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, awaitInfo))
     {
-        // We have step inside async function with await, setup breakpoint at closest await's yield_offset.
+        // We have step inside async function with await, setup breakpoint at closest await's yieldOffset.
         // Two possible cases here:
-        // 1. Step finished successful - await code not reached.
-        // 2. Breakpoint was reached - step reached await block, so, we must switch to async step logic instead.
+        // 1. Step finished successfully - await code not reached.
+        // 2. Breakpoint was reached - step reached await block, so we must switch to async step logic instead.
 
         const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
 
         m_asyncStep = std::make_unique<asyncStep_t>();
         m_asyncStep->m_threadId = getThreadId(pThread);
         m_asyncStep->m_initialStepType = stepType;
-        m_asyncStep->m_resume_offset = awaitInfo->resume_offset;
-        m_asyncStep->m_stepStatus = asyncStepStatus::yield_offset_breakpoint;
+        m_asyncStep->m_resume_offset = awaitInfo.resumeOffset;
+        m_asyncStep->m_stepStatus = asyncStepStatus::yieldOffset_breakpoint;
 
         m_asyncStep->m_Breakpoint = std::make_unique<asyncBreakpoint_t>();
         m_asyncStep->m_Breakpoint->modAddress = modAddress;
         m_asyncStep->m_Breakpoint->methodToken = methodToken;
-        m_asyncStep->m_Breakpoint->ilOffset = awaitInfo->yield_offset;
+        m_asyncStep->m_Breakpoint->ilOffset = awaitInfo.yieldOffset;
 
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
         IfFailRet(trCode->CreateBreakpoint(m_asyncStep->m_Breakpoint->ilOffset, &trFuncBreakpoint));
@@ -404,7 +404,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
 HRESULT AsyncStepper::ManagedCallbackStepComplete()
 {
-    // In case we have async method and first await breakpoint (yield_offset) was enabled, but not reached.
+    // In case we have async method and first await breakpoint (yieldOffset) was enabled, but not reached.
     m_asyncStepMutex.lock();
     if (m_asyncStep)
     {
@@ -495,9 +495,9 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
     if (!m_asyncStep)
     {
-        // Care special case here, when we step-out from async method with await blocks
+        // Note special case here, when we step-out from async method with await blocks
         // and NotifyDebuggerOfWaitCompletion magic happens with breakpoint in this method.
-        // Note, if we hit NotifyDebuggerOfWaitCompletion breakpoint, it's our no matter which thread.
+        // Note, if we hit NotifyDebuggerOfWaitCompletion breakpoint, it's ours no matter which thread.
 
         if (!m_asyncStepNotifyDebuggerOfWaitCompletion ||
             modAddress != m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress ||
@@ -545,7 +545,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return S_OK;
     }
 
-    if (m_asyncStep->m_stepStatus == asyncStepStatus::yield_offset_breakpoint)
+    if (m_asyncStep->m_stepStatus == asyncStepStatus::yieldOffset_breakpoint)
     {
         // Note, in case of first breakpoint for async step, we must have same thread.
         if (m_asyncStep->m_threadId != getThreadId(pThread))
@@ -559,7 +559,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         IfFailRet(pThread->GetProcess(&trProcess));
         m_simpleStepper->DisableAllSteppers(trProcess);
 
-        m_asyncStep->m_stepStatus = asyncStepStatus::resume_offset_breakpoint;
+        m_asyncStep->m_stepStatus = asyncStepStatus::resumeOffset_breakpoint;
 
         ToRelease<ICorDebugCode> trCode;
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
@@ -567,7 +567,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             FAILED(trCode->CreateBreakpoint(m_asyncStep->m_resume_offset, &trFuncBreakpoint)) ||
             FAILED(trFuncBreakpoint->Activate(TRUE)))
         {
-            LOGE(log << "Could not setup second breakpoint (resume_offset) for await block");
+            LOGE(log << "Could not setup second breakpoint (resumeOffset) for await block");
             return S_OK;
         }
 

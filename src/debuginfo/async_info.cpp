@@ -5,8 +5,7 @@
 
 #include "debuginfo/async_info.h"
 #include "debuginfo/debuginfo.h"
-#include "managed/interop.h"
-#include "utils/hresult.h"
+#include "debuginfo/pdbreader.h"
 
 namespace dncdbg
 {
@@ -14,9 +13,9 @@ namespace dncdbg
 // Caller must hold m_asyncMethodSteppingInfoMutex.
 HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
-    // Note, for normal methods, `Interop::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset`
+    // Note, for normal methods, `PDBReader::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset`
     // to 0. Error during async info search (debug info not available or method token belong to normal method) is proper
-    // behaviour and debugger logic also count on this.
+    // behavior and debugger logic also count on this.
 
     if (asyncMethodSteppingInfo.modAddress == modAddress && asyncMethodSteppingInfo.methodToken == methodToken)
     {
@@ -33,22 +32,8 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
     asyncMethodSteppingInfo.retCode = m_sharedDebugInfo->GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            HRESULT Status = S_OK;
-            std::vector<Interop::AsyncAwaitInfoBlock> AsyncAwaitInfo;
-            IfFailRet(Interop::GetAsyncMethodSteppingInfo(pdbInfo.m_symbolReaderHandle, methodToken, AsyncAwaitInfo,
-                                                          &asyncMethodSteppingInfo.lastIlOffset));
-
-            for (const auto &entry : AsyncAwaitInfo)
-            {
-                asyncMethodSteppingInfo.awaits.emplace_back(entry.yield_offset, entry.resume_offset);
-            }
-
-            return S_OK;
+            return PDBReader::GetAsyncMethodSteppingInfo(pdbInfo.m_pdbHandle, methodToken, asyncMethodSteppingInfo.catchHandlerOffset,
+                                                         asyncMethodSteppingInfo.awaits, asyncMethodSteppingInfo.lastIlOffset);
         });
 
     return asyncMethodSteppingInfo.retCode;
@@ -70,7 +55,7 @@ bool AsyncInfo::IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 // [in] methodToken - method token (from module with address modAddress).
 // [in] ipOffset - IL offset;
 // [out] awaitInfo - result, next await info.
-bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, AwaitInfo **awaitInfo)
+bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, PDB::AsyncAwaitInfoBlock &awaitInfo)
 {
     const std::scoped_lock<std::mutex> lock(m_asyncMethodSteppingInfoMutex);
 
@@ -81,16 +66,13 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
 
     for (auto &await : asyncMethodSteppingInfo.awaits)
     {
-        if (ipOffset <= await.yield_offset)
+        if (ipOffset <= await.yieldOffset)
         {
-            if (awaitInfo != nullptr)
-            {
-                *awaitInfo = &await;
-            }
+            awaitInfo = await;
             return true;
         }
         // Stop search, if IP inside 'await' routine.
-        else if (ipOffset < await.resume_offset)
+        else if (ipOffset < await.resumeOffset)
         {
             break;
         }

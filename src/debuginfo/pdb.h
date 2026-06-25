@@ -84,6 +84,7 @@ struct AsyncAwaitInfoBlock
     uint32_t yieldOffset{0};  // IL offset where execution yields
     uint32_t resumeOffset{0}; // IL offset where execution resumes
 
+    AsyncAwaitInfoBlock() = default;
     AsyncAwaitInfoBlock(uint32_t yield, uint32_t resume)
         : yieldOffset(yield),
           resumeOffset(resume)

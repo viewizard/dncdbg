@@ -61,8 +61,8 @@ class AsyncStepper
 
     enum class asyncStepStatus : uint8_t
     {
-        yield_offset_breakpoint,
-        resume_offset_breakpoint
+        yieldOffset_breakpoint,
+        resumeOffset_breakpoint
     };
 
     struct asyncBreakpoint_t
@@ -92,7 +92,7 @@ class AsyncStepper
         ThreadId m_threadId{ThreadId::Invalid};
         StepType m_initialStepType{StepType::STEP_OVER};
         uint32_t m_resume_offset{0};
-        asyncStepStatus m_stepStatus{asyncStepStatus::yield_offset_breakpoint};
+        asyncStepStatus m_stepStatus{asyncStepStatus::yieldOffset_breakpoint};
         std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
         ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
     };
