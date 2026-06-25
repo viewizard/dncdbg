@@ -43,6 +43,7 @@ std::string_view GetTempDir();
 bool IsFullPath(const std::string &path);
 
 std::string GetFileName(const std::string &path);
+std::string GetParentPath(const std::string &full_path);
 
 } // namespace dncdbg
 
