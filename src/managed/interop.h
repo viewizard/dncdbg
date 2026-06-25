@@ -87,13 +87,6 @@ class Interop
         }
     };
 
-    struct LocalConstantInfo
-    {
-        BSTR name{nullptr};
-        uint8_t *signature{nullptr};
-        int32_t signatureSize{0};
-    };
-
     struct method_data_t
     {
         mdMethodDef methodDef;
@@ -196,8 +189,6 @@ class Interop
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
     static HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
                                       int32_t nestedToken, int32_t &Count, const std::string &sourcePath, void **data);
-    static HRESULT GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                     void **data, int32_t &constantCount);
     static void *AllocString(const std::string &str);
     static BSTR SysAllocStringLen(int32_t size);
     static void SysFreeString(BSTR ptrBSTR);
@@ -233,7 +224,6 @@ class Interop
     using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
     using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
     using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
-    using GetLocalConstantsDelegate = RetCode (*)(void *, int32_t, uint32_t, void **, int32_t *);
     using CoTaskMemFreeDelegate = void (*)(void *);
     using SysAllocStringLenDelegate = void *(*)(int32_t);
     using SysFreeStringDelegate = void (*)(void *);
@@ -245,7 +235,6 @@ class Interop
     static GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate;
     static GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate;
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
-    static GetLocalConstantsDelegate getLocalConstantsDelegate;
     static CoTaskMemFreeDelegate coTaskMemFreeDelegate;
     static SysAllocStringLenDelegate sysAllocStringLenDelegate;
     static SysFreeStringDelegate sysFreeStringDelegate;

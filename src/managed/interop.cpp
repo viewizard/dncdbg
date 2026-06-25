@@ -251,7 +251,6 @@ Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetD
 Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegate = nullptr;
 Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
-Interop::GetLocalConstantsDelegate Interop::getLocalConstantsDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
 Interop::SysAllocStringLenDelegate Interop::sysAllocStringLenDelegate = nullptr;
 Interop::SysFreeStringDelegate Interop::sysFreeStringDelegate = nullptr;
@@ -413,7 +412,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalConstants", reinterpret_cast<void **>(&getLocalConstantsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysAllocStringLen", reinterpret_cast<void **>(&sysAllocStringLenDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "SysFreeString", reinterpret_cast<void **>(&sysFreeStringDelegate)));
@@ -430,7 +428,6 @@ void Interop::Init(const std::string &coreClrPath)
                                     (getNextUserCodeILOffsetDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
                                     (resolveBreakPointsDelegate != nullptr) &&
-                                    (getLocalConstantsDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
                                     (sysAllocStringLenDelegate != nullptr) &&
                                     (sysFreeStringDelegate != nullptr);
@@ -465,7 +462,6 @@ void Interop::Shutdown()
     getNextUserCodeILOffsetDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
-    getLocalConstantsDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
     sysFreeStringDelegate = nullptr;
@@ -570,27 +566,6 @@ HRESULT Interop::ResolveBreakPoints(void *pSymbolReaderHandle, int32_t tokenNum,
     const RetCode retCode = resolveBreakPointsDelegate(pSymbolReaderHandle, tokenNum, Tokens, sourceLine, nestedToken, &Count,
                                                        to_utf16(sourcePath).c_str(), data);
     return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT Interop::GetLocalConstants(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                   void **data, int32_t &constantCount)
-{
-    ReadLock read_lock(GetCLRrwlock());
-    if ((getLocalConstantsDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (data == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    const RetCode retCode = getLocalConstantsDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                      ilOffset, data, &constantCount);
-    read_lock.unlock();
-
-    if (retCode != RetCode::OK)
-    {
-        return E_FAIL;
-    }
-
-    return S_OK;
 }
 
 void *Interop::AllocString(const std::string &str)

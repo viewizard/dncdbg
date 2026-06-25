@@ -64,7 +64,7 @@ class DebugInfo
                                uint32_t hoistedLocalIndex);
 
     HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                             std::vector<PDB::LocalConstant> &constants);
+                              std::vector<PDB::LocalConstant> &constants);
 
     HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                             uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);

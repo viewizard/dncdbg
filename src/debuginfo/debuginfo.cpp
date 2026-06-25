@@ -622,42 +622,7 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
     return GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            void *data = nullptr;
-            int32_t constantCount = 0;
-            IfFailRet(Interop::GetLocalConstants(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, &data, constantCount));
-            if (constantCount <= 0 || data == nullptr)
-            {
-                return S_OK;
-            }
-
-            auto *interopConstants = static_cast<Interop::LocalConstantInfo *>(data);
-            const Interop::LocalConstantInfo *endLoopPointer = interopConstants + constantCount;
-            constants.reserve(constantCount);
-
-            while (interopConstants != endLoopPointer)
-            {
-                PDB::LocalConstant localConst;
-                const Interop::LocalConstantInfo &inConstant = *interopConstants;
-
-                if (inConstant.name != nullptr)
-                {
-                    localConst.name = inConstant.name;
-                    Interop::SysFreeString(inConstant.name);
-                }
-                if (inConstant.signature != nullptr && inConstant.signatureSize > 0)
-                {
-                    localConst.signature.resize(inConstant.signatureSize);
-                    std::memcpy(localConst.signature.data(), inConstant.signature, inConstant.signatureSize);
-                    Interop::CoTaskMemFree(inConstant.signature);
-                }
-
-                constants.emplace_back(std::move(localConst));
-                ++interopConstants;
-            }
-
-            Interop::CoTaskMemFree(data);
-
-            return S_OK;
+            return PDBReader::GetLocalConstants(pdbInfo.m_pdbHandle, methodToken, ilOffset, constants);
         });
 }
 
