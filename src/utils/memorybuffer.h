@@ -8,7 +8,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#include <filesystem>
+#include <string>
 
 namespace dncdbg
 {
@@ -49,7 +49,7 @@ class MemoryBuffer
 
     // Opens and memory-maps the specified file for read-only access.
     // Returns true on success, false on failure.
-    bool Open(const std::filesystem::path &filePath);
+    bool Open(const std::string &filePath);
 
     // Returns a pointer to the mapped file data, or nullptr if not opened.
     [[nodiscard]] const void *Data() const

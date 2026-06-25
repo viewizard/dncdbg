@@ -16,7 +16,7 @@
 namespace dncdbg
 {
 
-bool MemoryBuffer::Open(const std::filesystem::path &filePath)
+bool MemoryBuffer::Open(const std::string &filePath)
 {
     m_fd = open(filePath.c_str(), O_RDONLY); // NOLINT(cppcoreguidelines-pro-type-vararg)
     if (m_fd == -1)

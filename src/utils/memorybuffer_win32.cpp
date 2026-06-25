@@ -6,15 +6,17 @@
 
 #include "utils/memorybuffer.h"
 #include "utils/logger.h"
+#include "utils/utf.h"
 #include <cstdint>
 #include <limits>
 
 namespace dncdbg
 {
 
-bool MemoryBuffer::Open(const std::filesystem::path &filePath)
+bool MemoryBuffer::Open(const std::string &filePath)
 {
-    m_fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+    WSTRING wFilePath = to_utf16(filePath);
+    m_fileHandle = CreateFileW(wFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                                FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, nullptr);
     if (m_fileHandle == INVALID_HANDLE_VALUE)
     {
