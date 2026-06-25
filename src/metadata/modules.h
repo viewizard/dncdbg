@@ -30,7 +30,7 @@ class Modules
 
     static HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb);
     static HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
-    static std::string GetModuleFileName(ICorDebugModule *pModule);
+    static std::string GetModuleFilePath(ICorDebugModule *pModule);
     static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);
 
     Module &GetNewModuleRef();

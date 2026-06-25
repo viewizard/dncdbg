@@ -64,8 +64,8 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         {
             LOGW(log << "During breakpoint resolve, multiple modules with same source file path were detected.");
             LOGW(log << "File name: " << bp_fullname);
-            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFileName(resolvedPoints.at(0).trModule));
-            LOGW(log << "Ignored module: " << Modules::GetModuleFileName(resolvedBP.trModule));
+            LOGW(log << "Breakpoint activated in module: " << Modules::GetModuleFilePath(resolvedPoints.at(0).trModule));
+            LOGW(log << "Ignored module: " << Modules::GetModuleFilePath(resolvedBP.trModule));
             continue;
         }
 

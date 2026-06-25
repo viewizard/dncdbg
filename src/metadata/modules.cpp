@@ -330,7 +330,7 @@ HRESULT Modules::GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
     return S_OK;
 }
 
-std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
+std::string Modules::GetModuleFilePath(ICorDebugModule *pModule)
 {
     uint32_t nameLen = 0;
     if (FAILED(pModule->GetName(0, &nameLen, nullptr)))
@@ -375,7 +375,7 @@ std::string Modules::GetModuleFileName(ICorDebugModule *pModule)
 
 void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations)
 {
-    module.path = Modules::GetModuleFileName(pModule);
+    module.path = Modules::GetModuleFilePath(pModule);
     module.name = GetFileName(module.path);
 
     if (module.symbolStatus == SymbolStatus::Loaded)
@@ -570,7 +570,7 @@ HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &
     IfFailRet(Modules::ForEachModule(pThread,
         [&](ICorDebugModule *pModule) -> HRESULT
         {
-            const std::string path = Modules::GetModuleFileName(pModule);
+            const std::string path = Modules::GetModuleFilePath(pModule);
 
             if (GetFileName(path) == name)
             {
