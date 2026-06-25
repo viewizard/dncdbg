@@ -4,11 +4,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/pdbreader.h"
 #include "debuginfo/sourcefilemap.h"
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
+#include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/utftoupper.h"
 #include <cstring>
@@ -185,7 +187,7 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
     return ForEachMethod(pModule, functor);
 }
 
-HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::string &pdbPath)
+HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
 {
     HRESULT Status = S_OK;
     BOOL isDynamic = FALSE;
@@ -220,8 +222,9 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
         }
     }
 
+    std::string pdbPath;
     return Interop::LoadSymbolsForPortablePDB(
-        Modules::GetModuleFileName(pModule),
+        Modules::GetModuleFilePath(pModule),
         isInMemory,
         isInMemory, // isFileLayout
         peBufAddress,
@@ -231,6 +234,38 @@ HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle, std::
         ppSymbolReaderHandle,
         pdbPath
     );
+}
+
+HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath)
+{
+    HRESULT Status = S_OK;
+    PDB::Identity pdbId;
+    IfFailRet(Modules::GetModulePdbInfo(pModule, pdbId, pdbFilePath));
+
+    if (SUCCEEDED(PDBReader::OpenPDB(pdbFilePath, pdbId, memBuff, pdbHandle)))
+    {
+        return S_OK;
+    }
+
+    const std::string pdbFileName = GetFileName(pdbFilePath);
+    const std::string modulePath = GetParentPath(Modules::GetModuleFilePath(pModule));
+    pdbFilePath = modulePath + pdbFileName;
+
+    if (SUCCEEDED(PDBReader::OpenPDB(pdbFilePath, pdbId, memBuff, pdbHandle)))
+    {
+        return S_OK;
+    }
+
+    const std::string dncdbgPath = GetParentPath(GetExeAbsPath());
+    pdbFilePath = dncdbgPath + pdbFileName;
+
+    if (SUCCEEDED(PDBReader::OpenPDB(pdbFilePath, pdbId, memBuff, pdbHandle)))
+    {
+        return S_OK;
+    }
+
+    pdbFilePath.clear();
+    return COR_E_FILENOTFOUND;
 }
 
 } // unnamed namespace
@@ -412,8 +447,12 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
 void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 {
     void *pSymbolReaderHandle = nullptr;
-    LoadSymbols(pModule, &pSymbolReaderHandle, module.symbolFilePath);
-    module.symbolStatus = pSymbolReaderHandle != nullptr ? SymbolStatus::Loaded : SymbolStatus::NotFound;
+    LoadSymbols(pModule, &pSymbolReaderHandle);
+
+    mdhandle_t pdbHandle = nullptr;
+    MemoryBuffer memBuff;
+    const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath);
+    module.symbolStatus = SUCCEEDED(Status) ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
@@ -432,7 +471,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
-            PDBInfo pdbInfo{pSymbolReaderHandle, nullptr, MemoryBuffer{}, pModule};
+            PDBInfo pdbInfo{pSymbolReaderHandle, pdbHandle, std::move(memBuff), pModule};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
             m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }
