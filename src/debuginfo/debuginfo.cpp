@@ -515,23 +515,23 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
     return S_OK;
 }
 
-HRESULT DebugInfo::GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
-                                         int32_t &hoistedLocalScopesCount)
+bool DebugInfo::IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex)
 {
-    HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    if (FAILED(pModule->GetBaseAddress(&modAddress)))
+    {
+        return true; // Fail-open: show variable if we can't check scope
+    }
 
-    return GetPDBInfo(modAddress,
+    bool result = true; // Default to showing variable (fail-open)
+    GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return Interop::GetHoistedLocalScopes(pdbInfo.m_symbolReaderHandle, methodToken, data, hoistedLocalScopesCount);
+            result = PDBReader::IsHoistedLocalInScope(pdbInfo.m_pdbHandle, methodToken, ilOffset, hoistedLocalIndex);
+            return S_OK;
         });
+
+    return result;
 }
 
 HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,

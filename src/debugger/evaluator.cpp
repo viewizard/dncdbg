@@ -10,7 +10,6 @@
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h"
-#include "managed/interop.h"
 #include "metadata/attributes.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
@@ -379,15 +378,6 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(GetClassAndTypeDefByValue(trValue, &trClass, currentTypeDef));
 
-    struct hoisted_local_scope_t
-    {
-        uint32_t startOffset;
-        uint32_t length;
-    };
-
-    bool hoistedLocalScopesChecked = false;
-    std::vector<hoisted_local_scope_t> hoistedLocalScopes;
-
     return ForEachFields(pMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
@@ -435,29 +425,11 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
             {
-                if (!hoistedLocalScopesChecked)
-                {
-                    void *data = nullptr;
-                    int32_t count = 0;
-                    if (SUCCEEDED(pDebugInfo->GetHoistedLocalScopes(pModule, methodDef, &data, count)) &&
-                        data != nullptr)
-                    {
-                        hoistedLocalScopes.resize(count);
-                        std::memcpy(hoistedLocalScopes.data(), data, count * sizeof(hoisted_local_scope_t));
-                        Interop::CoTaskMemFree(data);
-                    }
-
-                    hoistedLocalScopesChecked = true;
-                }
-
                 // Check that hoisted local is in scope.
                 // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
                 int32_t index = 0;
-                assert(hoistedLocalScopes.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()));
-                if (!hoistedLocalScopes.empty() && SUCCEEDED(TryParseSlotIndex(mdName, index)) &&
-                    static_cast<int32_t>(hoistedLocalScopes.size()) > index &&
-                    (currentIlOffset < hoistedLocalScopes.at(index).startOffset ||
-                    currentIlOffset >= hoistedLocalScopes.at(index).startOffset + hoistedLocalScopes.at(index).length))
+                if (SUCCEEDED(TryParseSlotIndex(mdName, index)) && index >= 0 &&
+                    !pDebugInfo->IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
                 {
                     return S_OK; // Return with success to continue walk.
                 }

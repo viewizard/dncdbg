@@ -247,7 +247,6 @@ coreclr_shutdown_ptr Interop::shutdownCoreClr = nullptr;
 Interop::LoadSymbolsForModuleDelegate Interop::loadSymbolsForModuleDelegate = nullptr;
 Interop::DisposeDelegate Interop::disposeDelegate = nullptr;
 Interop::GetLocalVariableNameAndScopeDelegate Interop::getLocalVariableNameAndScopeDelegate = nullptr;
-Interop::GetHoistedLocalScopesDelegate Interop::getHoistedLocalScopesDelegate = nullptr;
 Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetDelegate = nullptr;
 Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegate = nullptr;
 Interop::GetStepRangesFromIPDelegate Interop::getStepRangesFromIPDelegate = nullptr;
@@ -411,7 +410,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetLocalVariableNameAndScope", reinterpret_cast<void **>(&getLocalVariableNameAndScopeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetHoistedLocalScopes", reinterpret_cast<void **>(&getHoistedLocalScopesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetStepRangesFromIP", reinterpret_cast<void **>(&getStepRangesFromIPDelegate))) &&
@@ -430,7 +428,6 @@ void Interop::Init(const std::string &coreClrPath)
     const bool allDelegatesInited = (loadSymbolsForModuleDelegate != nullptr) &&
                                     (disposeDelegate != nullptr) &&
                                     (getLocalVariableNameAndScopeDelegate != nullptr) &&
-                                    (getHoistedLocalScopesDelegate != nullptr) &&
                                     (getSequencePointByILOffsetDelegate != nullptr) &&
                                     (getNextUserCodeILOffsetDelegate != nullptr) &&
                                     (getStepRangesFromIPDelegate != nullptr) &&
@@ -467,7 +464,6 @@ void Interop::Shutdown()
     loadSymbolsForModuleDelegate = nullptr;
     disposeDelegate = nullptr;
     getLocalVariableNameAndScopeDelegate = nullptr;
-    getHoistedLocalScopesDelegate = nullptr;
     getSequencePointByILOffsetDelegate = nullptr;
     getNextUserCodeILOffsetDelegate = nullptr;
     getStepRangesFromIPDelegate = nullptr;
@@ -563,19 +559,6 @@ HRESULT Interop::GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMeth
     Interop::SysFreeString(wszLocalName);
 
     return S_OK;
-}
-
-HRESULT Interop::GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount)
-{
-    const ReadLock read_lock(GetCLRrwlock());
-    if ((getHoistedLocalScopesDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    const RetCode retCode = getHoistedLocalScopesDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                          data, &hoistedLocalScopesCount);
-    return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
 HRESULT Interop::GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,

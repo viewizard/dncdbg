@@ -34,8 +34,8 @@ constexpr std::array<uint8_t, 16> asyncMethodSteppingInformation{
 };
 
 // Constants for parsing StateMachineHoistedLocalScopes blob
-constexpr uint32_t int32Size = 4;
-constexpr uint32_t hoistedLocalEntrySize = 8; // 2 int32 values: startOffset + length
+constexpr uint32_t uint32Size = 4;
+constexpr uint32_t hoistedLocalEntrySize = 8; // 2 uint32 values: startOffset + length
 constexpr uint32_t bitShift8 = 8;
 constexpr uint32_t bitShift16 = 16;
 constexpr uint32_t bitShift24 = 24;
@@ -567,9 +567,10 @@ HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
 
 bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t hoistedLocalIndex)
 {
+    // Fail-open: return true (in scope) if we can't check, to show variable by default
     if (pdbHandle == nullptr)
     {
-        return false;
+        return true;
     }
 
     // Create cursor to the CustomDebugInformation table
@@ -577,7 +578,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
     uint32_t cdiCount = 0;
     if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
     {
-        return false;
+        return true;
     }
 
     // Iterate through all custom debug information
@@ -611,7 +612,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
         }
 
         // Parse the hoisted locals blob
-        // Format: sequence of (int32 startOffset, int32 length) pairs, no count prefix
+        // Format: sequence of (uint32 startOffset, uint32 length) pairs, no count prefix
         const uint32_t count = hlBlobSize / hoistedLocalEntrySize;
 
         for (uint32_t slotIndex = 0; slotIndex < count; ++slotIndex)
@@ -622,9 +623,9 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
                 break;
             }
 
-            // Note: While stored as int32 in PDB, startOffset and length are always non-negative
+            // Note: startOffset and length are stored as uint32 in PDB and are always non-negative
             const uint32_t startOffset = ReadLittleEndianUInt32(hlBlob, offset);
-            const uint32_t length = ReadLittleEndianUInt32(hlBlob, offset + int32Size);
+            const uint32_t length = ReadLittleEndianUInt32(hlBlob, offset + uint32Size);
 
             if (slotIndex != hoistedLocalIndex)
             {
@@ -640,7 +641,8 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
         break;
     }
 
-    return false;
+    // Fail-open: if we couldn't find scope data for this index, show the variable
+    return true;
 }
 
 HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
@@ -690,25 +692,25 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
         uint8_t const *asyncBlob = nullptr;
         uint32_t asyncBlobSize = 0;
         if (!md_get_column_value_as_blob(cdiCursor, mdtCustomDebugInformation_Value, &asyncBlob, &asyncBlobSize) ||
-            asyncBlobSize < int32Size)
+            asyncBlobSize < uint32Size)
         {
             return E_FAIL;
         }
 
         // Read catch handler offset (first 4 bytes)
         catchHandlerOffset = ReadLittleEndianUInt32(asyncBlob, 0);
-        asyncBlob += int32Size;
-        asyncBlobSize -= int32Size;
+        asyncBlob += uint32Size;
+        asyncBlobSize -= uint32Size;
 
         // Parse await info blocks: each entry has yield/resume offsets (8 bytes) + compressed RID
-        static constexpr uint32_t awaitEntryFixedSize = int32Size * 2; // yieldOffset + resumeOffset
+        static constexpr uint32_t awaitEntryFixedSize = uint32Size * 2; // yieldOffset + resumeOffset
 
         awaitInfos.reserve(asyncBlobSize / (awaitEntryFixedSize + 1));
 
         while (asyncBlobSize > awaitEntryFixedSize) // Need fixed part (8 bytes) + at least 1 byte for compressed RID
         {
             const uint32_t yieldOffset = ReadLittleEndianUInt32(asyncBlob, 0);
-            const uint32_t resumeOffset = ReadLittleEndianUInt32(asyncBlob, int32Size);
+            const uint32_t resumeOffset = ReadLittleEndianUInt32(asyncBlob, uint32Size);
 
             // Skip the kickoff method MethodDef RID (compressed integer)
             const uint32_t ridSize = SkipCompressedInteger(asyncBlob, awaitEntryFixedSize);

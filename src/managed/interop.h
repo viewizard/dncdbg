@@ -192,7 +192,6 @@ class Interop
                                            uint32_t &ilNextOffset, bool *noUserCodeFound);
     static HRESULT GetNamedLocalVariableAndScope(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t localIndex,
                                                  WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
-    static HRESULT GetHoistedLocalScopes(void *pSymbolReaderHandle, mdMethodDef methodToken, void **data, int32_t &hoistedLocalScopesCount);
     static HRESULT GetStepRangesFromIP(void *pSymbolReaderHandle, uint32_t ip, mdMethodDef MethodToken, uint32_t *ilStartOffset, uint32_t *ilEndOffset);
     static HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
@@ -231,7 +230,6 @@ class Interop
     using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, const void *, int32_t, const void *, int32_t, ReadMemoryDelegate, BSTR *);
     using DisposeDelegate = void (*)(void *);
     using GetLocalVariableNameAndScopeDelegate = RetCode (*)(void *, int32_t, uint32_t, BSTR *, int32_t *, int32_t *);
-    using GetHoistedLocalScopesDelegate = RetCode (*)(void *, int32_t, void **, int32_t *);
     using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
     using GetNextUserCodeILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, uint32_t *, int32_t *);
     using GetStepRangesFromIPDelegate = RetCode (*)(void *, uint32_t, mdMethodDef, uint32_t *, uint32_t *);
@@ -245,7 +243,6 @@ class Interop
     static LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate;
     static DisposeDelegate disposeDelegate;
     static GetLocalVariableNameAndScopeDelegate getLocalVariableNameAndScopeDelegate;
-    static GetHoistedLocalScopesDelegate getHoistedLocalScopesDelegate;
     static GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate;
     static GetNextUserCodeILOffsetDelegate getNextUserCodeILOffsetDelegate;
     static GetStepRangesFromIPDelegate getStepRangesFromIPDelegate;

@@ -60,8 +60,8 @@ class DebugInfo
     HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t localIndex,
                                        WSTRING &localName, int32_t *pIlStart, int32_t *pIlEnd);
 
-    HRESULT GetHoistedLocalScopes(ICorDebugModule *pModule, mdMethodDef methodToken, void **data,
-                                  int32_t &hoistedLocalScopesCount);
+    bool IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                               uint32_t hoistedLocalIndex);
 
     HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                              std::vector<PDB::LocalConstant> &constants);
