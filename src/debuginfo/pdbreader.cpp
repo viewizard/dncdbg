@@ -1210,7 +1210,7 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
             // break on the outer call.
             PDB::SequencePoint nestedStartSP;
             PDB::SequencePoint nestedEndSP;
-            if (FAILED(SequencePointForSourceLine(Position::First, nestedMethodToken, nestedStartSP)) || 
+            if (FAILED(SequencePointForSourceLine(Position::First, nestedMethodToken, nestedStartSP)) ||
                 FAILED(SequencePointForSourceLine(Position::Last, nestedMethodToken, nestedEndSP)))
             {
                 continue;
