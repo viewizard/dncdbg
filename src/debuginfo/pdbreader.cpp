@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/pdbreader.h"
+#include "debuginfo/sourcefilemap.h"
 #include "utils/utftoupper.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
@@ -144,6 +145,68 @@ HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBu
     return S_OK;
 }
 
+HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    sourceFilePath.clear();
+
+    // Create cursor to the Document table
+    mdcursor_t docCursor{};
+    uint32_t docCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_Document, &docCursor, &docCount))
+    {
+        return E_FAIL;
+    }
+
+    if (sourceFileIndex != 0)
+    {
+        md_cursor_move(&docCursor, static_cast<int32_t>(sourceFileIndex));
+    }
+
+    // Get the Name blob from the Document table
+    uint8_t const *nameBlob = nullptr;
+    uint32_t blobLen = 0;
+    if (!md_get_column_value_as_blob(docCursor, mdtDocument_Name, &nameBlob, &blobLen))
+    {
+        return E_FAIL;
+    }
+
+    if (nameBlob == nullptr || blobLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // First, query the required buffer size
+    size_t nameLen = 0;
+    md_blob_parse_result_t result = md_parse_document_name(pdbHandle, nameBlob, blobLen, nullptr, &nameLen);
+    if (result != mdbpr_InsufficientBuffer || nameLen == 0)
+    {
+        return E_FAIL;
+    }
+
+    // Allocate buffer and parse the document name
+    std::string docName(nameLen, '\0');
+    result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docName.data(), &nameLen);
+    if (result != mdbpr_Success)
+    {
+        return E_FAIL;
+    }
+
+    // Remove null terminator that was included in the length
+    if (!docName.empty() && docName.back() == '\0')
+    {
+        docName.pop_back();
+    }
+
+    sourceFilePath = SourceFileMap::Path(docName);
+
+    return S_OK;
+}
+
 HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles)
 {
     if (pdbHandle == nullptr)
@@ -206,7 +269,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &source
         }
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        docName = to_uppercase(docName);
+        docName = to_uppercase(SourceFileMap::Path(docName));
 #endif
 
         sourceFiles.push_back(std::move(docName));

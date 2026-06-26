@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include "types/types.h"
 #include <memory>
 
@@ -53,7 +54,7 @@ class Steppers
     std::shared_ptr<AsyncStepper> m_asyncStepper;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     StepType m_initialStepType{StepType::STEP_OVER};
-    ManagedSequencePoint m_StepStartSP;
+    PDB::SequencePoint m_StepStartSP;
     bool m_justMyCode{true};
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.

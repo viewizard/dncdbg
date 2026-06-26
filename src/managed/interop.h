@@ -180,7 +180,6 @@ class Interop
     static HRESULT LoadSymbolsForPortablePDB(const std::string &modulePath, BOOL isInMemory, BOOL isFileLayout, const void *peAddress, uint64_t peSize,
                                              const void *inMemoryPdbAddress, uint64_t inMemoryPdbSize, void **ppSymbolReaderHandle, std::string &pdbPath);
     static void DisposeSymbols(void *pSymbolReaderHandle);
-    static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef MethodToken, uint32_t IlOffset, SequencePoint *sequencePoint);
     static HRESULT GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,
                                           uint32_t normalTokensNum, void *normalTokens, void **data);
     static HRESULT ResolveBreakPoints(void *pSymbolReaderHandles, int32_t tokenNum, void *Tokens, int32_t sourceLine,
@@ -215,7 +214,6 @@ class Interop
     using ReadMemoryDelegate = int (*)(const void *, char *, int32_t);
     using LoadSymbolsForModuleDelegate = void *(*)(const WCHAR *, BOOL, const void *, int32_t, const void *, int32_t, ReadMemoryDelegate, BSTR *);
     using DisposeDelegate = void (*)(void *);
-    using GetSequencePointByILOffsetDelegate = RetCode (*)(void *, mdMethodDef, uint32_t, void *);
     using GetModuleMethodsRangesDelegate = RetCode (*)(void *, uint32_t, void *, uint32_t, void *, void **);
     using ResolveBreakPointsDelegate = RetCode (*)(void *, int32_t, void *, int32_t, int32_t, int32_t *, const WCHAR *, void **);
     using CoTaskMemFreeDelegate = void (*)(void *);
@@ -224,7 +222,6 @@ class Interop
 
     static LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate;
     static DisposeDelegate disposeDelegate;
-    static GetSequencePointByILOffsetDelegate getSequencePointByILOffsetDelegate;
     static GetModuleMethodsRangesDelegate getModuleMethodsRangesDelegate;
     static ResolveBreakPointsDelegate resolveBreakPointsDelegate;
     static CoTaskMemFreeDelegate coTaskMemFreeDelegate;

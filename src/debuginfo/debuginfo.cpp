@@ -5,7 +5,6 @@
 
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdbreader.h"
-#include "debuginfo/sourcefilemap.h"
 #include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
@@ -315,46 +314,6 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, c
     return ResolveMethodInModule(pModule, funcname, cb);
 }
 
-HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset,
-                                              ManagedSequencePoint &sequencePoint)
-{
-    HRESULT Status = S_OK;
-
-    mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
-
-    ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(pFrame->GetFunction(&trFunc));
-
-    ToRelease<ICorDebugILFrame> trILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
-
-    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
-    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
-        mappingResult == MAPPING_NO_INFO)
-    {
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunc->GetModule(&trModule));
-
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(trModule->GetBaseAddress(&modAddress));
-
-    return GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
-        {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return GetSequencePointByILOffset(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
-        });
-}
-
 HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range)
 {
     HRESULT Status = S_OK;
@@ -535,39 +494,60 @@ HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilO
     return GetNextUserCodeILOffset(trModule, methodToken, ilOffset, ilNextOffset);
 }
 
-HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              ManagedSequencePoint &sequencePoint)
-{
-    Interop::SequencePoint symSequencePoint;
-
-    if (FAILED(Interop::GetSequencePointByILOffset(pSymbolReaderHandle, methodToken, ilOffset, &symSequencePoint)))
-    {
-        return E_FAIL;
-    }
-
-    sequencePoint.sourceFile = SourceFileMap::Path(to_utf8(symSequencePoint.document));
-    sequencePoint.startLine = symSequencePoint.startLine;
-    sequencePoint.startColumn = symSequencePoint.startColumn;
-    sequencePoint.endLine = symSequencePoint.endLine;
-    sequencePoint.endColumn = symSequencePoint.endColumn;
-    sequencePoint.offset = symSequencePoint.offset;
-
-    return S_OK;
-}
-
-HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                              ManagedSequencePoint &sequencePoint)
+HRESULT DebugInfo::GetSourceFile(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceFilePath)
 {
     return GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return GetSequencePointByILOffset(pdbInfo.m_symbolReaderHandle, methodToken, ilOffset, sequencePoint);
+            return PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceFileIndex, sourceFilePath);
         });
+}
+
+HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
+                                              PDB::SequencePoint &sequencePoint)
+{
+    return GetPDBInfo(modAddress,
+        [&](PDBInfo &pdbInfo) -> HRESULT
+        {
+            return PDBReader::GetSequencePointByILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, sequencePoint);
+        });
+}
+
+HRESULT DebugInfo::GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
+                                              std::string *sourceFilePath)
+{
+    HRESULT Status = S_OK;
+
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(pFrame->GetFunctionToken(&methodToken));
+
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
+
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
+    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+        mappingResult == MAPPING_NO_INFO)
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
+
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    IfFailRet(GetSequencePointByILOffset(modAddress, methodToken, ilOffset, sequencePoint));
+
+    if (sourceFilePath != nullptr)
+    {
+        return GetSourceFile(modAddress, sequencePoint.sourceFileIndex, *sourceFilePath);
+    }
+    return S_OK;
 }
 
 HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress,

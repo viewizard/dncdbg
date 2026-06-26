@@ -246,7 +246,6 @@ coreclr_shutdown_ptr Interop::shutdownCoreClr = nullptr;
 
 Interop::LoadSymbolsForModuleDelegate Interop::loadSymbolsForModuleDelegate = nullptr;
 Interop::DisposeDelegate Interop::disposeDelegate = nullptr;
-Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetDelegate = nullptr;
 Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
@@ -405,7 +404,6 @@ void Interop::Init(const std::string &coreClrPath)
     const bool allDelegatesCreated =
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
@@ -419,7 +417,6 @@ void Interop::Init(const std::string &coreClrPath)
 
     const bool allDelegatesInited = (loadSymbolsForModuleDelegate != nullptr) &&
                                     (disposeDelegate != nullptr) &&
-                                    (getSequencePointByILOffsetDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
                                     (resolveBreakPointsDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
@@ -451,28 +448,11 @@ void Interop::Shutdown()
     shutdownCoreClr = nullptr;
     loadSymbolsForModuleDelegate = nullptr;
     disposeDelegate = nullptr;
-    getSequencePointByILOffsetDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
     sysAllocStringLenDelegate = nullptr;
     sysFreeStringDelegate = nullptr;
-}
-
-HRESULT Interop::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                            SequencePoint *sequencePoint)
-{
-    const ReadLock read_lock(GetCLRrwlock());
-    if ((getSequencePointByILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr) || (sequencePoint == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                               ilOffset, sequencePoint);
-
-    return retCode == RetCode::OK ? S_OK : E_FAIL;
 }
 
 HRESULT Interop::GetModuleMethodsRanges(void *pSymbolReaderHandle, uint32_t constrTokensNum, void *constrTokens,

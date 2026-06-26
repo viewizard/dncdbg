@@ -911,10 +911,11 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     IfFailRet(trFunc->GetModule(&trModule));
 
     uint32_t ilOffset = 0;
-    ManagedSequencePoint sp;
-    if (SUCCEEDED(m_sharedDebugInfo->GetFrameILAndSequencePoint(pFrame, ilOffset, sp)))
+    PDB::SequencePoint sp;
+    std::string sourceFilePath;
+    if (SUCCEEDED(m_sharedDebugInfo->GetSequencePointByILOffset(pFrame, ilOffset, sp, &sourceFilePath)))
     {
-        stackFrame.source = Source(sp.sourceFile);
+        stackFrame.source = Source(sourceFilePath);
         stackFrame.line = sp.startLine;
         stackFrame.column = sp.startColumn;
         stackFrame.endLine = sp.endLine;

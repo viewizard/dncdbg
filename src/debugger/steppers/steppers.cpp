@@ -41,7 +41,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
 
     uint32_t ilOffset = 0;
-    IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, m_StepStartSP));
+    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(trFrame, ilOffset, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
     if (Status == S_USE_SIMPLE_STEPPER)
@@ -233,13 +233,13 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // Step completed on same location in source as it was started, this happens when some user code block has several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 uint32_t ilOffset = 0;
-                ManagedSequencePoint sp;
-                IfFailRet(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, ilOffset, sp));
+                PDB::SequencePoint sp;
+                IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(trFrame, ilOffset, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
                     sp.endLine == m_StepStartSP.endLine &&
                     sp.endColumn == m_StepStartSP.endColumn &&
-                    sp.sourceFile == m_StepStartSP.sourceFile)
+                    sp.sourceFileIndex == m_StepStartSP.sourceFileIndex)
                 {
                     IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
                     return S_IGNORE;

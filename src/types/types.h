@@ -218,16 +218,6 @@ enum class StepType : uint8_t
     STEP_OUT
 };
 
-struct ManagedSequencePoint
-{
-    int32_t startLine{0};
-    int32_t startColumn{0};
-    int32_t endLine{0};
-    int32_t endColumn{0};
-    int32_t offset{0};
-    std::string sourceFile;
-};
-
 enum class ValueKind : uint8_t
 {
     Scope,

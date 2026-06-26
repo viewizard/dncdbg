@@ -1391,11 +1391,11 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     }
 
     uint32_t currentIlOffset = 0;
-    ManagedSequencePoint sp;
-    // GetFrameILAndSequencePoint() returns "success" code only in case it found sequence point
-    // for current IP, that mean we stop inside user code.
+    PDB::SequencePoint sp;
+    // GetSequencePointByILOffset() returns "success" code only in case it found sequence point
+    // for current IL offset, that means we stop inside user code.
     // Note, we could have request for non-user code, we ignore it and this is OK.
-    if (FAILED(m_sharedDebugInfo->GetFrameILAndSequencePoint(trFrame, currentIlOffset, sp)))
+    if (FAILED(m_sharedDebugInfo->GetSequencePointByILOffset(trFrame, currentIlOffset, sp)))
     {
         return S_OK;
     }

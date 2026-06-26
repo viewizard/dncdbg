@@ -40,8 +40,6 @@ class DebugInfo
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppPDBInfo);
 
-    HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, ManagedSequencePoint &sequencePoint);
-
     HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
     static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
@@ -67,7 +65,11 @@ class DebugInfo
     HRESULT GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset);
 
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                       ManagedSequencePoint &sequencePoint);
+                                       PDB::SequencePoint &sequencePoint);
+    HRESULT GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
+                                       std::string *sourceFilePath = nullptr);
+
+    HRESULT GetSourceFile(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceFilePath);
 
   private:
 
@@ -76,9 +78,6 @@ class DebugInfo
 
     // Note, m_debugInfoSources has its own mutex for private data state sync.
     DebugInfoSources m_debugInfoSources;
-
-    static HRESULT GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                              ManagedSequencePoint &sequencePoint);
 };
 
 } // namespace dncdbg
