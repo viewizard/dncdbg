@@ -355,34 +355,6 @@ HRESULT DebugInfo::GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &
         });
 }
 
-HRESULT DebugInfo::GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
-                                                     bool *noUserCodeFound)
-{
-    HRESULT Status = S_OK;
-
-    mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(pFrame->GetFunctionToken(&methodToken));
-
-    ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(pFrame->GetFunction(&trFunc));
-
-    ToRelease<ICorDebugILFrame> trILFrame;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
-
-    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
-    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
-        mappingResult == MAPPING_NO_INFO)
-    {
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunc->GetModule(&trModule));
-
-    return GetNextUserCodeILOffsetInMethod(trModule, methodToken, ilOffset, ilNextOffset, noUserCodeFound);
-}
-
 HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range)
 {
     HRESULT Status = S_OK;
@@ -523,8 +495,7 @@ bool DebugInfo::IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef meth
     return result;
 }
 
-HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                                   uint32_t &ilNextOffset, bool *noUserCodeFound)
+HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -533,14 +504,35 @@ HRESULT DebugInfo::GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdM
     return GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            if (pdbInfo.m_symbolReaderHandle == nullptr)
-            {
-                return E_FAIL;
-            }
-
-            return Interop::GetNextUserCodeILOffset(pdbInfo.m_symbolReaderHandle, methodToken,
-                                                    ilOffset, ilNextOffset, noUserCodeFound);
+            return PDBReader::GetNextUserCodeILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, ilNextOffset);
         });
+}
+
+HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset)
+{
+    HRESULT Status = S_OK;
+
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(pFrame->GetFunctionToken(&methodToken));
+
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
+
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
+    IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
+    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+        mappingResult == MAPPING_NO_INFO)
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
+
+    return GetNextUserCodeILOffset(trModule, methodToken, ilOffset, ilNextOffset);
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,

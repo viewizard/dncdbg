@@ -247,7 +247,6 @@ coreclr_shutdown_ptr Interop::shutdownCoreClr = nullptr;
 Interop::LoadSymbolsForModuleDelegate Interop::loadSymbolsForModuleDelegate = nullptr;
 Interop::DisposeDelegate Interop::disposeDelegate = nullptr;
 Interop::GetSequencePointByILOffsetDelegate Interop::getSequencePointByILOffsetDelegate = nullptr;
-Interop::GetNextUserCodeILOffsetDelegate Interop::getNextUserCodeILOffsetDelegate = nullptr;
 Interop::GetModuleMethodsRangesDelegate Interop::getModuleMethodsRangesDelegate = nullptr;
 Interop::ResolveBreakPointsDelegate Interop::resolveBreakPointsDelegate = nullptr;
 Interop::CoTaskMemFreeDelegate Interop::coTaskMemFreeDelegate = nullptr;
@@ -407,7 +406,6 @@ void Interop::Init(const std::string &coreClrPath)
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "LoadSymbolsForModule", reinterpret_cast<void **>(&loadSymbolsForModuleDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "Dispose", reinterpret_cast<void **>(&disposeDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetSequencePointByILOffset", reinterpret_cast<void **>(&getSequencePointByILOffsetDelegate))) &&
-        SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetNextUserCodeILOffset", reinterpret_cast<void **>(&getNextUserCodeILOffsetDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "GetModuleMethodsRanges", reinterpret_cast<void **>(&getModuleMethodsRangesDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, symbolReaderClassName, "ResolveBreakPoints", reinterpret_cast<void **>(&resolveBreakPointsDelegate))) &&
         SUCCEEDED(Status = createDelegate(hostHandle, domainId, managedPartDllName, utilsClassName, "CoTaskMemFree", reinterpret_cast<void **>(&coTaskMemFreeDelegate))) &&
@@ -422,7 +420,6 @@ void Interop::Init(const std::string &coreClrPath)
     const bool allDelegatesInited = (loadSymbolsForModuleDelegate != nullptr) &&
                                     (disposeDelegate != nullptr) &&
                                     (getSequencePointByILOffsetDelegate != nullptr) &&
-                                    (getNextUserCodeILOffsetDelegate != nullptr) &&
                                     (getModuleMethodsRangesDelegate != nullptr) &&
                                     (resolveBreakPointsDelegate != nullptr) &&
                                     (coTaskMemFreeDelegate != nullptr) &&
@@ -455,7 +452,6 @@ void Interop::Shutdown()
     loadSymbolsForModuleDelegate = nullptr;
     disposeDelegate = nullptr;
     getSequencePointByILOffsetDelegate = nullptr;
-    getNextUserCodeILOffsetDelegate = nullptr;
     getModuleMethodsRangesDelegate = nullptr;
     resolveBreakPointsDelegate = nullptr;
     coTaskMemFreeDelegate = nullptr;
@@ -475,29 +471,6 @@ HRESULT Interop::GetSequencePointByILOffset(void *pSymbolReaderHandle, mdMethodD
     // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
     const RetCode retCode = getSequencePointByILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
                                                                ilOffset, sequencePoint);
-
-    return retCode == RetCode::OK ? S_OK : E_FAIL;
-}
-
-HRESULT Interop::GetNextUserCodeILOffset(void *pSymbolReaderHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                                         uint32_t &ilNextOffset, bool *noUserCodeFound)
-{
-    const ReadLock read_lock(GetCLRrwlock());
-    if ((getNextUserCodeILOffsetDelegate == nullptr) || (pSymbolReaderHandle == nullptr))
-    {
-        return E_FAIL;
-    }
-
-    int32_t NoUserCodeFound = 0;
-
-    // Sequence points with startLine equal to 0xFEEFEE marker are filtered out on the managed side.
-    const RetCode retCode = getNextUserCodeILOffsetDelegate(pSymbolReaderHandle, static_cast<int32_t>(methodToken),
-                                                            ilOffset, &ilNextOffset, &NoUserCodeFound);
-
-    if (noUserCodeFound != nullptr)
-    {
-        *noUserCodeFound = NoUserCodeFound == 1;
-    }
 
     return retCode == RetCode::OK ? S_OK : E_FAIL;
 }

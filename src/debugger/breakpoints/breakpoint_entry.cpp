@@ -193,7 +193,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
 
     // Note, in case of async `MoveNext` method, user code don't start from 0 IL offset.
     uint32_t ilNextOffset = 0;
-    IfFailRet(pDebugInfo->GetNextUserCodeILOffsetInMethod(pModule, resultToken, 0, ilNextOffset));
+    IfFailRet(pDebugInfo->GetNextUserCodeILOffset(pModule, resultToken, 0, ilNextOffset));
 
     entryPointToken = resultToken;
     entryPointOffset = ilNextOffset;

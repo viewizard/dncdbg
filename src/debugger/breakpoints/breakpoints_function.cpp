@@ -346,7 +346,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
         IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
 
         uint32_t ilOffset = 0;
-        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffsetInMethod(pModule, methodToken, 0, ilOffset)))
+        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffset(pModule, methodToken, 0, ilOffset)))
         {
             return S_OK;
         }

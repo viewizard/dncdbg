@@ -218,9 +218,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // Same behaviour as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
     uint32_t ipOffset = 0;
     uint32_t ilNextUserCodeOffset = 0;
-    bool noUserCodeFound = false; // Must be initialized with `false`, since GetFrameILAndNextUserCodeILOffset call
-                                  // could be failed before delegate call.
-    if (SUCCEEDED(Status = m_sharedDebugInfo->GetFrameILAndNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset, &noUserCodeFound)))
+    if (SUCCEEDED(Status = m_sharedDebugInfo->GetNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset)))
     {
         if (reason == CorDebugStepReason::STEP_NORMAL)
         {
@@ -261,7 +259,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             return S_IGNORE;
         }
     }
-    else if (noUserCodeFound)
+    else if (Status == CORDBG_E_CODE_NOT_AVAILABLE) // no user code available after ipOffset
     {
         IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
         // In case step-in will return from method and no user code was called in user module, step-in again.

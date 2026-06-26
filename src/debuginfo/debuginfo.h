@@ -42,9 +42,6 @@ class DebugInfo
 
     HRESULT GetFrameILAndSequencePoint(ICorDebugFrame *pFrame, uint32_t &ilOffset, ManagedSequencePoint &sequencePoint);
 
-    HRESULT GetFrameILAndNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset,
-                                              bool *noUserCodeFound);
-
     HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
     static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
@@ -66,8 +63,8 @@ class DebugInfo
     HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                               std::vector<PDB::LocalConstant> &constants);
 
-    HRESULT GetNextUserCodeILOffsetInMethod(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                            uint32_t &ilNextOffset, bool *noUserCodeFound = nullptr);
+    HRESULT GetNextUserCodeILOffset(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
+    HRESULT GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset);
 
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                        ManagedSequencePoint &sequencePoint);

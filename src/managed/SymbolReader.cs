@@ -454,49 +454,6 @@ public class SymbolReader
         }
     }
 
-    /// <summary>
-    /// Find IL offset for next close user code sequence point by IL offset.
-    /// </summary>
-    /// <param name="symbolReaderHandle">symbol reader handle returned by LoadSymbolsForModule</param>
-    /// <param name="methodToken">method token</param>
-    /// <param name="ilOffset">IL offset</param>
-    /// <param name="sequencePoint">sequence point return</param>
-    /// <param name="noUserCodeFound">return 1 in case all sequence points checked and no user code was found, otherwise return 0</param>
-    /// <returns>"Ok" if information is available</returns>
-    private static RetCode GetNextUserCodeILOffset(IntPtr symbolReaderHandle, int methodToken, uint ilOffset, out uint ilNextOffset, out int noUserCodeFound)
-    {
-        Debug.Assert(symbolReaderHandle != IntPtr.Zero);
-        ilNextOffset = 0;
-        noUserCodeFound = 0;
-
-        try
-        {
-            if (!TryGetReaderWithValidation(symbolReaderHandle, out MetadataReader reader))
-                return RetCode.Fail;
-
-            SequencePointCollection sequencePoints = GetSequencePointCollection(methodToken, reader);
-
-            foreach (SequencePoint point in sequencePoints)
-            {
-                if (point.StartLine == 0 || point.StartLine == SequencePoint.HiddenLine)
-                    continue;
-
-                if (point.Offset >= ilOffset)
-                {
-                    ilNextOffset = (uint)point.Offset;
-                    return RetCode.OK;
-                }
-            }
-
-            noUserCodeFound = 1;
-            return RetCode.Fail;
-        }
-        catch
-        {
-            return RetCode.Exception;
-        }
-    }
-
     // WARNING: Keep this struct in sync with src/managed/interop.h (struct method_data_t)
     [StructLayout(LayoutKind.Sequential)]
     internal struct method_data_t
