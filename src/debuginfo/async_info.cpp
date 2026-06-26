@@ -6,6 +6,7 @@
 #include "debuginfo/async_info.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdbreader.h"
+#include "utils/hresult.h"
 
 namespace dncdbg
 {
@@ -13,9 +14,9 @@ namespace dncdbg
 // Caller must hold m_asyncMethodSteppingInfoMutex.
 HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken)
 {
-    // Note, for normal methods, `PDBReader::GetAsyncMethodSteppingInfo()` will return error code and set `lastIlOffset`
-    // to 0. Error during async info search (debug info not available or method token belong to normal method) is proper
-    // behavior and debugger logic also count on this.
+    // Note, for normal methods, `PDBReader::GetAsyncMethodSteppingInfo()` will return error code.
+    // Error during async info search (debug info not available or method token belongs to a normal method) is proper
+    // behavior and debugger logic also counts on this.
 
     if (asyncMethodSteppingInfo.modAddress == modAddress && asyncMethodSteppingInfo.methodToken == methodToken)
     {
@@ -32,8 +33,10 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
     asyncMethodSteppingInfo.retCode = m_sharedDebugInfo->GetPDBInfo(modAddress,
         [&](PDBInfo &pdbInfo) -> HRESULT
         {
-            return PDBReader::GetAsyncMethodSteppingInfo(pdbInfo.m_pdbHandle, methodToken, asyncMethodSteppingInfo.catchHandlerOffset,
-                                                         asyncMethodSteppingInfo.awaits, asyncMethodSteppingInfo.lastIlOffset);
+            HRESULT Status = S_OK;
+            IfFailRet(PDBReader::GetAsyncMethodSteppingInfo(pdbInfo.m_pdbHandle, methodToken, asyncMethodSteppingInfo.catchHandlerOffset,
+                                                             asyncMethodSteppingInfo.awaits));
+            return PDBReader::GetLastIlOffset(pdbInfo.m_pdbHandle, methodToken, asyncMethodSteppingInfo.lastIlOffset);
         });
 
     return asyncMethodSteppingInfo.retCode;

@@ -709,7 +709,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
 }
 
 HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
-                                   std::vector<PDB::AsyncAwaitInfoBlock> &awaitInfos, uint32_t &lastIlOffset)
+                                   std::vector<PDB::AsyncAwaitInfoBlock> &awaitInfos)
 {
     if (pdbHandle == nullptr)
     {
@@ -718,7 +718,6 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
 
     catchHandlerOffset = 0;
     awaitInfos.clear();
-    lastIlOffset = 0;
 
     // Create cursor to the CustomDebugInformation table
     mdcursor_t cdiCursor;
@@ -791,10 +790,17 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
         break;
     }
 
-    if (awaitInfos.empty())
+    return awaitInfos.empty() ? E_FAIL : S_OK;
+}
+
+HRESULT GetLastIlOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &lastIlOffset)
+{
+    if (pdbHandle == nullptr)
     {
-        return E_FAIL;
+        return E_INVALIDARG;
     }
+
+    lastIlOffset = 0;
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
