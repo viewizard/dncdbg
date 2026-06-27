@@ -21,9 +21,6 @@ if(NOT WIN32)
     endif()
 endif()
 
-set(DOTNET_DIR "" CACHE FILEPATH "Path to .NET SDK directory")
-set(DOTNET_CHANNEL "10.0" CACHE STRING ".NET SDK channel")
-
 if(WIN32)
     # For Windows it is expected that CLR_CMAKE_HOST_ARCH parameter is passed
     # to CMAKE to determine build arch. If it is not passed, detect arch here.
@@ -57,13 +54,6 @@ if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
         set(CMAKE_OSX_ARCHITECTURES "x86_64")
         message(STATUS "Architecture not specified: using host architecture x86_64")
     endif()
-endif()
-
-include(cmake/fetchdeps.cmake)
-
-# Basic checks for valid path
-if(NOT DOTNET_DIR OR NOT IS_DIRECTORY "${DOTNET_DIR}/shared/Microsoft.NETCore.App")
-    message(FATAL_ERROR "Invalid or missing .NET SDK directory: '${DOTNET_DIR}'")
 endif()
 
 # Debug symbols stripping from libdbgshim and dncdbg for Release build only

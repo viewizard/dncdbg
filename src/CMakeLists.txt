@@ -58,7 +58,6 @@ set(DNCDBG_SOURCES
     debuginfo/sourcefilemap.cpp
     expressionparser/helpers.cpp
     expressionparser/parser.cpp
-    managed/interop.cpp
     metadata/attributes.cpp
     metadata/jmc.cpp
     metadata/modules.cpp
@@ -224,41 +223,3 @@ else()
 endif()
 
 install_clr(TARGETS dncdbg DESTINATIONS .)
-
-# =============================================================================
-# Managed part (ManagedPart.dll)
-# =============================================================================
-
-set(MANAGEDPART_PROJECT "${CMAKE_CURRENT_SOURCE_DIR}/managed/ManagedPart.csproj")
-set(MANAGEDPART_DLL_NAME "ManagedPart.dll")
-set(DOTNET_BUILD_RESULT "${CMAKE_CURRENT_BINARY_DIR}/${MANAGEDPART_DLL_NAME}")
-
-find_program(DOTNETCLI dotnet
-    PATHS "${DOTNET_DIR}"
-    ENV PATH
-    NO_DEFAULT_PATH
-)
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(MANAGEDPART_BUILD_TYPE "Debug")
-else()
-    # Default to Release for non-Debug configurations
-    set(MANAGEDPART_BUILD_TYPE "Release")
-endif()
-
-add_custom_command(OUTPUT ${DOTNET_BUILD_RESULT}
-    COMMAND ${DOTNETCLI} publish ${MANAGEDPART_PROJECT}
-        --self-contained
-        -c ${MANAGEDPART_BUILD_TYPE}
-        -o ${CMAKE_CURRENT_BINARY_DIR}
-        /p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/
-        /p:BaseOutputPath=${CMAKE_CURRENT_BINARY_DIR}/bin/
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/managed/*.cs" "${MANAGEDPART_PROJECT}"
-    COMMENT "Compiling ${MANAGEDPART_DLL_NAME}"
-    VERBATIM
-)
-
-add_custom_target(managedpart_dll ALL DEPENDS ${DOTNET_BUILD_RESULT})
-
-install(FILES ${DOTNET_BUILD_RESULT} DESTINATION .)

@@ -569,11 +569,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     IfFailRet(trDebug->Initialize());
 
-    if (m_clrPath.empty())
-    {
-        m_clrPath = GetCLRPath(m_dbgshim, m_processId);
-    }
-
     m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(*this);
     m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
     if (FAILED(Status = trDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
@@ -640,8 +635,6 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
             ss << " \"" << arg << "\"";
         }
     }
-
-    m_clrPath.clear();
 
     HANDLE resumeHandle = nullptr; // Fake thread handle for the process resume
 
@@ -819,19 +812,14 @@ void ManagedDebugger::Cleanup()
     m_sharedCallbacksQueue = nullptr;
 }
 
-std::string ManagedDebugger::DetectClrPathByPID(DWORD processId)
-{
-    return GetCLRPath(m_dbgshim, processId);
-}
-
 HRESULT ManagedDebugger::AttachToProcess()
 {
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
 
-    m_clrPath = GetCLRPath(m_dbgshim, m_processId);
-    if (m_clrPath.empty())
+    const std::string clrPath = GetCLRPath(m_dbgshim, m_processId);
+    if (clrPath.empty())
     {
         return E_INVALIDARG; // Unable to find libcoreclr.so
     }
@@ -840,7 +828,7 @@ HRESULT ManagedDebugger::AttachToProcess()
     std::array<WCHAR, bufSize> pBuffer{};
     DWORD dwLength = 0;
     IfFailRet(m_dbgshim.GetCreateVersionStringFromModule()(
-        m_processId, reinterpret_cast<const WCHAR *>(to_utf16(m_clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
+        m_processId, reinterpret_cast<const WCHAR *>(to_utf16(clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
 
     ToRelease<IUnknown> trCordb;
     IfFailRet(m_dbgshim.GetCreateDebuggingInterfaceFromVersionEx()(CorDebugVersion_4_0, pBuffer.data(), &trCordb));

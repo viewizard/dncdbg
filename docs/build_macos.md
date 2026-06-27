@@ -36,9 +36,6 @@ user@build$ CC=clang CXX=clang++ cmake ..
 In order to run tests after a successful build, you need to add the option
 `-DCMAKE_INSTALL_PREFIX=$PWD/../bin`
 
-If you have previously downloaded the .NET SDK, then you should modify the command line by adding the following option:
-`-DDOTNET_DIR=/path/to/sdk/dir`.
-
 Add your build type (`Release` or `Debug`), for example:
 `-DCMAKE_BUILD_TYPE=Release`
 
@@ -65,7 +62,6 @@ As an example, the complete build sequence for an Apple Silicon Mac might look l
 user@dncdbg$ mkdir build && cd build
 user@build$ CC=clang CXX=clang++ cmake .. \
     -DCMAKE_INSTALL_PREFIX=$PWD/../bin \
-    -DDOTNET_DIR=/Users/user/SDK/ \
     -DCMAKE_BUILD_TYPE=Release
 user@build$ cmake --build . --target install --parallel $(sysctl -n hw.ncpu) -- UseSharedCompilation=false UseRearNodes=false
 ```

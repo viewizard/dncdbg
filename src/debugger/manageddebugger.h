@@ -117,12 +117,6 @@ class ManagedDebugger
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
-    std::string GetClrPath()
-    {
-        return m_clrPath;
-    }
-    std::string DetectClrPathByPID(DWORD processId);
-
     void WriteStdin(gsl::span<const char> text);
     bool InitializeRemoteConsoleServer(int port);
 
@@ -175,7 +169,6 @@ class ManagedDebugger
 
     void *m_unregisterToken{nullptr};
     DWORD m_processId{0};
-    std::string m_clrPath;
     dbgshim_t m_dbgshim;
     IORedirect m_ioredirect;
     RemoteConsoleServer m_remoteConsoleServer;

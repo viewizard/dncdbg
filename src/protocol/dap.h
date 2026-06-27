@@ -43,8 +43,6 @@ class DAP
     std::atomic<bool> m_exit;
     std::shared_ptr<ManagedDebugger> m_sharedDebugger;
 
-    bool m_interopInitialized{false};
-
     std::string m_fileExec;
     std::vector<std::string> m_execArgs;
 
