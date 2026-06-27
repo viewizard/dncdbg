@@ -4,6 +4,7 @@
 
 #include "debuginfo/pdbreader.h"
 #include "debuginfo/sourcefilemap.h"
+#include "utils/filesystem.h"
 #include "utils/utftoupper.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
@@ -189,25 +190,25 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
     }
 
     // Allocate buffer and parse the document name
-    std::string docName(nameLen, '\0');
-    result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docName.data(), &nameLen);
+    std::string docFilePath(nameLen, '\0');
+    result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
     }
 
     // Remove null terminator that was included in the length
-    if (!docName.empty() && docName.back() == '\0')
+    if (!docFilePath.empty() && docFilePath.back() == '\0')
     {
-        docName.pop_back();
+        docFilePath.pop_back();
     }
 
-    sourceFilePath = SourceFileMap::Path(docName);
+    sourceFilePath = SourceFileMap::Path(docFilePath);
 
     return S_OK;
 }
 
-HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &sourceFiles)
+HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNameToIndicesMap)
 {
     if (pdbHandle == nullptr)
     {
@@ -222,9 +223,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &source
         return E_FAIL;
     }
 
-    // Reserve space for all documents
-    sourceFiles.clear();
-    sourceFiles.reserve(docCount);
+    sourceFileNameToIndicesMap.clear();
 
     // Iterate through all documents
     for (uint32_t i = 0; i < docCount; ++i)
@@ -254,8 +253,8 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &source
         }
 
         // Allocate buffer and parse the document name
-        std::string docName(nameLen, '\0');
-        result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docName.data(), &nameLen);
+        std::string docFilePath(nameLen, '\0');
+        result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
         if (result != mdbpr_Success)
         {
             md_cursor_move(&docCursor, 1);
@@ -263,16 +262,17 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, std::vector<std::string> &source
         }
 
         // Remove null terminator that was included in the length
-        if (!docName.empty() && docName.back() == '\0')
+        if (!docFilePath.empty() && docFilePath.back() == '\0')
         {
-            docName.pop_back();
+            docFilePath.pop_back();
         }
 
+        std::string docFileName = GetFileName(docFilePath);
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        docName = to_uppercase(SourceFileMap::Path(docName));
+        docFileName = to_uppercase(docFileName);
 #endif
 
-        sourceFiles.push_back(std::move(docName));
+        sourceFileNameToIndicesMap[docFileName].push_front(i);
         md_cursor_move(&docCursor, 1);
     }
 

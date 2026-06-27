@@ -12,13 +12,14 @@
 #endif
 
 #include "utils/memorybuffer.h"
-#include "managed/interop.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
 #include <cstdint>
 #include <dnmd.h>
+#include <forward_list>
 #include <vector>
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -118,6 +119,8 @@ struct ResolvedBreakpoint
     }
 };
 
+using SourceNameMap = std::unordered_map<std::string, std::forward_list<uint32_t>>;
+
 constexpr uint8_t IDSize = 20;
 // PDB ID = GUID (16 bytes) + date/time stamp (4 bytes)
 using Identity = std::array<uint8_t, IDSize>;
@@ -126,27 +129,26 @@ using Identity = std::array<uint8_t, IDSize>;
 
 struct PDBInfo
 {
-    void *m_symbolReaderHandle = nullptr;
     mdhandle_t m_pdbHandle = nullptr;
     MemoryBuffer m_memBuff;
     ToRelease<ICorDebugModule> m_trModule;
+    PDB::SourceNameMap m_sourceFileNameToIndices;
 
     PDBInfo() = default;
-    PDBInfo(void *symHandle, mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule)
-        : m_symbolReaderHandle(symHandle),
-          m_pdbHandle(handle),
+    PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule, PDB::SourceNameMap &&sourceMap)
+        : m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
-          m_trModule(pModule)
+          m_trModule(pModule),
+          m_sourceFileNameToIndices(std::move(sourceMap))
     {
     }
 
     PDBInfo(PDBInfo &&other) noexcept
-        : m_symbolReaderHandle(other.m_symbolReaderHandle),
-          m_pdbHandle(other.m_pdbHandle),
+        : m_pdbHandle(other.m_pdbHandle),
           m_memBuff(std::move(other.m_memBuff)),
-          m_trModule(std::move(other.m_trModule))
+          m_trModule(std::move(other.m_trModule)),
+          m_sourceFileNameToIndices(std::move(other.m_sourceFileNameToIndices))
     {
-        other.m_symbolReaderHandle = nullptr;
         other.m_pdbHandle = nullptr;
     }
 
@@ -156,11 +158,6 @@ struct PDBInfo
 
     ~PDBInfo()
     {
-        if (m_symbolReaderHandle != nullptr)
-        {
-            Interop::DisposeSymbols(m_symbolReaderHandle);
-        }
-
         if (m_pdbHandle != nullptr)
         {
             md_destroy_handle(m_pdbHandle);
