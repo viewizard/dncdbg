@@ -23,7 +23,7 @@ namespace
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
 HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, const SourceBreakpoints::ManagedSourceBreakpoint &bp,
-                                const std::string &bp_fullname, std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints,
+                                const std::string &bp_fullname, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints,
                                 uint32_t &bp_fullname_index)
 {
     if (bp_fullname.empty() || bp.linenum <= 0 || bp.endLine <= 0)
@@ -49,7 +49,7 @@ HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule,
 }
 
 HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp, const std::string &bp_fullname,
-                                 bool justMyCode, const std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
+                                 bool justMyCode, const std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -274,7 +274,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             uint32_t resolved_fullname_index = 0;
-            std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
+            std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
 
             if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialBreakpoints.first,
                                                resolvedPoints, resolved_fullname_index)) ||
@@ -505,7 +505,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             uint32_t resolved_fullname_index = 0;
-            std::vector<DebugInfoSources::resolved_bp_t> resolvedPoints;
+            std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
 
             if (haveProcess &&
                 SUCCEEDED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), nullptr, bp, filename, resolvedPoints, resolved_fullname_index)) &&

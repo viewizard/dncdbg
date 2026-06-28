@@ -36,6 +36,7 @@ struct MethodRange
     int32_t endColumn{0};   // last segment/method SequencePoint's endColumn
     bool isCtor{false};     // whether method data is constructor-related
 
+    MethodRange() = default;
     MethodRange(mdMethodDef methodToken_,
                 int32_t startLine_,
                 int32_t endLine_,
@@ -109,6 +110,7 @@ struct ResolvedBreakpoint
     int32_t startLine{0};
     int32_t endLine{0};
     uint32_t ilOffset{0};
+    ToRelease<ICorDebugModule> trModule;
 
     ResolvedBreakpoint(mdMethodDef method, int32_t start, int32_t end, uint32_t offset)
         : methodToken(method),
@@ -120,6 +122,8 @@ struct ResolvedBreakpoint
 };
 
 using SourceNameMap = std::unordered_map<std::string, std::forward_list<uint32_t>>;
+// properly ordered arrays of method range on each nested level in one source file
+using MethodRanges = std::vector<std::vector<MethodRange>>;
 
 constexpr uint8_t IDSize = 20;
 // PDB ID = GUID (16 bytes) + date/time stamp (4 bytes)
@@ -133,13 +137,16 @@ struct PDBInfo
     MemoryBuffer m_memBuff;
     ToRelease<ICorDebugModule> m_trModule;
     PDB::SourceNameMap m_sourceFileNameToIndices;
+    std::vector<PDB::MethodRanges> m_sourceMethodRanges;
 
     PDBInfo() = default;
-    PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule, PDB::SourceNameMap &&sourceMap)
+    PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule,
+            PDB::SourceNameMap &&sourceMap, std::vector<PDB::MethodRanges> &&sourceMethodRanges)
         : m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
           m_trModule(pModule),
-          m_sourceFileNameToIndices(std::move(sourceMap))
+          m_sourceFileNameToIndices(std::move(sourceMap)),
+          m_sourceMethodRanges(std::move(sourceMethodRanges))
     {
     }
 
@@ -147,7 +154,8 @@ struct PDBInfo
         : m_pdbHandle(other.m_pdbHandle),
           m_memBuff(std::move(other.m_memBuff)),
           m_trModule(std::move(other.m_trModule)),
-          m_sourceFileNameToIndices(std::move(other.m_sourceFileNameToIndices))
+          m_sourceFileNameToIndices(std::move(other.m_sourceFileNameToIndices)),
+          m_sourceMethodRanges(std::move(other.m_sourceMethodRanges))
     {
         other.m_pdbHandle = nullptr;
     }
