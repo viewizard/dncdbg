@@ -105,11 +105,11 @@ HRESULT Breakpoints::SetFunctionBreakpoints(bool haveProcess, const std::vector<
         });
 }
 
-HRESULT Breakpoints::SetSourceBreakpoints(bool haveProcess, const std::string &filename,
+HRESULT Breakpoints::SetSourceBreakpoints(bool haveProcess, const std::string &sourcePath,
                                           const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                           std::vector<Breakpoint> &breakpoints)
 {
-    return m_sourceBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints,
+    return m_sourceBreakpoints->SetSourceBreakpoints(haveProcess, sourcePath, sourceBreakpoints, breakpoints,
         [&]() -> uint32_t
         {
             const std::scoped_lock<std::mutex> lock(m_nextBreakpointIdMutex);

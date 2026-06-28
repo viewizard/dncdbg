@@ -45,7 +45,7 @@ class SourceBreakpoints
         m_justMyCode = enable;
     };
     void DeleteAll();
-    HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+    HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &sourcePath, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                  std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
@@ -71,7 +71,6 @@ class SourceBreakpoints
     struct ManagedSourceBreakpoint
     {
         uint32_t id{0};
-        std::string module;
         int linenum{0};
         int endLine{0};
         uint32_t hitCount{0};

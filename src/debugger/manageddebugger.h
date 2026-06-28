@@ -98,7 +98,7 @@ class ManagedDebugger
     bool IsProcessRunning();
     HRESULT Pause(ThreadId lastStoppedThread);
     HRESULT GetThreads(std::vector<Thread> &threads);
-    HRESULT SetSourceBreakpoints(const std::string &filename, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+    HRESULT SetSourceBreakpoints(const std::string &sourcePath, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                  std::vector<Breakpoint> &breakpoints);
     HRESULT SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                    std::vector<Breakpoint> &breakpoints);

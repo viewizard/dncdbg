@@ -865,12 +865,12 @@ HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBrea
     return m_sharedBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &filename,
+HRESULT ManagedDebugger::SetSourceBreakpoints(const std::string &sourcePath,
                                               const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                               std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->SetSourceBreakpoints(haveProcess, filename, sourceBreakpoints, breakpoints);
+    return m_sharedBreakpoints->SetSourceBreakpoints(haveProcess, sourcePath, sourceBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
