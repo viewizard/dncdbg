@@ -208,7 +208,7 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
     return S_OK;
 }
 
-HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNameToIndicesMap)
+HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNameToIndices)
 {
     if (pdbHandle == nullptr)
     {
@@ -223,7 +223,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
         return E_FAIL;
     }
 
-    sourceFileNameToIndicesMap.clear();
+    sourceFileNameToIndices.clear();
 
     // Iterate through all documents
     for (uint32_t i = 0; i < docCount; ++i)
@@ -272,7 +272,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
         docFileName = to_uppercase(docFileName);
 #endif
 
-        sourceFileNameToIndicesMap[docFileName].push_front(i);
+        sourceFileNameToIndices[docFileName].push_front(i);
         md_cursor_move(&docCursor, 1);
     }
 
@@ -280,7 +280,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
 }
 
 HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
-                         std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> &srcMethodsMap)
+                         std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> &srcMethodRanges)
 {
     if (pdbHandle == nullptr)
     {
@@ -296,8 +296,8 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
     }
 
     // Reserve space for all sources
-    srcMethodsMap.clear();
-    srcMethodsMap.reserve(docCount);
+    srcMethodRanges.clear();
+    srcMethodRanges.reserve(docCount);
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -402,7 +402,7 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
                 if (isCtor)
                 {
                     // Add sequence point range to the src's collection
-                    auto &methods = srcMethodsMap[docIndex];
+                    auto &methods = srcMethodRanges[docIndex];
                     methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
                     foundFirst = false;
                 }
@@ -417,7 +417,7 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
         }
 
         // Add method range to the src's collection
-        auto &methods = srcMethodsMap[docIndex];
+        auto &methods = srcMethodRanges[docIndex];
         methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
 
         md_cursor_move(&mdiCursor, 1);
