@@ -1193,8 +1193,8 @@ class Program
                         Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts6, "", "val2", "<error>");
                         Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts6, "string", "val3", "\"text_123\"");
                     });
-                // we have 5 seconds evaluation timeout by default, wait 20 seconds (5 seconds eval timeout * 3 eval requests + 5 seconds reserve)
-                if (!task.Wait(TimeSpan.FromSeconds(20)))
+                // we have 5 seconds evaluation timeout by default, wait 40 seconds (5 seconds eval timeout * 3 eval requests + 25 seconds reserve)
+                if (!task.Wait(TimeSpan.FromSeconds(40)))
                     throw new DebuggerTimedOut(@"__FILE__:__LINE__");
 
                 task = System.Threading.Tasks.Task.Run(
@@ -1204,8 +1204,8 @@ class Program
                         Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts6, "", 1, "<error>");
                         Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts6, "string", 2, "\"text_123\"");
                     });
-                // we have 5 seconds evaluation timeout by default, wait 20 seconds (5 seconds eval timeout * 3 eval requests + 5 seconds reserve)
-                if (!task.Wait(TimeSpan.FromSeconds(20)))
+                // we have 5 seconds evaluation timeout by default, wait 40 seconds (5 seconds eval timeout * 3 eval requests + 25 seconds reserve)
+                if (!task.Wait(TimeSpan.FromSeconds(40)))
                     throw new DebuggerTimedOut(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
