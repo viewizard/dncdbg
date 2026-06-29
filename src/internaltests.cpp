@@ -42,7 +42,8 @@ void RunInternalTests() // NOLINT(misc-use-internal-linkage)
     {
         const std::string testString = dncdbg::to_uppercase("привет, hello, auf wiedersehen, grüße, καλημέρα");
         assert(testString == std::string("ПРИВЕТ, HELLO, AUF WIEDERSEHEN, GRÜSSE, ΚΑΛΗΜΈΡΑ") ||
-               testString == std::string("ПРИВЕТ, HELLO, AUF WIEDERSEHEN, GRÜßE, ΚΑΛΗΜΈΡΑ"));
+               testString == std::string("ПРИВЕТ, HELLO, AUF WIEDERSEHEN, GRÜßE, ΚΑΛΗΜΈΡΑ") ||
+               testString == std::string("ПРИВЕТ, HELLO, AUF WIEDERSEHEN, GRÜẞE, ΚΑΛΗΜΈΡΑ"));
     }
 }
 
