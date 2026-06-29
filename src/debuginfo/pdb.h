@@ -121,6 +121,29 @@ struct ResolvedBreakpoint
     }
 };
 
+struct GlobalFileIndex
+{
+    CORDB_ADDRESS modAddress{0};
+    uint32_t sourceFileIndex{0};
+
+    bool operator==(const GlobalFileIndex &other) const
+    {
+        return modAddress == other.modAddress &&
+               sourceFileIndex == other.sourceFileIndex;
+    }
+};
+
+struct GlobalFileIndexHash
+{
+    std::size_t operator()(const GlobalFileIndex &key) const
+    {
+        const std::size_t h1 = std::hash<CORDB_ADDRESS>{}(key.modAddress);
+        const std::size_t h2 = std::hash<uint32_t>{}(key.sourceFileIndex);
+        // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
+        return h1 ^ (h2 << 1);
+    }
+};
+
 using SourceNameMap = std::unordered_map<std::string, std::forward_list<uint32_t>>;
 // properly ordered arrays of method range on each nested level in one source file
 using MethodRanges = std::vector<std::vector<MethodRange>>;

@@ -5,13 +5,13 @@
 
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdbreader.h"
-#include "managed/interop.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/utftoupper.h"
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -186,55 +186,6 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
     return ForEachMethod(pModule, functor);
 }
 
-HRESULT LoadSymbols(ICorDebugModule *pModule, void **ppSymbolReaderHandle)
-{
-    HRESULT Status = S_OK;
-    BOOL isDynamic = FALSE;
-    BOOL isInMemory = FALSE;
-    IfFailRet(pModule->IsDynamic(&isDynamic));
-    IfFailRet(pModule->IsInMemory(&isInMemory));
-
-    if (isDynamic == TRUE)
-    {
-        return E_FAIL; // Dynamic and in memory assemblies are a special case which we will ignore for now
-    }
-
-    uint64_t peAddress = 0;
-    uint32_t peSize = 0;
-    IfFailRet(pModule->GetBaseAddress(&peAddress));
-    IfFailRet(pModule->GetSize(&peSize));
-
-    std::vector<unsigned char> peBuf;
-    const void *peBufAddress = nullptr;
-    if ((isInMemory == TRUE) && (peAddress != 0) && (peSize != 0))
-    {
-        ToRelease<ICorDebugProcess> trProcess;
-        IfFailRet(pModule->GetProcess(&trProcess));
-
-        peBuf.resize(peSize);
-        peBufAddress = peBuf.data();
-        SIZE_T read = 0;
-        IfFailRet(trProcess->ReadMemory(peAddress, peSize, peBuf.data(), &read));
-        if (read != peSize)
-        {
-            return E_FAIL;
-        }
-    }
-
-    std::string pdbPath;
-    return Interop::LoadSymbolsForPortablePDB(
-        Modules::GetModuleFilePath(pModule),
-        isInMemory,
-        isInMemory, // isFileLayout
-        peBufAddress,
-        peSize,
-        nullptr,    // inMemoryPdbAddress
-        0,          // inMemoryPdbSize
-        ppSymbolReaderHandle,
-        pdbPath
-    );
-}
-
 HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath)
 {
     HRESULT Status = S_OK;
@@ -267,6 +218,40 @@ HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &m
     return COR_E_FILENOTFOUND;
 }
 
+std::string CanonicalizeFilePath(const std::string &filePath)
+{
+    std::string result = filePath;
+
+    // Handle all "./" and "../".
+    std::list<std::string> pathDirs;
+    std::size_t i = 0;
+    while ((i = result.find_first_of("/\\")) != std::string::npos)
+    {
+        const std::string pathElement = result.substr(0, i);
+        if (pathElement == "..")
+        {
+            if (!pathDirs.empty())
+            {
+                pathDirs.pop_front();
+            }
+        }
+        else if (pathElement != ".")
+        {
+            pathDirs.push_front(pathElement);
+        }
+
+        result = result.substr(i + 1);
+    }
+
+    // Set '/' as delimiter, BinaryPredicate in ResolveBreakpoint method will check both delimiters.
+    for (const auto &dir : pathDirs)
+    {
+        result.insert(0, dir + '/');
+    }
+
+    return result;
+}
+
 } // unnamed namespace
 
 void DebugInfo::Cleanup()
@@ -278,30 +263,17 @@ void DebugInfo::Cleanup()
 HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-    auto info_pair = m_debugInfo.find(modAddress);
-    return (info_pair == m_debugInfo.end()) ? E_FAIL : cb(info_pair->second);
-}
-
-// Caller must hold m_debugInfoMutex.
-HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppPDBInfo)
-{
-    auto info_pair = m_debugInfo.find(modAddress);
-    if (info_pair == m_debugInfo.end())
-    {
-        return E_FAIL;
-    }
-
-    *ppPDBInfo = &info_pair->second;
-    return S_OK;
+    auto infoPair = m_debugInfo.find(modAddress);
+    return (infoPair == m_debugInfo.end()) ? E_FAIL : cb(infoPair->second);
 }
 
 HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (const auto &info_pair : m_debugInfo)
+    for (const auto &infoPair : m_debugInfo)
     {
-        const PDBInfo &pdbInfo = info_pair.second;
+        const PDBInfo &pdbInfo = infoPair.second;
         ResolveMethodInModule(pdbInfo.m_trModule, funcname, cb);
     }
 
@@ -352,7 +324,7 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
     uint32_t ilEndOffset = 0;
 
     IfFailRet(GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetStepRangeFromILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, ilStartOffset, ilEndOffset);
         }));
@@ -372,9 +344,6 @@ HRESULT DebugInfo::GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG
 
 void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 {
-    void *pSymbolReaderHandle = nullptr;
-    LoadSymbols(pModule, &pSymbolReaderHandle);
-
     mdhandle_t pdbHandle = nullptr;
     MemoryBuffer memBuff;
     const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath);
@@ -382,11 +351,15 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
-        ToRelease<IUnknown> trUnknown;
-        ToRelease<IMetaDataImport> trMDImport;
-        if (FAILED(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
-            FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) ||
-            FAILED(m_debugInfoSources.FillSourcesCodeLinesForModule(pModule, trMDImport, pSymbolReaderHandle)))
+        PDB::SourceNameMap sourceFileNameToIndicesMap;
+        if (FAILED(PDBReader::GetAllSourceFiles(pdbHandle, sourceFileNameToIndicesMap)))
+        {
+            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+                "Could not load source file names related info from PDB file.\n"});
+        }
+
+        std::vector<PDB::MethodRanges> sourceMethodRanges;
+        if (FAILED(DebugSources::FillMethodRanges(pModule, pdbHandle, sourceMethodRanges)))
         {
             DAPIO::EmitOutputEvent({OutputCategory::StdErr,
                 "Could not load source lines related info from PDB file. Could produce failures during "
@@ -397,7 +370,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
-            PDBInfo pdbInfo{pSymbolReaderHandle, pdbHandle, std::move(memBuff), pModule};
+            PDBInfo pdbInfo{pdbHandle, std::move(memBuff), pModule, std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges)};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
             m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }
@@ -427,7 +400,7 @@ HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethod
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     IfFailRet(GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetLocalVariableName(pdbInfo.m_pdbHandle, methodToken, ilOffset, localIndex, localName);
         }));
@@ -445,7 +418,7 @@ bool DebugInfo::IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef meth
 
     bool result = true; // Default to showing variable (fail-open)
     GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             result = PDBReader::IsHoistedLocalInScope(pdbInfo.m_pdbHandle, methodToken, ilOffset, hoistedLocalIndex);
             return S_OK;
@@ -461,7 +434,7 @@ HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugModule *pModule, mdMethodDef
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetNextUserCodeILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, ilNextOffset);
         });
@@ -494,12 +467,12 @@ HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilO
     return GetNextUserCodeILOffset(trModule, methodToken, ilOffset, ilNextOffset);
 }
 
-HRESULT DebugInfo::GetSourceFile(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceFilePath)
+HRESULT DebugInfo::GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath)
 {
-    return GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+    return GetPDBInfo(globalFileIndex.modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
-            return PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceFileIndex, sourceFilePath);
+            return PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, globalFileIndex.sourceFileIndex, sourceFilePath);
         });
 }
 
@@ -507,14 +480,14 @@ HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethod
                                               PDB::SequencePoint &sequencePoint)
 {
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetSequencePointByILOffset(pdbInfo.m_pdbHandle, methodToken, ilOffset, sequencePoint);
         });
 }
 
 HRESULT DebugInfo::GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
-                                              std::string *sourceFilePath)
+                                              PDB::GlobalFileIndex *pGlobalFileIndex)
 {
     HRESULT Status = S_OK;
 
@@ -543,39 +516,141 @@ HRESULT DebugInfo::GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &
 
     IfFailRet(GetSequencePointByILOffset(modAddress, methodToken, ilOffset, sequencePoint));
 
-    if (sourceFilePath != nullptr)
+    if (pGlobalFileIndex != nullptr)
     {
-        return GetSourceFile(modAddress, sequencePoint.sourceFileIndex, *sourceFilePath);
+        pGlobalFileIndex->modAddress = modAddress;
+        pGlobalFileIndex->sourceFileIndex = sequencePoint.sourceFileIndex;
     }
     return S_OK;
 }
 
-HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress,
+HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filePath,
+                                     int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
+                                     std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
+{
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-                                     const std::string &filename_,
+    std::string fixedFilePath = to_uppercase(filePath);
 #else
-                                     const std::string &filename,
-#endif
-                                     int sourceLine, uint32_t &fullname_index,
-                                     std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints)
-{
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    const std::string filename = to_uppercase(filename_);
+    std::string fixedFilePath = filePath;
 #endif
 
-    // Note, in all code we use m_debugInfoMutex > m_sourcesInfoMutex lock sequence.
     const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
-    return m_debugInfoSources.ResolveBreakpoint(this, modAddress, filename, sourceLine, fullname_index, resolvedPoints);
-}
 
-HRESULT DebugInfo::GetSourceFullPathByIndex(uint32_t index, std::string &fullPath)
-{
-    return m_debugInfoSources.GetSourceFullPathByIndex(index, fullPath);
-}
+    const std::string pathName = GetFileName(fixedFilePath);
+    std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
 
-HRESULT DebugInfo::GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index)
-{
-    return m_debugInfoSources.GetIndexBySourceFullPath(fullPath, index);
+    auto addSourceIndices = [&](const PDBInfo &pdbInfo) -> void
+    {
+            auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
+            if (findName == pdbInfo.m_sourceFileNameToIndices.end())
+            {
+                return;
+            }
+            foundSourceIndices[modAddress].insert_after(foundSourceIndices[modAddress].before_begin(),
+                                                        findName->second.begin(), findName->second.end());
+    };
+
+    if (modAddress != 0)
+    {
+        auto infoPair = m_debugInfo.find(modAddress);
+        if (infoPair != m_debugInfo.end())
+        {
+            const PDBInfo &pdbInfo = infoPair->second;
+            addSourceIndices(pdbInfo);
+        };
+    }
+    else
+    {
+        for (const auto &infoPair : m_debugInfo)
+        {
+            modAddress = infoPair.first;
+            const PDBInfo &pdbInfo = infoPair.second;
+            addSourceIndices(pdbInfo);
+        }
+    }
+
+    if (foundSourceIndices.empty())
+    {
+        return E_FAIL;
+    }
+
+    fixedFilePath = CanonicalizeFilePath(fixedFilePath);
+
+    const PDBInfo *pPDBInfo = nullptr;
+    auto findPDBInfoAndIndex = [&]()
+    {
+        std::string currentResult;
+        for (auto &moduleSourceIndices : foundSourceIndices)
+        {
+            modAddress = moduleSourceIndices.first;
+
+            for (auto &sourceIndex : moduleSourceIndices.second)
+            {
+                auto infoPair = m_debugInfo.find(modAddress);
+                if (infoPair == m_debugInfo.end())
+                {
+                    continue;
+                }
+
+                const PDBInfo &pdbInfo = infoPair->second;
+                std::string sourceFilePath;
+                if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath)))
+                {
+                    continue;
+                }
+
+                if (fixedFilePath == sourceFilePath)
+                {
+                    globalFileIndex.sourceFileIndex = sourceIndex;
+                    globalFileIndex.modAddress = modAddress;
+                    pPDBInfo = &pdbInfo;
+                    return;
+                }
+
+                if (fixedFilePath.size() > sourceFilePath.size())
+                {
+                    continue;
+                }
+
+                // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
+                auto BinaryPredicate =
+                    [](const char &a, const char &b) -> bool
+                    {
+                        if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
+                        {
+                            return true;
+                        }
+                        return a == b;
+                    };
+
+                // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
+                if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
+                    sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
+                                     fixedFilePath.size() - 1) != '\\')
+                {
+                    continue;
+                }
+                if (currentResult.empty() ||
+                    (std::equal(fixedFilePath.begin(), fixedFilePath.end(), sourceFilePath.end() -
+                                static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
+                     currentResult.length() > fixedFilePath.length()))
+                {
+                    currentResult = fixedFilePath;
+                    globalFileIndex.sourceFileIndex = sourceIndex;
+                    globalFileIndex.modAddress = modAddress;
+                    pPDBInfo = &pdbInfo;
+                }
+            }
+        }
+    };
+    findPDBInfoAndIndex();
+
+    if (pPDBInfo == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    return DebugSources::ResolveBreakpoints(*pPDBInfo, globalFileIndex.sourceFileIndex, sourceLine, resolvedPoints);
 }
 
 HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
@@ -586,7 +661,7 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     return GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetLocalConstants(pdbInfo.m_pdbHandle, methodToken, ilOffset, constants);
         });

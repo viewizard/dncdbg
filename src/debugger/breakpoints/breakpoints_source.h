@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
@@ -71,7 +72,7 @@ class SourceBreakpoints
     struct ManagedSourceBreakpoint
     {
         uint32_t id{0};
-        int linenum{0};
+        int lineNum{0};
         int endLine{0};
         uint32_t hitCount{0};
         std::string hitCondition;
@@ -109,8 +110,8 @@ class SourceBreakpoints
     {
         SourceBreakpoint breakpoint{0, ""};
         uint32_t id{0};
-        uint32_t resolved_fullname_index{0};
-        int resolved_linenum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
+        PDB::GlobalFileIndex resolvedGlobalFileIndex{};
+        int resolvedLineNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
         ManagedSourceBreakpointMapping() = default;
         ManagedSourceBreakpointMapping(ManagedSourceBreakpointMapping &&) = default;
@@ -124,8 +125,8 @@ class SourceBreakpoints
     std::mutex m_breakpointsMutex;
     // Resolved line breakpoints:
     // Mapped for fast search with mapping data (see container below):
-    // resolved source full path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
-    std::unordered_map<uint32_t, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>> m_sourceResolvedBreakpoints;
+    // resolved global source path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
+    std::unordered_map<PDB::GlobalFileIndex, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>, PDB::GlobalFileIndexHash> m_sourceResolvedBreakpoints;
     // Mapping for input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
     // Note, unlike FunctionBreakpoint, for a resolved breakpoint we could have changed source path and/or line number.
     // In this way we can connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.

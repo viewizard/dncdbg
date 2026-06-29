@@ -12,7 +12,7 @@ sudo apt install cmake clang llvm build-essential
 ```
 ***Alpine Linux prerequisites installation:***
 ```
-apk add cmake make clang llvm build-base icu-libs bash curl
+apk add cmake make clang llvm build-base icu-libs bash
 ```
 
 ## Compiling

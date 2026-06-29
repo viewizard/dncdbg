@@ -4,96 +4,91 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debuginfo_sources.h"
-#include "debuginfo/debuginfo.h"
-#include "debuginfo/sourcefilemap.h"
-#include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
-#include "utils/utf.h"
-#include "utils/utftoupper.h"
-#include <algorithm>
-#include <cstring>
 #include <list>
 #include <map>
-#include <memory>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
-namespace dncdbg
+namespace dncdbg::DebugSources
 {
 
 namespace
 {
 
 // Note, we use std::map since we need a container that will not invalidate iterators on adding new elements.
-void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>> &methodData,
-                   const Interop::method_data_t &entry, const size_t level)
+void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
+                    const PDB::MethodRange &entry, const size_t level)
 {
-    struct MethodDataWithLevel
+    struct MethodRangeWithLevel
     {
-        MethodDataWithLevel(const Interop::method_data_t &entry_, const size_t level_)
+        MethodRangeWithLevel(const PDB::MethodRange &entry_, const size_t level_)
             : entry(entry_),
               level(level_)
         {
         }
 
-        Interop::method_data_t entry;
+        PDB::MethodRange entry;
         size_t level;
     };
 
-    std::list<MethodDataWithLevel> methodDataQueue;
-    methodDataQueue.emplace_back(entry, level);
+    std::list<MethodRangeWithLevel> methodRangeQueue;
+    methodRangeQueue.emplace_back(entry, level);
 
-    while (!methodDataQueue.empty())
+    while (!methodRangeQueue.empty())
     {
-        MethodDataWithLevel currentData = methodDataQueue.front();
-        methodDataQueue.pop_front();
+        MethodRangeWithLevel currentRange = methodRangeQueue.front();
+        methodRangeQueue.pop_front();
 
         // if we are here, we need at least one nested level for sure
-        if (methodData.empty())
+        if (methodRanges.empty())
         {
-            methodData.emplace(0, std::set<Interop::method_data_t>{currentData.entry});
+            methodRanges.emplace(0, std::set<PDB::MethodRange>{currentRange.entry});
             continue;
         }
-        assert(currentData.level <= methodData.size()); // could be increased only at 1 per recursive call
-        if (currentData.level == methodData.size())
+        assert(currentRange.level <= methodRanges.size()); // could be increased only at 1 per recursive call
+        if (currentRange.level == methodRanges.size())
         {
-            methodData.emplace(currentData.level, std::set<Interop::method_data_t>{currentData.entry});
+            methodRanges.emplace(currentRange.level, std::set<PDB::MethodRange>{currentRange.entry});
             continue;
         }
 
-        auto &levelMethodData = methodData.at(currentData.level);
+        auto &levelMethodRange = methodRanges.at(currentRange.level);
 
-        auto it = levelMethodData.lower_bound(currentData.entry);
-        if (it != levelMethodData.end() && currentData.entry.NestedInto(*it))
+        auto it = levelMethodRange.lower_bound(currentRange.entry);
+        if (it != levelMethodRange.end() && currentRange.entry.NestedInto(*it))
         {
-            methodDataQueue.emplace_back(currentData.entry, currentData.level + 1);
+            methodRangeQueue.emplace_back(currentRange.entry, currentRange.level + 1);
             continue;
         }
 
         // case with only one element on nested level, NestedInto() was already called and entry checked
-        if (it == levelMethodData.begin())
+        if (it == levelMethodRange.begin())
         {
-            levelMethodData.emplace(currentData.entry);
+            levelMethodRange.emplace(currentRange.entry);
             continue;
         }
 
         // in case these are parts of constructor with same location (for example, `int i = 0;`)
-        if (it != levelMethodData.end() && *it == currentData.entry && currentData.entry.isCtor == 1)
+        if (it != levelMethodRange.end() && *it == currentRange.entry && currentRange.entry.isCtor)
         {
-            assert(it->isCtor == 1); // also must be part of constructor
-            levelMethodData.emplace(currentData.entry);
+            assert(it->isCtor); // also must be part of constructor
+            levelMethodRange.emplace(currentRange.entry);
             continue;
         }
 
         // move all previously added nested elements for the new entry to the level above
-        while (it != levelMethodData.begin())
+        while (it != levelMethodRange.begin())
         {
             it = std::prev(it);
 
-            if (it->NestedInto(currentData.entry))
+            if (it->NestedInto(currentRange.entry))
             {
-                const Interop::method_data_t tmp = *it;
-                it = levelMethodData.erase(it);
-                methodDataQueue.emplace_back(tmp, currentData.level + 1);
+                const PDB::MethodRange tmp = *it;
+                it = levelMethodRange.erase(it);
+                methodRangeQueue.emplace_back(tmp, currentRange.level + 1);
             }
             else
             {
@@ -101,21 +96,20 @@ void AddMethodData(/*in,out*/ std::map<size_t, std::set<Interop::method_data_t>>
             }
         };
 
-        levelMethodData.emplace(currentData.entry);
+        levelMethodRange.emplace(currentRange.entry);
     }
 }
 
-bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_data_t>> &methodBpData,
-                                 /*in,out*/ int32_t &lineNum,
-                                 /*out*/ std::vector<mdMethodDef> &Tokens,
-                                 /*out*/ mdMethodDef &closestNestedToken)
+bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t lineNum, int32_t &correctedLineNum,
+                                 std::vector<mdMethodDef> &Tokens, mdMethodDef &closestNestedToken)
 {
-    const Interop::method_data_t *result = nullptr;
+    const PDB::MethodRange *result = nullptr;
     closestNestedToken = 0;
+    correctedLineNum = lineNum;
 
     for (auto it = methodBpData.cbegin(); it != methodBpData.cend(); ++it)
     {
-        auto lower = std::lower_bound(it->cbegin(), it->cend(), lineNum);
+        auto lower = std::lower_bound(it->cbegin(), it->cend(), correctedLineNum);
         if (lower == it->cend())
         {
             break; // point after last method for this nested level
@@ -124,7 +118,7 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
         // case with first line of method, for example:
         // void Method(){
         //            void Method(){ void Method(){...  <- breakpoint at this line
-        if (lineNum == lower->startLine)
+        if (correctedLineNum == lower->startLine)
         {
             // At this point we can't check this case, let managed part decide (since it sees Columns):
             // void Method() {
@@ -132,32 +126,32 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
             //  };
             if (result != nullptr)
             {
-                if (lower->isCtor == 1) // part of constructor
+                if (lower->isCtor) // part of constructor
                 {
-                    assert(result->isCtor == 1); // also must be part of constructor
-                    Tokens.emplace_back(result->methodDef);
+                    assert(result->isCtor); // also must be part of constructor
+                    Tokens.emplace_back(result->methodToken);
                     result = &(*lower);
                     continue; // need check nested level (if available)
                 }
 
-                closestNestedToken = lower->methodDef;
+                closestNestedToken = lower->methodToken;
             }
             else
             {
                 result = &(*lower);
 
-                if (lower->isCtor == 1) // part of constructor
+                if (lower->isCtor) // part of constructor
                 {
                     continue; // need check nested level (if available)
                 }
             }
         }
-        else if (lineNum > lower->startLine && lower->endLine >= lineNum)
+        else if (correctedLineNum > lower->startLine && lower->endLine >= correctedLineNum)
         {
-            if (result != nullptr && lower->isCtor == 1) // part of constructor
+            if (result != nullptr && lower->isCtor) // part of constructor
             {
-                assert(result->isCtor == 1); // also must be part of constructor
-                Tokens.emplace_back(result->methodDef);
+                assert(result->isCtor); // also must be part of constructor
+                Tokens.emplace_back(result->methodToken);
             }
 
             result = &(*lower);
@@ -166,12 +160,12 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
         // out of first-level method lines - forced move line to first method below, for example:
         //  <-- breakpoint at line without code (out of any methods)
         // void Method() {...}
-        else if (it == methodBpData.cbegin() && lineNum < lower->startLine)
+        else if (it == methodBpData.cbegin() && correctedLineNum < lower->startLine)
         {
-            lineNum = lower->startLine;
+            correctedLineNum = lower->startLine;
             result = &(*lower);
 
-            if (lower->isCtor == 1) // part of constructor
+            if (lower->isCtor) // part of constructor
             {
                 continue; // need check nested level (if available)
             }
@@ -182,9 +176,9 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
         //  <-- breakpoint at line without code (inside method)
         //     void Method() {...}
         // }
-        else if (result != nullptr && lineNum <= lower->startLine && lower->endLine <= result->endLine)
+        else if (result != nullptr && correctedLineNum <= lower->startLine && lower->endLine <= result->endLine)
         {
-            closestNestedToken = lower->methodDef;
+            closestNestedToken = lower->methodToken;
         }
 
         break;
@@ -192,36 +186,34 @@ bool GetMethodTokensByLineNumber(const std::vector<std::vector<Interop::method_d
 
     if (result != nullptr)
     {
-        Tokens.emplace_back(result->methodDef);
+        Tokens.emplace_back(result->methodToken);
     }
 
     return (result != nullptr);
 }
 
-} // unnamed namespace
-
-HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *pSymbolReaderHandle,
-                                              std::vector<file_data_t> &inputData)
+HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint32_t> &constrTokens)
 {
     HRESULT Status = S_OK;
-    // Note, we need 2 arrays of tokens - for normal methods and constructors (.ctor/.cctor, that could have segmented code).
-    std::vector<int32_t> constrTokens;
-    std::vector<int32_t> normalTokens;
+    ToRelease<IUnknown> trUnknown;
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     ULONG numTypedefs = 0;
     HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
-    while (SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
     {
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
         {
             ULONG funcNameLen = 0;
             DWORD methodAttr = 0;
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
-                                                 &methodAttr, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
+                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -229,13 +221,12 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
             static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName; // ".ctor", ".cctor" or "Finalize"
             if ((methodAttr & ctorMask) != ctorMask)
             {
-                normalTokens.emplace_back(methodDef);
                 continue;
             }
 
             WSTRING funcName(funcNameLen, '\0');
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
@@ -248,433 +239,104 @@ HRESULT DebugInfoSources::GetPdbMethodsRanges(IMetaDataImport *pMDImport, void *
 
             if (funcName == W(".ctor") || funcName == W(".cctor"))
             {
-                constrTokens.emplace_back(methodDef);
-            }
-            else
-            {
-                normalTokens.emplace_back(methodDef);
+                constrTokens.emplace(methodDef);
             }
         }
-        pMDImport->CloseEnum(fEnum);
+        trMDImport->CloseEnum(fEnum);
     }
-    pMDImport->CloseEnum(hEnum);
+    trMDImport->CloseEnum(hEnum);
 
-    if (sizeof(std::size_t) > sizeof(uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max() ||
-                                                   normalTokens.size() > std::numeric_limits<uint32_t>::max()))
+    if (sizeof(std::size_t) > sizeof(uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max()))
     {
         LOGE(log << "Too big token arrays.");
         return E_FAIL;
     }
 
-#ifdef BIT64
-    assert(constrTokens.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-    assert(normalTokens.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-    void *data = nullptr;
-    IfFailRet(Interop::GetModuleMethodsRanges(pSymbolReaderHandle, static_cast<uint32_t>(constrTokens.size()), constrTokens.data(),
-                                              static_cast<uint32_t>(normalTokens.size()), normalTokens.data(), &data));
-    if (data == nullptr)
-    {
-        return S_OK;
-    }
-
-    struct module_methods_data_t_deleter
-    {
-        void operator()(Interop::module_methods_data_t *data) const
-        {
-            if (data->moduleMethodsData == nullptr)
-            {
-                return;
-            }
-
-            auto *curMethodsData = static_cast<Interop::file_methods_data_t *>(data->moduleMethodsData);
-            const Interop::file_methods_data_t *endMethodsData = curMethodsData + data->fileNum;
-
-            while (curMethodsData != endMethodsData)
-            {
-                if (curMethodsData->document != nullptr)
-                {
-                    Interop::SysFreeString(curMethodsData->document);
-                }
-                if (curMethodsData->methodsData != nullptr)
-                {
-                    Interop::CoTaskMemFree(curMethodsData->methodsData);
-                }
-                ++curMethodsData;
-            }
-
-            Interop::CoTaskMemFree(data->moduleMethodsData);
-            Interop::CoTaskMemFree(data);
-        }
-    };
-
-    std::unique_ptr<Interop::module_methods_data_t, module_methods_data_t_deleter> rawData(static_cast<Interop::module_methods_data_t *>(data));
-
-    if (rawData->moduleMethodsData == nullptr ||
-        rawData->fileNum == 0)
-    {
-        return S_OK;
-    }
-
-    auto *curMethodsData = static_cast<Interop::file_methods_data_t *>(rawData->moduleMethodsData);
-    const Interop::file_methods_data_t *endMethodsData = curMethodsData + rawData->fileNum;
-    inputData.reserve(rawData->fileNum);
-
-    while (curMethodsData != endMethodsData)
-    {
-        uint32_t fullPathIndex = 0;
-        if (curMethodsData->document == nullptr ||
-            curMethodsData->methodsData == nullptr ||
-            FAILED(GetFullPathIndex(curMethodsData->document, fullPathIndex)))
-        {
-            ++curMethodsData;
-            continue;
-        }
-
-        std::vector<Interop::method_data_t> methodsData;
-        methodsData.resize(curMethodsData->methodNum);
-        std::memcpy(methodsData.data(),
-                    curMethodsData->methodsData,
-                    curMethodsData->methodNum * sizeof(Interop::method_data_t));
-
-        inputData.emplace_back(fullPathIndex, std::move(methodsData));
-
-        ++curMethodsData;
-    }
-
     return S_OK;
 }
 
-// Caller must hold m_sourcesInfoMutex.
-HRESULT DebugInfoSources::GetFullPathIndex(BSTR document, uint32_t &fullPathIndex)
+} // unnamed namespace
+
+HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, std::vector<PDB::MethodRanges> &sourceMethodRanges)
 {
-    const std::string initialFullPath = to_utf8(document);
-    std::string fullPath = SourceFileMap::Path(initialFullPath);
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    fullPath = to_uppercase(fullPath);
-#endif
-    auto findPathIndex = m_sourcePathToIndex.find(fullPath);
-    if (findPathIndex == m_sourcePathToIndex.end())
-    {
-        fullPathIndex = static_cast<uint32_t>(m_sourceIndexToPath.size());
-        m_sourcePathToIndex.emplace(fullPath, fullPathIndex);
-        m_sourceIndexToPath.emplace_back(fullPath);
-        m_sourceIndexToInitialFullPath.emplace_back(initialFullPath);
-        m_sourceNameToFullPathsIndexes[GetFileName(fullPath)].emplace(fullPathIndex);
-        m_sourcesMethodsData.emplace_back();
-    }
-    else
-    {
-        fullPathIndex = findPathIndex->second;
-    }
-
-    return S_OK;
-}
-
-HRESULT DebugInfoSources::FillSourcesCodeLinesForModule(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
-                                                        void *pSymbolReaderHandle)
-{
-    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
-
     HRESULT Status = S_OK;
-    std::vector<file_data_t> inputData;
-    IfFailRet(GetPdbMethodsRanges(pMDImport, pSymbolReaderHandle, inputData));
-    if (inputData.empty())
+
+    // Array of tokens for constructors (.ctor/.cctor, that could have segmented code).
+    std::unordered_set<uint32_t> constrTokens;
+    IfFailRet(GetModuleConstructors(pModule, constrTokens));
+
+    std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> pdbMethodRanges;
+    IfFailRet(PDBReader::GetMethodsRanges(pdbHandle, constrTokens, pdbMethodRanges));
+    if (pdbMethodRanges.empty())
     {
         return S_OK;
     }
 
-    // Usually, modules provide files with unique full paths for sources.
-    m_sourceIndexToPath.reserve(m_sourceIndexToPath.size() + inputData.size());
-    m_sourcesMethodsData.reserve(m_sourcesMethodsData.size() + inputData.size());
-    m_sourceIndexToInitialFullPath.reserve(m_sourceIndexToInitialFullPath.size() + inputData.size());
+    sourceMethodRanges.clear();
+    sourceMethodRanges.resize(pdbMethodRanges.size());
 
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
-
-    for (const auto &fileData : inputData)
+    for (uint32_t i = 0; i < pdbMethodRanges.size(); ++i)
     {
-        m_sourcesMethodsData.at(fileData.fullPathIndex).emplace_back(FileMethodsData{});
-        auto &fileMethodsData = m_sourcesMethodsData.at(fileData.fullPathIndex).back();
-        fileMethodsData.modAddress = modAddress;
+        auto &fileMethodRanges = pdbMethodRanges[i];
 
 #ifdef DEBUG_INTERNAL_TESTS
-        // Reorder data in reverse for testing AddMethodData() method to build proper nested levels.
-        struct compare {
-            bool operator()(const Interop::method_data_t &lhs, const Interop::method_data_t &rhs) const
-            { return lhs.endLine < rhs.endLine || (lhs.endLine == rhs.endLine && lhs.endColumn < rhs.endColumn); }
-        };
-        std::multiset<Interop::method_data_t, compare> orderedInputData;
-        for (const auto &methodData : fileData.methodsData)
-        {
-            orderedInputData.emplace(methodData);
-        }
-        std::map<size_t, std::set<Interop::method_data_t>> inputMethodsData;
-        for (const auto &methodData : orderedInputData)
-        {
-            AddMethodData(inputMethodsData, methodData, 0);
-        }
+       // Add in reverse for testing AddMethodRange() method to build proper nested levels.
+       std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
+       for (auto it = fileMethodRanges.rbegin(); it != fileMethodRanges.rend(); ++it)
+       {
+            const auto &methodRange = *it;
+            AddMethodRange(inputMethodRanges, methodRange, 0);
+       }
 #else
         // Note, don't reorder input data, since it has almost ideal order for us.
         // For example, for Private.CoreLib (about 22000 methods) only 8 relocations were made.
         // In case the default methods ordering is dramatically changed, we could use data reordering.
-        std::map<size_t, std::set<Interop::method_data_t>> inputMethodsData;
-        for (const auto &methodData : fileData.methodsData)
+        std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
+        for (const auto &methodRange : fileMethodRanges)
         {
-            AddMethodData(inputMethodsData, methodData, 0);
+            AddMethodRange(inputMethodRanges, methodRange, 0);
         }
 #endif // DEBUG_INTERNAL_TESTS
-        fileMethodsData.methodsData.resize(inputMethodsData.size());
-        for (size_t i = 0; i < inputMethodsData.size(); i++)
+
+        sourceMethodRanges.at(i).resize(inputMethodRanges.size());
+        for (uint32_t j = 0; j < inputMethodRanges.size(); ++j)
         {
-            fileMethodsData.methodsData.at(i).resize(inputMethodsData.at(i).size());
-            std::copy(inputMethodsData.at(i).begin(), inputMethodsData.at(i).end(), fileMethodsData.methodsData.at(i).begin());
+            sourceMethodRanges.at(i).at(j).resize(inputMethodRanges.at(j).size());
+            std::copy(inputMethodRanges.at(j).begin(), inputMethodRanges.at(j).end(), sourceMethodRanges.at(i).at(j).begin());
         }
     }
 
-    m_sourcesMethodsData.shrink_to_fit();
-    m_sourceIndexToPath.shrink_to_fit();
-    m_sourceIndexToInitialFullPath.shrink_to_fit();
     return S_OK;
 }
 
-HRESULT DebugInfoSources::ResolveRelativeSourceFileName(std::string &filename)
+HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
-    // IMPORTANT! Caller must hold m_sourcesInfoMutex.
-    auto findIndexesByFileName = m_sourceNameToFullPathsIndexes.find(GetFileName(filename));
-    if (findIndexesByFileName == m_sourceNameToFullPathsIndexes.end())
+    std::vector<mdMethodDef> methodTokens;
+    // In case the line doesn't belong to any method, if possible, will be "moved" to the first line of the method below sourceLine.
+    int32_t correctedStartLine = 0;
+    mdMethodDef closestNestedToken = mdMethodDefNil;
+    if (!GetMethodTokensByLineNumber(pdbInfo.m_sourceMethodRanges.at(sourceFileIndex), sourceLine,
+                                     correctedStartLine, methodTokens, closestNestedToken))
     {
         return E_FAIL;
     }
-
-    auto const &possiblePathsIndexes = findIndexesByFileName->second;
-    std::string result = filename;
-
-    // Handle all "./" and "../" first.
-    std::list<std::string> pathDirs;
-    std::size_t i = 0;
-    while ((i = result.find_first_of("/\\")) != std::string::npos)
+    if (methodTokens.size() > static_cast<size_t>(std::numeric_limits<int32_t>::max()))
     {
-        const std::string pathElement = result.substr(0, i);
-        if (pathElement == "..")
-        {
-            if (!pathDirs.empty())
-            {
-                pathDirs.pop_front();
-            }
-        }
-        else if (pathElement != ".")
-        {
-            pathDirs.push_front(pathElement);
-        }
-
-        result = result.substr(i + 1);
+        LOGE(log << "Too big token arrays.");
+        return E_FAIL;
     }
-    for (const auto &dir : pathDirs)
-    {
-        result.insert(0, dir + '/');
-    }
-
-    // The problem is that we could have several assemblies that could have the same source file name with different
-    // path roots. We don't really have a lot of options here, so we assume that all possible source paths have the
-    // same root and just find the shortest.
-    if (result == GetFileName(result))
-    {
-        auto it = std::min_element(possiblePathsIndexes.begin(), possiblePathsIndexes.end(),
-            [&](const uint32_t a, const uint32_t b)
-            {
-                return m_sourceIndexToPath.at(a).size() < m_sourceIndexToPath.at(b).size();
-            });
-
-        filename = it == possiblePathsIndexes.end() ? result : m_sourceIndexToPath.at(*it);
-        return S_OK;
-    }
-
-    // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
-    auto BinaryPredicate =
-        [](const char &a, const char &b) -> bool
-        {
-            if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
-            {
-                return true;
-            }
-            return a == b;
-        };
-
-    std::list<std::string> possibleResults;
-    for (const auto pathIndex : possiblePathsIndexes)
-    {
-        const std::string &path = m_sourceIndexToPath.at(pathIndex);
-
-        if (result.size() > path.size())
-        {
-            continue;
-        }
-
-        // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
-        if (result.size() < path.size() && result.at(0) != '/' && result.at(0) != '\\' &&
-            path.at(path.size() - result.size() - 1) != '/' && path.at(path.size() - result.size() - 1) != '\\')
-        {
-            continue;
-        }
-
-        if (std::equal(result.begin(), result.end(), path.end() - static_cast<std::string::difference_type>(result.size()), BinaryPredicate))
-        {
-            possibleResults.push_back(path);
-        }
-    }
-    // The problem is that we could have several assemblies that could have sources with the same relative paths with
-    // different path roots. We don't really have a lot of options here, so we assume that all possible source paths
-    // have the same root and just find the shortest.
-    if (!possibleResults.empty())
-    {
-        filename = possibleResults.front();
-        for (const auto &path : possibleResults)
-        {
-            if (filename.length() > path.length())
-            {
-                filename = path;
-            }
-        }
-        return S_OK;
-    }
-
-    return E_FAIL;
-}
-
-HRESULT DebugInfoSources::ResolveBreakpoint(DebugInfo *pDebugInfo, CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine,
-                                            uint32_t &fullname_index, std::vector<resolved_bp_t> &resolvedPoints)
-{
-    const std::scoped_lock<std::mutex> lockSourcesInfo(m_sourcesInfoMutex);
 
     HRESULT Status = S_OK;
-    auto findIndex = m_sourcePathToIndex.find(filename);
-    if (findIndex == m_sourcePathToIndex.end())
+    IfFailRet(PDBReader::ResolveBreakpoints(pdbInfo.m_pdbHandle, methodTokens, closestNestedToken,
+                                            sourceFileIndex, correctedStartLine, resolvedPoints));
+
+    for (auto &entry : resolvedPoints)
     {
-        // Check for absolute path.
-#ifdef _WIN32
-        // Check if it starts with a drive letter, for example "D:\" or "D:/".
-        if (filename.size() > 2 && filename.at(1) == ':' && (filename.at(2) == '/' || filename.at(2) == '\\'))
-#else
-        if (filename.at(0) == '/')
-#endif
-        {
-            return E_FAIL;
-        }
-
-        std::string resolvedFilename = filename;
-        IfFailRet(ResolveRelativeSourceFileName(resolvedFilename));
-
-        findIndex = m_sourcePathToIndex.find(resolvedFilename);
-        if (findIndex == m_sourcePathToIndex.end())
-        {
-            return E_FAIL;
-        }
-    }
-
-    fullname_index = findIndex->second;
-
-    struct resolved_input_bp_t
-    {
-        int32_t startLine;
-        int32_t endLine;
-        uint32_t ilOffset;
-        uint32_t methodToken;
-    };
-
-    for (const auto &sourceData : m_sourcesMethodsData.at(findIndex->second))
-    {
-        if ((modAddress != 0U) && modAddress != sourceData.modAddress)
-        {
-            continue;
-        }
-
-        std::vector<mdMethodDef> Tokens;
-        int32_t correctedStartLine = sourceLine;
-        mdMethodDef closestNestedToken = mdMethodDefNil;
-        if (!GetMethodTokensByLineNumber(sourceData.methodsData, correctedStartLine, Tokens, closestNestedToken))
-        {
-            continue;
-        }
-        // correctedStartLine - in case the line doesn't belong to any method, if possible, will be "moved" to the first line of
-        // the method below sourceLine.
-        if (Tokens.size() > static_cast<size_t>(std::numeric_limits<int32_t>::max()))
-        {
-            LOGE(log << "Too big token arrays.");
-            return E_FAIL;
-        }
-
-        PDBInfo *pPDBInfo = nullptr; // Note, pPDBInfo must be guarded by m_debugInfoMutex.
-        IfFailRet(pDebugInfo->GetPDBInfo(sourceData.modAddress, &pPDBInfo)); // we must have it, since we loaded data from it
-        if (pPDBInfo->m_symbolReaderHandle == nullptr)
-        {
-            continue;
-        }
-
-        void *data = nullptr;
-        int32_t resolvedCount = 0;
-        const std::string fullName = m_sourceIndexToInitialFullPath.at(findIndex->second);
-
-        if (FAILED(Interop::ResolveBreakPoints(pPDBInfo->m_symbolReaderHandle, static_cast<int32_t>(Tokens.size()), Tokens.data(),
-                                               correctedStartLine, closestNestedToken, resolvedCount, fullName, &data)) ||
-            data == nullptr)
-        {
-            continue;
-        }
-        if (resolvedCount <= 0)
-        {
-            Interop::CoTaskMemFree(data);
-            continue;
-        }
-
-        std::vector<resolved_input_bp_t> inputData(resolvedCount);
-        std::memcpy(inputData.data(), data, resolvedCount * sizeof(resolved_input_bp_t));
-        Interop::CoTaskMemFree(data);
-
-        for (auto &entry : inputData)
-        {
-            pPDBInfo->m_trModule->AddRef();
-            resolvedPoints.emplace_back(entry.startLine, entry.endLine, entry.ilOffset,
-                                        entry.methodToken, pPDBInfo->m_trModule.GetPtr());
-        }
+        pdbInfo.m_trModule->AddRef();
+        entry.trModule = pdbInfo.m_trModule.GetPtr();
     }
 
     return S_OK;
 }
 
-HRESULT DebugInfoSources::GetSourceFullPathByIndex(uint32_t index, std::string &fullPath)
-{
-    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
-
-    if (m_sourceIndexToPath.size() <= index)
-    {
-        return E_FAIL;
-    }
-
-    fullPath = SourceFileMap::Path(m_sourceIndexToInitialFullPath.at(index));
-    return S_OK;
-}
-
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath_, uint32_t &index)
-#else
-HRESULT DebugInfoSources::GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index)
-#endif
-{
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    const std::string fullPath = to_uppercase(fullPath_);
-#endif
-
-    const std::scoped_lock<std::mutex> lock(m_sourcesInfoMutex);
-
-    auto findIndex = m_sourcePathToIndex.find(fullPath);
-    if (findIndex == m_sourcePathToIndex.end())
-    {
-        return E_FAIL;
-    }
-
-    index = findIndex->second;
-    return S_OK;
-}
-
-} // namespace dncdbg
+} // namespace dncdbg::DebugSources

@@ -26,19 +26,17 @@
 namespace dncdbg
 {
 
+using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
+
 class DebugInfo
 {
   public:
 
-    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filename, int sourceLine, uint32_t &fullname_index,
-                              std::vector<DebugInfoSources::resolved_bp_t> &resolvedPoints);
+    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filePath, int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
+                              std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 
-    HRESULT GetSourceFullPathByIndex(uint32_t index, std::string &fullPath);
-    HRESULT GetIndexBySourceFullPath(const std::string &fullPath, uint32_t &index);
-
-    using PDBInfoCallback = std::function<HRESULT(PDBInfo &)>;
+    using PDBInfoCallback = std::function<HRESULT(const PDBInfo &)>;
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
-    HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfo **ppPDBInfo);
 
     HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
@@ -67,17 +65,14 @@ class DebugInfo
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                        PDB::SequencePoint &sequencePoint);
     HRESULT GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
-                                       std::string *sourceFilePath = nullptr);
+                                       PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
 
-    HRESULT GetSourceFile(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceFilePath);
+    HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath);
 
   private:
 
     std::mutex m_debugInfoMutex;
     std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
-
-    // Note, m_debugInfoSources has its own mutex for private data state sync.
-    DebugInfoSources m_debugInfoSources;
 };
 
 } // namespace dncdbg

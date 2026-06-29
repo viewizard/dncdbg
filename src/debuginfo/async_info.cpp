@@ -31,7 +31,7 @@ HRESULT AsyncInfo::GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethod
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
     asyncMethodSteppingInfo.retCode = m_sharedDebugInfo->GetPDBInfo(modAddress,
-        [&](PDBInfo &pdbInfo) -> HRESULT
+        [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             HRESULT Status = S_OK;
             IfFailRet(PDBReader::GetAsyncMethodSteppingInfo(pdbInfo.m_pdbHandle, methodToken, asyncMethodSteppingInfo.catchHandlerOffset,
