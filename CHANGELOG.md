@@ -36,6 +36,7 @@ Upcoming changes compared to previous version.
 - Implemented native unary operators for managed primitive types.
 - Implemented native binary operators for managed primitive types.
 - Implemented native UTF-8 string to uppercase conversion.
+- Implemented native PDB reader.
 - New PDB search sequence: debugger will check PDB path stored in DLL, PDB file in DLL's directory, and PDB file in debugger's directory.
 - Replaced all managed C# code with native C++ implementation.
 
