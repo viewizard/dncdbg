@@ -12,7 +12,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/debuginfo_sources.h"
 #include "debuginfo/pdb.h"
 #include "types/types.h"
 #include "types/protocol.h"

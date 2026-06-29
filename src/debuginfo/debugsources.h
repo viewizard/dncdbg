@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGINFO_DEBUGINFO_SOURCES_H
-#define DEBUGINFO_DEBUGINFO_SOURCES_H
+#ifndef DEBUGINFO_DEBUGSOURCES_H
+#define DEBUGINFO_DEBUGSOURCES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -23,4 +23,4 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, std::ve
 
 } // namespace dncdbg::DebugSources
 
-#endif // DEBUGINFO_DEBUGINFO_SOURCES_H
+#endif // DEBUGINFO_DEBUGSOURCES_H

@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debuginfo/debuginfo_sources.h"
+#include "debuginfo/debugsources.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include <list>
