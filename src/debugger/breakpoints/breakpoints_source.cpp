@@ -257,9 +257,9 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
-    for (auto &initialBreakpoints : m_sourceBreakpointMapping)
+    for (auto &[initialPathToSource, initialBreakpoints] : m_sourceBreakpointMapping)
     {
-        for (auto &initialBreakpoint : initialBreakpoints.second)
+        for (auto &initialBreakpoint : initialBreakpoints)
         {
             if (initialBreakpoint.resolvedLineNum != 0)
             {
@@ -276,9 +276,9 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             PDB::GlobalFileIndex resolvedGlobalFileIndex;
             std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
 
-            if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialBreakpoints.first,
+            if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialPathToSource,
                                                resolvedPoints, resolvedGlobalFileIndex)) ||
-                FAILED(ActivateSourceBreakpoint(bp, initialBreakpoints.first, m_justMyCode, resolvedPoints)))
+                FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, m_justMyCode, resolvedPoints)))
             {
                 continue;
             }

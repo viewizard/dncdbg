@@ -55,15 +55,15 @@ void ReplaceInternalNames(std::string &expression, bool restore = false)
         {"$tid", "__INTERNAL_DNCDBG_TID_VARIABLE"}
     };
 
-    for (const auto &entry : internalNamesMap)
+    for (const auto &[internalVariable, tmpReplacement] : internalNamesMap)
     {
         if (restore)
         {
-            ReplaceAllSubstring(expression, entry.second, entry.first);
+            ReplaceAllSubstring(expression, tmpReplacement, internalVariable);
         }
         else
         {
-            ReplaceAllSubstring(expression, entry.first, entry.second);
+            ReplaceAllSubstring(expression, internalVariable, tmpReplacement);
         }
     }
 }
@@ -1690,14 +1690,14 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
         {ELEMENT_TYPE_R8,       W("System.Double")}
     };
 
-    for (const auto &entry : corElementToValueNameMap)
+    for (const auto &[elemType, systemTypeName] : corElementToValueNameMap)
     {
         typeDef = mdTypeDefNil;
-        IfFailRet(trMDImport->FindTypeDefByName(entry.second, mdTypeDefNil, &typeDef));
+        IfFailRet(trMDImport->FindTypeDefByName(systemTypeName, mdTypeDefNil, &typeDef));
 
-        assert(m_evalData.trElementToValueClassMap.find(entry.first) == m_evalData.trElementToValueClassMap.end());
-        m_evalData.trElementToValueClassMap.emplace(entry.first, nullptr);
-        IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap.at(entry.first)));
+        assert(m_evalData.trElementToValueClassMap.find(elemType) == m_evalData.trElementToValueClassMap.end());
+        m_evalData.trElementToValueClassMap.emplace(elemType, nullptr);
+        IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap.at(elemType)));
     }
 
     return S_OK;

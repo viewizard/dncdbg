@@ -272,9 +272,8 @@ HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, c
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
 
-    for (const auto &infoPair : m_debugInfo)
+    for (const auto &[modAddr, pdbInfo] : m_debugInfo)
     {
-        const PDBInfo &pdbInfo = infoPair.second;
         ResolveMethodInModule(pdbInfo.m_trModule, funcname, cb);
     }
 
@@ -540,15 +539,15 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
     const std::string pathName = GetFileName(fixedFilePath);
     std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
 
-    auto addSourceIndices = [&](const PDBInfo &pdbInfo) -> void
+    auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
     {
             auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
             if (findName == pdbInfo.m_sourceFileNameToIndices.end())
             {
                 return;
             }
-            foundSourceIndices[modAddress].insert_after(foundSourceIndices[modAddress].before_begin(),
-                                                        findName->second.begin(), findName->second.end());
+            foundSourceIndices[modAddr].insert_after(foundSourceIndices[modAddr].before_begin(),
+                                                     findName->second.begin(), findName->second.end());
     };
 
     if (modAddress != 0)
@@ -557,16 +556,14 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
         if (infoPair != m_debugInfo.end())
         {
             const PDBInfo &pdbInfo = infoPair->second;
-            addSourceIndices(pdbInfo);
+            addSourceIndices(modAddress, pdbInfo);
         };
     }
     else
     {
-        for (const auto &infoPair : m_debugInfo)
+        for (const auto &[modAddr, pdbInfo] : m_debugInfo)
         {
-            modAddress = infoPair.first;
-            const PDBInfo &pdbInfo = infoPair.second;
-            addSourceIndices(pdbInfo);
+            addSourceIndices(modAddr, pdbInfo);
         }
     }
 
@@ -581,13 +578,11 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
     auto findPDBInfoAndIndex = [&]()
     {
         std::string currentResult;
-        for (auto &moduleSourceIndices : foundSourceIndices)
+        for (auto &[modAddr, sourceIndices] : foundSourceIndices)
         {
-            modAddress = moduleSourceIndices.first;
-
-            for (auto &sourceIndex : moduleSourceIndices.second)
+            for (auto &sourceIndex : sourceIndices)
             {
-                auto infoPair = m_debugInfo.find(modAddress);
+                auto infoPair = m_debugInfo.find(modAddr);
                 if (infoPair == m_debugInfo.end())
                 {
                     continue;
@@ -603,7 +598,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
                 if (fixedFilePath == sourceFilePath)
                 {
                     globalFileIndex.sourceFileIndex = sourceIndex;
-                    globalFileIndex.modAddress = modAddress;
+                    globalFileIndex.modAddress = modAddr;
                     pPDBInfo = &pdbInfo;
                     return;
                 }
@@ -638,7 +633,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
                 {
                     currentResult = fixedFilePath;
                     globalFileIndex.sourceFileIndex = sourceIndex;
-                    globalFileIndex.modAddress = modAddress;
+                    globalFileIndex.modAddress = modAddr;
                     pPDBInfo = &pdbInfo;
                 }
             }

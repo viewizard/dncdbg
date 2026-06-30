@@ -22,27 +22,27 @@ std::string SourceFileMap::Path(const std::string &path)
     size_t oldPrefixSize = 0;
     std::string newPrefix;
 
-    for (const auto &entry : GetMap())
+    for (const auto &[oldLocation, newLocation] : GetMap())
     {
         // Find the largest possible prefix from source file map (for example, `/folder` and `/folder/folder2`, the second must be used).
-        if (entry.first.size() <= oldPrefixSize ||
+        if (oldLocation.size() <= oldPrefixSize ||
             // Check for prefix.
-            path.size() < entry.first.size() ||
-            path.rfind(entry.first, 0) != 0 || // Note: starts_with() is C++20, use rfind() for compatibility
+            path.size() < oldLocation.size() ||
+            path.rfind(oldLocation, 0) != 0 || // Note: starts_with() is C++20, use rfind() for compatibility
             // In case this is part of path, not a file, delimiter must be the next symbol in path.
-            (path.size() > entry.first.size() && path.at(entry.first.size()) != '/' && path.at(entry.first.size()) != '\\'))
+            (path.size() > oldLocation.size() && path.at(oldLocation.size()) != '/' && path.at(oldLocation.size()) != '\\'))
         {
             continue;
         }
 
         // File, just replace with new source file path.
-        if (path.size() == entry.first.size())
+        if (path.size() == oldLocation.size())
         {
-            return entry.second;
+            return newLocation;
         }
 
-        oldPrefixSize = entry.first.size();
-        newPrefix = entry.second;
+        oldPrefixSize = oldLocation.size();
+        newPrefix = newLocation;
     }
 
     // Not in source file map.
