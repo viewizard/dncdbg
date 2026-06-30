@@ -187,11 +187,16 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
     return ForEachMethod(pModule, functor);
 }
 
-HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath)
+HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath, std::vector<uint8_t> &embeddedPDB)
 {
     HRESULT Status = S_OK;
     PDB::Identity pdbId;
-    IfFailRet(Modules::GetModulePdbInfo(pModule, pdbId, pdbFilePath));
+    IfFailRet(Modules::GetModulePdbInfo(pModule, pdbId, pdbFilePath, embeddedPDB));
+
+    if (!embeddedPDB.empty())
+    {
+        return md_create_handle(embeddedPDB.data(), static_cast<uint32_t>(embeddedPDB.size()), &pdbHandle) ? S_OK : E_FAIL;
+    }
 
     if (SUCCEEDED(PDBReader::OpenPDB(pdbFilePath, pdbId, memBuff, pdbHandle)))
     {
@@ -346,7 +351,8 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 {
     mdhandle_t pdbHandle = nullptr;
     MemoryBuffer memBuff;
-    const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath);
+    std::vector<uint8_t> embeddedPDB;
+    const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath, embeddedPDB);
     module.symbolStatus = SUCCEEDED(Status) ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
     if (module.symbolStatus == SymbolStatus::Loaded)
@@ -370,7 +376,8 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
-            PDBInfo pdbInfo{pdbHandle, std::move(memBuff), pModule, std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges)};
+            PDBInfo pdbInfo{pdbHandle, std::move(memBuff), std::move(embeddedPDB), pModule,
+                            std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges)};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
             m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }

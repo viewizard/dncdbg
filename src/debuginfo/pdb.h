@@ -159,15 +159,17 @@ struct PDBInfo
 {
     mdhandle_t m_pdbHandle = nullptr;
     MemoryBuffer m_memBuff;
+    std::vector<uint8_t> m_embeddedPDB;
     ToRelease<ICorDebugModule> m_trModule;
     PDB::SourceNameMap m_sourceFileNameToIndices;
     PDB::SourceMethodRanges m_sourceMethodRanges;
 
     PDBInfo() = default;
-    PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule,
+    PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, std::vector<uint8_t> &&embeddedPDB, ICorDebugModule *pModule,
             PDB::SourceNameMap &&sourceMap, PDB::SourceMethodRanges &&sourceMethodRanges)
         : m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
+          m_embeddedPDB(std::move(embeddedPDB)),
           m_trModule(pModule),
           m_sourceFileNameToIndices(std::move(sourceMap)),
           m_sourceMethodRanges(std::move(sourceMethodRanges))
@@ -177,6 +179,7 @@ struct PDBInfo
     PDBInfo(PDBInfo &&other) noexcept
         : m_pdbHandle(other.m_pdbHandle),
           m_memBuff(std::move(other.m_memBuff)),
+          m_embeddedPDB(std::move(other.m_embeddedPDB)),
           m_trModule(std::move(other.m_trModule)),
           m_sourceFileNameToIndices(std::move(other.m_sourceFileNameToIndices)),
           m_sourceMethodRanges(std::move(other.m_sourceMethodRanges))

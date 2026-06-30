@@ -14,6 +14,13 @@
 #include <iomanip>
 #include <sstream>
 
+#define MINIZ_NO_STDIO
+#define MINIZ_NO_TIME
+#define MINIZ_NO_DEFLATE_APIS
+#define MINIZ_NO_ARCHIVE_APIS
+#define MINIZ_NO_MALLOC
+#include <miniz/miniz.h>
+
 namespace dncdbg
 {
 
@@ -32,6 +39,8 @@ constexpr uint8_t g_debug_type_codeview = 2;
 constexpr uint8_t g_section_name_size = 8;
 constexpr uint8_t g_max_sections_count = 96;
 constexpr uint8_t g_ignored_size = 58;
+constexpr uint8_t g_debug_type_embedded_pdb = 17;
+constexpr uint32_t g_mpdb_magic = 0x4244504D;
 
 #pragma pack(push, 1)
 struct MemoryDosHeader
@@ -80,11 +89,46 @@ struct MemoryDebugDirectory
     uint32_t address_of_raw_data;// RVA of the CodeView data in memory (loaded layout)
     uint32_t pointer_to_raw_data;// File offset of the CodeView data (file layout)
 };
+
+struct MemoryMpdbHeader
+{
+    uint32_t signature;
+    uint32_t uncompressed_size;
+};
 #pragma pack(pop)
+
+bool DecompressDeflateBuffer(const unsigned char *compressedData, size_t compressedSize, std::vector<uint8_t> &outBuffer, size_t uncompressedSize)
+{
+    outBuffer.resize(uncompressedSize);
+
+    z_stream stream{};
+    stream.next_in = compressedData;
+    stream.avail_in = static_cast<unsigned int>(compressedSize);
+    stream.next_out = outBuffer.data();
+    stream.avail_out = static_cast<unsigned int>(uncompressedSize);
+
+    // -MZ_DEFAULT_WINDOW_BITS (raw deflate/no header or footer)
+    if (inflateInit2(&stream, -MZ_DEFAULT_WINDOW_BITS) != Z_OK)
+    {
+        outBuffer.clear();
+        return false;
+    }
+
+    const int status = inflate(&stream, Z_FINISH);
+    inflateEnd(&stream);
+
+    if (status == Z_STREAM_END && stream.total_out == uncompressedSize)
+    {
+        return true;
+    }
+
+    outBuffer.clear();
+    return false;
+}
 
 } // unnamed namespace
 
-HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb)
+HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB)
 {
     HRESULT Status = S_OK;
     BOOL isInMemory = FALSE;
@@ -148,18 +192,50 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
     }
     std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
 
+    auto decompressEmbeddedPdb = [&](CORDB_ADDRESS rawDataAddr, uint32_t sizeOfData) -> bool
+    {
+        MemoryMpdbHeader mpdb{};
+        if (FAILED(readProcessMemory(rawDataAddr, &mpdb, sizeof(mpdb))) || mpdb.signature != g_mpdb_magic)
+        {
+            return false;
+        }
+
+        const uint32_t compressedSize = sizeOfData - sizeof(MemoryMpdbHeader);
+        std::vector<unsigned char> compressedBuffer(compressedSize);
+        if (FAILED(readProcessMemory(rawDataAddr + sizeof(MemoryMpdbHeader), compressedBuffer.data(), compressedSize)))
+        {
+            return false;
+        }
+
+        return DecompressDeflateBuffer(compressedBuffer.data(), compressedSize, embeddedPDB, mpdb.uncompressed_size);
+    };
+
     // Helper: Process debug directories and extract PDB info
     auto processDebugDirectories = [&](const std::vector<MemoryDebugDirectory> &dirs,
-                                       const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRsdsAddr) -> bool
+                                       const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRawAddr) -> bool
     {
+        bool foundCodeView = false;
+        bool foundEmbedded = false;
+
         for (const auto &dir : dirs)
         {
+            if (dir.type == g_debug_type_embedded_pdb && dir.size_of_data > sizeof(MemoryMpdbHeader))
+            {
+                const CORDB_ADDRESS mpdbAddr = getRawAddr(dir);
+                if (mpdbAddr != 0 && decompressEmbeddedPdb(mpdbAddr, dir.size_of_data))
+                {
+                    foundEmbedded = true;
+                }
+
+                continue;
+            }
+
             if (dir.type != g_debug_type_codeview || dir.size_of_data < sizeof(MemoryRsdsHeader))
             {
                 continue;
             }
 
-            const CORDB_ADDRESS rsdsAddr = getRsdsAddr(dir);
+            const CORDB_ADDRESS rsdsAddr = getRawAddr(dir);
             if (rsdsAddr == 0)
             {
                 continue;
@@ -185,10 +261,10 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
             if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), pathBuffer.data(), pathLength)))
             {
                 pathPdb = std::string(pathBuffer.data());
-                return true;
+                foundCodeView = true;
             }
         }
-        return false;
+        return foundCodeView || foundEmbedded;
     };
 
     // Loaded layout (ReadyToRun DLLs): RVA directly maps to VA
