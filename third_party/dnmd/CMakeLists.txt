@@ -9,4 +9,3 @@ include_directories(src/inc)
 include_directories(src/inc/external) # Hiding the "external" subdirectory due to uses of <...> in cor.h.
 
 add_subdirectory(src/)
-

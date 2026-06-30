@@ -195,6 +195,7 @@ if(WIN32)
         wsock32
         ws2_32
         dnmd_pdb
+        miniz
         tree-sitter-csharp
     )
 else()
@@ -206,6 +207,7 @@ else()
             dl
             pthread
             dnmd_pdb
+            miniz
             Iconv::Iconv
             tree-sitter-csharp
             ${CORE_FOUNDATION_FRAMEWORK}
@@ -216,6 +218,7 @@ else()
             dl
             pthread
             dnmd_pdb
+            miniz
             Iconv::Iconv
             tree-sitter-csharp
         )
