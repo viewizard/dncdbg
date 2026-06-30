@@ -28,6 +28,7 @@ Upcoming changes compared to previous version.
 - Added merging of consecutive constructor sequence points when gathering source method ranges.
 - Added shrunk [miniz](https://github.com/richgel999/miniz) sources v3.1.1.
 - Added embedded PDB support.
+- Added TestEmbeddedPDB.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

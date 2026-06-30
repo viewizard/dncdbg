@@ -40,6 +40,7 @@ ALL_TEST_NAMES=(
     "TestEvaluatePrimitiveUnary"
     "TestEvaluatePrimitiveBinary"
     "TestArgs"
+    "TestEmbeddedPDB"
 )
 
 TEST_NAMES="$@"
