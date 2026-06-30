@@ -147,6 +147,7 @@ struct GlobalFileIndexHash
 using SourceNameMap = std::unordered_map<std::string, std::forward_list<uint32_t>>;
 // properly ordered arrays of method range on each nested level in one source file
 using MethodRanges = std::vector<std::vector<MethodRange>>;
+using SourceMethodRanges = std::unordered_map<uint32_t, PDB::MethodRanges>;
 
 constexpr uint8_t IDSize = 20;
 // PDB ID = GUID (16 bytes) + date/time stamp (4 bytes)
@@ -160,11 +161,11 @@ struct PDBInfo
     MemoryBuffer m_memBuff;
     ToRelease<ICorDebugModule> m_trModule;
     PDB::SourceNameMap m_sourceFileNameToIndices;
-    std::vector<PDB::MethodRanges> m_sourceMethodRanges;
+    PDB::SourceMethodRanges m_sourceMethodRanges;
 
     PDBInfo() = default;
     PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, ICorDebugModule *pModule,
-            PDB::SourceNameMap &&sourceMap, std::vector<PDB::MethodRanges> &&sourceMethodRanges)
+            PDB::SourceNameMap &&sourceMap, PDB::SourceMethodRanges &&sourceMethodRanges)
         : m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
           m_trModule(pModule),

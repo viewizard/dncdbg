@@ -359,7 +359,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
                 "Could not load source file names related info from PDB file.\n"});
         }
 
-        std::vector<PDB::MethodRanges> sourceMethodRanges;
+        PDB::SourceMethodRanges sourceMethodRanges;
         if (FAILED(DebugSources::FillMethodRanges(pModule, pdbHandle, sourceMethodRanges)))
         {
             DAPIO::EmitOutputEvent({OutputCategory::StdErr,

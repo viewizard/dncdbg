@@ -257,7 +257,7 @@ HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint3
 
 } // unnamed namespace
 
-HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, std::vector<PDB::MethodRanges> &sourceMethodRanges)
+HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::SourceMethodRanges &sourceMethodRanges)
 {
     HRESULT Status = S_OK;
 
@@ -273,36 +273,33 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, std::ve
     }
 
     sourceMethodRanges.clear();
-    sourceMethodRanges.resize(pdbMethodRanges.size());
+    sourceMethodRanges.reserve(pdbMethodRanges.size());
 
-    for (uint32_t i = 0; i < pdbMethodRanges.size(); ++i)
+    for (const auto &[sourceIndex, fileMethodRanges] : pdbMethodRanges)
     {
-        auto &fileMethodRanges = pdbMethodRanges[i];
-
 #ifdef DEBUG_INTERNAL_TESTS
-       // Add in reverse for testing AddMethodRange() method to build proper nested levels.
-       std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
-       for (auto it = fileMethodRanges.rbegin(); it != fileMethodRanges.rend(); ++it)
-       {
+        // Add in reverse for testing AddMethodRange() method to build proper nested levels.
+        std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
+        for (auto it = fileMethodRanges.rbegin(); it != fileMethodRanges.rend(); ++it)
+        {
             const auto &methodRange = *it;
             AddMethodRange(inputMethodRanges, methodRange, 0);
-       }
+        }
 #else
         // Note, don't reorder input data, since it has almost ideal order for us.
-        // For example, for Private.CoreLib (about 22000 methods) only 8 relocations were made.
-        // In case the default methods ordering is dramatically changed, we could use data reordering.
+        // For example, for Private.CoreLib (about 45518 methods) only 4 relocations were made.
         std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
         for (const auto &methodRange : fileMethodRanges)
         {
             AddMethodRange(inputMethodRanges, methodRange, 0);
         }
 #endif // DEBUG_INTERNAL_TESTS
-
-        sourceMethodRanges.at(i).resize(inputMethodRanges.size());
+        PDB::MethodRanges &methodRanges = sourceMethodRanges[sourceIndex];
+        methodRanges.resize(inputMethodRanges.size());
         for (uint32_t j = 0; j < inputMethodRanges.size(); ++j)
         {
-            sourceMethodRanges.at(i).at(j).resize(inputMethodRanges.at(j).size());
-            std::copy(inputMethodRanges.at(j).begin(), inputMethodRanges.at(j).end(), sourceMethodRanges.at(i).at(j).begin());
+            methodRanges.at(j).resize(inputMethodRanges.at(j).size());
+            std::copy(inputMethodRanges.at(j).begin(), inputMethodRanges.at(j).end(), methodRanges.at(j).begin());
         }
     }
 
@@ -315,8 +312,9 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
     // In case the line doesn't belong to any method, if possible, will be "moved" to the first line of the method below sourceLine.
     int32_t correctedStartLine = 0;
     mdMethodDef closestNestedToken = mdMethodDefNil;
-    if (!GetMethodTokensByLineNumber(pdbInfo.m_sourceMethodRanges.at(sourceFileIndex), sourceLine,
-                                     correctedStartLine, methodTokens, closestNestedToken))
+    auto methodRanges = pdbInfo.m_sourceMethodRanges.find(sourceFileIndex);
+    if (methodRanges == pdbInfo.m_sourceMethodRanges.end() ||
+        !GetMethodTokensByLineNumber(methodRanges->second, sourceLine, correctedStartLine, methodTokens, closestNestedToken))
     {
         return E_FAIL;
     }
