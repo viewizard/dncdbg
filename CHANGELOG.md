@@ -25,6 +25,7 @@ Upcoming changes compared to previous version.
 - Added support for inspecting primary constructor parameters.
 - Added shrunk [DNMD](https://github.com/AaronRobinsonMSFT/DNMD) sources commit 51ebc20.
 - Added TestArgs.
+- Added merging of consecutive constructor sequence points when gathering source method ranges.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

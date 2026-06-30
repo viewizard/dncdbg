@@ -100,6 +100,56 @@ void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
     }
 }
 
+void CompactConstructorRanges(std::map<size_t, std::set<PDB::MethodRange>> &inputMethodRanges)
+{
+    // Merge constructor parts into ranges on each level.
+    // Note: For constructors, the stored initial input ranges represent separate sequence points
+    // of the constructor. This is because during PDB data gathering, a sequence point for an
+    // individual line (e.g., `int i = 5;`) cannot be distinguished from a constructor sequence point.
+    for (const auto &[level, methodRanges] : inputMethodRanges)
+    {
+        std::set<PDB::MethodRange> tmpMethodRanges;
+        PDB::MethodRange ctorRange;
+
+        for (const auto &range : methodRanges)
+        {
+            if (!range.isCtor)
+            {
+                if (ctorRange.startLine != 0)
+                {
+                    tmpMethodRanges.emplace(ctorRange);
+                    ctorRange.startLine = 0;
+                }
+
+                tmpMethodRanges.emplace(range);
+                continue;
+            }
+
+            if (ctorRange.startLine == 0)
+            {
+                ctorRange = range;
+                continue;
+            }
+
+            if (range.methodToken != ctorRange.methodToken)
+            {
+                tmpMethodRanges.emplace(ctorRange);
+                ctorRange = range;
+                continue;
+            }
+
+            ctorRange.endLine = range.endLine;
+            ctorRange.endColumn = range.endColumn;
+        }
+        if (ctorRange.startLine != 0)
+        {
+            tmpMethodRanges.emplace(ctorRange);
+        }
+
+        inputMethodRanges[level] = std::move(tmpMethodRanges);
+    }
+}
+
 bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t lineNum, int32_t &correctedLineNum,
                                  std::vector<mdMethodDef> &Tokens, mdMethodDef &closestNestedToken)
 {
@@ -294,6 +344,9 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
             AddMethodRange(inputMethodRanges, methodRange, 0);
         }
 #endif // DEBUG_INTERNAL_TESTS
+
+        CompactConstructorRanges(inputMethodRanges);
+
         PDB::MethodRanges &methodRanges = sourceMethodRanges[sourceIndex];
         methodRanges.resize(inputMethodRanges.size());
         for (uint32_t j = 0; j < inputMethodRanges.size(); ++j)
