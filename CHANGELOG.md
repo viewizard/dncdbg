@@ -34,7 +34,7 @@ Upcoming changes compared to previous version.
 - Improved ManagedDebugger attach/launch logic.
 - Enabled Nullable inspection for complex types.
 - Optimized boolean/primitive value handling with size assertions.
-- Updated diagnostics source version to 10.0.721401.
+- Updated diagnostics source version to 10.0.731102.
 - Simplified decimal type parsing in print code.
 - Replaced managed Roslyn parser with native tree-sitter implementation.
 - Implemented native unary operators for managed primitive types.
