@@ -703,4 +703,25 @@ bool DebugInfo::IsStateMachineKickoffMethod(ICorDebugFunction *pFunction)
     return res;
 }
 
+HRESULT DebugInfo::GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,
+                                                mdMethodDef &kickoffMethodToken)
+{
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    return GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            auto find = pdbInfo.m_moveNextToKickoff.find(moveNextMethodToken);
+            if (find == pdbInfo.m_moveNextToKickoff.end())
+            {
+                return E_FAIL;
+            }
+
+            kickoffMethodToken = find->second;
+            return S_OK;
+        });
+}
+
 } // namespace dncdbg

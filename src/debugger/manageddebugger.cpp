@@ -886,7 +886,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     HRESULT Status = S_OK;
 
     std::string methodName;
-    if (FAILED(TypePrinter::GetMethodName(pFrame, methodName)))
+    if (FAILED(TypePrinter::GetMethodName(pFrame, m_sharedDebugInfo.get(), methodName)))
     {
         methodName = "Unnamed method in optimized code";
     }

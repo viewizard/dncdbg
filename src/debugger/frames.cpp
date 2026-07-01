@@ -285,7 +285,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 // Hide state machine related frames for both JMC and non-JMC cases.
                 std::string methodName;
                 if ((pDebugInfo != nullptr && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
-                    (SUCCEEDED(TypePrinter::GetMethodName(trFrame, methodName)) &&
+                    (pDebugInfo != nullptr && SUCCEEDED(TypePrinter::GetMethodName(trFrame, pDebugInfo, methodName)) &&
                      // Note: starts_with() is C++20, use rfind() for compatibility
                      (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
                       methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))

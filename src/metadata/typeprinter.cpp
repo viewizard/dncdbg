@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/typeprinter.h"
+#include "debuginfo/debuginfo.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -761,7 +762,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::string &methodName)
+HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
 {
     HRESULT Status = S_OK;
 
@@ -772,8 +773,14 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     IfFailRet(trFunction->GetClass(&trClass));
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFunction->GetToken(&methodToken));
+
     mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(trFunction->GetToken(&methodDef));
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
+    {
+        methodDef = methodToken;
+    }
 
     ToRelease<IUnknown> trUnknown;
     IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
@@ -830,7 +837,7 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::str
     return S_OK;
 }
 
-HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
+HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -838,7 +845,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
     std::string methodName;
 
     std::ostringstream ss;
-    IfFailRet(GetTypeAndMethod(pFrame, typeName, methodName));
+    IfFailRet(GetTypeAndMethod(pFrame, pDebugInfo, typeName, methodName));
     if (!typeName.empty())
     {
         ss << typeName << ".";
@@ -858,16 +865,19 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
+        mdMethodDef methodToken = mdMethodDefNil;
+        IfFailRet(trFunction->GetToken(&methodToken));
+
         mdMethodDef methodDef = mdMethodDefNil;
-        IfFailRet(trFunction->GetToken(&methodDef));
+        bool asyncMethod = true;
+        if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
+        {
+            methodDef = methodToken;
+            asyncMethod = false;
+        }
 
         ToRelease<ICorDebugILFrame> trILFrame;
         IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
-
-        ULONG cArguments = 0;
-        ToRelease<ICorDebugValueEnum> trArgumentEnum;
-        IfFailRet(trILFrame->EnumerateArguments(&trArgumentEnum));
-        IfFailRet(trArgumentEnum->GetCount(&cArguments));
 
         DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
@@ -881,6 +891,14 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
         // Ignore failed return code here, we need all we could parse from sig.
         ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+
+        ULONG cArguments = argElementTypes.size();
+        if (!asyncMethod)
+        {
+            ToRelease<ICorDebugValueEnum> trArgumentEnum;
+            IfFailRet(trILFrame->EnumerateArguments(&trArgumentEnum));
+            IfFailRet(trArgumentEnum->GetCount(&cArguments));
+        }
 
         const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
         for (ULONG i = i_start; i < cArguments; i++)
@@ -916,7 +934,8 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output)
             {
                 ss << argElementTypes.at(i).typeName << " ";
             }
-            else if (SUCCEEDED(trILFrame->GetArgument(i, &trValue)) &&
+            else if (!asyncMethod &&
+                     SUCCEEDED(trILFrame->GetArgument(i, &trValue)) &&
                      SUCCEEDED(GetTypeOfValue(trValue, valueType)))
             {
                 ss << valueType << " ";

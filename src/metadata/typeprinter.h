@@ -15,6 +15,11 @@
 #include <list>
 #include <string>
 
+namespace dncdbg
+{
+class DebugInfo;
+} // namespace dncdbg
+
 namespace dncdbg::TypePrinter
 {
 
@@ -28,8 +33,8 @@ HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);
-HRESULT GetMethodName(ICorDebugFrame *pFrame, std::string &output);
-HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, std::string &typeName, std::string &methodName);
+HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
+HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName);
 std::string RenameToSystem(const std::string &typeName);
 std::string RenameToCSharp(const std::string &typeName);
 

@@ -69,6 +69,8 @@ class DebugInfo
     HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath);
 
     bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
+    HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,
+                                         mdMethodDef &kickoffMethodToken);
 
   private:
 
