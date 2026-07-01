@@ -892,7 +892,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string
         // Ignore failed return code here, we need all we could parse from sig.
         ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
-        ULONG cArguments = static_cast<ULONG>(argElementTypes.size());
+        auto cArguments = static_cast<ULONG>(argElementTypes.size());
         if (!asyncMethod)
         {
             ToRelease<ICorDebugValueEnum> trArgumentEnum;
