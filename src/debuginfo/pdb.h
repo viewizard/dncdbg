@@ -163,16 +163,22 @@ struct PDBInfo
     ToRelease<ICorDebugModule> m_trModule;
     PDB::SourceNameMap m_sourceFileNameToIndices;
     PDB::SourceMethodRanges m_sourceMethodRanges;
+    std::unordered_map<uint32_t, uint32_t> m_moveNextToKickoff;
+    std::unordered_map<uint32_t, uint32_t> m_kickoffToMoveNext;
 
     PDBInfo() = default;
     PDBInfo(mdhandle_t handle, MemoryBuffer &&memBuff, std::vector<uint8_t> &&embeddedPDB, ICorDebugModule *pModule,
-            PDB::SourceNameMap &&sourceMap, PDB::SourceMethodRanges &&sourceMethodRanges)
+            PDB::SourceNameMap &&sourceMap, PDB::SourceMethodRanges &&sourceMethodRanges,
+            std::unordered_map<uint32_t, uint32_t> &&moveNextToKickoff,
+            std::unordered_map<uint32_t, uint32_t> &&kickoffToMoveNext)
         : m_pdbHandle(handle),
           m_memBuff(std::move(memBuff)),
           m_embeddedPDB(std::move(embeddedPDB)),
           m_trModule(pModule),
           m_sourceFileNameToIndices(std::move(sourceMap)),
-          m_sourceMethodRanges(std::move(sourceMethodRanges))
+          m_sourceMethodRanges(std::move(sourceMethodRanges)),
+          m_moveNextToKickoff(std::move(moveNextToKickoff)),
+          m_kickoffToMoveNext(std::move(kickoffToMoveNext))
     {
     }
 
@@ -182,7 +188,9 @@ struct PDBInfo
           m_embeddedPDB(std::move(other.m_embeddedPDB)),
           m_trModule(std::move(other.m_trModule)),
           m_sourceFileNameToIndices(std::move(other.m_sourceFileNameToIndices)),
-          m_sourceMethodRanges(std::move(other.m_sourceMethodRanges))
+          m_sourceMethodRanges(std::move(other.m_sourceMethodRanges)),
+          m_moveNextToKickoff(std::move(other.m_moveNextToKickoff)),
+          m_kickoffToMoveNext(std::move(other.m_kickoffToMoveNext))
     {
         other.m_pdbHandle = nullptr;
     }

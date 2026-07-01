@@ -372,12 +372,21 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
                 "breakpoint's source path resolve in future.\n"});
         }
 
+        std::unordered_map<uint32_t, uint32_t> moveNextToKickoff;
+        std::unordered_map<uint32_t, uint32_t> kickoffToMoveNext;
+        if (FAILED(PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext)))
+        {
+            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+                "Could not load state machine method info from PDB file.\n"});
+        }
+
         CORDB_ADDRESS baseAddress = 0;
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
         {
             pModule->AddRef();
             PDBInfo pdbInfo{pdbHandle, std::move(memBuff), std::move(embeddedPDB), pModule,
-                            std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges)};
+                            std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges),
+                            std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
             const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
             m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
         }

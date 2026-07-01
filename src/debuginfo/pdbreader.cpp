@@ -1386,4 +1386,51 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
     return resolvedBreakpoints.empty() ? E_FAIL : S_OK;
 }
 
+HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t, uint32_t> &moveNextToKickoff,
+                               std::unordered_map<uint32_t, uint32_t> &kickoffToMoveNext)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    moveNextToKickoff.clear();
+    kickoffToMoveNext.clear();
+
+    // Create cursor to the StateMachineMethod table
+    mdcursor_t smmCursor{};
+    uint32_t smmCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_StateMachineMethod, &smmCursor, &smmCount) || smmCount == 0)
+    {
+        return E_FAIL;
+    }
+
+    moveNextToKickoff.reserve(smmCount);
+    kickoffToMoveNext.reserve(smmCount);
+
+    // Iterate through all state machine method entries
+    for (uint32_t i = 0; i < smmCount; ++i)
+    {
+        mdToken moveNextMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(smmCursor, mdtStateMachineMethod_MoveNextMethod, &moveNextMethodToken))
+        {
+            md_cursor_move(&smmCursor, 1);
+            continue;
+        }
+
+        mdToken kickoffMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(smmCursor, mdtStateMachineMethod_KickoffMethod, &kickoffMethodToken))
+        {
+            md_cursor_move(&smmCursor, 1);
+            continue;
+        }
+
+        moveNextToKickoff.emplace(moveNextMethodToken, kickoffMethodToken);
+        kickoffToMoveNext.emplace(kickoffMethodToken, moveNextMethodToken);
+        md_cursor_move(&smmCursor, 1);
+    }
+
+    return S_OK;
+}
+
 } // namespace dncdbg::PDBReader
