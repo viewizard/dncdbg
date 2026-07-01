@@ -18,6 +18,8 @@
 namespace dncdbg
 {
 
+class DebugInfo;
+
 enum class FrameType : uint8_t
 {
     Unknown,
@@ -28,9 +30,9 @@ enum class FrameType : uint8_t
 
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *)>;
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame);
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
-HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb);
+HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb);
 
 } // namespace dncdbg
 

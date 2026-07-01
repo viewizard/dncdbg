@@ -1102,7 +1102,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
 
     bool prevFrameExternal = false;
 
-    IfFailRet(WalkFrames(pThread,
+    IfFailRet(WalkFrames(pThread, m_sharedDebugInfo.get(),
         [&](FrameType frameType, ICorDebugFrame *pFrame) -> HRESULT
         {
             if (IsJustMyCode())

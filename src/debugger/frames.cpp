@@ -4,6 +4,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/frames.h"
+#include "debuginfo/debuginfo.h"
+#include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <algorithm>
@@ -142,7 +144,7 @@ bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
 } // unnamed namespace
 
 // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
-HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
+HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb)
 {
     HRESULT Status = S_OK;
 
@@ -280,6 +282,17 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                     continue;
                 }
 
+                // Hide state machine related frames for both JMC and non-JMC cases.
+                std::string methodName;
+                if ((pDebugInfo != nullptr && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
+                    (SUCCEEDED(TypePrinter::GetMethodName(trFrame, methodName)) &&
+                     // Note: starts_with() is C++20, use rfind() for compatibility
+                     (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
+                      methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
+                {
+                    continue;
+                }
+
                 if (cb(FrameType::CLRManaged, trFrame) == S_CAN_EXIT)
                 {
                     return S_OK;
@@ -346,7 +359,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
     return S_OK;
 }
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame)
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, ICorDebugFrame **ppFrame)
 {
     // Try to get 0 (current active) frame in an efficient way, if possible.
     if (static_cast<int>(level) == 0 && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
@@ -356,7 +369,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
 
     int currentFrame = -1;
 
-    WalkFrames(pThread,
+    WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame) -> HRESULT
         {
             currentFrame++;
@@ -366,7 +379,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
                 return S_OK; // Continue walk.
             }
             else if (currentFrame > static_cast<int>(level) ||
-                    frameType != FrameType::CLRManaged)
+                     frameType != FrameType::CLRManaged)
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }

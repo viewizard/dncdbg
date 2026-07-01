@@ -100,7 +100,7 @@ class Evaluator
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
-    static HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
+    HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
 
     static HRESULT LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pType, const std::string &methodName,
                                           std::vector<SigElementType> &methodArgs, std::vector<SigElementType> &methodGenerics,

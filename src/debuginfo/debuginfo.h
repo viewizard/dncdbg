@@ -68,6 +68,8 @@ class DebugInfo
 
     HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath);
 
+    bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
+
   private:
 
     std::mutex m_debugInfoMutex;

@@ -29,6 +29,7 @@ Upcoming changes compared to previous version.
 - Added shrunk [miniz](https://github.com/richgel999/miniz) sources v3.1.1.
 - Added embedded PDB support.
 - Added TestEmbeddedPDB.
+- Added state machine method mapping support.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.
@@ -43,6 +44,7 @@ Upcoming changes compared to previous version.
 - Implemented native PDB reader.
 - New PDB search sequence: debugger will check PDB path stored in DLL, PDB file in DLL's directory, and PDB file in debugger's directory.
 - Replaced all managed C# code with native C++ implementation.
+- Cleaned up async method call stacks by hiding internal state machine frames.
 
 #### Removed
 - Removed unused code.

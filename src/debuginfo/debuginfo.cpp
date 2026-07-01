@@ -680,4 +680,27 @@ HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef metho
         });
 }
 
+bool DebugInfo::IsStateMachineKickoffMethod(ICorDebugFunction *pFunction)
+{
+    mdMethodDef methodToken = mdMethodDefNil;
+    ToRelease<ICorDebugModule> trModule;
+    CORDB_ADDRESS modAddress = 0;
+    if (FAILED(pFunction->GetToken(&methodToken)) ||
+        FAILED(pFunction->GetModule(&trModule)) ||
+        FAILED(trModule->GetBaseAddress(&modAddress)))
+    {
+        return false;
+    }
+
+    bool res = false;
+    GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            res = pdbInfo.m_kickoffToMoveNext.find(methodToken) != pdbInfo.m_kickoffToMoveNext.end();
+            return S_OK;
+        });
+
+    return res;
+}
+
 } // namespace dncdbg
