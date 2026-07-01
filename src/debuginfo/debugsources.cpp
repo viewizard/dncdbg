@@ -106,47 +106,32 @@ void CompactConstructorRanges(std::map<size_t, std::set<PDB::MethodRange>> &inpu
     // Note: For constructors, the stored initial input ranges represent separate sequence points
     // of the constructor. This is because during PDB data gathering, a sequence point for an
     // individual line (e.g., `int i = 5;`) cannot be distinguished from a constructor sequence point.
-    for (const auto &[level, methodRanges] : inputMethodRanges)
+    for (auto &[level, methodRanges] : inputMethodRanges)
     {
-        std::set<PDB::MethodRange> tmpMethodRanges;
-        PDB::MethodRange ctorRange;
+        auto it = methodRanges.begin();
 
-        for (const auto &range : methodRanges)
+        while (it != methodRanges.end())
         {
-            if (!range.isCtor)
+            if (!it->isCtor)
             {
-                if (ctorRange.startLine != 0)
-                {
-                    tmpMethodRanges.emplace(ctorRange);
-                    ctorRange.startLine = 0;
-                }
-
-                tmpMethodRanges.emplace(range);
+                ++it;
                 continue;
             }
 
-            if (ctorRange.startLine == 0)
+            // Extract first constructor to merge into
+            auto node = methodRanges.extract(it++);
+
+            // Merge subsequent constructors with same methodToken
+            while (it != methodRanges.end() && it->isCtor && it->methodToken == node.value().methodToken)
             {
-                ctorRange = range;
-                continue;
+                node.value().endLine = it->endLine;
+                node.value().endColumn = it->endColumn;
+                it = methodRanges.erase(it);
             }
 
-            if (range.methodToken != ctorRange.methodToken)
-            {
-                tmpMethodRanges.emplace(ctorRange);
-                ctorRange = range;
-                continue;
-            }
-
-            ctorRange.endLine = range.endLine;
-            ctorRange.endColumn = range.endColumn;
+            // Insert merged constructor back
+            methodRanges.insert(std::move(node));
         }
-        if (ctorRange.startLine != 0)
-        {
-            tmpMethodRanges.emplace(ctorRange);
-        }
-
-        inputMethodRanges[level] = std::move(tmpMethodRanges);
     }
 }
 
