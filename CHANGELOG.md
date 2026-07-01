@@ -26,7 +26,7 @@ Upcoming changes compared to previous version.
 - Added shrunk [DNMD](https://github.com/AaronRobinsonMSFT/DNMD) sources commit 51ebc20.
 - Added TestArgs.
 - Added merging of consecutive constructor sequence points when gathering source method ranges.
-- Added shrunk [miniz](https://github.com/richgel999/miniz) sources v3.1.1.
+- Added shrunk [miniz](https://github.com/richgel999/miniz) sources v3.1.2.
 - Added embedded PDB support.
 - Added TestEmbeddedPDB.
 - Added state machine method mapping support.

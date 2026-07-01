@@ -18,7 +18,6 @@
 #define MINIZ_NO_TIME
 #define MINIZ_NO_DEFLATE_APIS
 #define MINIZ_NO_ARCHIVE_APIS
-#define MINIZ_NO_MALLOC
 #include <miniz/miniz.h>
 
 namespace dncdbg

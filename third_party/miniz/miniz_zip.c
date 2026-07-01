@@ -186,7 +186,7 @@ static int mz_stat64(const char *path, struct __stat64 *buffer)
 #define MZ_DELETE_FILE remove
 
 #else
-//#pragma message("Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files.")
+#pragma message("Using fopen, ftello, fseeko, stat() etc. path for file I/O - this path may not support large files.")
 #ifndef MINIZ_NO_TIME
 #include <utime.h>
 #endif
@@ -787,7 +787,7 @@ static int mz_stat64(const char *path, struct __stat64 *buffer)
         if (cdir_size < (mz_uint64)pZip->m_total_files * MZ_ZIP_CENTRAL_DIR_HEADER_SIZE)
             return mz_zip_set_error(pZip, MZ_ZIP_INVALID_HEADER_OR_CORRUPTED);
 
-        if ((cdir_ofs + (mz_uint64)cdir_size) > pZip->m_archive_size)
+        if (cdir_size> pZip->m_archive_size || cdir_ofs > pZip->m_archive_size - cdir_size)
             return mz_zip_set_error(pZip, MZ_ZIP_INVALID_HEADER_OR_CORRUPTED);
 
         if (eocd_ofs < cdir_ofs + cdir_size)

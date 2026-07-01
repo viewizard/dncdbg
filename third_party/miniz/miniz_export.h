@@ -40,4 +40,9 @@
 #  endif
 #endif
 
+#define MINIZ_NO_STDIO
+#define MINIZ_NO_TIME
+#define MINIZ_NO_DEFLATE_APIS
+#define MINIZ_NO_ARCHIVE_APIS
+
 #endif /* MINIZ_EXPORT_H */
