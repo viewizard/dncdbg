@@ -120,11 +120,12 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         case ELEMENT_TYPE_U8:
             return static_cast<uint64_t>(*reinterpret_cast<const uint64_t *>(data));
         case ELEMENT_TYPE_I:
-            return static_cast<uint64_t>(*reinterpret_cast<const int32_t *>(data));
+            return static_cast<uint64_t>(*reinterpret_cast<const intptr_t *>(data));
         case ELEMENT_TYPE_U:
+            return static_cast<uint64_t>(*reinterpret_cast<const uintptr_t *>(data));
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
-        // Technically U and the floating-point ones are options in the CLI, but not in the CLS or C#, so these are NYI
+        // Technically the floating-point ones are options in the CLI, but not in the CLS or C#, so these are NYI
         default:
             return 0;
         }
@@ -809,16 +810,24 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             ss << *reinterpret_cast<uint16_t *>(genericValue.data());
             break;
 
-        case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_I4:
             assert(genericValue.size() == 4);
             ss << *reinterpret_cast<int32_t *>(genericValue.data());
             break;
 
-        case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_U4:
             assert(genericValue.size() == 4);
             ss << *reinterpret_cast<uint32_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_I:
+            assert(genericValue.size() == sizeof(intptr_t));
+            ss << *reinterpret_cast<intptr_t *>(genericValue.data());
+            break;
+
+        case ELEMENT_TYPE_U:
+            assert(genericValue.size() == sizeof(uintptr_t));
+            ss << *reinterpret_cast<uintptr_t *>(genericValue.data());
             break;
 
         case ELEMENT_TYPE_I8:
