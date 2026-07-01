@@ -493,8 +493,8 @@ HRESULT DebugInfo::GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethod
         });
 }
 
-HRESULT DebugInfo::GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
-                                              PDB::GlobalFileIndex *pGlobalFileIndex)
+HRESULT DebugInfo::GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::SequencePoint &sequencePoint,
+                                           PDB::GlobalFileIndex *pGlobalFileIndex)
 {
     HRESULT Status = S_OK;
 
@@ -507,6 +507,7 @@ HRESULT DebugInfo::GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &
     ToRelease<ICorDebugILFrame> trILFrame;
     IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
+    uint32_t ilOffset = 0;
     CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
     IfFailRet(trILFrame->GetIP(&ilOffset, &mappingResult));
     if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||

@@ -898,10 +898,9 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunc->GetModule(&trModule));
 
-    uint32_t ilOffset = 0;
     PDB::SequencePoint sp;
     PDB::GlobalFileIndex globalFileIndex;
-    if (SUCCEEDED(m_sharedDebugInfo->GetSequencePointByILOffset(pFrame, ilOffset, sp, &globalFileIndex)))
+    if (SUCCEEDED(m_sharedDebugInfo->GetSequencePointByFrame(pFrame, sp, &globalFileIndex)))
     {
         std::string sourceFilePath;
         m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath);

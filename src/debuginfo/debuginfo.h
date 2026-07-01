@@ -63,8 +63,8 @@ class DebugInfo
 
     HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
                                        PDB::SequencePoint &sequencePoint);
-    HRESULT GetSequencePointByILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, PDB::SequencePoint &sequencePoint,
-                                       PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
+    HRESULT GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::SequencePoint &sequencePoint,
+                                    PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
 
     HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath);
 

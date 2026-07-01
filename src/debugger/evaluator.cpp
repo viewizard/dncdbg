@@ -1390,12 +1390,11 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         return E_FAIL;
     }
 
-    uint32_t currentIlOffset = 0;
     PDB::SequencePoint sp;
-    // GetSequencePointByILOffset() returns "success" code only in case it found sequence point
-    // for current IL offset, that means we stop inside user code.
-    // Note, we could have request for non-user code, we ignore it and this is OK.
-    if (FAILED(m_sharedDebugInfo->GetSequencePointByILOffset(trFrame, currentIlOffset, sp)))
+    // GetSequencePointByFrame() returns "success" code only in case it finds a sequence point
+    // for the current IL offset, that means we stop inside user code.
+    // Note, we could have a request for non-user code, we ignore it and this is OK.
+    if (FAILED(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, sp)))
     {
         return S_OK;
     }
@@ -1416,6 +1415,15 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     ToRelease<ICorDebugILFrame> trILFrame;
     IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+    uint32_t currentIlOffset = 0;
+    CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
+    IfFailRet(trILFrame->GetIP(&currentIlOffset, &mappingResult));
+    if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+        mappingResult == MAPPING_NO_INFO)
+    {
+        return E_FAIL;
+    }
 
     ToRelease<ICorDebugValueEnum> trLocalsEnum;
     IfFailRet(trILFrame->EnumerateLocalVariables(&trLocalsEnum));

@@ -138,10 +138,9 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
         return E_FAIL;
     }
 
-    uint32_t ilOffset = 0;
     PDB::SequencePoint sp;
     PDB::GlobalFileIndex globalFileIndex;
-    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(trFrame, ilOffset, sp, &globalFileIndex));
+    IfFailRet(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, sp, &globalFileIndex));
 
     auto breakpoints = m_sourceResolvedBreakpoints.find(globalFileIndex);
     if (breakpoints == m_sourceResolvedBreakpoints.end())
