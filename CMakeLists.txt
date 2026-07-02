@@ -71,8 +71,10 @@ VCSInfo(DNCDBG_VCS_INFO)
 # AddressSanitize
 if(ASAN)
     set(CLR_CMAKE_ENABLE_SANITIZERS "address")
-    #TODO UBSanitizer for Debug build
-    #set(ENV{DEBUG_SANITIZERS} "ubsan")
+endif()
+# UBSanitizer
+if(UBSAN)
+  set(CLR_CMAKE_ENABLE_SANITIZERS "undefined")
 endif()
 
 include(cmake/configurepaths.cmake)
@@ -103,7 +105,13 @@ set(FEATURE_EVENT_TRACE 0)
 #           dwCreationFlags |= CREATE_NEW_CONSOLE;
 #       }
 #   #endif // _WIN32
-#
+# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` disable UBSanitizer options in
+#   CLR_CMAKE_BUILD_SANITIZERS: vptr, object-size.
+# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake` add 
+#       else()
+#         # On macOS and other systems, pthreads may be built into the system library
+#         set(PTHREAD_LIBRARY c)
+#       endif()
 ###
 
 # include shared compiler configs

@@ -34,6 +34,9 @@ Add your build type (`Release` or `Debug`), for example:
 To build with Address Sanitizer, add the option
 `-DASAN=1`
 
+To build with Undefined Behavior Sanitizer, add the option
+`-DUBSAN=1`
+
 To build with clang-tidy (note, the `clang-tidy` package must be installed), add the option `-DCLANG_TIDY=1`
 
 To build with cppcheck (note, the `cppcheck` package must be installed), add the option

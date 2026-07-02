@@ -1,0 +1,3 @@
+src:*/third_party/*
+src:/opt/homebrew/Cellar/llvm/*
+src:/usr/*

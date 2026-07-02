@@ -30,6 +30,7 @@ Upcoming changes compared to previous version.
 - Added embedded PDB support.
 - Added TestEmbeddedPDB.
 - Added state machine method mapping support.
+- Added support for UB Sanitizer builds.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.

@@ -95,6 +95,9 @@ if (HAVE_LIBPTHREAD)
   set(PTHREAD_LIBRARY pthread)
 elseif (HAVE_PTHREAD_IN_LIBC)
   set(PTHREAD_LIBRARY c)
+else()
+  # On macOS and other systems, pthreads may be built into the system library
+  set(PTHREAD_LIBRARY c)
 endif()
 
 check_library_exists(${PTHREAD_LIBRARY} pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)

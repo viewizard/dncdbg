@@ -44,6 +44,9 @@ Optionally, you can specify the target architecture manually using `arm64` or `x
 To build with Address Sanitizer, add the option
 `-DASAN=1`
 
+To build with Undefined Behavior Sanitizer, add the option
+`-DUBSAN=1`
+
 To build with case-sensitive file name collision, add the option
 `-DCASE_SENSITIVE_FILENAME_COLLISION=1`
 

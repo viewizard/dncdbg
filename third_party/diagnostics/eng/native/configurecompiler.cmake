@@ -253,13 +253,14 @@ if (CLR_CMAKE_ENABLE_SANITIZERS)
         integer
         nonnull-attribute
         null
-        object-size
+        #object-size
         "return"
         returns-nonnull-attribute
         shift
         unreachable
         vla-bound
-        vptr)
+        #vptr
+        )
       list(APPEND CLR_CMAKE_SANITIZER_RUNTIMES
         undefined)
       message("-- Undefined Behavior Sanitizer (ubsan) enabled")
