@@ -4,8 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoints_exception.h"
+#include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
+#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include <algorithm>
@@ -112,6 +114,29 @@ void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result
         result = "";
         break;
     }
+}
+
+HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &modAddress, mdMethodDef &methodDef)
+{
+    HRESULT Status = S_OK;
+    static const std::string assemblyName("System.Private.CoreLib.dll");
+    static const WSTRING className(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
+    static const WSTRING methodName(W("Throw"));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(EvalHelpers::FindMethodInModule(pThread, assemblyName, className, methodName, &trFunction));
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+
+    if (FAILED(Status = trModule->GetBaseAddress(&modAddress)) ||
+        FAILED(Status = trFunction->GetToken(&methodDef)))
+    {
+        modAddress = 0;
+        methodDef = mdMethodDefNil;
+        return Status;
+    }
+
+    return S_OK;
 }
 
 } // unnamed namespace
@@ -393,6 +418,30 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
     return S_OK;
 }
 
+bool ExceptionBreakpoints::IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread)
+{
+    if ((PrivateCoreLibModAddress == 0 || ExceptionDispatchInfoThrowMethodDef == mdMethodDefNil) &&
+        FAILED(FindExceptionDispatchInfoThrow(pThread, PrivateCoreLibModAddress, ExceptionDispatchInfoThrowMethodDef)))
+    {
+        return false;
+    }
+
+    ToRelease<ICorDebugFrame> trFrame;
+    ToRelease<ICorDebugFunction> trFunction;
+    ToRelease<ICorDebugModule> trModule;
+    CORDB_ADDRESS modAddress = 0;
+    mdMethodDef methodDef = mdMethodDefNil;
+
+    return SUCCEEDED(pThread->GetActiveFrame(&trFrame)) &&
+           trFrame != nullptr &&
+           SUCCEEDED(trFrame->GetFunction(&trFunction)) &&
+           SUCCEEDED(trFunction->GetModule(&trModule)) &&
+           SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
+           SUCCEEDED(trFunction->GetToken(&methodDef)) &&
+           PrivateCoreLibModAddress == modAddress &&
+           ExceptionDispatchInfoThrowMethodDef == methodDef;
+}
+
 /*
     Implemented exception callback logic by dwEventType (CorDebugExceptionCallbackType):
 
@@ -461,6 +510,22 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
     {
         case ExceptionCallbackType::FIRST_CHANCE:
         {
+            // Prevent debugger from breaking on internal async state machine rethrow when user code leaves an exception unhandled.
+            if (IsTopFrameExceptionDispatchInfoThrow(pThread))
+            {
+                auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
+                if (findExceptionCallbackType != m_threadsExceptionCallbackType.end())
+                {
+                    findExceptionCallbackType->second = ExceptionCallbackType::FIRST_CHANCE;
+                }
+                else
+                {
+                    m_threadsExceptionCallbackType.emplace(tid, ExceptionCallbackType::FIRST_CHANCE);
+                }
+
+                return S_IGNORE;
+            }
+
             // Important, reset previous stage for this thread.
             auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
             if (findBreakMode != m_threadsExceptionBreakMode.end())

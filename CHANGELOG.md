@@ -47,6 +47,7 @@ Upcoming changes compared to previous version.
 - Replaced all managed C# code with native C++ implementation.
 - Cleaned up async method call stacks by hiding internal state machine frames.
 - Improved async method name display in stack traces by resolving original method names from state machine MoveNext methods.
+- Prevented debugger from breaking on internal async state machine exception rethrow.
 
 #### Removed
 - Removed unused code.

@@ -45,6 +45,8 @@ class ExceptionBreakpoints
     HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
     bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory);
 
+    bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
+
     // Important! Callbacks related methods must control return for succeeded return code.
     // Do not allow debugger API return succeeded (uncontrolled) return code.
     // Bad :
@@ -59,6 +61,9 @@ class ExceptionBreakpoints
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     bool m_justMyCode{true};
+
+    CORDB_ADDRESS PrivateCoreLibModAddress{0};
+    mdMethodDef ExceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
 
     std::mutex m_threadsExceptionMutex;
     std::unordered_map<DWORD, ExceptionCallbackType> m_threadsExceptionCallbackType;
