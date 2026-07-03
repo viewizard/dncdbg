@@ -708,7 +708,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
     return true;
 }
 
-HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &catchHandlerOffset,
+HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken,
                                    std::vector<PDB::AsyncAwaitInfoBlock> &awaitInfos)
 {
     if (pdbHandle == nullptr)
@@ -716,7 +716,6 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
         return E_INVALIDARG;
     }
 
-    catchHandlerOffset = 0;
     awaitInfos.clear();
 
     // Create cursor to the CustomDebugInformation table
@@ -759,8 +758,7 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
             return E_FAIL;
         }
 
-        // Read catch handler offset (first 4 bytes)
-        catchHandlerOffset = ReadLittleEndianUInt32(asyncBlob, 0);
+        // Skip catch handler offset (first 4 bytes)
         asyncBlob += uint32Size;
         asyncBlobSize -= uint32Size;
 

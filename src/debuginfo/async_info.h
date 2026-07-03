@@ -45,7 +45,6 @@ class AsyncInfo
         mdMethodDef methodToken{mdMethodDefNil};
         HRESULT retCode{S_OK};
 
-        uint32_t catchHandlerOffset{0};
         std::vector<PDB::AsyncAwaitInfoBlock> awaits;
         // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
         uint32_t lastIlOffset{0};
