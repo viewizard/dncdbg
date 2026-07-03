@@ -129,7 +129,7 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
 // [in] pEvalHelpers - pointer to managed debugger EvalHelpers;
 // [out] ppValueAsyncIdRef - result value (reference to created by builder object).
 HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, EvalHelpers *pEvalHelpers,
-                                   ICorDebugValue **ppValueAsyncIdRef)
+                            ICorDebugValue **ppValueAsyncIdRef)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;

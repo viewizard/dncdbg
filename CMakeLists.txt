@@ -107,7 +107,7 @@ set(FEATURE_EVENT_TRACE 0)
 #   #endif // _WIN32
 # - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` disable UBSanitizer options in
 #   CLR_CMAKE_BUILD_SANITIZERS: vptr, object-size.
-# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake` add 
+# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake` add
 #       else()
 #         # On macOS and other systems, pthreads may be built into the system library
 #         set(PTHREAD_LIBRARY c)
