@@ -1,5 +1,4 @@
-## [Unreleased]
-Upcoming changes compared to previous version.
+## Version 1.1.0
 
 #### DAP
 - Changed Attach Request, field 'processId' must be a number only now.
