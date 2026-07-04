@@ -1088,7 +1088,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             }
 
                             ToRelease<ICorDebugFrame> trFrame;
-                            IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+                            IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
 
                             if (trFrame == nullptr)
                             {
@@ -1305,7 +1305,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1384,7 +1384,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1544,7 +1544,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1577,7 +1577,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1920,7 +1920,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;

@@ -1074,6 +1074,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
     m_justMyCode = enable;
     m_uniqueSteppers->SetJustMyCode(enable);
     m_sharedBreakpoints->SetJustMyCode(enable);
+    m_sharedEvaluator->SetJustMyCode(enable);
 }
 
 void ManagedDebugger::SetStepFiltering(bool enable)

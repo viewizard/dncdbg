@@ -123,11 +123,22 @@ class Evaluator
 
     static SigElementType GetElementTypeByTypeName(const std::string &typeName);
 
+    [[nodiscard]] bool IsJustMyCode() const
+    {
+        return m_justMyCode;
+    }
+    void SetJustMyCode(bool enable)
+    {
+        m_justMyCode = enable;
+    }
+
   private:
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
+
+    bool m_justMyCode{true};
 };
 
 } // namespace dncdbg

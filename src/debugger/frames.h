@@ -34,7 +34,7 @@ enum class FrameType : uint8_t
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
                                                  const std::string *, const std::string *)>;
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, ICorDebugFrame **ppFrame);
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);
 HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb);
 

@@ -528,7 +528,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
     return S_OK;
 }
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, ICorDebugFrame **ppFrame)
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame)
 {
     auto foreignExceptionFrameDetected = [&]() -> bool
     {
@@ -574,16 +574,44 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
     };
 
     // Try to get 0 (current active) frame in an efficient way, if possible.
-    if (static_cast<int>(level) == 0 && !foreignExceptionFrameDetected() && SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
+    // Note: This optimization is only valid when JMC is disabled, because when JMC is enabled,
+    // the active frame might be external code (non-user code) and should not be returned directly.
+    if (!justMyCode && static_cast<int>(level) == 0 && !foreignExceptionFrameDetected() &&
+        SUCCEEDED(pThread->GetActiveFrame(ppFrame)) && *ppFrame != nullptr)
     {
         return S_OK;
     }
 
     int currentFrame = -1;
+    bool prevFrameExternal = false;
 
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *, const std::string *, const std::string *) -> HRESULT
         {
+            if (justMyCode && frameType != FrameType::CLRManagedExceptionUser)
+            {
+                ToRelease<ICorDebugFunction> trFunction;
+                ToRelease<ICorDebugFunction2> trFunction2;
+                BOOL JMCStatus = FALSE;
+                if (frameType == FrameType::CLRManaged &&
+                    SUCCEEDED(pFrame->GetFunction(&trFunction)) &&
+                    SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+                    SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
+                    JMCStatus == TRUE)
+                {
+                    prevFrameExternal = false;
+                }
+                else
+                {
+                    if (!prevFrameExternal)
+                    {
+                        currentFrame++;
+                        prevFrameExternal = true;
+                    }
+                    return S_OK; // Continue walk.
+                }
+            }
+
             currentFrame++;
 
             if (currentFrame < static_cast<int>(level))
