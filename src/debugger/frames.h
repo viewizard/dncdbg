@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include "types/types.h"
 #include <functional>
 
@@ -25,10 +26,13 @@ enum class FrameType : uint8_t
     Unknown,
     CLRNative,
     CLRInternal,
-    CLRManaged
+    CLRManaged,
+    CLRManagedException,
+    CLRManagedExceptionUser
 };
 
-using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *)>;
+using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
+                                                 const std::string *, const std::string *)>;
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, ICorDebugFrame **ppFrame);
 const char *GetInternalTypeName(CorDebugInternalFrameType frameType);

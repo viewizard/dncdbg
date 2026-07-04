@@ -182,6 +182,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
         }
     }
 
+    Threads::ClearUnhandledExceptionStatus();
+
     return m_sharedCallbacksQueue->ContinueProcess(pProcess);
 }
 
@@ -434,8 +436,10 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
                                                      ICorDebugFrame *pFrame, uint32_t /*nOffset*/,
                                                      CorDebugExceptionCallbackType dwEventType, DWORD /*dwFlags*/)
 {
+    Threads::SetUnhandledExceptionStatus(pThread, dwEventType != DEBUG_EXCEPTION_CATCH_HANDLER_FOUND);
+
     return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
-        // pFrame could be neutered in case of evaluation during brake, do all stuff with pFrame in callback itself.
+        // pFrame could be neutered in case of evaluation during break, do all stuff with pFrame in callback itself.
         ExceptionCallbackType eventType = ExceptionCallbackType::UNKNOWN;
         switch (dwEventType)
         {

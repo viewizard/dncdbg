@@ -16,6 +16,8 @@
 #include "types/protocol.h"
 #include "utils/rwlock.h"
 #include <map>
+#include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -35,11 +37,19 @@ class Threads
     HRESULT GetThreads(std::vector<Thread> &threads);
     HRESULT GetThreadIds(std::vector<ThreadId> &threads);
 
+    static void SetUnhandledExceptionStatus(ICorDebugThread *pThread, bool unhandledException);
+    static bool IsUnhandledExceptionStatus(ICorDebugThread *pThread);
+    static void ClearUnhandledExceptionStatus();
+
   private:
 
     RWLock m_userThreadsRWLock;
     std::map<ThreadId, std::string> m_userThreads;
     ThreadId MainThread;
+
+    // Track unhandled exception execution on thread (from exception throw till catch).
+    static std::mutex m_unhandledExceptionMutex;
+    static std::set<DWORD> &GetUnhandledException();
 };
 
 } // namespace dncdbg

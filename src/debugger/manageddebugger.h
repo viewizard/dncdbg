@@ -185,11 +185,6 @@ class ManagedDebugger
     HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                                  std::vector<StackFrame> &stackFrames);
 
-    CORDB_ADDRESS PrivateCoreLibModAddress{0};
-    mdMethodDef ExceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
-    bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
-    HRESULT GetExceptionStackTrace(ICorDebugThread *pThread, std::string &stackTrace);
-
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     HRESULT StartupCallbackHR{S_OK};
     HRESULT Startup(IUnknown *punk);

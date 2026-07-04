@@ -62,6 +62,8 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
 
 } // unnamed namespace
 
+std::mutex Threads::m_unhandledExceptionMutex;
+
 ThreadId getThreadId(ICorDebugThread *pThread)
 {
     DWORD threadId = 0; // invalid value for Win32
@@ -143,6 +145,51 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
                        return userThread.first;
                    });
     return S_OK;
+}
+
+std::set<DWORD> &Threads::GetUnhandledException()
+{
+    static std::set<DWORD> unhandledException;
+    return unhandledException;
+}
+
+void Threads::SetUnhandledExceptionStatus(ICorDebugThread *pThread, bool unhandledException)
+{
+    DWORD threadId = 0;
+    if (FAILED(pThread->GetID(&threadId)))
+    {
+        return;
+    }
+
+    const std::scoped_lock<std::mutex> lock(m_unhandledExceptionMutex);
+
+    if (unhandledException)
+    {
+        GetUnhandledException().emplace(threadId);
+    }
+    else
+    {
+        GetUnhandledException().erase(threadId);
+    }
+}
+
+bool Threads::IsUnhandledExceptionStatus(ICorDebugThread *pThread)
+{
+    DWORD threadId = 0;
+    if (FAILED(pThread->GetID(&threadId)))
+    {
+        return false;
+    }
+
+    const std::scoped_lock<std::mutex> lock(m_unhandledExceptionMutex);
+
+    return GetUnhandledException().find(threadId) != GetUnhandledException().end();
+}
+
+void Threads::ClearUnhandledExceptionStatus()
+{
+    const std::scoped_lock<std::mutex> lock(m_unhandledExceptionMutex);
+    GetUnhandledException().clear();
 }
 
 } // namespace dncdbg

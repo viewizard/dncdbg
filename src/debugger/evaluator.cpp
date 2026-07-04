@@ -1928,7 +1928,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
         std::string methodClass;
         std::string methodName;
-        TypePrinter::GetTypeAndMethod(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
+        TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, methodClass, identifiers, &trResolvedValue,
                                             resultSetterData)))

@@ -762,7 +762,7 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
+HRESULT GetTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
 {
     HRESULT Status = S_OK;
 
@@ -837,7 +837,55 @@ HRESULT GetTypeAndMethod(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::str
     return S_OK;
 }
 
-HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
+HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trFunction->GetClass(&trClass));
+
+    mdMethodDef methodDef = mdMethodDefNil;
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
+    {
+        methodDef = methodToken;
+    }
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    IfFailRet(trClass->GetToken(&typeDef));
+
+    ToRelease<IMetaDataImport2> trMDImport2;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+
+    ULONG nameLen = 0;
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    mdTypeDef memTypeDef = mdTypeDefNil;
+    std::vector<WCHAR> szFunctionName(nameLen, '\0');
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    methodName = to_utf8(szFunctionName.data());
+
+    if (memTypeDef != mdTypeDefNil)
+    {
+        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, typeName, nullptr)))
+        {
+            typeName = "";
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -845,7 +893,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string
     std::string methodName;
 
     std::ostringstream ss;
-    IfFailRet(GetTypeAndMethod(pFrame, pDebugInfo, typeName, methodName));
+    IfFailRet(GetTypeAndMethodName(pFrame, pDebugInfo, typeName, methodName));
     if (!typeName.empty())
     {
         ss << typeName << ".";
@@ -925,7 +973,7 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string
 
             if (i != i_start)
             {
-                    ss << ", ";
+                ss << ", ";
             }
 
             std::string valueType;
@@ -939,6 +987,92 @@ HRESULT GetMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string
                      SUCCEEDED(GetTypeOfValue(trValue, valueType)))
             {
                 ss << valueType << " ";
+            }
+            // else
+            //    in case of fail, ignore parameter type, print only parameter name
+
+            ss << to_utf8(wParamName.data());
+        }
+        return S_OK;
+    };
+    addMethodParameters();
+
+    ss << ")";
+    output = ss.str();
+    return S_OK;
+}
+
+HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    std::string typeName;
+    std::string methodName;
+
+    std::ostringstream ss;
+    IfFailRet(GetTypeAndMethodName(pModule, methodToken, pDebugInfo, typeName, methodName));
+    if (!typeName.empty())
+    {
+        ss << typeName << ".";
+    }
+    ss << methodName << "(";
+
+    auto addMethodParameters = [&]() -> HRESULT
+    {
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+        mdMethodDef methodDef = mdMethodDefNil;
+        if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
+        {
+            methodDef = methodToken;
+        }
+
+        DWORD methodAttr = 0;
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr));
+
+        SigElementType returnElementType;
+        std::vector<SigElementType> argElementTypes;
+        // Ignore failed return code here, we need all we could parse from sig.
+        ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+
+        auto cArguments = static_cast<ULONG>(argElementTypes.size());
+        const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
+        for (ULONG i = i_start; i < cArguments; i++)
+        {
+            // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
+            // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
+            // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
+            const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+            mdParamDef paramDef = mdParamDefNil;
+            ULONG paramNameLen = 0;
+            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
+                FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0,
+                                                 &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            std::vector<WCHAR> wParamName(paramNameLen, '\0');
+            if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            if (i != i_start)
+            {
+                ss << ", ";
+            }
+
+            if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty())
+            {
+                ss << argElementTypes.at(i).typeName << " ";
             }
             // else
             //    in case of fail, ignore parameter type, print only parameter name

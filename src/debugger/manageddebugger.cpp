@@ -19,7 +19,6 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
-#include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
@@ -213,29 +212,6 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         }
         outEnv.push_back('\0');
     }
-}
-
-HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &modAddress, mdMethodDef &methodDef)
-{
-    HRESULT Status = S_OK;
-    static const std::string assemblyName("System.Private.CoreLib.dll");
-    static const WSTRING className(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
-    static const WSTRING methodName(W("Throw"));
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(EvalHelpers::FindMethodInModule(pThread, assemblyName, className, methodName, &trFunction));
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunction->GetModule(&trModule));
-
-    if (FAILED(Status = trModule->GetBaseAddress(&modAddress)) ||
-        FAILED(Status = trFunction->GetToken(&methodDef)))
-    {
-        modAddress = 0;
-        methodDef = mdMethodDefNil;
-        return Status;
-    }
-
-    return S_OK;
 }
 
 } // unnamed namespace
@@ -886,7 +862,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     HRESULT Status = S_OK;
 
     std::string methodName;
-    if (FAILED(TypePrinter::GetMethodName(pFrame, m_sharedDebugInfo.get(), methodName)))
+    if (FAILED(TypePrinter::GetFullyQualifiedMethodName(pFrame, m_sharedDebugInfo.get(), methodName)))
     {
         methodName = "Unnamed method in optimized code";
     }
@@ -917,68 +893,6 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     return S_OK;
 }
 
-bool ManagedDebugger::IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread)
-{
-    if ((PrivateCoreLibModAddress == 0 || ExceptionDispatchInfoThrowMethodDef == mdMethodDefNil) &&
-        FAILED(FindExceptionDispatchInfoThrow(pThread, PrivateCoreLibModAddress, ExceptionDispatchInfoThrowMethodDef)))
-    {
-        return false;
-    }
-
-    ToRelease<ICorDebugFrame> trFrame;
-    ToRelease<ICorDebugFunction> trFunction;
-    ToRelease<ICorDebugModule> trModule;
-    CORDB_ADDRESS modAddress = 0;
-    mdMethodDef methodDef = mdMethodDefNil;
-
-    return SUCCEEDED(pThread->GetActiveFrame(&trFrame)) &&
-           trFrame != nullptr &&
-           SUCCEEDED(trFrame->GetFunction(&trFunction)) &&
-           SUCCEEDED(trFunction->GetModule(&trModule)) &&
-           SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
-           SUCCEEDED(trFunction->GetToken(&methodDef)) &&
-           PrivateCoreLibModAddress == modAddress &&
-           ExceptionDispatchInfoThrowMethodDef == methodDef;
-}
-
-HRESULT ManagedDebugger::GetExceptionStackTrace(ICorDebugThread *pThread, std::string &stackTrace)
-{
-    ToRelease<ICorDebugValue> trExceptionValue;
-    if (FAILED(pThread->GetCurrentException(&trExceptionValue)) ||
-        trExceptionValue == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    HRESULT Status = S_OK;
-    IfFailRet(m_sharedEvaluator->WalkMembers(
-        trExceptionValue, pThread, FrameLevel{0}, nullptr, false,
-        [&](ICorDebugType *, bool, const std::string &memberName,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
-        {
-            if (memberName != "StackTrace")
-            {
-                return S_OK;
-            }
-
-            HRESULT Status = S_OK;
-            ToRelease<ICorDebugValue> trResultValue;
-            IfFailRet(getValue(&trResultValue, true));
-
-            BOOL isNull = TRUE;
-            ToRelease<ICorDebugReferenceValue> trReferenceValue;
-            if (SUCCEEDED(trResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
-                SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == FALSE)
-            {
-                PrintValue(trResultValue, stackTrace, false);
-            }
-
-            return S_CAN_EXIT; // Fast exit from loop.
-        }));
-
-    return stackTrace.empty() ? E_FAIL : S_OK;
-}
-
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
                                               unsigned maxFrames, std::vector<StackFrame> &stackFrames)
 {
@@ -991,121 +905,16 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     static const std::string FrameUnknownText = "[Unknown Frame]";
     // Non-user code related frame when Just My Code is enabled.
     static const std::string ExternalCodeText = "[External Code]";
-
-    // Exception rethrown with System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw() case.
-    // Note, this is optional part, ignore errors.
-    if (IsTopFrameExceptionDispatchInfoThrow(pThread))
-    {
-        // In case of async method, user code could be moved to `.NET TP Worker` thread and in case of
-        // unhandled exception in this user code, exception will be caught and rethrown by non-user code
-        // in the initial async method code execution thread.
-        static constexpr int triesLimit = 3;
-        for (int tryCount = 0; tryCount < triesLimit; tryCount++)
-        {
-            std::string stackTrace;
-            if (SUCCEEDED(GetExceptionStackTrace(pThread, stackTrace)))
-            {
-                std::stringstream ss(stackTrace);
-                // The stackTrace strings from exception usually looks like:
-                // at Program.Func2(string[] strvect) in /home/user/work/vscode_test/utils.cs:line 122
-                // at Program.Func1<int, char>() in /home/user/work/vscode_test/utils.cs:line 78
-                // at Program.Main() in /home/user/work/vscode_test/Program.cs:line 25
-                // at Program.Main() in C:\Users/localuser/work/vscode_test\Program.cs:line 25
-                while (!ss.eof())
-                {
-                    std::string line;
-                    std::getline(ss, line, '\n');
-                    const size_t lastcolon = line.find_last_of(':');
-                    if (lastcolon == std::string::npos)
-                    {
-                        continue;
-                    }
-
-                    size_t beginpath = line.find_first_of('/');
-                    if (beginpath == std::string::npos)
-                    {
-                        beginpath = line.find_first_of('\\');
-                        if (beginpath == std::string::npos)
-                        {
-                            continue;
-                        }
-                    }
-
-                    // append disk name, if exists
-                    beginpath = line.find_last_of(' ', beginpath);
-                    if (beginpath == std::string::npos)
-                    {
-                        continue;
-                    }
-
-                    beginpath++;
-                    if (beginpath >= lastcolon)
-                    {
-                        continue;
-                    }
-
-                    // remove leading spaces and the first word ("at" for the case of English locale)
-                    size_t beginname = line.find_first_not_of(' ');
-                    if (beginname == std::string::npos)
-                    {
-                        continue;
-                    }
-
-                    beginname = line.find_first_of(' ', beginname);
-                    if (beginname == std::string::npos)
-                    {
-                        continue;
-                    }
-                    beginname++;
-
-                    // the function name ends with the last ')' before the beginning of fullpath
-                    size_t endname = line.find_last_of(')', beginpath);
-                    if (endname == std::string::npos)
-                    {
-                        continue;
-                    }
-                    endname++;
-
-                    if (beginname >= endname)
-                    {
-                        continue;
-                    }
-
-                    // look for the line number after the last colon
-                    const size_t beginlinenum = line.find_first_of("0123456789", lastcolon);
-                    const size_t endlinenum = line.find_first_not_of("0123456789", beginlinenum);
-                    if (beginlinenum == std::string::npos)
-                    {
-                        continue;
-                    }
-
-                    currentFrame++;
-                    if (currentFrame < static_cast<int>(startFrame))
-                    {
-                        continue;
-                    }
-                    if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
-                    {
-                        break;
-                    }
-
-                    const int lineNum(std::stoi(line.substr(beginlinenum, endlinenum)));
-                    stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, line.substr(beginname, endname - beginname));
-                    stackFrames.back().source = Source(line.substr(beginpath, lastcolon - beginpath));
-                    stackFrames.back().line = lineNum;
-                    stackFrames.back().endLine = lineNum;
-                }
-                break;
-            }
-        }
-    }
+    // Prefix for foreign exception stack frames (frames from a rethrown exception's original thread).
+    static const std::string ExceptionFramePrefix = "[Exception] ";
 
     bool prevFrameExternal = false;
 
     IfFailRet(WalkFrames(pThread, m_sharedDebugInfo.get(),
-        [&](FrameType frameType, ICorDebugFrame *pFrame) -> HRESULT
+        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
+            const std::string *methodName, const std::string *sourceFilePath) -> HRESULT
         {
-            if (IsJustMyCode())
+            if (IsJustMyCode() && frameType != FrameType::CLRManagedExceptionUser)
             {
                 ToRelease<ICorDebugFunction> trFunction;
                 ToRelease<ICorDebugFunction2> trFunction2;
@@ -1168,6 +977,18 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 StackFrame stackFrame;
                 GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
                 stackFrames.push_back(stackFrame);
+                break;
+            }
+            case FrameType::CLRManagedException:
+            case FrameType::CLRManagedExceptionUser:
+            {
+                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + *methodName);
+                if (frameType == FrameType::CLRManagedExceptionUser)
+                {
+                    stackFrames.back().source = Source(*sourceFilePath);
+                    stackFrames.back().line = sequencePoint->startLine;
+                    stackFrames.back().endLine = sequencePoint->endLine;
+                }
                 break;
             }
             }
