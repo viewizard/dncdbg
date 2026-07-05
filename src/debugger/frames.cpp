@@ -5,7 +5,6 @@
 
 #include "debugger/frames.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
@@ -217,7 +216,16 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
 
     auto exceptionStackTrace = [&]() -> HRESULT
     {
-        if (!Threads::IsUnhandledExceptionStatus(pThread))
+        ToRelease<ICorDebugThread4> trThread4;
+        IfFailRet(pThread->QueryInterface(IID_ICorDebugThread4, reinterpret_cast<void **>(&trThread4)));
+        // From third_party/diagnostics/src/shared/inc/cordebug.idl
+        // Returns S_OK if ICorDebugThread::GetCurrentException() is non-NULL and the exception
+        // it refers to has completed the first pass of exception handling without locating
+        // a catch clause.
+        // Returns S_FALSE if there is no exception, it hasn't completed the first pass handling,
+        // or a catch handler was located.
+        IfFailRet(trThread4->HasUnhandledException());
+        if (Status == S_FALSE)
         {
             return S_OK;
         }
@@ -233,14 +241,13 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         IfFailRet(DereferenceAndUnboxValue(trExceptionValueRef, &trExceptionValue));
         ToRelease<ICorDebugExceptionObjectValue> trExceptionObjectValue;
         IfFailRet(trExceptionValue->QueryInterface(IID_ICorDebugExceptionObjectValue, reinterpret_cast<void **>(&trExceptionObjectValue)));
-
-        CorDebugExceptionObjectStackFrame exceptionObjectStackFrame;
-        ULONG fetched = 0;
         ToRelease<ICorDebugExceptionObjectCallStackEnum> trExceptionObjectCallStackEnum;
         IfFailRet(trExceptionObjectValue->EnumerateExceptionCallStack(&trExceptionObjectCallStackEnum));
 
         int lastForeignExceptionFrameIndex = -1;
         int index = -1;
+        CorDebugExceptionObjectStackFrame exceptionObjectStackFrame;
+        ULONG fetched = 0;
         while (SUCCEEDED(trExceptionObjectCallStackEnum->Next(1, &exceptionObjectStackFrame, &fetched)) && fetched == 1)
         {
             exceptionObjectStackFrame.pModule->Release();
@@ -532,7 +539,11 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
 {
     auto foreignExceptionFrameDetected = [&]() -> bool
     {
-        if (!Threads::IsUnhandledExceptionStatus(pThread))
+        HRESULT Status = S_OK;
+        ToRelease<ICorDebugThread4> trThread4;
+        if (FAILED(pThread->QueryInterface(IID_ICorDebugThread4, reinterpret_cast<void **>(&trThread4))) ||
+            FAILED(Status = trThread4->HasUnhandledException()) ||
+            Status == S_FALSE)
         {
             return false;
         }

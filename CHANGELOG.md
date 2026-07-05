@@ -1,3 +1,12 @@
+## [Unreleased]
+Upcoming changes compared to previous version.
+
+#### Changed
+- Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
+
+</br>
+</br>
+
 ## Version 1.1.0
 
 #### DAP
