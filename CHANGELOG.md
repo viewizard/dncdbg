@@ -4,6 +4,9 @@ Upcoming changes compared to previous version.
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
 
+#### Fixed
+- Fixed argument enumeration for instance methods in stack trace code.
+
 </br>
 </br>
 

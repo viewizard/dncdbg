@@ -947,15 +947,19 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
             ToRelease<ICorDebugValueEnum> trArgumentEnum;
             IfFailRet(trILFrame->EnumerateArguments(&trArgumentEnum));
             IfFailRet(trArgumentEnum->GetCount(&cArguments));
+            // Decrement argument count to exclude `this` for instance methods.
+            if ((methodAttr & mdStatic) == 0)
+            {
+                cArguments--;
+            }
         }
 
-        const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
-        for (ULONG i = i_start; i < cArguments; i++)
+        for (ULONG i = 0; i < cArguments; i++)
         {
             // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
             // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
             // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
-            const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+            const ULONG idx = i + 1;
             mdParamDef paramDef = mdParamDefNil;
             ULONG paramNameLen = 0;
             if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
@@ -972,22 +976,28 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
                 continue;
             }
 
-            if (i != i_start)
+            if (i != 0)
             {
                 ss << ", ";
             }
 
-            std::string valueType;
-            ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
                 ss << argElementTypes.at(i).typeName << " ";
             }
-            else if (!asyncMethod &&
-                     SUCCEEDED(trILFrame->GetArgument(i, &trValue)) &&
-                     SUCCEEDED(GetTypeOfValue(trValue, valueType)))
+            else if (!asyncMethod)
             {
-                ss << valueType << " ";
+                std::string valueType;
+                ToRelease<ICorDebugValue> trValue;
+                if (SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
+                    SUCCEEDED(GetTypeOfValue(trValue, valueType)))
+                {
+                    ss << valueType << " ";
+                }
+                else if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
+                {
+                    // TODO find value in optimized code with ICorDebugCode4::EnumerateVariableHomes()
+                }
             }
             // else
             //    in case of fail, ignore parameter type, print only parameter name
