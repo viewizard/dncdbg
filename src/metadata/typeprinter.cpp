@@ -1000,7 +1000,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
                 }
             }
             // else
-            //    in case of fail, ignore parameter type, print only parameter name
+            //    in case of failure, ignore parameter type, print only parameter name
 
             ss << to_utf8(wParamName.data());
         }
@@ -1078,12 +1078,12 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
                 ss << ", ";
             }
 
-            if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty())
+            if (!argElementTypes.at(i).typeName.empty())
             {
                 ss << argElementTypes.at(i).typeName << " ";
             }
             // else
-            //    in case of fail, ignore parameter type, print only parameter name
+            //    in case of failure, ignore parameter type, print only parameter name
 
             ss << to_utf8(wParamName.data());
         }
