@@ -1041,11 +1041,10 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
             methodDef = methodToken;
         }
 
-        DWORD methodAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;
         IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
-                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr));
+                                             nullptr, &pSig, &cbSig, nullptr, nullptr));
 
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
@@ -1053,13 +1052,11 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
         ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         auto cArguments = static_cast<ULONG>(argElementTypes.size());
-        const ULONG i_start = (methodAttr & mdStatic) == 0 ? 1 : 0;
-        for (ULONG i = i_start; i < cArguments; i++)
+        for (ULONG i = 0; i < cArguments; i++)
         {
             // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
             // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
-            // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
-            const ULONG idx = ((methodAttr & mdStatic) == 0) ? i : (i + 1);
+            const ULONG idx = i + 1;
             mdParamDef paramDef = mdParamDefNil;
             ULONG paramNameLen = 0;
             if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
@@ -1076,7 +1073,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
                 continue;
             }
 
-            if (i != i_start)
+            if (i != 0)
             {
                 ss << ", ";
             }
