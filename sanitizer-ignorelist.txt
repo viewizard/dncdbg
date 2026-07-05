@@ -1,3 +1,9 @@
 src:*/third_party/*
 src:/opt/homebrew/Cellar/llvm/*
 src:/usr/*
+
+# Unsigned overflow in arithmetic operations is well-defined (wraps)
+# These are intentional for hash combining and shift operations
+fun:*HashCombine*
+fun:*LeftShiftExpression*
+fun:*SubtractExpression*

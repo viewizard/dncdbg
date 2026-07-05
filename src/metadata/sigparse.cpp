@@ -86,15 +86,17 @@ HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         ULONG sizeDim = 0;
         ULONG ulTemp = 0;
         IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, sizeDim));
-        while ((sizeDim--) != 0U)
+        while (sizeDim != 0U)
         {
+            sizeDim--;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, ulTemp));
         }
         ULONG lowerBound = 0;
         int iTemp = 0;
         IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, lowerBound));
-        while ((lowerBound--) != 0U)
+        while (lowerBound != 0U)
         {
+            lowerBound--;
             IfFailRet(CorSigUncompressSignedInt_EndPtr(pSig, pSigEnd, iTemp));
         }
     }

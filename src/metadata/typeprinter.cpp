@@ -57,8 +57,9 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
     ss << name.substr(0, offset);
     ss << "<";
     const char *sep = "";
-    while ((numArgs--) != 0U)
+    while (numArgs != 0U)
     {
+        numArgs--;
         ss << sep;
         sep = ", ";
         ss << args.front();
