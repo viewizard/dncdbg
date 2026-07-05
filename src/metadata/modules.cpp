@@ -141,7 +141,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
     auto readProcessMemory = [&](CORDB_ADDRESS addr, void *buffer, uint32_t size) -> HRESULT
     {
         SIZE_T bytesRead = 0;
-        IfFailRet(trProcess->ReadMemory(addr, size, static_cast<uint8_t*>(buffer), &bytesRead));
+        IfFailRet(trProcess->ReadMemory(addr, size, static_cast<uint8_t *>(buffer), &bytesRead));
         return (bytesRead == size) ? S_OK : E_FAIL;
     };
 
