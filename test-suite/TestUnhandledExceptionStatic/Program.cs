@@ -8,11 +8,11 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestUnhandledException
+namespace TestUnhandledExceptionStatic
 {
 class Program
 {
-    static void Abc()
+    static void Abc(int i, string s, uint u)
     {
         throw new Exception();                                                  Label.Breakpoint("throwexception");
     }
@@ -33,21 +33,21 @@ class Program
 
         // test "unhandled"
         await Task.Yield();
-        Abc();                                                                  Label.Breakpoint("callabc");
+        Abc(1, "test", 2);                                                      Label.Breakpoint("callabc");
 
         Label.Checkpoint("test_unhandled", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 string[] stacktrace = { "throwexception", "callabc" };
-                Context.TestExceptionStackTrace(@"__FILE__:__LINE__", stacktrace, 2);
+                Context.TestExceptionStackTrace(@"__FILE__:__LINE__", "[Exception] TestUnhandledExceptionStatic.Program.Abc(int i, string s, uint u)", stacktrace, 2);
             });
 
         Label.Checkpoint("finish", "",
             (Object context) =>
             {
                 Context Context = (Context)context;
-                // At this point debugger stops at unhandled exception, no reason continue process, abort execution.
+                // At this point debugger stops at unhandled exception, no reason to continue process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
                 Context.WasExit(null, @"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");

@@ -1,8 +1,12 @@
 ## [Unreleased]
 Upcoming changes compared to previous version.
 
+#### Added
+- Added TestUnhandledExceptionInstance.
+
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
+- Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 
 #### Fixed
 - Fixed argument enumeration for instance methods in stack trace code.

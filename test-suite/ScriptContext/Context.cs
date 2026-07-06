@@ -1048,7 +1048,7 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void TestExceptionStackTrace(string caller_trace, string[] stacktrace, int num)
+    public void TestExceptionStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -1071,6 +1071,12 @@ class Context
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
+
+        // Check top frame name first
+        if (stackTraceResponse.body.stackFrames[0].name != top_frame_name)
+        {
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        }
 
         for (int i = 0; i < num; i++)
         {
