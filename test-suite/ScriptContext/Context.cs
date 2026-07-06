@@ -1048,21 +1048,8 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void TestExceptionStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
+    public void TestStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
     {
-        Func<string, bool> filter = (resJSON) =>
-        {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
-            {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                return true;
-            }
-            return false;
-        };
-
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
-
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
@@ -1091,7 +1078,24 @@ class Context
                 throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
             }
         }
-        return;
+    }
+
+    public void TestExceptionStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
+    {
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        TestStackTrace(caller_trace, top_frame_name, stacktrace, num);
     }
 
     public void WasExceptionBreakpointHitInExternalCode(string caller_trace, string excCategory, string excMode,

@@ -48,6 +48,7 @@ $ALL_TEST_NAMES = @(
     "TestEvaluatePrimitiveBinary"
     "TestArgs"
     "TestEmbeddedPDB"
+    "TestMethodParameters"
 )
 
 $TEST_NAMES = $tests
