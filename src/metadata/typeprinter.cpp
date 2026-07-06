@@ -981,23 +981,17 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
                 ss << ", ";
             }
 
+            std::string valueType;
+            ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
                 ss << argElementTypes.at(i).typeName << " ";
             }
-            else if (!asyncMethod)
+            else if (!asyncMethod &&
+                     SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
+                     SUCCEEDED(GetTypeOfValue(trValue, valueType)))
             {
-                std::string valueType;
-                ToRelease<ICorDebugValue> trValue;
-                if (SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
-                    SUCCEEDED(GetTypeOfValue(trValue, valueType)))
-                {
-                    ss << valueType << " ";
-                }
-                else if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
-                {
-                    // TODO find value in optimized code with ICorDebugCode4::EnumerateVariableHomes()
-                }
+                ss << valueType << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
