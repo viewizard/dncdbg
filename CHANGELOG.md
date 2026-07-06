@@ -8,6 +8,9 @@ Upcoming changes compared to previous version.
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
 - Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 
+#### Removed
+- Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found
+
 #### Fixed
 - Fixed argument enumeration for instance methods in stack trace code.
 

@@ -374,11 +374,7 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
 
         std::unordered_map<uint32_t, uint32_t> moveNextToKickoff;
         std::unordered_map<uint32_t, uint32_t> kickoffToMoveNext;
-        if (FAILED(PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext)))
-        {
-            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
-                "Could not load state machine method info from PDB file.\n"});
-        }
+        PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext);
 
         CORDB_ADDRESS baseAddress = 0;
         if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
