@@ -43,6 +43,7 @@ ALL_TEST_NAMES=(
     "TestArgs"
     "TestEmbeddedPDB"
     "TestMethodParameters"
+    "TestMethodParameters_NoJMC"
 )
 
 TEST_NAMES="$@"
