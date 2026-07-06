@@ -11,7 +11,7 @@ Upcoming changes compared to previous version.
 - Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 
 #### Removed
-- Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found
+- Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found.
 
 #### Fixed
 - Fixed argument enumeration for instance methods in stack trace code.
