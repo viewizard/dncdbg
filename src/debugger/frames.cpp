@@ -593,52 +593,85 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
         return S_OK;
     }
 
-    int currentFrame = -1;
-    bool prevFrameExternal = false;
+    struct IntWalkFrame
+    {
+        FrameType frameType;
+        ToRelease<ICorDebugFrame> trFrame;
 
+        IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_)
+            : frameType(frameType_),
+              trFrame(pFrame_)
+        {
+        }
+    };
+
+    std::list<IntWalkFrame> walkFrames;
+    static constexpr size_t stackTraceLimit = 250;
+
+    // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
+    // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *, const std::string *, const std::string *) -> HRESULT
         {
-            if (justMyCode && frameType != FrameType::CLRManagedExceptionUser)
+            if (pFrame != nullptr)
             {
-                ToRelease<ICorDebugFunction> trFunction;
-                ToRelease<ICorDebugFunction2> trFunction2;
-                BOOL JMCStatus = FALSE;
-                if (frameType == FrameType::CLRManaged &&
-                    SUCCEEDED(pFrame->GetFunction(&trFunction)) &&
-                    SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
-                    SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
-                    JMCStatus == TRUE)
-                {
-                    prevFrameExternal = false;
-                }
-                else
-                {
-                    if (!prevFrameExternal)
-                    {
-                        currentFrame++;
-                        prevFrameExternal = true;
-                    }
-                    return S_OK; // Continue walk.
-                }
+                pFrame->AddRef();
             }
+            walkFrames.emplace_back(frameType, pFrame);
 
-            currentFrame++;
-
-            if (currentFrame < static_cast<int>(level))
-            {
-                return S_OK; // Continue walk.
-            }
-            else if (currentFrame > static_cast<int>(level) ||
-                     frameType != FrameType::CLRManaged)
+            if (walkFrames.size() >= stackTraceLimit ||
+                (!justMyCode && walkFrames.size() > static_cast<int>(level)))
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }
 
-            pFrame->AddRef();
-            *ppFrame = pFrame;
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_OK; // Continue walk.
         });
+
+    int currentFrame = -1;
+    bool prevFrameExternal = false;
+
+    for (auto &frame : walkFrames)
+    {
+        if (justMyCode && frame.frameType != FrameType::CLRManagedExceptionUser)
+        {
+            ToRelease<ICorDebugFunction> trFunction;
+            ToRelease<ICorDebugFunction2> trFunction2;
+            BOOL JMCStatus = FALSE;
+            if (frame.frameType == FrameType::CLRManaged &&
+                SUCCEEDED(frame.trFrame->GetFunction(&trFunction)) &&
+                SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+                SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
+                JMCStatus == TRUE)
+            {
+                prevFrameExternal = false;
+            }
+            else
+            {
+                if (!prevFrameExternal)
+                {
+                    currentFrame++;
+                    prevFrameExternal = true;
+                }
+                continue;
+            }
+        }
+
+        currentFrame++;
+
+        if (currentFrame < static_cast<int>(level))
+        {
+            continue;
+        }
+        else if (currentFrame > static_cast<int>(level) ||
+                 frame.frameType != FrameType::CLRManaged)
+        {
+            break;
+        }
+
+        *ppFrame = frame.trFrame.Detach();
+        break;
+    }
 
     return *ppFrame != nullptr ? S_OK : E_FAIL;
 }

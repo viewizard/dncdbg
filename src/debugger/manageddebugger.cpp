@@ -896,9 +896,6 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
                                               unsigned maxFrames, std::vector<StackFrame> &stackFrames)
 {
-    HRESULT Status = S_OK;
-    int currentFrame = -1;
-
     // CoreCLR native frame + at least one user's native frame
     static const std::string FrameCLRNativeText = "[Native Frames]";
     // This frame usually indicate some fail during managed unwind
@@ -908,93 +905,149 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     // Prefix for foreign exception stack frames (frames from a rethrown exception's original thread).
     static const std::string ExceptionFramePrefix = "[Exception] ";
 
-    bool prevFrameExternal = false;
+    struct IntWalkExceptionFrame
+    {
+        PDB::SequencePoint sequencePoint;
+        std::string methodName;
+        std::string sourceFilePath;
+        IntWalkExceptionFrame(const PDB::SequencePoint *sequencePoint_, const std::string *methodName_, const std::string *sourceFilePath_)
+            : sequencePoint(sequencePoint_ != nullptr ? *sequencePoint_ : PDB::SequencePoint{}),
+              methodName(methodName_ != nullptr ? *methodName_ : ""),
+              sourceFilePath(sourceFilePath_ != nullptr ? *sourceFilePath_ : "")
+        {
+        }
+    };
 
-    IfFailRet(WalkFrames(pThread, m_sharedDebugInfo.get(),
+    struct IntWalkFrame
+    {
+        FrameType frameType;
+        ToRelease<ICorDebugFrame> trFrame;
+        IntWalkExceptionFrame *excFrame{nullptr};
+
+        IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_)
+            : frameType(frameType_),
+              trFrame(pFrame_)
+        {
+        }
+    };
+
+    std::list<IntWalkFrame> walkFrames;
+    std::list<IntWalkExceptionFrame> walkExceptionFrames;
+    static constexpr size_t stackTraceLimit = 250;
+
+    // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
+    // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
+    WalkFrames(pThread, m_sharedDebugInfo.get(),
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
             const std::string *methodName, const std::string *sourceFilePath) -> HRESULT
         {
-            if (IsJustMyCode() && frameType != FrameType::CLRManagedExceptionUser)
+            if (pFrame != nullptr)
             {
-                ToRelease<ICorDebugFunction> trFunction;
-                ToRelease<ICorDebugFunction2> trFunction2;
-                BOOL JMCStatus = FALSE;
-                if (frameType == FrameType::CLRManaged &&
-                    SUCCEEDED(pFrame->GetFunction(&trFunction)) &&
-                    SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
-                    SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
-                    JMCStatus == TRUE)
-                {
-                    prevFrameExternal = false;
-                }
-                else
-                {
-                    if (!prevFrameExternal)
-                    {
-                        currentFrame++;
-                        stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
-                        prevFrameExternal = true;
-                    }
-                    return S_OK; // Continue walk.
-                }
+                pFrame->AddRef();
             }
 
-            currentFrame++;
+            walkFrames.emplace_back(frameType, pFrame);
 
-            if (currentFrame < static_cast<int>(startFrame))
+            if (frameType == FrameType::CLRManagedException ||
+                frameType == FrameType::CLRManagedExceptionUser)
             {
-                return S_OK; // Continue walk.
+                walkExceptionFrames.emplace_back(sequencePoint, methodName, sourceFilePath);
+                walkFrames.back().excFrame = &walkExceptionFrames.back();
             }
-            if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+
+            if (walkFrames.size() >= stackTraceLimit ||
+                (!IsJustMyCode() && maxFrames != 0 && walkFrames.size() >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }
 
-            switch (frameType)
-            {
-            case FrameType::Unknown:
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameUnknownText);
-                break;
-            case FrameType::CLRNative:
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
-                break;
-            case FrameType::CLRInternal:
-            {
-                ToRelease<ICorDebugInternalFrame> trInternalFrame;
-                CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
-                if (SUCCEEDED(pFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
-                {
-                    trInternalFrame->GetFrameType(&corFrameType);
-                }
-                std::string name = "[";
-                name += GetInternalTypeName(corFrameType);
-                name += "]";
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
-                break;
-            }
-            case FrameType::CLRManaged:
-            {
-                StackFrame stackFrame;
-                GetFrameLocation(pFrame, threadId, FrameLevel{currentFrame}, stackFrame);
-                stackFrames.push_back(stackFrame);
-                break;
-            }
-            case FrameType::CLRManagedException:
-            case FrameType::CLRManagedExceptionUser:
-            {
-                stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + *methodName);
-                if (frameType == FrameType::CLRManagedExceptionUser)
-                {
-                    stackFrames.back().source = Source(*sourceFilePath);
-                    stackFrames.back().line = sequencePoint->startLine;
-                    stackFrames.back().endLine = sequencePoint->endLine;
-                }
-                break;
-            }
-            }
-
             return S_OK; // Continue walk.
-        }));
+        });
+
+    int currentFrame = -1;
+    bool prevFrameExternal = false;
+
+    for (auto &frame : walkFrames)
+    {
+        if (IsJustMyCode() && frame.frameType != FrameType::CLRManagedExceptionUser)
+        {
+            ToRelease<ICorDebugFunction> trFunction;
+            ToRelease<ICorDebugFunction2> trFunction2;
+            BOOL JMCStatus = FALSE;
+            if (frame.frameType == FrameType::CLRManaged &&
+                SUCCEEDED(frame.trFrame->GetFunction(&trFunction)) &&
+                SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+                SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
+                JMCStatus == TRUE)
+            {
+                prevFrameExternal = false;
+            }
+            else
+            {
+                if (!prevFrameExternal)
+                {
+                    currentFrame++;
+                    stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
+                    prevFrameExternal = true;
+                }
+                continue;
+            }
+        }
+
+        currentFrame++;
+
+        if (currentFrame < static_cast<int>(startFrame))
+        {
+            continue;
+        }
+        if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+        {
+            break;
+        }
+
+        switch (frame.frameType)
+        {
+        case FrameType::Unknown:
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameUnknownText);
+            break;
+        case FrameType::CLRNative:
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
+            break;
+        case FrameType::CLRInternal:
+        {
+            ToRelease<ICorDebugInternalFrame> trInternalFrame;
+            CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
+            if (SUCCEEDED(frame.trFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
+            {
+                trInternalFrame->GetFrameType(&corFrameType);
+            }
+            std::string name = "[";
+            name += GetInternalTypeName(corFrameType);
+            name += "]";
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
+            break;
+        }
+        case FrameType::CLRManaged:
+        {
+            StackFrame stackFrame;
+            GetFrameLocation(frame.trFrame, threadId, FrameLevel{currentFrame}, stackFrame);
+            stackFrames.push_back(stackFrame);
+            break;
+        }
+        case FrameType::CLRManagedException:
+        case FrameType::CLRManagedExceptionUser:
+        {
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + frame.excFrame->methodName);
+            if (frame.frameType == FrameType::CLRManagedExceptionUser)
+            {
+                stackFrames.back().source = Source(frame.excFrame->sourceFilePath);
+                stackFrames.back().line = frame.excFrame->sequencePoint.startLine;
+                stackFrames.back().endLine = frame.excFrame->sequencePoint.endLine;
+            }
+            break;
+        }
+        }
+    }
 
     return S_OK;
 }
