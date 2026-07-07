@@ -286,6 +286,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
         switch (node.Expression.ToString())
         {
         case "Label.Breakpoint":
+        case "DbgTest.Label.Breakpoint":
             string name = node.ArgumentList.Arguments[0].Expression.ToString();
             // "name" -> name
             name = name.Trim(new char[] { '\"' });
@@ -295,6 +296,7 @@ public class TestLabelsInfoCollector : CSharpSyntaxWalker
             TestLabelsInfo.Breakpoints.Add(name, lbp!);
             break;
         case "Label.Checkpoint":
+        case "DbgTest.Label.Checkpoint":
             string id = node.ArgumentList.Arguments[0].Expression.ToString();
             string next_id = node.ArgumentList.Arguments[1].Expression.ToString();
             // "id" -> id

@@ -50,6 +50,7 @@ $ALL_TEST_NAMES = @(
     "TestEmbeddedPDB"
     "TestMethodParameters"
     "TestMethodParameters_NoJMC"
+    "TestStackTraceWinForm"
 )
 
 $TEST_NAMES = $tests
@@ -94,11 +95,16 @@ foreach ($TEST_NAME in $TEST_NAMES) {
         $SOURCE_FILES += $SOURCE_FILE + ";"
     }
 
+    $FRAMEWORK = "net10.0"
+    if ($TEST_NAME -eq "TestStackTraceWinForm") {
+        $FRAMEWORK += "-windows"
+    }
+
     dotnet run --project Runner -- `
         --local $DNCDBG `
         --test $TEST_NAME `
         --sources $SOURCE_FILES `
-        --assembly $TEST_NAME/bin/$BUILD_TYPE/net10.0/$TEST_NAME.dll
+        --assembly $TEST_NAME/bin/$BUILD_TYPE/$FRAMEWORK/$TEST_NAME.dll
 
     if ($?) {
         $test_pass++

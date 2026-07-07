@@ -1059,11 +1059,7 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        // Check top frame name first
-        if (stackTraceResponse.body.stackFrames[0].name != top_frame_name)
-        {
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-        }
+        Assert.Equal(stackTraceResponse.body.stackFrames[0].name , top_frame_name, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         for (int i = 0; i < num; i++)
         {
@@ -1077,6 +1073,33 @@ class Context
             {
                 throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
             }
+        }
+    }
+
+    public void TestStackTraceLastFrame(string caller_trace, string last_frame_name, string frame)
+    {
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 20;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
+
+        int lastIndex = stackTraceResponse.body.stackFrames.Count - 1;
+
+        Assert.Equal(stackTraceResponse.body.stackFrames[lastIndex].name, last_frame_name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Breakpoint bp = ControlInfo.Breakpoints[frame];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+
+        if (lbp.FileName != stackTraceResponse.body.stackFrames[lastIndex].source!.name ||
+            ControlInfo.SourceFilesPath != stackTraceResponse.body.stackFrames[lastIndex].source!.path ||
+            lbp.NumLine != stackTraceResponse.body.stackFrames[lastIndex].line)
+        {
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
         }
     }
 

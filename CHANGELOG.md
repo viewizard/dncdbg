@@ -5,6 +5,7 @@ Upcoming changes compared to previous version.
 - Added TestUnhandledExceptionInstance.
 - Added TestMethodParameters.
 - Added TestMethodParameters_NoJMC.
+- Added TestStackTraceWinForm.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
