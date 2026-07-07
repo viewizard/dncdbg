@@ -12,7 +12,7 @@ namespace TestUnhandledExceptionStatic
 {
 class Program
 {
-    static void Abc(int i, string s, uint u)
+    static void Abc(in int i, ref string s, out uint u)
     {
         throw new Exception();                                                  Label.Breakpoint("throwexception");
     }
@@ -33,14 +33,16 @@ class Program
 
         // test "unhandled"
         await Task.Yield();
-        Abc(1, "test", 2);                                                      Label.Breakpoint("callabc");
+        string tests = "test";
+        uint testu = 2;
+        Abc(1, ref tests, out testu);                                           Label.Breakpoint("callabc");
 
         Label.Checkpoint("test_unhandled", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 string[] stacktrace = { "throwexception", "callabc" };
-                Context.TestExceptionStackTrace(@"__FILE__:__LINE__", "[Exception] TestUnhandledExceptionStatic.Program.Abc(int i, string s, uint u)", stacktrace, 2);
+                Context.TestExceptionStackTrace(@"__FILE__:__LINE__", "[Exception] TestUnhandledExceptionStatic.Program.Abc(in int i, ref string s, out uint u)", stacktrace, 2);
             });
 
         Label.Checkpoint("finish", "",

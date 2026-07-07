@@ -63,6 +63,12 @@ void GetCorTypeName(CorElementType corType, std::string &typeName)
     case ELEMENT_TYPE_R8:
         typeName = "double";
         break;
+    case ELEMENT_TYPE_U:
+        typeName = "nuint";
+        break;
+    case ELEMENT_TYPE_I:
+        typeName = "nint";
+        break;
     case ELEMENT_TYPE_STRING:
         typeName = "string";
         break;
@@ -161,8 +167,8 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
-            mdToken tk = mdTokenNil;
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, tk));
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             break;
         }
 
@@ -308,21 +314,22 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // Number ::= 29-bit-encoded-integer
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         SigElementType &sigElementType, bool addCorTypeName)
+                         DWORD flags, SigElementType &sigElementType, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
 
-    // Collect array/wrapper suffixes iteratively instead of recursing.
-    // Each entry: { outerCorType, suffix } where suffix is appended after the base type is resolved.
+    // Collect array/wrapper prefixes and suffixes iteratively instead of recursing.
+    // Each entry: { outerCorType, prefix, suffix } where prefix and suffix are appended after the base type is resolved.
     struct Wrapper
     {
         CorElementType outerCorType;
+        std::string prefix;
         std::string suffix;
     };
     std::vector<Wrapper> wrappers;
 
-    // Peel off wrapping element types (SZARRAY, ARRAY) that would otherwise recurse
-    // to parse their inner element type, then post-process the result.
+    // Peel off wrapping element types (SZARRAY, ARRAY, BYREF) that modify the inner
+    // type, then post-process the result.
     for (;;)
     {
         CorElementType corType = ELEMENT_TYPE_MAX;
@@ -333,7 +340,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             // The recursive version parsed the inner type first, then set corType back to SZARRAY
             // and appended "[]". We record this and continue the loop to parse the inner type.
-            wrappers.push_back({corType, "[]"});
+            wrappers.push_back({corType, {}, "[]"});
             // addCorTypeName must be true for inner types (matches original recursive call).
             addCorTypeName = true;
             continue;
@@ -344,14 +351,31 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             // We need to read the inner type first (handled by continuing the loop),
             // but the array shape data follows the inner type in the signature.
             // Record a placeholder suffix; we'll fill it in after the loop.
-            wrappers.push_back({corType, {}});
+            wrappers.push_back({corType, {}, {}});
             addCorTypeName = true;
             continue;
         }
 
-        // Not a wrapping type — handle the base element type.
-        ULONG argNum = 0;
-        mdToken tk = mdTokenNil;
+        if (corType == ELEMENT_TYPE_BYREF)
+        {
+            // In .NET metadata: 'out' has pdOut only, 'in' has pdIn only,
+            // 'ref' has both pdIn and pdOut, or neither flag set.
+            if ((flags & pdOut) != 0U && (flags & pdIn) == 0U)
+            {
+                wrappers.push_back({corType, "out ", {}});
+            }
+            else if ((flags & pdIn) != 0U && (flags & pdOut) == 0U)
+            {
+                wrappers.push_back({corType, "in ", {}});
+            }
+            else
+            {
+                wrappers.push_back({corType, "ref ", {}});
+            }
+
+            addCorTypeName = true;
+            continue;
+        }
 
         switch (sigElementType.corType)
         {
@@ -368,6 +392,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         case ELEMENT_TYPE_U8:
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_U:
+        case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_STRING:
         case ELEMENT_TYPE_OBJECT:
             if (addCorTypeName)
@@ -378,21 +404,30 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, tk));
-            IfFailRet(TypePrinter::NameForTypeByToken(tk, pMDImport, sigElementType.typeName, nullptr));
+        {
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+            IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
             break;
+        }
 
         case ELEMENT_TYPE_VAR: // Generic parameter in a generic type definition, represented as number
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, argNum));
+        {
+            ULONG num = 0;
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
             sigElementType.elementType = ELEMENT_TYPE_VAR;
-            sigElementType.varNum = argNum;
+            sigElementType.varNum = num;
             break;
+        }
 
         case ELEMENT_TYPE_MVAR: // Generic parameter in a generic method definition, represented as number
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, argNum));
+        {
+            ULONG num = 0;
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
             sigElementType.elementType = ELEMENT_TYPE_MVAR;
-            sigElementType.varNum = argNum;
+            sigElementType.varNum = num;
             break;
+        }
 
         case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
         {
@@ -416,14 +451,9 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             break;
         }
 
-            // TODO
-        case ELEMENT_TYPE_U: // "nuint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
-                             // *unsupported*. To use Preview features, use the 'preview' language version.
-        case ELEMENT_TYPE_I: // "nint" - error CS8652: The feature 'native-sized integers' is currently in Preview and
-                             // *unsupported*. To use Preview features, use the 'preview' language version.
+        // TODO
         case ELEMENT_TYPE_TYPEDBYREF:
         case ELEMENT_TYPE_PTR:   // int* ptr (unsafe code only)
-        case ELEMENT_TYPE_BYREF: // ref, in, out
         case ELEMENT_TYPE_CMOD_REQD:
         case ELEMENT_TYPE_CMOD_OPT:
             return E_NOTIMPL;
@@ -456,7 +486,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
                 it->suffix = "[" + std::string(rank - 1, ',') + "]";
             }
         }
-        sigElementType.typeName += it->suffix;
+        sigElementType.typeName = it->prefix + sigElementType.typeName + it->suffix;
     }
 
     // Set the outermost corType if there were any wrappers.
@@ -468,8 +498,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     return S_OK;
 }
 
-HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, SigElementType &returnElementType,
-                       std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
+HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics
@@ -500,13 +530,24 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_S
     IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
 
     // 4. return type
-    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, returnElementType, addCorTypeName));
+    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, addCorTypeName));
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
-        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, argElementTypes.at(i), addCorTypeName));
+        // The Param table is optional — not every parameter has a Param row.
+        // If GetParamForMethodIndex fails, default to flags = 0 (plain 'ref').
+        mdParamDef paramDef = mdParamDefNil;
+        DWORD flags = 0;
+        if (SUCCEEDED(pMDImport->GetParamForMethodIndex(methodDef, i + 1, &paramDef)) &&
+            paramDef != mdParamDefNil)
+        {
+            // Ignore GetParamProps failure — flags will remain 0.
+            pMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0, nullptr,
+                                     &flags, nullptr, nullptr, nullptr);
+        }
+        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, flags, argElementTypes.at(i), addCorTypeName));
     }
 
     return S_OK;

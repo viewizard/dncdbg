@@ -760,7 +760,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            if (FAILED(ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes)))
+            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)))
             {
                 continue;
             }
@@ -2048,7 +2048,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
 
                 SigElementType returnElementType;
                 std::vector<SigElementType> argElementTypes;
-                if (FAILED(ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes)))
+                if (FAILED(ParseMethodSig(trMDImport, mdMethod, pSig, pSig + cbSig, returnElementType, argElementTypes)))
                 {
                     continue;
                 }
@@ -2118,7 +2118,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                             if (TypeFromToken(tkIface) == mdtTypeSpec)
                             {
                                 if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &cbSig)) ||
-                                    FAILED(ParseElementType(trMDImportInt, pSig, pSig + cbSig, ifaceElementType, false)))
+                                    FAILED(ParseElementType(trMDImportInt, pSig, pSig + cbSig, 0, ifaceElementType, false)))
                                 {
                                     continue;
                                 }

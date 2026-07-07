@@ -301,7 +301,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
             return S_OK;
         }
         case ELEMENT_TYPE_BYREF:
-            typeSuffixes.emplace_back(""); // BYREF doesn't add visible suffix currently
+            typeSuffixes.emplace_back(""); // BYREF (in, out, ref) doesn't add visible suffix currently
             if (processNestedType())
             {
                 continue;
@@ -939,7 +939,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
         const std::vector<SigElementType> typeGenerics; // TODO fill this vector
         const std::vector<SigElementType> methodGenerics; // TODO fill this vector
         // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         auto cArguments = static_cast<ULONG>(argElementTypes.size());
         if (!asyncMethod)
@@ -1043,7 +1043,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
         // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSig(trMDImport, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         auto cArguments = static_cast<ULONG>(argElementTypes.size());
         for (ULONG i = 0; i < cArguments; i++)

@@ -6,6 +6,7 @@ Upcoming changes compared to previous version.
 - Added TestMethodParameters.
 - Added TestMethodParameters_NoJMC.
 - Added TestStackTraceWinForm.
+- Added support for in/ref/out parameter modifiers in method signatures.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
