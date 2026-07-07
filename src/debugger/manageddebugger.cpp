@@ -956,7 +956,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             }
 
             if (walkFrames.size() >= stackTraceLimit ||
-                (!IsJustMyCode() && maxFrames != 0 && walkFrames.size() >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+                (!IsJustMyCode() && maxFrames != 0 &&
+                 static_cast<int>(walkFrames.size()) >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }

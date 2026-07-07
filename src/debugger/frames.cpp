@@ -20,69 +20,6 @@ namespace dncdbg
 namespace
 {
 
-uintptr_t GetSP(const CONTEXT *context)
-{
-#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
-    return context->Rsp;
-#elif defined(_TARGET_X86_)
-    return context->Esp;
-#elif defined(_TARGET_ARM_)
-    return context->Sp;
-#elif defined(_TARGET_ARM64_)
-    return context->Sp;
-#elif defined(_TARGET_RISCV64_)
-    return context->Sp;
-#elif defined(_TARGET_LOONGARCH64_)
-    return context->Sp;
-#else
-    static_assert(false, "Unsupported platform");
-#endif
-}
-
-uintptr_t GetFP(const CONTEXT *context)
-{
-#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
-    return context->Rbp;
-#elif defined(_TARGET_X86_)
-    return context->Ebp;
-#elif defined(_TARGET_ARM_)
-    return context->R11;
-#elif defined(_TARGET_ARM64_)
-    return context->Fp;
-#elif defined(_TARGET_RISCV64_)
-    return context->Fp;
-#elif defined(_TARGET_LOONGARCH64_)
-    return context->Fp;
-#else
-    static_assert(false, "Unsupported platform");
-#endif
-}
-
-void SetFP(CONTEXT *context, uintptr_t value)
-{
-#if defined(_TARGET_AMD64_) // NOLINT(readability-use-concise-preprocessor-directives)
-    context->Rbp = value;
-#elif defined(_TARGET_X86_)
-    context->Ebp = value;
-#elif defined(_TARGET_ARM_)
-    context->R11 = value;
-#elif defined(_TARGET_ARM64_)
-    context->Fp = value;
-#elif defined(_TARGET_RISCV64_)
-    context->Fp = value;
-#elif defined(_TARGET_LOONGARCH64_)
-    context->Fp = value;
-#else
-    static_assert(false, "Unsupported platform");
-#endif
-}
-
-void UnwindNativeFrames(ICorDebugThread */*pThread*/, bool /*firstFrame*/, CONTEXT */*pStartContext*/,
-                                  CONTEXT */*pEndContext*/, const WalkFramesCallback &/*cb*/)
-{
-    // In case of a non-interop build we merge "CoreCLR native frame" and "user's native frame" into "[Native Frames]".
-}
-
 HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, std::list<ToRelease<ICorDebugInternalFrame2>> &trInternalFrames)
 {
     HRESULT Status = S_OK;
@@ -108,7 +45,7 @@ HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, st
     return S_OK;
 }
 
-bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
+bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2, bool lastFrames)
 {
     ToRelease<ICorDebugInternalFrame> trInternalFrame;
     CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
@@ -121,10 +58,13 @@ bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
         return false;
     }
 
+    if (lastFrames)
+    {
+        return corFrameType != STUBFRAME_NONE;
+    }
+
     switch (corFrameType)
     {
-    case STUBFRAME_M2U:
-    case STUBFRAME_U2M:
     case STUBFRAME_APPDOMAIN_TRANSITION:
     case STUBFRAME_LIGHTWEIGHT_FUNCTION:
     case STUBFRAME_FUNC_EVAL:
@@ -134,6 +74,8 @@ bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2)
     case STUBFRAME_JIT_COMPILATION:
         return true;
     case STUBFRAME_EXCEPTION: // no reason to add `[Exception]` frame on the top of stacktrace
+    case STUBFRAME_M2U: // hide managed to native transitions in the middle of stacktrace
+    case STUBFRAME_U2M: // hide native to managed transitions in the middle of stacktrace
     case STUBFRAME_NONE:
         return false;
     default:
@@ -323,25 +265,13 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         return S_OK;
     }
 
-    // From https://github.com/SymbolSource/Microsoft.Samples.Debugging/blob/master/src/debugger/mdbgeng/FrameFactory.cs
     ToRelease<ICorDebugThread3> trThread3;
     IfFailRet(pThread->QueryInterface(IID_ICorDebugThread3, reinterpret_cast<void **>(&trThread3)));
     ToRelease<ICorDebugStackWalk> trStackWalk;
     IfFailRet(trThread3->CreateStackWalk(&trStackWalk));
 
-    static constexpr uint32_t ctxFlags = static_cast<uint32_t>(CONTEXT_CONTROL) | static_cast<uint32_t>(CONTEXT_INTEGER);
-    CONTEXT ctxUnmanagedChain;
-    bool ctxUnmanagedChainValid = false;
-    CONTEXT currentCtx;
-    uint32_t contextSize = 0;
-    memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
-    memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
-
     std::list<ToRelease<ICorDebugInternalFrame2>> trInternalFrames;
     GetActiveInternalFrames(trThread3, trInternalFrames);
-
-    int level = -1;
-    static constexpr bool firstFrame = true;
 
     for (Status = S_OK; ; Status = trStackWalk->Next())
     {
@@ -350,8 +280,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         {
             break;
         }
-
-        level++;
 
         ToRelease<ICorDebugFrame> trFrame;
         if (FAILED(Status = trStackWalk->GetFrame(&trFrame)))
@@ -369,7 +297,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 {
                     ToRelease<ICorDebugFrame> trIntFrame;
                     if (SUCCEEDED((*it)->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
-                        AllowInternalFrame(*it))
+                        AllowInternalFrame(*it, false))
                     {
                         if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
                         {
@@ -387,19 +315,12 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
 
         if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
         {
-            // We've hit a native frame, we need to store the CONTEXT
-            memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
-            if (FAILED(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&ctxUnmanagedChain))))
-            {
-                memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
-            }
-            ctxUnmanagedChainValid = true;
             continue;
         }
 
         // At this point (Status == S_OK).
         // According to CoreCLR sources, S_OK could be with nulled trFrame, that must be skipped.
-        // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition is represented)
+        // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition is represented).
         if (trFrame == nullptr)
         {
             continue;
@@ -416,40 +337,15 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             continue;
         }
 
-        // We need to store the CONTEXT when we're at a managed frame.
-        memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
-        if (FAILED(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<uint8_t *>(&currentCtx))))
-        {
-            memset(reinterpret_cast<void *>(&currentCtx), 0, sizeof(CONTEXT));
-        }
-        // Note, we don't change top managed frame FP in case we don't have SP (for example, registers context related issue)
-        // or CoreCLR was able to restore it. This case could happen only with "managed" top frame (`GetFrame()` return `S_OK`),
-        // where real top frame is native (for example, optimized managed code with inlined pinvoke or CoreCLR native frame).
-        if (level == 0 && GetSP(&currentCtx) != 0 && GetFP(&currentCtx) == 0)
-        {
-            SetFP(&currentCtx, GetSP(&currentCtx));
-            trStackWalk->SetContext(SET_CONTEXT_FLAG_UNWIND_FRAME, sizeof(CONTEXT), reinterpret_cast<uint8_t *>(&currentCtx));
-        }
-
-        // Check if we have native frames to unwind
-        if (ctxUnmanagedChainValid)
-        {
-            UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, &currentCtx, cb);
-            level++;
-            // Clear out the CONTEXT
-            memset(reinterpret_cast<void *>(&ctxUnmanagedChain), 0, sizeof(CONTEXT));
-            ctxUnmanagedChainValid = false;
-        }
-
-        // Return the managed frame
+        // Return the managed frame.
         ToRelease<ICorDebugFunction> trFunction;
         if (SUCCEEDED(trFrame->GetFunction(&trFunction)))
         {
             ToRelease<ICorDebugILFrame> trILFrame;
-            uint32_t nOffset = 0;
+            uint32_t tmpOffset = 0;
             CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
             if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame))) &&
-                SUCCEEDED(trILFrame->GetIP(&nOffset, &mappingResult)))
+                SUCCEEDED(trILFrame->GetIP(&tmpOffset, &mappingResult)))
             {
                 if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
                     mappingResult == MAPPING_NO_INFO)
@@ -493,13 +389,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             }
             continue;
         }
-        // If the first frame is CoreCLR native frame then we might be in a call to unmanaged code.
-        // Note, in case of starting unwinding from native code we get CoreCLR native frame first, not a native frame at the top,
-        // since CoreCLR debug API doesn't track native code execution and doesn't really "see" native code at the beginning of unwinding.
-        if (level == 0)
-        {
-            UnwindNativeFrames(pThread, firstFrame, nullptr, &currentCtx, cb);
-        }
         if (cb(FrameType::CLRNative, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
         {
             return S_OK;
@@ -510,25 +399,12 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
     {
         ToRelease<ICorDebugFrame> trIntFrame;
         if (SUCCEEDED(trIntFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
-            AllowInternalFrame(trIntFrame2))
+            AllowInternalFrame(trIntFrame2, true))
         {
             if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
             {
                 return S_OK;
             }
-        }
-    }
-
-    // We may have native frames at the end of the stack
-    if (ctxUnmanagedChainValid)
-    {
-        if (level == 0) // in case this is first and last frame - unwind all
-        {
-            UnwindNativeFrames(pThread, firstFrame, nullptr, nullptr, cb);
-        }
-        else
-        {
-            UnwindNativeFrames(pThread, !firstFrame, &ctxUnmanagedChain, nullptr, cb);
         }
     }
 
@@ -620,7 +496,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
             walkFrames.emplace_back(frameType, pFrame);
 
             if (walkFrames.size() >= stackTraceLimit ||
-                (!justMyCode && walkFrames.size() > static_cast<int>(level)))
+                (!justMyCode && static_cast<int>(walkFrames.size()) > static_cast<int>(level)))
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }
