@@ -19,6 +19,7 @@ Upcoming changes compared to previous version.
 #### Fixed
 - Fixed argument enumeration for instance methods in stack trace code.
 - Fixed stack walk corruption on macOS arm64 by caching frames before JMC queries.
+- Fixed error handling for non-existent method evaluation requests when allowImplicitFuncEval is disabled.
 
 </br>
 </br>

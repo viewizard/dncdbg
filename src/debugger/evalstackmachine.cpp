@@ -239,6 +239,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 
             return S_CAN_EXIT; // Fast exit from loop.
         }));
+
     if (trFunc == nullptr)
     {
         return E_FAIL;
@@ -271,6 +272,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 
             return S_CAN_EXIT; // Fast exit from loop.
         }));
+
     if (trFunc == nullptr)
     {
         return E_FAIL;
@@ -469,6 +471,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
                     return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
                 }));
+
             if (trFunc == nullptr)
             {
                 return E_INVALIDARG;
@@ -956,6 +959,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
     }
 
+    if (trFunc == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
     if (trResultType != nullptr)
     {
         trType = trResultType.Detach();
@@ -1082,10 +1090,12 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
                 IfFailRet(getFunction(&trFunc));
                 return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
             }));
+
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
         }
+
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> trValueArgs;
         trValueArgs.reserve(argCount + 1);
@@ -1201,10 +1211,12 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
                     IfFailRet(getFunction(&trFunc));
                     return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
                 }));
+
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
         }
+
         evalStack.front().ResetEntry();
         std::vector<ICorDebugValue *> trValueArgs;
         trValueArgs.reserve(argCount + 1);
