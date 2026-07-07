@@ -681,7 +681,8 @@ bool DebugInfo::IsStateMachineKickoffMethod(ICorDebugFunction *pFunction)
     mdMethodDef methodToken = mdMethodDefNil;
     ToRelease<ICorDebugModule> trModule;
     CORDB_ADDRESS modAddress = 0;
-    if (FAILED(pFunction->GetToken(&methodToken)) ||
+    if (pFunction == nullptr ||
+        FAILED(pFunction->GetToken(&methodToken)) ||
         FAILED(pFunction->GetModule(&trModule)) ||
         FAILED(trModule->GetBaseAddress(&modAddress)))
     {

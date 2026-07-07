@@ -864,7 +864,7 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
     std::string methodName;
     if (FAILED(TypePrinter::GetFullyQualifiedMethodName(pFrame, m_sharedDebugInfo.get(), methodName)))
     {
-        methodName = "Unnamed method in optimized code";
+        methodName = "[Unnamed managed method in optimized code]";
     }
     stackFrame = StackFrame(threadId, level, methodName);
 
@@ -897,7 +897,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                                               unsigned maxFrames, std::vector<StackFrame> &stackFrames)
 {
     // CoreCLR native frame + at least one user's native frame
-    static const std::string FrameCLRNativeText = "[Native Frames]";
+    static const std::string FrameCLRNativeText = "[CLR Native Frame]";
     // This frame usually indicate some fail during managed unwind
     static const std::string FrameUnknownText = "[Unknown Frame]";
     // Non-user code related frame when Just My Code is enabled.

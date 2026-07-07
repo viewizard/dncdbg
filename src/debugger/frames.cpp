@@ -236,7 +236,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             std::string methodName;
             if (FAILED(TypePrinter::GetFullyQualifiedMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, methodName)))
             {
-                methodName = "Unnamed method in optimized code";
+                methodName = "[Unnamed managed method in optimized code]";
             }
 
             if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
@@ -287,7 +287,20 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             continue;
         }
 
-        if (trFrame != nullptr && !trInternalFrames.empty())
+        if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
+        {
+            continue;
+        }
+
+        // At this point (Status == S_OK).
+        // According to CoreCLR sources, S_OK can be returned with a null trFrame, which must be skipped.
+        // Related to `FrameType::kExplicitFrame` in runtime (represents a skipped frame function with no frame transition).
+        if (trFrame == nullptr)
+        {
+            continue;
+        }
+
+        if (!trInternalFrames.empty())
         {
             BOOL isCloser = TRUE;
             for (auto it = trInternalFrames.begin(); it != trInternalFrames.end(); )
@@ -313,19 +326,6 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             }
         }
 
-        if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
-        {
-            continue;
-        }
-
-        // At this point (Status == S_OK).
-        // According to CoreCLR sources, S_OK could be with nulled trFrame, that must be skipped.
-        // Related to `FrameType::kExplicitFrame` in runtime (skipped frame function with no-frame transition is represented).
-        if (trFrame == nullptr)
-        {
-            continue;
-        }
-
         // If we get a RuntimeUnwindableFrame, then the stackwalker is also stopped at a native
         // stack frame, but it's a native stack frame which requires special unwinding help from
         // the runtime. When a debugger gets a RuntimeUnwindableFrame, it should use the runtime
@@ -337,59 +337,51 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             continue;
         }
 
-        // Return the managed frame.
-        ToRelease<ICorDebugFunction> trFunction;
-        if (SUCCEEDED(trFrame->GetFunction(&trFunction)))
+        ToRelease<ICorDebugILFrame> trILFrame;
+        if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame))))
         {
-            ToRelease<ICorDebugILFrame> trILFrame;
             uint32_t tmpOffset = 0;
             CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-            if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame))) &&
-                SUCCEEDED(trILFrame->GetIP(&tmpOffset, &mappingResult)))
+            if (SUCCEEDED(trILFrame->GetIP(&tmpOffset, &mappingResult)) &&
+                (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+                 mappingResult == MAPPING_NO_INFO))
             {
-                if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
-                    mappingResult == MAPPING_NO_INFO)
-                {
-                    // Related to ICorDebugInternalFrame, ignore.
-                    continue;
-                }
-
-                // Hide state machine related frames for both JMC and non-JMC cases.
-                std::string methodName;
-                if ((pDebugInfo != nullptr && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
-                    (pDebugInfo != nullptr && SUCCEEDED(TypePrinter::GetFullyQualifiedMethodName(trFrame, pDebugInfo, methodName)) &&
-                     // Note: starts_with() is C++20, use rfind() for compatibility
-                     (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
-                      methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
-                {
-                    continue;
-                }
-
-                if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
-                {
-                    return S_OK;
-                }
+                // Related to ICorDebugInternalFrame, ignore.
+                continue;
             }
-            else
+
+            // Hide state machine related frames for both JMC and non-JMC cases.
+            std::string methodName;
+            ToRelease<ICorDebugFunction> trFunction;
+            if ((pDebugInfo != nullptr && SUCCEEDED(trFrame->GetFunction(&trFunction)) && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
+                (pDebugInfo != nullptr && SUCCEEDED(TypePrinter::GetFullyQualifiedMethodName(trFrame, pDebugInfo, methodName)) &&
+                 // Note: starts_with() is C++20, use rfind() for compatibility
+                 (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
+                  methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
             {
-                if (cb(FrameType::Unknown, trFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
-                {
-                    return S_OK;
-                }
+                continue;
             }
+
+            if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+            {
+                return S_OK;
+            }
+
             continue;
         }
 
         ToRelease<ICorDebugNativeFrame> trNativeFrame;
-        if (FAILED(trFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&trNativeFrame))))
+        if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&trNativeFrame))))
         {
-            if (cb(FrameType::Unknown, trFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+            if (cb(FrameType::CLRNative, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
             {
                 return S_OK;
             }
+
             continue;
         }
-        if (cb(FrameType::CLRNative, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+
+        if (cb(FrameType::Unknown, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
         {
             return S_OK;
         }
