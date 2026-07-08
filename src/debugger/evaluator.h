@@ -74,7 +74,7 @@ class Evaluator
         }
     };
 
-    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, bool)>;
+    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, std::string *, bool)>;
     using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)>;
     using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;

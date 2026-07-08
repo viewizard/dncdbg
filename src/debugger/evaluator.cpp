@@ -400,7 +400,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 mdName.pop_back();
             }
 
-            auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
             {
                 // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
                 trValue.Free();
@@ -415,7 +415,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
             {
                 ToRelease<ICorDebugValue> trDisplayClassValue;
-                IfFailRet(getValue(&trDisplayClassValue, false));
+                IfFailRet(getValue(&trDisplayClassValue, nullptr, false));
                 IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                    pDebugInfo, pModule, cb));
                 if (Status == S_CAN_EXIT)
@@ -607,7 +607,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
             return S_OK; // Return with success to continue walk.
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
         {
             trValue.Free();
             IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
@@ -844,7 +844,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
         if (getValue != nullptr)
         {
             trPrevValue.Free();
-            IfFailRet((*getValue)(&trPrevValue, false));
+            IfFailRet((*getValue)(&trPrevValue, nullptr, false));
         }
         return S_OK;
     }
@@ -915,7 +915,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     IfFailRet(pInputValue->GetType(&inputCorType));
     if (inputCorType == ELEMENT_TYPE_PTR)
     {
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
         {
             trValue->AddRef();
             *ppResultValue = trValue;
@@ -950,7 +950,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
         for (uint32_t i = 0; i < cElements; ++i)
         {
-            auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+            {
                 IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
                 return S_OK;
             };
@@ -1073,7 +1074,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                     const std::string name = to_utf8(mdName.c_str());
 
-                    auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+                    auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
                     {
                         if (fieldAttr & fdLiteral)
                         {
@@ -1222,7 +1223,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     const std::string name = to_utf8(propertyName.data());
 
                     auto getValue =
-                        [&](ICorDebugValue **ppResultValue, bool ignoreEvalFlags) -> HRESULT
+                        [&](ICorDebugValue **ppResultValue, std::string *, bool ignoreEvalFlags) -> HRESULT
                         {
                             if (pThread == nullptr)
                             {
@@ -1390,15 +1391,6 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         return E_FAIL;
     }
 
-    PDB::SequencePoint sp;
-    // GetSequencePointByFrame() returns "success" code only in case it finds a sequence point
-    // for the current IL offset, that means we stop inside user code.
-    // Note, we could have a request for non-user code, we ignore it and this is OK.
-    if (FAILED(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, sp)))
-    {
-        return S_OK;
-    }
-
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(trFrame->GetFunction(&trFunction));
 
@@ -1448,8 +1440,10 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     DWORD methodAttr = 0;
     WSTRING szMethod(szMethodLen, '\0');
+    PCCOR_SIGNATURE pSig = nullptr;
+    ULONG cbSig = 0;
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, szMethod.data(), szMethodLen, nullptr,
-                                         &methodAttr, nullptr, nullptr, nullptr, nullptr));
+                                         &methodAttr, &pSig, &cbSig, nullptr, nullptr));
     // Remove null terminator that was included in the length
     if (!szMethod.empty() && szMethod.back() == '\0')
     {
@@ -1492,7 +1486,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
         if (trUserThis != nullptr)
         {
-            auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
             {
                 trUserThis->AddRef();
                 *ppResultValue = trUserThis;
@@ -1541,7 +1535,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             wParamName.pop_back();
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT {
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName, bool) -> HRESULT {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
                 IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
@@ -1551,7 +1545,22 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 }
                 IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
             }
-            return trILFrame->GetArgument(i, ppResultValue);
+
+            Status = trILFrame->GetArgument(i, ppResultValue);
+            if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE && fallbackTypeName != nullptr)
+            {
+                SigElementType returnElementType;
+                std::vector<SigElementType> argElementTypes;
+                if (SUCCEEDED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true)))
+                {
+                    const ULONG index = ((methodAttr & mdStatic) == 0) ? (i - 1) : i;
+                    if (argElementTypes.size() > index)
+                    {
+                        *fallbackTypeName = argElementTypes.at(index).typeName;
+                    }
+                }
+            }
+            return Status;
         };
 
         IfFailRet(cb(to_utf8(wParamName.c_str()), getValue));
@@ -1573,7 +1582,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             continue;
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -1592,7 +1601,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         if (GetLocalOrFieldNameKind(wLocalName) == GeneratedNameKind::DisplayClassLocalOrField)
         {
             ToRelease<ICorDebugValue> trDisplayClassValue;
-            IfFailRet(getValue(&trDisplayClassValue, false));
+            IfFailRet(getValue(&trDisplayClassValue, nullptr, false));
             IfFailRet(WalkGeneratedClassFields(trMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                m_sharedDebugInfo.get(), trModule, cb));
             if (Status == S_CAN_EXIT)
@@ -1631,7 +1640,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     continue;
                 }
 
-                auto getValue = [&](ICorDebugValue **ppResultValue, bool) -> HRESULT
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
@@ -1702,7 +1711,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     return S_OK;
                 }
 
-                IfFailRet(getValue(&trResultValue, false));
+                IfFailRet(getValue(&trResultValue, nullptr, false));
                 if (setterData != nullptr &&
                     resultSetterData != nullptr)
                 {
@@ -1878,7 +1887,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             {
                 if (name == "this")
                 {
-                    if (FAILED(getValue(&trThisValue, false)) || (trThisValue == nullptr))
+                    if (FAILED(getValue(&trThisValue, nullptr, false)) || (trThisValue == nullptr))
                     {
                         return S_OK;
                     }
@@ -1890,7 +1899,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                 }
                 else if (name == identifiers.at(nextIdentifier))
                 {
-                    if (FAILED(getValue(&trResolvedValue, false)) || (trResolvedValue == nullptr))
+                    if (FAILED(getValue(&trResolvedValue, nullptr, false)) || (trResolvedValue == nullptr))
                     {
                         return S_OK;
                     }

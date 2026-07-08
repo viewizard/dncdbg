@@ -130,7 +130,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
 
             // Note, in this case error is not fatal, but if protocol side need cancel command execution, stop walk and return error to caller.
             ToRelease<ICorDebugValue> trResultValue;
-            if (getValue(&trResultValue, false) == COR_E_OPERATIONCANCELED)
+            if (getValue(&trResultValue, nullptr, false) == COR_E_OPERATIONCANCELED)
             {
                 return COR_E_OPERATIONCANCELED;
             }
@@ -278,13 +278,28 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             var.name = name;
             var.evaluateName = var.name;
             ToRelease<ICorDebugValue> trValue;
+            HRESULT Status = S_OK;
+            std::string fallbackTypeName;
             // If we fail to parse one variable, don't skip parsing the remaining variables.
-            if (FAILED(getValue(&trValue, false)) ||
+            if (FAILED(Status = getValue(&trValue, &fallbackTypeName, false)) ||
                 FAILED(TypePrinter::GetTypeOfValue(trValue, var.type)) ||
                 FAILED(PrintValue(trValue, var.value)) ||
                 FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
             {
-                return S_OK;
+                if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
+                {
+                    var.type = fallbackTypeName.empty() ? "unknown" : fallbackTypeName;
+                    var.value = "Cannot obtain value of the local variable or argument because it is not available at this instruction pointer, possibly because it has been optimized away.";
+
+                    if (FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
+                    {
+                        return S_OK;
+                    }
+                }
+                else
+                {
+                    return S_OK;
+                }
             }
 
             variables.push_back(var);
@@ -468,7 +483,7 @@ HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThrea
             }
 
             ToRelease<ICorDebugValue> trValue;
-            IfFailRet(getValue(&trValue, false));
+            IfFailRet(getValue(&trValue, nullptr, false));
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   nullptr, value, output));
             IfFailRet(PrintValue(trValue, output));
@@ -512,7 +527,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
             }
 
             ToRelease<ICorDebugValue> trValue;
-            IfFailRet(getValue(&trValue, false));
+            IfFailRet(getValue(&trValue, nullptr, false));
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   setterData, value, output));
             IfFailRet(PrintValue(trValue, output));

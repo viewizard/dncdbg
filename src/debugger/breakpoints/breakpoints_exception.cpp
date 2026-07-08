@@ -292,7 +292,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                         }
 
                         ToRelease<ICorDebugValue> trResultValue;
-                        IfFailRet(getValue(&trResultValue, true));
+                        IfFailRet(getValue(&trResultValue, nullptr, true));
 
                         BOOL isNull = TRUE;
                         ToRelease<ICorDebugReferenceValue> trReferenceValue;
