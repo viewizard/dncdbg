@@ -1,6 +1,5 @@
 using System;
 using System.Windows.Forms;
-using System.Runtime.InteropServices;
 
 using DbgTest;
 using DbgTest.DAP;
@@ -51,12 +50,7 @@ namespace TestStackTraceWinForm
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp0");
                     string[] stacktrace = { "bp0" };
                     Context.TestStackTrace(@"__FILE__:__LINE__", "TestStackTraceWinForm.Form1.Form1_Load(object sender, System.EventArgs e)", stacktrace, 1);
-
-                    bool isProcessX86 = RuntimeInformation.ProcessArchitecture == Architecture.X86;
-                    if (!isProcessX86)
-                    {
-                        Context.TestStackTraceLastFrame(@"__FILE__:__LINE__", "TestStackTraceWinForm.Program.Main()", "last_frame");
-                    }
+                    Context.TestStackTraceLastFrame(@"__FILE__:__LINE__", "TestStackTraceWinForm.Program.Main()", "last_frame");
                 });
 
             DbgTest.Label.Checkpoint("finish", "",

@@ -264,7 +264,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -417,7 +417,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -454,7 +454,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -495,7 +495,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -556,7 +556,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -632,7 +632,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -1053,7 +1053,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -1081,7 +1081,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -1140,7 +1140,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
@@ -1173,7 +1173,7 @@ class Context
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
         stackTraceRequest.arguments.startFrame = 0;
-        stackTraceRequest.arguments.levels = 20;
+        stackTraceRequest.arguments.levels = 50;
         var ret = DAPDebugger.Request(stackTraceRequest);
         Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
