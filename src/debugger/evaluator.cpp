@@ -1463,35 +1463,16 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(trClass->GetToken(&typeDef));
         IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
-        IfFailRet(trILFrame->GetArgument(0, &trCurrentThis));
-
-        if (generatedCodeKind == GeneratedCodeKind::Normal)
+        Status = trILFrame->GetArgument(0, &trCurrentThis);
+        if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
         {
-            trCurrentThis->AddRef();
-            trUserThis = trCurrentThis.GetPtr();
-            trClass->AddRef();
-            trUserThisClass = trClass.GetPtr();
-            userThisTypeDef = typeDef;
-        }
-        else
-        {
-            // Check if we have real This value (that should be stored in ThisProxyField).
-            IfFailRet(FindThisProxyFieldValue(trMDImport, trClass, typeDef, trCurrentThis, &trUserThis));
-            if (trUserThis != nullptr)
+            auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName, bool) -> HRESULT
             {
-                IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userThisTypeDef));
-                IfFailRet(trModule->GetClassFromToken(userThisTypeDef, &trUserThisClass));
-            }
-        }
-
-        if (trUserThis != nullptr)
-        {
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
-            {
-                trUserThis->AddRef();
-                *ppResultValue = trUserThis;
-                return S_OK;
+                std::string methodName;
+                TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
+                return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
+
             IfFailRet(cb("this", getValue));
             if (Status == S_CAN_EXIT)
             {
@@ -1500,6 +1481,50 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
             trFrame.Free();
             trILFrame.Free();
+        }
+        else if (FAILED(Status))
+        {
+            return Status;
+        }
+        else
+        {
+            if (generatedCodeKind == GeneratedCodeKind::Normal)
+            {
+                trCurrentThis->AddRef();
+                trUserThis = trCurrentThis.GetPtr();
+                trClass->AddRef();
+                trUserThisClass = trClass.GetPtr();
+                userThisTypeDef = typeDef;
+            }
+            else
+            {
+                // Check if we have real This value (that should be stored in ThisProxyField).
+                IfFailRet(FindThisProxyFieldValue(trMDImport, trClass, typeDef, trCurrentThis, &trUserThis));
+                if (trUserThis != nullptr)
+                {
+                    IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userThisTypeDef));
+                    IfFailRet(trModule->GetClassFromToken(userThisTypeDef, &trUserThisClass));
+                }
+            }
+
+            if (trUserThis != nullptr)
+            {
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                {
+                    trUserThis->AddRef();
+                    *ppResultValue = trUserThis;
+                    return S_OK;
+                };
+
+                IfFailRet(cb("this", getValue));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_OK;
+                }
+                // Reset trFrame/trILFrame, since it could be neutered at `cb` call, we need track this case.
+                trFrame.Free();
+                trILFrame.Free();
+            }
         }
     }
 
