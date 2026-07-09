@@ -95,6 +95,8 @@ class Evaluator
                                ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
                                ICorDebugType **ppResultType);
 
+    HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
+                           mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                         ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb);
 

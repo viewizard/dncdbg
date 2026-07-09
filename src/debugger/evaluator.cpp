@@ -892,6 +892,97 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     }
 }
 
+HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
+                                  mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
+{
+    if (pThread == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+
+    if (trFrame == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    // Detect if static field is initialized (static constructor .cctor called).
+    // We read the MethodTable's initialization flag directly from memory.
+    // The COR_TYPEID.token1 is the MethodTable address.
+    // MethodTable has m_pAuxiliaryData pointer, and MethodTableAuxiliaryData
+    // has m_dwFlags where bit 0 (enum_flag_Initialized = 0x0001) indicates
+    // whether the class constructor has run.
+    static constexpr DWORD enum_flag_Initialized = 0x0001;
+
+    bool isClassInitialized = true; // Assume initialized by default
+
+    // Get the MethodTable address via ICorDebugType2::GetTypeID.
+    ToRelease<ICorDebugType2> trType2;
+    COR_TYPEID typeID = {0, 0};
+    if (SUCCEEDED(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2))) &&
+        SUCCEEDED(trType2->GetTypeID(&typeID)) && typeID.token1 != 0)
+    {
+        // typeID.token1 is the MethodTable address.
+        const CORDB_ADDRESS methodTableAddr = typeID.token1;
+
+        ToRelease<ICorDebugProcess> trProcess;
+        IfFailRet(pThread->GetProcess(&trProcess));
+        if (trProcess == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        // Read the MethodTable to get m_pAuxiliaryData pointer
+        // The offset of m_pAuxiliaryData in MethodTable varies by platform
+        // We use the fact that m_dwFlags is at offset 0 in MethodTableAuxiliaryData
+        // and the Initialized flag is bit 0
+
+        // Read enough of MethodTable to get to m_pAuxiliaryData
+        // MethodTable layout (from runtime sources):
+        // - m_dwFlags (DWORD) at offset 0
+        // - m_BaseSize (DWORD) at offset 4
+        // - m_dwFlags2 (DWORD) at offset 8
+        // - m_wNumVirtuals (WORD) at offset 12
+        // - m_wNumInterfaces (WORD) at offset 14
+        // - m_pParentMethodTable (pointer) at offset 16
+        // - m_pModule (pointer) at offset 16 + sizeof(pointer)
+        // - m_pAuxiliaryData (pointer) at offset 16 + 2*sizeof(pointer)
+        static constexpr size_t auxDataOffset = (sizeof(DWORD) * 3) + (sizeof(WORD) * 2) + (sizeof(void *) * 2);
+        static constexpr size_t readSize = auxDataOffset + sizeof(void *);
+        std::array<BYTE, readSize> buffer{0};
+        SIZE_T bytesRead = 0;
+
+        if (SUCCEEDED(trProcess->ReadMemory(methodTableAddr, readSize, buffer.data(), &bytesRead)) && bytesRead >= readSize)
+        {
+            // Get the auxiliary data pointer.
+            const CORDB_ADDRESS auxDataAddr = *reinterpret_cast<const CORDB_ADDRESS*>(buffer.data() + auxDataOffset);
+            if (auxDataAddr != 0)
+            {
+                // Read m_dwFlags from MethodTableAuxiliaryData (at offset 0).
+                DWORD auxFlags = 0;
+                if (SUCCEEDED(trProcess->ReadMemory(auxDataAddr, sizeof(DWORD), reinterpret_cast<BYTE*>(&auxFlags), &bytesRead)))
+                {
+                    isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
+                }
+            }
+        }
+    }
+
+    // The class should already be initialized at this point. If not, force the
+    // static constructor execution to provide a second chance and proper error handling.
+    if (!isClassInitialized)
+    {
+        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, pType, nullptr, false));
+    }
+
+    IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
+
+    return S_OK;
+}
+
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                                ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb)
 {
@@ -1083,20 +1174,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
                         else if (fieldAttr & fdStatic)
                         {
-                            if (pThread == nullptr)
-                            {
-                                return E_FAIL;
-                            }
-
-                            ToRelease<ICorDebugFrame> trFrame;
-                            IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
-
-                            if (trFrame == nullptr)
-                            {
-                                return E_FAIL;
-                            }
-
-                            IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
+                            IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
                         }
                         else
                         {
@@ -1108,7 +1186,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
                         }
 
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK;
                     };
 
                     IfFailRet(cb(trType, is_static, name, getValue, nullptr));
@@ -1285,8 +1363,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             {
                 if (pThread != nullptr)
                 {
-                    // Note, this call could return S_NO_STATIC without ICorDebugValue creation in case type doesn't have static members.
-                    IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trBaseType));
+                    m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trBaseType, nullptr, false);
                 }
                 // Add fields of base class.
                 trType = trBaseType.Detach();
@@ -1560,7 +1637,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             wParamName.pop_back();
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName, bool) -> HRESULT {
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName, bool) -> HRESULT
+        {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
                 IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
@@ -1804,6 +1882,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             }
             staticName.emplace_back(fieldName.at(0));
             ToRelease<ICorDebugValue> trTypeObject;
+            // type has static members (S_NO_STATIC if type doesn't have static members)
             if (S_OK == m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject))
             {
                 if (SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName, 0,
@@ -1994,7 +2073,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     {
         ToRelease<ICorDebugType> trType;
         IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
-        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trResolvedValue));
+        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trResolvedValue, false));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).

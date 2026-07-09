@@ -401,8 +401,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
             ToRelease<ICorDebugType> trType;
             IfFailRet(trValue2->GetExactType(&trType));
-            // Note, this call could return S_NO_STATIC without ICorDebugValue creation in case type doesn't have static members.
-            IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, nullptr, false));
+            m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, nullptr, false);
 
             Variable var;
             var.name = "Static members";
