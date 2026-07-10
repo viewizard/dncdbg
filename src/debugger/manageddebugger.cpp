@@ -896,14 +896,16 @@ HRESULT ManagedDebugger::GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threa
 HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame,
                                               unsigned maxFrames, std::vector<StackFrame> &stackFrames)
 {
-    // CoreCLR native frame + at least one user's native frame
+    // CoreCLR native frame, could be part of transition to at least one user's native frame.
     static const std::string FrameCLRNativeText = "[CLR Native Frame]";
-    // This frame usually indicate some fail during managed unwind
+    // This frame usually indicate some fail during managed unwind.
     static const std::string FrameUnknownText = "[Unknown Frame]";
     // Non-user code related frame when Just My Code is enabled.
     static const std::string ExternalCodeText = "[External Code]";
     // Prefix for foreign exception stack frames (frames from a rethrown exception's original thread).
     static const std::string ExceptionFramePrefix = "[Exception] ";
+    // Mark that stack trace was truncated.
+    static const std::string TruncatedStackTrace = "[Truncated Stack Trace]";
 
     struct IntWalkExceptionFrame
     {
@@ -934,6 +936,7 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
     std::list<IntWalkFrame> walkFrames;
     std::list<IntWalkExceptionFrame> walkExceptionFrames;
     static constexpr size_t stackTraceLimit = 250;
+    bool stackTruncated = false;
 
     // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
@@ -946,6 +949,12 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 pFrame->AddRef();
             }
 
+            if (walkFrames.size() >= stackTraceLimit)
+            {
+                stackTruncated = true;
+                return S_CAN_EXIT; // Fast exit from loop.
+            }
+
             walkFrames.emplace_back(frameType, pFrame);
 
             if (frameType == FrameType::CLRManagedException ||
@@ -955,9 +964,8 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
                 walkFrames.back().excFrame = &walkExceptionFrames.back();
             }
 
-            if (walkFrames.size() >= stackTraceLimit ||
-                (!IsJustMyCode() && maxFrames != 0 &&
-                 static_cast<int>(walkFrames.size()) >= static_cast<int>(startFrame) + static_cast<int>(maxFrames)))
+            if (!IsJustMyCode() && maxFrames != 0 &&
+                static_cast<int>(walkFrames.size()) >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
             {
                 return S_CAN_EXIT; // Fast exit from loop.
             }
@@ -1048,6 +1056,11 @@ HRESULT ManagedDebugger::GetManagedStackTrace(ICorDebugThread *pThread, ThreadId
             break;
         }
         }
+    }
+
+    if (stackTruncated)
+    {
+        stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, TruncatedStackTrace);
     }
 
     return S_OK;
