@@ -8,6 +8,7 @@ Upcoming changes compared to previous version.
 - Added TestStackTraceWinForm.
 - Added support for in/ref/out parameter modifiers in method signatures.
 - Added support for retrieving method parameters in non-user code frames.
+- Added support for `System.Guid` type formatting (displays as human-readable string).
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

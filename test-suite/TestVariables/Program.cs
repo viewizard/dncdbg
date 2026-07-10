@@ -902,9 +902,9 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        Guid? nullable_guid = Guid.NewGuid();
-        Guid? nullable_guid2 = null;
-        Guid? nullable_guid3 = new Guid();
+        Guid? nullable_guid1 = null;
+        Guid? nullable_guid2 = new Guid("936da01f-9abd-4d9d-80c7-02af85c822a8");
+        Guid fixedGuid = new Guid("556da01f-9abd-4d9d-80c7-02af85c82255");
         DateTime? nullable_dt1 = DateTime.Now;
         DateTime? nullable_dt2 = null;
         TimeSpan? nullable_ts1 = TimeSpan.FromSeconds(42);
@@ -926,9 +926,9 @@ class Program
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK2");
                 int variablesReference = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
 
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid", "{System.Guid}");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid2", "null");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid3", "{System.Guid}");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid1", "null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid2", "{936da01f-9abd-4d9d-80c7-02af85c822a8}");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "fixedGuid", "{556da01f-9abd-4d9d-80c7-02af85c82255}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dt1", "{System.DateTime}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dt2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts1", "{System.TimeSpan}");

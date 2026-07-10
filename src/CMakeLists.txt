@@ -81,6 +81,7 @@ set(DNCDBG_SOURCES
     utils/memorybuffer_win32.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
+    utils/print.cpp
     utils/remote_console_unix.cpp
     utils/remote_console_win32.cpp
     utils/remote_console.cpp

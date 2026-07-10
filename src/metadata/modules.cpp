@@ -8,6 +8,7 @@
 #include "protocol/dapio.h"
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
+#include "utils/print.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <cassert>
@@ -381,27 +382,7 @@ HRESULT Modules::GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
     GUID mvid;
     IfFailRet(trMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
-
-    static constexpr uint32_t widthMvid8 = 8;
-    static constexpr uint32_t widthMvid4 = 4;
-    static constexpr uint32_t widthMvid2 = 2;
-    static constexpr int mvidMask = 0xFF;
-    std::ostringstream ss;
-    ss << std::hex << std::setfill('0')
-       << std::setw(widthMvid8) << mvid.Data1 << "-"
-       << std::setw(widthMvid4) << mvid.Data2 << "-"
-       << std::setw(widthMvid4) << mvid.Data3 << "-"
-       << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[0]) & mvidMask)
-       << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[1]) & mvidMask) << "-";
-    static constexpr uint32_t startChar = 2;
-    static constexpr uint32_t endChar = 8;
-    for (int i = startChar; i < endChar; i++)
-    {
-        ss << std::setw(widthMvid2) << (static_cast<int>(mvid.Data4[i]) & mvidMask); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-    }
-
-    strMvid = ss.str();
-
+    strMvid = PrintGUID(mvid);
     return S_OK;
 }
 

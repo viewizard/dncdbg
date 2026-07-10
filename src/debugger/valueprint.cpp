@@ -9,6 +9,7 @@
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
+#include "utils/print.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
@@ -761,6 +762,19 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 else
                 {
                     ss << "null";
+                }
+            }
+            else if (typeName == "System.Guid")
+            {
+                GUID guid{};
+                if (cbSize != sizeof(GUID) ||
+                    FAILED(trGenericValue->GetValue(static_cast<void *>(&guid))))
+                {
+                    ss << "{System.Guid}"; // TODO fallback to ToString()
+                }
+                else
+                {
+                    ss << '{' << PrintGUID(guid) << '}';
                 }
             }
             else
