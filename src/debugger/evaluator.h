@@ -116,6 +116,8 @@ class Evaluator
                                   std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
                                   std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
+    HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output);
+
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
     static HRESULT WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
     static HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb);

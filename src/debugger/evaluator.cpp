@@ -1910,6 +1910,42 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     return E_FAIL;
 }
 
+HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugValue2> trInputValue2;
+    IfFailRet(pInputValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trInputValue2)));
+    ToRelease<ICorDebugType> trInputType;
+    IfFailRet(trInputValue2->GetExactType(&trInputType));
+
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(Evaluator::WalkMethods(trInputType, nullptr,
+        [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if (is_static || !methodArgs.empty() || methodName != "ToString")
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+
+            IfFailRet(getFunction(&trFunc));
+
+            return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
+        }));
+
+    if (trFunc == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    ToRelease<ICorDebugValue> trRefValue;
+    IfFailRet(m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue, 1, &trRefValue, true));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));
+    return PrintStringValue(trValue, output);
+}
+
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
                                       SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                       ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
