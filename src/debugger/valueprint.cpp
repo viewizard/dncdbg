@@ -434,7 +434,7 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     IfFailRet(trArrayValue->GetCount(&cElements));
 
     std::ostringstream ss;
-    ss << "{";
+    ss << '{';
 
     std::string elementType;
     std::string arrayType;
@@ -461,7 +461,7 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
     }
 
-    ss << elementType << "[";
+    ss << elementType << '[';
     const char *sep = "";
     for (size_t i = 0; i < dims.size(); ++i)
     {
@@ -477,9 +477,9 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
             ss << dims.at(i);
         }
     }
-    ss << "]" << arrayType;
+    ss << ']' << arrayType;
 
-    ss << "}";
+    ss << '}';
     output = ss.str();
     return S_OK;
 }
@@ -684,7 +684,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             EscapeString(raw_str, '"');
 
             std::ostringstream ss;
-            ss << "\"" << raw_str << "\"";
+            ss << '\"' << raw_str << '\"';
             output = ss.str();
             return S_OK;
         }
