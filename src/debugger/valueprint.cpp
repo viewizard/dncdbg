@@ -659,16 +659,9 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             return S_OK;
         }
 
-        uint32_t cbSize = 0;
-        IfFailRet(trValue->GetSize(&cbSize));
-        if (cbSize == 0)
-        {
-            return E_INVALIDARG;
-        }
-        std::vector<uint8_t> genericValue(cbSize, 0);
-
         CorElementType corElemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&corElemType));
+
         if (corElemType == ELEMENT_TYPE_STRING)
         {
             std::string raw_str;
@@ -694,17 +687,18 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             return PrintArrayValue(trValue, output);
         }
 
+        uint32_t cbSize = 0;
+        IfFailRet(trValue->GetSize(&cbSize));
+        if (cbSize == 0)
+        {
+            return E_INVALIDARG;
+        }
+        std::vector<uint8_t> genericValue(cbSize, 0);
+
         ToRelease<ICorDebugGenericValue> trGenericValue;
         IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
         IfFailRet(trGenericValue->GetValue(static_cast<void *>(genericValue.data())));
 
-        if (IsEnum(trValue))
-        {
-            return PrintEnumValue(trValue, genericValue.data(), output);
-        }
-
-        static constexpr uint32_t floatPrecision = 8;
-        static constexpr uint32_t doublePrecision = 16;
         std::ostringstream ss;
 
         switch (corElemType)
@@ -726,8 +720,8 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 trReferenceValue->GetValue(&addr);
             }
             ss << "<function pointer 0x" << std::hex << addr << ">";
+            break;
         }
-        break;
 
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
@@ -779,10 +773,15 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             }
             else
             {
+                if (IsEnum(trValue))
+                {
+                    return PrintEnumValue(trValue, genericValue.data(), output);
+                }
+
                 ss << '{' << typeName << '}';
             }
+            break;
         }
-        break;
 
         case ELEMENT_TYPE_BOOLEAN:
             assert(genericValue.size() == 1);
@@ -801,8 +800,8 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
             ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
+            break;
         }
-        break;
 
         case ELEMENT_TYPE_I1:
             assert(genericValue.size() == 1);
@@ -855,14 +854,20 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             break;
 
         case ELEMENT_TYPE_R4:
+        {
             assert(genericValue.size() == 4);
+            static constexpr uint32_t floatPrecision = 8;
             ss << std::setprecision(floatPrecision) << *reinterpret_cast<float *>(genericValue.data());
             break;
+        }
 
         case ELEMENT_TYPE_R8:
+        {
             assert(genericValue.size() == 8);
+            static constexpr uint32_t doublePrecision = 16;
             ss << std::setprecision(doublePrecision) << *reinterpret_cast<double *>(genericValue.data());
             break;
+        }
 
         case ELEMENT_TYPE_OBJECT:
             ss << "object";
