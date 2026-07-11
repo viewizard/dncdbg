@@ -714,7 +714,8 @@ HRESULT ManagedDebugger::DetachFromProcess()
         }
 
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    } while (false);
+    }
+    while (false);
 
     Cleanup();
     return S_OK;
@@ -753,7 +754,8 @@ HRESULT ManagedDebugger::TerminateProcess()
 
         LOGE(log << "Process terminate failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
         m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    } while (false);
+    }
+    while (false);
 
     Cleanup();
     return S_OK;

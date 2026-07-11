@@ -179,7 +179,8 @@ int RemoteConsoleServer::RecvBlocking(gsl::span<char> buffer)
     do
     {
         n = ::recv(m_client, buffer.data(), buffer.size(), 0);
-    } while (n < 0 && errno == EINTR && !m_stopRequested.load());
+    }
+    while (n < 0 && errno == EINTR && !m_stopRequested.load());
 
     if (n < 0)
     {
