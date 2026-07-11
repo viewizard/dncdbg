@@ -14,6 +14,7 @@ Upcoming changes compared to previous version.
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
 - Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 - Improved stack trace readability by hiding internal managed-to-native and native-to-managed transition frames.
+- Refactored PrintDecimalValue to use direct memory read instead of metadata iteration.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found.

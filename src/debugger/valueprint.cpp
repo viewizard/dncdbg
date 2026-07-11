@@ -214,96 +214,6 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
     return S_OK;
 }
 
-HRESULT GetDecimalFields(ICorDebugValue *pValue, uint32_t &hi, uint32_t &mid, uint32_t &lo, uint32_t &flags)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugValue2> trValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-    ToRelease<ICorDebugType> trType;
-    IfFailRet(trValue2->GetExactType(&trType));
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(trType->GetClass(&trClass));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trClass->GetModule(&trModule));
-    mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    bool has_hi = false;
-    bool has_mid = false;
-    bool has_lo = false;
-    bool has_flags = false;
-
-    ULONG numFields = 0;
-    HCORENUM fEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
-    {
-        ULONG nameLen = 0;
-        if(FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
-        DWORD fieldAttr = 0;
-        std::vector<WCHAR> mdName(nameLen, '\0');
-        if(SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
-                                               nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            if (((fieldAttr & fdLiteral) != 0U) ||
-                ((fieldAttr & fdStatic) != 0U))
-            {
-                continue;
-            }
-
-            ToRelease<ICorDebugObjectValue> trObjValue;
-            IfFailRet(pValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-            ToRelease<ICorDebugValue> trFieldVal;
-            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, &trFieldVal));
-
-            const std::string name = to_utf8(mdName.data());
-
-            if (name == "hi" || name == "_hi32")
-            {
-                IfFailRet(GetIntegralValue(trFieldVal, hi));
-                has_hi = true;
-            }
-            else if (name == "_lo64")
-            {
-                static constexpr uint32_t fourBytesShift = 32;
-                uint64_t lo64 = 0;
-                IfFailRet(GetIntegralValue(trFieldVal, lo64));
-                mid = lo64 >> fourBytesShift;
-                lo = lo64 & ((1ULL << fourBytesShift) - 1);
-                has_mid = has_lo = true;
-            }
-            else if (name == "mid")
-            {
-                IfFailRet(GetIntegralValue(trFieldVal, mid));
-                has_mid = true;
-            }
-            else if (name == "lo")
-            {
-                IfFailRet(GetIntegralValue(trFieldVal, lo));
-                has_lo = true;
-            }
-            else if (name == "flags" || name == "_flags")
-            {
-                IfFailRet(GetIntegralValue(trFieldVal, flags));
-                has_flags = true;
-            }
-        }
-    }
-    trMDImport->CloseEnum(fEnum);
-
-    return (has_hi && has_mid && has_lo && has_flags ? S_OK : E_FAIL);
-}
-
 inline uint64_t Make_64(uint32_t h, uint32_t l)
 {
     static constexpr uint32_t fourBytesShift = 32;
@@ -352,32 +262,51 @@ void udivrem96(std::array<uint32_t, 3> &dividend, uint32_t divisor, uint32_t &re
     }
 }
 
-std::string uint96_to_string(std::array<uint32_t, 3> &v)
+void uint96_to_string(std::array<uint32_t, 3> &v, std::string &output)
 {
     static constexpr uint32_t divisor = 10;
     static constexpr std::array<char, 10> digits{'0','1','2','3','4','5','6','7','8','9'};
-    std::string result;
     do
     {
         uint32_t rem = 0;
         udivrem96(v, divisor, rem);
-        result.insert(0, 1, digits.at(rem));
-    } while (!uint96_is_zero(v));
-    return result;
+        output.insert(0, 1, digits.at(rem));
+    }
+    while (!uint96_is_zero(v));
 }
 
-void PrintDecimal(uint32_t hi, uint32_t mid, uint32_t lo, uint32_t flags, std::string &output)
+HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
 {
-    std::array<uint32_t, 3> v{lo, mid, hi};
+    HRESULT Status = S_OK;
 
-    output = uint96_to_string(v);
+    struct
+    {
+        uint32_t flags = 0;
+        uint32_t hi = 0;
+        uint32_t lo = 0;
+        uint32_t mid = 0;
+    } decimal;
+
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(static_cast<void *>(&decimal)));
+
+    std::array<uint32_t, 3> v{decimal.lo, decimal.mid, decimal.hi};
+
+    // Maximum length of a decimal string representation.
+    // Calculated as: 1 (minus sign) + 1 (leading zero) + 1 (decimal separator) + 28 (max fractional digits).
+    // Example of worst-case scenario: "-0.0000000000000000000000000001" (exactly 31 characters).
+    static constexpr size_t decimalMaxLength = 31;
+    output.clear();
+    output.reserve(decimalMaxLength);
+    uint96_to_string(v, output);
 
     static constexpr uint32_t ScaleMask = 0x00FF0000UL;
     static constexpr uint32_t ScaleShift = 16;
     static constexpr uint32_t SignMask = 1UL << 31;
 
-    const uint32_t scale = (flags & ScaleMask) >> ScaleShift;
-    const bool is_negative = ((flags & SignMask) != 0U);
+    const uint32_t scale = (decimal.flags & ScaleMask) >> ScaleShift;
+    const bool is_negative = ((decimal.flags & SignMask) != 0U);
 
     const size_t len = output.length();
 
@@ -398,20 +327,6 @@ void PrintDecimal(uint32_t hi, uint32_t mid, uint32_t lo, uint32_t flags, std::s
     {
         output.insert(0, 1, '-');
     }
-}
-
-HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
-{
-    HRESULT Status = S_OK;
-
-    uint32_t hi = 0;
-    uint32_t mid = 0;
-    uint32_t lo = 0;
-    uint32_t flags = 0;
-
-    IfFailRet(GetDecimalFields(pValue, hi, mid, lo, flags));
-
-    PrintDecimal(hi, mid, lo, flags, output);
 
     return S_OK;
 }
