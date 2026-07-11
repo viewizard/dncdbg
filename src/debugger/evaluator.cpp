@@ -700,7 +700,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t>
     return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
 }
 
-HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethodsCallback &cb)
+HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> trValue2;
@@ -709,10 +709,10 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, const WalkMethod
     IfFailRet(trValue2->GetExactType(&trType));
     ToRelease<ICorDebugType> trResultType;
 
-    return WalkMethods(trType, &trResultType, cb);
+    return WalkMethods(trType, walkBaseType, &trResultType, cb);
 }
 
-HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResultType,
+HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType,
                                const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -793,7 +793,10 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
             IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
             if (Status == S_CAN_EXIT)
             {
-                *ppResultType = trInputType.Detach();
+                if (ppResultType != nullptr)
+                {
+                    *ppResultType = trInputType.Detach();
+                }
                 trMDImport->CloseEnum(fEnum);
                 return S_OK;
             }
@@ -801,7 +804,8 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, ICorDebugType **ppResu
         trMDImport->CloseEnum(fEnum);
 
         ToRelease<ICorDebugType> trBaseType;
-        if (SUCCEEDED(trInputType->GetBase(&trBaseType)) && trBaseType != nullptr)
+        if (walkBaseType &&
+            SUCCEEDED(trInputType->GetBase(&trBaseType)) && trBaseType != nullptr)
         {
             trInputType = trBaseType.Detach();
         }
@@ -1920,7 +1924,7 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     IfFailRet(trInputValue2->GetExactType(&trInputType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(trInputType, nullptr,
+    IfFailRet(Evaluator::WalkMethods(trInputType, false, nullptr,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {

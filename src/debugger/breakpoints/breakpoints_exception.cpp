@@ -307,7 +307,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("_message",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(trValue, pDetails->message, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->message, false);
                     }));
                 if (Status == S_OK)
                 {
@@ -317,7 +317,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("StackTrace",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(trValue, pDetails->stackTrace, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->stackTrace, false);
                     }));
                 if (Status == S_OK)
                 {
@@ -327,7 +327,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("Source",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(trValue, pDetails->source, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->source, false);
                     }));
                 if (Status == S_OK)
                 {

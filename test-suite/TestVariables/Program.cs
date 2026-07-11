@@ -314,6 +314,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp3");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp5");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp6");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_func1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_func2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_getter");
@@ -904,8 +905,6 @@ class Program
 
         Guid? nullable_guid1 = null;
         Guid? nullable_guid2 = new Guid("936da01f-9abd-4d9d-80c7-02af85c822a8");
-        Guid fixedGuid = new Guid("556da01f-9abd-4d9d-80c7-02af85c82255");
-        DateTime? nullable_dt1 = DateTime.Now;
         DateTime? nullable_dt2 = null;
         TimeSpan? nullable_ts1 = TimeSpan.FromSeconds(42);
         TimeSpan? nullable_ts2 = null;
@@ -928,10 +927,8 @@ class Program
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid1", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid2", "{936da01f-9abd-4d9d-80c7-02af85c822a8}");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "fixedGuid", "{556da01f-9abd-4d9d-80c7-02af85c82255}");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dt1", "{System.DateTime}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dt2", "null");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts1", "{System.TimeSpan}");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts1", "{00:00:42}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1", "42");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i2", "null");
@@ -1213,9 +1210,9 @@ class Program
 
         TestStruct7 ts7 = new TestStruct7();
 
-            i++;                                                            Label.Breakpoint("bp5");
+        i++;                                                            Label.Breakpoint("bp5");
 
-        Label.Checkpoint("test_eval_exception", "finish",
+        Label.Checkpoint("test_eval_exception", "test_special_types",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1234,6 +1231,27 @@ class Program
                 Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts7, "int", 1, "777");
                 Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts7, "System.DivideByZeroException", 2, "{System.DivideByZeroException}");
                 Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts7, "string", 3, "\"text_567\"");
+
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Guid toStringGuid = new Guid("556da01f-9abd-4d9d-80c7-02af85c82255");
+        Version toStringVersion = new Version(1, 2, 3, 4);
+        TimeSpan toStringTimeSpan = new TimeSpan(1, 2, 3);
+
+        i++;                                                            Label.Breakpoint("bp6");
+
+        Label.Checkpoint("test_special_types", "finish",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "bp6");
+                int variablesReference = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringGuid", "{556da01f-9abd-4d9d-80c7-02af85c82255}");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringVersion", "{1.2.3.4}");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringTimeSpan", "{01:02:03}");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

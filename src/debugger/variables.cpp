@@ -80,7 +80,7 @@ struct VariableMember
     ~VariableMember() = default;
 };
 
-HRESULT FillValueAndType(VariableMember &member, Variable &var)
+HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, VariableMember &member, Variable &var)
 {
     if (member.trValue == nullptr)
     {
@@ -91,7 +91,7 @@ HRESULT FillValueAndType(VariableMember &member, Variable &var)
     }
 
     TypePrinter::GetTypeOfValue(member.trValue, var.type);
-    return PrintValue(member.trValue, var.value, true);
+    return PrintValue(pThread, pEvaluator, member.trValue, var.value, true);
 }
 
 HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
@@ -240,7 +240,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         var.evaluateName = var.name;
 
         HRESULT Status = S_OK;
-        IfFailRet(PrintValue(trExceptionValue, var.value));
+        IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), trExceptionValue, var.value));
         IfFailRet(TypePrinter::GetTypeOfValue(trExceptionValue, var.type));
 
         return AddVariableReference(var, frameId, trExceptionValue, ValueKind::Variable);
@@ -283,7 +283,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             // If we fail to parse one variable, don't skip parsing the remaining variables.
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName, false)) ||
                 FAILED(TypePrinter::GetTypeOfValue(trValue, var.type)) ||
-                FAILED(PrintValue(trValue, var.value)) ||
+                FAILED(PrintValue(pThread, m_sharedEvaluator.get(), trValue, var.value)) ||
                 FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
             {
                 if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
@@ -387,7 +387,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
         {
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
         }
-        IfFailRet(FillValueAndType(it, var));
+        IfFailRet(FillValueAndType(pThread, m_sharedEvaluator.get(), it, var));
         IfFailRet(AddVariableReference(var, ref.frameId, it.trValue, ValueKind::Variable));
         variables.push_back(var);
     }
@@ -435,7 +435,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 
     variable.evaluateName = expression;
     IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
-    IfFailRet(PrintValue(trResultValue, variable.value));
+    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value));
 
     return AddVariableReference(variable, frameId, trResultValue, ValueKind::Variable);
 }
@@ -485,7 +485,7 @@ HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThrea
             IfFailRet(getValue(&trValue, nullptr, false));
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   nullptr, value, output));
-            IfFailRet(PrintValue(trValue, output));
+            IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), trValue, output));
             return S_CAN_EXIT; // Fast exit from loop.
         }));
 
@@ -529,7 +529,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
             IfFailRet(getValue(&trValue, nullptr, false));
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   setterData, value, output));
-            IfFailRet(PrintValue(trValue, output));
+            IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), trValue, output));
             return S_CAN_EXIT; // Fast exit from loop.
         }));
 
@@ -567,7 +567,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     }
 
     IfFailRet(m_sharedEvaluator->SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
-    IfFailRet(PrintValue(trValue, output));
+    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trValue, output));
     return S_OK;
 }
 

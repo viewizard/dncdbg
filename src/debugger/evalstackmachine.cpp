@@ -227,7 +227,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
     IfFailRet(GetArgData(pValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(pValue,
+    IfFailRet(Evaluator::WalkMethods(pValue, true,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
@@ -259,7 +259,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
     IfFailRet(GetArgData(pTypeValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(pValue,
+    IfFailRet(Evaluator::WalkMethods(pValue, true,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
@@ -460,7 +460,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         [&](std::function<HRESULT(std::vector<SigElementType> &)> cb) -> HRESULT
         {
             ToRelease<ICorDebugFunction> trFunc;
-            IfFailRet(Evaluator::WalkMethods(pValue,
+            IfFailRet(Evaluator::WalkMethods(pValue, true,
                 [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
                     std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
                 {
@@ -924,7 +924,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugType> trResultType;
-    IfFailRet(Evaluator::WalkMethods(trType, &trResultType,
+    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
         [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
@@ -1070,7 +1070,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         }
 
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkMethods(trObjectValue,
+        IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
                 std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
@@ -1110,7 +1110,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         }
 
         ToRelease<ICorDebugValue2> trValue2;
-        IfFailRet(trObjectValue->QueryInterface(IID_ICorDebugValue2,reinterpret_cast<void **>(&trValue2)));
+        IfFailRet(trObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
@@ -1191,7 +1191,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         }
 
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkMethods(trObjectValue,
+        IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
                 std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {

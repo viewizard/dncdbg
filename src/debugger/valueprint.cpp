@@ -5,6 +5,7 @@
 
 #include "debugger/valueprint.h"
 #include "debugger/evalhelpers.h"
+#include "debugger/evaluator.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
@@ -555,7 +556,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape)
+HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue, std::string &output, bool escape)
 {
     HRESULT Status = S_OK;
 
@@ -676,14 +677,22 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
             else if (typeName == "System.Guid")
             {
                 GUID guid{};
-                if (cbSize != sizeof(GUID) ||
-                    FAILED(trGenericValue->GetValue(static_cast<void *>(&guid))))
+                if (cbSize == sizeof(GUID) &&
+                    SUCCEEDED(trGenericValue->GetValue(static_cast<void *>(&guid))))
                 {
-                    ss << "{System.Guid}"; // TODO fallback to ToString()
+                    ss << '{' << PrintGUID(guid) << '}';
                 }
                 else
                 {
-                    ss << '{' << PrintGUID(guid) << '}';
+                    std::string valueToString;
+                    if (SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, valueToString)))
+                    {
+                        ss << '{' << valueToString << '}';
+                    }
+                    else
+                    {
+                        ss << "{System.Guid}";
+                    }
                 }
             }
             else
@@ -693,7 +702,18 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                     return PrintEnumValue(trValue, genericValue.data(), output);
                 }
 
-                ss << '{' << typeName << '}';
+                ss << '{';
+                std::string valueToString;
+                if (typeName != "System.Exception" &&
+                    SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, valueToString)))
+                {
+                    ss << valueToString;
+                }
+                else
+                {
+                    ss << typeName;
+                }
+                ss << '}';
             }
             break;
         }

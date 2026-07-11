@@ -15,6 +15,7 @@ Upcoming changes compared to previous version.
 - Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 - Improved stack trace readability by hiding internal managed-to-native and native-to-managed transition frames.
 - Refactored PrintDecimalValue to use direct memory read instead of metadata iteration.
+- Use overridden `ToString()` for object variable display.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found.
