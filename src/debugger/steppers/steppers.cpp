@@ -214,7 +214,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     const bool filteredPrevStep = m_filteredPrevStep;
     m_filteredPrevStep = false;
 
-    // Same behaviour as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
+    // Same behavior as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
     uint32_t ipOffset = 0;
     uint32_t ilNextUserCodeOffset = 0;
     if (SUCCEEDED(Status = m_sharedDebugInfo->GetNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset)))

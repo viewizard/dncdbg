@@ -196,7 +196,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                 // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
                 // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
 
-                // In this case we have same behaviour as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort eval by any cost.
+                // In this case we have same behavior as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort eval by any cost.
                 // Ignore errors here, this our last chance prevent debugger hangs.
                 trProcess->Stop(0);
                 ChangeThreadsState(THREAD_RUN);
@@ -263,7 +263,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             ret = m_evalCanceled ? COR_E_OPERATIONCANCELED : COR_E_TIMEOUT;
         }
     }
-    // In this case we have same behaviour as MS vsdbg and MSVS C# debugger - in case it was aborted with timeout, show proper error.
+    // In this case we have same behavior as MS vsdbg and MSVS C# debugger - in case it was aborted with timeout, show proper error.
     else if (evalTimeOut)
     {
         ret = (ret == E_UNEXPECTED) ? E_UNEXPECTED : COR_E_TIMEOUT;
@@ -280,7 +280,7 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
     // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
 
     // Note, could by only one eval running, but we need ignore custom notification from threads created during eval.
-    // In this case we have same behaviour as MSVS C# debugger (ATM vsdbg don't support Debugger.NotifyOfCrossThreadDependency).
+    // In this case we have same behavior as MSVS C# debugger (ATM vsdbg don't support Debugger.NotifyOfCrossThreadDependency).
     ICorDebugEval *pEval = FindEvalForThread(pThread);
     if (pEval == nullptr)
     {
@@ -310,7 +310,7 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     // in order to make code simple and clear, we don't check enclosing classes with recursion here
-    // since we know behaviour for sure, just find "System.Diagnostics.Debugger" first
+    // since we know behavior for sure, just find "System.Diagnostics.Debugger" first
     mdTypeDef typeDefParent = mdTypeDefNil;
     static const WSTRING strParentTypeDef(W("System.Diagnostics.Debugger"));
     IfFailRet(trMDImport->FindTypeDefByName(strParentTypeDef.c_str(), mdTypeDefNil, &typeDefParent));

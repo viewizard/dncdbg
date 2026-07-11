@@ -90,7 +90,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         {
             if ((fieldAttr & fdStatic) == 0)
             {
-                // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we sure this is field.
+                // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we're sure this is a field.
                 IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSig + cbSig));
                 IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSig + cbSig, enumUnderlyingType));
                 break;
@@ -132,7 +132,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
         }
     };
 
-    // Enum could have explicitly specified any integral numeric type. enumValue type same as enumUnderlyingType.
+    // An enum can have any integral numeric type explicitly specified. The enumValue type is the same as enumUnderlyingType.
     const uint64_t curValue = getValue(enumValue);
 
     // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
@@ -174,7 +174,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
             }
             if (foundFlagsAttr)
             {
-                // Flag enumerated constant whose value is zero must be excluded from OR-ed expression.
+                // A flag enumerated constant whose value is zero must be excluded from the OR-ed expression.
                 if (currentConstValue == 0)
                 {
                     continue;
@@ -191,7 +191,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
     }
     trMDImport->CloseEnum(fEnum);
 
-    // Don't lose data, provide number as-is instead.
+    // Don't lose data; provide the number as-is instead.
     if (!OrderedFlags.empty() && (remainingValue == 0U))
     {
         std::ostringstream ss;
@@ -680,7 +680,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 return S_OK;
             }
 
-            // Same behaviour as MS vsdbg and MSVS C# debugger have - add character escaping in strings.
+            // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping in strings.
             EscapeString(raw_str, '"');
 
             std::ostringstream ss;
@@ -798,7 +798,7 @@ HRESULT PrintValue(ICorDebugValue *pInputValue, std::string &output, bool escape
                 output = printableVal;
                 return S_OK;
             }
-            // Same behaviour as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
+            // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
             ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
         }
