@@ -1194,25 +1194,25 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         IfFailRet(Evaluator::WalkMethods(trObjectValue,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
                 std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            {
+                const std::string name = "get_Item";
+                const std::size_t found = methodName.rfind(name);
+                if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
+                    found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
-                    const std::string name = "get_Item";
-                    const std::size_t found = methodName.rfind(name);
-                    if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
-                        found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                for (size_t i = 0; i < funcArgs.size(); ++i)
+                {
+                    if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
                     {
                         return S_OK; // Return with success to continue walk.
                     }
-
-                    for (size_t i = 0; i < funcArgs.size(); ++i)
-                    {
-                        if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
-                        {
-                            return S_OK; // Return with success to continue walk.
-                        }
-                    }
-                    IfFailRet(getFunction(&trFunc));
-                    return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
-                }));
+                }
+                IfFailRet(getFunction(&trFunc));
+                return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
+            }));
 
         if (trFunc == nullptr)
         {
