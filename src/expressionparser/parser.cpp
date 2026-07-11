@@ -67,11 +67,8 @@ struct EmitAction
 };
 
 using WorkItem = std::variant<VisitNode, EmitAction>;
-using SyntaxKindHandler = std::function<HRESULT(TSNode node,
-                                                const std::string &source,
-                                                std::list<Opcode> &program,
-                                                std::string &output,
-                                                std::stack<WorkItem> &workStack)>;
+using SyntaxKindHandler = std::function<HRESULT(TSNode node, const std::string &source, std::list<Opcode> &program,
+                                                std::string &output, std::stack<WorkItem> &workStack)>;
 
 HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::list<Opcode> &program, std::string &output)
 {
