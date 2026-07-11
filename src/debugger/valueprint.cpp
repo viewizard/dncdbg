@@ -15,10 +15,10 @@
 #include "utils/utf.h"
 #include <array>
 #include <cassert>
+#include <cstring>
 #include <iomanip>
 #include <map>
 #include <sstream>
-#include <cstring>
 #include <vector>
 
 namespace dncdbg
@@ -704,7 +704,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
 
                 ss << '{';
                 std::string valueToString;
-                if (typeName != "System.Exception" &&
+                if (typeName != "System.Exception" && typeName != "System.Object" && typeName != "System.ValueType" &&
                     SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, valueToString)))
                 {
                     ss << valueToString;
