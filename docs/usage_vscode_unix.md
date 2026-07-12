@@ -15,6 +15,12 @@
             "env": {
                 // "ENV_NAME" : "value"
             },
+            "sourceFileMap": {
+                // map any path returned by the debugger that begins with "C:\\test1\\test3\\Project.cs" to "/test1/test2/Project.cs".
+                "C:\\test1\\test3\\Project.cs": "/test1/test2/Project.cs",
+                // map any path returned by the debugger that begins with "C:\\Dir1" to "/dir1".
+                "C:\\Dir1": "/dir1"
+            },
             "program": "${workspaceFolder}/bin/Debug/net10.0/vscode_test.dll",
             "args": [],
             "cwd": "${workspaceFolder}",

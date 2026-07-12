@@ -339,6 +339,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 try
                 {
+                    // https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map
                     SourceFileMap::GetMap() = arguments.at("sourceFileMap").get<std::map<std::string, std::string>>();
                 }
                 catch (std::exception &ex)
