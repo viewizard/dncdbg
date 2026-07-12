@@ -25,7 +25,8 @@
             // Note: dncdbg has different behaviour compared to VSCode vsdbg, in case dll has debug symbols debugger suppresses JIT optimization.
             "suppressJITOptimizations": false,
             "expressionEvaluationOptions": {
-                "allowImplicitFuncEval": true
+                "allowImplicitFuncEval": true,
+                "allowToString": true
             },
             "logging": {
                 "diagnosticsLog" : {
