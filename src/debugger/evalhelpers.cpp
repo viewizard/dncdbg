@@ -214,7 +214,7 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
 {
     assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
 
-    const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : m_evalFlags;
+    const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : GetEvalFlags();
 
     if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
     {

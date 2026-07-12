@@ -1,6 +1,9 @@
 ## [Unreleased]
 Upcoming changes compared to previous version.
 
+#### DAP
+- Added `allowToString` configuration option support in Launch Request (part of `ExpressionEvaluationOptions`).
+
 #### Added
 - Added TestUnhandledExceptionInstance.
 - Added TestMethodParameters.

@@ -1155,6 +1155,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 {
     m_sharedEvalHelpers->SetEvalFlags(evalFlags);
+    m_sharedEvaluator->SetEvalFlags(evalFlags);
 }
 
 void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)

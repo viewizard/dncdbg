@@ -416,11 +416,16 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 #endif // _WIN32
                 }
 
-                // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                 uint32_t evalFlags = defaultEvalFlags;
                 if (arguments.contains("expressionEvaluationOptions"))
                 {
-                    evalFlags |= arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true) ? 0 : EVAL_NOFUNCEVAL;
+                    // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L456
+                    const bool allowFuncEval = arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true);
+                    evalFlags |= allowFuncEval ? 0 : EVAL_NOFUNCEVAL;
+                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
+                    const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
+                    evalFlags |= (allowToString && allowFuncEval) ? 0 : EVAL_NOTOSTRING;
                 }
                 m_sharedDebugger->SetEvalFlags(evalFlags);
 

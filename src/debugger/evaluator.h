@@ -136,6 +136,15 @@ class Evaluator
         m_justMyCode = enable;
     }
 
+    [[nodiscard]] uint32_t GetEvalFlags() const
+    {
+        return m_evalFlags;
+    }
+    void SetEvalFlags(uint32_t evalFlags)
+    {
+        m_evalFlags = evalFlags;
+    }
+
   private:
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
@@ -143,6 +152,7 @@ class Evaluator
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
 
     bool m_justMyCode{true};
+    uint32_t m_evalFlags{defaultEvalFlags};
 };
 
 } // namespace dncdbg

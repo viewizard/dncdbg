@@ -575,4 +575,5 @@
 ```diff
 @@ VSCode IDE additional field: @@
 +   allowImplicitFuncEval?: boolean;
++   allowToString?: boolean;
 ```

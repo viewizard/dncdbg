@@ -1916,6 +1916,11 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
 HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output)
 {
+    if ((GetEvalFlags() & EVAL_NOTOSTRING) != 0U)
+    {
+        return CORDBG_E_DEBUGGING_DISABLED;
+    }
+
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugValue2> trInputValue2;
