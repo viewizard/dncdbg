@@ -2,7 +2,7 @@
 Upcoming changes compared to previous version.
 
 #### DAP
-- Added `allowToString` configuration option support in Launch Request (part of `ExpressionEvaluationOptions`).
+- Added support for the `allowToString` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
 
 #### Added
 - Added TestUnhandledExceptionInstance.
@@ -18,16 +18,17 @@ Upcoming changes compared to previous version.
 - Renamed TestUnhandledException to TestUnhandledExceptionStatic.
 - Improved stack trace readability by hiding internal managed-to-native and native-to-managed transition frames.
 - Refactored PrintDecimalValue to use direct memory read instead of metadata iteration.
-- Use overridden `ToString()` for object variable display.
+- Used overridden `ToString()` for object variable display.
+- Updated tree-sitter version to 0.26.11.
 
 #### Removed
-- Removed stderr output from PDBReader::GetStateMachineMethods if no async methods found.
+- Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.
 - Removed unused code.
 
 #### Fixed
 - Fixed argument enumeration for instance methods in stack trace code.
 - Fixed stack walk corruption on macOS arm64 by caching frames before JMC queries.
-- Fixed error handling for non-existent method evaluation requests when allowImplicitFuncEval is disabled.
+- Fixed error handling for non-existent method evaluation requests when `allowImplicitFuncEval` is disabled.
 
 </br>
 </br>
@@ -139,7 +140,7 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 #### Changed
 - Replaced VSCode to DAP (variables, class names, tests, etc).
 - Refactored test-suite.
-- nlohmann/json version bump to 3.12.0
+- Updated nlohmann/json source version to 3.12.0
 - Improved and refactored debugger source code.
 - Updated package references for managed part.
 - Switched to C++17 standard.
