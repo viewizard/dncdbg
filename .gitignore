@@ -24,10 +24,6 @@ CMakeLists.txt.user
 bin/
 obj/
 
-# .NET and CoreCLR downloaded by build system
-/.dotnet/
-/.coreclr/
-
 # cross-build related files
 /.tools/
 
