@@ -34,10 +34,23 @@ struct DebuggerAttribute
     // System.Diagnostics.DebuggerHiddenAttribute does not affect 'Get' or 'Set' when applied to the Property definition.
     // Apply the attribute directly to the 'Get' and 'Set' procedures as appropriate.
     static constexpr std::string_view Hidden = "System.Diagnostics.DebuggerHiddenAttribute..ctor";
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
+    // Determines if and how a member is displayed in the debugger variable windows.
+    static constexpr std::string_view Browsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
+};
+
+// https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
+enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
+{
+    Never = 0,
+    Expanded = 1,
+    Collapsed = 2,
+    RootHidden = 3
 };
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames);
+DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
 
 } // namespace dncdbg
 

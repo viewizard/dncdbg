@@ -113,9 +113,8 @@ public struct TestSetExprStruct
     }
 }
 
-public struct TestStruct4
+public class TestStruct4
 {
-    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public int val1
     {
         get {
@@ -130,6 +129,9 @@ public struct TestStruct4
             return 777;
         }
     }
+
+    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.Never)]
+    public int val22 = 999;
 
     public int val3
     {

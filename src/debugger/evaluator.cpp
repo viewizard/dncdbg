@@ -1132,6 +1132,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         IfFailRet(ForEachFields(trMDImport, currentTypeDef,
             [&](mdFieldDef fieldDef) -> HRESULT
             {
+                const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
+                if (browsableState == DebuggerBrowsableState::Never)
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
                 ULONG nameLen = 0;
                 IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
                                                     nullptr, nullptr, nullptr, nullptr, nullptr));
@@ -1208,6 +1214,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         Status = ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
             {
+                const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
+                if (browsableState == DebuggerBrowsableState::Never)
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
                 ULONG propertyNameLen = 0;
                 IfFailRet(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
                                                        nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -1229,75 +1241,6 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                     bool is_static = (getterAttr & mdStatic);
                     if (isNull && !is_static)
-                    {
-                        return S_OK; // Return with success to continue walk.
-                    }
-
-                    // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
-                    // Since we check only first byte, no reason to store it as int (default enum type in C#)
-                    enum DebuggerBrowsableState : uint8_t // NOLINT(cppcoreguidelines-use-enum-class)
-                    {
-                        Never = 0,
-                        Expanded = 1,
-                        Collapsed = 2,
-                        RootHidden = 3
-                    };
-
-                    static constexpr std::string_view s_DebuggerBrowsableAttr = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
-                    bool debuggerBrowsableState_Never = false;
-
-                    ULONG numAttributes = 0;
-                    HCORENUM hEnum = nullptr;
-                    mdCustomAttribute attr = 0;
-                    while (SUCCEEDED(trMDImport->EnumCustomAttributes(&hEnum, propertyDef, 0, &attr, 1, &numAttributes)) &&
-                        numAttributes != 0)
-                    {
-                        mdToken tkType = mdTokenNil;
-                        const void *pBlob = nullptr;
-                        ULONG cbSize = 0;
-                        if (FAILED(trMDImport->GetCustomAttributeProps(attr, nullptr, &tkType, &pBlob, &cbSize)))
-                        {
-                            continue;
-                        }
-
-                        std::string mdName;
-                        if (FAILED(TypePrinter::NameForToken(tkType, trMDImport, mdName, true, nullptr)) ||
-                            mdName != s_DebuggerBrowsableAttr)
-                        {
-                            continue;
-                        }
-
-                        // In case of DebuggerBrowsableAttribute, blob size must be 8 bytes:
-                        // 2 bytes - blob prolog 0x0001
-                        // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type (int)
-                        // 2 bytes - alignment
-                        static constexpr ULONG debuggerBrowsableAttributeBlobSize = 8;
-                        const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
-                        if (cbSize != debuggerBrowsableAttributeBlobSize ||
-                            // Check blob prolog 0x0001 as bytes to avoid uint16_t alignment issues.
-#if BIGENDIAN
-                            *pbBlob != 0x00 || *(pbBlob + 1) != 0x01)
-#else
-                            *pbBlob != 0x01 || *(pbBlob + 1) != 0x00)
-#endif
-                        {
-                            continue;
-                        }
-
-                        // We check only one byte (first data byte for integer), no reason to check 4 bytes in our case.
-#if BIGENDIAN
-                        if (*(pbBlob + 5) == DebuggerBrowsableState::Never)
-#else
-                        if (*(pbBlob + 2) == DebuggerBrowsableState::Never)
-#endif
-                        {
-                            debuggerBrowsableState_Never = true;
-                            break;
-                        }
-                    }
-                    trMDImport->CloseEnum(hEnum);
-
-                    if (debuggerBrowsableState_Never)
                     {
                         return S_OK; // Return with success to continue walk.
                     }
