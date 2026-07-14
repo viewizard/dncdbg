@@ -988,22 +988,16 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 }
 
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb)
+                               bool provideSetterData, const WalkMembersCallback &cb)
 {
     HRESULT Status = S_OK;
 
     BOOL isNull = FALSE;
     ToRelease<ICorDebugValue> trValue;
-
     IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-
-    if ((isNull == TRUE) && (trValue.GetPtr() == nullptr))
+    if (trValue == nullptr)
     {
-        return S_OK;
-    }
-    else if (trValue.GetPtr() == nullptr)
-    {
-        return E_FAIL;
+        return isNull == TRUE ? S_OK : E_FAIL;
     }
 
     CorElementType inputCorType = ELEMENT_TYPE_MAX;
@@ -1065,25 +1059,17 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     ToRelease<ICorDebugValue2> trValue2;
     IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
     ToRelease<ICorDebugType> trType;
-    if (pTypeCast == nullptr)
+    IfFailRet(trValue2->GetExactType(&trType));
+    if (trType == nullptr)
     {
-        IfFailRet(trValue2->GetExactType(&trType));
-        if (trType == nullptr)
-        {
-            return E_FAIL;
-        }
-    }
-    else
-    {
-        pTypeCast->AddRef();
-        trType = pTypeCast;
+        return E_FAIL;
     }
 
     while (trType != nullptr)
     {
         std::string className;
         TypePrinter::GetTypeOfValue(trType, className);
-        if (className == "decimal") // TODO: implement mechanism for walking over custom type fields
+        if (className == "decimal")
         {
             return S_OK;
         }
@@ -1731,7 +1717,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 {
     HRESULT Status = S_OK;
 
-    // Note, in case of (nextIdentifier == identifiers.size()) result is pValue itself, so, we ok here.
+    // Note: in case of (nextIdentifier == identifiers.size()), the result is pValue itself, so we are OK here.
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     if (nextIdentifier > static_cast<int>(identifiers.size()))
     {
@@ -1749,7 +1735,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
 
-        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, nullptr, (resultSetterData != nullptr),
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr),
             [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
             {

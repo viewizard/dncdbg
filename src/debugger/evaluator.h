@@ -98,7 +98,7 @@ class Evaluator
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
                            mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                        ICorDebugType *pTypeCast, bool provideSetterData, const WalkMembersCallback &cb);
+                        bool provideSetterData, const WalkMembersCallback &cb);
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 

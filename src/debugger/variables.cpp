@@ -32,7 +32,7 @@ void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, b
     int numStatic = 0;
     int numInstance = 0;
     // No thread and FrameLevel{0} here, since we need only count children.
-    if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, nullptr, false,
+    if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, false,
                [&](ICorDebugType *, bool is_static, const std::string &,
                    const Evaluator::GetValueCallback &, Evaluator::SetterData *) -> HRESULT
                 {
@@ -106,7 +106,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
 
     int currentIndex = -1;
 
-    IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, nullptr, false,
+    IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, false,
         [&](ICorDebugType *pType, bool is_static, const std::string &name,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
         {
@@ -511,7 +511,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     }
 
     HRESULT Status = S_OK;
-    IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), nullptr, true,
+    IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true,
         [&](ICorDebugType *, bool /*is_static*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
