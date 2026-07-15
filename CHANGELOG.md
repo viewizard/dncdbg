@@ -13,6 +13,7 @@ Upcoming changes compared to previous version.
 - Added support for retrieving method parameters in non-user code frames.
 - Added support for `System.Guid` type formatting (displays as human-readable string).
 - Added support for `DebuggerBrowsableAttribute` state `Never` to fields.
+- Added support for `DebuggerBrowsableAttribute` state `RootHidden` to fields and properties.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

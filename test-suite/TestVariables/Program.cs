@@ -113,6 +113,18 @@ public struct TestSetExprStruct
     }
 }
 
+public class TestRootHiddenField
+{
+    public int val4 = 111;
+    public int val5 = 222;
+}
+
+public class TestRootHiddenProperty
+{
+    public int val6 = 333;
+    public int val7 = 444;
+}
+
 public class TestStruct4
 {
     public int val1
@@ -139,6 +151,19 @@ public class TestStruct4
             return 888;
         }
     }
+
+    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+    public TestRootHiddenField f1 = new TestRootHiddenField();
+
+
+    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+    public TestRootHiddenProperty p1
+    {
+        get {
+            return new TestRootHiddenProperty();
+        }
+    }
+
 }
 
 public struct TestStruct5
@@ -1134,8 +1159,16 @@ class Program
                 int variablesReference_ts4 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "ts4");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val1", "666");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val3", "888");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val4", "111");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val5", "222");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val6", "333");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val7", "444");
                 Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 0, "666");
                 Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 1, "888");
+                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 2, "111");
+                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 3, "222");
+                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 4, "333");
+                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 5, "444");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

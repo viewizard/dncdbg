@@ -20,6 +20,7 @@
 #include <cassert>
 #include <cstring>
 #include <iterator>
+#include <list>
 #include <memory>
 #include <sstream>
 #include <unordered_set>
@@ -992,249 +993,269 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 {
     HRESULT Status = S_OK;
 
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-    if (trValue == nullptr)
-    {
-        return isNull == TRUE ? S_OK : E_FAIL;
-    }
+    // Queue of fields/properties to process. Includes elements with
+    // DebuggerBrowsableState.RootHidden to unwrap their members during the walk.
+    std::list<ToRelease<ICorDebugValue>> trWalkQueue;
+    pInputValue->AddRef();
+    trWalkQueue.emplace_back(pInputValue);
 
-    CorElementType inputCorType = ELEMENT_TYPE_MAX;
-    IfFailRet(pInputValue->GetType(&inputCorType));
-    if (inputCorType == ELEMENT_TYPE_PTR)
+    while (!trWalkQueue.empty())
     {
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+        ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().Detach());
+        trWalkQueue.pop_front();
+
+        BOOL isNull = FALSE;
+        ToRelease<ICorDebugValue> trValue;
+        IfFailRet(DereferenceAndUnboxValue(trFrontValue, &trValue, &isNull));
+        if (trValue == nullptr)
         {
-            trValue->AddRef();
-            *ppResultValue = trValue;
-            return S_OK;
-        };
-
-        IfFailRet(cb(nullptr, false, "", getValue, nullptr));
-        // Note, cb could return S_CAN_EXIT for fast exit.
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugArrayValue> trArrayValue;
-    if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue))))
-    {
-        uint32_t nRank = 0;
-        IfFailRet(trArrayValue->GetRank(&nRank));
-
-        uint32_t cElements = 0;
-        IfFailRet(trArrayValue->GetCount(&cElements));
-
-        std::vector<uint32_t> dims(nRank, 0);
-        IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
-
-        std::vector<uint32_t> base(nRank, 0);
-        BOOL hasBaseIndices = FALSE;
-        if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndices)) && (hasBaseIndices == TRUE))
-        {
-            IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
+            return isNull == TRUE ? S_OK : E_FAIL;
         }
 
-        std::vector<uint32_t> ind(nRank, 0);
-
-        for (uint32_t i = 0; i < cElements; ++i)
+        CorElementType inputCorType = ELEMENT_TYPE_MAX;
+        IfFailRet(trFrontValue->GetType(&inputCorType));
+        if (inputCorType == ELEMENT_TYPE_PTR)
         {
             auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
             {
-                IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
+                trValue->AddRef();
+                *ppResultValue = trValue;
                 return S_OK;
             };
 
-            IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr));
-            if (Status == S_CAN_EXIT)
+            IfFailRet(cb(nullptr, false, "", getValue, nullptr));
+            // Note, cb could return S_CAN_EXIT for fast exit.
+            return S_OK;
+        }
+
+        ToRelease<ICorDebugArrayValue> trArrayValue;
+        if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue))))
+        {
+            uint32_t nRank = 0;
+            IfFailRet(trArrayValue->GetRank(&nRank));
+
+            uint32_t cElements = 0;
+            IfFailRet(trArrayValue->GetCount(&cElements));
+
+            std::vector<uint32_t> dims(nRank, 0);
+            IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
+
+            std::vector<uint32_t> base(nRank, 0);
+            BOOL hasBaseIndices = FALSE;
+            if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndices)) && (hasBaseIndices == TRUE))
+            {
+                IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
+            }
+
+            std::vector<uint32_t> ind(nRank, 0);
+
+            for (uint32_t i = 0; i < cElements; ++i)
+            {
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                {
+                    IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
+                    return S_OK;
+                };
+
+                IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_OK;
+                }
+                IncIndices(dims, ind);
+            }
+
+            return S_OK;
+        }
+
+        ToRelease<ICorDebugValue2> trValue2;
+        IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+        ToRelease<ICorDebugType> trType;
+        IfFailRet(trValue2->GetExactType(&trType));
+        if (trType == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        while (trType != nullptr)
+        {
+            std::string className;
+            TypePrinter::GetTypeOfValue(trType, className);
+            if (className == "decimal")
             {
                 return S_OK;
             }
-            IncIndices(dims, ind);
-        }
 
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugValue2> trValue2;
-    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-    ToRelease<ICorDebugType> trType;
-    IfFailRet(trValue2->GetExactType(&trType));
-    if (trType == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    while (trType != nullptr)
-    {
-        std::string className;
-        TypePrinter::GetTypeOfValue(trType, className);
-        if (className == "decimal")
-        {
-            return S_OK;
-        }
-
-        if (className.back() == '?') // System.Nullable<T>
-        {
-            ToRelease<ICorDebugValue> trValueValue;
-            ToRelease<ICorDebugValue> trHasValueValue;
-            IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
-
-            uint8_t boolValue = 0;
-            IfFailRet(GetIntegralValue(trHasValueValue, boolValue));
-
-            if (boolValue == 1) // TRUE
+            if (className.back() == '?') // System.Nullable<T>
             {
-                trValue.Free();
-                trValue = trValueValue.Detach();
-                ToRelease<ICorDebugValue2> trValue2;
-                IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-                trType.Free();
-                IfFailRet(trValue2->GetExactType(&trType));
+                ToRelease<ICorDebugValue> trValueValue;
+                ToRelease<ICorDebugValue> trHasValueValue;
+                IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
 
-                continue;
+                uint8_t boolValue = 0;
+                IfFailRet(GetIntegralValue(trHasValueValue, boolValue));
+
+                if (boolValue == 1) // TRUE
+                {
+                    trValue.Free();
+                    trValue = trValueValue.Detach();
+                    ToRelease<ICorDebugValue2> trValue2;
+                    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                    trType.Free();
+                    IfFailRet(trValue2->GetExactType(&trType));
+
+                    continue;
+                }
+
+                return S_OK;
             }
 
-            return S_OK;
-        }
-
-        CorElementType corElemType = ELEMENT_TYPE_MAX;
-        IfFailRet(trType->GetType(&corElemType));
-        if (corElemType == ELEMENT_TYPE_STRING)
-        {
-            return S_OK;
-        }
-
-        ToRelease<ICorDebugClass> trClass;
-        IfFailRet(trType->GetClass(&trClass));
-        ToRelease<ICorDebugModule> trModule;
-        IfFailRet(trClass->GetModule(&trModule));
-        mdTypeDef currentTypeDef = mdTypeDefNil;
-        IfFailRet(trClass->GetToken(&currentTypeDef));
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-        IfFailRet(ForEachFields(trMDImport, currentTypeDef,
-            [&](mdFieldDef fieldDef) -> HRESULT
+            CorElementType corElemType = ELEMENT_TYPE_MAX;
+            IfFailRet(trType->GetType(&corElemType));
+            if (corElemType == ELEMENT_TYPE_STRING)
             {
-                const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
-                if (browsableState == DebuggerBrowsableState::Never)
+                return S_OK;
+            }
+
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trType->GetClass(&trClass));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trClass->GetModule(&trModule));
+            mdTypeDef currentTypeDef = mdTypeDefNil;
+            IfFailRet(trClass->GetToken(&currentTypeDef));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(ForEachFields(trMDImport, currentTypeDef,
+                [&](mdFieldDef fieldDef) -> HRESULT
                 {
+                    const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
+                    if (browsableState == DebuggerBrowsableState::Never)
+                    {
+                        return S_OK; // Return with success to continue walk.
+                    }
+
+                    ULONG nameLen = 0;
+                    IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                                                        nullptr, nullptr, nullptr, nullptr, nullptr));
+
+                    DWORD fieldAttr = 0;
+                    WSTRING mdName(nameLen, '\0');
+                    PCCOR_SIGNATURE pSig = nullptr;
+                    ULONG cbSig = 0;
+                    UVCP_CONSTANT pRawValue = nullptr;
+                    ULONG rawValueLength = 0;
+                    if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
+                                                            &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
+                    {
+                        // Remove null terminator that was included in the length
+                        if (!mdName.empty() && mdName.back() == '\0')
+                        {
+                            mdName.pop_back();
+                        }
+
+                        // Prevent access to internal compiler added fields (without visible name).
+                        // Should be accessed by debugger routine only and hidden from user/ide.
+                        // More about compiler generated names in Roslyn sources:
+                        // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
+                        // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
+                        if (IsSynthesizedLocalName(mdName))
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
+
+                        const bool is_static = (fieldAttr & fdStatic);
+                        if (isNull && !is_static)
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
+
+                        const std::string name = to_utf8(mdName.c_str());
+
+                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                        {
+                            if (fieldAttr & fdLiteral)
+                            {
+                                IfFailRet(m_sharedEvalHelpers->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                                       rawValueLength, ppResultValue));
+                            }
+                            else if (fieldAttr & fdStatic)
+                            {
+                                IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
+                            }
+                            else
+                            {
+                                // Get trValue again, since it could be neutered at eval call in `cb` on previous loop.
+                                trValue.Free();
+                                IfFailRet(DereferenceAndUnboxValue(trFrontValue, &trValue, &isNull));
+                                ToRelease<ICorDebugObjectValue> trObjValue;
+                                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
+                            }
+
+                            return S_OK;
+                        };
+
+                        if (browsableState == DebuggerBrowsableState::RootHidden)
+                        {
+                            ToRelease<ICorDebugValue> trResultValue;
+                            if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
+                            {
+                                trWalkQueue.emplace_back(trResultValue.Detach());
+                            }
+                            return S_OK; // Return with success to continue walk.
+                        }
+
+                        IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                        if (Status == S_CAN_EXIT)
+                        {
+                            return S_CAN_EXIT; // Fast exit from loop.
+                        }
+                    }
                     return S_OK; // Return with success to continue walk.
-                }
-
-                ULONG nameLen = 0;
-                IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
-                                                    nullptr, nullptr, nullptr, nullptr, nullptr));
-
-                DWORD fieldAttr = 0;
-                WSTRING mdName(nameLen, '\0');
-                PCCOR_SIGNATURE pSig = nullptr;
-                ULONG cbSig = 0;
-                UVCP_CONSTANT pRawValue = nullptr;
-                ULONG rawValueLength = 0;
-                if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
-                                                        &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
-                {
-                    // Remove null terminator that was included in the length
-                    if (!mdName.empty() && mdName.back() == '\0')
-                    {
-                        mdName.pop_back();
-                    }
-
-                    // Prevent access to internal compiler added fields (without visible name).
-                    // Should be accessed by debugger routine only and hidden from user/ide.
-                    // More about compiler generated names in Roslyn sources:
-                    // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
-                    // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-                    if (IsSynthesizedLocalName(mdName))
-                    {
-                        return S_OK; // Return with success to continue walk.
-                    }
-
-                    const bool is_static = (fieldAttr & fdStatic);
-                    if (isNull && !is_static)
-                    {
-                        return S_OK; // Return with success to continue walk.
-                    }
-
-                    const std::string name = to_utf8(mdName.c_str());
-
-                    auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
-                    {
-                        if (fieldAttr & fdLiteral)
-                        {
-                            IfFailRet(m_sharedEvalHelpers->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                   rawValueLength, ppResultValue));
-                        }
-                        else if (fieldAttr & fdStatic)
-                        {
-                            IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
-                        }
-                        else
-                        {
-                            // Get trValue again, since it could be neutered at eval call in `cb` on previous loop.
-                            trValue.Free();
-                            IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-                            ToRelease<ICorDebugObjectValue> trObjValue;
-                            IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
-                        }
-
-                        return S_OK;
-                    };
-
-                    IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-                    if (Status == S_CAN_EXIT)
-                    {
-                        return S_CAN_EXIT; // Fast exit from loop.
-                    }
-                }
-                return S_OK; // Return with success to continue walk.
-            }));
-        if (Status == S_CAN_EXIT)
-        {
-            return S_CAN_EXIT;
-        }
-        Status = ForEachProperties(trMDImport, currentTypeDef,
-            [&](mdProperty propertyDef) -> HRESULT
+                }));
+            if (Status == S_CAN_EXIT)
             {
-                const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
-                if (browsableState == DebuggerBrowsableState::Never)
+                return S_CAN_EXIT;
+            }
+            Status = ForEachProperties(trMDImport, currentTypeDef,
+                [&](mdProperty propertyDef) -> HRESULT
                 {
-                    return S_OK; // Return with success to continue walk.
-                }
-
-                ULONG propertyNameLen = 0;
-                IfFailRet(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
-                                                       nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                       nullptr, nullptr, nullptr, nullptr, 0, nullptr));
-
-                mdMethodDef mdGetter = mdMethodDefNil;
-                mdMethodDef mdSetter = mdMethodDefNil;
-                std::vector<WCHAR> propertyName(propertyNameLen, '\0');
-                if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
-                                                           nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                           nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
-                {
-                    DWORD getterAttr = 0;
-                    if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                                          nullptr, nullptr, nullptr, nullptr)))
+                    const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
+                    if (browsableState == DebuggerBrowsableState::Never)
                     {
                         return S_OK; // Return with success to continue walk.
                     }
 
-                    bool is_static = (getterAttr & mdStatic);
-                    if (isNull && !is_static)
+                    ULONG propertyNameLen = 0;
+                    IfFailRet(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
+                                                           nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                           nullptr, nullptr, nullptr, nullptr, 0, nullptr));
+
+                    mdMethodDef mdGetter = mdMethodDefNil;
+                    mdMethodDef mdSetter = mdMethodDefNil;
+                    std::vector<WCHAR> propertyName(propertyNameLen, '\0');
+                    if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
+                                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                               nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                     {
-                        return S_OK; // Return with success to continue walk.
-                    }
+                        DWORD getterAttr = 0;
+                        if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                                              nullptr, nullptr, nullptr, nullptr)))
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
 
-                    const std::string name = to_utf8(propertyName.data());
+                        bool is_static = (getterAttr & mdStatic);
+                        if (isNull && !is_static)
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
 
-                    auto getValue =
-                        [&](ICorDebugValue **ppResultValue, std::string *, bool ignoreEvalFlags) -> HRESULT
+                        const std::string name = to_utf8(propertyName.data());
+
+                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool ignoreEvalFlags) -> HRESULT
                         {
                             if (pThread == nullptr)
                             {
@@ -1245,66 +1266,77 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
                             return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
-                                                                     is_static ? nullptr : &pInputValue, is_static ? 0 : 1,
+                                                                     is_static ? nullptr : trFrontValue.GetRef(), is_static ? 0 : 1,
                                                                      ppResultValue, ignoreEvalFlags);
                         };
 
-                    if (provideSetterData)
-                    {
-                        ToRelease<ICorDebugFunction> trFuncSetter;
-                        if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
+                        if (browsableState == DebuggerBrowsableState::RootHidden)
                         {
-                            trFuncSetter.Free();
+                            ToRelease<ICorDebugValue> trResultValue;
+                            if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
+                            {
+                                trWalkQueue.emplace_back(trResultValue.Detach());
+                            }
+                            return S_OK; // Return with success to continue walk.
                         }
-                        Evaluator::SetterData setterData(is_static ? nullptr : pInputValue, trType, trFuncSetter);
-                        IfFailRet(cb(trType, is_static, name, getValue, &setterData));
-                        if (Status == S_CAN_EXIT)
+
+                        if (provideSetterData)
                         {
-                            return S_CAN_EXIT; // Fast exit from loop.
+                            ToRelease<ICorDebugFunction> trFuncSetter;
+                            if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
+                            {
+                                trFuncSetter.Free();
+                            }
+                            Evaluator::SetterData setterData(is_static ? nullptr : trFrontValue.GetPtr(), trType, trFuncSetter);
+                            IfFailRet(cb(trType, is_static, name, getValue, &setterData));
+                            if (Status == S_CAN_EXIT)
+                            {
+                                return S_CAN_EXIT; // Fast exit from loop.
+                            }
+                        }
+                        else
+                        {
+                            IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                            if (Status == S_CAN_EXIT)
+                            {
+                                return S_CAN_EXIT; // Fast exit from loop.
+                            }
                         }
                     }
-                    else
-                    {
-                        IfFailRet(cb(trType, is_static, name, getValue, nullptr));
-                        if (Status == S_CAN_EXIT)
-                        {
-                            return S_CAN_EXIT; // Fast exit from loop.
-                        }
-                    }
-                }
-                return S_OK; // Return with success to continue walk.
-            });
-        // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
-        IfFailRet(Status);
-        if (Status == S_CAN_EXIT)
-        {
-            return S_OK;
-        }
-
-        std::string baseTypeName;
-        ToRelease<ICorDebugType> trBaseType;
-        if (SUCCEEDED(trType->GetBase(&trBaseType)) && trBaseType != nullptr &&
-            SUCCEEDED(TypePrinter::GetTypeOfValue(trBaseType, baseTypeName)))
-        {
-            trType.Free();
-
-            if (baseTypeName == "System.Enum")
+                    return S_OK; // Return with success to continue walk.
+                });
+            // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
+            IfFailRet(Status);
+            if (Status == S_CAN_EXIT)
             {
                 return S_OK;
             }
-            else if (baseTypeName != "object" && baseTypeName != "System.Object" && baseTypeName != "System.ValueType")
+
+            std::string baseTypeName;
+            ToRelease<ICorDebugType> trBaseType;
+            if (SUCCEEDED(trType->GetBase(&trBaseType)) && trBaseType != nullptr &&
+                SUCCEEDED(TypePrinter::GetTypeOfValue(trBaseType, baseTypeName)))
             {
-                if (pThread != nullptr)
+                trType.Free();
+
+                if (baseTypeName == "System.Enum")
                 {
-                    m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trBaseType, nullptr, false);
+                    return S_OK;
                 }
-                // Add fields of base class.
-                trType = trBaseType.Detach();
+                else if (baseTypeName != "object" && baseTypeName != "System.Object" && baseTypeName != "System.ValueType")
+                {
+                    if (pThread != nullptr)
+                    {
+                        m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trBaseType, nullptr, false);
+                    }
+                    // Add fields of base class.
+                    trType = trBaseType.Detach();
+                }
             }
-        }
-        else
-        {
-            trType.Free();
+            else
+            {
+                trType.Free();
+            }
         }
     }
 
