@@ -228,10 +228,10 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(pValue, true,
-        [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if (!is_static || methodArgs.size() != 1 || opName != methodName ||
+            if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
             {
                 return S_OK; // Return with success to continue walk.
@@ -260,10 +260,10 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(pValue, true,
-        [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if (!is_static || methodArgs.size() != 1 || opName != methodName ||
+            if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemRetType != methodRet.corType || typeRetName != methodRet.typeName ||
                 elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
             {
@@ -461,10 +461,10 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         {
             ToRelease<ICorDebugFunction> trFunc;
             IfFailRet(Evaluator::WalkMethods(pValue, true,
-                [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
                     std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
                 {
-                    if (!is_static || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
+                    if (!isStatic || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     {
                         return S_OK; // Return with success to continue walk.
                     }
@@ -925,10 +925,10 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugType> trResultType;
     IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
-        [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if ((searchStatic && !is_static) || (!searchStatic && is_static && !idsEmpty) ||
+            if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
                 funcArgs.size() != methodArgs.size() || funcName != methodName)
             {
                 return S_OK; // Return with success to continue walk.
@@ -944,7 +944,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             }
 
             IfFailRet(getFunction(&trFunc));
-            isInstance = !is_static;
+            isInstance = !isStatic;
 
             return S_CAN_EXIT; // Fast exit from loop.
         }));

@@ -33,10 +33,10 @@ void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, b
     int numInstance = 0;
     // No thread and FrameLevel{0} here, since we need only count children.
     if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, false,
-               [&](ICorDebugType *, bool is_static, const std::string &,
+               [&](ICorDebugType *, bool isStatic, const std::string &,
                    const Evaluator::GetValueCallback &, Evaluator::SetterData *) -> HRESULT
                 {
-                    if (is_static)
+                    if (isStatic)
                     {
                         numStatic++;
                     }
@@ -107,15 +107,15 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
     int currentIndex = -1;
 
     IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, false,
-        [&](ICorDebugType *pType, bool is_static, const std::string &name,
+        [&](ICorDebugType *pType, bool isStatic, const std::string &name,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
         {
-            if (is_static)
+            if (isStatic)
             {
                 hasStaticMembers = true;
             }
 
-            const bool addMember = fetchOnlyStatic ? is_static : !is_static;
+            const bool addMember = fetchOnlyStatic ? isStatic : !isStatic;
             if (!addMember)
             {
                 return S_OK;
@@ -512,7 +512,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
 
     HRESULT Status = S_OK;
     IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true,
-        [&](ICorDebugType *, bool /*is_static*/, const std::string &varName,
+        [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
         {
             if (varName != name)

@@ -784,14 +784,14 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
                 continue;
             }
 
-            const bool is_static = ((methodAttr & mdStatic) != 0U);
+            const bool isStatic = ((methodAttr & mdStatic) != 0U);
 
             auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
             {
                 return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
 
-            IfFailRet(cb(is_static, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            IfFailRet(cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 if (ppResultType != nullptr)
@@ -1169,8 +1169,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
-                        const bool is_static = (fieldAttr & fdStatic);
-                        if (isNull && !is_static)
+                        const bool isStatic = (fieldAttr & fdStatic);
+                        if (isNull && !isStatic)
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1211,7 +1211,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
-                        IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from loop.
@@ -1255,8 +1255,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         // DWORD access = getterAttr & mdMemberAccessMask;
                         // access - mdPrivate, mdFamily, mdPublic, mdAssembly
 
-                        bool is_static = (getterAttr & mdStatic);
-                        if (isNull && !is_static)
+                        bool isStatic = (getterAttr & mdStatic);
+                        if (isNull && !isStatic)
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1274,7 +1274,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
                             return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
-                                                                     is_static ? nullptr : trFrontValue.GetRef(), is_static ? 0 : 1,
+                                                                     isStatic ? nullptr : trFrontValue.GetRef(), isStatic ? 0 : 1,
                                                                      ppResultValue, ignoreEvalFlags);
                         };
 
@@ -1295,8 +1295,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             {
                                 trFuncSetter.Free();
                             }
-                            Evaluator::SetterData setterData(is_static ? nullptr : trFrontValue.GetPtr(), trType, trFuncSetter);
-                            IfFailRet(cb(trType, is_static, name, getValue, &setterData));
+                            Evaluator::SetterData setterData(isStatic ? nullptr : trFrontValue.GetPtr(), trType, trFuncSetter);
+                            IfFailRet(cb(trType, isStatic, name, getValue, &setterData));
                             if (Status == S_CAN_EXIT)
                             {
                                 return S_CAN_EXIT; // Fast exit from loop.
@@ -1304,7 +1304,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
                         else
                         {
-                            IfFailRet(cb(trType, is_static, name, getValue, nullptr));
+                            IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
                             if (Status == S_CAN_EXIT)
                             {
                                 return S_CAN_EXIT; // Fast exit from loop.
@@ -1776,11 +1776,11 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
 
         IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr),
-            [&](ICorDebugType */*pType*/, bool is_static, const std::string &memberName,
+            [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
             {
-                if ((is_static && valueKind == ValueKind::Variable) ||
-                    (!is_static && valueKind == ValueKind::Class) ||
+                if ((isStatic && valueKind == ValueKind::Variable) ||
+                    (!isStatic && valueKind == ValueKind::Class) ||
                     memberName != identifiers.at(i))
 
                 {
@@ -1899,10 +1899,10 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
 
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(trInputType, false, nullptr,
-        [&](bool is_static, const std::string &methodName, Evaluator::ReturnElementType &,
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            if (is_static || !methodArgs.empty() || methodName != "ToString")
+            if (isStatic || !methodArgs.empty() || methodName != "ToString")
             {
                 return S_OK; // Return with success to continue walk.
             }
