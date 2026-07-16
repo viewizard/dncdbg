@@ -20,7 +20,7 @@ namespace dncdbg
 namespace
 {
 
-void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
+void GetNumChild(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
 {
     numChild = 0;
 
@@ -31,8 +31,8 @@ void GetNumChild(Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, b
 
     int numStatic = 0;
     int numInstance = 0;
-    // No thread and FrameLevel{0} here, since we need only count children.
-    if (FAILED(pEvaluator->WalkMembers(pValue, nullptr, FrameLevel{0}, false,
+    // Note: FrameLevel{0} is used here, since we need only count children.
+    if (FAILED(pEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false,
                [&](ICorDebugType *, bool isStatic, const std::string &,
                    const Evaluator::GetValueCallback &, Evaluator::SetterData *) -> HRESULT
                 {
@@ -203,7 +203,8 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
     return S_OK;
 }
 
-HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind)
+HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId,
+                                        ICorDebugValue *pValue, ValueKind valueKind)
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
@@ -213,7 +214,7 @@ HRESULT Variables::AddVariableReference(Variable &variable, FrameId frameId, ICo
     }
 
     int numChild = 0;
-    GetNumChild(m_sharedEvaluator.get(), pValue, numChild, valueKind == ValueKind::Class);
+    GetNumChild(pThread, m_sharedEvaluator.get(), pValue, numChild, valueKind == ValueKind::Class);
     if (numChild == 0)
     {
         return S_OK;
@@ -243,7 +244,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), trExceptionValue, var.value));
         IfFailRet(TypePrinter::GetTypeOfValue(trExceptionValue, var.type));
 
-        return AddVariableReference(var, frameId, trExceptionValue, ValueKind::Variable);
+        return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable);
     }
 
     return E_FAIL;
@@ -284,14 +285,14 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName, false)) ||
                 FAILED(TypePrinter::GetTypeOfValue(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, m_sharedEvaluator.get(), trValue, var.value)) ||
-                FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
+                FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable)))
             {
                 if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
                 {
                     var.type = fallbackTypeName.empty() ? "unknown" : fallbackTypeName;
                     var.value = "Cannot obtain value of the local variable or argument because it is not available at this instruction pointer, possibly because it has been optimized away.";
 
-                    if (FAILED(AddVariableReference(var, frameId, trValue, ValueKind::Variable)))
+                    if (FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable)))
                     {
                         return S_OK;
                     }
@@ -388,7 +389,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
         }
         IfFailRet(FillValueAndType(pThread, m_sharedEvaluator.get(), it, var));
-        IfFailRet(AddVariableReference(var, ref.frameId, it.trValue, ValueKind::Variable));
+        IfFailRet(AddVariableReference(pThread, var, ref.frameId, it.trValue, ValueKind::Variable));
         variables.push_back(var);
     }
 
@@ -407,7 +408,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             var.name = "Static members";
             IfFailRet(TypePrinter::GetTypeOfValue(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
-            IfFailRet(AddVariableReference(var, ref.frameId, ref.trValue, ValueKind::Class));
+            IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Class));
             variables.push_back(var);
         }
     }
@@ -437,7 +438,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value));
 
-    return AddVariableReference(variable, frameId, trResultValue, ValueKind::Variable);
+    return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable);
 }
 
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,

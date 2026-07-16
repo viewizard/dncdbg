@@ -121,7 +121,8 @@ class Variables
     std::recursive_mutex m_referencesMutex;
     std::unordered_map<uint32_t, VariableReference> m_references;
 
-    HRESULT AddVariableReference(Variable &variable, FrameId frameId, ICorDebugValue *pValue, ValueKind valueKind);
+    HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId,
+                                 ICorDebugValue *pValue, ValueKind valueKind);
 
     HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
                               std::vector<Variable> &variables);

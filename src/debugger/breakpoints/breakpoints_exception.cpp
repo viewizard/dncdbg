@@ -278,8 +278,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         pDetails->evaluateName = "$exception";
 
         HRESULT Status = S_OK;
-        m_sharedEvaluator->WalkMembers(
-            trExceptionValue, pThread, FrameLevel{0}, false,
+        m_sharedEvaluator->WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false,
             [&](ICorDebugType *, bool, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
             {
