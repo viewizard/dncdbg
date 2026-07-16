@@ -1137,16 +1137,20 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     }
 
                     ULONG nameLen = 0;
-                    IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                    DWORD fieldAttr = 0;
+                    IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, &fieldAttr,
                                                         nullptr, nullptr, nullptr, nullptr, nullptr));
 
-                    DWORD fieldAttr = 0;
+                    // Accessibility type:
+                    // DWORD access = fieldAttr & fdFieldAccessMask;
+                    // access - fdPrivate, fdFamily, fdPublic, fdAssembly
+
                     WSTRING mdName(nameLen, '\0');
                     PCCOR_SIGNATURE pSig = nullptr;
                     ULONG cbSig = 0;
                     UVCP_CONSTANT pRawValue = nullptr;
                     ULONG rawValueLength = 0;
-                    if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
+                    if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr,
                                                             &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
                     {
                         // Remove null terminator that was included in the length
@@ -1246,6 +1250,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         {
                             return S_OK; // Return with success to continue walk.
                         }
+
+                        // Accessibility type:
+                        // DWORD access = getterAttr & mdMemberAccessMask;
+                        // access - mdPrivate, mdFamily, mdPublic, mdAssembly
 
                         bool is_static = (getterAttr & mdStatic);
                         if (isNull && !is_static)
