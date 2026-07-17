@@ -13,6 +13,7 @@
 #endif
 
 #include <string_view>
+#include <string>
 #include <vector>
 
 namespace dncdbg
@@ -37,6 +38,9 @@ struct DebuggerAttribute
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
     // Determines if and how a member is displayed in the debugger variable windows.
     static constexpr std::string_view Browsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
+    // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
+    // Specifies the display proxy for a type.
+    static constexpr std::string_view TypeProxy = "System.Diagnostics.DebuggerTypeProxyAttribute..ctor";
 };
 
 // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
@@ -51,6 +55,7 @@ enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
+bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName);
 
 } // namespace dncdbg
 

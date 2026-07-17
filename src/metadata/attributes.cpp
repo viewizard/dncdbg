@@ -44,6 +44,65 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const ForEachAttr
     return found;
 }
 
+bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length)
+{
+    // ECMA-335 compressed unsigned integer encoding constants
+    static constexpr uint8_t kCompressedUintSentinelMarker = 0xFF;
+    static constexpr uint32_t kCompressedUintSentinelValue = 0xFFFFFFFF;
+    static constexpr uint8_t kCompressedUint1ByteMask = 0x80;
+    static constexpr uint8_t kCompressedUint2ByteMask = 0xC0;
+    static constexpr uint8_t kCompressedUint2ByteMarker = 0x80;
+    static constexpr uint8_t kCompressedUint2ByteBitsMask = 0x3F;
+    static constexpr uint8_t kCompressedUint4ByteMask = 0xE0;
+    static constexpr uint8_t kCompressedUint4ByteMarker = 0xC0;
+    static constexpr uint8_t kCompressedUint4ByteBitsMask = 0x1F;
+    static constexpr int kBitShift1Byte = 8;
+    static constexpr int kBitShift2Bytes = 16;
+    static constexpr int kBitShift3Bytes = 24;
+
+    if (pBlob >= pEnd)
+    {
+        return false;
+    }
+
+    const uint8_t b1 = *pBlob++;
+    if (b1 == kCompressedUintSentinelMarker)
+    {
+        length = kCompressedUintSentinelValue;
+        return true;
+    }
+    if ((b1 & kCompressedUint1ByteMask) == 0)
+    {
+        length = b1;
+        return true;
+    }
+
+    if (pBlob >= pEnd)
+    {
+        return false;
+    }
+    const uint8_t b2 = *pBlob++;
+    if ((b1 & kCompressedUint2ByteMask) == kCompressedUint2ByteMarker)
+    {
+        length = ((b1 & kCompressedUint2ByteBitsMask) << kBitShift1Byte) | b2;
+        return true;
+    }
+
+    if (pBlob + 2 > pEnd)
+    {
+        return false;
+    }
+    const uint8_t b3 = *pBlob++;
+    const uint8_t b4 = *pBlob++;
+    if ((b1 & kCompressedUint4ByteMask) == kCompressedUint4ByteMarker)
+    {
+        length = ((b1 & kCompressedUint4ByteBitsMask) << kBitShift3Bytes) | (b2 << kBitShift2Bytes) | (b3 << kBitShift1Byte) | b4;
+        return true;
+    }
+
+    return false;
+}
+
 } // unnamed namespace
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName)
@@ -107,5 +166,88 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
 
     return browsableState;
 }
+
+bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName)
+{
+    proxyTypeName.clear();
+
+    return ForEachAttribute(pMDImport, tok,
+        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        {
+            if (attrName != DebuggerAttribute::TypeProxy)
+            {
+                return false;
+            }
+
+            const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+            PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
+
+            // In case of DebuggerTypeProxyAttribute, blob format is:
+            // 2 bytes - blob prolog 0x0001
+            // 1-4 bytes - type name string length (compressed unsigned integer)
+            // N bytes - type name string data (UTF-8)
+            // 2 bytes - named arguments count (for class or struct attributes, must be 0)
+            // ... named arguments are not provided in this case
+
+            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint16_t);
+
+            uint32_t typeNameSize = 0;
+            if (!UncompressUint(pbBlob, pbBlobEnd, typeNameSize))
+            {
+                return false;
+            }
+
+            // Ensure there are enough bytes for the type name string.
+            if (pbBlob + typeNameSize > pbBlobEnd)
+            {
+                return false;
+            }
+
+            const std::string_view typeName(reinterpret_cast<const char *>(pbBlob), typeNameSize);
+            pbBlob += typeNameSize;
+
+            // Ensure there are enough bytes for the named argument count.
+            if (pbBlob + sizeof(uint16_t) > pbBlobEnd)
+            {
+                return false;
+            }
+
+            const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
+                                            static_cast<uint16_t>(pbBlob[1]) << 8;
+            if (namedArguments != 0)
+            {
+                return false;
+            }
+
+            proxyTypeName = typeName;
+            return true;
+        });
+}
+
+// TODO: Add named arguments support:
+// [assembly: DebuggerTypeProxy(typeof(MyProxy), Target = typeof(SomeInternalClass))]
+// [assembly: DebuggerTypeProxy("MyProxy", TargetTypeName = "SomeInternalClass")]
+//
+// In case of DebuggerTypeProxyAttribute with named arguments, blob format is:
+// 2 bytes - blob prolog 0x0001
+// 1-4 bytes - type name string length (compressed unsigned integer)
+// N bytes - type name string data (UTF-8)
+// 2 bytes - named arguments count
+// For each named argument:
+//   1 byte - CorSerializationType (SERIALIZATION_TYPE_FIELD, SERIALIZATION_TYPE_PROPERTY)
+//   1 byte - CorSerializationType (SERIALIZATION_TYPE_STRING for TargetTypeName,
+//            SERIALIZATION_TYPE_TYPE for Target)
+//   SERIALIZATION_TYPE_TYPE? -> 1-4 bytes + H bytes -> "System.Type"
+//   1-4 bytes - argument name length (compressed unsigned integer)
+//   K bytes - argument name string data (UTF-8)
+//   1-4 bytes - argument value length (compressed unsigned integer)
+//   M bytes - argument value string data (UTF-8)
+
 
 } // namespace dncdbg
