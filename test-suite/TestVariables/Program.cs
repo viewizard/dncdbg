@@ -113,59 +113,6 @@ public struct TestSetExprStruct
     }
 }
 
-public class TestRootHiddenField
-{
-    public int val4 = 111;
-    public int val5 = 222;
-}
-
-public class TestRootHiddenProperty
-{
-    public int val6 = 333;
-    public int val7 = 444;
-}
-
-public class TestStruct4
-{
-    public int val1
-    {
-        get {
-            return 666;
-        }
-    }
-
-    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.Never)]
-    public int val2
-    {
-        get {
-            return 777;
-        }
-    }
-
-    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.Never)]
-    public int val22 = 999;
-
-    public int val3
-    {
-        get {
-            return 888;
-        }
-    }
-
-    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-    public TestRootHiddenField f1 = new TestRootHiddenField();
-
-
-    [System.Diagnostics.DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-    public TestRootHiddenProperty p1
-    {
-        get {
-            return new TestRootHiddenProperty();
-        }
-    }
-
-}
-
 public struct TestStruct5
 {
     public int val1
@@ -337,7 +284,6 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK3");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp3");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp5");
@@ -1126,7 +1072,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        Label.Checkpoint("test_primary_constructor_async_shadow", "test_debugger_browsable_state",
+        Label.Checkpoint("test_primary_constructor_async_shadow", "test_NotifyOfCrossThreadDependency",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1143,42 +1089,12 @@ class Program
             });
 //// END .NET 8.0+ block
 
-        TestStruct4 ts4 = new TestStruct4();
-
-        int i = 0;
-        i++;                                                           Label.Breakpoint("bp2");
-
-        Label.Checkpoint("test_debugger_browsable_state", "test_NotifyOfCrossThreadDependency",
-            (Object context) =>
-            {
-                Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2");
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "bp2");
-
-                int variablesReference_Locals = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
-                int variablesReference_ts4 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "ts4");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val1", "666");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val3", "888");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val4", "111");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val5", "222");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val6", "333");
-                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts4, "int", "val7", "444");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 0, "666");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 1, "888");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 2, "111");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 3, "222");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 4, "333");
-                Context.EvalVariableByIndex(@"__FILE__:__LINE__", variablesReference_ts4, "int", 5, "444");
-
-                Context.Continue(@"__FILE__:__LINE__");
-            });
-
         TestStruct5 ts5 = new TestStruct5();
 
         // part of NotifyOfCrossThreadDependency test, no active evaluation here for sure
         System.Diagnostics.Debugger.NotifyOfCrossThreadDependency();
 
-        i++;                                                            Label.Breakpoint("bp3");
+        int i = 0;                                                      Label.Breakpoint("bp3");
 
         Label.Checkpoint("test_NotifyOfCrossThreadDependency", "test_eval_timeout",
             (Object context) =>

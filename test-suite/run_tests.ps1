@@ -51,6 +51,7 @@ $ALL_TEST_NAMES = @(
     "TestMethodParameters"
     "TestMethodParameters_NoJMC"
     "TestStackTraceWinForm"
+    "TestDebuggerBrowsable"
 )
 
 $TEST_NAMES = $tests

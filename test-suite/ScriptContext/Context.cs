@@ -743,6 +743,24 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public void CheckErrorVariable(string caller_trace, int variablesReference, string Name)
+    {
+        VariablesRequest variablesRequest = new VariablesRequest();
+        variablesRequest.arguments.variablesReference = variablesReference;
+        var ret = DAPDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
+
+        foreach (var Variable in variablesResponse.body.variables)
+        {
+            if (Variable.name == Name)
+            {
+                throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+            }
+        }
+    }
+
     public void EvalVariableByIndex(string caller_trace, int variablesReference, string Type, int Index, string Value)
     {
         VariablesRequest variablesRequest = new VariablesRequest();

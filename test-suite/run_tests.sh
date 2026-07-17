@@ -44,6 +44,7 @@ ALL_TEST_NAMES=(
     "TestEmbeddedPDB"
     "TestMethodParameters"
     "TestMethodParameters_NoJMC"
+    "TestDebuggerBrowsable"
 )
 
 TEST_NAMES="$@"
