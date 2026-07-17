@@ -999,21 +999,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     pInputValue->AddRef();
     trWalkQueue.emplace_back(pInputValue);
 
-    while (!trWalkQueue.empty())
+    auto walkNext = [&](ICorDebugValue *pFrontValue) -> HRESULT
     {
-        ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().Detach());
-        trWalkQueue.pop_front();
-
         BOOL isNull = FALSE;
         ToRelease<ICorDebugValue> trValue;
-        IfFailRet(DereferenceAndUnboxValue(trFrontValue, &trValue, &isNull));
+        IfFailRet(DereferenceAndUnboxValue(pFrontValue, &trValue, &isNull));
         if (trValue == nullptr)
         {
             return isNull == TRUE ? S_OK : E_FAIL;
         }
 
         CorElementType inputCorType = ELEMENT_TYPE_MAX;
-        IfFailRet(trFrontValue->GetType(&inputCorType));
+        IfFailRet(pFrontValue->GetType(&inputCorType));
         if (inputCorType == ELEMENT_TYPE_PTR)
         {
             auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
@@ -1190,9 +1187,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             }
                             else
                             {
-                                // Get trValue again, since it could be neutered at eval call in `cb` on previous loop.
+                                // Re-acquire trValue from pFrontValue, since it could be neutered by eval call in `cb` on previous iteration.
                                 trValue.Free();
-                                IfFailRet(DereferenceAndUnboxValue(trFrontValue, &trValue, &isNull));
+                                IfFailRet(DereferenceAndUnboxValue(pFrontValue, &trValue, &isNull));
                                 ToRelease<ICorDebugObjectValue> trObjValue;
                                 IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
                                 IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
@@ -1274,7 +1271,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
                             return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
-                                                                     isStatic ? nullptr : trFrontValue.GetRef(), isStatic ? 0 : 1,
+                                                                     isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
                                                                      ppResultValue, ignoreEvalFlags);
                         };
 
@@ -1295,7 +1292,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             {
                                 trFuncSetter.Free();
                             }
-                            Evaluator::SetterData setterData(isStatic ? nullptr : trFrontValue.GetPtr(), trType, trFuncSetter);
+                            Evaluator::SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
                             IfFailRet(cb(trType, isStatic, name, getValue, &setterData));
                             if (Status == S_CAN_EXIT)
                             {
@@ -1346,6 +1343,16 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 trType.Free();
             }
         }
+
+        return S_OK;
+    };
+
+    while (!trWalkQueue.empty())
+    {
+        const ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().Detach());
+        trWalkQueue.pop_front();
+
+        IfFailRet(walkNext(trFrontValue));
     }
 
     return S_OK;
