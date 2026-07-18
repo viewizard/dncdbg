@@ -353,7 +353,7 @@ class Program
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestGenericClass<int, string>}", "TestGeneric.Program.TestGenericClass<int, string>", "ttt");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestGeneric.Program.TestNested<char, int>.Nested<double, float>}", "TestGeneric.Program.TestNested<char, int>.Nested<double, float>", "nestedDiff");
-                    
+
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "123", "int", "ttt.i1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test_string1\"", "string", "ttt.s1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "234", "int", "ttt.p_i1");
