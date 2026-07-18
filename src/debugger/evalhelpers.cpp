@@ -19,12 +19,12 @@ namespace dncdbg
 namespace
 {
 
-mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef cl, const WSTRING &methodName)
+mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const WSTRING &methodName)
 {
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;
     mdMethodDef methodDef = mdTypeDefNil;
-    pMDImport->EnumMethodsWithName(&mEnum, cl, methodName.c_str(), &methodDef, 1, &numMethods);
+    pMDImport->EnumMethodsWithName(&mEnum, typeDef, methodName.c_str(), &methodDef, 1, &numMethods);
     pMDImport->CloseEnum(mEnum);
     return methodDef;
 }
