@@ -657,6 +657,15 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
     {
         IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
     }
+    else if (TypeFromToken(mb) == mdtTypeSpec)
+    {
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
+        SigElementType sigType;
+        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
+        mdName = sigType.typeName;
+    }
     else
     {
         // Unsupported token type
@@ -678,6 +687,15 @@ HRESULT FillyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport,
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
         IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
+    }
+    else if (TypeFromToken(mb) == mdtTypeSpec)
+    {
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
+        SigElementType sigType;
+        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
+        mdName = sigType.typeName;
     }
     else
     {
