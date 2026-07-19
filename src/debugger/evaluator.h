@@ -25,6 +25,7 @@ namespace dncdbg
 class DebugInfo;
 class EvalHelpers;
 class EvalStackMachine;
+class EvalWaiter;
 
 class Evaluator
 {
@@ -83,10 +84,12 @@ class Evaluator
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
-              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine,
+              std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedEvalHelpers(sharedEvalHelpers),
-          m_sharedEvalStackMachine(sharedEvalStackMachine)
+          m_sharedEvalStackMachine(sharedEvalStackMachine),
+          m_sharedEvalWaiter(sharedEvalWaiter)
     {
     }
 
@@ -150,9 +153,13 @@ class Evaluator
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
+    std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
+
+    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                      mdTypeDef currentTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
 };
 
 } // namespace dncdbg

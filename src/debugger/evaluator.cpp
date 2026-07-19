@@ -6,6 +6,7 @@
 #include "debugger/evaluator.h"
 #include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
@@ -16,13 +17,16 @@
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/utf.h"
+#include <algorithm>
 #include <array>
+#include <charconv>
 #include <cassert>
 #include <cstring>
 #include <iterator>
 #include <list>
 #include <memory>
 #include <sstream>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -629,6 +633,226 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
     });
 }
 
+// Helper function to remove leading and trailing whitespace from a std::string_view.
+std::string_view TrimString(std::string_view str)
+{
+    const auto first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string_view::npos)
+    {
+        return {};
+    }
+    const auto last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, (last - first + 1));
+}
+
+void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typeNameParts, std::string &assemblyName)
+{
+    // 1. Separate the full type info from the assembly metadata using the first comma.
+    auto firstComma = proxyTypeName.find(',');
+    const std::string_view typePart = TrimString(proxyTypeName.substr(0, firstComma));
+    const std::string_view remainder = (firstComma != std::string_view::npos) ? proxyTypeName.substr(firstComma + 1) : "";
+
+    // 2. Extract the assembly name if it exists.
+    if (!remainder.empty())
+    {
+        auto nextComma = remainder.find(',');
+        const std::string_view assemblyPart = TrimString(remainder.substr(0, nextComma));
+
+        // Per C# spec, the assembly name cannot start with properties like "Version=", "Culture=", etc.
+        if (!assemblyPart.empty() &&
+            assemblyPart.rfind("Version=", 0) != 0 &&
+            assemblyPart.rfind("Culture=", 0) != 0 &&
+            assemblyPart.rfind("PublicKeyToken=", 0) != 0)
+        {
+            assemblyName = std::string(assemblyPart);
+        }
+    }
+
+    // 3. Split the type part by the '+' delimiter (nested classes).
+    size_t start = 0;
+    while (start < typePart.size())
+    {
+        auto plusPos = typePart.find('+', start);
+        const std::string_view part = typePart.substr(start, plusPos - start);
+
+        typeNameParts.emplace_back(TrimString(part));
+
+        if (plusPos == std::string_view::npos)
+        {
+            break;
+        }
+        start = plusPos + 1;
+    }
+}
+
+// Parses the generic arity (number after '`') and returns it as uint32_t.
+// Returns 0 if there is no '`' character or if the parsing fails.
+uint32_t ParseGenericArity(std::string_view typeName)
+{
+    // 1. Find the backtick character '`'.
+    auto backtickPos = typeName.find('`');
+    if (backtickPos == std::string_view::npos)
+    {
+        return 0; // Not a generic type
+    }
+
+    // 2. Extract the substring representing the number.
+    const std::string_view numberPart = typeName.substr(backtickPos + 1);
+    if (numberPart.empty())
+    {
+        return 0; // Empty after backtick, e.g., "MyClass`"
+    }
+
+    // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
+    uint32_t count = 0;
+    auto [ptr, ec] = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+
+    // If conversion succeeded, return the count; otherwise, return 0.
+    if (ec == std::errc{})
+    {
+        return count;
+    }
+
+    return 0;
+}
+
+void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, std::unordered_set<std::string> &parameterTypeNames)
+{
+    // Add the class name itself.
+    std::string typeName;
+    TypePrinter::FillyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
+    parameterTypeNames.emplace(std::move(typeName));
+
+    // Add all interface names.
+    HCORENUM hEnum = nullptr;
+    mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
+    ULONG cImpls = 0;
+    while (SUCCEEDED(pMDImport->EnumInterfaceImpls(&hEnum, currentTypeDef, &ifaceImpl, 1, &cImpls)) && cImpls != 0)
+    {
+        mdTypeDef tkClass = mdTypeDefNil;
+        mdToken tkIface = mdTokenNil;
+        if (FAILED(pMDImport->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
+        {
+            continue;
+        }
+
+        std::string typeName;
+        TypePrinter::FillyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
+        parameterTypeNames.emplace(std::move(typeName));
+    }
+    pMDImport->CloseEnum(hEnum);
+}
+
+HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImport, mdTypeDef typeDef,
+                               const std::unordered_set<std::string> &parameterTypeNames, ICorDebugFunction **ppFunction)
+{
+    HRESULT Status = S_OK;
+    ULONG numMethods = 0;
+    HCORENUM mEnum = nullptr;
+    mdMethodDef methodDef = mdMethodDefNil;
+    mdMethodDef enumMethodDef = mdMethodDefNil;
+    while (S_OK == pMDImport->EnumMethodsWithName(&mEnum, typeDef, W(".ctor"), &enumMethodDef, 1, &numMethods) && numMethods == 1)
+    {
+        DWORD methodAttr = 0;
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        if (FAILED(pMDImport->GetMethodProps(enumMethodDef, nullptr, nullptr, 0, nullptr,
+                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if ((methodAttr & mdMemberAccessMask) != mdPublic ||
+            (methodAttr & mdStatic) != 0U ||
+            (methodAttr & mdRTSpecialName) == 0U)
+        {
+            continue;
+        }
+
+        SigElementType returnElementType;
+        std::vector<SigElementType> argElementTypes;
+        if (FAILED(ParseMethodSig(pMDImport, enumMethodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)))
+        {
+            continue;
+        }
+
+        if (argElementTypes.size() != 1 ||
+            parameterTypeNames.find(argElementTypes.front().typeName) == parameterTypeNames.end())
+        {
+            continue;
+        }
+
+        methodDef = enumMethodDef;
+        break;
+    }
+    pMDImport->CloseEnum(mEnum);
+
+    if (methodDef == mdMethodDefNil)
+    {
+        return E_FAIL;
+    }
+
+    IfFailRet(pModule->GetFunctionFromToken(methodDef, ppFunction));
+    return S_OK;
+}
+
+HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType, const std::vector<std::string> &proxyTypeNameParts,
+                                 std::vector<ToRelease<ICorDebugType>> &trTypeParams)
+{
+    HRESULT Status = S_OK;
+    const uint32_t genericArity = ParseGenericArity(proxyTypeNameParts.back());
+    if (genericArity > 0)
+    {
+        ToRelease<ICorDebugTypeEnum> trTypeEnum;
+        if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
+        {
+            ICorDebugType *curType = nullptr;
+            ULONG fetched = 0;
+            while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
+            {
+                trTypeParams.emplace_back(curType);
+            }
+        }
+    }
+
+    // Add type parameters for generic nested classes if needed.
+    ToRelease<ICorDebugType> trObjectType;
+    for (std::size_t i = 1; i < proxyTypeNameParts.size(); i++)
+    {
+        // Last type part - the proxy class itself.
+        if (i + 1 == proxyTypeNameParts.size())
+        {
+            for (uint32_t j = 0; j < genericArity; j++)
+            {
+                ICorDebugType *tmp = trTypeParams.at(j);
+                tmp->AddRef();
+                trTypeParams.emplace_back(tmp);
+            }
+            break;
+        }
+
+        // Add System.Object type parameters for nested classes.
+        for (uint32_t j = 0; j < ParseGenericArity(proxyTypeNameParts.at(i)); j++)
+        {
+            if (trObjectType == nullptr)
+            {
+                ToRelease<ICorDebugValue> trNullObjectValue;
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, &trNullObjectValue));
+                ToRelease<ICorDebugValue2> trNullObjectValue2;
+                IfFailRet(trNullObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trNullObjectValue2)));
+                IfFailRet(trNullObjectValue2->GetExactType(&trObjectType));
+            }
+            ICorDebugType *tmp = trObjectType;
+            tmp->AddRef();
+            trTypeParams.emplace_back(tmp);
+        }
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
@@ -988,18 +1212,107 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     return S_OK;
 }
 
+HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                             mdTypeDef currentTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
+{
+    HRESULT Status = S_OK;
+
+    std::vector<std::string> proxyTypeNameParts;
+    std::string assemblyName;
+    ParseTypeName(proxyTypeName, proxyTypeNameParts, assemblyName);
+
+    if (!assemblyName.empty())
+    {
+        // TODO: find proper ICorDebugModule and IMetaDataImport.
+    }
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    if (proxyTypeNameParts.size() == 1 &&
+        std::count(proxyTypeNameParts.front().begin(), proxyTypeNameParts.front().end(), '.') == 0)
+    {
+        const WSTRING wProxyTypeName = to_utf16(proxyTypeNameParts.front());
+        IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), currentTypeDef, &typeDef));
+    }
+
+    if (typeDef == mdTypeDefNil)
+    {
+        mdToken enclosingClass = mdTypeDefNil;
+        for (const auto &namePart : proxyTypeNameParts)
+        {
+            const WSTRING wNamePart = to_utf16(namePart);
+            IfFailRet(trMDImport->FindTypeDefByName(wNamePart.c_str(), enclosingClass, &typeDef));
+            enclosingClass = typeDef;
+        }
+    }
+
+    // Get the proper fully-qualified proxy type name.
+    std::string fullProxyTypeName;
+    IfFailRet(TypePrinter::FillyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
+    proxyTypeNameParts.clear();
+    std::string tmp;
+    ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);
+
+    // For nested generic proxy types, the outermost and innermost type parts
+    // must have the same generic arity (e.g., Outer`1+Inner`1).
+    if (proxyTypeNameParts.size() > 1 &&
+        ParseGenericArity(proxyTypeNameParts.front()) != ParseGenericArity(proxyTypeNameParts.back()))
+    {
+        return E_INVALIDARG;
+    }
+
+    std::unordered_set<std::string> parameterTypeNames;
+    GetParameterClassNames(trMDImport, currentTypeDef, parameterTypeNames);
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(GetConstructorFunction(pModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
+
+    // TODO: add base classes.
+    std::vector<ToRelease<ICorDebugType>> trTypeParams;
+    IfFailRet(GetConstructorTypeParams(pThread, pType, proxyTypeNameParts, trTypeParams));
+
+    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+            IfFailRet(trEval2->NewParameterizedObject(trFunction, static_cast<uint32_t>(trTypeParams.size()),
+                                                      reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
+            return S_OK;
+        }));
+
+    return S_OK;
+}
+
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                                bool provideSetterData, const WalkMembersCallback &cb)
 {
     HRESULT Status = S_OK;
 
+    struct WalkValue
+    {
+        ToRelease<ICorDebugValue> trValue;
+        bool isTypeProxyValue = false;
+
+        WalkValue(ICorDebugValue *pValue, bool isTypeProxyValue_)
+            : trValue(pValue),
+              isTypeProxyValue(isTypeProxyValue_)
+        {
+        }
+    };
+
     // Queue of fields/properties to process. Includes elements with
     // DebuggerBrowsableState.RootHidden to unwrap their members during the walk.
-    std::list<ToRelease<ICorDebugValue>> trWalkQueue;
+    std::list<WalkValue> trWalkQueue;
     pInputValue->AddRef();
-    trWalkQueue.emplace_back(pInputValue);
+    trWalkQueue.emplace_back(pInputValue, false);
 
-    auto walkNext = [&](ICorDebugValue *pFrontValue) -> HRESULT
+    auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue) -> HRESULT
     {
         BOOL isNull = FALSE;
         ToRelease<ICorDebugValue> trValue;
@@ -1124,6 +1437,19 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
             IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+            // TODO: check all base classes, since DebuggerTypeProxyAttribute can be inherited.
+            std::string proxyTypeName;
+            if (isNull == FALSE && HasDebuggerTypeProxyAttribute(trMDImport, currentTypeDef, proxyTypeName))
+            {
+                ToRelease<ICorDebugValue> trTypeProxyValue;
+                if (SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType, currentTypeDef, proxyTypeName, &trTypeProxyValue)))
+                {
+                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
+                    return S_OK;
+                }
+            }
+
             IfFailRet(ForEachFields(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
@@ -1138,9 +1464,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, &fieldAttr,
                                                         nullptr, nullptr, nullptr, nullptr, nullptr));
 
-                    // Accessibility type:
-                    // DWORD access = fieldAttr & fdFieldAccessMask;
-                    // access - fdPrivate, fdFamily, fdPublic, fdAssembly
+                    if (isTypeProxyValue &&
+                        (fieldAttr & fdFieldAccessMask) != fdPublic)
+                    {
+                        return S_OK; // Return with success to continue walk.
+                    }
 
                     WSTRING mdName(nameLen, '\0');
                     PCCOR_SIGNATURE pSig = nullptr;
@@ -1167,7 +1495,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
 
                         const bool isStatic = (fieldAttr & fdStatic);
-                        if (isNull && !isStatic)
+                        if (isNull == TRUE && !isStatic)
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1203,7 +1531,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             ToRelease<ICorDebugValue> trResultValue;
                             if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
                             {
-                                trWalkQueue.emplace_back(trResultValue.Detach());
+                                trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1248,12 +1576,14 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
-                        // Accessibility type:
-                        // DWORD access = getterAttr & mdMemberAccessMask;
-                        // access - mdPrivate, mdFamily, mdPublic, mdAssembly
+                        if (isTypeProxyValue &&
+                            (getterAttr & mdMemberAccessMask) != mdPublic)
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
 
                         bool isStatic = (getterAttr & mdStatic);
-                        if (isNull && !isStatic)
+                        if (isNull == TRUE && !isStatic)
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1280,7 +1610,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             ToRelease<ICorDebugValue> trResultValue;
                             if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
                             {
-                                trWalkQueue.emplace_back(trResultValue.Detach());
+                                trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1349,10 +1679,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
     while (!trWalkQueue.empty())
     {
-        const ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().Detach());
+        const ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().trValue.Detach());
+        const bool isTypeProxyValue = trWalkQueue.front().isTypeProxyValue;
         trWalkQueue.pop_front();
 
-        IfFailRet(walkNext(trFrontValue));
+        IfFailRet(walkNext(trFrontValue, isTypeProxyValue));
     }
 
     return S_OK;

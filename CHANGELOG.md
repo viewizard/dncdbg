@@ -15,6 +15,7 @@ Upcoming changes compared to previous version.
 - Added support for `DebuggerBrowsableAttribute` state `Never` to fields.
 - Added support for `DebuggerBrowsableAttribute` state `RootHidden` to fields and properties.
 - Added TestDebuggerBrowsable.
+- Added support for `DebuggerTypeProxyAttribute` to classes and structures.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
