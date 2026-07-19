@@ -407,7 +407,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
+            IfFailRet(TypePrinter::FillyQualifiedNameForTypeByToken(token, pMDImport, sigElementType.typeName));
             break;
         }
 
@@ -441,7 +441,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             sigElementType.corType = innerCorType;
-            IfFailRet(TypePrinter::NameForTypeByToken(token, pMDImport, sigElementType.typeName, nullptr));
+            IfFailRet(TypePrinter::FillyQualifiedNameForTypeByToken(token, pMDImport, sigElementType.typeName));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             for (ULONG i = 0; i < number; i++)

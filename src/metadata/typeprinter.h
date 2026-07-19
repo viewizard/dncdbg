@@ -23,6 +23,8 @@ class DebugInfo;
 namespace dncdbg::TypePrinter
 {
 
+HRESULT FillyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName);
+HRESULT FillyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName);
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
                        std::list<std::string> *args);
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,

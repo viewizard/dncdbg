@@ -533,6 +533,61 @@ std::string RenameToCSharp(const std::string &typeName)
     return renamed != system2cs.end() ? renamed->second : typeName;
 }
 
+HRESULT FillyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName)
+{
+    HRESULT Status = S_OK;
+    mdTypeDef currentType = tkTypeDef;
+    // Stack entry holding a nested type name and the delimiter to use when
+    // joining it with the enclosing name: '+' for nested types (C# convention)
+    // and '.' for the outermost non-nested type.
+    struct StackName
+    {
+        std::string name;
+        char delimiter = '.';
+    };
+    std::vector<StackName> nameStack;
+
+    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
+    while (true)
+    {
+        ULONG nameLen = 0;
+        IfFailRet(pMDImport->GetTypeDefProps(currentType, nullptr, 0,
+                                             &nameLen, nullptr, nullptr));
+
+        DWORD flags = 0;
+        std::vector<WCHAR> name(nameLen, '\0');
+        IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
+                                             nullptr, &flags, nullptr));
+
+        nameStack.push_back({to_utf8(name.data()), IsTdNested(flags) ? '+' : '.'});
+
+        if (!IsTdNested(flags))
+        {
+            break; // Reached the outermost non-nested type
+        }
+
+        // Move to enclosing class
+        mdTypeDef enclosingClass = mdTypeDefNil;
+        IfFailRet(pMDImport->GetNestedClassProps(currentType, &enclosingClass));
+
+        currentType = enclosingClass;
+    }
+
+    // Phase 2: Build the fully-qualified name from outside-in
+    // nameStack contains: [innermost, ..., outermost]
+    mdName.clear();
+    for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
+    {
+        if (!mdName.empty())
+        {
+            mdName += it->delimiter;
+        }
+        mdName += it->name;
+    }
+
+    return S_OK;
+}
+
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
                        std::string &mdName, std::list<std::string> *args)
 {
@@ -597,6 +652,28 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
     if (TypeFromToken(mb) == mdtTypeDef)
     {
         IfFailRet(NameForTypeDef(mb, pMDImport, mdName, args));
+    }
+    else if (TypeFromToken(mb) == mdtTypeRef)
+    {
+        IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
+    }
+    else
+    {
+        // Unsupported token type
+        return CORDBG_E_UNSUPPORTED;
+    }
+
+    return S_OK;
+}
+
+HRESULT FillyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName)
+{
+    HRESULT Status = S_OK;
+    mdName.clear();
+
+    if (TypeFromToken(mb) == mdtTypeDef)
+    {
+        IfFailRet(FillyQualifiedNameForTypeDef(mb, pMDImport, mdName));
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
