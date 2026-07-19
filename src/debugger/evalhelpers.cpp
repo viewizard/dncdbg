@@ -23,7 +23,7 @@ mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const 
 {
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;
-    mdMethodDef methodDef = mdTypeDefNil;
+    mdMethodDef methodDef = mdMethodDefNil;
     pMDImport->EnumMethodsWithName(&mEnum, typeDef, methodName.c_str(), &methodDef, 1, &numMethods);
     pMDImport->CloseEnum(mEnum);
     return methodDef;
