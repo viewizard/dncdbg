@@ -824,9 +824,8 @@ HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType,
         {
             for (uint32_t j = 0; j < genericArity; j++)
             {
-                ICorDebugType *tmp = trTypeParams.at(j);
-                tmp->AddRef();
-                trTypeParams.emplace_back(tmp);
+                trTypeParams.at(j)->AddRef();
+                trTypeParams.emplace_back(trTypeParams.at(j).GetPtr());
             }
             break;
         }
@@ -844,9 +843,8 @@ HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType,
                 IfFailRet(trNullObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trNullObjectValue2)));
                 IfFailRet(trNullObjectValue2->GetExactType(&trObjectType));
             }
-            ICorDebugType *tmp = trObjectType;
-            tmp->AddRef();
-            trTypeParams.emplace_back(tmp);
+            trObjectType->AddRef();
+            trTypeParams.emplace_back(trObjectType.GetPtr());
         }
     }
 
