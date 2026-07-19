@@ -23,6 +23,11 @@ class DebugInfo;
 namespace dncdbg::TypePrinter
 {
 
+// TODO: Fix all this mess with names, use:
+// "metadata" prefix, for example "metadataTypeName", for metadata/CLR-related names, for example "MyNamespace.Class1`2+NestedClass`1"
+// "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
+//                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
+
 HRESULT FillyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName);
 HRESULT FillyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName);
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
