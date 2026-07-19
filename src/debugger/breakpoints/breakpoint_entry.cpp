@@ -126,7 +126,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
     HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
-    while(SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
+    while (SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
     {
         mdTypeDef mdEnclosingClass = mdTypeDefNil;
         if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
