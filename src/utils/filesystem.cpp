@@ -30,30 +30,41 @@ std::string GetFileName(const std::string &path)
     return i == std::string::npos ? path : path.substr(i + 1);
 }
 
-std::string GetParentPath(const std::string &full_path)
+std::string GetParentPath(const std::string &fullPath)
 {
-    if (full_path.empty())
+    if (fullPath.empty())
     {
         return {};
     }
 
-    const size_t found = full_path.find_last_of("/\\");
+    const size_t found = fullPath.find_last_of("/\\");
     if (found == std::string::npos)
     {
         return {};
     }
 
-    if (found == full_path.length() - 1)
+    if (found == fullPath.length() - 1)
     {
-        const size_t prev_found = full_path.find_last_of("/\\", found - 1);
+        const size_t prev_found = fullPath.find_last_of("/\\", found - 1);
         if (prev_found == std::string::npos)
         {
             return {};
         }
-        return full_path.substr(0, prev_found + 1);
+        return fullPath.substr(0, prev_found + 1);
     }
 
-    return full_path.substr(0, found + 1);
+    return fullPath.substr(0, found + 1);
+}
+
+std::string RemoveExtension(const std::string &fileName)
+{
+    const size_t lastDot = fileName.find_last_of('.');
+    if (lastDot == std::string::npos)
+    {
+        return fileName;
+    }
+
+    return fileName.substr(0, lastDot); 
 }
 
 } // namespace dncdbg
