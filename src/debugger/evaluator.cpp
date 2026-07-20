@@ -721,7 +721,7 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
 {
     // Add the class name itself.
     std::string typeName;
-    TypePrinter::FillyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
+    TypePrinter::FullyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
     parameterTypeNames.emplace(std::move(typeName));
 
     // Add all interface names.
@@ -738,7 +738,7 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
         }
 
         std::string typeName;
-        TypePrinter::FillyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
+        TypePrinter::FullyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
         parameterTypeNames.emplace(std::move(typeName));
     }
     pMDImport->CloseEnum(hEnum);
@@ -1277,7 +1277,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     // Get the proper fully-qualified proxy type name.
     std::string fullProxyTypeName;
-    IfFailRet(TypePrinter::FillyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
+    IfFailRet(TypePrinter::FullyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
     proxyTypeNameParts.clear();
     std::string tmp;
     ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);

@@ -533,7 +533,7 @@ std::string RenameToCSharp(const std::string &typeName)
     return renamed != system2cs.end() ? renamed->second : typeName;
 }
 
-HRESULT FillyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName)
+HRESULT FullyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -675,14 +675,14 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
     return S_OK;
 }
 
-HRESULT FillyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName)
+HRESULT FullyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName)
 {
     HRESULT Status = S_OK;
     mdName.clear();
 
     if (TypeFromToken(mb) == mdtTypeDef)
     {
-        IfFailRet(FillyQualifiedNameForTypeDef(mb, pMDImport, mdName));
+        IfFailRet(FullyQualifiedNameForTypeDef(mb, pMDImport, mdName));
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
