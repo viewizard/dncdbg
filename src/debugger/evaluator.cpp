@@ -1489,7 +1489,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            if (isNull == FALSE)
+            if (isNull == FALSE &&
+                (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
             {
                 std::string proxyTypeName;
                 mdTypeDef proxyTypeDef = mdTypeDefNil;
@@ -2184,7 +2185,6 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                 if ((isStatic && valueKind == ValueKind::Variable) ||
                     (!isStatic && valueKind == ValueKind::Class) ||
                     memberName != identifiers.at(i))
-
                 {
                     return S_OK;
                 }
