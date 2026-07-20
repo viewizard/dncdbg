@@ -15,7 +15,7 @@ Upcoming changes compared to previous version.
 - Added support for `DebuggerBrowsableAttribute` state `Never` to fields.
 - Added support for `DebuggerBrowsableAttribute` state `RootHidden` to fields and properties.
 - Added TestDebuggerBrowsable.
-- Added support for `DebuggerTypeProxyAttribute` to classes and structures.
+- Added support for `DebuggerTypeProxyAttribute` to classes, structures and assemblies.
 - Added TestDebuggerTypeProxy.
 
 #### Changed

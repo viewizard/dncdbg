@@ -852,30 +852,44 @@ HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType,
     return S_OK;
 }
 
-HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &proxyTypeName, mdTypeDef &proxyTypeDef, ToRelease<ICorDebugModule> &trProxyModule)
+HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &proxyTypeName, mdTypeDef &proxyAttrTypeDef, ToRelease<ICorDebugModule> &trProxyAttrModule)
 {
     pType->AddRef();
     ToRelease<ICorDebugType> trTestType(pType);
     while (true)
     {
-        trProxyModule.Free();
+        trProxyAttrModule.Free();
         ToRelease<ICorDebugClass> trClass;
-        mdTypeDef typeDef = mdTypeDefNil;
+        mdTypeDef attrTypeDef = mdTypeDefNil;
         ToRelease<IUnknown> trUnknown;
         ToRelease<IMetaDataImport> trMDImport;
         if (FAILED(trTestType->GetClass(&trClass)) ||
-            FAILED(trClass->GetModule(&trProxyModule)) ||
-            FAILED(trClass->GetToken(&typeDef)) ||
-            FAILED(trProxyModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
+            FAILED(trClass->GetModule(&trProxyAttrModule)) ||
+            FAILED(trClass->GetToken(&attrTypeDef)) ||
+            FAILED(trProxyAttrModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
             FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
         {
             break;
         }
 
-        if (HasDebuggerTypeProxyAttribute(trMDImport, typeDef, proxyTypeName))
+        if (HasDebuggerTypeProxyAttribute(trMDImport, attrTypeDef, proxyTypeName))
         {
-            proxyTypeDef = typeDef;
+            proxyAttrTypeDef = attrTypeDef;
             break;
+        }
+
+        ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
+        mdAssembly assemblyToken = mdAssemblyNil;
+        if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+            SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
+        {
+            std::string detectTypeName;
+            if (SUCCEEDED(TypePrinter::FullyQualifiedNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
+                HasAssemblyDebuggerTypeProxyAttribute(trMDImport, assemblyToken, detectTypeName, proxyTypeName))
+            {
+                proxyAttrTypeDef = attrTypeDef;
+                break;
+            }
         }
 
         ToRelease<ICorDebugType> trBaseType;
@@ -887,7 +901,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
         trTestType = trBaseType.Detach();
     }
 
-    return proxyTypeDef != mdTypeDefNil && !proxyTypeName.empty() && trProxyModule != nullptr ? S_OK : E_FAIL;
+    return proxyAttrTypeDef != mdTypeDefNil && !proxyTypeName.empty() && trProxyAttrModule != nullptr ? S_OK : E_FAIL;
 }
 
 } // unnamed namespace
@@ -1249,8 +1263,8 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     return S_OK;
 }
 
-HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                             mdTypeDef proxyTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
+HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pAttrModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                             mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
 {
     HRESULT Status = S_OK;
 
@@ -1258,8 +1272,8 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     std::string assemblyName;
     ParseTypeName(proxyTypeName, proxyTypeNameParts, assemblyName);
 
-    pModule->AddRef();
-    ToRelease<ICorDebugModule> trModule(pModule);
+    pAttrModule->AddRef();
+    ToRelease<ICorDebugModule> trModule(pAttrModule);
     if (!assemblyName.empty())
     {
         IfFailRet(Modules::ForEachModule(pThread,
@@ -1299,7 +1313,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         std::count(proxyTypeNameParts.front().begin(), proxyTypeNameParts.front().end(), '.') == 0)
     {
         const WSTRING wProxyTypeName = to_utf16(proxyTypeNameParts.front());
-        IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), proxyTypeDef, &typeDef));
+        IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), proxyAttrTypeDef, &typeDef));
     }
 
     if (typeDef == mdTypeDefNil)
@@ -1329,7 +1343,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     }
 
     std::unordered_set<std::string> parameterTypeNames;
-    GetParameterClassNames(trMDImport, proxyTypeDef, parameterTypeNames);
+    GetParameterClassNames(trMDImport, proxyAttrTypeDef, parameterTypeNames);
 
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(GetConstructorFunction(trModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
@@ -1493,11 +1507,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
             {
                 std::string proxyTypeName;
-                mdTypeDef proxyTypeDef = mdTypeDefNil;
-                ToRelease<ICorDebugModule> trProxyModule;
+                mdTypeDef proxyAttrTypeDef = mdTypeDefNil;
+                ToRelease<ICorDebugModule> trProxyAttrModule;
                 ToRelease<ICorDebugValue> trTypeProxyValue;
-                if (SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyTypeDef, trProxyModule)) &&
-                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trProxyModule, pFrontValue, trType, proxyTypeDef, proxyTypeName, &trTypeProxyValue)))
+                if (SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)) &&
+                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trProxyAttrModule, pFrontValue, trType, proxyAttrTypeDef, proxyTypeName, &trTypeProxyValue)))
                 {
                     trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
                     return S_OK;

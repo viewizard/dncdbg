@@ -56,6 +56,7 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attr
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
 bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName);
+bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName);
 
 } // namespace dncdbg
 

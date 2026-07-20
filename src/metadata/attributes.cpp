@@ -103,6 +103,26 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
     return false;
 }
 
+bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_view &result)
+{
+    uint32_t size = 0;
+    if (!UncompressUint(*ppbBlob, pbBlobEnd, size))
+    {
+        return false;
+    }
+
+    // Ensure there are enough bytes for string.
+    if (*ppbBlob + size > pbBlobEnd)
+    {
+        return false;
+    }
+
+    result = std::string_view(reinterpret_cast<const char *>(*ppbBlob), size);
+    *ppbBlob += size;
+
+    return true;
+}
+
 } // unnamed namespace
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName)
@@ -197,22 +217,13 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
             }
             pbBlob += sizeof(uint16_t);
 
-            uint32_t typeNameSize = 0;
-            if (!UncompressUint(pbBlob, pbBlobEnd, typeNameSize))
+            std::string_view typeName;
+            if (!ReadString(&pbBlob, pbBlobEnd, typeName))
             {
                 return false;
             }
 
-            // Ensure there are enough bytes for the type name string.
-            if (pbBlob + typeNameSize > pbBlobEnd)
-            {
-                return false;
-            }
-
-            const std::string_view typeName(reinterpret_cast<const char *>(pbBlob), typeNameSize);
-            pbBlob += typeNameSize;
-
-            // Ensure there are enough bytes for the named argument count.
+            // Ensure there are enough bytes remaining.
             if (pbBlob + sizeof(uint16_t) > pbBlobEnd)
             {
                 return false;
@@ -230,24 +241,115 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
         });
 }
 
-// TODO: Add named arguments support:
-// [assembly: DebuggerTypeProxy(typeof(MyProxy), Target = typeof(SomeInternalClass))]
-// [assembly: DebuggerTypeProxy("MyProxy", TargetTypeName = "SomeInternalClass")]
-//
-// In case of DebuggerTypeProxyAttribute with named arguments, blob format is:
-// 2 bytes - blob prolog 0x0001
-// 1-4 bytes - type name string length (compressed unsigned integer)
-// N bytes - type name string data (UTF-8)
-// 2 bytes - named arguments count
-// For each named argument:
-//   1 byte - CorSerializationType (SERIALIZATION_TYPE_FIELD, SERIALIZATION_TYPE_PROPERTY)
-//   1 byte - CorSerializationType (SERIALIZATION_TYPE_STRING for TargetTypeName,
-//            SERIALIZATION_TYPE_TYPE for Target)
-//   SERIALIZATION_TYPE_TYPE? -> 1-4 bytes + H bytes -> "System.Type"
-//   1-4 bytes - argument name length (compressed unsigned integer)
-//   K bytes - argument name string data (UTF-8)
-//   1-4 bytes - argument value length (compressed unsigned integer)
-//   M bytes - argument value string data (UTF-8)
+bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName)
+{
+    proxyTypeName.clear();
 
+    return ForEachAttribute(pMDImport, tok,
+        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        {
+            if (attrName != DebuggerAttribute::TypeProxy)
+            {
+                return false;
+            }
+
+            const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+            PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
+
+            // In case of DebuggerTypeProxyAttribute with named arguments, blob format is:
+            // 2 bytes - blob prolog 0x0001
+            // 1-4 bytes - type name string length (compressed unsigned integer)
+            // N bytes - type name string data (UTF-8)
+            // 2 bytes - named arguments count
+            // For each named argument:
+            //   1 byte - CorSerializationType (SERIALIZATION_TYPE_FIELD, SERIALIZATION_TYPE_PROPERTY)
+            //   1 byte - CorSerializationType (SERIALIZATION_TYPE_STRING for TargetTypeName, SERIALIZATION_TYPE_TYPE for Target)
+            //   1-4 bytes - argument name length (compressed unsigned integer)
+            //   K bytes - argument name string data (UTF-8)
+            //   1-4 bytes - argument value length (compressed unsigned integer)
+            //   M bytes - argument value string data (UTF-8)
+
+            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint16_t);
+
+            std::string_view typeName;
+            if (!ReadString(&pbBlob, pbBlobEnd, typeName))
+            {
+                return false;
+            }
+
+            // Ensure there are enough bytes for the named argument count.
+            if (pbBlob + sizeof(uint16_t) > pbBlobEnd)
+            {
+                return false;
+            }
+
+            const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
+                                            static_cast<uint16_t>(pbBlob[1]) << 8;
+            if (namedArguments != 1)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint16_t);
+
+            // Ensure there are enough bytes remaining.
+            if (pbBlob + sizeof(uint8_t) > pbBlobEnd)
+            {
+                return false;
+            }
+
+            if (pbBlob[0] != SERIALIZATION_TYPE_FIELD &&
+                pbBlob[0] != SERIALIZATION_TYPE_PROPERTY)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint8_t);
+
+            // Ensure there are enough bytes remaining.
+            if (pbBlob + sizeof(uint8_t) > pbBlobEnd)
+            {
+                return false;
+            }
+
+            const auto sType = static_cast<CorSerializationType>(pbBlob[0]);
+            if (sType != SERIALIZATION_TYPE_STRING &&
+                sType != SERIALIZATION_TYPE_TYPE)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint8_t);
+
+            std::string_view argumentName;
+            if (!ReadString(&pbBlob, pbBlobEnd, argumentName))
+            {
+                return false;
+            }
+
+            if ((sType == SERIALIZATION_TYPE_STRING && argumentName != "TargetTypeName") &&
+                (sType == SERIALIZATION_TYPE_TYPE && argumentName != "Target"))
+            {
+                return false;
+            }
+
+            std::string_view argumentValue;
+            if (!ReadString(&pbBlob, pbBlobEnd, argumentValue))
+            {
+                return false;
+            }
+
+            if (detectTypeName == argumentValue)
+            {
+                proxyTypeName = typeName;
+                return true;
+            }
+
+            return false;
+        });
+}
 
 } // namespace dncdbg

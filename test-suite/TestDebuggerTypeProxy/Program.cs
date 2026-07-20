@@ -7,6 +7,9 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
+[assembly: DebuggerTypeProxy(typeof(TestDebuggerTypeProxy.TestClass8.TestClassProxy8), Target = typeof(TestDebuggerTypeProxy.TestClass8))]
+[assembly: DebuggerTypeProxy("TestDebuggerTypeProxy.TestClass9+TestClassProxy9", TargetTypeName = "TestDebuggerTypeProxy.TestClass9")]
+
 namespace TestDebuggerTypeProxy
 {
 
@@ -195,6 +198,59 @@ class TestClass7<T> : TestClass3<T>
     }
 }
 
+// Test assembly DebuggerTypeProxy
+class TestClass8
+{
+    public int i = 5;
+    public int j = 6;
+
+    static public int ii = 7;
+
+    internal class TestClassProxy8
+    {
+        private readonly TestClass8 _target;
+
+        public TestClassProxy8(TestClass8 target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 1;
+        private int x1 => 2;
+        public int y2 = 3;
+        public int x2 => 4;
+
+        static public int xx = 5;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
+
+// Test assembly DebuggerTypeProxy
+class TestClass9
+{
+    public int i = 50;
+    public int j = 60;
+
+    class TestClassProxy9
+    {
+        private readonly TestClass9 _target;
+
+        public TestClassProxy9(TestClass9 target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 10;
+        private int x1 => 20;
+        public int y2 = 30;
+        public int x2 => 40;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
+
+
 class Program
 {
     static void Main(string[] args)
@@ -224,6 +280,8 @@ class Program
         Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
         MyTestList1<int> myTestList1 = new MyTestList1<int>(5) {10, 20, 30, 40, 50};
         TestClass7<string> testClass7 = new TestClass7<string>();
+        TestClass8 testClass8 = new TestClass8();
+        TestClass9 testClass9 = new TestClass9();
 
         int i = 1;                                                Label.Breakpoint("bp1");
 
@@ -329,6 +387,24 @@ class Program
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "j");
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "ii");
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "jj");
+
+                int variablesReference_testClass8 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass8");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "int", "y2", "3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "int", "x2", "4");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "int", "SumOfFields", "11");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass8, "j");
+
+                int variablesReference_testClass9 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass9");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "int", "y2", "30");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "int", "x2", "40");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "int", "SumOfFields", "110");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "j");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
