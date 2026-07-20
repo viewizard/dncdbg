@@ -852,6 +852,44 @@ HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType,
     return S_OK;
 }
 
+HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &proxyTypeName, mdTypeDef &proxyTypeDef, ToRelease<ICorDebugModule> &trProxyModule)
+{
+    pType->AddRef();
+    ToRelease<ICorDebugType> trTestType(pType);
+    while (true)
+    {
+        trProxyModule.Free();
+        ToRelease<ICorDebugClass> trClass;
+        mdTypeDef typeDef = mdTypeDefNil;
+        ToRelease<IUnknown> trUnknown;
+        ToRelease<IMetaDataImport> trMDImport;
+        if (FAILED(trTestType->GetClass(&trClass)) ||
+            FAILED(trClass->GetModule(&trProxyModule)) ||
+            FAILED(trClass->GetToken(&typeDef)) ||
+            FAILED(trProxyModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
+            FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
+        {
+            break;
+        }
+
+        if (HasDebuggerTypeProxyAttribute(trMDImport, typeDef, proxyTypeName))
+        {
+            proxyTypeDef = typeDef;
+            break;
+        }
+
+        ToRelease<ICorDebugType> trBaseType;
+        if (FAILED(trTestType->GetBase(&trBaseType)) || trBaseType == nullptr)
+        {
+            break;
+        }
+        trTestType.Free();
+        trTestType = trBaseType.Detach();
+    }
+
+    return proxyTypeDef != mdTypeDefNil && !proxyTypeName.empty() && trProxyModule != nullptr ? S_OK : E_FAIL;
+}
+
 } // unnamed namespace
 
 SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
@@ -1212,7 +1250,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 }
 
 HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                             mdTypeDef currentTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
+                                             mdTypeDef proxyTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
 {
     HRESULT Status = S_OK;
 
@@ -1261,7 +1299,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         std::count(proxyTypeNameParts.front().begin(), proxyTypeNameParts.front().end(), '.') == 0)
     {
         const WSTRING wProxyTypeName = to_utf16(proxyTypeNameParts.front());
-        IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), currentTypeDef, &typeDef));
+        IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), proxyTypeDef, &typeDef));
     }
 
     if (typeDef == mdTypeDefNil)
@@ -1291,12 +1329,11 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     }
 
     std::unordered_set<std::string> parameterTypeNames;
-    GetParameterClassNames(trMDImport, currentTypeDef, parameterTypeNames);
+    GetParameterClassNames(trMDImport, proxyTypeDef, parameterTypeNames);
 
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(GetConstructorFunction(trModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
 
-    // TODO: add base classes.
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
     IfFailRet(GetConstructorTypeParams(pThread, pType, proxyTypeNameParts, trTypeParams));
 
@@ -1452,6 +1489,20 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
+            if (isNull == FALSE)
+            {
+                std::string proxyTypeName;
+                mdTypeDef proxyTypeDef = mdTypeDefNil;
+                ToRelease<ICorDebugModule> trProxyModule;
+                ToRelease<ICorDebugValue> trTypeProxyValue;
+                if (SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyTypeDef, trProxyModule)) &&
+                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trProxyModule, pFrontValue, trType, proxyTypeDef, proxyTypeName, &trTypeProxyValue)))
+                {
+                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
+                    return S_OK;
+                }
+            }
+
             ToRelease<ICorDebugClass> trClass;
             IfFailRet(trType->GetClass(&trClass));
             ToRelease<ICorDebugModule> trModule;
@@ -1462,18 +1513,6 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
             IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-            // TODO: check all base classes, since DebuggerTypeProxyAttribute can be inherited.
-            std::string proxyTypeName;
-            if (isNull == FALSE && HasDebuggerTypeProxyAttribute(trMDImport, currentTypeDef, proxyTypeName))
-            {
-                ToRelease<ICorDebugValue> trTypeProxyValue;
-                if (SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType, currentTypeDef, proxyTypeName, &trTypeProxyValue)))
-                {
-                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
-                    return S_OK;
-                }
-            }
 
             IfFailRet(ForEachFields(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT

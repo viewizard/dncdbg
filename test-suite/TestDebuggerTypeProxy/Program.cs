@@ -160,6 +160,41 @@ class TestClass6<T1,T2>
     }
 }
 
+// Test for DebuggerTypeProxy inheritance from base class.
+public class MyTestList1<T> : List<T>
+{
+    public MyTestList1() : base()
+    {
+    }
+
+    public MyTestList1(int capacity) : base(capacity)
+    {
+    }
+
+    public MyTestList1(IEnumerable<T> collection) : base(collection)
+    {
+    }
+
+    public new void Add(T item)
+    {
+        base.Add(item); 
+    }
+
+    public int i = 500;
+    public int j = 600;
+}
+
+// Test for DebuggerTypeProxy inheritance from base class.
+class TestClass7<T> : TestClass3<T>
+{
+    public int ii = 5;
+    public int jj = 6;
+
+    public TestClass7() : base()
+    {
+    }
+}
+
 class Program
 {
     static void Main(string[] args)
@@ -187,6 +222,8 @@ class Program
         TestClass6<int, float> testClass6 = new TestClass6<int, float>();
         List<int> list1 = new List<int>(5) {10, 20, 30, 40, 50};
         Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
+        MyTestList1<int> myTestList1 = new MyTestList1<int>(5) {10, 20, 30, 40, 50};
+        TestClass7<string> testClass7 = new TestClass7<string>();
 
         int i = 1;                                                Label.Breakpoint("bp1");
 
@@ -272,6 +309,26 @@ class Program
                 int variablesReference_dictionary1_1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_dictionary1, "[1]");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_dictionary1_1, "string", "Key", "\"Bob\"");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_dictionary1_1, "int", "Value", "30");
+
+                int variablesReference_myTestList1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "myTestList1");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[0]", "10");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[1]", "20");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[2]", "30");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[3]", "40");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[4]", "50");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "j");
+
+                int variablesReference_testClass7 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass7");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "int", "y2", "3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "int", "x2", "4");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "int", "SumOfFields", "11");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "j");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "ii");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass7, "jj");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

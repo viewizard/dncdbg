@@ -159,7 +159,7 @@ class Evaluator
     uint32_t m_evalFlags{defaultEvalFlags};
 
     HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                      mdTypeDef currentTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
+                                      mdTypeDef proxyTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
 };
 
 } // namespace dncdbg
