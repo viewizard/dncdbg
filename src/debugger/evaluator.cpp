@@ -16,6 +16,7 @@
 #include "metadata/sigparse.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
+#include "utils/filesystem.h"
 #include "utils/utf.h"
 #include <algorithm>
 #include <array>
@@ -1219,18 +1220,44 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     std::string assemblyName;
     ParseTypeName(proxyTypeName, proxyTypeNameParts, assemblyName);
 
+    pModule->AddRef();
+    ToRelease<ICorDebugModule> trModule(pModule);
     if (!assemblyName.empty())
     {
-        // TODO: find proper ICorDebugModule and IMetaDataImport.
+        IfFailRet(Modules::ForEachModule(pThread,
+            [&](ICorDebugModule *pTestModule) -> HRESULT
+            {
+                uint32_t nameLen = 0;
+                if (FAILED(pTestModule->GetName(0, &nameLen, nullptr)))
+                {
+                    return S_OK;
+                }
+
+                std::vector<WCHAR> wModName(nameLen, '\0');
+                if (FAILED(pTestModule->GetName(nameLen, nullptr, wModName.data())))
+                {
+                    return S_OK;
+                }
+
+                if (RemoveExtension(GetBasename(to_utf8(wModName.data()))) == assemblyName)
+                {
+                    trModule.Free();
+                    pTestModule->AddRef();
+                    trModule = pTestModule;
+                    return S_CAN_EXIT;
+                }
+
+                return S_OK;
+            }));
     }
 
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
-    if (proxyTypeNameParts.size() == 1 &&
+    if (proxyTypeNameParts.size() == 1 && assemblyName.empty() &&
         std::count(proxyTypeNameParts.front().begin(), proxyTypeNameParts.front().end(), '.') == 0)
     {
         const WSTRING wProxyTypeName = to_utf16(proxyTypeNameParts.front());
@@ -1267,7 +1294,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     GetParameterClassNames(trMDImport, currentTypeDef, parameterTypeNames);
 
     ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(GetConstructorFunction(pModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
+    IfFailRet(GetConstructorFunction(trModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
 
     // TODO: add base classes.
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
