@@ -288,6 +288,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule);
+    m_debugger.m_sharedEvaluator->ManagedCallbackUnloadModule(pModule);
 
     Module removedModule;
     if (SUCCEEDED(m_debugger.m_sharedModules->RemoveModule(pModule, removedModule)))

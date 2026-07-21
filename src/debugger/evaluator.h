@@ -17,7 +17,10 @@
 #include "utils/torelease.h"
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace dncdbg
 {
@@ -130,6 +133,8 @@ class Evaluator
 
     static SigElementType GetElementTypeByTypeName(const std::string &typeName);
 
+    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+
     [[nodiscard]] bool IsJustMyCode() const
     {
         return m_justMyCode;
@@ -158,8 +163,24 @@ class Evaluator
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
 
-    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pAttrModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+    // DebuggerTypeProxyAttribute related
+
+    std::mutex m_debuggerTypeProxyMutex;
+    std::unordered_map<CORDB_ADDRESS, std::unordered_set<mdTypeDef>> m_debuggerTypeProxyCheckedTypes;
+    struct DebuggerTypeProxyCache
+    {
+        CORDB_ADDRESS modAddress{0};
+        mdMethodDef methodDef{mdMethodDefNil};
+        uint32_t enclosingTypesParamCount{0};
+    };
+    std::unordered_map<CORDB_ADDRESS, std::unordered_map<mdTypeDef, DebuggerTypeProxyCache>> m_debuggerTypeProxyCache;
+    std::unordered_map<CORDB_ADDRESS, ToRelease<ICorDebugModule>> m_debuggerTypeProxyModuleCache;
+
+    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
+                                      ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
                                       mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
+    HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                            mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue);
 };
 
 } // namespace dncdbg

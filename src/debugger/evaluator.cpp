@@ -28,7 +28,6 @@
 #include <memory>
 #include <sstream>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
 namespace dncdbg
@@ -745,12 +744,14 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
 }
 
 HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImport, mdTypeDef typeDef,
-                               const std::unordered_set<std::string> &parameterTypeNames, ICorDebugFunction **ppFunction)
+                               const std::unordered_set<std::string> &parameterTypeNames,
+                               mdMethodDef &constrMethodDef, ICorDebugFunction **ppConstrFunction)
 {
+    constrMethodDef = mdMethodDefNil;
+
     HRESULT Status = S_OK;
     ULONG numMethods = 0;
     HCORENUM mEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
     mdMethodDef enumMethodDef = mdMethodDefNil;
     while (S_OK == pMDImport->EnumMethodsWithName(&mEnum, typeDef, W(".ctor"), &enumMethodDef, 1, &numMethods) && numMethods == 1)
     {
@@ -783,70 +784,58 @@ HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImp
             continue;
         }
 
-        methodDef = enumMethodDef;
+        constrMethodDef = enumMethodDef;
         break;
     }
     pMDImport->CloseEnum(mEnum);
 
-    if (methodDef == mdMethodDefNil)
+    if (constrMethodDef == mdMethodDefNil)
     {
         return E_FAIL;
     }
 
-    IfFailRet(pModule->GetFunctionFromToken(methodDef, ppFunction));
+    IfFailRet(pModule->GetFunctionFromToken(constrMethodDef, ppConstrFunction));
     return S_OK;
 }
 
-HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType, const std::vector<std::string> &proxyTypeNameParts,
+HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType, uint32_t enclosingTypesParamCount,
                                  std::vector<ToRelease<ICorDebugType>> &trTypeParams)
 {
     HRESULT Status = S_OK;
-    const uint32_t genericArity = ParseGenericArity(proxyTypeNameParts.back());
-    if (genericArity > 0)
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+    std::vector<ToRelease<ICorDebugType>> trCurrentTypes;
+    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
     {
-        ToRelease<ICorDebugTypeEnum> trTypeEnum;
-        if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
+        ICorDebugType *curType = nullptr;
+        ULONG fetched = 0;
+        while (SUCCEEDED(Status = trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
         {
-            ICorDebugType *curType = nullptr;
-            ULONG fetched = 0;
-            while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
-            {
-                trTypeParams.emplace_back(curType);
-            }
+            trCurrentTypes.emplace_back(curType);
         }
     }
 
-    // Add type parameters for generic nested classes if needed.
+    // Add System.Object type parameters for enclosing classes.
     ToRelease<ICorDebugType> trObjectType;
-    for (std::size_t i = 1; i < proxyTypeNameParts.size(); i++)
+    for (uint32_t j = 0; j < enclosingTypesParamCount; j++)
     {
-        // Last type part - the proxy class itself.
-        if (i + 1 == proxyTypeNameParts.size())
+        if (trObjectType == nullptr)
         {
-            for (uint32_t j = 0; j < genericArity; j++)
-            {
-                trTypeParams.at(j)->AddRef();
-                trTypeParams.emplace_back(trTypeParams.at(j).GetPtr());
-            }
-            break;
+            ToRelease<ICorDebugValue> trNullObjectValue;
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, &trNullObjectValue));
+            ToRelease<ICorDebugValue2> trNullObjectValue2;
+            IfFailRet(trNullObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trNullObjectValue2)));
+            IfFailRet(trNullObjectValue2->GetExactType(&trObjectType));
         }
+        trObjectType->AddRef();
+        trTypeParams.emplace_back(trObjectType.GetPtr());
+    }
 
-        // Add System.Object type parameters for nested classes.
-        for (uint32_t j = 0; j < ParseGenericArity(proxyTypeNameParts.at(i)); j++)
-        {
-            if (trObjectType == nullptr)
-            {
-                ToRelease<ICorDebugValue> trNullObjectValue;
-                ToRelease<ICorDebugEval> trEval;
-                IfFailRet(pThread->CreateEval(&trEval));
-                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, &trNullObjectValue));
-                ToRelease<ICorDebugValue2> trNullObjectValue2;
-                IfFailRet(trNullObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trNullObjectValue2)));
-                IfFailRet(trNullObjectValue2->GetExactType(&trObjectType));
-            }
-            trObjectType->AddRef();
-            trTypeParams.emplace_back(trObjectType.GetPtr());
-        }
+    // Add the proxy class type parameters.
+    for (auto &trType : trCurrentTypes)
+    {
+        trTypeParams.emplace_back(trType.Detach());
     }
 
     return S_OK;
@@ -1263,7 +1252,8 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     return S_OK;
 }
 
-HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pAttrModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
+                                             ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
                                              mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
 {
     HRESULT Status = S_OK;
@@ -1273,7 +1263,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     ParseTypeName(proxyTypeName, proxyTypeNameParts, assemblyName);
 
     pAttrModule->AddRef();
-    ToRelease<ICorDebugModule> trModule(pAttrModule);
+    ToRelease<ICorDebugModule> trProxyTypeModule(pAttrModule);
     if (!assemblyName.empty())
     {
         IfFailRet(Modules::ForEachModule(pThread,
@@ -1293,9 +1283,9 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
                 if (RemoveExtension(GetBasename(to_utf8(wModName.data()))) == assemblyName)
                 {
-                    trModule.Free();
+                    trProxyTypeModule.Free();
                     pTestModule->AddRef();
-                    trModule = pTestModule;
+                    trProxyTypeModule = pTestModule;
                     return S_CAN_EXIT;
                 }
 
@@ -1304,7 +1294,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     }
 
     ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    IfFailRet(trProxyTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
@@ -1334,30 +1324,120 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     std::string tmp;
     ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);
 
-    // For nested generic proxy types, the outermost and innermost type parts
-    // must have the same generic arity (e.g., Outer`1+Inner`1).
-    if (proxyTypeNameParts.size() > 1 &&
-        ParseGenericArity(proxyTypeNameParts.front()) != ParseGenericArity(proxyTypeNameParts.back()))
-    {
-        return E_INVALIDARG;
-    }
-
     std::unordered_set<std::string> parameterTypeNames;
     GetParameterClassNames(trMDImport, proxyAttrTypeDef, parameterTypeNames);
 
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(GetConstructorFunction(trModule, trMDImport, typeDef, parameterTypeNames, &trFunction));
+    mdMethodDef constrMethodDef = mdMethodDefNil;
+    ToRelease<ICorDebugFunction> trConstrFunction;
+    IfFailRet(GetConstructorFunction(trProxyTypeModule, trMDImport, typeDef, parameterTypeNames, constrMethodDef, &trConstrFunction));
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    IfFailRet(GetConstructorTypeParams(pThread, pType, proxyTypeNameParts, trTypeParams));
+    uint32_t enclosingTypesParamCount = 0; // type parameters for enclosing classes
+    if (proxyTypeNameParts.size() > 1)
+    {
+        for (std::size_t i = 0; i < proxyTypeNameParts.size() - 1; i++)
+        {
+            for (uint32_t j = 0; j < ParseGenericArity(proxyTypeNameParts.at(i)); j++)
+            {
+                enclosingTypesParamCount++;
+            }
+        }
+    }
+    IfFailRet(GetConstructorTypeParams(pThread, pType, enclosingTypesParamCount, trTypeParams));
 
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    CORDB_ADDRESS proxyTypeModAddress = 0;
+    IfFailRet(trProxyTypeModule->GetBaseAddress(&proxyTypeModAddress));
+
+    if (FAILED(Status = m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->NewParameterizedObject(trFunction, static_cast<uint32_t>(trTypeParams.size()),
+            IfFailRet(trEval2->NewParameterizedObject(trConstrFunction, static_cast<uint32_t>(trTypeParams.size()),
+                                                      reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
+            return S_OK;
+        })))
+    {
+        const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+
+        // Could be an issue with thread state, reset cache status, try next time.
+        m_debuggerTypeProxyCheckedTypes.at(modAddress).erase(currentTypeDef);
+        return Status;
+    }
+
+    const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+
+    m_debuggerTypeProxyCache[modAddress].emplace(currentTypeDef, DebuggerTypeProxyCache{proxyTypeModAddress, constrMethodDef, enclosingTypesParamCount});
+
+    if (m_debuggerTypeProxyModuleCache.find(proxyTypeModAddress) == m_debuggerTypeProxyModuleCache.end())
+    {
+        m_debuggerTypeProxyModuleCache.emplace(proxyTypeModAddress, trProxyTypeModule.Detach());
+    }
+
+    return S_OK;
+}
+
+HRESULT Evaluator::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                                   mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue)
+{
+    typeChecked = false;
+
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    std::unique_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+
+    auto findCheckedModule = m_debuggerTypeProxyCheckedTypes.find(modAddress);
+    if (findCheckedModule == m_debuggerTypeProxyCheckedTypes.end())
+    {
+        m_debuggerTypeProxyCheckedTypes.emplace(modAddress, std::unordered_set<mdTypeDef>{});
+        m_debuggerTypeProxyCheckedTypes.at(modAddress).emplace(currentTypeDef);
+        return E_FAIL;
+    }
+
+    auto findCheckedType = findCheckedModule->second.find(currentTypeDef);
+    if (findCheckedType == findCheckedModule->second.end())
+    {
+        findCheckedModule->second.emplace(currentTypeDef);
+        return E_FAIL;
+    }
+
+    typeChecked = true;
+
+    auto findCacheByModule = m_debuggerTypeProxyCache.find(modAddress);
+    if (findCacheByModule == m_debuggerTypeProxyCache.end())
+    {
+        return E_FAIL;
+    }
+
+    auto findCache = findCacheByModule->second.find(currentTypeDef);
+    if (findCache == findCacheByModule->second.end())
+    {
+        return E_FAIL;
+    }
+
+    const DebuggerTypeProxyCache &proxyCache = findCache->second;
+    ICorDebugModule *pProxyTypeModule = m_debuggerTypeProxyModuleCache.at(proxyCache.modAddress);
+
+    ToRelease<ICorDebugFunction> trConstrFunction;
+    IfFailRet(pProxyTypeModule->GetFunctionFromToken(proxyCache.methodDef, &trConstrFunction));
+
+    std::vector<ToRelease<ICorDebugType>> trTypeParams;
+    IfFailRet(GetConstructorTypeParams(pThread, pType, proxyCache.enclosingTypesParamCount, trTypeParams));
+
+    lock.unlock();
+
+    IfFailRet(Status = m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+            IfFailRet(trEval2->NewParameterizedObject(trConstrFunction, static_cast<uint32_t>(trTypeParams.size()),
                                                       reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
             return S_OK;
         }));
@@ -1503,27 +1583,38 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            if (isNull == FALSE &&
-                (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
-            {
-                std::string proxyTypeName;
-                mdTypeDef proxyAttrTypeDef = mdTypeDefNil;
-                ToRelease<ICorDebugModule> trProxyAttrModule;
-                ToRelease<ICorDebugValue> trTypeProxyValue;
-                if (SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)) &&
-                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trProxyAttrModule, pFrontValue, trType, proxyAttrTypeDef, proxyTypeName, &trTypeProxyValue)))
-                {
-                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
-                    return S_OK;
-                }
-            }
-
             ToRelease<ICorDebugClass> trClass;
             IfFailRet(trType->GetClass(&trClass));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trClass->GetModule(&trModule));
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
+
+            if (isNull == FALSE && !isTypeProxyValue &&
+                (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
+            {
+                bool typeChecked = false;
+                ToRelease<ICorDebugValue> trTypeProxyValue;
+                if (SUCCEEDED(GetCachedDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType,
+                                                              currentTypeDef, typeChecked, &trTypeProxyValue)))
+                {
+                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
+                    return S_OK;
+                }
+
+                std::string proxyTypeName;
+                mdTypeDef proxyAttrTypeDef = mdTypeDefNil;
+                ToRelease<ICorDebugModule> trProxyAttrModule;
+                if (!typeChecked &&
+                    SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)) &&
+                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trModule, trProxyAttrModule, pFrontValue, trType, currentTypeDef,
+                                                        proxyAttrTypeDef, proxyTypeName, &trTypeProxyValue)))
+                {
+                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
+                    return S_OK;
+                }
+            }
+
             ToRelease<IUnknown> trUnknown;
             IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
@@ -2728,6 +2819,21 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
         trMDImport->CloseEnum(fTypeEnum);
         return S_OK; // Return with success to continue walk.
     }));
+    return S_OK;
+}
+
+HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
+{
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+
+    m_debuggerTypeProxyCheckedTypes.erase(modAddress);
+    m_debuggerTypeProxyCache.erase(modAddress);
+    m_debuggerTypeProxyModuleCache.erase(modAddress);
+
     return S_OK;
 }
 
