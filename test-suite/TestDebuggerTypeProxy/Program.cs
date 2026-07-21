@@ -9,6 +9,8 @@ using DbgTest.Script;
 
 [assembly: DebuggerTypeProxy(typeof(TestDebuggerTypeProxy.TestClass8.TestClassProxy8), Target = typeof(TestDebuggerTypeProxy.TestClass8))]
 [assembly: DebuggerTypeProxy("TestDebuggerTypeProxy.TestClass9+TestClassProxy9", TargetTypeName = "TestDebuggerTypeProxy.TestClass9")]
+[assembly: DebuggerTypeProxy(typeof(TestDebuggerTypeProxy.TestClass10.TestClassProxy10), TargetTypeName = "TestDebuggerTypeProxy.TestClass10")]
+[assembly: DebuggerTypeProxy("TestDebuggerTypeProxy.TestClass11+TestClassProxy11", Target = typeof(TestDebuggerTypeProxy.TestClass11))]
 
 namespace TestDebuggerTypeProxy
 {
@@ -250,6 +252,84 @@ class TestClass9
     }
 }
 
+// Test assembly DebuggerTypeProxy
+class TestClass10
+{
+    public int i = 5;
+    public int j = 6;
+
+    static public int ii = 7;
+
+    internal class TestClassProxy10
+    {
+        private readonly TestClass10 _target;
+
+        public TestClassProxy10(TestClass10 target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 1;
+        private int x1 => 2;
+        public int y2 = 3;
+        public int x2 => 4;
+
+        static public int xx = 5;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
+
+// Test assembly DebuggerTypeProxy
+class TestClass11
+{
+    public int i = 50;
+    public int j = 60;
+
+    class TestClassProxy11
+    {
+        private readonly TestClass11 _target;
+
+        public TestClassProxy11(TestClass11 target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 10;
+        private int x1 => 20;
+        public int y2 = 30;
+        public int x2 => 40;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
+
+[DebuggerTypeProxy(typeof(TestClassNested12<,>.TestClassProxy12<>))]
+class TestClass12<C>
+{
+    public int i = 5;
+    public int j = 6;
+}
+
+class TestClassNested12<T1,T2>
+{
+    internal class TestClassProxy12<M>
+    {
+        private readonly TestClass12<M> _target;
+
+        public TestClassProxy12(TestClass12<M> target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 1;
+        private int x1 => 2;
+        public int y2 = 3;
+        public int x2 => 4;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
 
 class Program
 {
@@ -282,6 +362,9 @@ class Program
         TestClass7<string> testClass7 = new TestClass7<string>();
         TestClass8 testClass8 = new TestClass8();
         TestClass9 testClass9 = new TestClass9();
+        TestClass10 testClass10 = new TestClass10();
+        TestClass11 testClass11 = new TestClass11();
+        TestClass12<string> testClass12 = new TestClass12<string>();
 
         int i = 1;                                                Label.Breakpoint("bp1");
 
@@ -405,6 +488,33 @@ class Program
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "x1");
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "i");
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass9, "j");
+
+                int variablesReference_testClass10 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass10");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "int", "y2", "3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "int", "x2", "4");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "int", "SumOfFields", "11");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass10, "j");
+
+                int variablesReference_testClass11 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass11");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "int", "y2", "30");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "int", "x2", "40");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "int", "SumOfFields", "110");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass11, "j");
+
+                int variablesReference_testClass12 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass12");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "int", "y2", "3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "int", "x2", "4");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "int", "SumOfFields", "11");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass12, "j");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
