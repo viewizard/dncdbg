@@ -916,8 +916,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     std::vector<SigElementType> methodGenerics;
     methodGenerics.reserve(methodGenericStrings.size());
-    std::transform(methodGenericStrings.begin(), methodGenericStrings.end(),
-                   std::back_inserter(methodGenerics), [](const auto &methodGenericString)
+    std::transform(methodGenericStrings.begin(), methodGenericStrings.end(), std::back_inserter(methodGenerics),
+                   [](const auto &methodGenericString)
                    {
                        return dncdbg::Evaluator::GetElementTypeByTypeName(methodGenericString);
                    });
