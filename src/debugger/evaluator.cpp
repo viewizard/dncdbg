@@ -1345,12 +1345,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     }
     IfFailRet(GetConstructorTypeParams(pThread, pType, enclosingTypesParamCount, trTypeParams));
 
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
-    CORDB_ADDRESS proxyTypeModAddress = 0;
-    IfFailRet(trProxyTypeModule->GetBaseAddress(&proxyTypeModAddress));
-
-    if (FAILED(Status = m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
+    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -1359,14 +1354,12 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
             IfFailRet(trEval2->NewParameterizedObject(trConstrFunction, static_cast<uint32_t>(trTypeParams.size()),
                                                       reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
             return S_OK;
-        })))
-    {
-        const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+        }));
 
-        // Could be an issue with thread state, reset cache status, try next time.
-        m_debuggerTypeProxyCheckedTypes.at(modAddress).erase(currentTypeDef);
-        return Status;
-    }
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+    CORDB_ADDRESS proxyTypeModAddress = 0;
+    IfFailRet(trProxyTypeModule->GetBaseAddress(&proxyTypeModAddress));
 
     const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
 
@@ -1606,12 +1599,21 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 mdTypeDef proxyAttrTypeDef = mdTypeDefNil;
                 ToRelease<ICorDebugModule> trProxyAttrModule;
                 if (!typeChecked &&
-                    SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)) &&
-                    SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trModule, trProxyAttrModule, pFrontValue, trType, currentTypeDef,
-                                                        proxyAttrTypeDef, proxyTypeName, &trTypeProxyValue)))
+                    SUCCEEDED(DetectDebuggerTypeProxyAttribute(trType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)))
                 {
-                    trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
-                    return S_OK;
+                    CORDB_ADDRESS modAddress = 0;
+                    if (SUCCEEDED(GetDebuggerTypeProxyValue(pThread, trModule, trProxyAttrModule, pFrontValue, trType, currentTypeDef,
+                                                            proxyAttrTypeDef, proxyTypeName, &trTypeProxyValue)))
+                    {
+                        trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
+                        return S_OK;
+                    }
+                    else if (SUCCEEDED(trModule->GetBaseAddress(&modAddress)))
+                    {
+                        const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+                        // Could be an issue with thread state, reset checked status, try next time.
+                        m_debuggerTypeProxyCheckedTypes.at(modAddress).erase(currentTypeDef);
+                    }
                 }
             }
 
