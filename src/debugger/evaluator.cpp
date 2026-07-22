@@ -2628,14 +2628,10 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 }
 
 HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pType, const std::string &methodName,
-                                          std::vector<SigElementType> &methodArgs, std::vector<SigElementType> &/*methodGenerics*/,
-                                          ICorDebugFunction **ppCorFunc)
+                                          std::vector<SigElementType> &methodArgs, ICorDebugFunction **ppCorFunc)
 {
     static constexpr std::string_view attributeName("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
     HRESULT Status = S_OK;
-
-    std::vector<SigElementType> typeGenerics;
-    IfFailRet(GetTypeGenerics(pType, typeGenerics));
 
     IfFailRet(Modules::ForEachModule(pThread, [&](ICorDebugModule *pModule) -> HRESULT
     {
@@ -2650,9 +2646,7 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
 
         while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
         {
-            std::string typeName;
-            if (!HasAttribute(trMDImport, mdType, attributeName) ||
-                FAILED(TypePrinter::NameForToken(mdType, trMDImport, typeName, false, nullptr)))
+            if (!HasAttribute(trMDImport, mdType, attributeName))
             {
                 continue;
             }
@@ -2663,8 +2657,14 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
             while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, mdType, &mdMethod, 1, &methodsCnt)) && methodsCnt != 0)
             {
                 ULONG nameLen = 0;
+                DWORD methodAttr = 0;
                 if (FAILED(trMDImport->GetMethodProps(mdMethod, nullptr, nullptr, 0, &nameLen,
-                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+                                                      &methodAttr, nullptr, nullptr, nullptr, nullptr)))
+                {
+                    continue;
+                }
+
+                if ((methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic))
                 {
                     continue;
                 }
@@ -2693,131 +2693,113 @@ HRESULT Evaluator::LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugTyp
                     continue;
                 }
 
-                // TODO
-                // argElementTypes - typeGenerics, methodGenerics
-
-                typeName.clear();
                 CorElementType ty = ELEMENT_TYPE_MAX;
-
-                if (FAILED(pType->GetType(&ty)) ||
-                    FAILED(TypePrinter::NameForTypeByType(pType, typeName)))
+                if (FAILED(pType->GetType(&ty)))
                 {
                     continue;
                 }
+
                 if (ty == ELEMENT_TYPE_CLASS || ty == ELEMENT_TYPE_VALUETYPE)
                 {
+                    ToRelease<ICorDebugClass> trClass;
+                    if (FAILED(pType->GetClass(&trClass)))
+                    {
+                        continue;
+                    }
+
+                    ToRelease<ICorDebugModule> trModule;
+                    if (FAILED(trClass->GetModule(&trModule)))
+                    {
+                        continue;
+                    }
+
+                    mdTypeDef metaTypeDef = mdTypeDefNil;
+                    if (FAILED(trClass->GetToken(&metaTypeDef)))
+                    {
+                        continue;
+                    }
+
+                    ToRelease<IUnknown> trUnknownInt;
+                    if (FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownInt)))
+                    {
+                        continue;
+                    }
+
+                    ToRelease<IMetaDataImport> trMDImportInt;
+                    if (FAILED(trUnknownInt->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportInt))))
+                    {
+                        continue;
+                    }
+
+                    std::string typeName;
+                    if (FAILED(TypePrinter::FullyQualifiedNameForTypeByToken(metaTypeDef, trMDImportInt, typeName)))
+                    {
+                        continue;
+                    }
+
                     if (typeName != argElementTypes.at(0).typeName)
                     {
-                        // If type names don't match, check implemented interfaces' names
-
-                        ToRelease<ICorDebugClass> trClass;
-                        if (FAILED(pType->GetClass(&trClass)))
-                        {
-                            continue;
-                        }
-
-                        ToRelease<ICorDebugModule> trModule;
-                        if (FAILED(trClass->GetModule(&trModule)))
-                        {
-                            continue;
-                        }
-
-                        mdTypeDef metaTypeDef = mdTypeDefNil;
-                        if (FAILED(trClass->GetToken(&metaTypeDef)))
-                        {
-                            continue;
-                        }
-
-                        ToRelease<IUnknown> trUnknownInt;
-                        if (FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownInt)))
-                        {
-                            continue;
-                        }
-
-                        ToRelease<IMetaDataImport> trMDImportInt;
-                        if (FAILED(trUnknownInt->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportInt))))
-                        {
-                            continue;
-                        }
+                        // Type name doesn't match, check if the extension method targets an implemented interface
 
                         HCORENUM ifEnum = nullptr;
                         mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
                         ULONG pcImpls = 0;
+                        bool ifaceFound = false;
                         while (SUCCEEDED(trMDImportInt->EnumInterfaceImpls(&ifEnum, metaTypeDef, &ifaceImpl, 1, &pcImpls)) &&
                                pcImpls != 0)
                         {
                             mdTypeDef tkClass = mdTypeDefNil;
                             mdToken tkIface = mdTokenNil;
-                            pSig = nullptr;
-                            cbSig = 0;
-                            SigElementType ifaceElementType;
                             if (FAILED(trMDImportInt->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
                             {
                                 continue;
                             }
-                            if (TypeFromToken(tkIface) == mdtTypeSpec)
+
+                            std::string ifaceTypeName;
+                            if (FAILED(TypePrinter::FullyQualifiedNameForTypeByToken(tkIface, trMDImportInt, ifaceTypeName)))
                             {
-                                if (FAILED(trMDImportInt->GetTypeSpecFromToken(tkIface, &pSig, &cbSig)) ||
-                                    FAILED(ParseElementType(trMDImportInt, pSig, pSig + cbSig, 0, ifaceElementType, false)))
-                                {
-                                    continue;
-                                }
-                            }
-                            else
-                            {
-                                if (FAILED(TypePrinter::NameForToken(tkIface, trMDImportInt, ifaceElementType.typeName, true, nullptr)))
-                                {
-                                    continue;
-                                }
+                                continue;
                             }
 
-                            if (ifaceElementType.typeName == argElementTypes.at(0).typeName &&
-                                methodArgs.size() + 1 == argElementTypes.size())
+                            if (ifaceTypeName == argElementTypes.at(0).typeName)
                             {
-                                bool found = true;
-                                for (unsigned int i = 0; i < methodArgs.size(); i++)
-                                {
-                                    if (methodArgs.at(i).corType != argElementTypes.at(i + 1).corType)
-                                    {
-                                        found = false;
-                                        break;
-                                    }
-                                }
-                                if (found)
-                                {
-                                    pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
-                                    trMDImportInt->CloseEnum(ifEnum);
-                                    trMDImport->CloseEnum(fFuncEnum);
-                                    trMDImport->CloseEnum(fTypeEnum);
-                                    return S_CAN_EXIT; // Fast exit from loop.
-                                }
+                                ifaceFound = true;
+                                break;
                             }
                         }
                         trMDImportInt->CloseEnum(ifEnum);
+                        if (!ifaceFound)
+                        {
+                            continue; // Type name didn't match, try next method
+                        }
                     }
                 }
-                else if (ty != argElementTypes.at(0).corType || (methodArgs.size() + 1 != argElementTypes.size()))
+                else if (ty != argElementTypes.at(0).corType)
                 {
                     continue;
                 }
-                else
+
+                // Verify method arguments match
+                if (methodArgs.size() + 1 != argElementTypes.size())
                 {
-                    bool found = true;
-                    for (unsigned int i = 0; i < methodArgs.size(); i++)
+                    continue;
+                }
+
+                bool found = true;
+                for (unsigned int i = 0; i < methodArgs.size(); i++)
+                {
+                    if (methodArgs.at(i) != argElementTypes.at(i + 1))
                     {
-                        if (methodArgs.at(i).corType != argElementTypes.at(i + 1).corType)
-                        {
-                            found = false;
-                            break;
-                        }
+                        found = false;
+                        break;
                     }
-                    if (found)
-                    {
-                        pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
-                        trMDImport->CloseEnum(fFuncEnum);
-                        trMDImport->CloseEnum(fTypeEnum);
-                        return S_CAN_EXIT; // Fast exit from loop.
-                    }
+                }
+                if (found)
+                {
+                    pModule->GetFunctionFromToken(mdMethod, ppCorFunc);
+                    trMDImport->CloseEnum(fFuncEnum);
+                    trMDImport->CloseEnum(fTypeEnum);
+                    return S_CAN_EXIT; // Fast exit from loop.
                 }
             }
             trMDImport->CloseEnum(fFuncEnum);

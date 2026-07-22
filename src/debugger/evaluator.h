@@ -111,8 +111,7 @@ class Evaluator
     HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
 
     static HRESULT LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pType, const std::string &methodName,
-                                          std::vector<SigElementType> &methodArgs, std::vector<SigElementType> &methodGenerics,
-                                          ICorDebugFunction **ppCorFunc);
+                                          std::vector<SigElementType> &methodArgs, ICorDebugFunction **ppCorFunc);
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                          ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,

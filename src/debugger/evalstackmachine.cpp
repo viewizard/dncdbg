@@ -951,7 +951,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     if (trFunc == nullptr)
     {
-        if (SUCCEEDED(Evaluator::LookupExtensionMethods(ed.pThread, trType, funcName, funcArgs, methodGenerics, &trFunc)))
+        if (SUCCEEDED(Evaluator::LookupExtensionMethods(ed.pThread, trType, funcName, funcArgs, &trFunc)))
         {
             isInstance = true; // Extension methods always require "this" as their first parameter
         }
