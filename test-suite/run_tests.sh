@@ -46,6 +46,7 @@ ALL_TEST_NAMES=(
     "TestMethodParameters_NoJMC"
     "TestDebuggerBrowsable"
     "TestDebuggerTypeProxy"
+    "TestDebuggerRawValues"
 )
 
 TEST_NAMES="$@"

@@ -71,6 +71,11 @@ class Context
             launchRequest.arguments.sourceFileMap = sourceFileMap;
         }
 
+        if (expressionEvaluationOptions != null)
+        {
+            launchRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
+        }
+
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
         launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
@@ -1350,5 +1355,6 @@ class Context
     public RemoteConsole? RemoteConsole = null;
     Dictionary<string, string> sourceFileMap = new Dictionary<string, string>();
     List<string> argsList = new List<string>();
+    public ExpressionEvaluationOptions? expressionEvaluationOptions = null;
 }
 }

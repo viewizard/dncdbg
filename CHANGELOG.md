@@ -18,6 +18,7 @@ Upcoming changes compared to previous version.
 - Added TestDebuggerBrowsable.
 - Added support for `DebuggerTypeProxyAttribute` to classes, structures and assemblies.
 - Added TestDebuggerTypeProxy.
+- Added TestDebuggerRawValues.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

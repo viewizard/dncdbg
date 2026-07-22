@@ -61,6 +61,14 @@ public class LaunchRequestArguments
     public bool? enableStepFiltering;
     public string internalConsoleOptions = string.Empty;
     public string __sessionId = string.Empty;
+    public ExpressionEvaluationOptions? expressionEvaluationOptions;
+}
+
+public class ExpressionEvaluationOptions
+{
+    public bool? allowImplicitFuncEval;
+    public bool? allowToString;
+    public bool? showRawValues;
 }
 
 public class AttachRequest : Request

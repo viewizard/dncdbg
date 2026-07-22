@@ -53,6 +53,7 @@ $ALL_TEST_NAMES = @(
     "TestStackTraceWinForm"
     "TestDebuggerBrowsable"
     "TestDebuggerTypeProxy"
+    "TestDebuggerRawValues"
 )
 
 $TEST_NAMES = $tests
