@@ -32,7 +32,8 @@
             "suppressJITOptimizations": false,
             "expressionEvaluationOptions": {
                 "allowImplicitFuncEval": true,
-                "allowToString": true
+                "allowToString": true,
+                "showRawValues": false
             },
             "logging": {
                 "diagnosticsLog" : {

@@ -3,6 +3,7 @@ Upcoming changes compared to previous version.
 
 #### DAP
 - Added support for the `allowToString` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
+- Added support for the `showRawValues` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
 
 #### Added
 - Added TestUnhandledExceptionInstance.

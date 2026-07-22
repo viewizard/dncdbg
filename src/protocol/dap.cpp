@@ -427,6 +427,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
                     const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
                     evalFlags |= (allowToString && allowFuncEval) ? 0 : EVAL_NOTOSTRING;
+                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L469
+                    const bool showRawValues = arguments.at("expressionEvaluationOptions").value("showRawValues", false);
+                    evalFlags |= showRawValues ? EVAL_SHOWRAWVALUES : 0;
                 }
                 m_sharedDebugger->SetEvalFlags(evalFlags);
 

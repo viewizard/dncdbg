@@ -1583,7 +1583,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
 
-            if (isNull == FALSE && !isTypeProxyValue &&
+            if ((GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
                 (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
             {
                 bool typeChecked = false;
@@ -1625,7 +1625,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(ForEachFields(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
-                    const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
+                    const DebuggerBrowsableState browsableState = (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U ?
+                                                                  GetDebuggerBrowsableAttributeState(trMDImport, fieldDef) :
+                                                                  DebuggerBrowsableState::Collapsed;
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
                         return S_OK; // Return with success to continue walk.
@@ -1723,7 +1725,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             Status = ForEachProperties(trMDImport, currentTypeDef,
                 [&](mdProperty propertyDef) -> HRESULT
                 {
-                    const DebuggerBrowsableState browsableState = GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
+                    const DebuggerBrowsableState browsableState = (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U ?
+                                                                  GetDebuggerBrowsableAttributeState(trMDImport, propertyDef) :
+                                                                  DebuggerBrowsableState::Collapsed;
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
                         return S_OK; // Return with success to continue walk.
