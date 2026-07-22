@@ -6,6 +6,7 @@
 #include "debugger/frames.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -19,6 +20,16 @@ namespace dncdbg
 
 namespace
 {
+
+enum class FrameType : uint8_t
+{
+    Unknown,
+    CLRNative,
+    CLRInternal,
+    CLRManaged,
+    CLRManagedException,
+    CLRManagedExceptionUser
+};
 
 HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, std::list<ToRelease<ICorDebugInternalFrame2>> &trInternalFrames)
 {
@@ -150,7 +161,77 @@ HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef metho
     return S_OK;
 }
 
-} // unnamed namespace
+const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
+{
+    switch (frameType)
+    {
+    case STUBFRAME_M2U:
+        return "Managed to Native Transition";
+    case STUBFRAME_U2M:
+        return "Native to Managed Transition";
+    case STUBFRAME_APPDOMAIN_TRANSITION:
+        return "Appdomain Transition";
+    case STUBFRAME_LIGHTWEIGHT_FUNCTION:
+        return "Lightweight function";
+    case STUBFRAME_FUNC_EVAL:
+        return "Func Eval";
+    case STUBFRAME_INTERNALCALL:
+        return "Internal Call";
+    case STUBFRAME_CLASS_INIT:
+        return "Class Init";
+    case STUBFRAME_EXCEPTION:
+        return "Exception";
+    case STUBFRAME_SECURITY:
+        return "Security";
+    case STUBFRAME_JIT_COMPILATION:
+        return "JIT Compilation";
+    case STUBFRAME_NONE:
+        return "Unknown";
+    default:
+        assert(false);
+        return "Unknown";
+    }
+}
+
+HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level,
+                         DebugInfo *pDebugInfo, StackFrame &stackFrame)
+{
+    HRESULT Status = S_OK;
+
+    std::string methodName;
+    if (FAILED(TypePrinter::GetFullyQualifiedMethodName(pFrame, pDebugInfo, methodName)))
+    {
+        methodName = "[Unnamed managed method in optimized code]";
+    }
+    stackFrame = StackFrame(threadId, level, methodName);
+
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pFrame->GetFunction(&trFunc));
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
+
+    PDB::SequencePoint sp;
+    PDB::GlobalFileIndex globalFileIndex;
+    if (SUCCEEDED(pDebugInfo->GetSequencePointByFrame(pFrame, sp, &globalFileIndex)))
+    {
+        std::string sourceFilePath;
+        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath);
+
+        stackFrame.source = Source(sourceFilePath);
+        stackFrame.line = sp.startLine;
+        stackFrame.column = sp.startColumn;
+        stackFrame.endLine = sp.endLine;
+        stackFrame.endColumn = sp.endColumn;
+    }
+
+    IfFailRet(Modules::GetModuleMvid(trModule, stackFrame.moduleId));
+
+    return S_OK;
+}
+
+using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
+                                                 const std::string *, const std::string *)>;
 
 HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb)
 {
@@ -403,6 +484,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
     return S_OK;
 }
 
+} // unnamed namespace
+
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame)
 {
     auto foreignExceptionFrameDetected = [&]() -> bool
@@ -544,36 +627,177 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
     return *ppFrame != nullptr ? S_OK : E_FAIL;
 }
 
-const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
+HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
+                       DebugInfo *pDebugInfo, bool justMyCode, std::vector<StackFrame> &stackFrames)
 {
-    switch (frameType)
+    // CoreCLR native frame, could be part of transition to at least one user's native frame.
+    static const std::string FrameCLRNativeText = "[CLR Native Frame]";
+    // This frame usually indicates some fail during managed unwind.
+    static const std::string FrameUnknownText = "[Unknown Frame]";
+    // Non-user code related frame when Just My Code is enabled.
+    static const std::string ExternalCodeText = "[External Code]";
+    // Prefix for foreign exception stack frames (frames from a rethrown exception's original thread).
+    static const std::string ExceptionFramePrefix = "[Exception] ";
+    // Mark that stack trace was truncated.
+    static const std::string TruncatedStackTrace = "[Truncated Stack Trace]";
+
+    struct IntWalkExceptionFrame
     {
-    case STUBFRAME_M2U:
-        return "Managed to Native Transition";
-    case STUBFRAME_U2M:
-        return "Native to Managed Transition";
-    case STUBFRAME_APPDOMAIN_TRANSITION:
-        return "Appdomain Transition";
-    case STUBFRAME_LIGHTWEIGHT_FUNCTION:
-        return "Lightweight function";
-    case STUBFRAME_FUNC_EVAL:
-        return "Func Eval";
-    case STUBFRAME_INTERNALCALL:
-        return "Internal Call";
-    case STUBFRAME_CLASS_INIT:
-        return "Class Init";
-    case STUBFRAME_EXCEPTION:
-        return "Exception";
-    case STUBFRAME_SECURITY:
-        return "Security";
-    case STUBFRAME_JIT_COMPILATION:
-        return "JIT Compilation";
-    case STUBFRAME_NONE:
-        return "Unknown";
-    default:
-        assert(false);
-        return "Unknown";
+        PDB::SequencePoint sequencePoint;
+        std::string methodName;
+        std::string sourceFilePath;
+        IntWalkExceptionFrame(const PDB::SequencePoint *sequencePoint_, const std::string *methodName_, const std::string *sourceFilePath_)
+            : sequencePoint(sequencePoint_ != nullptr ? *sequencePoint_ : PDB::SequencePoint{}),
+              methodName(methodName_ != nullptr ? *methodName_ : ""),
+              sourceFilePath(sourceFilePath_ != nullptr ? *sourceFilePath_ : "")
+        {
+        }
+    };
+
+    struct IntWalkFrame
+    {
+        FrameType frameType;
+        ToRelease<ICorDebugFrame> trFrame;
+        IntWalkExceptionFrame *excFrame{nullptr};
+
+        IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_)
+            : frameType(frameType_),
+              trFrame(pFrame_)
+        {
+        }
+    };
+
+    std::list<IntWalkFrame> walkFrames;
+    std::list<IntWalkExceptionFrame> walkExceptionFrames;
+    static constexpr size_t stackTraceLimit = 250;
+    bool stackTruncated = false;
+
+    // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
+    // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
+    WalkFrames(pThread, pDebugInfo,
+        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
+            const std::string *methodName, const std::string *sourceFilePath) -> HRESULT
+        {
+            if (pFrame != nullptr)
+            {
+                pFrame->AddRef();
+            }
+
+            if (walkFrames.size() >= stackTraceLimit)
+            {
+                stackTruncated = true;
+                return S_CAN_EXIT; // Fast exit from loop.
+            }
+
+            walkFrames.emplace_back(frameType, pFrame);
+
+            if (frameType == FrameType::CLRManagedException ||
+                frameType == FrameType::CLRManagedExceptionUser)
+            {
+                walkExceptionFrames.emplace_back(sequencePoint, methodName, sourceFilePath);
+                walkFrames.back().excFrame = &walkExceptionFrames.back();
+            }
+
+            if (!justMyCode && maxFrames != 0 &&
+                static_cast<int>(walkFrames.size()) >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+            {
+                return S_CAN_EXIT; // Fast exit from loop.
+            }
+
+            return S_OK; // Continue walk.
+        });
+
+    int currentFrame = -1;
+    bool prevFrameExternal = false;
+
+    for (auto &frame : walkFrames)
+    {
+        if (justMyCode && frame.frameType != FrameType::CLRManagedExceptionUser)
+        {
+            ToRelease<ICorDebugFunction> trFunction;
+            ToRelease<ICorDebugFunction2> trFunction2;
+            BOOL JMCStatus = FALSE;
+            if (frame.frameType == FrameType::CLRManaged &&
+                SUCCEEDED(frame.trFrame->GetFunction(&trFunction)) &&
+                SUCCEEDED(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2))) &&
+                SUCCEEDED(trFunction2->GetJMCStatus(&JMCStatus)) &&
+                JMCStatus == TRUE)
+            {
+                prevFrameExternal = false;
+            }
+            else
+            {
+                if (!prevFrameExternal)
+                {
+                    currentFrame++;
+                    stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
+                    prevFrameExternal = true;
+                }
+                continue;
+            }
+        }
+
+        currentFrame++;
+
+        if (currentFrame < static_cast<int>(startFrame))
+        {
+            continue;
+        }
+        if (maxFrames != 0 && currentFrame >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
+        {
+            break;
+        }
+
+        switch (frame.frameType)
+        {
+        case FrameType::Unknown:
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameUnknownText);
+            break;
+        case FrameType::CLRNative:
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
+            break;
+        case FrameType::CLRInternal:
+        {
+            ToRelease<ICorDebugInternalFrame> trInternalFrame;
+            CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
+            if (SUCCEEDED(frame.trFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
+            {
+                trInternalFrame->GetFrameType(&corFrameType);
+            }
+            std::string name = "[";
+            name += GetInternalTypeName(corFrameType);
+            name += "]";
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
+            break;
+        }
+        case FrameType::CLRManaged:
+        {
+            StackFrame stackFrame;
+            GetFrameLocation(frame.trFrame, threadId, FrameLevel{currentFrame}, pDebugInfo, stackFrame);
+            stackFrames.push_back(stackFrame);
+            break;
+        }
+        case FrameType::CLRManagedException:
+        case FrameType::CLRManagedExceptionUser:
+        {
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + frame.excFrame->methodName);
+            if (frame.frameType == FrameType::CLRManagedExceptionUser)
+            {
+                stackFrames.back().source = Source(frame.excFrame->sourceFilePath);
+                stackFrames.back().line = frame.excFrame->sequencePoint.startLine;
+                stackFrames.back().endLine = frame.excFrame->sequencePoint.endLine;
+            }
+            break;
+        }
+        }
     }
+
+    if (stackTruncated)
+    {
+        stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, TruncatedStackTrace);
+    }
+
+    return S_OK;
 }
 
 } // namespace dncdbg

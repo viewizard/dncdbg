@@ -181,10 +181,6 @@ class ManagedDebugger
     void Cleanup();
     void DisableAllBreakpointsAndSteppers();
 
-    HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame);
-    HRESULT GetManagedStackTrace(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                 std::vector<StackFrame> &stackFrames);
-
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     HRESULT StartupCallbackHR{S_OK};
     HRESULT Startup(IUnknown *punk);
