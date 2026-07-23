@@ -923,42 +923,36 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                    });
 
     ToRelease<ICorDebugFunction> trFunc;
-    ToRelease<ICorDebugType> trResultType;
-    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+    auto walkMethodsCallback = [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+                                   std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+    {
+        if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
+            funcArgs.size() != methodArgs.size() || funcName != methodName)
         {
-            if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
-                funcArgs.size() != methodArgs.size() || funcName != methodName)
+            return S_OK; // Return with success to continue walk.
+        }
+
+        for (size_t i = 0; i < funcArgs.size(); ++i)
+        {
+            if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs.at(i))) ||
+                funcArgs.at(i) != methodArgs.at(i))
             {
                 return S_OK; // Return with success to continue walk.
             }
+        }
 
-            for (size_t i = 0; i < funcArgs.size(); ++i)
-            {
-                if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs.at(i))) ||
-                    funcArgs.at(i) != methodArgs.at(i))
-                {
-                    return S_OK; // Return with success to continue walk.
-                }
-            }
+        IfFailRet(getFunction(&trFunc));
+        isInstance = !isStatic;
 
-            IfFailRet(getFunction(&trFunc));
-            isInstance = !isStatic;
+        return S_CAN_EXIT; // Fast exit from loop.
+    };
 
-            return S_CAN_EXIT; // Fast exit from loop.
-        }));
+    ToRelease<ICorDebugType> trResultType;
+    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType, walkMethodsCallback));
 
     if (trFunc == nullptr)
     {
-        if (SUCCEEDED(Evaluator::LookupExtensionMethods(ed.pThread, trType, funcName, funcArgs, &trFunc)))
-        {
-            isInstance = true; // Extension methods always require "this" as their first parameter
-        }
-        else
-        {
-            return E_FAIL;
-        }
+        IfFailRet(Evaluator::WalkExtensionMethods(ed.pThread, trType, funcName, funcArgs.size(), walkMethodsCallback));
     }
 
     if (trFunc == nullptr)

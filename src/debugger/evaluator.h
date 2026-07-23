@@ -110,9 +110,6 @@ class Evaluator
 
     HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
 
-    static HRESULT LookupExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pType, const std::string &methodName,
-                                          std::vector<SigElementType> &methodArgs, ICorDebugFunction **ppCorFunc);
-
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                          ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
@@ -124,8 +121,12 @@ class Evaluator
     HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output);
 
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
-    static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
+
     static HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
+    static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
+    static HRESULT WalkExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pInputType, const std::string &methodName,
+                                        std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
+
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
                      const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
                      std::string &output);

@@ -27,6 +27,7 @@ Upcoming changes compared to previous version.
 - Refactored PrintDecimalValue to use direct memory read instead of metadata iteration.
 - Used overridden `ToString()` for object variable display.
 - Updated tree-sitter version to 0.26.11.
+- Refactored extension method lookup into callback-based WalkExtensionMethods.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.
