@@ -64,7 +64,7 @@ std::string RemoveExtension(const std::string &fileName)
         return fileName;
     }
 
-    return fileName.substr(0, lastDot); 
+    return fileName.substr(0, lastDot);
 }
 
 } // namespace dncdbg
