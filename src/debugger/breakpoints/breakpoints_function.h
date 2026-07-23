@@ -27,7 +27,8 @@
 namespace dncdbg
 {
 
-class Variables;
+class Evaluator;
+class EvalStackMachine;
 class DebugInfo;
 
 class FunctionBreakpoints
@@ -35,9 +36,11 @@ class FunctionBreakpoints
   public:
 
     FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                        std::shared_ptr<Variables> &sharedVariables)
+                        std::shared_ptr<Evaluator> &sharedEvaluator,
+                        std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
         : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedVariables(sharedVariables)
+          m_sharedEvaluator(sharedEvaluator),
+          m_sharedEvalStackMachine(sharedEvalStackMachine)
     {
     }
 
@@ -72,7 +75,8 @@ class FunctionBreakpoints
   private:
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
-    std::shared_ptr<Variables> m_sharedVariables;
+    std::shared_ptr<Evaluator> m_sharedEvaluator;
+    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
     struct ManagedFunctionBreakpoint

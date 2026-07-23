@@ -4,8 +4,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpointutils.h"
-#include "debugger/variables.h"
+#include "debugger/evaluator.h"
+#include "debugger/evalstackmachine.h"
+#include "debugger/valueprint.h"
 #include "metadata/attributes.h"
+#include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 
@@ -82,20 +85,17 @@ HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint
     return S_OK;
 }
 
-HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables, ICorDebugThread *pThread, std::string &output)
+HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                            const std::string &condition, std::string &output)
 {
     assert(!condition.empty());
 
-    HRESULT Status = S_OK;
-    DWORD threadId = 0;
-    IfFailRet(pThread->GetID(&threadId));
-    const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
-
-    ToRelease<ICorDebugProcess> trProcess;
-    IfFailRet(pThread->GetProcess(&trProcess));
-
-    Variable variable;
-    if (FAILED(Status = pVariables->Evaluate(trProcess, frameId, condition, variable, output)))
+    std::string value;
+    std::string type;
+    ToRelease<ICorDebugValue> trResultValue;
+    if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, &trResultValue, output)) ||
+        FAILED(TypePrinter::GetTypeOfValue(trResultValue, type)) ||
+        FAILED(PrintValue(pThread, pEvaluator, trResultValue, value)))
     {
         if (output.empty())
         {
@@ -104,17 +104,17 @@ HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables,
 
         return S_OK; // some evaluation issue - ignore condition, stop at breakpoint
     }
-    if (variable.type != "bool")
+    if (type != "bool")
     {
         if (output.empty())
         {
-            output = "The breakpoint condition must evaluate to a boolean operation, result type is " + variable.type;
+            output = "The breakpoint condition must evaluate to a boolean operation, result type is " + type;
         }
 
         return S_OK; // wrong type - ignore condition, stop at breakpoint
     }
 
-    return variable.value == "true" ? S_OK : S_FALSE;
+    return value == "true" ? S_OK : S_FALSE;
 }
 
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode)
@@ -206,40 +206,33 @@ void CreateMessageParts(const std::string &logMessage, std::vector<std::pair<std
     }
 }
 
-void BuildTraceMessage(Variables *pVariables, ICorDebugThread *pThread, const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message)
+void BuildTraceMessage(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                       const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message)
 {
     // Build the final message by evaluating expressions.
-    for (const auto &entry : logMessageParts)
+    for (const auto &[text, isExpression] : logMessageParts)
     {
-        if (!entry.second)
+        if (!isExpression)
         {
             // Literal text - append directly.
-            message += entry.first;
+            message += text;
         }
         else
         {
             // Expression - evaluate it.
-            DWORD threadId = 0;
-            ToRelease<ICorDebugProcess> trProcess;
-            if (FAILED(pThread->GetID(&threadId)) ||
-                FAILED(pThread->GetProcess(&trProcess)))
+            std::string value;
+            std::string output;
+            ToRelease<ICorDebugValue> trResultValue;
+            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, text, &trResultValue, output)) &&
+                SUCCEEDED(PrintValue(pThread, pEvaluator, trResultValue, value)))
             {
-                message += "{unknown error}";
-                continue;
-            }
-
-            const FrameId frameId(ThreadId{threadId}, FrameLevel{0});
-            Variable variable;
-            std::string evalOutput;
-            if (SUCCEEDED(pVariables->Evaluate(trProcess, frameId, entry.first, variable, evalOutput)))
-            {
-                message += variable.value;
+                message += value;
             }
             else
             {
-                if (!evalOutput.empty())
+                if (!output.empty())
                 {
-                    message += "{" + evalOutput + "}";
+                    message += "{" + output + "}";
                 }
                 else
                 {

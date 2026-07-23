@@ -18,16 +18,21 @@
 namespace dncdbg
 {
 
-class Variables;
+class Evaluator;
+class EvalStackMachine;
 
 namespace BreakpointUtils
 {
+
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
-HRESULT IsEnableByCondition(const std::string &condition, Variables *pVariables, ICorDebugThread *pThread, std::string &output);
+HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                            const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
 void CreateMessageParts(const std::string &logMessage, std::vector<std::pair<std::string, bool>> &logMessageParts);
-void BuildTraceMessage(Variables *pVariables, ICorDebugThread *pThread, const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message);
+void BuildTraceMessage(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                       const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message);
+
 } // namespace BreakpointUtils
 
 } // namespace dncdbg

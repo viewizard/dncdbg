@@ -181,7 +181,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
             if (!b.condition.empty())
             {
                 std::string output;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(b.condition, m_sharedVariables.get(), pThread, output)) ||
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                         pThread, b.condition, output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -209,7 +210,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 std::string output;
                 std::ostringstream condstream;
                 condstream << b.hitCount << ">" << b.hitCondition;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(condstream.str(), m_sharedVariables.get(), pThread, output)) ||
+                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                         pThread, condstream.str(), output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -237,7 +239,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     BreakpointUtils::CreateMessageParts(b.logMessage, b.logMessageParts);
                 }
                 std::string message;
-                BreakpointUtils::BuildTraceMessage(m_sharedVariables.get(), pThread, b.logMessageParts, message);
+                BreakpointUtils::BuildTraceMessage(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, b.logMessageParts, message);
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath);
                 event.line = b.lineNum;
