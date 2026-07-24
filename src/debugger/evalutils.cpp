@@ -9,7 +9,9 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <array>
 #include <map>
+#include <string_view>
 
 namespace dncdbg::EvalUtils
 {
@@ -424,6 +426,52 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     }
 
     return S_OK;
+}
+
+void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifiers &specifier)
+{
+    struct FormatMapping
+    {
+        std::string_view name;
+        FormatSpecifiers specifier;
+    };
+
+    // Format specifiers
+    // https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio
+    static constexpr std::array<FormatMapping, 9> formatMap{{
+        {"ac",      FormatSpecifiers::ForceEvaluation},
+        {"d",       FormatSpecifiers::DecimalInteger},
+        {"h",       FormatSpecifiers::HexadecimalInteger},
+        {"dynamic", FormatSpecifiers::Dynamic},
+        {"nse",     FormatSpecifiers::EvaluatesWithNoSideEffects},
+        {"nq",      FormatSpecifiers::StringWithNoQuotes},
+        {"hidden",  FormatSpecifiers::DisplaysHiddenMembers},
+        {"raw",     FormatSpecifiers::DisplaysInRawMode},
+        {"results", FormatSpecifiers::Results}
+    }};
+
+    specifier = FormatSpecifiers::None;
+    expression = expressionWithFormat;
+
+    // Find the last comma to isolate the potential suffix
+    const size_t commaPos = expression.rfind(',');
+
+    if (commaPos != std::string::npos)
+    {
+        // Extract the tail substring strictly after the comma
+        const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
+
+        // Check if the tail matches any known format specifier
+        for (const auto& item : formatMap)
+        {
+            if (tail == item.name)
+            {
+                specifier = item.specifier;
+                expression.resize(commaPos);
+                break;
+            }
+        }
+    }
 }
 
 } // namespace dncdbg::EvalUtils

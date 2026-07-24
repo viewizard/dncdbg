@@ -7,12 +7,11 @@
 #include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h"
+#include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
-#include <array>
-#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -21,12 +20,6 @@ namespace dncdbg
 
 namespace
 {
-
-struct FormatMapping
-{
-    std::string_view name;
-    FormatSpecifiers specifier;
-};
 
 void GetNumChild(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
 {
@@ -437,43 +430,9 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
 
-    // Format specifiers
-    // https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio
-    static constexpr std::array<FormatMapping, 9> formatMap{{
-        {"ac",      FormatSpecifiers::ForceEvaluation},
-        {"d",       FormatSpecifiers::DecimalInteger},
-        {"h",       FormatSpecifiers::HexadecimalInteger},
-        {"dynamic", FormatSpecifiers::Dynamic},
-        {"nse",     FormatSpecifiers::EvaluatesWithNoSideEffects},
-        {"nq",      FormatSpecifiers::StringWithNoQuotes},
-        {"hidden",  FormatSpecifiers::DisplaysHiddenMembers},
-        {"raw",     FormatSpecifiers::DisplaysInRawMode},
-        {"results", FormatSpecifiers::Results}
-    }};
     FormatSpecifiers specifier = FormatSpecifiers::None;
-    std::string expression = expressionWithFormat;
-
-    // Find the last comma to isolate the potential suffix
-    const size_t commaPos = expression.rfind(',');
-
-    if (commaPos != std::string::npos)
-    {
-        // Extract the tail substring strictly after the comma
-        const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
-
-        // Check if the tail matches any known format specifier
-        for (const auto& item : formatMap)
-        {
-            if (tail == item.name)
-            {
-                specifier = item.specifier;
-                expression.resize(commaPos);
-                break;
-            }
-        }
-    }
-
-    // TODO implement other format specifiers
+    std::string expression;
+    EvalUtils::ParseFormatSpecifier(expressionWithFormat, expression, specifier);
 
     ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
