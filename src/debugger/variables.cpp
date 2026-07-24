@@ -11,6 +11,8 @@
 #include "types/types.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
+#include <array>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -19,6 +21,12 @@ namespace dncdbg
 
 namespace
 {
+
+struct FormatMapping
+{
+    std::string_view name;
+    FormatSpecifiers specifier;
+};
 
 void GetNumChild(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pValue, int &numChild, bool static_members)
 {
@@ -91,7 +99,7 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, Variab
     }
 
     TypePrinter::GetTypeOfValue(member.trValue, var.type);
-    return PrintValue(pThread, pEvaluator, member.trValue, var.value, true);
+    return PrintValue(pThread, pEvaluator, member.trValue, var.value);
 }
 
 HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
@@ -416,7 +424,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     return S_OK;
 }
 
-HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
+HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                             Variable &variable, std::string &output)
 {
     const ThreadId threadId = frameId.getThread();
@@ -429,14 +437,52 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
 
+    // Format specifiers
+    // https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio
+    static constexpr std::array<FormatMapping, 9> formatMap{{
+        {"ac",      FormatSpecifiers::ForceEvaluation},
+        {"d",       FormatSpecifiers::DecimalInteger},
+        {"h",       FormatSpecifiers::HexadecimalInteger},
+        {"dynamic", FormatSpecifiers::Dynamic},
+        {"nse",     FormatSpecifiers::EvaluatesWithNoSideEffects},
+        {"nq",      FormatSpecifiers::StringWithNoQuotes},
+        {"hidden",  FormatSpecifiers::DisplaysHiddenMembers},
+        {"raw",     FormatSpecifiers::DisplaysInRawMode},
+        {"results", FormatSpecifiers::Results}
+    }};
+    FormatSpecifiers specifier = FormatSpecifiers::None;
+    std::string expression = expressionWithFormat;
+
+    // Find the last comma to isolate the potential suffix
+    const size_t commaPos = expression.rfind(',');
+
+    if (commaPos != std::string::npos)
+    {
+        // Extract the tail substring strictly after the comma
+        const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
+
+        // Check if the tail matches any known format specifier
+        for (const auto& item : formatMap)
+        {
+            if (tail == item.name)
+            {
+                specifier = item.specifier;
+                expression.resize(commaPos);
+                break;
+            }
+        }
+    }
+
+    // TODO implement other format specifiers
+
     ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameLevel, expression,
                                                            &trResultValue, output));
 
-    variable.evaluateName = expression;
+    variable.evaluateName = expressionWithFormat;
     IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
-    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value));
+    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value, true, specifier));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable);
 }

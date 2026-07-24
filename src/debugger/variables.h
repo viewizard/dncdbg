@@ -50,7 +50,7 @@ class Variables
 
     HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);
 
-    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
+    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                      Variable &variable, std::string &output);
 
     HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &variable);

@@ -556,7 +556,8 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue, std::string &output, bool escape)
+HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue,
+                   std::string &output, bool escape, FormatSpecifiers formatSpecifier)
 {
     HRESULT Status = S_OK;
 
@@ -593,7 +594,14 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
             EscapeString(raw_str, '"');
 
             std::ostringstream ss;
-            ss << '\"' << raw_str << '\"';
+            if (formatSpecifier == FormatSpecifiers::StringWithNoQuotes)
+            {
+                ss << raw_str;
+            }
+            else
+            {
+                ss << '\"' << raw_str << '\"';
+            }
             output = ss.str();
             return S_OK;
         }
@@ -616,6 +624,46 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
         IfFailRet(trGenericValue->GetValue(static_cast<void *>(genericValue.data())));
 
         std::ostringstream ss;
+
+        if (formatSpecifier == FormatSpecifiers::HexadecimalInteger)
+        {
+            int displayNumCount = 0;
+            switch (corElemType)
+            {
+            case ELEMENT_TYPE_I1:
+            case ELEMENT_TYPE_U1:
+                displayNumCount = sizeof(uint8_t) * 2;
+                break;
+
+            case ELEMENT_TYPE_I2:
+            case ELEMENT_TYPE_U2:
+                displayNumCount = sizeof(uint16_t) * 2;
+                break;
+
+            case ELEMENT_TYPE_I4:
+            case ELEMENT_TYPE_U4:
+                displayNumCount = sizeof(uint32_t) * 2;
+                break;
+
+            case ELEMENT_TYPE_I:
+            case ELEMENT_TYPE_U:
+                displayNumCount = sizeof(uintptr_t) * 2;
+                break;
+
+            case ELEMENT_TYPE_I8:
+            case ELEMENT_TYPE_U8:
+                displayNumCount = sizeof(uint64_t) * 2;
+                break;
+
+            default:
+                break;
+            }
+
+            if (displayNumCount != 0)
+            {
+                ss << "0x" << std::setfill('0') << std::hex << std::setw(displayNumCount);
+            }
+        }
 
         switch (corElemType)
         {
@@ -734,13 +782,30 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
             }
             // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
-            ss << static_cast<unsigned int>(wstr.at(0)) << " '" << printableVal << "'";
+            if (formatSpecifier == FormatSpecifiers::HexadecimalInteger)
+            {
+                static constexpr int displayWcharCount = 4;
+                ss << "0x" << std::setfill('0') << std::hex << std::setw(displayWcharCount) << static_cast<unsigned int>(wstr.at(0));
+            }
+            else
+            {
+                ss << static_cast<unsigned int>(wstr.at(0));
+            }
+            ss << " '" << printableVal << "'";
             break;
         }
 
         case ELEMENT_TYPE_I1:
             assert(genericValue.size() == 1);
-            ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
+            if (formatSpecifier == FormatSpecifiers::HexadecimalInteger)
+            {
+                static constexpr int32_t oneByteMask = 0xFF;
+                ss << (static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data())) & oneByteMask);
+            }
+            else
+            {
+                ss << static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data()));
+            }
             break;
 
         case ELEMENT_TYPE_U1:
