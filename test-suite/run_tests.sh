@@ -47,6 +47,7 @@ ALL_TEST_NAMES=(
     "TestDebuggerBrowsable"
     "TestDebuggerTypeProxy"
     "TestDebuggerRawValues"
+    "TestFormatSpecifiers"
 )
 
 TEST_NAMES="$@"

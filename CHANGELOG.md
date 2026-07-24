@@ -20,6 +20,7 @@ Upcoming changes compared to previous version.
 - Added TestDebuggerTypeProxy.
 - Added TestDebuggerRawValues.
 - Added support for `nq` and `h` format specifiers in expression evaluation result display.
+- Added TestFormatSpecifiers.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
