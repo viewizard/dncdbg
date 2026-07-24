@@ -124,8 +124,8 @@ class Evaluator
 
     static HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
     static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
-    static HRESULT WalkExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pInputType, const std::string &methodName,
-                                        std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
+    HRESULT WalkExtensionMethods(ICorDebugType *pInputType, const std::string &methodName,
+                                 std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
 
     HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
                      const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
@@ -133,6 +133,7 @@ class Evaluator
 
     static SigElementType GetElementTypeByTypeName(const std::string &typeName);
 
+    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
     [[nodiscard]] bool IsJustMyCode() const
@@ -181,6 +182,24 @@ class Evaluator
                                       mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
     HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
                                             mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue);
+
+    // Extension methods related
+
+    struct ModuleExtensionMethods
+    {
+        ToRelease<ICorDebugModule> trModule;
+        std::vector<mdMethodDef> methodDefs;
+
+        ModuleExtensionMethods(ICorDebugModule *pModule, std::vector<mdMethodDef> &&methodDefs_)
+            : trModule(pModule),
+              methodDefs(std::move(methodDefs_))
+        {
+        }
+    };
+    std::mutex m_extensionMethodsMutex;
+    std::unordered_map<CORDB_ADDRESS, ModuleExtensionMethods> m_extensionMethodsCache;
+
+    HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule);
 };
 
 } // namespace dncdbg

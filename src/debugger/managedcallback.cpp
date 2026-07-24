@@ -282,6 +282,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
         m_debugger.m_sharedEvalStackMachine->FindPredefinedTypes(pModule);
     }
 
+    m_debugger.m_sharedEvaluator->ManagedCallbackLoadModule(pModule);
+
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

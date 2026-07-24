@@ -2627,13 +2627,11 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     return S_OK;
 }
 
-HRESULT Evaluator::WalkExtensionMethods(ICorDebugThread *pThread, ICorDebugType *pInputType, const std::string &methodName,
+HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::string &methodName,
                                         std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb)
 {
-    static constexpr std::string_view attributeName("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
     HRESULT Status = S_OK;
-
-    WSTRING wMethodName = to_utf16(methodName);
+    const WSTRING wMethodName = to_utf16(methodName);
 
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(pInputType->GetType(&elemType));
@@ -2685,95 +2683,139 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugThread *pThread, ICorDebugType 
         IfFailRet(fillIfaceTypeNames());
     }
 
-    IfFailRet(Modules::ForEachModule(pThread, [&](ICorDebugModule *pModule) -> HRESULT
+    const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
+
+    for (const auto &[modAddress, extensionMethods] : m_extensionMethodsCache)
     {
-        ULONG typesCnt = 0;
-        HCORENUM hTypeEnum = nullptr;
-        mdTypeDef mdType = mdTypeDefNil;
+        ICorDebugModule *pModule = extensionMethods.trModule.GetPtr();
 
         ToRelease<IUnknown> trUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        while (SUCCEEDED(trMDImport->EnumTypeDefs(&hTypeEnum, &mdType, 1, &typesCnt)) && typesCnt != 0)
+        for (const auto &methodDef : extensionMethods.methodDefs)
         {
-            if (!HasAttribute(trMDImport, mdType, attributeName))
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;
             }
-            HCORENUM hFuncEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
-            ULONG methodsCnt = 0;
 
-            while (SUCCEEDED(trMDImport->EnumMethods(&hFuncEnum, mdType, &methodDef, 1, &methodsCnt)) && methodsCnt != 0)
+            std::vector<WCHAR> szFunctionName(nameLen, '\0');
+            PCCOR_SIGNATURE pSig = nullptr;
+            ULONG cbSig = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
+                                                  nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
+                // Early method name check.
+                WSTRING(szFunctionName.data()) != wMethodName)
             {
-                ULONG nameLen = 0;
-                DWORD methodAttr = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                      &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
-                    (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                mdTypeDef memTypeDef = mdTypeDefNil;
-                std::vector<WCHAR> szFunctionName(nameLen, '\0');
-                PCCOR_SIGNATURE pSig = nullptr;
-                ULONG cbSig = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
-                                                      nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
-                    // Early method name check.
-                    WSTRING(szFunctionName.data()) != wMethodName ||
-                    !HasAttribute(trMDImport, methodDef, attributeName))
-                {
-                    continue;
-                }
+            SigElementType returnElementType;
+            std::vector<SigElementType> argElementTypes;
+            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)) ||
+                // Early method args count check.
+                methodArgsCount + 1 != argElementTypes.size())
+            {
+                continue;
+            }
 
-                SigElementType returnElementType;
-                std::vector<SigElementType> argElementTypes;
-                if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)) ||
-                    // Early method args count check.
-                    methodArgsCount + 1 != argElementTypes.size())
+            if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
+            {
+                if (allIfaceTypeNames.find(argElementTypes.at(0).typeName) == allIfaceTypeNames.end())
                 {
-                    continue;
-                }
-
-                if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
-                {
-                    if (allIfaceTypeNames.find(argElementTypes.at(0).typeName) == allIfaceTypeNames.end())
-                    {
-                        continue; // Type name didn't match, try next method
-                    }
-                }
-                else if (elemType != argElementTypes.at(0).corType)
-                {
-                    continue;
-                }
-
-                auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
-                {
-                    return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
-                };
-
-                // Remove explicitly provided `this`.
-                argElementTypes.erase(argElementTypes.begin());
-
-                // Pass `false` as isStatic - extension methods require `this` as their first parameter.
-                IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
-                if (Status == S_CAN_EXIT)
-                {
-                    trMDImport->CloseEnum(hFuncEnum);
-                    trMDImport->CloseEnum(hTypeEnum);
-                    return S_CAN_EXIT; // Fast exit from loop.
+                    continue; // Type name didn't match, try next method
                 }
             }
-            trMDImport->CloseEnum(hFuncEnum);
-        }
-        trMDImport->CloseEnum(hTypeEnum);
-        return S_OK; // Return with success to continue walk.
-    }));
+            else if (elemType != argElementTypes.at(0).corType)
+            {
+                continue;
+            }
 
+            auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
+            {
+                return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
+            };
+
+            // Remove explicitly provided `this`.
+            argElementTypes.erase(argElementTypes.begin());
+
+            // Pass `false` as isStatic - extension methods require `this` as their first parameter.
+            IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            if (Status == S_CAN_EXIT)
+            {
+                return S_OK;
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
+{
+    static constexpr std::string_view extensionAttribute("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
+    HRESULT Status = S_OK;
+
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    std::vector<mdMethodDef> moduleMethodDefs;
+    HCORENUM hTypeEnum = nullptr;
+    mdTypeDef typeDef = mdTypeDefNil;
+    ULONG fetchedTypes = 0;
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes)) && fetchedTypes != 0)
+    {
+        if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
+        {
+            continue;
+        }
+
+        HCORENUM hMethodEnum = nullptr;
+        mdMethodDef methodDef = mdMethodDefNil;
+        ULONG fetchedMethods = 0;
+        while (SUCCEEDED(trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods)) && fetchedMethods != 0)
+        {
+            DWORD methodAttr = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
+                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) ||
+                !HasAttribute(trMDImport, methodDef, extensionAttribute))
+            {
+                continue;
+            }
+
+            moduleMethodDefs.emplace_back(methodDef);
+        }
+        trMDImport->CloseEnum(hMethodEnum);
+    }
+    trMDImport->CloseEnum(hTypeEnum);
+
+    if (!moduleMethodDefs.empty())
+    {
+        moduleMethodDefs.shrink_to_fit();
+
+        const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
+
+        pModule->AddRef();
+        m_extensionMethodsCache.emplace(modAddress, ModuleExtensionMethods(pModule, std::move(moduleMethodDefs)));
+    }
+
+    return S_OK;
+}
+
+HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+{
+    HRESULT Status = S_OK;
+    IfFailRet(FillModuleExtensionMethodsCache(pModule));
     return S_OK;
 }
 
@@ -2783,11 +2825,19 @@ HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+    {
+        const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
 
-    m_debuggerTypeProxyCheckedTypes.erase(modAddress);
-    m_debuggerTypeProxyCache.erase(modAddress);
-    m_debuggerTypeProxyModuleCache.erase(modAddress);
+        m_debuggerTypeProxyCheckedTypes.erase(modAddress);
+        m_debuggerTypeProxyCache.erase(modAddress);
+        m_debuggerTypeProxyModuleCache.erase(modAddress);
+    }
+
+    {
+        const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
+
+        m_extensionMethodsCache.erase(modAddress);
+    }
 
     return S_OK;
 }

@@ -952,7 +952,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     if (trFunc == nullptr)
     {
-        IfFailRet(Evaluator::WalkExtensionMethods(ed.pThread, trType, funcName, funcArgs.size(), walkMethodsCallback));
+        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, funcName, funcArgs.size(), walkMethodsCallback));
     }
 
     if (trFunc == nullptr)

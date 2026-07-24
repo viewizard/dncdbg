@@ -28,6 +28,7 @@ Upcoming changes compared to previous version.
 - Used overridden `ToString()` for object variable display.
 - Updated tree-sitter version to 0.26.11.
 - Refactored extension method lookup into callback-based WalkExtensionMethods.
+- Cached extension methods per module, populated on module load and cleared on unload, to avoid scanning all modules on each evaluation.
 - Refactored breakpoint condition/trace eval to use EvalStackMachine directly.
 
 #### Removed
