@@ -28,6 +28,7 @@ Upcoming changes compared to previous version.
 - Used overridden `ToString()` for object variable display.
 - Updated tree-sitter version to 0.26.11.
 - Refactored extension method lookup into callback-based WalkExtensionMethods.
+- Refactored breakpoint condition/trace eval to use EvalStackMachine directly.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.
