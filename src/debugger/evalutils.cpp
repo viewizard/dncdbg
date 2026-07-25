@@ -454,24 +454,38 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
     expression = expressionWithFormat;
 
     // Find the last comma to isolate the potential suffix
-    const size_t commaPos = expression.rfind(',');
+    size_t commaPos = expression.rfind(',');
 
-    if (commaPos != std::string::npos)
+    while (commaPos != std::string::npos)
     {
         // Extract the tail substring strictly after the comma
         const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
 
         // Check if the tail matches any known format specifier
+        bool matched = false;
         for (const auto& item : formatMap)
         {
             if (tail == item.name)
             {
-                specifier = item.specifier;
+                specifier = specifier | item.specifier;
                 expression.resize(commaPos);
-                // Only one format specifier can be provided in an expression
+                matched = true;
                 break;
             }
         }
+
+        // Stop as soon as a comma-separated tail is not a known specifier:
+        // the remaining text is the actual expression, which may legitimately
+        // contain commas (e.g. multi-dimensional array access like arr[0,1]).
+        // Without this, a non-matching tail would leave "expression" unchanged
+        // and rfind(',') would return the same position on the next iteration,
+        // looping forever.
+        if (!matched)
+        {
+            break;
+        }
+
+        commaPos = expression.rfind(',');
     }
 }
 

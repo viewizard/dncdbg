@@ -137,6 +137,14 @@ class Program
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "x2");
                 Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "SumOfFields");
 
+                int variablesReference_testClass1rawh = Context.GetExpressionEvaluationReference(@"__FILE__:__LINE__", frameId, "testClass1,raw,h");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "int", "i", "0x00000005");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "int", "j", "0x00000006");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "y2");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "x2");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1rawh, "SumOfFields");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

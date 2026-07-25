@@ -59,6 +59,16 @@ class Program
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1ac, "int", "j", "6");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1ac, "int", "ii", "7");
 
+                int variablesReference_testClass1ach = Context.GetExpressionEvaluationReference(@"__FILE__:__LINE__", frameId, "testClass1,ac,h");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1ach, "int", "i", "0x00000005");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1ach, "int", "j", "0x00000006");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1ach, "int", "ii", "0x00000007");
+
+                int variablesReference_testClass1hac = Context.GetExpressionEvaluationReference(@"__FILE__:__LINE__", frameId, "testClass1,h,ac");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1hac, "int", "i", "0x00000005");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1hac, "int", "j", "0x00000006");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1hac, "int", "ii", "0x00000007");
+
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
