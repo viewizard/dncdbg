@@ -21,7 +21,7 @@ namespace dncdbg
 class Evaluator;
 
 HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue,
-                   std::string &output, bool escape = true, FormatSpecifiers formatSpecifier = FormatSpecifiers::None);
+                   std::string &output, FormatSpecifiers formatSpecifier = FormatSpecifiers::None);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue);
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output);
 

@@ -557,7 +557,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
 }
 
 HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue,
-                   std::string &output, bool escape, FormatSpecifiers formatSpecifier)
+                   std::string &output, FormatSpecifiers formatSpecifier)
 {
     HRESULT Status = S_OK;
 
@@ -583,12 +583,6 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
         {
             std::string raw_str;
             IfFailRet(PrintStringValue(trValue, raw_str));
-
-            if (!escape)
-            {
-                output = raw_str;
-                return S_OK;
-            }
 
             // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping in strings.
             EscapeString(raw_str, '"');
@@ -775,11 +769,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
         {
             const WSTRING wstr{*reinterpret_cast<WCHAR *>(genericValue.data()) , '\0'};
             std::string printableVal = to_utf8(wstr.c_str());
-            if (!escape)
-            {
-                output = printableVal;
-                return S_OK;
-            }
+
             // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
             if (formatSpecifier == FormatSpecifiers::HexadecimalInteger)

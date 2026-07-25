@@ -441,7 +441,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 
     variable.evaluateName = expressionWithFormat;
     IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
-    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value, true, specifier));
+    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trResultValue, variable.value, specifier));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable);
 }

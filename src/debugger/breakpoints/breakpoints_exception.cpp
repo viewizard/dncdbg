@@ -9,6 +9,7 @@
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
+#include "types/protocol.h"
 #include "utils/hresult.h"
 #include <algorithm>
 #include <functional>
@@ -306,7 +307,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("_message",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->message, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->message, FormatSpecifiers::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {
@@ -316,7 +317,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("StackTrace",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->stackTrace, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->stackTrace, FormatSpecifiers::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {
@@ -326,7 +327,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("Source",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->source, false);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->source, FormatSpecifiers::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {
