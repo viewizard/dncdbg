@@ -9,9 +9,9 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
-#include <array>
 #include <map>
 #include <string_view>
+#include <unordered_map>
 
 namespace dncdbg::EvalUtils
 {
@@ -430,15 +430,9 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
 void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier)
 {
-    struct FormatMapping
-    {
-        std::string_view name;
-        FormatSpecifier specifier;
-    };
-
     // Format specifiers
     // https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio
-    static constexpr std::array<FormatMapping, 9> formatMap{{
+    static const std::unordered_map<std::string_view, FormatSpecifier> formatMap{
         {"ac",      FormatSpecifier::ForceEvaluation},
         {"d",       FormatSpecifier::DecimalInteger},
         {"h",       FormatSpecifier::HexadecimalInteger},
@@ -448,7 +442,7 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
         {"hidden",  FormatSpecifier::DisplaysHiddenMembers},
         {"raw",     FormatSpecifier::DisplaysInRawMode},
         {"results", FormatSpecifier::Results}
-    }};
+    };
 
     specifier = FormatSpecifier::None;
     expression = expressionWithFormat;
@@ -461,29 +455,17 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
         // Extract the tail substring strictly after the comma
         const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
 
-        // Check if the tail matches any known format specifier
-        bool matched = false;
-        for (const auto& item : formatMap)
+        auto find = formatMap.find(tail);
+        if (find == formatMap.end())
         {
-            if (tail == item.name)
-            {
-                specifier = specifier | item.specifier;
-                expression.resize(commaPos);
-                matched = true;
-                break;
-            }
-        }
-
-        // Stop as soon as a comma-separated tail is not a known specifier:
-        // the remaining text is the actual expression, which may legitimately
-        // contain commas (e.g. multi-dimensional array access like arr[0,1]).
-        // Without this, a non-matching tail would leave "expression" unchanged
-        // and rfind(',') would return the same position on the next iteration,
-        // looping forever.
-        if (!matched)
-        {
+            // Stop as soon as a comma-separated tail is not a known specifier:
+            // the remaining text is the actual expression, which may legitimately
+            // contain commas (e.g. multi-dimensional array access like arr[0,1]).
             break;
         }
+
+        specifier = specifier | find->second;
+        expression.resize(commaPos);
 
         commaPos = expression.rfind(',');
     }
