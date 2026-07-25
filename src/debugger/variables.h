@@ -45,7 +45,7 @@ class Variables
     HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value, uint32_t ref,
                         std::string &output);
 
-    HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
+    HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                           const std::string &value, std::string &output);
 
     HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);

@@ -547,7 +547,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     return S_OK;
 }
 
-HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expression,
+HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                                  const std::string &value, std::string &output)
 {
     const ThreadId threadId = frameId.getThread();
@@ -559,6 +559,10 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
+
+    FormatSpecifiers specifier = FormatSpecifiers::None;
+    std::string expression;
+    EvalUtils::ParseFormatSpecifier(expressionWithFormat, expression, specifier);
 
     ToRelease<ICorDebugValue> trValue;
     bool editable = false;
@@ -573,7 +577,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     }
 
     IfFailRet(m_sharedEvaluator->SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
-    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trValue, output));
+    IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), trValue, output, specifier));
     return S_OK;
 }
 
