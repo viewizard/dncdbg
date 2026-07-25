@@ -1583,7 +1583,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
 
-            if (specifier != FormatSpecifier::DisplaysInRawMode &&
+            if ((specifier & FormatSpecifier::DisplaysInRawMode) == FormatSpecifier::None &&
                 (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
                 (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
             {

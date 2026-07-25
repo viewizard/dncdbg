@@ -588,7 +588,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
             EscapeString(raw_str, '"');
 
             std::ostringstream ss;
-            if (formatSpecifier == FormatSpecifier::StringWithNoQuotes)
+            if ((formatSpecifier & FormatSpecifier::StringWithNoQuotes) == FormatSpecifier::StringWithNoQuotes)
             {
                 ss << raw_str;
             }
@@ -619,7 +619,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
 
         std::ostringstream ss;
 
-        if (formatSpecifier == FormatSpecifier::HexadecimalInteger)
+        if ((formatSpecifier & FormatSpecifier::HexadecimalInteger) == FormatSpecifier::HexadecimalInteger)
         {
             int displayNumCount = 0;
             switch (corElemType)
@@ -772,7 +772,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
 
             // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping for chars.
             EscapeString(printableVal, '\'');
-            if (formatSpecifier == FormatSpecifier::HexadecimalInteger)
+            if ((formatSpecifier & FormatSpecifier::HexadecimalInteger) == FormatSpecifier::HexadecimalInteger)
             {
                 static constexpr int displayWcharCount = 4;
                 ss << "0x" << std::setfill('0') << std::hex << std::setw(displayWcharCount) << static_cast<unsigned int>(wstr.at(0));
@@ -787,7 +787,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
 
         case ELEMENT_TYPE_I1:
             assert(genericValue.size() == 1);
-            if (formatSpecifier == FormatSpecifier::HexadecimalInteger)
+            if ((formatSpecifier & FormatSpecifier::HexadecimalInteger) == FormatSpecifier::HexadecimalInteger)
             {
                 static constexpr int32_t oneByteMask = 0xFF;
                 ss << (static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data())) & oneByteMask);

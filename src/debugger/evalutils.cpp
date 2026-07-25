@@ -468,6 +468,7 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
             {
                 specifier = item.specifier;
                 expression.resize(commaPos);
+                // Only one format specifier can be provided in an expression
                 break;
             }
         }
