@@ -405,7 +405,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 mdName.pop_back();
             }
 
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
             {
                 // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
                 trValue.Free();
@@ -420,7 +420,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
             {
                 ToRelease<ICorDebugValue> trDisplayClassValue;
-                IfFailRet(getValue(&trDisplayClassValue, nullptr, false));
+                IfFailRet(getValue(&trDisplayClassValue, nullptr));
                 IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                    pDebugInfo, pModule, cb));
                 if (Status == S_CAN_EXIT)
@@ -612,7 +612,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
             return S_OK; // Return with success to continue walk.
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
         {
             trValue.Free();
             IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
@@ -1113,7 +1113,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
         if (getValue != nullptr)
         {
             trPrevValue.Free();
-            IfFailRet((*getValue)(&trPrevValue, nullptr, false));
+            IfFailRet((*getValue)(&trPrevValue, nullptr));
         }
         return S_OK;
     }
@@ -1151,13 +1151,13 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     if (setterData->trThisValue == nullptr)
     {
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 nullptr, trValue.GetRef(), 1, nullptr);
+                                                 nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
     }
     else
     {
         std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
         return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 nullptr, argsValue.data(), 2, nullptr);
+                                                 nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
     }
 }
 
@@ -1475,7 +1475,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         IfFailRet(pFrontValue->GetType(&inputCorType));
         if (inputCorType == ELEMENT_TYPE_PTR)
         {
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
             {
                 trValue->AddRef();
                 *ppResultValue = trValue;
@@ -1510,7 +1510,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
             for (uint32_t i = 0; i < cElements; ++i)
             {
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                 {
                     IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
                     return S_OK;
@@ -1677,7 +1677,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(mdName.c_str());
 
-                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                         {
                             if (fieldAttr & fdLiteral)
                             {
@@ -1704,7 +1704,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         if (browsableState == DebuggerBrowsableState::RootHidden)
                         {
                             ToRelease<ICorDebugValue> trResultValue;
-                            if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
+                            if (SUCCEEDED(getValue(&trResultValue, nullptr)))
                             {
                                 trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
@@ -1767,7 +1767,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(propertyName.data());
 
-                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool ignoreEvalFlags) -> HRESULT
+                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                         {
                             if (pThread == nullptr)
                             {
@@ -1779,13 +1779,13 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                             return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
                                                                      isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
-                                                                     ppResultValue, ignoreEvalFlags);
+                                                                     specifier, ppResultValue);
                         };
 
                         if (browsableState == DebuggerBrowsableState::RootHidden)
                         {
                             ToRelease<ICorDebugValue> trResultValue;
-                            if (SUCCEEDED(getValue(&trResultValue, nullptr, false)))
+                            if (SUCCEEDED(getValue(&trResultValue, nullptr)))
                             {
                                 trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
@@ -2031,7 +2031,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         Status = trILFrame->GetArgument(0, &trCurrentThis);
         if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
         {
-            auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName, bool) -> HRESULT
+            auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
             {
                 std::string methodName;
                 TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
@@ -2074,7 +2074,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
             if (trUserThis != nullptr)
             {
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                 {
                     trUserThis->AddRef();
                     *ppResultValue = trUserThis;
@@ -2125,7 +2125,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             wParamName.pop_back();
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -2173,7 +2173,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             continue;
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -2192,7 +2192,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         if (GetLocalOrFieldNameKind(wLocalName) == GeneratedNameKind::DisplayClassLocalOrField)
         {
             ToRelease<ICorDebugValue> trDisplayClassValue;
-            IfFailRet(getValue(&trDisplayClassValue, nullptr, false));
+            IfFailRet(getValue(&trDisplayClassValue, nullptr));
             IfFailRet(WalkGeneratedClassFields(trMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
                                                m_sharedDebugInfo.get(), trModule, cb));
             if (Status == S_CAN_EXIT)
@@ -2231,7 +2231,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     continue;
                 }
 
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *, bool) -> HRESULT
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
@@ -2301,7 +2301,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     return S_OK;
                 }
 
-                IfFailRet(getValue(&trResultValue, nullptr, false));
+                IfFailRet(getValue(&trResultValue, nullptr));
                 if (setterData != nullptr &&
                     resultSetterData != nullptr)
                 {
@@ -2396,7 +2396,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     return E_FAIL;
 }
 
-HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output)
+HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
     if ((GetEvalFlags() & EVAL_NOTOSTRING) != 0U)
     {
@@ -2431,7 +2431,8 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     }
 
     ToRelease<ICorDebugValue> trRefValue;
-    IfFailRet(m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue, 1, &trRefValue, true));
+    IfFailRet(m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
+                                                1, specifier, &trRefValue));
     ToRelease<ICorDebugValue> trValue;
     IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));
     return PrintStringValue(trValue, output);
@@ -2517,7 +2518,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             {
                 if (name == "this")
                 {
-                    if (FAILED(getValue(&trThisValue, nullptr, false)) || (trThisValue == nullptr))
+                    if (FAILED(getValue(&trThisValue, nullptr)) || (trThisValue == nullptr))
                     {
                         return S_OK;
                     }
@@ -2529,7 +2530,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                 }
                 else if (name == identifiers.at(nextIdentifier))
                 {
-                    if (FAILED(getValue(&trResolvedValue, nullptr, false)) || (trResolvedValue == nullptr))
+                    if (FAILED(getValue(&trResolvedValue, nullptr)) || (trResolvedValue == nullptr))
                     {
                         return S_OK;
                     }

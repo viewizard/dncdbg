@@ -44,7 +44,7 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
             }
 
             ToRelease<ICorDebugValue> trResultValue;
-            IfFailRet(getValue(&trResultValue, nullptr, true));
+            IfFailRet(getValue(&trResultValue, nullptr));
 
             BOOL isNull = TRUE;
             ToRelease<ICorDebugValue> trValue;

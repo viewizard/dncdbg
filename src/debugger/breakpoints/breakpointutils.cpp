@@ -96,7 +96,7 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     ToRelease<ICorDebugValue> trResultValue;
     if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None, &trResultValue, output)) ||
         FAILED(TypePrinter::GetTypeOfValue(trResultValue, type)) ||
-        FAILED(PrintValue(pThread, pEvaluator, trResultValue, value)))
+        FAILED(PrintValue(pThread, pEvaluator, trResultValue, FormatSpecifier::None, value)))
     {
         if (output.empty())
         {
@@ -221,11 +221,15 @@ void BuildTraceMessage(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
         else
         {
             // Expression - evaluate it.
+            FormatSpecifier specifier = FormatSpecifier::None;
+            std::string expression;
+            EvalUtils::ParseFormatSpecifier(text, expression, specifier);
+
             std::string value;
             std::string output;
             ToRelease<ICorDebugValue> trResultValue;
-            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, text, FormatSpecifier::None, &trResultValue, output)) &&
-                SUCCEEDED(PrintValue(pThread, pEvaluator, trResultValue, value)))
+            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, expression, specifier, &trResultValue, output)) &&
+                SUCCEEDED(PrintValue(pThread, pEvaluator, trResultValue, specifier, value)))
             {
                 message += value;
             }

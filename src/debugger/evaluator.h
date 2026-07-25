@@ -79,7 +79,7 @@ class Evaluator
         }
     };
 
-    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, std::string *, bool)>;
+    using GetValueCallback = std::function<HRESULT(ICorDebugValue **, std::string *)>;
     using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &, SetterData *)>;
     using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
@@ -118,7 +118,7 @@ class Evaluator
                                   std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                   ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
-    HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output);
+    HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
 
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
 

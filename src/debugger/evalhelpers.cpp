@@ -210,13 +210,12 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
 HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                                   std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                                  ICorDebugValue **ppEvalResult, bool ignoreEvalFlags)
+                                  FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
 {
     assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
 
-    const uint32_t evalFlags = ignoreEvalFlags ? defaultEvalFlags : GetEvalFlags();
-
-    if ((evalFlags & EVAL_NOFUNCEVAL) != 0U)
+    if ((specifier & FormatSpecifier::ForceEvaluation) == FormatSpecifier::None &&
+        (GetEvalFlags() & EVAL_NOFUNCEVAL) != 0U)
     {
         return CORDBG_E_DEBUGGING_DISABLED;
     }
@@ -430,7 +429,8 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
         }
 
         // Note, this call must ignore any eval flags.
-        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(), 1, nullptr, true));
+        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
+                               1, FormatSpecifier::ForceEvaluation, nullptr));
     }
 
     AddTypeObjectToCache(pType, trTypeObject);

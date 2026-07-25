@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debugger/evalutils.h"
 #include "types/types.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -73,7 +74,7 @@ class EvalHelpers
     HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                          std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                          ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                         ICorDebugValue **ppEvalResult, bool ignoreEvalFlags = false);
+                         FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
 
     HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                     UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
