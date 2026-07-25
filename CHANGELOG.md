@@ -21,6 +21,7 @@ Upcoming changes compared to previous version.
 - Added TestDebuggerRawValues.
 - Added support for `ac`, `h`, `nq` and `raw` format specifiers in expression evaluation result display.
 - Added TestFormatSpecifiers.
+- Added TestFormatSpecifiersAc.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
