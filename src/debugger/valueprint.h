@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "types/protocol.h"
+#include "debugger/evalutils.h"
 #include <string>
 
 namespace dncdbg
@@ -21,7 +21,7 @@ namespace dncdbg
 class Evaluator;
 
 HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue,
-                   std::string &output, FormatSpecifiers formatSpecifier = FormatSpecifiers::None);
+                   std::string &output, FormatSpecifier formatSpecifier = FormatSpecifier::None);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue);
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output);
 

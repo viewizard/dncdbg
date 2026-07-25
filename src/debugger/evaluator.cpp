@@ -1133,7 +1133,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     {
         // FIXME investigate, why in this case we can't use ICorDebugReferenceValue::SetValue() for string in trValue
         trValue.Free();
-        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, &trValue, output));
+        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, &trValue, output));
 
         CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&elemType));
@@ -1439,7 +1439,7 @@ HRESULT Evaluator::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 }
 
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               bool provideSetterData, const WalkMembersCallback &cb)
+                               bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
 {
     HRESULT Status = S_OK;
 
@@ -1583,7 +1583,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
 
-            if ((GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
+            if (specifier != FormatSpecifier::DisplaysInRawMode &&
+                (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
                 (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
             {
                 bool typeChecked = false;
@@ -2266,7 +2267,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                 ValueKind valueKind, const std::vector<std::string> &identifiers,
-                                int nextIdentifier, ICorDebugValue **ppResult,
+                                int nextIdentifier, FormatSpecifier specifier, ICorDebugValue **ppResult,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
@@ -2289,7 +2290,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
 
-        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr),
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr), specifier,
             [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
             {
@@ -2322,10 +2323,9 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     return S_OK;
 }
 
-HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel,
-                                         const std::string &methodClass, std::vector<std::string> &identifiers,
-                                         ICorDebugValue **ppResult,
-                                         std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
+                                         std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -2371,8 +2371,8 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             // type has static members (S_NO_STATIC if type doesn't have static members)
             if (S_OK == m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject))
             {
-                if (SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName, 0,
-                                           ppResult, resultSetterData)))
+                if (SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName,
+                                           0, specifier, ppResult, resultSetterData)))
                 {
                     return S_OK;
                 }
@@ -2385,7 +2385,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject));
         if (Status == S_OK && // type has static members (S_NO_STATIC if type doesn't have static members)
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, fieldName,
-                                   0, ppResult, resultSetterData)))
+                                   0, specifier, ppResult, resultSetterData)))
         {
             return S_OK;
         }
@@ -2437,10 +2437,9 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     return PrintStringValue(trValue, output);
 }
 
-HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
-                                      SetterData *inputSetterData, std::vector<std::string> &identifiers,
-                                      ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
-                                      ICorDebugType **ppResultType)
+HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue, SetterData *inputSetterData,
+                                      std::vector<std::string> &identifiers, FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                                      std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
 {
     if ((pInputValue != nullptr) && identifiers.empty())
     {
@@ -2454,8 +2453,8 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     }
     else if (pInputValue != nullptr)
     {
-        return FollowFields(pThread, frameLevel, pInputValue, ValueKind::Variable, identifiers, 0, ppResultValue,
-                            resultSetterData);
+        return FollowFields(pThread, frameLevel, pInputValue, ValueKind::Variable, identifiers,
+                            0, specifier, ppResultValue, resultSetterData);
     }
 
     HRESULT Status = S_OK;
@@ -2550,7 +2549,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
 
         if (SUCCEEDED(FollowFields(pThread, frameLevel, trThisValue, ValueKind::Variable, identifiers,
-                                   nextIdentifier, &trResolvedValue, resultSetterData)))
+                                   nextIdentifier, specifier, &trResolvedValue, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2570,8 +2569,8 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         std::string methodName;
         TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
 
-        if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, methodClass, identifiers, &trResolvedValue,
-                                            resultSetterData)))
+        if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, methodClass, identifiers, specifier,
+                                            &trResolvedValue, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2621,7 +2620,8 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     }
 
     ToRelease<ICorDebugValue> trResultValue;
-    IfFailRet(FollowFields(pThread, frameLevel, trResolvedValue, valueKind, identifiers, nextIdentifier, &trResultValue, resultSetterData));
+    IfFailRet(FollowFields(pThread, frameLevel, trResolvedValue, valueKind, identifiers,
+                           nextIdentifier, specifier, &trResultValue, resultSetterData));
 
     *ppResultValue = trResultValue.Detach();
     return S_OK;

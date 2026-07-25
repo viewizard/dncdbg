@@ -428,29 +428,29 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     return S_OK;
 }
 
-void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifiers &specifier)
+void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier)
 {
     struct FormatMapping
     {
         std::string_view name;
-        FormatSpecifiers specifier;
+        FormatSpecifier specifier;
     };
 
     // Format specifiers
     // https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio
     static constexpr std::array<FormatMapping, 9> formatMap{{
-        {"ac",      FormatSpecifiers::ForceEvaluation},
-        {"d",       FormatSpecifiers::DecimalInteger},
-        {"h",       FormatSpecifiers::HexadecimalInteger},
-        {"dynamic", FormatSpecifiers::Dynamic},
-        {"nse",     FormatSpecifiers::EvaluatesWithNoSideEffects},
-        {"nq",      FormatSpecifiers::StringWithNoQuotes},
-        {"hidden",  FormatSpecifiers::DisplaysHiddenMembers},
-        {"raw",     FormatSpecifiers::DisplaysInRawMode},
-        {"results", FormatSpecifiers::Results}
+        {"ac",      FormatSpecifier::ForceEvaluation},
+        {"d",       FormatSpecifier::DecimalInteger},
+        {"h",       FormatSpecifier::HexadecimalInteger},
+        {"dynamic", FormatSpecifier::Dynamic},
+        {"nse",     FormatSpecifier::EvaluatesWithNoSideEffects},
+        {"nq",      FormatSpecifier::StringWithNoQuotes},
+        {"hidden",  FormatSpecifier::DisplaysHiddenMembers},
+        {"raw",     FormatSpecifier::DisplaysInRawMode},
+        {"results", FormatSpecifier::Results}
     }};
 
-    specifier = FormatSpecifiers::None;
+    specifier = FormatSpecifier::None;
     expression = expressionWithFormat;
 
     // Find the last comma to isolate the potential suffix

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Diagnostics;
 
 using DbgTest;
 using DbgTest.DAP;
@@ -7,6 +8,34 @@ using DbgTest.Script;
 
 namespace TestFormatSpecifiers
 {
+
+[DebuggerTypeProxy(typeof(TestClassProxy1))]
+class TestClass1
+{
+    public int i = 5;
+    public int j = 6;
+
+    static public int ii = 7;
+
+    private class TestClassProxy1
+    {
+        private readonly TestClass1 _target;
+
+        public TestClassProxy1(TestClass1 target)
+        {
+            _target = target;
+        }
+
+        private int y1 = 1;
+        private int x1 => 2;
+        public int y2 = 3;
+        public int x2 => 4;
+
+        static public int xx = 5;
+
+        public int SumOfFields => _target.i + _target.j;
+    }
+}
 
 class Program
 {
@@ -39,6 +68,8 @@ class Program
         double testDouble = 10;
         decimal testDecimal = 11M;
         char testChar = 'ㅎ';
+
+        TestClass1 testClass1 = new TestClass1();
 
         int i = 1;                                                Label.Breakpoint("bp1");
 
@@ -87,6 +118,25 @@ class Program
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "12622 'ㅎ'", "char", "testChar");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0x314e 'ㅎ'", "char", "testChar,h");
+
+                int variablesReference_testClass1 = Context.GetExpressionEvaluationReference(@"__FILE__:__LINE__", frameId, "testClass1");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "int", "y2", "3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "int", "x2", "4");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "int", "SumOfFields", "11");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "i");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1, "j");
+
+                int variablesReference_testClass1raw = Context.GetExpressionEvaluationReference(@"__FILE__:__LINE__", frameId, "testClass1,raw");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "int", "i", "5");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "int", "j", "6");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "y1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "x1");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "y2");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "x2");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReference_testClass1raw, "SumOfFields");
+
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

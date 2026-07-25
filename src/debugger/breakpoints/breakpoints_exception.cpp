@@ -6,10 +6,10 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
+#include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
-#include "types/protocol.h"
 #include "utils/hresult.h"
 #include <algorithm>
 #include <functional>
@@ -279,7 +279,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         pDetails->evaluateName = "$exception";
 
         HRESULT Status = S_OK;
-        m_sharedEvaluator->WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false,
+        m_sharedEvaluator->WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::None,
             [&](ICorDebugType *, bool, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
             {
@@ -307,7 +307,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("_message",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->message, FormatSpecifiers::StringWithNoQuotes);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->message, FormatSpecifier::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {
@@ -317,7 +317,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("StackTrace",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->stackTrace, FormatSpecifiers::StringWithNoQuotes);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->stackTrace, FormatSpecifier::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {
@@ -327,7 +327,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
                 IfFailRet(getMemberWithName("Source",
                     [&](ToRelease<ICorDebugValue> &trValue) -> void
                     {
-                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->source, FormatSpecifiers::StringWithNoQuotes);
+                        PrintValue(pThread, m_sharedEvaluator.get(), trValue, pDetails->source, FormatSpecifier::StringWithNoQuotes);
                     }));
                 if (Status == S_OK)
                 {

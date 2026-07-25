@@ -1229,6 +1229,17 @@ class Context
         strRes = evaluateResponse.body.result;
     }
 
+    public int GetExpressionEvaluationReference(string caller_trace, Int64 frameId, string expr)
+    {
+        EvaluateRequest evaluateRequest = new EvaluateRequest();
+        evaluateRequest.arguments.expression = expr;
+        evaluateRequest.arguments.frameId = frameId;
+        var ret = DAPDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
+        return evaluateResponse.body.variablesReference;
+    }
+
     public void WasOutputEvent(string category, string output, string caller_trace)
     {
         Func<string, bool> filter = (resJSON) =>

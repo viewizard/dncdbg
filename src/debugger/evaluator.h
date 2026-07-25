@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debugger/evalutils.h"
 #include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/torelease.h"
@@ -96,27 +97,26 @@ class Evaluator
     {
     }
 
-    HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue,
-                               SetterData *inputSetterData, std::vector<std::string> &identifiers,
-                               ICorDebugValue **ppResultValue, std::unique_ptr<SetterData> *resultSetterData,
-                               ICorDebugType **ppResultType);
+    HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue, SetterData *inputSetterData,
+                               std::vector<std::string> &identifiers, FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                               std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType);
 
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
                            mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                        bool provideSetterData, const WalkMembersCallback &cb);
+                        bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
     HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
 
-    HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                         ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
+    HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
+                         const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
-                                  std::vector<std::string> &identifiers, ICorDebugValue **ppResult,
-                                  std::unique_ptr<Evaluator::SetterData> *resultSetterData);
+                                  std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                                  ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output);
 

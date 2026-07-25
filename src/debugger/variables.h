@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "types/types.h"
+#include "debugger/evalutils.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
 #include <mutex>
@@ -75,18 +75,21 @@ class Variables
         ValueKind valueKind;
         ToRelease<ICorDebugValue> trValue;
         FrameId frameId;
+        FormatSpecifier specifier;
 
         VariableReference(const Variable &variable,
                           FrameId frameId,
                           ICorDebugValue *pValue,
-                          ValueKind valueKind)
+                          ValueKind valueKind,
+                          FormatSpecifier specifier)
             : variablesReference(variable.variablesReference),
               namedVariables(variable.namedVariables),
               indexedVariables(variable.indexedVariables),
               evaluateName(variable.evaluateName),
               valueKind(valueKind),
               trValue(pValue),
-              frameId(frameId)
+              frameId(frameId),
+              specifier(specifier)
         {
         }
 
@@ -98,7 +101,8 @@ class Variables
               indexedVariables(0),
               valueKind(ValueKind::Scope),
               trValue(nullptr),
-              frameId(frameId)
+              frameId(frameId),
+              specifier(FormatSpecifier::None)
         {
         }
 
@@ -122,13 +126,13 @@ class Variables
     std::unordered_map<uint32_t, VariableReference> m_references;
 
     HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId,
-                                 ICorDebugValue *pValue, ValueKind valueKind);
+                                 ICorDebugValue *pValue, ValueKind valueKind, FormatSpecifier specifier);
 
     HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
                               std::vector<Variable> &variables);
 
-    HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, int start, int count,
-                        std::vector<Variable> &variables);
+    HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread,
+                        int start, int count, std::vector<Variable> &variables);
 
     HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                              const std::string &value, std::string &output);

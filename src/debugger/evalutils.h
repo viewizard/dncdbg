@@ -12,7 +12,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "types/protocol.h"
 #include <string>
 #include <vector>
 
@@ -20,6 +19,20 @@ namespace dncdbg
 {
 
 class DebugInfo;
+
+enum class FormatSpecifier : uint8_t
+{
+    None = 0,
+    ForceEvaluation,
+    DecimalInteger,
+    HexadecimalInteger,
+    Dynamic,
+    EvaluatesWithNoSideEffects,
+    StringWithNoQuotes,
+    DisplaysHiddenMembers,
+    DisplaysInRawMode,
+    Results
+};
 
 } // namespace dncdbg
 
@@ -30,7 +43,7 @@ std::vector<std::string> ParseType(const std::string &expression, std::vector<in
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule = nullptr);
 std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName);
-void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifiers &specifier);
+void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier);
 
 } // namespace dncdbg::EvalUtils
 

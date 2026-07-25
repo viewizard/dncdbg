@@ -5,6 +5,7 @@
 
 #include "debugger/breakpoints/breakpointutils.h"
 #include "debugger/evaluator.h"
+#include "debugger/evalutils.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
@@ -93,7 +94,7 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     std::string value;
     std::string type;
     ToRelease<ICorDebugValue> trResultValue;
-    if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, &trResultValue, output)) ||
+    if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None, &trResultValue, output)) ||
         FAILED(TypePrinter::GetTypeOfValue(trResultValue, type)) ||
         FAILED(PrintValue(pThread, pEvaluator, trResultValue, value)))
     {
@@ -223,7 +224,7 @@ void BuildTraceMessage(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
             std::string value;
             std::string output;
             ToRelease<ICorDebugValue> trResultValue;
-            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, text, &trResultValue, output)) &&
+            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, text, FormatSpecifier::None, &trResultValue, output)) &&
                 SUCCEEDED(PrintValue(pThread, pEvaluator, trResultValue, value)))
             {
                 message += value;

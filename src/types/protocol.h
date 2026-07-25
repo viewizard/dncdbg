@@ -480,20 +480,6 @@ struct ExceptionBreakpoint
     }
 };
 
-enum class FormatSpecifiers : uint8_t
-{
-    None = 0,
-    ForceEvaluation,
-    DecimalInteger,
-    HexadecimalInteger,
-    Dynamic,
-    EvaluatesWithNoSideEffects,
-    StringWithNoQuotes,
-    DisplaysHiddenMembers,
-    DisplaysInRawMode,
-    Results
-};
-
 } // namespace dncdbg
 
 #endif // TYPES_PROTOCOL_H

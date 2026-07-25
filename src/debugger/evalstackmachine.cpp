@@ -133,8 +133,7 @@ HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorD
     return trGenericValue->SetValue(ptr);
 }
 
-HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
-                                std::unique_ptr<Evaluator::SetterData> *resultSetterData,
+HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
                                 std::list<EvalStackEntry> &evalStack, EvalData &ed, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -149,7 +148,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue,
     }
 
     if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue,
-                                                          inputPropertyData, evalStack.front().identifiers,
+                                                          inputPropertyData, evalStack.front().identifiers, ed.specifier,
                                                           ppResultValue, resultSetterData, nullptr)) &&
         !evalStack.front().identifiers.empty())
     {
@@ -174,7 +173,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
     if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue, nullptr,
-                                                           evalStack.front().identifiers, &trValue, nullptr, ppResultType)) &&
+                                                           evalStack.front().identifiers, ed.specifier, &trValue, nullptr, ppResultType)) &&
          !evalStack.front().identifiers.empty()) ||
         (trValue != nullptr))
     {
@@ -864,7 +863,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     ToRelease<ICorDebugValue> trValue;
     ToRelease<ICorDebugType> trType;
     IfFailRet(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue, nullptr,
-                                                evalStack.front().identifiers, &trValue, nullptr, &trType));
+                                                evalStack.front().identifiers, ed.specifier, &trValue, nullptr, &trType));
 
     bool searchStatic = false;
     if (trType != nullptr)
@@ -1623,12 +1622,13 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
 }
 
 HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel,
-                                             const std::string &expression, ICorDebugValue **ppResultValue,
-                                             std::string &output, bool *editable,
+                                             const std::string &expression, FormatSpecifier specifier,
+                                             ICorDebugValue **ppResultValue, std::string &output, bool *editable,
                                              std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
+    m_evalData.specifier = specifier;
     IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
@@ -1650,11 +1650,12 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     return S_OK;
 }
 
-HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel,
-                                               ICorDebugValue *pValue, const std::string &expression, std::string &output)
+HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                                               const std::string &expression, std::string &output)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
+    m_evalData.specifier = FormatSpecifier::None;
     IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
