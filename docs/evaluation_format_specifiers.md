@@ -1,4 +1,4 @@
-## Supported format specifiers
+## Evaluation format specifiers
 
 Related to [Format specifiers in C# in the Visual Studio debugger](https://learn.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-csharp?view=visualstudio)
 

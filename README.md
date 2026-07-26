@@ -25,4 +25,4 @@ The project's development strategy is Trunk-Based Development, this means you ca
 - [VSCode IDE, Linux and macOS OSes.](docs/usage_vscode_unix.md)
 - [Debugger pseudo-variables.](docs/pseudo_variables.md)
 - [Inputting text into the target process.](docs/inputting_text.md)
-- [Supported format specifiers.](docs/format_specifiers.md)
+- [Evaluation format specifiers.](docs/evaluation_format_specifiers.md)
