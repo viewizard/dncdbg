@@ -49,6 +49,7 @@ ALL_TEST_NAMES=(
     "TestDebuggerRawValues"
     "TestFormatSpecifiers"
     "TestFormatSpecifiersAc"
+    "TestDebuggerDisplay"
 )
 
 TEST_NAMES="$@"
