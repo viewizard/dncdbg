@@ -591,11 +591,11 @@ HRESULT Modules::ForEachModule(ICorDebugThread *pThread, const std::function<HRE
     ToRelease<ICorDebugAssemblyEnum> trAssemblyEnum;
     IfFailRet(trAppDomain->EnumerateAssemblies(&trAssemblyEnum));
 
-    ICorDebugAssembly *curAssembly = nullptr;
+    ICorDebugAssembly *pCurAssembly = nullptr;
     ULONG assemblyFetched = 0;
-    while (SUCCEEDED(trAssemblyEnum->Next(1, &curAssembly, &assemblyFetched)) && assemblyFetched == 1)
+    while (SUCCEEDED(trAssemblyEnum->Next(1, &pCurAssembly, &assemblyFetched)) && assemblyFetched == 1)
     {
-        ToRelease<ICorDebugAssembly> trAssembly(curAssembly);
+        ToRelease<ICorDebugAssembly> trAssembly(pCurAssembly);
         // Only one module per assembly is supported.
         ToRelease<ICorDebugModuleEnum> trModuleEnum;
         IfFailRet(trAssembly->EnumerateModules(&trModuleEnum));

@@ -806,11 +806,11 @@ HRESULT GetConstructorTypeParams(ICorDebugThread *pThread, ICorDebugType *pType,
     std::vector<ToRelease<ICorDebugType>> trCurrentTypes;
     if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
     {
-        ICorDebugType *curType = nullptr;
+        ICorDebugType *pCurType = nullptr;
         ULONG fetched = 0;
-        while (SUCCEEDED(Status = trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
+        while (SUCCEEDED(Status = trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
         {
-            trCurrentTypes.emplace_back(curType);
+            trCurrentTypes.emplace_back(pCurType);
         }
     }
 

@@ -52,7 +52,7 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
                                          ICorDebugBreakpoint *pBreakpoint) override;
     HRESULT STDMETHODCALLTYPE StepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                            ICorDebugStepper *pStepper, CorDebugStepReason reason) override;
-    HRESULT STDMETHODCALLTYPE Break(ICorDebugAppDomain *pAppDomain, ICorDebugThread *thread) override;
+    HRESULT STDMETHODCALLTYPE Break(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread) override;
     HRESULT STDMETHODCALLTYPE Exception(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                         BOOL unhandled) override;
     HRESULT STDMETHODCALLTYPE EvalComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
@@ -65,8 +65,8 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
     HRESULT STDMETHODCALLTYPE ExitThread(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread) override;
     HRESULT STDMETHODCALLTYPE LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule) override;
     HRESULT STDMETHODCALLTYPE UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule) override;
-    HRESULT STDMETHODCALLTYPE LoadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *c) override;
-    HRESULT STDMETHODCALLTYPE UnloadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *c) override;
+    HRESULT STDMETHODCALLTYPE LoadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *pClass) override;
+    HRESULT STDMETHODCALLTYPE UnloadClass(ICorDebugAppDomain *pAppDomain, ICorDebugClass *pClass) override;
     HRESULT STDMETHODCALLTYPE DebuggerError(ICorDebugProcess *pProcess, HRESULT errorHR, DWORD errorCode) override;
     HRESULT STDMETHODCALLTYPE LogMessage(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, LONG lLevel,
                                          WCHAR *pLogSwitchName, WCHAR *pMessage) override;

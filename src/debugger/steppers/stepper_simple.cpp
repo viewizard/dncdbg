@@ -83,12 +83,12 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
                 return false;
             }
 
-            ICorDebugStepper *curStepper = nullptr;
+            ICorDebugStepper *pCurStepper = nullptr;
             ULONG steppersFetched = 0;
-            while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
+            while (SUCCEEDED(trStepperEnum->Next(1, &pCurStepper, &steppersFetched)) && steppersFetched == 1)
             {
                 BOOL bActive = TRUE;
-                ToRelease<ICorDebugStepper> trStepper(curStepper);
+                ToRelease<ICorDebugStepper> trStepper(pCurStepper);
                 if (SUCCEEDED(trStepper->IsActive(&bActive)) && bActive == TRUE)
                 {
                     return false;
@@ -118,19 +118,19 @@ HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
     ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
     IfFailRet(pProcess->EnumerateAppDomains(&trAppDomainEnum));
 
-    ICorDebugAppDomain *curDomain = nullptr;
+    ICorDebugAppDomain *pCurDomain = nullptr;
     ULONG domainsFetched = 0;
-    while (SUCCEEDED(trAppDomainEnum->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
+    while (SUCCEEDED(trAppDomainEnum->Next(1, &pCurDomain, &domainsFetched)) && domainsFetched == 1)
     {
-        ToRelease<ICorDebugAppDomain> trDomain(curDomain);
+        ToRelease<ICorDebugAppDomain> trDomain(pCurDomain);
         ToRelease<ICorDebugStepperEnum> trStepperEnum;
         IfFailRet(trDomain->EnumerateSteppers(&trStepperEnum));
 
-        ICorDebugStepper *curStepper = nullptr;
+        ICorDebugStepper *pCurStepper = nullptr;
         ULONG steppersFetched = 0;
-        while (SUCCEEDED(trStepperEnum->Next(1, &curStepper, &steppersFetched)) && steppersFetched == 1)
+        while (SUCCEEDED(trStepperEnum->Next(1, &pCurStepper, &steppersFetched)) && steppersFetched == 1)
         {
-            ToRelease<ICorDebugStepper> trStepper(curStepper);
+            ToRelease<ICorDebugStepper> trStepper(pCurStepper);
             trStepper->Deactivate();
         }
     }

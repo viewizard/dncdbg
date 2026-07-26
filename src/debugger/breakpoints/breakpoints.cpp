@@ -71,22 +71,22 @@ HRESULT Breakpoints::DisableAll(ICorDebugProcess *pProcess)
     ToRelease<ICorDebugAppDomainEnum> trAppDomainEnum;
     IfFailRet(pProcess->EnumerateAppDomains(&trAppDomainEnum));
 
-    ICorDebugAppDomain *curDomain = nullptr;
+    ICorDebugAppDomain *pCurDomain = nullptr;
     ULONG domainsFetched = 0;
-    while (SUCCEEDED(trAppDomainEnum->Next(1, &curDomain, &domainsFetched)) && domainsFetched == 1)
+    while (SUCCEEDED(trAppDomainEnum->Next(1, &pCurDomain, &domainsFetched)) && domainsFetched == 1)
     {
-        ToRelease<ICorDebugAppDomain> trDomain(curDomain);
+        ToRelease<ICorDebugAppDomain> trDomain(pCurDomain);
         ToRelease<ICorDebugBreakpointEnum> trBreakpointEnum;
         if (FAILED(trDomain->EnumerateBreakpoints(&trBreakpointEnum)))
         {
             continue;
         }
 
-        ICorDebugBreakpoint *curBreakpoint = nullptr;
+        ICorDebugBreakpoint *pCurBreakpoint = nullptr;
         ULONG breakpointsFetched = 0;
-        while (SUCCEEDED(trBreakpointEnum->Next(1, &curBreakpoint, &breakpointsFetched)) && breakpointsFetched == 1)
+        while (SUCCEEDED(trBreakpointEnum->Next(1, &pCurBreakpoint, &breakpointsFetched)) && breakpointsFetched == 1)
         {
-            ToRelease<ICorDebugBreakpoint> trBreakpoint(curBreakpoint);
+            ToRelease<ICorDebugBreakpoint> trBreakpoint(pCurBreakpoint);
             trBreakpoint->Activate(FALSE);
         }
     }

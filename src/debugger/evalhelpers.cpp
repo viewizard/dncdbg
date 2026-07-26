@@ -226,11 +226,11 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         ToRelease<ICorDebugTypeEnum> trTypeEnum;
         if (SUCCEEDED(pArgType->EnumerateTypeParameters(&trTypeEnum)))
         {
-            ICorDebugType *curType = nullptr;
+            ICorDebugType *pCurType = nullptr;
             ULONG fetched = 0;
-            while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
+            while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
             {
-                trTypeParams.emplace_back(curType);
+                trTypeParams.emplace_back(pCurType);
             }
         }
     }
@@ -383,11 +383,11 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
     ToRelease<ICorDebugTypeEnum> trTypeEnum;
     if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
     {
-        ICorDebugType *curType = nullptr;
+        ICorDebugType *pCurType = nullptr;
         ULONG fetched = 0;
-        while (SUCCEEDED(trTypeEnum->Next(1, &curType, &fetched)) && fetched == 1)
+        while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
         {
-            trTypeParams.emplace_back(curType);
+            trTypeParams.emplace_back(pCurType);
         }
     }
 
