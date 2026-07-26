@@ -2438,24 +2438,24 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     return PrintStringValue(trValue, output);
 }
 
-HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *forcedThisValue,
+HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                       SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                       FormatSpecifier specifier, ICorDebugValue **ppResultValue,
                                       std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
 {
-    if ((forcedThisValue != nullptr) && identifiers.empty())
+    if ((pForcedThisValue != nullptr) && identifiers.empty())
     {
-        forcedThisValue->AddRef();
-        *ppResultValue = forcedThisValue;
+        pForcedThisValue->AddRef();
+        *ppResultValue = pForcedThisValue;
         if ((inputSetterData != nullptr) && (resultSetterData != nullptr))
         {
             *resultSetterData = std::make_unique<Evaluator::SetterData>(*inputSetterData);
         }
         return S_OK;
     }
-    else if (forcedThisValue != nullptr)
+    else if (pForcedThisValue != nullptr)
     {
-        return FollowFields(pThread, frameLevel, forcedThisValue, ValueKind::Variable, identifiers,
+        return FollowFields(pThread, frameLevel, pForcedThisValue, ValueKind::Variable, identifiers,
                             0, specifier, ppResultValue, resultSetterData);
     }
 

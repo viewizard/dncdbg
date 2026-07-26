@@ -525,7 +525,7 @@ void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::p
     }
 }
 
-void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *forcedThisValue,
+void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output)
 {
     // Build the final output text by evaluating expressions.
@@ -547,8 +547,8 @@ void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
             std::string errorText;
             ToRelease<ICorDebugValue> trResultValue;
             if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, expression,
-                                                                forcedThisValue == nullptr ? specifier : specifier | FormatSpecifier::DisplaysInRawMode,
-                                                                forcedThisValue, &trResultValue, errorText)) &&
+                                                                pForcedThisValue == nullptr ? specifier : specifier | FormatSpecifier::DisplaysInRawMode,
+                                                                pForcedThisValue, &trResultValue, errorText)) &&
                 SUCCEEDED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, specifier, value)))
             {
                 output += value;

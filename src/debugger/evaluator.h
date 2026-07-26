@@ -97,7 +97,7 @@ class Evaluator
     {
     }
 
-    HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *forcedThisValue,
+    HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,
                                FormatSpecifier specifier, ICorDebugValue **ppResultValue,
                                std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType);
