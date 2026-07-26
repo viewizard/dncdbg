@@ -1,6 +1,6 @@
 # How to launch tests locally
 
-- On Linux:
+- On Linux and macOS:
 ```
     launch all tests:
     $ ./run_tests.sh
