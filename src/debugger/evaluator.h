@@ -98,8 +98,8 @@ class Evaluator
     }
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *forcedThisValue,
-                               ICorDebugValue *pInputValue, SetterData *inputSetterData,
-                               std::vector<std::string> &identifiers, FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                               SetterData *inputSetterData, std::vector<std::string> &identifiers,
+                               FormatSpecifier specifier, ICorDebugValue **ppResultValue,
                                std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType);
 
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,

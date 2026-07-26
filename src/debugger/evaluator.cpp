@@ -2439,23 +2439,23 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
 }
 
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *forcedThisValue,
-                                      ICorDebugValue *pInputValue, SetterData *inputSetterData,
-                                      std::vector<std::string> &identifiers, FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                                      SetterData *inputSetterData, std::vector<std::string> &identifiers,
+                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue,
                                       std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
 {
-    if ((pInputValue != nullptr) && identifiers.empty())
+    if ((forcedThisValue != nullptr) && identifiers.empty())
     {
-        pInputValue->AddRef();
-        *ppResultValue = pInputValue;
+        forcedThisValue->AddRef();
+        *ppResultValue = forcedThisValue;
         if ((inputSetterData != nullptr) && (resultSetterData != nullptr))
         {
             *resultSetterData = std::make_unique<Evaluator::SetterData>(*inputSetterData);
         }
         return S_OK;
     }
-    else if (pInputValue != nullptr)
+    else if (forcedThisValue != nullptr)
     {
-        return FollowFields(pThread, frameLevel, pInputValue, ValueKind::Variable, identifiers,
+        return FollowFields(pThread, frameLevel, forcedThisValue, ValueKind::Variable, identifiers,
                             0, specifier, ppResultValue, resultSetterData);
     }
 
@@ -2464,12 +2464,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     ToRelease<ICorDebugValue> trResolvedValue;
     ToRelease<ICorDebugValue> trThisValue;
 
-    if (forcedThisValue != nullptr)
-    {
-        forcedThisValue->AddRef();
-        trThisValue = forcedThisValue;
-    }
-    else if (identifiers.at(nextIdentifier) == "$exception")
+    if (identifiers.at(nextIdentifier) == "$exception")
     {
         IfFailRet(pThread->GetCurrentException(&trResolvedValue));
         if (trResolvedValue == nullptr)
