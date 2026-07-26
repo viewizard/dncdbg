@@ -22,6 +22,7 @@ Upcoming changes compared to previous version.
 - Added support for `ac`, `h`, `nq` and `raw` format specifiers in expression evaluation result display.
 - Added TestFormatSpecifiers.
 - Added TestFormatSpecifiersAc.
+- Added support for `DebuggerDisplayAttribute` to classes and structures.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

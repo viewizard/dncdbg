@@ -83,6 +83,7 @@ struct EvalData
     std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> trElementToValueClassMap;
     FrameLevel frameLevel;
     FormatSpecifier specifier{FormatSpecifier::None};
+    ICorDebugValue *forcedThisValue{nullptr};
 };
 
 class EvalStackMachine
@@ -112,8 +113,8 @@ class EvalStackMachine
     }
 
     // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
-    HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
-                               FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string &output,
+    HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
+                               ICorDebugValue *forcedThisValue, ICorDebugValue **ppResultValue, std::string &output,
                                bool *editable = nullptr, std::unique_ptr<Evaluator::SetterData> *resultSetterData = nullptr);
 
     // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.

@@ -6,6 +6,7 @@
 #include "debugger/valueprint.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
+#include "debugger/evalutils.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
@@ -50,6 +51,42 @@ bool IsEnum(ICorDebugValue *pInputValue)
     }
 
     return baseTypeName == "System.Enum";
+}
+
+HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                                      ICorDebugValue *pInputValue, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
+
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trClass->GetModule(&trModule));
+    mdTypeDef currentTypeDef = mdTypeDefNil;
+    IfFailRet(trClass->GetToken(&currentTypeDef));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    std::string textWithEval;
+    if (!HasDebuggerDisplayAttribute(trMDImport, currentTypeDef, textWithEval))
+    {
+        return E_INVALIDARG;
+    }
+
+    std::vector<std::pair<std::string, bool>> textWithEvalParts;
+    EvalUtils::CreateTextWithEvalParts(textWithEval, textWithEvalParts);
+    EvalUtils::BuildTextWithEval(pEvaluator, pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
+    return S_OK;
 }
 
 HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string &output)
@@ -556,8 +593,8 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pInputValue,
-                   FormatSpecifier specifier, std::string &output)
+HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine,
+                   ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -742,6 +779,11 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugVal
                 if (IsEnum(trValue))
                 {
                     return PrintEnumValue(trValue, genericValue.data(), output);
+                }
+
+                if (SUCCEEDED(PrintDebuggerDisplayAttribute(pEvaluator, pEvalStackMachine, pThread, trCurrentValue, output)))
+                {
+                    return S_OK;
                 }
 
                 ss << '{';

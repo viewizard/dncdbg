@@ -61,7 +61,7 @@ std::vector<std::string> ParseGenericParams(const std::string &identifier, std::
 void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier);
 
 void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts);
-void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *forcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output);
 
 } // namespace dncdbg::EvalUtils

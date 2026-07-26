@@ -147,7 +147,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
         resultSetterData = nullptr;
     }
 
-    if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue,
+    if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, ed.forcedThisValue, evalStack.front().trValue,
                                                           inputPropertyData, evalStack.front().identifiers, ed.specifier,
                                                           ppResultValue, resultSetterData, nullptr)) &&
         !evalStack.front().identifiers.empty())
@@ -172,7 +172,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
-    if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue, nullptr,
+    if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, ed.forcedThisValue, evalStack.front().trValue, nullptr,
                                                            evalStack.front().identifiers, ed.specifier, &trValue, nullptr, ppResultType)) &&
          !evalStack.front().identifiers.empty()) ||
         (trValue != nullptr))
@@ -844,7 +844,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         funcName.resize(pos);
     }
 
-    if ((evalStack.front().trValue == nullptr) && evalStack.front().identifiers.empty())
+    if (ed.forcedThisValue != nullptr)
+    {
+        evalStack.front().identifiers.emplace_back("this");
+    }
+    else if ((evalStack.front().trValue == nullptr) && evalStack.front().identifiers.empty())
     {
         std::string methodClass;
         idsEmpty = true;
@@ -865,7 +869,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     ToRelease<ICorDebugValue> trValue;
     ToRelease<ICorDebugType> trType;
-    IfFailRet(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, evalStack.front().trValue, nullptr,
+    IfFailRet(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, ed.forcedThisValue, evalStack.front().trValue, nullptr,
                                                 evalStack.front().identifiers, ed.specifier, &trValue, nullptr, &trType));
 
     bool searchStatic = false;
@@ -1624,14 +1628,15 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     return Status;
 }
 
-HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel,
-                                             const std::string &expression, FormatSpecifier specifier,
+HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
+                                             FormatSpecifier specifier, ICorDebugValue *forcedThisValue,
                                              ICorDebugValue **ppResultValue, std::string &output, bool *editable,
                                              std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
     m_evalData.specifier = specifier;
+    m_evalData.forcedThisValue = forcedThisValue;
     IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
@@ -1659,6 +1664,7 @@ HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLe
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
     m_evalData.specifier = FormatSpecifier::None;
+    m_evalData.forcedThisValue = nullptr;
     IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 
     assert(evalStack.size() == 1);

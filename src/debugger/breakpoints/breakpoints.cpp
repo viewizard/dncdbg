@@ -22,7 +22,7 @@ Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
                          std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
     : m_breakBreakpoint(new BreakBreakpoint(sharedDebugInfo)),
       m_entryBreakpoint(new EntryBreakpoint(sharedDebugInfo)),
-      m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator)),
+      m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator, sharedEvalStackMachine)),
       m_funcBreakpoints(new FunctionBreakpoints(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine)),
       m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine))
 {

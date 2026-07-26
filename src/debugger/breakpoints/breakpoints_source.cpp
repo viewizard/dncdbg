@@ -240,7 +240,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     EvalUtils::CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
                 }
                 std::string message;
-                EvalUtils::BuildTextWithEval(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, b.logMessageParts, message);
+                EvalUtils::BuildTextWithEval(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, nullptr, b.logMessageParts, message);
+                message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath);
                 event.line = b.lineNum;

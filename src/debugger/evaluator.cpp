@@ -1133,7 +1133,7 @@ HRESULT Evaluator::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     {
         // FIXME investigate, why in this case we can't use ICorDebugReferenceValue::SetValue() for string in trValue
         trValue.Free();
-        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, &trValue, output));
+        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, nullptr, &trValue, output));
 
         CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&elemType));
@@ -2438,7 +2438,8 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     return PrintStringValue(trValue, output);
 }
 
-HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pInputValue, SetterData *inputSetterData,
+HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *forcedThisValue,
+                                      ICorDebugValue *pInputValue, SetterData *inputSetterData,
                                       std::vector<std::string> &identifiers, FormatSpecifier specifier, ICorDebugValue **ppResultValue,
                                       std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
 {
@@ -2463,7 +2464,12 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     ToRelease<ICorDebugValue> trResolvedValue;
     ToRelease<ICorDebugValue> trThisValue;
 
-    if (identifiers.at(nextIdentifier) == "$exception")
+    if (forcedThisValue != nullptr)
+    {
+        forcedThisValue->AddRef();
+        trThisValue = forcedThisValue;
+    }
+    else if (identifiers.at(nextIdentifier) == "$exception")
     {
         IfFailRet(pThread->GetCurrentException(&trResolvedValue));
         if (trResolvedValue == nullptr)

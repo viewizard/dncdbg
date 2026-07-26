@@ -24,13 +24,15 @@ namespace dncdbg
 {
 
 class Evaluator;
+class EvalStackMachine;
 
 class ExceptionBreakpoints
 {
   public:
 
-    explicit ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator)
+    explicit ExceptionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator, std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
         : m_sharedEvaluator(sharedEvaluator),
+          m_sharedEvalStackMachine(sharedEvalStackMachine),
           m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
     {
     }
@@ -60,6 +62,7 @@ class ExceptionBreakpoints
   private:
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
+    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
     CORDB_ADDRESS PrivateCoreLibModAddress{0};
