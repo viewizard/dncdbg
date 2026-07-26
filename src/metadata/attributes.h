@@ -41,6 +41,9 @@ struct DebuggerAttribute
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
     // Specifies the display proxy for a type.
     static constexpr std::string_view TypeProxy = "System.Diagnostics.DebuggerTypeProxyAttribute..ctor";
+    // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerdisplayattribute
+    // Determines how a class or field is displayed in the debugger variable windows.
+    static constexpr std::string_view Display = "System.Diagnostics.DebuggerDisplayAttribute..ctor";
 };
 
 // https://github.com/dotnet/runtime/blob/737dcdda62ca847173ab50c905cd1604e70633b9/src/libraries/System.Private.CoreLib/src/System/Diagnostics/DebuggerBrowsableAttribute.cs#L16
@@ -57,6 +60,7 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
 bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName);
 bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName);
+bool HasDebuggerDisplayAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &text);
 
 } // namespace dncdbg
 

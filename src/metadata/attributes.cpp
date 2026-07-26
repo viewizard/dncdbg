@@ -352,4 +352,43 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
         });
 }
 
+bool HasDebuggerDisplayAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &text)
+{
+    text.clear();
+
+    return ForEachAttribute(pMDImport, tok,
+        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        {
+            if (attrName != DebuggerAttribute::Display)
+            {
+                return false;
+            }
+
+            const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+            PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
+
+            // In case of DebuggerDisplayAttribute, blob format is:
+            // 2 bytes - blob prolog 0x0001
+            // 1-4 bytes - text string length (compressed unsigned integer)
+            // N bytes - text string data (UTF-8)
+
+            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+            {
+                return false;
+            }
+            pbBlob += sizeof(uint16_t);
+
+            std::string_view svText;
+            if (!ReadString(&pbBlob, pbBlobEnd, svText))
+            {
+                return false;
+            }
+
+            text = svText;
+            return true;
+        });
+}
+
 } // namespace dncdbg
