@@ -20,6 +20,8 @@ namespace dncdbg
 {
 
 class DebugInfo;
+class Evaluator;
+class EvalStackMachine;
 
 enum class FormatSpecifier : uint16_t
 {
@@ -57,6 +59,10 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
                  ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule = nullptr);
 std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName);
 void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier);
+
+void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts);
+void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                       const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output);
 
 } // namespace dncdbg::EvalUtils
 

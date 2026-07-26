@@ -29,9 +29,6 @@ HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint
 HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
                             const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
-void CreateMessageParts(const std::string &logMessage, std::vector<std::pair<std::string, bool>> &logMessageParts);
-void BuildTraceMessage(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
-                       const std::vector<std::pair<std::string, bool>> &logMessageParts, std::string &message);
 
 } // namespace BreakpointUtils
 

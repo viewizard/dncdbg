@@ -4,6 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalutils.h"
+#include "debugger/evalstackmachine.h"
+#include "debugger/evaluator.h"
+#include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
@@ -469,6 +472,100 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
 
         commaPos = expression.rfind(',');
     }
+}
+
+void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts)
+{
+    size_t pos = 0;
+    size_t prevPos = 0;
+
+    while ((pos = textWithEval.find('{', prevPos)) != std::string::npos)
+    {
+        // Add text before the '{' (if any) as literal text.
+        if (pos > prevPos)
+        {
+            textWithEvalParts.emplace_back(textWithEval.substr(prevPos, pos - prevPos), false);
+        }
+
+        // Find the matching closing '}' by counting brace depth.
+        size_t endPos = pos + 1;
+        int braceDepth = 1;
+        while (endPos < textWithEval.length() && braceDepth > 0)
+        {
+            if (textWithEval.at(endPos) == '{')
+            {
+                braceDepth++;
+            }
+            else if (textWithEval.at(endPos) == '}')
+            {
+                braceDepth--;
+            }
+            endPos++;
+        }
+
+        if (braceDepth > 0)
+        {
+            // No matching closing brace found, treat from '{' to end as literal text.
+            textWithEvalParts.emplace_back(textWithEval.substr(pos), false);
+            prevPos = textWithEval.length();
+            break;
+        }
+
+        // Add the expression inside braces (without the braces themselves) as expression.
+        // endPos points to position after the matching '}', so expression is [pos+1, endPos-1).
+        textWithEvalParts.emplace_back(textWithEval.substr(pos + 1, endPos - pos - 2), true);
+
+        prevPos = endPos;
+    }
+
+    // Add remaining text after the last '}' (or entire string if no braces found) as literal text.
+    if (prevPos < textWithEval.length())
+    {
+        textWithEvalParts.emplace_back(textWithEval.substr(prevPos), false);
+    }
+}
+
+void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+                       const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output)
+{
+    // Build the final output text by evaluating expressions.
+    for (const auto &[text, isExpression] : textWithEvalParts)
+    {
+        if (!isExpression)
+        {
+            // Literal text - append directly.
+            output += text;
+        }
+        else
+        {
+            // Expression - evaluate it.
+            FormatSpecifier specifier = FormatSpecifier::None;
+            std::string expression;
+            EvalUtils::ParseFormatSpecifier(text, expression, specifier);
+
+            std::string value;
+            std::string errorText;
+            ToRelease<ICorDebugValue> trResultValue;
+            if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, expression, specifier, &trResultValue, errorText)) &&
+                SUCCEEDED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, specifier, value)))
+            {
+                output += value;
+            }
+            else
+            {
+                if (!errorText.empty())
+                {
+                    output += "{" + errorText + "}";
+                }
+                else
+                {
+                    output += "{unknown error}";
+                }
+            }
+        }
+    }
+
+    output += '\n';
 }
 
 } // namespace dncdbg::EvalUtils
