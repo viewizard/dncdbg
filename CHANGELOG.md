@@ -23,6 +23,7 @@ Upcoming changes compared to previous version.
 - Added TestFormatSpecifiers.
 - Added TestFormatSpecifiersAc.
 - Added support for `DebuggerDisplayAttribute` to classes and structures.
+- Added TestDebuggerDisplay.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
