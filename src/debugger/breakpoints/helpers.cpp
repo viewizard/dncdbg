@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints/breakpointutils.h"
+#include "debugger/breakpoints/helpers.h"
 #include "debugger/evaluator.h"
 #include "debugger/evalutils.h"
 #include "debugger/evalstackmachine.h"
@@ -13,7 +13,7 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 
-namespace dncdbg::BreakpointUtils
+namespace dncdbg::BreakpointHelpers
 {
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2)
@@ -157,4 +157,4 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     return S_OK;
 }
 
-} // namespace dncdbg::BreakpointUtils
+} // namespace dncdbg::BreakpointHelpers

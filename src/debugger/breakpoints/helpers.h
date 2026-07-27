@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_BREAKPOINTS_BREAKPOINTUTILS_H
-#define DEBUGGER_BREAKPOINTS_BREAKPOINTUTILS_H
+#ifndef DEBUGGER_BREAKPOINTS_HELPERS_H
+#define DEBUGGER_BREAKPOINTS_HELPERS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -21,7 +21,7 @@ namespace dncdbg
 class Evaluator;
 class EvalStackMachine;
 
-namespace BreakpointUtils
+namespace BreakpointHelpers
 {
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
@@ -30,8 +30,8 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
                             const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
 
-} // namespace BreakpointUtils
+} // namespace BreakpointHelpers
 
 } // namespace dncdbg
 
-#endif // DEBUGGER_BREAKPOINTS_BREAKPOINTUTILS_H
+#endif // DEBUGGER_BREAKPOINTS_HELPERS_H

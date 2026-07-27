@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/breakpoints.h"
-#include "debugger/breakpoints/breakpointutils.h"
+#include "debugger/breakpoints/helpers.h"
 #include "debugger/evalutils.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
@@ -70,7 +70,7 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
             continue;
         }
 
-        IfFailRet(BreakpointUtils::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken, justMyCode));
+        IfFailRet(BreakpointHelpers::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken, justMyCode));
         if (Status == S_SKIP)
         {
             continue;
@@ -173,7 +173,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     {
         for (const auto &trFuncBreakpoint : b.trFuncBreakpoints)
         {
-            if (FAILED(Status = BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
+            if (FAILED(Status = BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
                 Status == S_FALSE)
             {
                 continue;
@@ -182,8 +182,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
             if (!b.condition.empty())
             {
                 std::string output;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
-                                                                         pThread, b.condition, output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                           pThread, b.condition, output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -211,8 +211,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 std::string output;
                 std::ostringstream condstream;
                 condstream << b.hitCount << ">" << b.hitCondition;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
-                                                                         pThread, condstream.str(), output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                           pThread, condstream.str(), output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -330,7 +330,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
                 CORDB_ADDRESS brModAddress = 0;
                 // Check only first element, see ActivateSourceBreakpoint() code,
                 // debugger doesn't support breakpoint with same source name in different modules.
-                if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0), brModAddress)) ||
+                if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0), brModAddress)) ||
                     modAddress != brModAddress)
                 {
                     ++it;

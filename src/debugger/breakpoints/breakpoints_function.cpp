@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints.h"
-#include "debugger/breakpoints/breakpointutils.h"
+#include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
@@ -103,7 +103,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
 
         for (auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
         {
-            if (FAILED(Status = BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
+            if (FAILED(Status = BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
                 Status == S_FALSE)
             {
                 continue;
@@ -112,8 +112,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             if (!fbp.condition.empty())
             {
                 std::string output;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
-                                                                         pThread, fbp.condition, output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                           pThread, fbp.condition, output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -141,8 +141,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 std::string output;
                 std::ostringstream condstream;
                 condstream << fbp.hitCount << ">" << fbp.hitCondition;
-                if (FAILED(Status = BreakpointUtils::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
-                                                                         pThread, condstream.str(), output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                                                                           pThread, condstream.str(), output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -211,7 +211,7 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
         for (auto it = fb.trFuncBreakpoints.begin(); it != fb.trFuncBreakpoints.end();)
         {
             CORDB_ADDRESS brModAddress = 0;
-            if (FAILED(BreakpointUtils::GetFunctionBreakpointModAddress(*it, brModAddress)) ||
+            if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(*it, brModAddress)) ||
                 modAddress != brModAddress)
             {
                 ++it;
@@ -338,7 +338,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
         const mdMethodDef &methodToken = entry.second;
         ICorDebugModule *pModule = entry.first;
 
-        IfFailRet(BreakpointUtils::SkipBreakpoint(pModule, methodToken, m_justMyCode));
+        IfFailRet(BreakpointHelpers::SkipBreakpoint(pModule, methodToken, m_justMyCode));
         if (Status == S_SKIP)
         {
             return S_OK;

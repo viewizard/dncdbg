@@ -9,7 +9,7 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints_source.h"
-#include "debugger/breakpoints/breakpointutils.h"
+#include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "utils/hresult.h"
 #include <mutex>

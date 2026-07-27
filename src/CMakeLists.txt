@@ -31,7 +31,7 @@ set(DNCDBG_SOURCES
     debugger/breakpoints/breakpoints_function.cpp
     debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
-    debugger/breakpoints/breakpointutils.cpp
+    debugger/breakpoints/helpers.cpp
     debugger/evaluation/primitivetypes/binaryoperators.cpp
     debugger/evaluation/primitivetypes/cast.cpp
     debugger/evaluation/primitivetypes/types.cpp

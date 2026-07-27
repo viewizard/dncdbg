@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoints/breakpoint_entry.h"
 #include "debugger/breakpoints/breakpoints.h"
-#include "debugger/breakpoints/breakpointutils.h"
+#include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -274,7 +274,7 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
-    IfFailRet(BreakpointUtils::IsSameFunctionBreakpoint(trFunctionBreakpoint, m_trFuncBreakpoint));
+    IfFailRet(BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, m_trFuncBreakpoint));
     if (Status == S_FALSE)
     {
         return S_FALSE;
