@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/evalutils.h"
+#include "debugger/evalhelpers.h"
 #include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/torelease.h"

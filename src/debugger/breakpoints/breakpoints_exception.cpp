@@ -6,7 +6,6 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
-#include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
 #include "metadata/typeprinter.h"
@@ -124,7 +123,7 @@ HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &
     static const WSTRING typeName(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
     static const WSTRING methodName(W("Throw"));
     ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(EvalHelpers::FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunction));
+    IfFailRet(FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunction));
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));

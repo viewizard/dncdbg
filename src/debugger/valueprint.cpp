@@ -4,9 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/valueprint.h"
-#include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
-#include "debugger/evalutils.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/typeprinter.h"
@@ -84,8 +82,8 @@ HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *p
     }
 
     std::vector<std::pair<std::string, bool>> textWithEvalParts;
-    EvalUtils::CreateTextWithEvalParts(textWithEval, textWithEvalParts);
-    EvalUtils::BuildTextWithEval(pEvaluator, pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
+    CreateTextWithEvalParts(textWithEval, textWithEvalParts);
+    BuildTextWithEval(pEvaluator, pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
     return S_OK;
 }
 

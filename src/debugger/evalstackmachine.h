@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "types/types.h"
 #include "utils/torelease.h"

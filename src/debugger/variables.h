@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/evalutils.h"
+#include "debugger/evalhelpers.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
 #include <mutex>

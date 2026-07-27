@@ -5,7 +5,6 @@
 
 #include "debugger/breakpoints/helpers.h"
 #include "debugger/evaluator.h"
-#include "debugger/evalutils.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"

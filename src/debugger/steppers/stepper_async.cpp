@@ -444,7 +444,7 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugT
     static const WSTRING typeName(W("System.Threading.Tasks.Task"));
     static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(EvalHelpers::FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunc));
+    IfFailRet(FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunc));
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunc->GetModule(&trModule));

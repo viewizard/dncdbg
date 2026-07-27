@@ -6,7 +6,7 @@
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
-#include "debugger/evalutils.h"
+#include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
@@ -237,10 +237,10 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
             {
                 if (b.logMessageParts.empty())
                 {
-                    EvalUtils::CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
+                    CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
                 }
                 std::string message;
-                EvalUtils::BuildTextWithEval(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, nullptr, b.logMessageParts, message);
+                BuildTextWithEval(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, nullptr, b.logMessageParts, message);
                 message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath);

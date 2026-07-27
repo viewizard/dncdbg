@@ -4,7 +4,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/variables.h"
-#include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
@@ -434,7 +433,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 
     FormatSpecifier specifier = FormatSpecifier::None;
     std::string expression;
-    EvalUtils::ParseFormatSpecifier(expressionWithFormat, expression, specifier);
+    ParseFormatSpecifier(expressionWithFormat, expression, specifier);
 
     ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
@@ -564,7 +563,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
 
     FormatSpecifier specifier = FormatSpecifier::None;
     std::string expression;
-    EvalUtils::ParseFormatSpecifier(expressionWithFormat, expression, specifier);
+    ParseFormatSpecifier(expressionWithFormat, expression, specifier);
 
     ToRelease<ICorDebugValue> trValue;
     bool editable = false;
