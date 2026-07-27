@@ -120,11 +120,11 @@ void GetExceptionBreakModeName(ExceptionBreakMode breakMode, std::string &result
 HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &modAddress, mdMethodDef &methodDef)
 {
     HRESULT Status = S_OK;
-    static const std::string assemblyName("System.Private.CoreLib.dll");
-    static const WSTRING className(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
+    static const std::string moduleFileName("System.Private.CoreLib.dll");
+    static const WSTRING typeName(W("System.Runtime.ExceptionServices.ExceptionDispatchInfo"));
     static const WSTRING methodName(W("Throw"));
     ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(EvalHelpers::FindMethodInModule(pThread, assemblyName, className, methodName, &trFunction));
+    IfFailRet(EvalHelpers::FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunction));
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));

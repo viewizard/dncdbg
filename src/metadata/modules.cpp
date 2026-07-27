@@ -618,7 +618,7 @@ HRESULT Modules::ForEachModule(ICorDebugThread *pThread, const std::function<HRE
     return Status;
 }
 
-HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &name, ICorDebugModule **ppModule)
+HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
     *ppModule = nullptr;
@@ -628,7 +628,7 @@ HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &
         {
             const std::string path = Modules::GetModuleFilePath(pModule);
 
-            if (GetFileName(path) == name)
+            if (GetFileName(path) == moduleFileName)
             {
                 pModule->AddRef();
                 *ppModule = pModule;

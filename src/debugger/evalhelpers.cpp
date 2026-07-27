@@ -29,29 +29,6 @@ mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const 
     return methodDef;
 }
 
-HRESULT FindFunction(ICorDebugModule *pModule, const WSTRING &typeName, const WSTRING &methodName, ICorDebugFunction **ppFunction)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-
-    IfFailRet(trMDImport->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
-
-    const mdMethodDef methodDef = GetMethodToken(trMDImport, typeDef, methodName);
-
-    if (methodDef == mdMethodDefNil)
-    {
-        return E_FAIL;
-    }
-
-    return pModule->GetFunctionFromToken(methodDef, ppFunction);
-}
-
 bool TypeHasStaticMembers(ICorDebugType *pType)
 {
     HRESULT Status = S_OK;
@@ -363,14 +340,29 @@ HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         });
 }
 
-HRESULT EvalHelpers::FindMethodInModule(ICorDebugThread *pThread, const std::string &moduleName, const WSTRING &className,
-                                        const WSTRING &methodName, ICorDebugFunction **ppFunction)
+HRESULT EvalHelpers::FindFunctionInModule(ICorDebugThread *pThread, const std::string &moduleFileName, const WSTRING &typeName,
+                                          const WSTRING &methodName, ICorDebugFunction **ppFunction)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(Modules::GetModuleWithName(pThread, moduleName, &trModule));
-    IfFailRet(FindFunction(trModule, className, methodName, ppFunction));
-    return S_OK;
+    IfFailRet(Modules::GetModuleWithName(pThread, moduleFileName, &trModule));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    IfFailRet(trMDImport->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
+
+    const mdMethodDef methodDef = GetMethodToken(trMDImport, typeDef, methodName);
+
+    if (methodDef == mdMethodDefNil)
+    {
+        return E_FAIL;
+    }
+
+    return trModule->GetFunctionFromToken(methodDef, ppFunction);
 }
 
 HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
@@ -518,10 +510,10 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
 
         if (m_trSuppressFinalize == nullptr)
         {
-            static const std::string assemblyName("System.Private.CoreLib.dll");
-            static const WSTRING gcName(W("System.GC"));
+            static const std::string moduleFileName("System.Private.CoreLib.dll");
+            static const WSTRING gcTypeName(W("System.GC"));
             static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
-            IfFailRet(FindMethodInModule(pThread, assemblyName, gcName, suppressFinalizeMethodName, &m_trSuppressFinalize));
+            IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &m_trSuppressFinalize));
         }
 
         if (m_trSuppressFinalize == nullptr)

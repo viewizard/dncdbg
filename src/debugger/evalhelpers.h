@@ -58,8 +58,8 @@ class EvalHelpers
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    static HRESULT FindMethodInModule(ICorDebugThread *pThread, const std::string &moduleName, const WSTRING &className,
-                                      const WSTRING &methodName, ICorDebugFunction **ppFunction);
+    static HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &moduleFileName, const WSTRING &typeName,
+                                        const WSTRING &methodName, ICorDebugFunction **ppFunction);
 
     [[nodiscard]] uint32_t GetEvalFlags() const
     {

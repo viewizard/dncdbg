@@ -38,7 +38,7 @@ class Modules
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
     static HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
-    static HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &name, ICorDebugModule **ppModule);
+    static HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule);
 
   private:
 
