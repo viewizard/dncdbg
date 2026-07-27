@@ -590,6 +590,38 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
         }
     }
 
+    return (*ppValueValue == nullptr || *ppHasValueValue == nullptr) ? E_FAIL : S_OK;
+}
+
+HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, bool &hasValue)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugValue> trHasValueValue;
+    IfFailRet(GetNullableValue(pValue, ppValueValue, &trHasValueValue));
+
+    BOOL isNull = TRUE;
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(trHasValueValue, &trValue, &isNull));
+
+    if (isNull == TRUE)
+    {
+        return E_FAIL;
+    }
+
+    uint8_t boolHasValue = 0;
+    uint32_t cbSize = 0;
+    IfFailRet(trValue->GetSize(&cbSize));
+    if (cbSize != sizeof(boolHasValue))
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    IfFailRet(trGenericValue->GetValue(&boolHasValue));
+
+    hasValue = (boolHasValue == 1);
+
     return S_OK;
 }
 
@@ -736,13 +768,10 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
             else if (typeName.back() == '?') // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
-                ToRelease<ICorDebugValue> trHasValueValue;
-                IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
+                bool hasValue = false;
+                IfFailRet(GetNullableValue(trValue, &trValueValue, hasValue));
 
-                uint8_t boolValue = 0;
-                IfFailRet(GetIntegralValue(trHasValueValue, boolValue));
-
-                if (boolValue == 1) // TRUE
+                if (hasValue)
                 {
                     // Iterative handling: set trCurrentValue to the inner value and continue loop
                     trCurrentValue = trValueValue.Detach();

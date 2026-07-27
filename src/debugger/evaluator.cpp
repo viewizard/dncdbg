@@ -1548,13 +1548,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (className.back() == '?') // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
-                ToRelease<ICorDebugValue> trHasValueValue;
-                IfFailRet(GetNullableValue(trValue, &trValueValue, &trHasValueValue));
+                bool hasValue = false;
+                IfFailRet(GetNullableValue(trValue, &trValueValue, hasValue));
 
-                uint8_t boolValue = 0;
-                IfFailRet(GetIntegralValue(trHasValueValue, boolValue));
-
-                if (boolValue == 1) // TRUE
+                if (hasValue)
                 {
                     trValue.Free();
                     trValue = trValueValue.Detach();

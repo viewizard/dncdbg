@@ -24,6 +24,7 @@ class EvalStackMachine;
 HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine,
                    ICorDebugValue *pInputValue, FormatSpecifier formatSpecifier, std::string &output);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue);
+HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, bool &hasValue);
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output);
 
 } // namespace dncdbg
