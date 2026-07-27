@@ -20,8 +20,8 @@ namespace dncdbg
 namespace
 {
 
-// Get '<>t__builder' field value for builder from frame.
-// [in] pFrame - frame that used for get all info needed (function, module, etc);
+// Get the '<>t__builder' field value for the builder from the frame.
+// [in] pFrame - frame used to get all info needed (function, module, etc);
 // [out] ppValue_builder - result value.
 HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builder)
 {
@@ -433,10 +433,10 @@ HRESULT AsyncStepper::DisableAllSteppers()
     return S_OK;
 }
 
-// Setup breakpoint into System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method, that will be
+// Set up a breakpoint in the System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method, which will be
 // called at wait completion if notification was enabled by SetNotificationForWaitCompletion().
-// Note, NotifyDebuggerOfWaitCompletion() will be called only once, since notification flag
-// will be automatically disabled inside NotifyDebuggerOfWaitCompletion() method itself.
+// Note: NotifyDebuggerOfWaitCompletion() will be called only once, since the notification flag
+// will be automatically disabled inside the NotifyDebuggerOfWaitCompletion() method itself.
 HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
 {
     HRESULT Status = S_OK;

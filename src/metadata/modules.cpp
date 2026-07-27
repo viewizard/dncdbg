@@ -632,10 +632,10 @@ HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &
             {
                 pModule->AddRef();
                 *ppModule = pModule;
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
 
-            return S_OK; // Return S_OK to continue the iteration.
+            return S_OK; // Return S_OK to continue iteration.
         }));
 
     return *ppModule != nullptr ? S_OK : E_FAIL;

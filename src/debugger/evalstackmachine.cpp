@@ -241,7 +241,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         }));
 
     if (trFunc == nullptr)
@@ -275,7 +275,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 
             IfFailRet(getFunction(&trFunc));
 
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         }));
 
     if (trFunc == nullptr)
@@ -951,7 +951,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         IfFailRet(getFunction(&trFunc));
         isInstance = !isStatic;
 
-        return S_CAN_EXIT; // Fast exit from loop.
+        return S_CAN_EXIT; // Fast exit from the loop.
     };
 
     ToRelease<ICorDebugType> trResultType;

@@ -573,7 +573,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
             if (walkFrames.size() >= stackTraceLimit ||
                 (!justMyCode && static_cast<int>(walkFrames.size()) > static_cast<int>(level)))
             {
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
 
             return S_OK; // Continue walk.
@@ -686,7 +686,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             if (walkFrames.size() >= stackTraceLimit)
             {
                 stackTruncated = true;
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
 
             walkFrames.emplace_back(frameType, pFrame);
@@ -701,7 +701,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             if (!justMyCode && maxFrames != 0 &&
                 static_cast<int>(walkFrames.size()) >= static_cast<int>(startFrame) + static_cast<int>(maxFrames))
             {
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
 
             return S_OK; // Continue walk.

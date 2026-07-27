@@ -386,7 +386,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
         return E_FAIL;
     }
 
-    // Move data to begin, so, last used will be on front.
+    // Move data to the front, so the most recently used item is at the beginning.
     if (it != m_typeObjectCache.begin())
     {
         m_typeObjectCache.splice(m_typeObjectCache.begin(), m_typeObjectCache, it);
@@ -521,7 +521,7 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
             return E_FAIL;
         }
 
-        // Note, this call must ignore any eval flags.
+        // Note: this call must ignore any eval flags.
         IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
                                1, FormatSpecifier::ForceEvaluation, nullptr));
     }
@@ -664,7 +664,7 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
                 }
 
                 IfFailRet(createTypeDef(typeDef, pModule));
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             });
     };
 

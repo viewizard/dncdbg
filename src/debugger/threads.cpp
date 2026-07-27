@@ -54,7 +54,7 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
                 IfFailRet(PrintStringValue(trValue, threadName));
             }
 
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         });
 
     return threadName;

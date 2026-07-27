@@ -276,7 +276,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                 if (generatedNameKind == GeneratedNameKind::ThisProxyField)
                 {
                     IfFailRet(getValue(ppResultValue));
-                    return S_CAN_EXIT; // Fast exit from loop.
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
                 else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
                 {
@@ -288,7 +288,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
                     if (ppResultValue != nullptr)
                     {
-                        return S_CAN_EXIT; // Fast exit from loop.
+                        return S_CAN_EXIT; // Fast exit from the loop.
                     }
                 }
             }
@@ -425,7 +425,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                                                    pDebugInfo, pModule, cb));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from loop.
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
             }
             else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
@@ -453,7 +453,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from loop.
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
                 usedNames.insert(wLocalName);
             }
@@ -464,7 +464,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_CAN_EXIT; // Fast exit from loop.
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
                 usedNames.insert(mdName);
             }
@@ -625,7 +625,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
         IfFailRet(cb(to_utf8(wParameterName.c_str()), getValue));
         if (Status == S_CAN_EXIT)
         {
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         }
         usedNames.insert(wParameterName);
 
@@ -1711,7 +1711,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
                         if (Status == S_CAN_EXIT)
                         {
-                            return S_CAN_EXIT; // Fast exit from loop.
+                            return S_CAN_EXIT; // Fast exit from the loop.
                         }
                     }
                     return S_OK; // Return with success to continue walk.
@@ -1800,7 +1800,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(cb(trType, isStatic, name, getValue, &setterData));
                             if (Status == S_CAN_EXIT)
                             {
-                                return S_CAN_EXIT; // Fast exit from loop.
+                                return S_CAN_EXIT; // Fast exit from the loop.
                             }
                         }
                         else
@@ -1808,7 +1808,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
                             if (Status == S_CAN_EXIT)
                             {
-                                return S_CAN_EXIT; // Fast exit from loop.
+                                return S_CAN_EXIT; // Fast exit from the loop.
                             }
                         }
                     }
@@ -2305,7 +2305,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
                 }
 
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }));
 
         if (trResultValue == nullptr)

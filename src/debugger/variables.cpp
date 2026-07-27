@@ -274,7 +274,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             }
             if (count != 0 && currentIndex >= start + count)
             {
-                return S_CAN_EXIT; // Fast exit from loop.
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
 
             Variable var;
@@ -494,7 +494,7 @@ HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThrea
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   nullptr, value, output));
             IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, output));
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         }));
 
     if (output.empty())
@@ -538,7 +538,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
             IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
                                                   setterData, value, output));
             IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, ref.specifier, output));
-            return S_CAN_EXIT; // Fast exit from loop.
+            return S_CAN_EXIT; // Fast exit from the loop.
         }));
 
     if (output.empty())
