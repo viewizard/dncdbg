@@ -151,8 +151,8 @@ class ManagedDebugger
     std::shared_ptr<Modules> m_sharedModules;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
-    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
+    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     std::shared_ptr<Variables> m_sharedVariables;
     std::unique_ptr<Steppers> m_uniqueSteppers;
     std::shared_ptr<Breakpoints> m_sharedBreakpoints;

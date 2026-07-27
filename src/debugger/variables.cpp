@@ -5,11 +5,11 @@
 
 #include "debugger/variables.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/typeprinter.h"
 #include "utils/hresult.h"
+#include <array>
 #include <unordered_set>
 #include <vector>
 
@@ -490,8 +490,7 @@ HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThrea
 
             ToRelease<ICorDebugValue> trValue;
             IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
-                                                  nullptr, value, output));
+            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, nullptr, value, output));
             IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, output));
             return S_CAN_EXIT; // Fast exit from the loop.
         }));
@@ -534,8 +533,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
 
             ToRelease<ICorDebugValue> trValue;
             IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(m_sharedEvaluator->SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue,
-                                                  setterData, value, output));
+            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, setterData, value, output));
             IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, ref.specifier, output));
             return S_CAN_EXIT; // Fast exit from the loop.
         }));
@@ -577,9 +575,87 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
         return E_INVALIDARG;
     }
 
-    IfFailRet(m_sharedEvaluator->SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
+    IfFailRet(SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, specifier, output));
     return S_OK;
+}
+
+HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
+                            const Evaluator::GetValueCallback *getValue, Evaluator::SetterData *setterData,
+                            const std::string &value, std::string &output)
+{
+    if (pThread == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    HRESULT Status = S_OK;
+    std::string className;
+    TypePrinter::GetTypeOfValue(trPrevValue, className);
+    if (className.back() == '?') // System.Nullable<T>
+    {
+        ToRelease<ICorDebugValue> trValueValue;
+        ToRelease<ICorDebugValue> trHasValueValue;
+        IfFailRet(GetNullableValue(trPrevValue, &trValueValue, &trHasValueValue));
+
+        if (value == "null")
+        {
+            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trHasValueValue, "false", output));
+        }
+        else
+        {
+            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trValueValue, value, output));
+            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trHasValueValue, "true", output));
+        }
+        if (getValue != nullptr)
+        {
+            trPrevValue.Free();
+            IfFailRet((*getValue)(&trPrevValue, nullptr));
+        }
+        return S_OK;
+    }
+
+    // In case this is not a property, just change the value itself.
+    if (setterData == nullptr)
+    {
+        return m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trPrevValue, value, output);
+    }
+
+    trPrevValue->AddRef();
+    ToRelease<ICorDebugValue> trValue(trPrevValue.GetPtr());
+    CorElementType corType = ELEMENT_TYPE_MAX;
+    IfFailRet(trValue->GetType(&corType));
+
+    if (corType == ELEMENT_TYPE_STRING)
+    {
+        // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for string in trValue in this case
+        trValue.Free();
+        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, nullptr, &trValue, output));
+
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trValue->GetType(&elemType));
+        if (elemType != ELEMENT_TYPE_STRING)
+        {
+            return E_INVALIDARG;
+        }
+    }
+    else // Allow the stack machine to decide what types are supported.
+    {
+        IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trValue.GetPtr(), value, output));
+    }
+
+    // Call setter.
+    if (setterData->trThisValue == nullptr)
+    {
+        return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                                 nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
+    }
+    else
+    {
+        std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
+        return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                                 nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
+    }
 }
 
 } // namespace dncdbg

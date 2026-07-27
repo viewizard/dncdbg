@@ -88,11 +88,9 @@ class Evaluator
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
               std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
-              std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine,
               std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedDebugInfo(sharedDebugInfo),
           m_sharedEvalHelpers(sharedEvalHelpers),
-          m_sharedEvalStackMachine(sharedEvalStackMachine),
           m_sharedEvalWaiter(sharedEvalWaiter)
     {
     }
@@ -128,10 +126,6 @@ class Evaluator
     HRESULT WalkExtensionMethods(ICorDebugType *pInputType, const std::string &methodName,
                                  std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
 
-    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
-                     const GetValueCallback *getValue, SetterData *setterData, const std::string &value,
-                     std::string &output);
-
     static SigElementType GetElementTypeByTypeName(const std::string &typeName);
 
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
@@ -159,7 +153,6 @@ class Evaluator
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
-    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
 
     bool m_justMyCode{true};

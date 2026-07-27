@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debugger/evaluator.h"
 #include "debugger/evalhelpers.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
@@ -21,8 +22,6 @@
 namespace dncdbg
 {
 
-class Evaluator;
-class EvalHelpers;
 class EvalWaiter;
 class EvalStackMachine;
 
@@ -138,6 +137,10 @@ class Variables
                              const std::string &value, std::string &output);
 
     HRESULT SetChild(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+                     const std::string &value, std::string &output);
+
+    HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
+                     const Evaluator::GetValueCallback *getValue, Evaluator::SetterData *setterData,
                      const std::string &value, std::string &output);
 };
 

@@ -91,13 +91,13 @@ class EvalStackMachine
 {
   public:
 
-    void SetupEval(const std::shared_ptr<Evaluator> &sharedEvaluator,
-                   const std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
-                   const std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+    EvalStackMachine(std::shared_ptr<Evaluator> &sharedEvaluator,
+                     std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
+                     std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+        : m_sharedEvaluator(sharedEvaluator),
+          m_sharedEvalHelpers(sharedEvalHelpers),
+          m_sharedEvalWaiter(sharedEvalWaiter)
     {
-        m_sharedEvaluator = sharedEvaluator;
-        m_sharedEvalHelpers = sharedEvalHelpers;
-        m_sharedEvalWaiter = sharedEvalWaiter;
         m_evalData.pEvaluator = m_sharedEvaluator.get();
         m_evalData.pEvalHelpers = m_sharedEvalHelpers.get();
         m_evalData.pEvalWaiter = m_sharedEvalWaiter.get();
