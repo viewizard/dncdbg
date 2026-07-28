@@ -15,76 +15,6 @@
 namespace dncdbg
 {
 
-namespace
-{
-
-bool TypeHasStaticMembers(ICorDebugType *pType)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pType->GetClass(&trClass));
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&typeDef));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trClass->GetModule(&trModule));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    ULONG numFields = 0;
-    HCORENUM hEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(trMDImport->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
-    {
-        DWORD fieldAttr = 0;
-        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
-        if ((fieldAttr & fdStatic) != 0U)
-        {
-            trMDImport->CloseEnum(hEnum);
-            return true;
-        }
-    }
-    trMDImport->CloseEnum(hEnum);
-
-    mdProperty propertyDef = mdPropertyNil;
-    ULONG numProperties = 0;
-    HCORENUM propEnum = nullptr;
-    while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
-    {
-        mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
-                                                nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
-        {
-            continue;
-        }
-
-        DWORD getterAttr = 0;
-        if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                              nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
-
-        if ((getterAttr & mdStatic) != 0U)
-        {
-            trMDImport->CloseEnum(propEnum);
-            return true;
-        }
-    }
-    trMDImport->CloseEnum(propEnum);
-
-    return false;
-}
-
-} // unnamed namespace
-
 void EvalExec::Cleanup()
 {
     m_trSuppressFinalizeMutex.lock();
@@ -284,25 +214,17 @@ HRESULT EvalExec::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTy
     return S_OK;
 }
 
-HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType,
-                                   ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
+HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
 {
     HRESULT Status = S_OK;
 
-    CorElementType et = ELEMENT_TYPE_MAX;
-    IfFailRet(pType->GetType(&et));
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(pType->GetType(&elemType));
 
-    if ((et != ELEMENT_TYPE_CLASS && et != ELEMENT_TYPE_VALUETYPE) ||
-        SUCCEEDED(TryReuseTypeObjectFromCache(pType, ppTypeObjectResult))) // Check cache first, before check type for static members.
+    if ((elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE) ||
+        SUCCEEDED(TryReuseTypeObjectFromCache(pType, ppTypeObjectResult))) // Check cache first, before creating a new type object.
     {
         return S_OK;
-    }
-
-    // Create type object only in case type has static members.
-    // Note: for some cases, static members are checked outside this method.
-    if (DetectStaticMembers && !TypeHasStaticMembers(pType))
-    {
-        return S_NO_STATIC;
     }
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
@@ -337,7 +259,7 @@ HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pTyp
     // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
     IfFailRet(Status);
 
-    if (et == ELEMENT_TYPE_CLASS)
+    if (elemType == ELEMENT_TYPE_CLASS)
     {
         const std::scoped_lock<std::mutex> lock(m_trSuppressFinalizeMutex);
 

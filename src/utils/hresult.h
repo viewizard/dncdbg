@@ -20,7 +20,6 @@ namespace dncdbg
 #endif
 
 constexpr HRESULT S_CAN_EXIT = 0x00777001L;
-constexpr HRESULT S_NO_STATIC = 0x00777002L;
 constexpr HRESULT S_USE_SIMPLE_STEPPER = 0x00777003L;
 constexpr HRESULT S_IGNORE = 0x00777004L;
 constexpr HRESULT S_SKIP = 0x00777005L;

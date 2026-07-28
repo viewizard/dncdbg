@@ -33,6 +33,7 @@ HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &module
 void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts);
 void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output);
+bool TypeHasStaticMembers(ICorDebugType *pType);
 
 } // namespace dncdbg
 

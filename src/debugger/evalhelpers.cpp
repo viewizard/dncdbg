@@ -347,4 +347,73 @@ void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
     }
 }
 
+bool TypeHasStaticMembers(ICorDebugType *pType)
+{
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    ToRelease<ICorDebugClass> trClass;
+    mdTypeDef typeDef = mdTypeDefNil;
+    ToRelease<ICorDebugModule> trModule;
+    ToRelease<IUnknown> trUnknown;
+    ToRelease<IMetaDataImport> trMDImport;
+    if (FAILED(pType->GetType(&elemType)) ||
+        (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE) ||
+        FAILED(pType->GetClass(&trClass)) ||
+        FAILED(trClass->GetToken(&typeDef)) ||
+        FAILED(trClass->GetModule(&trModule)) ||
+        FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
+        FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
+    {
+        return false;
+    }
+
+    ULONG numFields = 0;
+    HCORENUM hEnum = nullptr;
+    mdFieldDef fieldDef = mdFieldDefNil;
+    while (SUCCEEDED(trMDImport->EnumFields(&hEnum, typeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    {
+        DWORD fieldAttr = 0;
+        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if ((fieldAttr & fdStatic) != 0U)
+        {
+            trMDImport->CloseEnum(hEnum);
+            return true;
+        }
+    }
+    trMDImport->CloseEnum(hEnum);
+
+    mdProperty propertyDef = mdPropertyNil;
+    ULONG numProperties = 0;
+    HCORENUM propEnum = nullptr;
+    while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+    {
+        mdMethodDef mdGetter = mdMethodDefNil;
+        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
+                                                nullptr, nullptr, nullptr, nullptr, &mdGetter, nullptr, 0, nullptr)))
+        {
+            continue;
+        }
+
+        DWORD getterAttr = 0;
+        if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                              nullptr, nullptr, nullptr, nullptr)))
+        {
+            continue;
+        }
+
+        if ((getterAttr & mdStatic) != 0U)
+        {
+            trMDImport->CloseEnum(propEnum);
+            return true;
+        }
+    }
+    trMDImport->CloseEnum(propEnum);
+
+    return false;
+}
+
 } // namespace dncdbg
