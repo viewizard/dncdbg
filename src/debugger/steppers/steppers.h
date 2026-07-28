@@ -21,14 +21,14 @@ namespace dncdbg
 
 class SimpleStepper;
 class AsyncStepper;
-class EvalHelpers;
+class EvalExec;
 class DebugInfo;
 
 class Steppers
 {
   public:
 
-    Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalHelpers> &sharedEvalHelpers);
+    Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalExec> &sharedEvalExec);
     HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.

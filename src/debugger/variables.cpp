@@ -405,7 +405,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
             ToRelease<ICorDebugType> trType;
             IfFailRet(trValue2->GetExactType(&trType));
-            m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, nullptr, false);
+            m_sharedEvalExec->CallStaticConstructor(pThread, trType, nullptr, false);
 
             Variable var;
             var.name = "Static members";
@@ -648,14 +648,14 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     // Call setter.
     if (setterData->trThisValue == nullptr)
     {
-        return m_sharedEvalHelpers->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
+        return m_sharedEvalExec->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                              nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
     }
     else
     {
         std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
-        return m_sharedEvalHelpers->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                                 nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
+        return m_sharedEvalExec->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                              nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
     }
 }
 

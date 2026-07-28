@@ -1166,7 +1166,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     // static constructor execution to provide a second chance and proper error handling.
     if (!isClassInitialized)
     {
-        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, pType, nullptr, false));
+        IfFailRet(m_sharedEvalExec->CallStaticConstructor(pThread, pType, nullptr, false));
     }
 
     IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
@@ -1266,7 +1266,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         }
     }
     IfFailRet(GetConstructorTypeParams(pThread, pType, enclosingTypesParamCount, trTypeParams));
-    IfFailRet(m_sharedEvalHelpers->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
+    IfFailRet(m_sharedEvalExec->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
@@ -1336,7 +1336,7 @@ HRESULT Evaluator::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     lock.unlock();
 
-    IfFailRet(m_sharedEvalHelpers->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
+    IfFailRet(m_sharedEvalExec->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     return S_OK;
 }
@@ -1581,8 +1581,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         {
                             if (fieldAttr & fdLiteral)
                             {
-                                IfFailRet(m_sharedEvalHelpers->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                       rawValueLength, ppResultValue));
+                                IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                                    rawValueLength, ppResultValue));
                             }
                             else if (fieldAttr & fdStatic)
                             {
@@ -1677,9 +1677,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             ToRelease<ICorDebugFunction> trFunc;
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
-                            return m_sharedEvalHelpers->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr,
-                                                                     isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
-                                                                     specifier, ppResultValue);
+                            return m_sharedEvalExec->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr,
+                                                                  isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
+                                                                  specifier, ppResultValue);
                         };
 
                         if (browsableState == DebuggerBrowsableState::RootHidden)
@@ -1739,7 +1739,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 {
                     if (pThread != nullptr)
                     {
-                        m_sharedEvalHelpers->CallStaticConstructor(pThread, trBaseType, nullptr, false);
+                        m_sharedEvalExec->CallStaticConstructor(pThread, trBaseType, nullptr, false);
                     }
                     // Add fields of base class.
                     trType = trBaseType.Detach();
@@ -2135,7 +2135,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
-                    return m_sharedEvalHelpers->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue);
+                    return m_sharedEvalExec->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue);
                 };
 
                 IfFailRet(cb(to_utf8(constant.name.c_str()), getValue));
@@ -2269,7 +2269,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             staticName.emplace_back(fieldName.at(0));
             ToRelease<ICorDebugValue> trTypeObject;
             // type has static members (S_NO_STATIC if type doesn't have static members)
-            if (S_OK == m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trTypeObject))
+            if (S_OK == m_sharedEvalExec->CallStaticConstructor(pThread, trType, &trTypeObject))
             {
                 if (SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName,
                                            0, specifier, ppResult, resultSetterData)))
@@ -2282,7 +2282,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         }
 
         ToRelease<ICorDebugValue> trTypeObject;
-        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trTypeObject));
+        IfFailRet(m_sharedEvalExec->CallStaticConstructor(pThread, trType, &trTypeObject));
         if (Status == S_OK && // type has static members (S_NO_STATIC if type doesn't have static members)
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, fieldName,
                                    0, specifier, ppResult, resultSetterData)))
@@ -2331,8 +2331,8 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     }
 
     ToRelease<ICorDebugValue> trRefValue;
-    IfFailRet(m_sharedEvalHelpers->CallFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
-                                                1, specifier, &trRefValue));
+    IfFailRet(m_sharedEvalExec->CallFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
+                                             1, specifier, &trRefValue));
     ToRelease<ICorDebugValue> trValue;
     IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));
     return PrintStringValue(trValue, output);
@@ -2501,7 +2501,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     {
         ToRelease<ICorDebugType> trType;
         IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
-        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trResolvedValue, false));
+        IfFailRet(m_sharedEvalExec->CallStaticConstructor(pThread, trType, &trResolvedValue, false));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).

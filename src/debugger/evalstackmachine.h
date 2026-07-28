@@ -24,7 +24,7 @@
 namespace dncdbg
 {
 
-class EvalHelpers;
+class EvalExec;
 
 struct EvalStackEntry
 {
@@ -72,7 +72,7 @@ struct EvalData
 {
     ICorDebugThread *pThread{nullptr};
     Evaluator *pEvaluator{nullptr};
-    EvalHelpers *pEvalHelpers{nullptr};
+    EvalExec *pEvalExec{nullptr};
     // In case of NumericLiteralExpression with Decimal, NewParameterizedObjectNoConstructor() are used.
     // Proper ICorDebugClass must be provided for Decimal (will be found during FindPredefinedTypes() call).
     ToRelease<ICorDebugClass> trDecimalClass;
@@ -89,20 +89,20 @@ class EvalStackMachine
   public:
 
     EvalStackMachine(std::shared_ptr<Evaluator> &sharedEvaluator,
-                     std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+                     std::shared_ptr<EvalExec> &sharedEvalExec)
         : m_sharedEvaluator(sharedEvaluator),
-          m_sharedEvalHelpers(sharedEvalHelpers)
+          m_sharedEvalExec(sharedEvalExec)
     {
         m_evalData.pEvaluator = m_sharedEvaluator.get();
-        m_evalData.pEvalHelpers = m_sharedEvalHelpers.get();
+        m_evalData.pEvalExec = m_sharedEvalExec.get();
     }
 
     void ResetEval()
     {
         m_sharedEvaluator.reset();
-        m_sharedEvalHelpers.reset();
+        m_sharedEvalExec.reset();
         m_evalData.pEvaluator = nullptr;
-        m_evalData.pEvalHelpers = nullptr;
+        m_evalData.pEvalExec = nullptr;
     }
 
     // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
@@ -121,7 +121,7 @@ class EvalStackMachine
   private:
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
-    std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
+    std::shared_ptr<EvalExec> m_sharedEvalExec;
     EvalData m_evalData;
 
     // Run stack machine for particular expression.

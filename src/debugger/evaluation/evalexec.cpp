@@ -95,7 +95,7 @@ bool TypeHasStaticMembers(ICorDebugType *pType)
 
 } // unnamed namespace
 
-void EvalHelpers::Cleanup()
+void EvalExec::Cleanup()
 {
     m_trSuppressFinalizeMutex.lock();
     if (m_trSuppressFinalize != nullptr)
@@ -109,7 +109,7 @@ void EvalHelpers::Cleanup()
     m_typeObjectCacheMutex.unlock();
 }
 
-HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)
+HRESULT EvalExec::CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)
 {
     auto value16t = to_utf16(value);
     return m_sharedEvalWaiter->WaitEvalResult(pThread, ppNewString,
@@ -122,10 +122,10 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
         });
 }
 
-HRESULT EvalHelpers::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
-                                  std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
-                                  ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                                  FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
+HRESULT EvalExec::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+                               std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
+                               ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
+                               FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
 {
     assert((ppArgsValue == nullptr && argsValueCount == 0) ||
            (ppArgsValue != nullptr && argsValueCount > 0));
@@ -178,9 +178,9 @@ HRESULT EvalHelpers::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *p
         });
 }
 
-HRESULT EvalHelpers::CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
-                                     std::vector<ToRelease<ICorDebugType>> &trTypeParams,
-                                     ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult)
+HRESULT EvalExec::CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
+                                  std::vector<ToRelease<ICorDebugType>> &trTypeParams,
+                                  ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult)
 {
     assert((ppArgsValue == nullptr && argsValueCount == 0) ||
            (ppArgsValue != nullptr && argsValueCount > 0));
@@ -208,7 +208,7 @@ HRESULT EvalHelpers::CallConstructor(ICorDebugThread *pThread, ICorDebugFunction
     return S_OK;
 }
 
-HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
+HRESULT EvalExec::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
 {
     const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
@@ -246,7 +246,7 @@ HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebug
     return S_OK;
 }
 
-HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
+HRESULT EvalExec::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
 {
     const std::scoped_lock<std::mutex> lock(m_typeObjectCacheMutex);
 
@@ -294,8 +294,8 @@ HRESULT EvalHelpers::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *
     return S_OK;
 }
 
-HRESULT EvalHelpers::CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
-                                           ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
+HRESULT EvalExec::CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
+                                        ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
 {
     HRESULT Status = S_OK;
 
@@ -379,8 +379,8 @@ HRESULT EvalHelpers::CallStaticConstructor(ICorDebugThread *pThread, ICorDebugTy
     return S_OK;
 }
 
-HRESULT EvalHelpers::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                             UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalExec::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                          UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -416,8 +416,8 @@ HRESULT EvalHelpers::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIG
     return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
 }
 
-HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                             ICorDebugValue **ppLiteralValue)
+HRESULT EvalExec::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                          ICorDebugValue **ppLiteralValue)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -453,9 +453,9 @@ HRESULT EvalHelpers::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIG
     return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
 }
 
-HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                            CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                            ICorDebugValue **ppLiteralValue)
+HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                         CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
+                                         ICorDebugValue **ppLiteralValue)
 {
     if (pThread == nullptr || pSig == nullptr || pSigEnd == nullptr || ppLiteralValue == nullptr)
     {
@@ -621,8 +621,8 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
     return S_OK;
 }
 
-HRESULT EvalHelpers::CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
-                                     void *valueData, ICorDebugValue **ppValue)
+HRESULT EvalExec::CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
+                                  void *valueData, ICorDebugValue **ppValue)
 {
     HRESULT Status = S_OK;
     // Create value (without calling a constructor)

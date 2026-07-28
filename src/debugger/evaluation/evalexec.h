@@ -26,11 +26,11 @@ namespace dncdbg
 
 class EvalWaiter;
 
-class EvalHelpers
+class EvalExec
 {
   public:
 
-    explicit EvalHelpers(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+    explicit EvalExec(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
         : m_sharedEvalWaiter(sharedEvalWaiter)
     {
     }

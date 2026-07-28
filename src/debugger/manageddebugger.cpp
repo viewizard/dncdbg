@@ -298,11 +298,11 @@ ManagedDebugger::ManagedDebugger()
       m_sharedDebugInfo(new DebugInfo),
       m_sharedModules(new Modules),
       m_sharedEvalWaiter(new EvalWaiter),
-      m_sharedEvalHelpers(new EvalHelpers(m_sharedEvalWaiter)),
-      m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers)),
-      m_sharedEvalStackMachine(new EvalStackMachine(m_sharedEvaluator, m_sharedEvalHelpers)),
-      m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
-      m_uniqueSteppers(new Steppers(m_sharedDebugInfo, m_sharedEvalHelpers)),
+      m_sharedEvalExec(new EvalExec(m_sharedEvalWaiter)),
+      m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalExec)),
+      m_sharedEvalStackMachine(new EvalStackMachine(m_sharedEvaluator, m_sharedEvalExec)),
+      m_sharedVariables(new Variables(m_sharedEvalExec, m_sharedEvaluator, m_sharedEvalStackMachine)),
+      m_uniqueSteppers(new Steppers(m_sharedDebugInfo, m_sharedEvalExec)),
       m_sharedBreakpoints(new Breakpoints(m_sharedDebugInfo, m_sharedEvaluator, m_sharedEvalStackMachine)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
@@ -763,7 +763,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 void ManagedDebugger::Cleanup()
 {
     m_sharedDebugInfo->Cleanup();
-    m_sharedEvalHelpers->Cleanup();
+    m_sharedEvalExec->Cleanup();
     m_sharedVariables->Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
@@ -943,7 +943,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 
 void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 {
-    m_sharedEvalHelpers->SetEvalFlags(evalFlags);
+    m_sharedEvalExec->SetEvalFlags(evalFlags);
     m_sharedEvaluator->SetEvalFlags(evalFlags);
 }
 

@@ -21,7 +21,7 @@ namespace dncdbg
 {
 
 class AsyncInfo;
-class EvalHelpers;
+class EvalExec;
 class SimpleStepper;
 
 class AsyncStepper
@@ -30,10 +30,10 @@ class AsyncStepper
 
     AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper,
                  std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                 std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
+                 std::shared_ptr<EvalExec> &sharedEvalExec)
         : m_simpleStepper(simpleStepper),
           m_uniqueAsyncInfo(new AsyncInfo(sharedDebugInfo)),
-          m_sharedEvalHelpers(sharedEvalHelpers),
+          m_sharedEvalExec(sharedEvalExec),
           m_asyncStep(nullptr),
           m_asyncStepNotifyDebuggerOfWaitCompletion(nullptr)
     {
@@ -57,7 +57,7 @@ class AsyncStepper
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
     std::unique_ptr<AsyncInfo> m_uniqueAsyncInfo;
-    std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
+    std::shared_ptr<EvalExec> m_sharedEvalExec;
 
     enum class asyncStepStatus : uint8_t
     {

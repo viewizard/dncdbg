@@ -220,8 +220,8 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
-                                         1, ed.specifier, pResultValue);
+    return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
+                                      1, ed.specifier, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
@@ -254,8 +254,8 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
-                                         1, ed.specifier, pResultValue);
+    return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
+                                      1, ed.specifier, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
@@ -455,8 +455,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             std::array<ICorDebugValue *, 2> argsValue{pType1Value, pType2Value};
-            return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
-                                                 2, ed.specifier, pResultValue);
+            return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
+                                              2, ed.specifier, pResultValue);
         };
 
     // Try to execute operator for exact same type as provided values.
@@ -657,7 +657,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         }
         else if (opcode.kind == Parser::SyntaxKind::AddExpression)
         {
-            return ed.pEvalHelpers->CreateString(ed.pThread, string1 + string2, &evalStack.front().trValue);
+            return ed.pEvalExec->CreateString(ed.pThread, string1 + string2, &evalStack.front().trValue);
         }
         else if (elemType1 != ELEMENT_TYPE_BOOLEAN &&
                  (opcode.kind == Parser::SyntaxKind::LogicalAndExpression ||
@@ -867,7 +867,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
             trValue.Free();
-            IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
+            IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -969,14 +969,14 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
-                                           pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
+    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+                                        pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
     {
         // We can't create ELEMENT_TYPE_VOID, so, we are forced to use System.Void instead.
-        IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trVoidClass, nullptr, &evalStack.front().trValue));
+        IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, ed.trVoidClass, nullptr, &evalStack.front().trValue));
     }
 
     return Status;
@@ -1086,8 +1086,8 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
-                                               argCount + 1, ed.specifier, &evalStack.front().trValue);
+        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+                                            argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;
 }
@@ -1207,8 +1207,8 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
-                                               argCount + 1, ed.specifier, &evalStack.front().trValue);
+        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+                                            argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;
 }
@@ -1227,7 +1227,7 @@ HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalSta
     evalStack.front().literal = true;
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trDecimalClass, data.data(), &evalStack.front().trValue);
+        return ed.pEvalExec->CreateValueType(ed.pThread, ed.trDecimalClass, data.data(), &evalStack.front().trValue);
     }
     else
     {
@@ -1241,7 +1241,7 @@ HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStac
     ReplaceInternalNames(argString, true);
     evalStack.emplace_front();
     evalStack.front().literal = true;
-    return ed.pEvalHelpers->CreateString(ed.pThread, argString, &evalStack.front().trValue);
+    return ed.pEvalExec->CreateString(ed.pThread, argString, &evalStack.front().trValue);
 }
 
 HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
@@ -1269,12 +1269,12 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
 
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trDecimalClass, nullptr, &evalStack.front().trValue);
+        return ed.pEvalExec->CreateValueType(ed.pThread, ed.trDecimalClass, nullptr, &evalStack.front().trValue);
     }
     else if (elemType == ELEMENT_TYPE_STRING)
     {
         const std::string emptyString;
-        return ed.pEvalHelpers->CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
+        return ed.pEvalExec->CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
     }
     else
     {
@@ -1413,7 +1413,7 @@ HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEn
                 ToRelease<ICorDebugClass> trClass;
 
                 IfFailRet(trType->GetClass(&trClass));
-                IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, trClass, nullptr, &trValueRef));
+                IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, trClass, nullptr, &trValueRef));
                 IfFailRet(DereferenceAndUnboxValue(trValueRef, &trValue, nullptr));
                 IfFailRet(trValue->GetSize(&size));
             }
