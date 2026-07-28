@@ -1696,7 +1696,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             ToRelease<ICorDebugFunction> trFunc;
                             IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
 
-                            return m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trType.GetPtr(), nullptr,
+                            return m_sharedEvalHelpers->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr,
                                                                      isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
                                                                      specifier, ppResultValue);
                         };
@@ -2350,7 +2350,7 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     }
 
     ToRelease<ICorDebugValue> trRefValue;
-    IfFailRet(m_sharedEvalHelpers->EvalFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
+    IfFailRet(m_sharedEvalHelpers->CallFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
                                                 1, specifier, &trRefValue));
     ToRelease<ICorDebugValue> trValue;
     IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));

@@ -249,7 +249,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
+    return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
                                          1, ed.specifier, pResultValue);
 }
 
@@ -283,7 +283,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
+    return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
                                          1, ed.specifier, pResultValue);
 }
 
@@ -484,7 +484,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             std::array<ICorDebugValue *, 2> argsValue{pType1Value, pType2Value};
-            return ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
+            return ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
                                                  2, ed.specifier, pResultValue);
         };
 
@@ -519,7 +519,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
             IfFailRet(GetRealValueWithType(trResultValue, &trTypeValue));
             // The assignment modifies a local variable captured by reference, and
-            // that modified value is used by CallOperator when calling EvalFunction.
+            // that modified value is used by CallOperator when calling CallFunction.
             pType2Value = trTypeValue.GetPtr();
 
             return S_OK;
@@ -547,7 +547,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         trTypeValue.Free();
         IfFailRet(GetRealValueWithType(trResultValue, &trTypeValue));
         // The assignment modifies a local variable captured by reference, and
-        // that modified value is used by CallOperator when calling EvalFunction.
+        // that modified value is used by CallOperator when calling CallFunction.
         pType1Value = trTypeValue.GetPtr();
 
         return S_OK;
@@ -998,7 +998,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+    Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
                                            pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
@@ -1115,7 +1115,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+        Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
                                                argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;
@@ -1236,7 +1236,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalHelpers->EvalFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+        Status = ed.pEvalHelpers->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
                                                argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;

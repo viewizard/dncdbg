@@ -67,7 +67,7 @@ template <class T> class ToRelease
         return &m_ptr;
     }
 
-    // Special case for EvalFunction() arguments in order to avoid temporary array pointers creation code.
+    // Special case for CallFunction() arguments in order to avoid temporary array pointers creation code.
     // DO NOT use it, unless you know what you are doing. Operator & must be used instead.
     T **GetRef()
     {

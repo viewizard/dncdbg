@@ -79,7 +79,7 @@ class EvalHelpers
                                               ICorDebugValue **ppTypeObjectResult = nullptr,
                                               bool DetectStaticMembers = true);
 
-    HRESULT EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+    HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                          std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                          ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                          FormatSpecifier specifier, ICorDebugValue **ppEvalResult);

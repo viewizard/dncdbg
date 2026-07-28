@@ -446,14 +446,7 @@ HRESULT EvalHelpers::CreateString(ICorDebugThread *pThread, const std::string &v
         });
 }
 
-// Call managed function in debuggee process.
-// [in] pThread - managed thread for evaluation;
-// [in] pFunc - function to call;
-// [in] pArgType - pointer to arg Type, could be nullptr;
-// [in] ppArgsValue - pointer to args Value array, could be nullptr;
-// [in] argsValueCount - size of args Value array;
-// [out] ppEvalResult - return value;
-HRESULT EvalHelpers::EvalFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+HRESULT EvalHelpers::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                                   std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                   FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
@@ -665,7 +658,7 @@ HRESULT EvalHelpers::CreateTypeObjectStaticConstructor(ICorDebugThread *pThread,
         }
 
         // Note: this call must ignore any eval flags.
-        IfFailRet(EvalFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
+        IfFailRet(CallFunction(pThread, m_trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
                                1, FormatSpecifier::ForceEvaluation, nullptr));
     }
 

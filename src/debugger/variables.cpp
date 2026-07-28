@@ -647,13 +647,13 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     // Call setter.
     if (setterData->trThisValue == nullptr)
     {
-        return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+        return m_sharedEvalHelpers->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
                                                  nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
     }
     else
     {
         std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
-        return m_sharedEvalHelpers->EvalFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+        return m_sharedEvalHelpers->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
                                                  nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
     }
 }
