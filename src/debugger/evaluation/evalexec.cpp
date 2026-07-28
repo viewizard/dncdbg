@@ -18,16 +18,6 @@ namespace dncdbg
 namespace
 {
 
-mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const WSTRING &methodName)
-{
-    ULONG numMethods = 0;
-    HCORENUM mEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
-    pMDImport->EnumMethodsWithName(&mEnum, typeDef, methodName.c_str(), &methodDef, 1, &numMethods);
-    pMDImport->CloseEnum(mEnum);
-    return methodDef;
-}
-
 bool TypeHasStaticMembers(ICorDebugType *pType)
 {
     HRESULT Status = S_OK;
