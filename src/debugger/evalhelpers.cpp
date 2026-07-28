@@ -4,9 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalhelpers.h"
+#include "debugger/evaluation/evalwaiter.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluator.h"
-#include "debugger/evalwaiter.h"
 #include "debugger/valueprint.h"
 #include "metadata/corhelpers.h"
 #include "metadata/modules.h"

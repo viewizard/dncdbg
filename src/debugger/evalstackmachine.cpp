@@ -4,10 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalstackmachine.h"
+#include "debugger/evaluation/primitivetypes/types.h"
+#include "debugger/evaluation/evalwaiter.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evalutils.h"
-#include "debugger/evalwaiter.h"
-#include "debugger/evaluation/primitivetypes/types.h"
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"

@@ -4,9 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluator.h"
+#include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalhelpers.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalutils.h"
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"

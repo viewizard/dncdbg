@@ -36,6 +36,7 @@ set(DNCDBG_SOURCES
     debugger/evaluation/primitivetypes/cast.cpp
     debugger/evaluation/primitivetypes/types.cpp
     debugger/evaluation/primitivetypes/unaryoperators.cpp
+    debugger/evaluation/evalwaiter.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp
     debugger/steppers/steppers.cpp
@@ -44,7 +45,6 @@ set(DNCDBG_SOURCES
     debugger/evalstackmachine.cpp
     debugger/evaluator.cpp
     debugger/evalutils.cpp
-    debugger/evalwaiter.cpp
     debugger/frames.cpp
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp

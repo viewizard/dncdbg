@@ -9,11 +9,11 @@
 
 #include "debugger/manageddebugger.h"
 #include "debugger/breakpoints/breakpoints.h"
+#include "debugger/evaluation/evalwaiter.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluator.h"
-#include "debugger/evalwaiter.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
 #include "debugger/steppers/steppers.h"

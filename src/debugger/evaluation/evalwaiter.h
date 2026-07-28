@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALWAITER_H
-#define DEBUGGER_EVALWAITER_H
+#ifndef DEBUGGER_EVALUATION_EVALWAITER_H
+#define DEBUGGER_EVALUATION_EVALWAITER_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -27,7 +27,6 @@ class EvalWaiter
 
     bool IsEvalRunning();
     void CancelEvalRunning();
-    ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread);
 
     HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval);
 
@@ -43,6 +42,8 @@ class EvalWaiter
 
     ToRelease<ICorDebugClass> m_trCrossThreadDependencyNotification;
     HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable);
+
+    ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread);
 
     struct evalResultData_t
     {
@@ -91,4 +92,4 @@ class EvalWaiter
 
 } // namespace dncdbg
 
-#endif // DEBUGGER_EVALWAITER_H
+#endif // DEBUGGER_EVALUATION_EVALWAITER_H
