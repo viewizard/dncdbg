@@ -35,10 +35,6 @@ class EvalHelpers
     {
     }
 
-    HRESULT CreateTypeObjectStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
-                                              ICorDebugValue **ppTypeObjectResult = nullptr,
-                                              bool DetectStaticMembers = true);
-
     HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                          std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                          ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
@@ -48,6 +44,9 @@ class EvalHelpers
                             std::vector<ToRelease<ICorDebugType>> &trTypeParams,
                             ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                             ICorDebugValue **ppEvalResult);
+
+    HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
+                                  ICorDebugValue **ppTypeObjectResult = nullptr, bool DetectStaticMembers = true);
 
     HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                     UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);

@@ -405,7 +405,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
             ToRelease<ICorDebugType> trType;
             IfFailRet(trValue2->GetExactType(&trType));
-            m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, nullptr, false);
+            m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, nullptr, false);
 
             Variable var;
             var.name = "Static members";

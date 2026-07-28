@@ -1166,7 +1166,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     // static constructor execution to provide a second chance and proper error handling.
     if (!isClassInitialized)
     {
-        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, pType, nullptr, false));
+        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, pType, nullptr, false));
     }
 
     IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
@@ -1739,7 +1739,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 {
                     if (pThread != nullptr)
                     {
-                        m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trBaseType, nullptr, false);
+                        m_sharedEvalHelpers->CallStaticConstructor(pThread, trBaseType, nullptr, false);
                     }
                     // Add fields of base class.
                     trType = trBaseType.Detach();
@@ -2269,7 +2269,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             staticName.emplace_back(fieldName.at(0));
             ToRelease<ICorDebugValue> trTypeObject;
             // type has static members (S_NO_STATIC if type doesn't have static members)
-            if (S_OK == m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject))
+            if (S_OK == m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trTypeObject))
             {
                 if (SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName,
                                            0, specifier, ppResult, resultSetterData)))
@@ -2282,7 +2282,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         }
 
         ToRelease<ICorDebugValue> trTypeObject;
-        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trTypeObject));
+        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trTypeObject));
         if (Status == S_OK && // type has static members (S_NO_STATIC if type doesn't have static members)
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, fieldName,
                                    0, specifier, ppResult, resultSetterData)))
@@ -2501,7 +2501,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     {
         ToRelease<ICorDebugType> trType;
         IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
-        IfFailRet(m_sharedEvalHelpers->CreateTypeObjectStaticConstructor(pThread, trType, &trResolvedValue, false));
+        IfFailRet(m_sharedEvalHelpers->CallStaticConstructor(pThread, trType, &trResolvedValue, false));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
