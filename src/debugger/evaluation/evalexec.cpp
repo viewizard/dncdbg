@@ -294,8 +294,8 @@ HRESULT EvalExec::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTy
     return S_OK;
 }
 
-HRESULT EvalExec::CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType,
-                                        ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
+HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType,
+                                   ICorDebugValue **ppTypeObjectResult, bool DetectStaticMembers)
 {
     HRESULT Status = S_OK;
 
