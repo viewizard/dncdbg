@@ -29,7 +29,6 @@ namespace dncdbg
 class DebugInfo;
 class EvalHelpers;
 class EvalStackMachine;
-class EvalWaiter;
 
 class Evaluator
 {

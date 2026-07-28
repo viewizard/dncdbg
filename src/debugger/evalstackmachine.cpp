@@ -5,7 +5,7 @@
 
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluation/primitivetypes/types.h"
-#include "debugger/evalhelpers.h"
+#include "debugger/evaluation/evalexec.h"
 #include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"

@@ -13,7 +13,6 @@
 #endif
 
 #include "debugger/evaluator.h"
-#include "debugger/evalhelpers.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
 #include <mutex>
@@ -22,7 +21,6 @@
 namespace dncdbg
 {
 
-class EvalWaiter;
 class EvalStackMachine;
 
 class Variables
