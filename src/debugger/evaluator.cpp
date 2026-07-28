@@ -1266,17 +1266,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         }
     }
     IfFailRet(GetConstructorTypeParams(pThread, pType, enclosingTypesParamCount, trTypeParams));
-
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by EvalWaiter mutex.
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->NewParameterizedObject(trConstrFunction, static_cast<uint32_t>(trTypeParams.size()),
-                                                      reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
-            return S_OK;
-        }));
+    IfFailRet(m_sharedEvalHelpers->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
@@ -1346,16 +1336,7 @@ HRESULT Evaluator::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     lock.unlock();
 
-    IfFailRet(Status = m_sharedEvalWaiter->WaitEvalResult(pThread, ppTypeProxyValue,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by EvalWaiter mutex.
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->NewParameterizedObject(trConstrFunction, static_cast<uint32_t>(trTypeParams.size()),
-                                                      reinterpret_cast<ICorDebugType **>(trTypeParams.data()), 1, &pFrontValue));
-            return S_OK;
-        }));
+    IfFailRet(m_sharedEvalHelpers->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     return S_OK;
 }

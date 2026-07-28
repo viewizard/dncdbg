@@ -451,7 +451,8 @@ HRESULT EvalHelpers::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *p
                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                                   FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
 {
-    assert((!ppArgsValue && argsValueCount == 0) || (ppArgsValue && argsValueCount > 0));
+    assert((ppArgsValue == nullptr && argsValueCount == 0) ||
+           (ppArgsValue != nullptr && argsValueCount > 0));
 
     if ((specifier & FormatSpecifier::ForceEvaluation) == FormatSpecifier::None &&
         (GetEvalFlags() & EVAL_NOFUNCEVAL) != 0U)
@@ -499,6 +500,36 @@ HRESULT EvalHelpers::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *p
                                                          argsValueCount, ppArgsValue));
             return S_OK;
         });
+}
+
+HRESULT EvalHelpers::CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
+                                     std::vector<ToRelease<ICorDebugType>> &trTypeParams,
+                                     ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult)
+{
+    assert((ppArgsValue == nullptr && argsValueCount == 0) ||
+           (ppArgsValue != nullptr && argsValueCount > 0));
+
+    HRESULT Status = S_OK;
+
+    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+
+            // Note, ICorDebugEval2::NewParameterizedObject uses the VALIDATE_POINTER_TO_OBJECT_ARRAY macro
+            // unconditionally (unlike CallParameterizedFunction, which guards it with `if (nArgs > 0)`),
+            // so rgpArgs must be non-null even when nArgs == 0, otherwise it returns E_INVALIDARG (0x80070057).
+            // To satisfy this requirement when there are no arguments, pass a pointer to a local null value.
+            ICorDebugValue *emptyArgs = nullptr;
+            IfFailRet(trEval2->NewParameterizedObject(pConstrFunc, static_cast<uint32_t>(trTypeParams.size()),
+                                                      reinterpret_cast<ICorDebugType **>(trTypeParams.data()),
+                                                      argsValueCount, ppArgsValue != nullptr ? ppArgsValue : &emptyArgs));
+            return S_OK;
+        }));
+
+    return S_OK;
 }
 
 HRESULT EvalHelpers::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)

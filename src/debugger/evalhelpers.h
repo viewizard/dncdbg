@@ -84,6 +84,11 @@ class EvalHelpers
                          ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
                          FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
 
+    HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
+                            std::vector<ToRelease<ICorDebugType>> &trTypeParams,
+                            ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
+                            ICorDebugValue **ppEvalResult);
+
     HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                     UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 

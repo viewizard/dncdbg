@@ -299,7 +299,7 @@ ManagedDebugger::ManagedDebugger()
       m_sharedModules(new Modules),
       m_sharedEvalWaiter(new EvalWaiter),
       m_sharedEvalHelpers(new EvalHelpers(m_sharedEvalWaiter)),
-      m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers, m_sharedEvalWaiter)),
+      m_sharedEvaluator(new Evaluator(m_sharedDebugInfo, m_sharedEvalHelpers)),
       m_sharedEvalStackMachine(new EvalStackMachine(m_sharedEvaluator, m_sharedEvalHelpers)),
       m_sharedVariables(new Variables(m_sharedEvalHelpers, m_sharedEvaluator, m_sharedEvalStackMachine)),
       m_uniqueSteppers(new Steppers(m_sharedDebugInfo, m_sharedEvalHelpers)),

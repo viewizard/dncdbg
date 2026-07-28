@@ -87,11 +87,9 @@ class Evaluator
     using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<SigElementType> &, GetFunctionCallback)>;
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-              std::shared_ptr<EvalHelpers> &sharedEvalHelpers,
-              std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
+              std::shared_ptr<EvalHelpers> &sharedEvalHelpers)
         : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedEvalHelpers(sharedEvalHelpers),
-          m_sharedEvalWaiter(sharedEvalWaiter)
+          m_sharedEvalHelpers(sharedEvalHelpers)
     {
     }
 
@@ -153,7 +151,6 @@ class Evaluator
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalHelpers> m_sharedEvalHelpers;
-    std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
