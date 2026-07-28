@@ -92,6 +92,8 @@ class EvalHelpers
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
+    HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
+
     [[nodiscard]] uint32_t GetEvalFlags() const
     {
         return m_evalFlags;

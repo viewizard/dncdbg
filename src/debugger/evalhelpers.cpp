@@ -914,4 +914,32 @@ HRESULT EvalHelpers::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGN
     return S_OK;
 }
 
+HRESULT EvalHelpers::CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
+                                     void *valueData, ICorDebugValue **ppValue)
+{
+    HRESULT Status = S_OK;
+    // Create value (without calling a constructor)
+    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppValue,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
+            return S_OK;
+        }));
+
+    if (valueData == nullptr)
+    {
+        return S_OK;
+    }
+
+    ToRelease<ICorDebugValue> trEditableValue;
+    IfFailRet(DereferenceAndUnboxValue(*ppValue, &trEditableValue, nullptr));
+
+    ToRelease<ICorDebugGenericValue> trGenericValue;
+    IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+    return trGenericValue->SetValue(valueData);
+}
+
 } // namespace dncdbg

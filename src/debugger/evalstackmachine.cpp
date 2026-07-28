@@ -5,7 +5,6 @@
 
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluation/primitivetypes/types.h"
-#include "debugger/evaluation/evalwaiter.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
@@ -103,34 +102,6 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
     // representing the null object reference. You can use this object to pass null to a function evaluation that has
     // object reference parameters. You cannot set the ICorDebugValue to anything; it always remains null.
     return trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppValue);
-}
-
-HRESULT CreateValueType(EvalWaiter *pEvalWaiter, ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
-                        ICorDebugValue **ppValue, void *ptr)
-{
-    HRESULT Status = S_OK;
-    // Create value (without calling a constructor)
-    IfFailRet(pEvalWaiter->WaitEvalResult(pThread, ppValue,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by EvalWaiter mutex.
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
-            return S_OK;
-        }));
-
-    if (ptr == nullptr)
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugValue> trEditableValue;
-    IfFailRet(DereferenceAndUnboxValue(*ppValue, &trEditableValue, nullptr));
-
-    ToRelease<ICorDebugGenericValue> trGenericValue;
-    IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-    return trGenericValue->SetValue(ptr);
 }
 
 HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
@@ -896,7 +867,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
             trValue.Free();
-            IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, entry->second, &trValue, elemValue.data()));
+            IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1005,7 +976,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
     {
         // We can't create ELEMENT_TYPE_VOID, so, we are forced to use System.Void instead.
-        IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trVoidClass, &evalStack.front().trValue, nullptr));
+        IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trVoidClass, nullptr, &evalStack.front().trValue));
     }
 
     return Status;
@@ -1256,7 +1227,7 @@ HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalSta
     evalStack.front().literal = true;
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, data.data());
+        return ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trDecimalClass, data.data(), &evalStack.front().trValue);
     }
     else
     {
@@ -1298,7 +1269,7 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
 
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return CreateValueType(ed.pEvalWaiter, ed.pThread, ed.trDecimalClass, &evalStack.front().trValue, nullptr);
+        return ed.pEvalHelpers->CreateValueType(ed.pThread, ed.trDecimalClass, nullptr, &evalStack.front().trValue);
     }
     else if (elemType == ELEMENT_TYPE_STRING)
     {
@@ -1442,7 +1413,7 @@ HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEn
                 ToRelease<ICorDebugClass> trClass;
 
                 IfFailRet(trType->GetClass(&trClass));
-                IfFailRet(CreateValueType(ed.pEvalWaiter, ed.pThread, trClass, &trValueRef, nullptr));
+                IfFailRet(ed.pEvalHelpers->CreateValueType(ed.pThread, trClass, nullptr, &trValueRef));
                 IfFailRet(DereferenceAndUnboxValue(trValueRef, &trValue, nullptr));
                 IfFailRet(trValue->GetSize(&size));
             }
