@@ -51,6 +51,10 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // Return vector of dot-separated "display" identifier components (namespace/class path).
 std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
+HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
+                 ICorDebugModule *pModule, ICorDebugType **ppType);
+HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule);
+
 } // namespace dncdbg::TypePrinter
 
 #endif // METADATA_TYPEPRINTER_H

@@ -45,7 +45,6 @@ set(DNCDBG_SOURCES
     debugger/evalhelpers.cpp
     debugger/evalstackmachine.cpp
     debugger/evaluator.cpp
-    debugger/evalutils.cpp
     debugger/frames.cpp
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp

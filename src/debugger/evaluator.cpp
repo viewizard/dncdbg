@@ -7,7 +7,6 @@
 #include "debugger/evaluation/evalexec.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evalutils.h"
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h"
@@ -507,7 +506,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(TypePrinter::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -522,7 +521,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(TypePrinter::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
         }
@@ -2235,7 +2234,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<std::string> fieldName{identifiers.back()};
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(TypePrinter::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -2250,7 +2249,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(TypePrinter::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
         }
@@ -2496,7 +2495,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         ToRelease<ICorDebugType> trType;
-        IfFailRet(EvalUtils::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
+        IfFailRet(TypePrinter::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
