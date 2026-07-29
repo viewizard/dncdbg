@@ -8,7 +8,7 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include <algorithm>
 #include <functional>

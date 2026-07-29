@@ -6,8 +6,8 @@
 #include "debugger/frames.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/helpers.h"
 #include "metadata/modules.h"
-#include "metadata/typeprinter.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <algorithm>

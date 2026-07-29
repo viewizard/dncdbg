@@ -9,7 +9,7 @@
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/utf.h"

@@ -59,10 +59,10 @@ set(DNCDBG_SOURCES
     expressionparser/helpers.cpp
     expressionparser/parser.cpp
     metadata/attributes.cpp
+    metadata/helpers.cpp
     metadata/jmc.cpp
     metadata/modules.cpp
     metadata/sigparse.cpp
-    metadata/typeprinter.cpp
     protocol/dap.cpp
     protocol/dapio.cpp
     types/protocol.cpp

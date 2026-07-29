@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef METADATA_TYPEPRINTER_H
-#define METADATA_TYPEPRINTER_H
+#ifndef METADATA_HELPERS_H
+#define METADATA_HELPERS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -57,4 +57,4 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
 
 } // namespace dncdbg::TypePrinter
 
-#endif // METADATA_TYPEPRINTER_H
+#endif // METADATA_HELPERS_H

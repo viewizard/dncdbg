@@ -7,7 +7,7 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
 #include <sstream>

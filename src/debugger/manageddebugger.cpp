@@ -20,8 +20,8 @@
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/helpers.h"
 #include "metadata/modules.h"
-#include "metadata/typeprinter.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
 #include "utils/kqueue.h" // NOLINT(misc-include-cleaner)

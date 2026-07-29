@@ -7,7 +7,7 @@
 #include "debugger/evaluator.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/print.h"
 #include "utils/torelease.h"

@@ -8,7 +8,7 @@
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 

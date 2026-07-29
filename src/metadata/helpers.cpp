@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "metadata/typeprinter.h"
+#include "metadata/helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
