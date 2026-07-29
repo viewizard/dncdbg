@@ -62,7 +62,7 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
 
 } // unnamed namespace
 
-ThreadId getThreadId(ICorDebugThread *pThread)
+ThreadId GetThreadId(ICorDebugThread *pThread)
 {
     DWORD threadId = 0; // invalid value for Win32
     const HRESULT res = pThread->GetID(&threadId);
@@ -99,7 +99,7 @@ void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICor
     const WriteLock w_lock(m_userThreadsRWLock);
 
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
 
     assert(m_userThreads.find(threadId) != m_userThreads.end());
     m_userThreads.at(threadId) = threadName;

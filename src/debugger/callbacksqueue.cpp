@@ -43,7 +43,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
     m_debugger.SetLastStoppedThread(pThread);
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
     const StoppedEvent event(atEntry ? StoppedEventReason::Entry : StoppedEventReason::Breakpoint, std::move(hitBreakpointIds), threadId);
     DAPIO::EmitStoppedEvent(event);
     return true;
@@ -58,7 +58,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
         return false;
     }
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
     const StoppedEvent event(StoppedEventReason::Step, threadId);
 
     m_debugger.SetLastStoppedThread(pThread);
@@ -79,7 +79,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
 
     const StoppedEvent event(StoppedEventReason::Pause, threadId);
     DAPIO::EmitStoppedEvent(event);
@@ -99,7 +99,7 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     // At this point we stop at exception, disable all steppers (we could stop at exception during step).
     m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
     const StoppedEvent event(StoppedEventReason::Exception, threadId);
     m_debugger.SetLastStoppedThread(pThread);
     DAPIO::EmitStoppedEvent(event);

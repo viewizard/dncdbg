@@ -229,7 +229,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
         LOGW(log << "Thread was created by user code during evaluation with implicit user code execution.");
     }
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
     m_debugger.m_sharedThreads->Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
@@ -238,7 +238,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
     m_debugger.m_sharedThreads->Remove(threadId);
 
     m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, nullptr);

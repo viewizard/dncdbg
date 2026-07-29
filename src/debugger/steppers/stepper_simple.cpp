@@ -32,7 +32,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     // But in case "JMC disabled", debugger must handle different logic for exceptions/stepping/breakpoints.
     IfFailRet(trStepper2->SetJMC(TRUE));
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
 
     if (stepType == StepType::STEP_OUT)
     {
@@ -64,7 +64,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
 
 HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
 
     auto stepForcedIgnoreBP =
         [&]()

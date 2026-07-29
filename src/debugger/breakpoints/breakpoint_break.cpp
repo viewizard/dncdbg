@@ -93,7 +93,7 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
         }
     }
 
-    const ThreadId threadId(getThreadId(pThread));
+    const ThreadId threadId(GetThreadId(pThread));
 
     // Prevent stop event duplicate, if previous stop event was for same thread and same code point.
     // The idea is - store "fully qualified IL offset" (data for module + method + IL) on any stop event

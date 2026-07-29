@@ -268,7 +268,7 @@ void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 
 void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
 {
-    SetLastStoppedThreadId(getThreadId(pThread));
+    SetLastStoppedThreadId(GetThreadId(pThread));
 }
 
 void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)

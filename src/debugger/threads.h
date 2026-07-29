@@ -23,7 +23,7 @@ namespace dncdbg
 {
 
 class Evaluator;
-ThreadId getThreadId(ICorDebugThread *pThread);
+ThreadId GetThreadId(ICorDebugThread *pThread);
 
 class Threads
 {
