@@ -157,10 +157,6 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
         std::vector<int> ranks;
         std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(currentType, ranks);
-        if (classIdentifiers.size() == 1)
-        {
-            classIdentifiers.at(0) = TypePrinter::RenameToSystem(classIdentifiers.at(0));
-        }
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugModule> trTypeModule;

@@ -490,8 +490,6 @@ HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
     return S_OK;
 }
 
-} // unnamed namespace
-
 std::string RenameToSystem(const std::string &typeName)
 {
     static const std::unordered_map<std::string, std::string> cs2system = {
@@ -543,6 +541,8 @@ std::string RenameToCSharp(const std::string &typeName)
     auto renamed = system2cs.find(typeName);
     return renamed != system2cs.end() ? renamed->second : typeName;
 }
+
+} // unnamed namespace
 
 HRESULT FullyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName)
 {
@@ -1366,6 +1366,15 @@ std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &d
     for (auto &id : identifiers)
     {
         TrimString(id);
+    }
+
+    // A single identifier may be a C# primitive keyword (e.g. "int"), so
+    // rename it to its System.* metadata name. With two or more identifiers
+    // the name is already a "namespace.class" path whose components are never
+    // C# keywords, so no rename is needed there.
+    if (identifiers.size() == 1)
+    {
+        identifiers.at(0) = RenameToSystem(identifiers.at(0));
     }
 
     return identifiers;

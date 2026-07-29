@@ -45,8 +45,6 @@ HRESULT GetTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std:
 HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName);
 HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
 HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
-std::string RenameToSystem(const std::string &typeName);
-std::string RenameToCSharp(const std::string &typeName);
 
 // Return vector of generic type names parsed from "displayName".
 std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
