@@ -12,13 +12,24 @@
 #include <sstream>
 #include <unordered_map>
 #include <string_view>
-#include <vector>
 
 namespace dncdbg::TypePrinter
 {
 
 namespace
 {
+
+void TrimString(std::string &str)
+{
+    const auto first = str.find_first_not_of(" \t\r\n");
+    const auto last = str.find_last_not_of(" \t\r\n");
+    if (first == std::string::npos)
+    {
+        str.clear();
+        return;
+    }
+    str = str.substr(first, last - first + 1);
+}
 
 std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &args)
 {
@@ -1183,6 +1194,181 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
     ss << ")";
     output = ss.str();
     return S_OK;
+}
+
+std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName)
+{
+    std::vector<std::string> genericTypes;
+
+    const std::size_t start = displayName.find('<');
+    if (start == std::string::npos)
+    {
+        metadataName = displayName;
+        return genericTypes;
+    }
+
+    int paramDepth = 0; // Depth inside generic angle brackets "<...>".
+    int arrayDepth = 0; // Depth inside array brackets "[...]"; commas inside are rank separators, not arg separators.
+
+    genericTypes.emplace_back();
+
+    for (std::size_t i = start; i < displayName.size(); i++)
+    {
+        const char c = displayName.at(i);
+        switch (c)
+        {
+        case ',':
+            // A comma at the top generic level (depth 1) and outside of any
+            // array brackets separates generic type arguments.
+            if (paramDepth == 1 && arrayDepth == 0)
+            {
+                genericTypes.emplace_back();
+                continue;
+            }
+            break;
+        case '[':
+            arrayDepth++;
+            break;
+        case ']':
+            if (arrayDepth > 0)
+            {
+                arrayDepth--;
+            }
+            break;
+        case '<':
+            paramDepth++;
+            if (paramDepth == 1)
+            {
+                continue; // Skip the opening '<' of the outermost generic.
+            }
+            break;
+        case '>':
+            // Guard against underflow on malformed/unbalanced input so a
+            // stray '>' cannot desynchronize the depth tracking.
+            if (paramDepth > 0)
+            {
+                paramDepth--;
+            }
+            if (paramDepth == 0)
+            {
+                continue; // Skip the closing '>' of the outermost generic.
+            }
+            break;
+        default:
+            break;
+        }
+        genericTypes.back() += c;
+    }
+
+    for (auto &arg : genericTypes)
+    {
+        TrimString(arg);
+    }
+
+    std::string baseName = displayName.substr(0, start);
+    TrimString(baseName);
+    metadataName = baseName + '`' + std::to_string(genericTypes.size());
+    return genericTypes;
+}
+
+std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks)
+{
+    // Splits a fully-qualified display type name into its dot-separated
+    // identifier components (namespace/class path) and records array ranks.
+    //
+    // Examples:
+    //   "System.Collections.Generic.Dictionary<int, string>"
+    //     -> {"System", "Collections", "Generic", "Dictionary<int,string>"}
+    //   "int[,,]"            -> {"int"}, ranks = {3}
+    //   "int[][]"            -> {"int"}, ranks = {1, 1}
+    //   "System.Nullable<int>[]"
+    //     -> {"System", "Nullable<int>"}, ranks = {1}
+    //
+    // Generic argument lists ("<...>") stay attached to their owning
+    // component; dots, brackets and rank commas inside them are preserved
+    // verbatim. Whitespace is skipped so that the ", " separator used by
+    // ConsumeGenericArgs does not leak into component names.
+
+    std::vector<std::string> identifiers;
+    int paramDepth = 0; // Depth inside generic angle brackets "<...>".
+
+    identifiers.emplace_back();
+
+    for (const char c : displayTypeName)
+    {
+        // Skip all whitespace (display names use ", " as the generic arg
+        // separator; spaces would corrupt component names and break
+        // FindTypeDefByName / RenameToSystem lookups).
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+        {
+            continue;
+        }
+
+        switch (c)
+        {
+        case '.':
+            // A dot at the top level separates namespace/class components.
+            // Dots inside generic args are part of an argument's own
+            // qualified name and are preserved.
+            if (paramDepth == 0)
+            {
+                identifiers.emplace_back();
+                continue;
+            }
+            break;
+        case '[':
+            // An opening bracket at the top level starts a new array rank.
+            // Brackets inside generic args belong to an argument's array
+            // type (e.g. "List<int[]>") and are preserved verbatim.
+            if (paramDepth == 0)
+            {
+                ranks.push_back(1);
+                continue;
+            }
+            break;
+        case ']':
+            // A closing bracket at the top level ends the current rank.
+            if (paramDepth == 0)
+            {
+                continue;
+            }
+            break;
+        case ',':
+            // A comma at the top level is a rank dimension separator for
+            // multi-dimensional arrays (e.g. "int[,,]"). Commas inside
+            // generic args separate type arguments and are preserved.
+            if (paramDepth == 0)
+            {
+                if (!ranks.empty())
+                {
+                    ranks.back()++;
+                }
+                continue;
+            }
+            break;
+        case '<':
+            paramDepth++;
+            break;
+        case '>':
+            // Guard against underflow on malformed/unbalanced input so a
+            // stray '>' cannot desynchronize the depth tracking.
+            if (paramDepth > 0)
+            {
+                paramDepth--;
+            }
+            break;
+        default:
+            break;
+        }
+        identifiers.back() += c;
+    }
+
+    for (auto &id : identifiers)
+    {
+        TrimString(id);
+    }
+
+    return identifiers;
 }
 
 } // namespace dncdbg::TypePrinter

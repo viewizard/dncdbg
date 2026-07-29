@@ -6,7 +6,6 @@
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluation/primitivetypes/types.h"
 #include "debugger/evaluation/evalexec.h"
-#include "debugger/evalutils.h"
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
@@ -807,11 +806,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     assert(!evalStack.front().identifiers.empty()); // We must have at least method name (identifier).
 
     // TODO local defined function (compiler will create such function with name like `<Calc1>g__Calc2|0_0`)
-    const std::string funcNameGenerics = evalStack.front().identifiers.back();
+    const std::string displayFuncName = evalStack.front().identifiers.back();
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
-    const std::vector<std::string> methodGenericStrings = EvalUtils::ParseGenericParams(funcNameGenerics, funcName);
+    const std::vector<std::string> methodGenericStrings = TypePrinter::ConvertDisplayToMetadataName(displayFuncName, funcName);
     const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
     {

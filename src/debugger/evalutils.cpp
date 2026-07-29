@@ -22,8 +22,8 @@ std::vector<std::string> GatherParameters(const std::vector<std::string> &identi
     std::vector<std::string> result;
     for (int i = 0; i < indexEnd; i++)
     {
-        std::string typeName;
-        std::vector<std::string> params = ParseGenericParams(identifiers.at(i), typeName);
+        std::string metadataTypeName;
+        std::vector<std::string> params = TypePrinter::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
         result.insert(result.end(), params.begin(), params.end());
     }
     return result;
@@ -52,9 +52,9 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
-        std::string name;
-        ParseGenericParams(identifiers.at(i), name);
-        currentTypeName += (currentTypeName.empty() ? "" : ".") + name;
+        std::string metadataName;
+        TypePrinter::ConvertDisplayToMetadataName(identifiers.at(i), metadataName);
+        currentTypeName += (currentTypeName.empty() ? "" : ".") + metadataName;
 
         typeToken = GetTypeTokenForName(trMDImport, mdTypeDefNil, currentTypeName);
         if (typeToken != mdTypeDefNil)
@@ -72,9 +72,9 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     // Resolve nested class
     for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
     {
-        std::string name;
-        ParseGenericParams(identifiers.at(j), name);
-        const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, name);
+        std::string metadataName;
+        TypePrinter::ConvertDisplayToMetadataName(identifiers.at(j), metadataName);
+        const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, metadataName);
         if (classToken == mdTypeDefNil)
         {
             break;
@@ -156,7 +156,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = ParseType(currentType, ranks);
+        std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(currentType, ranks);
         if (classIdentifiers.size() == 1)
         {
             classIdentifiers.at(0) = TypePrinter::RenameToSystem(classIdentifiers.at(0));
@@ -169,16 +169,17 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         IfFailRet(Modules::ForEachModule(pThread,
             [&](ICorDebugModule *pModule) -> HRESULT
             {
-                if (typeToken != mdTypeDefNil)
-                {
-                    return S_CAN_EXIT;
-                }
-
                 if (SUCCEEDED(FindTypeInModule(pModule, classIdentifiers, nextClassIdentifier, typeToken)))
                 {
                     pModule->AddRef();
                     trTypeModule = pModule;
                 }
+
+                if (typeToken != mdTypeDefNil)
+                {
+                    return S_CAN_EXIT;
+                }
+
                 return S_OK;
             }));
 
@@ -252,120 +253,6 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
 } // unnamed namespace
 
-std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName)
-{
-    std::vector<std::string> result;
-
-    const std::size_t start = identifier.find('<');
-    if (start == std::string::npos)
-    {
-        typeName = identifier;
-        return result;
-    }
-
-    int paramDepth = 0;
-    bool inArray = false;
-
-    result.emplace_back("");
-
-    for (std::size_t i = start; i < identifier.size(); i++)
-    {
-        const char c = identifier.at(i);
-        switch (c)
-        {
-        case ',':
-            if (paramDepth == 1 && !inArray)
-            {
-                result.emplace_back("");
-                continue;
-            }
-            break;
-        case '[':
-            inArray = true;
-            break;
-        case ']':
-            inArray = false;
-            break;
-        case '<':
-            paramDepth++;
-            if (paramDepth == 1)
-            {
-                continue;
-            }
-            break;
-        case '>':
-            paramDepth--;
-            if (paramDepth == 0)
-            {
-                continue;
-            }
-            break;
-        default:
-            break;
-        }
-        result.back() += c;
-    }
-    typeName = identifier.substr(0, start) + '`' + std::to_string(result.size());
-    return result;
-}
-
-std::vector<std::string> ParseType(const std::string &expression, std::vector<int> &ranks)
-{
-    std::vector<std::string> result;
-    int paramDepth = 0;
-
-    result.emplace_back();
-
-    for (const char c : expression)
-    {
-        switch (c)
-        {
-        case '.':
-            if (paramDepth == 0)
-            {
-                result.emplace_back();
-                continue;
-            }
-            break;
-        case '[':
-            if (paramDepth == 0)
-            {
-                ranks.push_back(1);
-                continue;
-            }
-            break;
-        case ']':
-            if (paramDepth == 0)
-            {
-                continue;
-            }
-            break;
-        case ',':
-            if (paramDepth == 0)
-            {
-                if (!ranks.empty())
-                {
-                    ranks.back()++;
-                }
-                continue;
-            }
-            break;
-        case '<':
-            paramDepth++;
-            break;
-        case '>':
-            paramDepth--;
-            break;
-        case ' ':
-            continue;
-        default:
-            break;
-        }
-        result.back() += c;
-    }
-    return result;
-}
-
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
 {
@@ -384,16 +271,17 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         IfFailRet(Modules::ForEachModule(pThread,
             [&](ICorDebugModule *pModule) -> HRESULT
             {
-                if (typeToken != mdTypeDefNil) // already found
-                {
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-
                 if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
                 {
                     pModule->AddRef();
                     trTypeModule = pModule;
                 }
+
+                if (typeToken != mdTypeDefNil) // already found
+                {
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }
+
                 return S_OK; // Return with success to continue walk.
             }));
     }

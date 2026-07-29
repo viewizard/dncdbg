@@ -18,10 +18,8 @@
 namespace dncdbg::EvalUtils
 {
 
-std::vector<std::string> ParseType(const std::string &expression, std::vector<int> &ranks);
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule = nullptr);
-std::vector<std::string> ParseGenericParams(const std::string &identifier, std::string &typeName);
 
 } // namespace dncdbg::EvalUtils
 

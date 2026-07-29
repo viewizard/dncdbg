@@ -14,6 +14,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -46,6 +47,11 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
 HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
 std::string RenameToSystem(const std::string &typeName);
 std::string RenameToCSharp(const std::string &typeName);
+
+// Return vector of generic type names parsed from "displayName".
+std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
+// Return vector of dot-separated "display" identifier components (namespace/class path).
+std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
 } // namespace dncdbg::TypePrinter
 

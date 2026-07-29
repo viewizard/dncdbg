@@ -504,7 +504,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
     int nextClassIdentifier = 0;
 
     ToRelease<ICorDebugModule> trModule;
@@ -2230,7 +2230,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = EvalUtils::ParseType(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
     int nextClassIdentifier = 0;
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
