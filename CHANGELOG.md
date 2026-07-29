@@ -45,6 +45,8 @@ Upcoming changes compared to previous version.
 - Fixed stack walk corruption on macOS arm64 by caching frames before JMC queries.
 - Fixed error handling for non-existent method evaluation requests when `allowImplicitFuncEval` is disabled.
 - Fixed error handling in static-member detection.
+- Fixed type resolution corruption in `ResolveTypeParameters` where a partial type match in one module would corrupt the identifier start index for subsequent modules.
+- Fixed `FindType` to avoid committing partial identifier-match state on failure by using a temporary index.
 
 </br>
 </br>

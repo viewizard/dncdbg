@@ -165,15 +165,13 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         IfFailRet(Modules::ForEachModule(pThread,
             [&](ICorDebugModule *pModule) -> HRESULT
             {
+                nextClassIdentifier = 0;
                 if (SUCCEEDED(FindTypeInModule(pModule, classIdentifiers, nextClassIdentifier, typeToken)))
                 {
                     pModule->AddRef();
                     trTypeModule = pModule;
-                }
-
-                if (typeToken != mdTypeDefNil)
-                {
-                    return S_CAN_EXIT;
+                    assert(typeToken != mdTypeDefNil);
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
 
                 return S_OK;
@@ -250,7 +248,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 } // unnamed namespace
 
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 ICorDebugModule *pModule, ICorDebugType **ppType, ICorDebugModule **ppModule)
+                 ICorDebugModule *pModule, ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
 
@@ -267,14 +265,13 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
         IfFailRet(Modules::ForEachModule(pThread,
             [&](ICorDebugModule *pModule) -> HRESULT
             {
-                if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
+                int tmpNextIdentifier = nextIdentifier;
+                if (SUCCEEDED(FindTypeInModule(pModule, identifiers, tmpNextIdentifier, typeToken)))
                 {
                     pModule->AddRef();
                     trTypeModule = pModule;
-                }
-
-                if (typeToken != mdTypeDefNil) // already found
-                {
+                    nextIdentifier = tmpNextIdentifier;
+                    assert(typeToken != mdTypeDefNil);
                     return S_CAN_EXIT; // Fast exit from the loop.
                 }
 
@@ -302,6 +299,37 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
         *ppType = trType.Detach();
     }
+
+    return S_OK;
+}
+
+HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugModule> trTypeModule;
+    mdTypeDef typeToken = mdTypeDefNil;
+
+    IfFailRet(Modules::ForEachModule(pThread,
+        [&](ICorDebugModule *pModule) -> HRESULT
+        {
+            int nextIdentifier = 0;
+            if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
+            {
+                pModule->AddRef();
+                trTypeModule = pModule;
+                assert(typeToken != mdTypeDefNil);
+                return S_CAN_EXIT; // Fast exit from the loop.
+            }
+
+            return S_OK; // Return with success to continue walk.
+        }));
+
+    if (trTypeModule == nullptr)
+    {
+        return E_FAIL;
+    }
+
     if (ppModule != nullptr)
     {
         *ppModule = trTypeModule.Detach();

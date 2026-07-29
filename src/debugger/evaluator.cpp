@@ -505,10 +505,9 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
 
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
-    int nextClassIdentifier = 0;
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
+    IfFailRet(EvalUtils::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -521,7 +520,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
         std::vector<std::string> fullpath = classIdentifiers;
         std::copy(identifiers.begin(), identifiers.end(), std::back_inserter(fullpath));
 
-        nextClassIdentifier = 0;
+        int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
@@ -2231,19 +2230,16 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
     std::vector<int> ranks;
     std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
-    int nextClassIdentifier = 0;
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(EvalUtils::FindType(classIdentifiers, nextClassIdentifier, pThread, nullptr, nullptr, &trModule));
+    IfFailRet(EvalUtils::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
     {
-        ToRelease<ICorDebugType> trType;
-        nextClassIdentifier = 0;
         if (trim)
         {
             classIdentifiers.pop_back();
@@ -2252,6 +2248,8 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         std::vector<std::string> fullpath = classIdentifiers;
         std::copy(identifiers.begin(), identifiers.begin() + identifiersNum, std::back_inserter(fullpath));
 
+        int nextClassIdentifier = 0;
+        ToRelease<ICorDebugType> trType;
         if (FAILED(EvalUtils::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
