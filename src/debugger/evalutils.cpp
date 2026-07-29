@@ -113,13 +113,13 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     IfFailRet(TypePrinter::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
 
     const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
-    const CorElementType et = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
+    const CorElementType elemType = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
 #ifdef BIT64
     assert(trTypes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
     ToRelease<ICorDebugType> trType;
-    IfFailRet(trClass2->GetParameterizedType(et, static_cast<uint32_t>(trTypes.size()),
+    IfFailRet(trClass2->GetParameterizedType(elemType, static_cast<uint32_t>(trTypes.size()),
                                              reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));
 
     *ppType = trType.Detach();
