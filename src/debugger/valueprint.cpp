@@ -43,7 +43,7 @@ bool IsEnum(ICorDebugValue *pInputValue)
         FAILED(trValue2->GetExactType(&trType)) ||
         FAILED(trType->GetBase(&trBaseType)) ||
         trBaseType == nullptr ||
-        FAILED(TypePrinter::GetTypeOfValue(trBaseType, baseTypeName)))
+        FAILED(MetadataHelpers::GetTypeOfValue(trBaseType, baseTypeName)))
     {
         return false;
     }
@@ -398,7 +398,7 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     {
         if (SUCCEEDED(trType->GetFirstTypeParameter(&trFirstParameter)))
         {
-            TypePrinter::GetTypeOfValue(trFirstParameter, elementType, arrayType);
+            MetadataHelpers::GetTypeOfValue(trFirstParameter, elementType, arrayType);
         }
     }
 
@@ -651,7 +651,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
         case ELEMENT_TYPE_CLASS:
         {
             std::string typeName;
-            TypePrinter::GetTypeOfValue(trValue, typeName);
+            MetadataHelpers::GetTypeOfValue(trValue, typeName);
             if (typeName == "decimal") // TODO: implement mechanism for printing custom type values
             {
                 std::string val;

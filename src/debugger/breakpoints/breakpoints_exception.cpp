@@ -260,7 +260,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     while (pDetails != nullptr)
     {
-        if (FAILED(TypePrinter::GetTypeOfValue(trExceptionValue, pDetails->fullTypeName)))
+        if (FAILED(MetadataHelpers::GetTypeOfValue(trExceptionValue, pDetails->fullTypeName)))
         {
             pDetails->fullTypeName = "<unknown exception>";
         }
@@ -501,7 +501,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
     }
 
     std::string excType;
-    if (FAILED(TypePrinter::GetTypeOfValue(trExceptionValue, excType)))
+    if (FAILED(MetadataHelpers::GetTypeOfValue(trExceptionValue, excType)))
     {
         excType = "<unknown exception>";
     }

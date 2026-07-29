@@ -15,7 +15,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace dncdbg::TypePrinter
+namespace dncdbg::MetadataHelpers
 {
 
 namespace
@@ -550,7 +550,7 @@ std::vector<std::string> GatherParameters(const std::vector<std::string> &identi
     for (int i = 0; i < indexEnd; i++)
     {
         std::string metadataTypeName;
-        std::vector<std::string> params = TypePrinter::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
+        std::vector<std::string> params = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
         result.insert(result.end(), params.begin(), params.end());
     }
     return result;
@@ -580,7 +580,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         std::string metadataName;
-        TypePrinter::ConvertDisplayToMetadataName(identifiers.at(i), metadataName);
+        MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataName);
         currentTypeName += (currentTypeName.empty() ? "" : ".") + metadataName;
 
         typeToken = GetTypeTokenForName(trMDImport, mdTypeDefNil, currentTypeName);
@@ -600,7 +600,7 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
     {
         std::string metadataName;
-        TypePrinter::ConvertDisplayToMetadataName(identifiers.at(j), metadataName);
+        MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(j), metadataName);
         const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, metadataName);
         if (classToken == mdTypeDefNil)
         {
@@ -637,7 +637,7 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
 
     std::string eTypeName;
-    IfFailRet(TypePrinter::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
+    IfFailRet(MetadataHelpers::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
 
     const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
     const CorElementType elemType = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
@@ -683,7 +683,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(currentType, ranks);
+        std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(currentType, ranks);
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugModule> trTypeModule;
@@ -1701,4 +1701,4 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
     return S_OK;
 }
 
-} // namespace dncdbg::TypePrinter
+} // namespace dncdbg::MetadataHelpers

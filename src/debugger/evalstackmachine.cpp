@@ -186,7 +186,7 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElement
         IfFailRet(pTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trTypeValue2)));
         ToRelease<ICorDebugType> trType;
         IfFailRet(trTypeValue2->GetExactType(&trType));
-        IfFailRet(TypePrinter::NameForTypeByType(trType, typeName));
+        IfFailRet(MetadataHelpers::NameForTypeByType(trType, typeName));
     }
     return S_OK;
 };
@@ -361,9 +361,9 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
         if (elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS)
         {
             std::string mdName1;
-            IfFailRet(TypePrinter::NameForTypeByValue(trRealValue1, mdName1));
+            IfFailRet(MetadataHelpers::NameForTypeByValue(trRealValue1, mdName1));
             std::string mdName2;
-            IfFailRet(TypePrinter::NameForTypeByValue(trRealValue2, mdName2));
+            IfFailRet(MetadataHelpers::NameForTypeByValue(trRealValue2, mdName2));
 
             if (mdName1 != mdName2)
             {
@@ -570,9 +570,9 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     auto fillErrorOutput = [&]() -> void
     {
         std::string typeName1 = "unknown";
-        TypePrinter::GetTypeOfValue(trRealValue1, typeName1);
+        MetadataHelpers::GetTypeOfValue(trRealValue1, typeName1);
         std::string typeName2 = "unknown";
-        TypePrinter::GetTypeOfValue(trRealValue2, typeName2);
+        MetadataHelpers::GetTypeOfValue(trRealValue2, typeName2);
         output = "error: Operator '" + findOpName->second.second +
                     "' cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
     };
@@ -663,7 +663,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
                   opcode.kind == Parser::SyntaxKind::LogicalOrExpression))
         {
             std::string typeName = "unknown";
-            TypePrinter::GetTypeOfValue(trRealValue1, typeName);
+            MetadataHelpers::GetTypeOfValue(trRealValue1, typeName);
             output = "error: Cannot implicitly convert type '" + typeName + "' to 'bool'";
             return E_INVALIDARG;
         }
@@ -708,7 +708,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
     auto fillErrorOutput = [&]() -> void
     {
         std::string typeName = "unknown";
-        TypePrinter::GetTypeOfValue(trRealValue, typeName);
+        MetadataHelpers::GetTypeOfValue(trRealValue, typeName);
         output = "error: Operator '" + findOpName->second.second + "' cannot be applied to operand of type '" + typeName + "'";
     };
 
@@ -768,7 +768,7 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
         {
             IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
         }
-        TypePrinter::GetTypeOfValue(trType, genericType);
+        MetadataHelpers::GetTypeOfValue(trType, genericType);
         generics.insert(0, "," + genericType);
         trGenericValues.emplace_back(trType.Detach());
         evalStack.pop_front();
@@ -810,7 +810,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
-    const std::vector<std::string> methodGenericStrings = TypePrinter::ConvertDisplayToMetadataName(displayFuncName, funcName);
+    const std::vector<std::string> methodGenericStrings = MetadataHelpers::ConvertDisplayToMetadataName(displayFuncName, funcName);
     const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
     {
@@ -883,11 +883,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
         if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
         {
-            IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+            IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
         }
         else if (funcArgs.at(i).corType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).corType == ELEMENT_TYPE_ARRAY)
         {
-            IfFailRet(TypePrinter::GetTypeOfValue(trValueArg, funcArgs.at(i).typeName));
+            IfFailRet(MetadataHelpers::GetTypeOfValue(trValueArg, funcArgs.at(i).typeName));
         }
     }
 
@@ -1036,7 +1036,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
 
             if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
             }
         }
 
@@ -1157,7 +1157,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
             if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(TypePrinter::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
             }
         }
 
@@ -1455,8 +1455,8 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     // TODO add implementation for object type ?? other
     if ((elemTypeRightOp == ELEMENT_TYPE_STRING && elemTypeLeftOp == ELEMENT_TYPE_STRING) ||
         ((elemTypeRightOp == ELEMENT_TYPE_CLASS && elemTypeLeftOp == ELEMENT_TYPE_CLASS) &&
-         SUCCEEDED(TypePrinter::NameForTypeByValue(trRealValueLeftOp, typeNameLeft)) &&
-         SUCCEEDED(TypePrinter::NameForTypeByValue(trRealValueRightOp, typeNameRight)) &&
+         SUCCEEDED(MetadataHelpers::NameForTypeByValue(trRealValueLeftOp, typeNameLeft)) &&
+         SUCCEEDED(MetadataHelpers::NameForTypeByValue(trRealValueRightOp, typeNameRight)) &&
          typeNameLeft == typeNameRight))
     {
         ToRelease<ICorDebugReferenceValue> trRefValue;
@@ -1474,8 +1474,8 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     // TODO add processing for parent-child class relationship
     std::string typeName1;
     std::string typeName2;
-    IfFailRet(TypePrinter::GetTypeOfValue(trRealValueLeftOp, typeName1));
-    IfFailRet(TypePrinter::GetTypeOfValue(trRealValueRightOp, typeName2));
+    IfFailRet(MetadataHelpers::GetTypeOfValue(trRealValueLeftOp, typeName1));
+    IfFailRet(MetadataHelpers::GetTypeOfValue(trRealValueRightOp, typeName2));
     output = "error CS0019: Operator ?? cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
     return E_INVALIDARG;
 }

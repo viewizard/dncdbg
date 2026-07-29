@@ -92,7 +92,7 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
         return S_FALSE;
     }
 
-    TypePrinter::GetTypeOfValue(member.trValue, var.type);
+    MetadataHelpers::GetTypeOfValue(member.trValue, var.type);
     return PrintValue(pThread, pEvaluator, pEvalStackMachine, member.trValue, specifier, var.value);
 }
 
@@ -140,7 +140,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
             std::string className;
             if (pType)
             {
-                IfFailRet(TypePrinter::GetTypeOfValue(pType, className));
+                IfFailRet(MetadataHelpers::GetTypeOfValue(pType, className));
             }
 
             members.emplace_back(name, className, trResultValue.Detach());
@@ -244,7 +244,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
 
         HRESULT Status = S_OK;
         IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trExceptionValue, FormatSpecifier::None, var.value));
-        IfFailRet(TypePrinter::GetTypeOfValue(trExceptionValue, var.type));
+        IfFailRet(MetadataHelpers::GetTypeOfValue(trExceptionValue, var.type));
 
         return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable, FormatSpecifier::None);
     }
@@ -285,7 +285,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             std::string fallbackTypeName;
             // If we fail to parse one variable, don't skip parsing the remaining variables.
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
-                FAILED(TypePrinter::GetTypeOfValue(trValue, var.type)) ||
+                FAILED(MetadataHelpers::GetTypeOfValue(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, var.value)) ||
                 FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None)))
             {
@@ -409,7 +409,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
 
             Variable var;
             var.name = "Static members";
-            IfFailRet(TypePrinter::GetTypeOfValue(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
+            IfFailRet(MetadataHelpers::GetTypeOfValue(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
             IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Class, ref.specifier));
             variables.push_back(var);
@@ -442,7 +442,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
                                                            nullptr, &trResultValue, output));
 
     variable.evaluateName = expression;
-    IfFailRet(TypePrinter::GetTypeOfValue(trResultValue, variable.type));
+    IfFailRet(MetadataHelpers::GetTypeOfValue(trResultValue, variable.type));
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier);
@@ -592,7 +592,7 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 
     HRESULT Status = S_OK;
     std::string className;
-    TypePrinter::GetTypeOfValue(trPrevValue, className);
+    MetadataHelpers::GetTypeOfValue(trPrevValue, className);
     if (className.back() == '?') // System.Nullable<T>
     {
         ToRelease<ICorDebugValue> trValueValue;

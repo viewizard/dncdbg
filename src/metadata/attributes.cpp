@@ -29,7 +29,7 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const ForEachAttr
         void const *pBlob = nullptr;
         ULONG cbBlob = 0;
         if (FAILED(pMDImport->GetCustomAttributeProps(attr, nullptr, &tkType, &pBlob, &cbBlob)) ||
-            FAILED(TypePrinter::NameForToken(tkType, pMDImport, mdName, true, nullptr)))
+            FAILED(MetadataHelpers::NameForToken(tkType, pMDImport, mdName, true, nullptr)))
         {
             continue;
         }

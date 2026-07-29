@@ -199,7 +199,7 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     HRESULT Status = S_OK;
 
     std::string methodName;
-    if (FAILED(TypePrinter::GetFullyQualifiedMethodName(pFrame, pDebugInfo, methodName)))
+    if (FAILED(MetadataHelpers::GetFullyQualifiedMethodName(pFrame, pDebugInfo, methodName)))
     {
         methodName = "[Unnamed managed method in optimized code]";
     }
@@ -315,7 +315,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             }
 
             std::string methodName;
-            if (FAILED(TypePrinter::GetFullyQualifiedMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, methodName)))
+            if (FAILED(MetadataHelpers::GetFullyQualifiedMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, methodName)))
             {
                 methodName = "[Unnamed managed method in optimized code]";
             }
@@ -435,7 +435,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             std::string methodName;
             ToRelease<ICorDebugFunction> trFunction;
             if ((pDebugInfo != nullptr && SUCCEEDED(trFrame->GetFunction(&trFunction)) && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
-                (pDebugInfo != nullptr && SUCCEEDED(TypePrinter::GetFullyQualifiedMethodName(trFrame, pDebugInfo, methodName)) &&
+                (pDebugInfo != nullptr && SUCCEEDED(MetadataHelpers::GetFullyQualifiedMethodName(trFrame, pDebugInfo, methodName)) &&
                  // Note: starts_with() is C++20, use rfind() for compatibility
                  (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
                   methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))

@@ -78,7 +78,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             }
 
             std::string param;
-            IfFailRet(TypePrinter::GetTypeOfValue(trValue, param));
+            IfFailRet(MetadataHelpers::GetTypeOfValue(trValue, param));
             if (i > 0)
             {
                 ss_params << ",";

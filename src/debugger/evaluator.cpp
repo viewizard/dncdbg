@@ -487,7 +487,7 @@ HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeG
             trCurrentTypeParam->GetType(&argElType.corType);
             if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(TypePrinter::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
             }
             typeGenerics.emplace_back(argElType);
             trCurrentTypeParam.Free();
@@ -503,10 +503,10 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(TypePrinter::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -521,7 +521,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(TypePrinter::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
         }
@@ -718,7 +718,7 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
 {
     // Add the class name itself.
     std::string typeName;
-    TypePrinter::FullyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
+    MetadataHelpers::FullyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
     parameterTypeNames.emplace(std::move(typeName));
 
     // Add all interface names.
@@ -735,7 +735,7 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
         }
 
         std::string typeName;
-        TypePrinter::FullyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
+        MetadataHelpers::FullyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
         parameterTypeNames.emplace(std::move(typeName));
     }
     pMDImport->CloseEnum(hEnum);
@@ -871,7 +871,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
             SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
         {
             std::string detectTypeName;
-            if (SUCCEEDED(TypePrinter::FullyQualifiedNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
+            if (SUCCEEDED(MetadataHelpers::FullyQualifiedNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
                 HasAssemblyDebuggerTypeProxyAttribute(trMDImport, assemblyToken, detectTypeName, proxyTypeName))
             {
                 proxyAttrTypeDef = attrTypeDef;
@@ -1239,7 +1239,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     // Get the proper fully-qualified proxy type name.
     std::string fullProxyTypeName;
-    IfFailRet(TypePrinter::FullyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
+    IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
     proxyTypeNameParts.clear();
     std::string tmp;
     ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);
@@ -1440,7 +1440,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         while (trType != nullptr)
         {
             std::string className;
-            TypePrinter::GetTypeOfValue(trType, className);
+            MetadataHelpers::GetTypeOfValue(trType, className);
             if (className == "decimal")
             {
                 return S_OK;
@@ -1725,7 +1725,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             std::string baseTypeName;
             ToRelease<ICorDebugType> trBaseType;
             if (SUCCEEDED(trType->GetBase(&trBaseType)) && trBaseType != nullptr &&
-                SUCCEEDED(TypePrinter::GetTypeOfValue(trBaseType, baseTypeName)))
+                SUCCEEDED(MetadataHelpers::GetTypeOfValue(trBaseType, baseTypeName)))
             {
                 trType.Free();
 
@@ -1817,14 +1817,14 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     // In case this is static method, this is not async/lambda case for sure.
     if (!haveThis)
     {
-        return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
+        return MetadataHelpers::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
     }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
     {
-        return TypePrinter::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
+        return MetadataHelpers::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
     }
 
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -1841,7 +1841,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     mdTypeDef userTypeDef = mdTypeDefNil;
     IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userTypeDef));
 
-    return TypePrinter::NameForTypeDef(userTypeDef, trMDImport, methodClass, nullptr);
+    return MetadataHelpers::NameForTypeDef(userTypeDef, trMDImport, methodClass, nullptr);
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
@@ -1932,7 +1932,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
             {
                 std::string methodName;
-                TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
+                MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
 
@@ -2228,13 +2228,13 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = TypePrinter::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(TypePrinter::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -2249,7 +2249,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(TypePrinter::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
         {
             break;
         }
@@ -2464,7 +2464,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
         std::string methodClass;
         std::string methodName;
-        TypePrinter::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
+        MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, methodClass, identifiers, specifier,
                                             &trResolvedValue, resultSetterData)))
@@ -2495,7 +2495,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         ToRelease<ICorDebugType> trType;
-        IfFailRet(TypePrinter::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
+        IfFailRet(MetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
@@ -2547,7 +2547,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
         std::string typeName;
-        IfFailRet(TypePrinter::FullyQualifiedNameForTypeByToken(typeDef, trMDImport, typeName));
+        IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeByToken(typeDef, trMDImport, typeName));
 
         allIfaceTypeNames.emplace(typeName);
 
@@ -2565,7 +2565,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
             }
 
             std::string ifaceTypeName;
-            if (FAILED(TypePrinter::FullyQualifiedNameForTypeByToken(tkIface, trMDImport, ifaceTypeName)))
+            if (FAILED(MetadataHelpers::FullyQualifiedNameForTypeByToken(tkIface, trMDImport, ifaceTypeName)))
             {
                 continue;
             }

@@ -95,7 +95,7 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     ToRelease<ICorDebugValue> trResultValue;
     if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
                                                      nullptr, &trResultValue, output)) ||
-        FAILED(TypePrinter::GetTypeOfValue(trResultValue, type)) ||
+        FAILED(MetadataHelpers::GetTypeOfValue(trResultValue, type)) ||
         FAILED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
     {
         if (output.empty())
