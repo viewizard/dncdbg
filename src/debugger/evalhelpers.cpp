@@ -79,8 +79,7 @@ HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutp
         break; // unboxed until object
     }
 
-    trCurrentValue->AddRef();
-    *ppOutputValue = trCurrentValue;
+    *ppOutputValue = trCurrentValue.Detach();
     return S_OK;
 }
 
