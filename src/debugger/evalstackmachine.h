@@ -97,14 +97,6 @@ class EvalStackMachine
         m_evalData.pEvalExec = m_sharedEvalExec.get();
     }
 
-    void ResetEval()
-    {
-        m_sharedEvaluator.reset();
-        m_sharedEvalExec.reset();
-        m_evalData.pEvaluator = nullptr;
-        m_evalData.pEvalExec = nullptr;
-    }
-
     // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
     HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
                                ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string &output,

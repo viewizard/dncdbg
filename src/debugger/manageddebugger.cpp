@@ -313,10 +313,7 @@ ManagedDebugger::ManagedDebugger()
 {
 }
 
-ManagedDebugger::~ManagedDebugger()
-{
-    m_sharedEvalStackMachine->ResetEval();
-}
+ManagedDebugger::~ManagedDebugger() = default;
 
 HRESULT ManagedDebugger::Initialize()
 {
