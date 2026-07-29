@@ -897,7 +897,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     std::transform(methodGenericStrings.begin(), methodGenericStrings.end(), std::back_inserter(methodGenerics),
                    [](const auto &methodGenericString)
                    {
-                       return dncdbg::Evaluator::GetElementTypeByTypeName(methodGenericString);
+                       return Evaluator::GetElementTypeByTypeName(methodGenericString);
                    });
 
     ToRelease<ICorDebugFunction> trFunc;
@@ -1024,7 +1024,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         evalStack.front().trValue.Free();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = dncdbg::Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
+        Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
     }
     else
     {
@@ -1145,7 +1145,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         evalStack.front().trValue.Free();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = dncdbg::Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
+        Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
     }
     else
     {

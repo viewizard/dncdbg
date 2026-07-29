@@ -263,7 +263,7 @@ void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
     m_uniqueSteppers->DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
     m_sharedBreakpoints->DeleteAll();
-    dncdbg::Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
+    Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
 void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
