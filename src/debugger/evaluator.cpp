@@ -913,8 +913,8 @@ SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
         {"short",   {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
         {"ushort",  {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
         {"string",  {ELEMENT_TYPE_CLASS,     "System.String"}},
-        {"IntPtr",  {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
-        {"UIntPtr", {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}}
+        {"nint",    {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
+        {"nuint",   {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}}
     };
 
     SigElementType userType;

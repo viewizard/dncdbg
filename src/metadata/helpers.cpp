@@ -283,10 +283,10 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
             elementType = "string";
             break;
         case ELEMENT_TYPE_I:
-            elementType = "IntPtr";
+            elementType = "nint";
             break;
         case ELEMENT_TYPE_U:
-            elementType = "UIntPtr";
+            elementType = "nuint";
             break;
         case ELEMENT_TYPE_SZARRAY:
             typeSuffixes.emplace_back("[]");
@@ -511,8 +511,8 @@ std::string RenameToSystem(const std::string &typeName)
         {"short",   "System.Int16"},
         {"ushort",  "System.UInt16"},
         {"string",  "System.String"},
-        {"IntPtr",  "System.IntPtr"},
-        {"UIntPtr", "System.UIntPtr"}
+        {"nint",    "System.IntPtr"},
+        {"nuint",   "System.UIntPtr"}
     };
     auto renamed = cs2system.find(typeName);
     return renamed != cs2system.end() ? renamed->second : typeName;
@@ -537,8 +537,8 @@ std::string RenameToCSharp(const std::string &typeName)
         {"System.Int16",   "short"},
         {"System.UInt16",  "ushort"},
         {"System.String",  "string"},
-        {"System.IntPtr",  "IntPtr"},
-        {"System.UIntPtr", "UIntPtr"}
+        {"System.IntPtr",  "nint"},
+        {"System.UIntPtr", "nuint"}
     };
     auto renamed = system2cs.find(typeName);
     return renamed != system2cs.end() ? renamed->second : typeName;
