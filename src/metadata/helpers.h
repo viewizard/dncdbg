@@ -29,9 +29,9 @@ namespace MetadataHelpers
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
 
-// Get fully qualified metadata (FQMD) name.
+// Get fully-qualified metadata (FQMD) name.
 HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName);
-// Get fully qualified metadata (FQMD) name.
+// Get fully-qualified metadata (FQMD) name.
 HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName);
 
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,

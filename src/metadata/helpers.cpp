@@ -82,19 +82,17 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
     return ss.str();
 }
 
-HRESULT NameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::string &mdName)
+// Get fully-qualified metadata (FQMD) name.
+HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::string &metadataName)
 {
-    // Note: instead of GetTypeDefProps(), GetTypeRefProps() returns fully-qualified name.
-    // CoreCLR uses dynamically allocated or size-fixed buffers up to 16kb for GetTypeRefProps().
     HRESULT Status = S_OK;
-    ULONG refNameSize = 0;
-    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &refNameSize));
+    ULONG nameSize = 0;
+    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &nameSize));
 
-    WSTRING refName(refNameSize, 0);
-    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, refName.data(), refNameSize, nullptr));
+    WSTRING wName(nameSize, 0);
+    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, wName.data(), nameSize, nullptr));
 
-    mdName = to_utf8(refName.c_str());
-
+    metadataName = to_utf8(wName.c_str());
     return S_OK;
 }
 
@@ -896,7 +894,7 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
+        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, mdName));
     }
     else if (TypeFromToken(mb) == mdtTypeSpec)
     {
@@ -927,7 +925,7 @@ HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::s
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        IfFailRet(NameForTypeRef(mb, pMDImport, metadataName));
+        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, metadataName));
     }
     else if (TypeFromToken(mb) == mdtTypeSpec)
     {
@@ -1026,7 +1024,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
         IfFailRet(pMDImport->GetMemberRefProps(mb, &mdClass, name.data(), size, nullptr, nullptr, nullptr));
         if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
         {
-            IfFailRet(NameForTypeRef(mdClass, pMDImport, mdName));
+            IfFailRet(GetFQMDNameForTypeRef(mdClass, pMDImport, mdName));
             mdName += ".";
         }
         else if (TypeFromToken(mdClass) == mdtTypeDef && bClassName)
@@ -1039,7 +1037,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
+        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, mdName));
     }
     else
     {

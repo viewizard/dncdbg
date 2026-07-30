@@ -377,7 +377,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
     *ppLiteralValue = nullptr;
     HRESULT Status = S_OK;
 
-    auto createTypeDef = [&](mdTypeDef typeDef, ICorDebugModule *pModule) -> HRESULT
+    auto createByTypeDef = [&](ICorDebugModule *pModule, mdTypeDef typeDef) -> HRESULT
     {
         if (pModule == nullptr)
         {
@@ -392,9 +392,10 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
         return S_OK;
     };
 
-    auto createTypeRef = [&](const WSTRING &refFullName) -> HRESULT
+    // Create by fully-qualified metadata (FQMD) name.
+    auto createByFQMDName = [&](const WSTRING &wName) -> HRESULT
     {
-        if (refFullName.empty())
+        if (wName.empty())
         {
             return E_INVALIDARG;
         }
@@ -413,12 +414,12 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
                 IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
 
                 mdTypeDef typeDef = mdTypeDefNil;
-                if (FAILED(trMDImportDef->FindTypeDefByName(refFullName.c_str(), mdTypeDefNil, &typeDef)))
+                if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
                 {
                     return S_OK; // Return with success to continue walk.
                 }
 
-                IfFailRet(createTypeDef(typeDef, pModule));
+                IfFailRet(createByTypeDef(pModule, typeDef));
                 return S_CAN_EXIT; // Fast exit from the loop.
             });
     };
@@ -455,7 +456,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
 
             if (TypeFromToken(typeToken) == mdtTypeDef)
             {
-                IfFailRet(createTypeDef(typeToken, trModule));
+                IfFailRet(createByTypeDef(trModule, typeToken));
             }
             else if (TypeFromToken(typeToken) == mdtTypeRef)
             {
@@ -465,11 +466,11 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
                 IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
                 // Note, IMetaDataImport::GetTypeRefProps() returns a fully-qualified name.
-                ULONG refNameSize = 0;
-                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &refNameSize));
-                WSTRING refFullName(refNameSize, '\0');
-                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, refFullName.data(), refNameSize, nullptr));
-                IfFailRet(createTypeRef(refFullName));
+                ULONG nameSize = 0;
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &nameSize));
+                WSTRING wName(nameSize, '\0');
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, wName.data(), nameSize, nullptr));
+                IfFailRet(createByFQMDName(wName));
             }
             else if (TypeFromToken(typeToken) == mdtTypeSpec)
             {
@@ -486,7 +487,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
         {
             if (rawValueLength == 0)
             {
-                IfFailRet(createTypeRef(W("System.String")));
+                IfFailRet(createByFQMDName(W("System.String")));
             }
             else
             {
