@@ -381,26 +381,21 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         return E_UNEXPECTED;
     }
 
-    uint32_t cElements = 0;
-    IfFailRet(trArrayValue->GetCount(&cElements));
-
-    std::ostringstream ss;
-    ss << '{';
-
     std::string elementType;
     std::string arrayType;
-
-    ToRelease<ICorDebugType> trFirstParameter;
     ToRelease<ICorDebugValue2> trValue2;
     ToRelease<ICorDebugType> trType;
-    if (SUCCEEDED(trArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) &&
-        SUCCEEDED(trValue2->GetExactType(&trType)))
+    ToRelease<ICorDebugType> trFirstParameter;
+    if (FAILED(trArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
+        FAILED(trValue2->GetExactType(&trType)) ||
+        FAILED(trType->GetFirstTypeParameter(&trFirstParameter)) ||
+        FAILED(MetadataHelpers::GetTypeOfValue(trFirstParameter, elementType, arrayType)))
     {
-        if (SUCCEEDED(trType->GetFirstTypeParameter(&trFirstParameter)))
-        {
-            MetadataHelpers::GetTypeOfValue(trFirstParameter, elementType, arrayType);
-        }
+        elementType = "<error>";
     }
+
+    std::ostringstream ss;
+    ss << '{' << elementType << '[';
 
     std::vector<uint32_t> dims(nRank, 0);
     trArrayValue->GetDimensions(nRank, dims.data());
@@ -412,7 +407,6 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
     }
 
-    ss << elementType << '[';
     const char *sep = "";
     for (size_t i = 0; i < dims.size(); ++i)
     {
@@ -428,9 +422,8 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
             ss << dims.at(i);
         }
     }
-    ss << ']' << arrayType;
 
-    ss << '}';
+    ss << ']' << arrayType << '}';
     output = ss.str();
     return S_OK;
 }
