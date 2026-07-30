@@ -484,10 +484,10 @@ HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeG
         while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
         {
             SigElementType argElType;
-            trCurrentTypeParam->GetType(&argElType.corType);
-            if (argElType.corType == ELEMENT_TYPE_VALUETYPE || argElType.corType == ELEMENT_TYPE_CLASS)
+            trCurrentTypeParam->GetType(&argElType.elemType);
+            if (argElType.elemType == ELEMENT_TYPE_VALUETYPE || argElType.elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByType(trCurrentTypeParam, argElType.typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByType(trCurrentTypeParam, argElType.metadataTypeName));
             }
             typeGenerics.emplace_back(argElType);
             trCurrentTypeParam.Free();
@@ -714,12 +714,13 @@ uint32_t ParseGenericArity(std::string_view typeName)
     return 0;
 }
 
-void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, std::unordered_set<std::string> &parameterTypeNames)
+void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef,
+                                   std::unordered_set<std::string> &parameterMetadataTypeNames)
 {
     // Add the class name itself.
-    std::string typeName;
-    MetadataHelpers::FullyQualifiedNameForTypeDef(currentTypeDef, pMDImport, typeName);
-    parameterTypeNames.emplace(std::move(typeName));
+    std::string metadataTypeName;
+    MetadataHelpers::GetFQMDNameForTypeDef(currentTypeDef, pMDImport, metadataTypeName);
+    parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
 
     // Add all interface names.
     HCORENUM hEnum = nullptr;
@@ -734,15 +735,15 @@ void GetParameterClassNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef
             continue;
         }
 
-        std::string typeName;
-        MetadataHelpers::FullyQualifiedNameForTypeByToken(tkIface, pMDImport, typeName);
-        parameterTypeNames.emplace(std::move(typeName));
+        std::string metadataTypeName;
+        MetadataHelpers::GetFQMDNameForTypeByToken(tkIface, pMDImport, metadataTypeName);
+        parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
     }
     pMDImport->CloseEnum(hEnum);
 }
 
 HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImport, mdTypeDef typeDef,
-                               const std::unordered_set<std::string> &parameterTypeNames,
+                               const std::unordered_set<std::string> &parameterMetadataTypeNames,
                                mdMethodDef &constrMethodDef, ICorDebugFunction **ppConstrFunction)
 {
     constrMethodDef = mdMethodDefNil;
@@ -777,7 +778,7 @@ HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImp
         }
 
         if (argElementTypes.size() != 1 ||
-            parameterTypeNames.find(argElementTypes.front().typeName) == parameterTypeNames.end())
+            parameterMetadataTypeNames.find(argElementTypes.front().metadataTypeName) == parameterMetadataTypeNames.end())
         {
             continue;
         }
@@ -871,7 +872,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
             SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
         {
             std::string detectTypeName;
-            if (SUCCEEDED(MetadataHelpers::FullyQualifiedNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
+            if (SUCCEEDED(MetadataHelpers::GetFQMDNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
                 HasAssemblyDebuggerTypeProxyAttribute(trMDImport, assemblyToken, detectTypeName, proxyTypeName))
             {
                 proxyAttrTypeDef = attrTypeDef;
@@ -922,8 +923,8 @@ SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
     {
         return found->second;
     }
-    userType.corType = ELEMENT_TYPE_CLASS;
-    userType.typeName = typeName;
+    userType.elemType = ELEMENT_TYPE_CLASS;
+    userType.metadataTypeName = typeName;
     return userType;
 }
 
@@ -1239,17 +1240,17 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     // Get the proper fully-qualified proxy type name.
     std::string fullProxyTypeName;
-    IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
+    IfFailRet(MetadataHelpers::GetFQMDNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
     proxyTypeNameParts.clear();
     std::string tmp;
     ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);
 
-    std::unordered_set<std::string> parameterTypeNames;
-    GetParameterClassNames(trMDImport, proxyAttrTypeDef, parameterTypeNames);
+    std::unordered_set<std::string> parameterMetadataTypeNames;
+    GetParameterMetadataTypeNames(trMDImport, proxyAttrTypeDef, parameterMetadataTypeNames);
 
     mdMethodDef constrMethodDef = mdMethodDefNil;
     ToRelease<ICorDebugFunction> trConstrFunction;
-    IfFailRet(GetConstructorFunction(trProxyTypeModule, trMDImport, typeDef, parameterTypeNames, constrMethodDef, &trConstrFunction));
+    IfFailRet(GetConstructorFunction(trProxyTypeModule, trMDImport, typeDef, parameterMetadataTypeNames, constrMethodDef, &trConstrFunction));
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
     uint32_t enclosingTypesParamCount = 0; // type parameters for enclosing classes
@@ -1372,9 +1373,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             return isNull == TRUE ? S_OK : E_FAIL;
         }
 
-        CorElementType inputCorType = ELEMENT_TYPE_MAX;
-        IfFailRet(pFrontValue->GetType(&inputCorType));
-        if (inputCorType == ELEMENT_TYPE_PTR)
+        CorElementType inputElemType = ELEMENT_TYPE_MAX;
+        IfFailRet(pFrontValue->GetType(&inputElemType));
+        if (inputElemType == ELEMENT_TYPE_PTR)
         {
             auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
             {
@@ -1467,9 +1468,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            CorElementType corElemType = ELEMENT_TYPE_MAX;
-            IfFailRet(trType->GetType(&corElemType));
-            if (corElemType == ELEMENT_TYPE_STRING)
+            CorElementType elemType = ELEMENT_TYPE_MAX;
+            IfFailRet(trType->GetType(&elemType));
+            if (elemType == ELEMENT_TYPE_STRING)
             {
                 return S_OK;
             }
@@ -1483,7 +1484,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
             if ((specifier & FormatSpecifier::DisplaysInRawMode) == FormatSpecifier::None &&
                 (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
-                (corElemType == ELEMENT_TYPE_CLASS || corElemType == ELEMENT_TYPE_VALUETYPE))
+                (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE))
             {
                 bool typeChecked = false;
                 ToRelease<ICorDebugValue> trTypeProxyValue;
@@ -2045,7 +2046,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     const ULONG index = ((methodAttr & mdStatic) == 0) ? (i - 1) : i;
                     if (argElementTypes.size() > index)
                     {
-                        *fallbackTypeName = argElementTypes.at(index).typeName;
+                        *fallbackTypeName = argElementTypes.at(index).metadataTypeName;
                     }
                 }
             }
@@ -2547,7 +2548,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
         std::string typeName;
-        IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeByToken(typeDef, trMDImport, typeName));
+        IfFailRet(MetadataHelpers::GetFQMDNameForTypeByToken(typeDef, trMDImport, typeName));
 
         allIfaceTypeNames.emplace(typeName);
 
@@ -2565,7 +2566,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
             }
 
             std::string ifaceTypeName;
-            if (FAILED(MetadataHelpers::FullyQualifiedNameForTypeByToken(tkIface, trMDImport, ifaceTypeName)))
+            if (FAILED(MetadataHelpers::GetFQMDNameForTypeByToken(tkIface, trMDImport, ifaceTypeName)))
             {
                 continue;
             }
@@ -2622,12 +2623,12 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
 
             if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
             {
-                if (allIfaceTypeNames.find(argElementTypes.at(0).typeName) == allIfaceTypeNames.end())
+                if (allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.end())
                 {
                     continue; // Type name didn't match, try next method
                 }
             }
-            else if (elemType != argElementTypes.at(0).corType)
+            else if (elemType != argElementTypes.at(0).elemType)
             {
                 continue;
             }

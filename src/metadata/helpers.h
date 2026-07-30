@@ -29,8 +29,11 @@ namespace MetadataHelpers
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
 
-HRESULT FullyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName);
-HRESULT FullyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName);
+// Get fully qualified metadata name (FQMD).
+HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName);
+// Get fully qualified metadata name (FQMD).
+HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName);
+
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
                        std::list<std::string> *args);
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
@@ -51,6 +54,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // Return vector of dot-separated "display" identifier components (namespace/class path).
 std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
+// Note: `identifiers` contain display names and are converted into metadata names for lookup inside method logic.
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType);
 HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule);

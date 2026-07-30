@@ -173,12 +173,12 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
     return S_OK;
 }
 
-HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElementType &type,
+HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElementType &elemType,
                                         std::vector<uint8_t> &data, std::string &output)
 {
     if (upperText.back() == 'F') // float
     {
-        type = ELEMENT_TYPE_R4;
+        elemType = ELEMENT_TYPE_R4;
         data.resize(sizeof(float), 0);
 
         try
@@ -199,12 +199,12 @@ HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElement
     }
     else if (upperText.back() == 'M') // decimal
     {
-        type = ELEMENT_TYPE_VALUETYPE;
+        elemType = ELEMENT_TYPE_VALUETYPE;
         return parseDecimal(upperText, data, output);
     }
     else // double (default for real literals)
     {
-        type = ELEMENT_TYPE_R8;
+        elemType = ELEMENT_TYPE_R8;
         data.resize(sizeof(double), 0);
 
         try
@@ -265,7 +265,7 @@ HRESULT ParseLL(const std::string &upperText, long long &parsedValue, std::strin
     return S_OK;
 }
 
-HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElementType &type,
+HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElementType &elemType,
                                            std::vector<uint8_t> &data, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -275,7 +275,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
         const std::string_view last2 = std::string_view(upperText).substr(upperText.size() - 2);
         if (last2 == "UL" || last2 == "LU")
         {
-            type = ELEMENT_TYPE_U8;
+            elemType = ELEMENT_TYPE_U8;
             data.resize(sizeof(uint64_t), 0);
 
             unsigned long long parsedValue = 0;
@@ -296,7 +296,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
     const char lastChar = upperText.back();
     if (lastChar == 'U')
     {
-        type = ELEMENT_TYPE_U4;
+        elemType = ELEMENT_TYPE_U4;
         data.resize(sizeof(uint32_t), 0);
 
         unsigned long long parsedValue = 0;
@@ -315,7 +315,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 
     if (lastChar == 'L')
     {
-        type = ELEMENT_TYPE_I8;
+        elemType = ELEMENT_TYPE_I8;
         data.resize(sizeof(int64_t), 0);
 
         long long parsedValue = 0;
@@ -358,7 +358,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 
             if (parsedValue <= std::numeric_limits<int32_t>::max())
             {
-                type = ELEMENT_TYPE_I4;
+                elemType = ELEMENT_TYPE_I4;
                 data.resize(sizeof(int32_t), 0);
                 auto value = static_cast<int32_t>(parsedValue);
                 std::memcpy(data.data(), &value, sizeof(int32_t));
@@ -366,7 +366,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
             }
             if (parsedValue <= std::numeric_limits<uint32_t>::max())
             {
-                type = ELEMENT_TYPE_U4;
+                elemType = ELEMENT_TYPE_U4;
                 data.resize(sizeof(uint32_t), 0);
                 auto value = static_cast<uint32_t>(parsedValue);
                 std::memcpy(data.data(), &value, sizeof(uint32_t));
@@ -374,14 +374,14 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
             }
             if (parsedValue <= static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
             {
-                type = ELEMENT_TYPE_I8;
+                elemType = ELEMENT_TYPE_I8;
                 data.resize(sizeof(int64_t), 0);
                 auto value = static_cast<int64_t>(parsedValue);
                 std::memcpy(data.data(), &value, sizeof(int64_t));
                 return S_OK;
             }
 
-            type = ELEMENT_TYPE_U8;
+            elemType = ELEMENT_TYPE_U8;
             data.resize(sizeof(uint64_t), 0);
             auto value = static_cast<uint64_t>(parsedValue);
             std::memcpy(data.data(), &value, sizeof(uint64_t));
@@ -415,7 +415,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
         return E_INVALIDARG;
     }
 
-    type = ELEMENT_TYPE_I4;
+    elemType = ELEMENT_TYPE_I4;
     data.resize(sizeof(int32_t), 0);
     auto value = static_cast<int32_t>(parsedValue);
     std::memcpy(data.data(), &value, sizeof(int32_t));
@@ -424,7 +424,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElem
 
 } // unnamed namespace
 
-HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &type,
+HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &elemType,
                                     std::vector<uint8_t> &data, std::string &output)
 {
     if (text.empty())
@@ -443,13 +443,13 @@ HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, C
     // 1. Handle Real Literals (Floating point)
     if (realLiteral)
     {
-        return DetermineRealLiteralTypeAndData(upperText, type, data, output);
+        return DetermineRealLiteralTypeAndData(upperText, elemType, data, output);
     }
     // 2. Handle Integer Literals (Check suffixes from longest to shortest)
-    return DetermineIntegerLiteralTypeAndData(upperText, type, data, output);
+    return DetermineIntegerLiteralTypeAndData(upperText, elemType, data, output);
 }
 
-HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &type, std::string &output)
+HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemType, std::string &output)
 {
     static const std::unordered_map<std::string, CorElementType> predefinedTypeMap{
         {"bool", ELEMENT_TYPE_BOOLEAN},
@@ -476,7 +476,7 @@ HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &type, s
         return E_INVALIDARG;
     }
 
-    type = find->second;
+    elemType = find->second;
 
     return S_OK;
 }

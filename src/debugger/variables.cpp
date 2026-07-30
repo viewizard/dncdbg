@@ -624,10 +624,10 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 
     trPrevValue->AddRef();
     ToRelease<ICorDebugValue> trValue(trPrevValue.GetPtr());
-    CorElementType corType = ELEMENT_TYPE_MAX;
-    IfFailRet(trValue->GetType(&corType));
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(trValue->GetType(&elemType));
 
-    if (corType == ELEMENT_TYPE_STRING)
+    if (elemType == ELEMENT_TYPE_STRING)
     {
         // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for string in trValue in this case
         trValue.Free();

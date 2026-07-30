@@ -204,7 +204,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
-                elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
+                elemType != methodArgs.at(0).elemType || typeName != methodArgs.at(0).metadataTypeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -237,8 +237,8 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
-                elemRetType != methodRet.corType || typeRetName != methodRet.typeName ||
-                elemType != methodArgs.at(0).corType || typeName != methodArgs.at(0).typeName)
+                elemRetType != methodRet.elemType || typeRetName != methodRet.metadataTypeName ||
+                elemType != methodArgs.at(0).elemType || typeName != methodArgs.at(0).metadataTypeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -460,8 +460,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
     // Try to execute operator for exact same type as provided values.
     if (SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
-            return elemType1 != methodArgs.at(0).corType || typeName1 != methodArgs.at(0).typeName ||
-                    elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName
+            return elemType1 != methodArgs.at(0).elemType || typeName1 != methodArgs.at(0).metadataTypeName ||
+                    elemType2 != methodArgs.at(1).elemType || typeName2 != methodArgs.at(1).metadataTypeName
                     ? E_FAIL : S_OK;
         })))
     {
@@ -473,15 +473,15 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     // since "... at least one parameter must have type T...".
     if (elemType == elemType1 && typeName == typeName1 &&
         SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
-            if (elemType1 != methodArgs.at(0).corType || typeName1 != methodArgs.at(0).typeName)
+            if (elemType1 != methodArgs.at(0).elemType || typeName1 != methodArgs.at(0).metadataTypeName)
             {
                 return E_FAIL;
             }
 
             ToRelease<ICorDebugValue> trResultValue;
-            if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(1).corType, methodArgs.at(1).typeName,
+            if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(1).elemType, methodArgs.at(1).metadataTypeName,
                                         pType2Value, &trResultValue, ed)) &&
-                FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(1).corType, methodArgs.at(1).typeName,
+                FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(1).elemType, methodArgs.at(1).metadataTypeName,
                                         pType2Value, &trResultValue, ed)))
             {
                 return E_FAIL;
@@ -500,15 +500,15 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
     // Try to execute operator with implicit cast for first value.
     return CallOperator([&](std::vector<SigElementType> &methodArgs) {
-        if (elemType2 != methodArgs.at(1).corType || typeName2 != methodArgs.at(1).typeName)
+        if (elemType2 != methodArgs.at(1).elemType || typeName2 != methodArgs.at(1).metadataTypeName)
         {
             return E_FAIL;
         }
 
         ToRelease<ICorDebugValue> trResultValue;
-        if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(0).corType, methodArgs.at(0).typeName,
+        if (FAILED(CallCastOperator("op_Implicit", pType1Value, methodArgs.at(0).elemType, methodArgs.at(0).metadataTypeName,
                                     pType1Value, &trResultValue, ed)) &&
-            FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(0).corType, methodArgs.at(0).typeName,
+            FAILED(CallCastOperator("op_Implicit", pType2Value, methodArgs.at(0).elemType, methodArgs.at(0).metadataTypeName,
                                     pType1Value, &trResultValue, ed)))
         {
             return E_FAIL;
@@ -879,15 +879,15 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     {
         ToRelease<ICorDebugValue> trValueArg;
         IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
-        IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
+        IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
 
-        if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
+        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
         {
-            IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+            IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
         }
-        else if (funcArgs.at(i).corType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).corType == ELEMENT_TYPE_ARRAY)
+        else if (funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
         {
-            IfFailRet(MetadataHelpers::GetTypeOfValue(trValueArg, funcArgs.at(i).typeName));
+            IfFailRet(MetadataHelpers::GetTypeOfValue(trValueArg, funcArgs.at(i).metadataTypeName));
         }
     }
 
@@ -1032,11 +1032,11 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         {
             ToRelease<ICorDebugValue> trValueArg;
             IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
+            IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
 
-            if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
+            if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
             }
         }
 
@@ -1047,7 +1047,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
             {
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);
-                if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
+                if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                     found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
                     return S_OK; // Return with success to continue walk.
@@ -1055,7 +1055,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
+                    if (funcArgs.at(i).elemType != methodArgs.at(i).elemType || funcArgs.at(i).metadataTypeName != methodArgs.at(i).metadataTypeName)
                     {
                         return S_OK; // Return with success to continue walk.
                     }
@@ -1153,11 +1153,11 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         {
             ToRelease<ICorDebugValue> trValueArg;
             IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs.at(i).corType));
+            IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
 
-            if (funcArgs.at(i).corType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).corType == ELEMENT_TYPE_CLASS)
+            if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).typeName));
+                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
             }
         }
 
@@ -1168,7 +1168,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
             {
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);
-                if (retType.corType == ELEMENT_TYPE_VOID || found == std::string::npos ||
+                if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                     found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
                     return S_OK; // Return with success to continue walk.
@@ -1176,7 +1176,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (funcArgs.at(i).corType != methodArgs.at(i).corType || funcArgs.at(i).typeName != methodArgs.at(i).typeName)
+                    if (funcArgs.at(i).elemType != methodArgs.at(i).elemType || funcArgs.at(i).metadataTypeName != methodArgs.at(i).metadataTypeName)
                     {
                         return S_OK; // Return with success to continue walk.
                     }

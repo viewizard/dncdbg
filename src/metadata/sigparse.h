@@ -21,19 +21,19 @@ namespace dncdbg
 
 struct SigElementType
 {
-    CorElementType corType{ELEMENT_TYPE_MAX};
-    std::string typeName;
-    CorElementType elementType{ELEMENT_TYPE_END};
+    CorElementType elemType{ELEMENT_TYPE_MAX};
+    std::string metadataTypeName;
+    CorElementType genericElemType{ELEMENT_TYPE_END};
     ULONG varNum{0};
 
     SigElementType() = default;
-    SigElementType(CorElementType t, std::string n)
-        : corType(t),
-          typeName(std::move(n))
+    SigElementType(CorElementType type, std::string name)
+        : elemType(type),
+          metadataTypeName(std::move(name))
     {
     }
 
-    static bool isAlias(CorElementType type1, CorElementType type2, const std::string &name2);
+    static bool isAlias(CorElementType elemType1, CorElementType elemType2, const std::string &name2);
     [[nodiscard]] bool areEqual(const SigElementType &arg) const;
     bool operator==(const SigElementType &arg) const
     {
@@ -46,10 +46,10 @@ struct SigElementType
 };
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, bool addCorTypeName = false);
+                         DWORD flags, SigElementType &sigElementType, bool addElementTypeName = false);
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addCorTypeName = false);
+                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addElementTypeName = false);
 
 HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg);
 HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg);

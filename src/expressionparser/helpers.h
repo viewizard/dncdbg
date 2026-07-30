@@ -16,10 +16,10 @@
 namespace dncdbg::Parser
 {
 
-HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &type,
+HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &elemType,
                                     std::vector<uint8_t> &data, std::string &output);
 
-HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &type, std::string &output);
+HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemType, std::string &output);
 
 } // namespace dncdbg::Parser
 

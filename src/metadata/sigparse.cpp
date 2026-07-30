@@ -20,9 +20,9 @@ namespace
 constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
 constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 
-void GetCorTypeName(CorElementType corType, std::string &typeName)
+void GetElementTypeName(CorElementType elemType, std::string &typeName)
 {
-    switch (corType)
+    switch (elemType)
     {
     case ELEMENT_TYPE_VOID:
         typeName = "void";
@@ -137,10 +137,10 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         }
         --top;
 
-        CorElementType corType = ELEMENT_TYPE_MAX;
-        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, corType));
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, elemType));
 
-        switch (corType)
+        switch (elemType)
         {
         // Primitive types — no additional data to skip.
         case ELEMENT_TYPE_VOID:
@@ -197,8 +197,8 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         // Generic instantiation — skip underlying type token + N generic arguments.
         case ELEMENT_TYPE_GENERICINST:
         {
-            CorElementType innerCorType = ELEMENT_TYPE_MAX;
-            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerCorType));
+            CorElementType innerElemType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerElemType));
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
             ULONG number = 0;
@@ -227,7 +227,7 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 
 } // unnamed namespace
 
-bool SigElementType::isAlias(const CorElementType type1, const CorElementType type2, const std::string &name2)
+bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
 {
     static const std::unordered_map<CorElementType, SigElementType> aliases = {
         {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
@@ -246,10 +246,10 @@ bool SigElementType::isAlias(const CorElementType type1, const CorElementType ty
         {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
     };
 
-    auto found = aliases.find(type1);
+    auto found = aliases.find(elemType1);
     if (found != aliases.end())
     {
-        if (found->second.corType == type2 && found->second.typeName == name2)
+        if (found->second.elemType == elemType2 && found->second.metadataTypeName == name2)
         {
             return true;
         }
@@ -259,11 +259,11 @@ bool SigElementType::isAlias(const CorElementType type1, const CorElementType ty
 
 bool SigElementType::areEqual(const SigElementType &arg) const
 {
-    return (corType == arg.corType && typeName == arg.typeName &&
+    return (elemType == arg.elemType && metadataTypeName == arg.metadataTypeName &&
             // in case of generic type, must be applied to real type first
-            elementType == ELEMENT_TYPE_END && arg.elementType == ELEMENT_TYPE_END) ||
-           isAlias(corType, arg.corType, arg.typeName) ||
-           isAlias(arg.corType, corType, typeName);
+            genericElemType == ELEMENT_TYPE_END && arg.genericElemType == ELEMENT_TYPE_END) ||
+           isAlias(elemType, arg.elemType, arg.metadataTypeName) ||
+           isAlias(arg.elemType, elemType, metadataTypeName);
 }
 
 // https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
@@ -314,15 +314,15 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // Number ::= 29-bit-encoded-integer
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, bool addCorTypeName)
+                         DWORD flags, SigElementType &sigElementType, bool addElementTypeName)
 {
     HRESULT Status = S_OK;
 
     // Collect array/wrapper prefixes and suffixes iteratively instead of recursing.
-    // Each entry: { outerCorType, prefix, suffix } where prefix and suffix are appended after the base type is resolved.
+    // Each entry: { outerElemType, prefix, suffix } where prefix and suffix are appended after the base type is resolved.
     struct Wrapper
     {
-        CorElementType outerCorType;
+        CorElementType outerElemType;
         std::string prefix;
         std::string suffix;
     };
@@ -332,52 +332,52 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     // type, then post-process the result.
     for (;;)
     {
-        CorElementType corType = ELEMENT_TYPE_MAX;
-        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, corType));
-        sigElementType.corType = corType;
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, elemType));
+        sigElementType.elemType = elemType;
 
-        if (corType == ELEMENT_TYPE_SZARRAY)
+        if (elemType == ELEMENT_TYPE_SZARRAY)
         {
-            // The recursive version parsed the inner type first, then set corType back to SZARRAY
+            // The recursive version parsed the inner type first, then set elemType back to SZARRAY
             // and appended "[]". We record this and continue the loop to parse the inner type.
-            wrappers.push_back({corType, {}, "[]"});
-            // addCorTypeName must be true for inner types (matches original recursive call).
-            addCorTypeName = true;
+            wrappers.push_back({elemType, {}, "[]"});
+            // addElementTypeName must be true for inner types (matches original recursive call).
+            addElementTypeName = true;
             continue;
         }
 
-        if (corType == ELEMENT_TYPE_ARRAY)
+        if (elemType == ELEMENT_TYPE_ARRAY)
         {
             // We need to read the inner type first (handled by continuing the loop),
             // but the array shape data follows the inner type in the signature.
             // Record a placeholder suffix; we'll fill it in after the loop.
-            wrappers.push_back({corType, {}, {}});
-            addCorTypeName = true;
+            wrappers.push_back({elemType, {}, {}});
+            addElementTypeName = true;
             continue;
         }
 
-        if (corType == ELEMENT_TYPE_BYREF)
+        if (elemType == ELEMENT_TYPE_BYREF)
         {
             // In .NET metadata: 'out' has pdOut only, 'in' has pdIn only,
             // 'ref' has both pdIn and pdOut, or neither flag set.
             if ((flags & pdOut) != 0U && (flags & pdIn) == 0U)
             {
-                wrappers.push_back({corType, "out ", {}});
+                wrappers.push_back({elemType, "out ", {}});
             }
             else if ((flags & pdIn) != 0U && (flags & pdOut) == 0U)
             {
-                wrappers.push_back({corType, "in ", {}});
+                wrappers.push_back({elemType, "in ", {}});
             }
             else
             {
-                wrappers.push_back({corType, "ref ", {}});
+                wrappers.push_back({elemType, "ref ", {}});
             }
 
-            addCorTypeName = true;
+            addElementTypeName = true;
             continue;
         }
 
-        switch (sigElementType.corType)
+        switch (sigElementType.elemType)
         {
         case ELEMENT_TYPE_VOID:
         case ELEMENT_TYPE_BOOLEAN:
@@ -396,9 +396,9 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_STRING:
         case ELEMENT_TYPE_OBJECT:
-            if (addCorTypeName)
+            if (addElementTypeName)
             {
-                GetCorTypeName(sigElementType.corType, sigElementType.typeName);
+                GetElementTypeName(sigElementType.elemType, sigElementType.metadataTypeName);
             }
             break;
 
@@ -407,7 +407,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeByToken(token, pMDImport, sigElementType.typeName));
+            IfFailRet(MetadataHelpers::GetFQMDNameForTypeByToken(token, pMDImport, sigElementType.metadataTypeName));
             break;
         }
 
@@ -415,7 +415,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             ULONG num = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
-            sigElementType.elementType = ELEMENT_TYPE_VAR;
+            sigElementType.genericElemType = ELEMENT_TYPE_VAR;
             sigElementType.varNum = num;
             break;
         }
@@ -424,24 +424,24 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             ULONG num = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
-            sigElementType.elementType = ELEMENT_TYPE_MVAR;
+            sigElementType.genericElemType = ELEMENT_TYPE_MVAR;
             sigElementType.varNum = num;
             break;
         }
 
         case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
         {
-            CorElementType innerCorType = ELEMENT_TYPE_MAX;
-            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerCorType));
-            if (innerCorType != ELEMENT_TYPE_CLASS &&
-                innerCorType != ELEMENT_TYPE_VALUETYPE)
+            CorElementType innerElemType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerElemType));
+            if (innerElemType != ELEMENT_TYPE_CLASS &&
+                innerElemType != ELEMENT_TYPE_VALUETYPE)
             {
                 return E_NOTIMPL;
             }
             mdToken token = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            sigElementType.corType = innerCorType;
-            IfFailRet(MetadataHelpers::FullyQualifiedNameForTypeByToken(token, pMDImport, sigElementType.typeName));
+            sigElementType.elemType = innerElemType;
+            IfFailRet(MetadataHelpers::GetFQMDNameForTypeByToken(token, pMDImport, sigElementType.metadataTypeName));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             for (ULONG i = 0; i < number; i++)
@@ -472,7 +472,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     // the signature layout.
     for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
     {
-        if (it->outerCorType == ELEMENT_TYPE_ARRAY)
+        if (it->outerElemType == ELEMENT_TYPE_ARRAY)
         {
             // Parse array shape from the signature and build the suffix.
             // Save position to read rank before skipping.
@@ -486,28 +486,28 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
                 it->suffix = "[" + std::string(rank - 1, ',') + "]";
             }
         }
-        sigElementType.typeName = it->prefix + sigElementType.typeName + it->suffix;
+        sigElementType.metadataTypeName = it->prefix + sigElementType.metadataTypeName + it->suffix;
     }
 
-    // Set the outermost corType if there were any wrappers.
+    // Set the outermost elemType if there were any wrappers.
     if (!wrappers.empty())
     {
-        sigElementType.corType = wrappers.front().outerCorType;
+        sigElementType.elemType = wrappers.front().outerElemType;
     }
 
     return S_OK;
 }
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addCorTypeName)
+                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addElementTypeName)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics
     ULONG cParams = 0; // Count of signature parameters.
     ULONG convFlags = 0;
 
-    returnElementType.corType = ELEMENT_TYPE_MAX;
-    returnElementType.typeName.clear();
+    returnElementType.elemType = ELEMENT_TYPE_MAX;
+    returnElementType.metadataTypeName.clear();
     argElementTypes.clear();
 
     // 1. calling convention for MethodDefSig:
@@ -530,7 +530,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
 
     // 4. return type
-    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, addCorTypeName));
+    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, addElementTypeName));
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
@@ -547,7 +547,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
             pMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0, nullptr,
                                      &flags, nullptr, nullptr, nullptr);
         }
-        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, flags, argElementTypes.at(i), addCorTypeName));
+        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, flags, argElementTypes.at(i), addElementTypeName));
     }
 
     return S_OK;
@@ -555,15 +555,15 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 
 HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg)
 {
-    if (methodArg.elementType == ELEMENT_TYPE_VAR)
+    if (methodArg.genericElemType == ELEMENT_TYPE_VAR)
     {
         if (methodArg.varNum >= typeGenerics.size())
         {
             return E_INVALIDARG;
         }
-        methodArg.corType = typeGenerics.at(methodArg.varNum).corType;
-        methodArg.typeName = typeGenerics.at(methodArg.varNum).typeName;
-        methodArg.elementType = ELEMENT_TYPE_END;
+        methodArg.elemType = typeGenerics.at(methodArg.varNum).elemType;
+        methodArg.metadataTypeName = typeGenerics.at(methodArg.varNum).metadataTypeName;
+        methodArg.genericElemType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }
 
@@ -572,15 +572,15 @@ HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigEl
 
 HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg)
 {
-    if (methodArg.elementType == ELEMENT_TYPE_MVAR)
+    if (methodArg.genericElemType == ELEMENT_TYPE_MVAR)
     {
         if (methodArg.varNum >= methodGenerics.size())
         {
             return E_INVALIDARG;
         }
-        methodArg.corType = methodGenerics.at(methodArg.varNum).corType;
-        methodArg.typeName = methodGenerics.at(methodArg.varNum).typeName;
-        methodArg.elementType = ELEMENT_TYPE_END;
+        methodArg.elemType = methodGenerics.at(methodArg.varNum).elemType;
+        methodArg.metadataTypeName = methodGenerics.at(methodArg.varNum).metadataTypeName;
+        methodArg.genericElemType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }
 

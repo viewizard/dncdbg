@@ -146,10 +146,10 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
     // Iteratively process nested types until we reach a base type
     while (trCurrentType != nullptr)
     {
-        CorElementType corElemType = ELEMENT_TYPE_MAX;
-        IfFailRet(trCurrentType->GetType(&corElemType));
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trCurrentType->GetType(&elemType));
 
-        switch (corElemType)
+        switch (elemType)
         {
         // List of unsupported CorElementTypes:
         // ELEMENT_TYPE_END            = 0x0,
@@ -169,7 +169,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
         default:
         {
             std::ostringstream ss;
-            ss << "(Unhandled CorElementType: 0x" << std::hex << corElemType << ")";
+            ss << "(Unhandled CorElementType: 0x" << std::hex << elemType << ")";
             elementType = ss.str();
             return S_OK;
         }
@@ -179,7 +179,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
         {
             std::ostringstream ss;
             // Defaults in case we fail...
-            elementType = (corElemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
+            elementType = (elemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
 
             mdTypeDef typeDef = mdTypeDefNil;
             ToRelease<ICorDebugClass> trClass;
@@ -774,7 +774,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
 } // unnamed namespace
 
-HRESULT FullyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName)
+HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -816,14 +816,14 @@ HRESULT FullyQualifiedNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDIm
 
     // Phase 2: Build the fully-qualified name from outside-in
     // nameStack contains: [innermost, ..., outermost]
-    mdName.clear();
+    metadataName.clear();
     for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
     {
-        if (!mdName.empty())
+        if (!metadataName.empty())
         {
-            mdName += it->delimiter;
+            metadataName += it->delimiter;
         }
-        mdName += it->name;
+        metadataName += it->name;
     }
 
     return S_OK;
@@ -905,7 +905,7 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
         IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
         SigElementType sigType;
         IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
-        mdName = sigType.typeName;
+        mdName = sigType.metadataTypeName;
     }
     else
     {
@@ -916,18 +916,18 @@ HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &
     return S_OK;
 }
 
-HRESULT FullyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName)
+HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName)
 {
     HRESULT Status = S_OK;
-    mdName.clear();
+    metadataName.clear();
 
     if (TypeFromToken(mb) == mdtTypeDef)
     {
-        IfFailRet(FullyQualifiedNameForTypeDef(mb, pMDImport, mdName));
+        IfFailRet(GetFQMDNameForTypeDef(mb, pMDImport, metadataName));
     }
     else if (TypeFromToken(mb) == mdtTypeRef)
     {
-        IfFailRet(NameForTypeRef(mb, pMDImport, mdName));
+        IfFailRet(NameForTypeRef(mb, pMDImport, metadataName));
     }
     else if (TypeFromToken(mb) == mdtTypeSpec)
     {
@@ -936,7 +936,7 @@ HRESULT FullyQualifiedNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport,
         IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
         SigElementType sigType;
         IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
-        mdName = sigType.typeName;
+        metadataName = sigType.metadataTypeName;
     }
     else
     {
@@ -1319,9 +1319,9 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
 
             std::string valueType;
             ToRelease<ICorDebugValue> trValue;
-            if (argElementTypes.size() > i && !argElementTypes.at(i).typeName.empty()) // FIXME care about typeGenerics and methodGenerics
+            if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
-                ss << argElementTypes.at(i).typeName << " ";
+                ss << argElementTypes.at(i).metadataTypeName << " ";
             }
             else if (!asyncMethod &&
                      SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
@@ -1408,9 +1408,9 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
                 ss << ", ";
             }
 
-            if (!argElementTypes.at(i).typeName.empty())
+            if (!argElementTypes.at(i).metadataTypeName.empty())
             {
-                ss << argElementTypes.at(i).typeName << " ";
+                ss << argElementTypes.at(i).metadataTypeName << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
