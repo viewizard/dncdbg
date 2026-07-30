@@ -26,6 +26,7 @@ namespace MetadataHelpers
 
 // TODO: Fix all this mess with names, use:
 // "metadata" prefix, for example "metadataTypeName", for metadata/CLR-related names, for example "MyNamespace.Class1`2+NestedClass`1"
+//    Note: for names converted from "display" names, nested classes also use `.` delimiter, for example "MyNamespace.Class1`2.NestedClass`1"
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
 
@@ -51,6 +52,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
+// Note: nested classes also use `.` delimiter, for example "MyNamespace.Class1`2.NestedClass`1"
 std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path); array ranks encountered are appended to "ranks".
