@@ -29,9 +29,9 @@ namespace MetadataHelpers
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
 
-// Get fully qualified metadata name (FQMD).
+// Get fully qualified metadata (FQMD) name.
 HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName);
-// Get fully qualified metadata name (FQMD).
+// Get fully qualified metadata (FQMD) name.
 HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName);
 
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
@@ -49,10 +49,12 @@ HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, 
 HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
 HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
 
-// Return vector of generic type names parsed from "displayName".
+// Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
+// Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
 std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
-// Return vector of dot-separated "display" identifier components (namespace/class path).
-std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
+// Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
+// (namespace/class path); array ranks encountered are appended to "ranks".
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
 // Note: `identifiers` contain display names and are converted into metadata names for lookup inside method logic.
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,

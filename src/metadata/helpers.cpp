@@ -683,7 +683,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(currentType, ranks);
+        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugModule> trTypeModule;
@@ -1501,7 +1501,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     return genericTypes;
 }
 
-std::vector<std::string> ParseFullyQualifiedDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks)
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks)
 {
     // Splits a fully-qualified display type name into its dot-separated
     // identifier components (namespace/class path) and records array ranks.

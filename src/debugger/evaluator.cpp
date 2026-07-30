@@ -503,7 +503,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &method
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(methodClass, ranks);
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
@@ -2229,7 +2229,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::ParseFullyQualifiedDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(methodClass, ranks);
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
