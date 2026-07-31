@@ -487,7 +487,7 @@ HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeG
             trCurrentTypeParam->GetType(&argElType.elemType);
             if (argElType.elemType == ELEMENT_TYPE_VALUETYPE || argElType.elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByType(trCurrentTypeParam, argElType.metadataTypeName));
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trCurrentTypeParam, argElType.metadataTypeName));
             }
             typeGenerics.emplace_back(argElType);
             trCurrentTypeParam.Free();
@@ -719,7 +719,7 @@ void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef current
 {
     // Add the class name itself.
     std::string metadataTypeName;
-    MetadataHelpers::GetFQMDNameForTypeDef(currentTypeDef, pMDImport, metadataTypeName);
+    MetadataHelpers::GetFQMDTypeNameByToken(currentTypeDef, pMDImport, metadataTypeName);
     parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
 
     // Add all interface names.
@@ -736,7 +736,7 @@ void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef current
         }
 
         std::string metadataTypeName;
-        MetadataHelpers::GetFQMDNameForTypeByToken(tkIface, pMDImport, metadataTypeName);
+        MetadataHelpers::GetFQMDTypeNameByToken(tkIface, pMDImport, metadataTypeName);
         parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
     }
     pMDImport->CloseEnum(hEnum);
@@ -872,7 +872,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
             SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
         {
             std::string detectTypeName;
-            if (SUCCEEDED(MetadataHelpers::GetFQMDNameForTypeDef(attrTypeDef, trMDImport, detectTypeName)) &&
+            if (SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByToken(attrTypeDef, trMDImport, detectTypeName)) &&
                 HasAssemblyDebuggerTypeProxyAttribute(trMDImport, assemblyToken, detectTypeName, proxyTypeName))
             {
                 proxyAttrTypeDef = attrTypeDef;
@@ -893,40 +893,6 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
 }
 
 } // unnamed namespace
-
-SigElementType Evaluator::GetElementTypeByTypeName(const std::string &typeName)
-{
-    static const std::unordered_map<std::string, SigElementType> stypes = {
-        {"void",    {ELEMENT_TYPE_VALUETYPE, "System.Void"}},
-        {"bool",    {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
-        {"byte",    {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
-        {"sbyte",   {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
-        {"char",    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
-        {"decimal", {ELEMENT_TYPE_VALUETYPE, "System.Decimal"}},
-        {"double",  {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
-        {"float",   {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
-        {"int",     {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
-        {"uint",    {ELEMENT_TYPE_VALUETYPE, "System.UInt32"}},
-        {"long",    {ELEMENT_TYPE_VALUETYPE, "System.Int64"}},
-        {"ulong",   {ELEMENT_TYPE_VALUETYPE, "System.UInt64"}},
-        {"object",  {ELEMENT_TYPE_CLASS,     "System.Object"}},
-        {"short",   {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
-        {"ushort",  {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
-        {"string",  {ELEMENT_TYPE_CLASS,     "System.String"}},
-        {"nint",    {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
-        {"nuint",   {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}}
-    };
-
-    SigElementType userType;
-    auto found = stypes.find(typeName);
-    if (found != stypes.end())
-    {
-        return found->second;
-    }
-    userType.elemType = ELEMENT_TYPE_CLASS;
-    userType.metadataTypeName = typeName;
-    return userType;
-}
 
 HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
 {
@@ -1240,7 +1206,7 @@ HRESULT Evaluator::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     // Get the proper fully-qualified proxy type name.
     std::string fullProxyTypeName;
-    IfFailRet(MetadataHelpers::GetFQMDNameForTypeDef(typeDef, trMDImport, fullProxyTypeName));
+    IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, fullProxyTypeName));
     proxyTypeNameParts.clear();
     std::string tmp;
     ParseTypeName(fullProxyTypeName, proxyTypeNameParts, tmp);
@@ -2548,7 +2514,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
         std::string typeName;
-        IfFailRet(MetadataHelpers::GetFQMDNameForTypeByToken(typeDef, trMDImport, typeName));
+        IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, typeName));
 
         allIfaceTypeNames.emplace(typeName);
 
@@ -2566,7 +2532,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
             }
 
             std::string ifaceTypeName;
-            if (FAILED(MetadataHelpers::GetFQMDNameForTypeByToken(tkIface, trMDImport, ifaceTypeName)))
+            if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, trMDImport, ifaceTypeName)))
             {
                 continue;
             }

@@ -176,7 +176,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     return Status;
 }
 
-HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElementType &elemType)
+HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &metadataTypeName, CorElementType &elemType)
 {
     HRESULT Status = S_OK;
     IfFailRet(pTypeValue->GetType(&elemType));
@@ -186,7 +186,7 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElement
         IfFailRet(pTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trTypeValue2)));
         ToRelease<ICorDebugType> trType;
         IfFailRet(trTypeValue2->GetExactType(&trType));
-        IfFailRet(MetadataHelpers::NameForTypeByType(trType, typeName));
+        IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trType, metadataTypeName));
     }
     return S_OK;
 };
@@ -194,9 +194,9 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &typeName, CorElement
 HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue **pResultValue, EvalData &ed)
 {
     HRESULT Status = S_OK;
-    std::string typeName;
+    std::string metadataTypeName;
     CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(GetArgData(pValue, typeName, elemType));
+    IfFailRet(GetArgData(pValue, metadataTypeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(pValue, true,
@@ -204,7 +204,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
             std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
-                elemType != methodArgs.at(0).elemType || typeName != methodArgs.at(0).metadataTypeName)
+                elemType != methodArgs.at(0).elemType || metadataTypeName != methodArgs.at(0).metadataTypeName)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -360,12 +360,12 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
     {
         if (elemType2 == ELEMENT_TYPE_VALUETYPE || elemType2 == ELEMENT_TYPE_CLASS)
         {
-            std::string mdName1;
-            IfFailRet(MetadataHelpers::NameForTypeByValue(trRealValue1, mdName1));
-            std::string mdName2;
-            IfFailRet(MetadataHelpers::NameForTypeByValue(trRealValue2, mdName2));
+            std::string metadataName1;
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trRealValue1, metadataName1));
+            std::string metadataName2;
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trRealValue2, metadataName2));
 
-            if (mdName1 != mdName2)
+            if (metadataName1 != metadataName2)
             {
                 haveSameType = false;
             }
@@ -810,7 +810,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
-    const std::vector<std::string> methodGenericStrings = MetadataHelpers::ConvertDisplayToMetadataName(displayFuncName, funcName);
+    const std::vector<std::string> displayMethodGenerics = MetadataHelpers::ConvertDisplayToMetadataName(displayFuncName, funcName);
     const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
     {
@@ -883,7 +883,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
         if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
         {
-            IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
         }
         else if (funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
         {
@@ -892,11 +892,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     std::vector<SigElementType> methodGenerics;
-    methodGenerics.reserve(methodGenericStrings.size());
-    std::transform(methodGenericStrings.begin(), methodGenericStrings.end(), std::back_inserter(methodGenerics),
-                   [](const auto &methodGenericString)
+    methodGenerics.reserve(displayMethodGenerics.size());
+    std::transform(displayMethodGenerics.begin(), displayMethodGenerics.end(), std::back_inserter(methodGenerics),
+                   [&ed](const auto &methodGenericString)
                    {
-                       return Evaluator::GetElementTypeByTypeName(methodGenericString);
+                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, methodGenericString);
                    });
 
     ToRelease<ICorDebugFunction> trFunc;
@@ -1036,7 +1036,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
 
             if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
             }
         }
 
@@ -1157,7 +1157,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
             if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
             {
-                IfFailRet(MetadataHelpers::NameForTypeByValue(trValueArg, funcArgs.at(i).metadataTypeName));
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
             }
         }
 
@@ -1455,8 +1455,8 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     // TODO add implementation for object type ?? other
     if ((elemTypeRightOp == ELEMENT_TYPE_STRING && elemTypeLeftOp == ELEMENT_TYPE_STRING) ||
         ((elemTypeRightOp == ELEMENT_TYPE_CLASS && elemTypeLeftOp == ELEMENT_TYPE_CLASS) &&
-         SUCCEEDED(MetadataHelpers::NameForTypeByValue(trRealValueLeftOp, typeNameLeft)) &&
-         SUCCEEDED(MetadataHelpers::NameForTypeByValue(trRealValueRightOp, typeNameRight)) &&
+         SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByICorValue(trRealValueLeftOp, typeNameLeft)) &&
+         SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByICorValue(trRealValueRightOp, typeNameRight)) &&
          typeNameLeft == typeNameRight))
     {
         ToRelease<ICorDebugReferenceValue> trRefValue;

@@ -442,29 +442,6 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-// Collect generic type argument strings from an ICorDebugType's type parameters.
-// Uses ResolveTypeToString internally to avoid recursion.
-HRESULT AddGenericArgs(ICorDebugType *pType, std::list<std::string> &args)
-{
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-
-    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ULONG fetched = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
-
-        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
-        {
-            std::string name;
-            ResolveTypeToString(trCurrentTypeParam, name);
-            args.emplace_back(name);
-            trCurrentTypeParam.Free();
-        }
-    }
-
-    return S_OK;
-}
-
 HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 {
     HRESULT Status = S_OK;
@@ -770,9 +747,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
     return S_OK;
 }
 
-} // unnamed namespace
-
-HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName)
+HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -826,6 +801,8 @@ HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, s
 
     return S_OK;
 }
+
+} // unnamed namespace
 
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
                        std::string &mdName, std::list<std::string> *args)
@@ -883,55 +860,24 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
     return S_OK;
 }
 
-HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args)
-{
-    HRESULT Status = S_OK;
-    mdName.clear();
-
-    if (TypeFromToken(mb) == mdtTypeDef)
-    {
-        IfFailRet(NameForTypeDef(mb, pMDImport, mdName, args));
-    }
-    else if (TypeFromToken(mb) == mdtTypeRef)
-    {
-        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, mdName));
-    }
-    else if (TypeFromToken(mb) == mdtTypeSpec)
-    {
-        PCCOR_SIGNATURE pSig = nullptr;
-        ULONG cbSig = 0;
-        IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
-        SigElementType sigType;
-        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
-        mdName = sigType.metadataTypeName;
-    }
-    else
-    {
-        // Unsupported token type
-        return CORDBG_E_UNSUPPORTED;
-    }
-
-    return S_OK;
-}
-
-HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName)
+HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::string &metadataName)
 {
     HRESULT Status = S_OK;
     metadataName.clear();
 
-    if (TypeFromToken(mb) == mdtTypeDef)
+    if (TypeFromToken(token) == mdtTypeDef)
     {
-        IfFailRet(GetFQMDNameForTypeDef(mb, pMDImport, metadataName));
+        IfFailRet(GetFQMDTypeNameByTypeDef(token, pMDImport, metadataName));
     }
-    else if (TypeFromToken(mb) == mdtTypeRef)
+    else if (TypeFromToken(token) == mdtTypeRef)
     {
-        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, metadataName));
+        IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, metadataName));
     }
-    else if (TypeFromToken(mb) == mdtTypeSpec)
+    else if (TypeFromToken(token) == mdtTypeSpec)
     {
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;
-        IfFailRet(pMDImport->GetTypeSpecFromToken(mb, &pSig, &cbSig));
+        IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
         IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
         metadataName = sigType.metadataTypeName;
@@ -945,7 +891,7 @@ HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::s
     return S_OK;
 }
 
-HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
+HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataName)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugClass> trClass;
@@ -956,21 +902,19 @@ HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName)
     IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-    mdToken tk = mdTokenNil;
-    IfFailRet(trClass->GetToken(&tk));
-    std::list<std::string> args;
-    AddGenericArgs(pType, args);
-    return NameForTypeByToken(tk, trMDImport, mdName, &args);
+    mdToken token = mdTokenNil;
+    IfFailRet(trClass->GetToken(&token));
+    return GetFQMDTypeNameByToken(token, trMDImport, metadataName);
 }
 
-HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName)
+HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadataName)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> trValue2;
     IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
     ToRelease<ICorDebugType> trType;
     IfFailRet(trValue2->GetExactType(&trType));
-    return NameForTypeByType(trType, mdName);
+    return GetFQMDTypeNameByICorType(trType, metadataName);
 }
 
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
@@ -1697,6 +1641,53 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
     }
 
     return S_OK;
+}
+
+SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName)
+{
+    static const std::unordered_map<std::string, SigElementType> stypes = {
+        {"void",    {ELEMENT_TYPE_VOID,    ""}},
+        {"bool",    {ELEMENT_TYPE_BOOLEAN, ""}},
+        {"byte",    {ELEMENT_TYPE_U1,      ""}},
+        {"sbyte",   {ELEMENT_TYPE_I1,      ""}},
+        {"char",    {ELEMENT_TYPE_CHAR,    ""}},
+        {"double",  {ELEMENT_TYPE_R8,      ""}},
+        {"float",   {ELEMENT_TYPE_R4,      ""}},
+        {"int",     {ELEMENT_TYPE_I4,      ""}},
+        {"uint",    {ELEMENT_TYPE_U4,      ""}},
+        {"long",    {ELEMENT_TYPE_I8,      ""}},
+        {"ulong",   {ELEMENT_TYPE_U8,      ""}},
+        {"object",  {ELEMENT_TYPE_OBJECT,  ""}},
+        {"short",   {ELEMENT_TYPE_I2,      ""}},
+        {"ushort",  {ELEMENT_TYPE_U2,      ""}},
+        {"string",  {ELEMENT_TYPE_STRING,  ""}},
+        {"nint",    {ELEMENT_TYPE_I,       ""}},
+        {"nuint",   {ELEMENT_TYPE_U,       ""}}
+    };
+
+    auto found = stypes.find(displayTypeName);
+    if (found != stypes.end())
+    {
+        return found->second;
+    }
+
+    std::vector<int> ranks;
+    const std::string parseDisplayTypeName = displayTypeName == "decimal" ? "System.Decimal" : displayTypeName;
+    const std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName, ranks);
+
+    SigElementType sigElemType;
+    int nextIdentifier = 0;
+    ToRelease<ICorDebugType> trType;
+    if (SUCCEEDED(FindType(identifiers, nextIdentifier, pThread, nullptr, &trType)) &&
+        SUCCEEDED(trType->GetType(&sigElemType.elemType)) &&
+        SUCCEEDED(GetFQMDTypeNameByICorType(trType, sigElemType.metadataTypeName)))
+    {
+        return sigElemType;
+    }
+
+    sigElemType.elemType = ELEMENT_TYPE_CLASS;
+    sigElemType.metadataTypeName = displayTypeName;
+    return sigElemType;
 }
 
 } // namespace dncdbg::MetadataHelpers

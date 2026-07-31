@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "metadata/sigparse.h"
 #include <list>
 #include <string>
 #include <vector>
@@ -29,18 +30,17 @@ namespace MetadataHelpers
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
 
-// Get fully-qualified metadata (FQMD) name.
-HRESULT GetFQMDNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName);
-// Get fully-qualified metadata (FQMD) name.
-HRESULT GetFQMDNameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &metadataName);
+// Get fully-qualified metadata (FQMD) type name.
+HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::string &metadataName);
+// Get fully-qualified metadata (FQMD) type name.
+HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataName);
+// Get fully-qualified metadata (FQMD) type name.
+HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadataName);
 
 HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
                        std::list<std::string> *args);
 HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
                      std::list<std::string> *args);
-HRESULT NameForTypeByToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, std::list<std::string> *args);
-HRESULT NameForTypeByType(ICorDebugType *pType, std::string &mdName);
-HRESULT NameForTypeByValue(ICorDebugValue *pValue, std::string &mdName);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);
@@ -56,10 +56,14 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // (namespace/class path); array ranks encountered are appended to "ranks".
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
-// Note: `identifiers` contain display names and are converted into metadata names for lookup inside method logic.
+// Note: `identifiers` contain display names and are converted into "metadata" names for lookup inside method logic.
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, ICorDebugType **ppType);
 HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule);
+
+// Note: this is a heavy function, since it is forced to search for the type in all modules to detect the proper CorElementType
+// and the proper "metadata" type name. It provides a result equivalent to a ParseElementType() call with the `addElementTypeName = false` parameter.
+SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName);
 
 } // namespace MetadataHelpers
 

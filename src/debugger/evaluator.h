@@ -123,8 +123,6 @@ class Evaluator
     HRESULT WalkExtensionMethods(ICorDebugType *pInputType, const std::string &methodName,
                                  std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
 
-    static SigElementType GetElementTypeByTypeName(const std::string &typeName);
-
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
