@@ -806,11 +806,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     assert(!evalStack.front().identifiers.empty()); // We must have at least method name (identifier).
 
     // TODO local defined function (compiler will create such function with name like `<Calc1>g__Calc2|0_0`)
-    const std::string displayFuncName = evalStack.front().identifiers.back();
+    const std::string methodDisplayName = evalStack.front().identifiers.back();
     evalStack.front().identifiers.pop_back();
 
     std::string funcName;
-    const std::vector<std::string> displayMethodGenerics = MetadataHelpers::ConvertDisplayToMetadataName(displayFuncName, funcName);
+    const std::vector<std::string> genericMethodFQDisplayTypeNames = MetadataHelpers::ConvertDisplayToMetadataName(methodDisplayName, funcName);
     const size_t pos = funcName.find('`');
     if (pos != std::string::npos)
     {
@@ -892,11 +892,11 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     std::vector<SigElementType> methodGenerics;
-    methodGenerics.reserve(displayMethodGenerics.size());
-    std::transform(displayMethodGenerics.begin(), displayMethodGenerics.end(), std::back_inserter(methodGenerics),
-                   [&ed](const auto &methodGenericString)
+    methodGenerics.reserve(genericMethodFQDisplayTypeNames.size());
+    std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(methodGenerics),
+                   [&ed](const auto &displayTypeName)
                    {
-                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, methodGenericString);
+                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName);
                    });
 
     ToRelease<ICorDebugFunction> trFunc;

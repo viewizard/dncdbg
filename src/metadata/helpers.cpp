@@ -519,14 +519,14 @@ std::string RenameToCSharp(const std::string &typeName)
     return renamed != system2cs.end() ? renamed->second : typeName;
 }
 
-std::vector<std::string> GatherParameters(const std::vector<std::string> &identifiers, int indexEnd)
+std::vector<std::string> GatherGenericFQDisplayParameters(const std::vector<std::string> &identifiers, int indexEnd)
 {
     std::vector<std::string> result;
     for (int i = 0; i < indexEnd; i++)
     {
         std::string metadataTypeName;
-        std::vector<std::string> params = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
-        result.insert(result.end(), params.begin(), params.end());
+        std::vector<std::string> genericFQDisplayTypeNames = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
+        result.insert(result.end(), genericFQDisplayTypeNames.begin(), genericFQDisplayTypeNames.end());
     }
     return result;
 }
@@ -684,7 +684,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
             return E_FAIL;
         }
 
-        const std::vector<std::string> nestedParams = GatherParameters(classIdentifiers, nextClassIdentifier);
+        const std::vector<std::string> nestedParams = GatherGenericFQDisplayParameters(classIdentifiers, nextClassIdentifier);
 
         // Check for unresolved nested parameters and add them to the queue.
         bool hasUnresolved = false;
@@ -1595,7 +1595,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (ppType != nullptr)
     {
-        const std::vector<std::string> params = GatherParameters(identifiers, nextIdentifier);
+        const std::vector<std::string> params = GatherGenericFQDisplayParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> trTypes;
         IfFailRet(ResolveTypeParameters(params, pThread, trTypes));
 
