@@ -93,21 +93,21 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
             HCORENUM fGenEnum = nullptr;
-            mdGenericParam gp = mdGenericParamNil;
+            mdGenericParam genParam = mdGenericParamNil;
             ULONG fetched = 0;
             std::string genParams;
 
-            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &gp, 1, &fetched)) && fetched == 1)
+            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &genParam, 1, &fetched)) && fetched == 1)
             {
                 ULONG genNameLen = 0;
-                if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
                 {
                     continue;
                 }
 
                 mdMethodDef memMethodDef = mdMethodDefNil;
                 std::vector<WCHAR> szGenName(genNameLen, '\0');
-                if (FAILED(trMDImport2->GetGenericParamProps(gp, nullptr, nullptr, &memMethodDef, nullptr,
+                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, &memMethodDef, nullptr,
                                                              szGenName.data(), genNameLen, nullptr)))
                 {
                     continue;
