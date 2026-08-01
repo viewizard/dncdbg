@@ -52,8 +52,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
 HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo,
                                     std::string &displayTypeName, std::string &displayMethodName);
 
-HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
-HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
+// Get fully-qualified display method name.
+HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
+// Get fully-qualified display method name.
+HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".

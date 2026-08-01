@@ -1195,7 +1195,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     return S_OK;
 }
 
-HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
+HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -1294,6 +1294,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
             ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
+                // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }
             else if (!asyncMethod &&
@@ -1316,7 +1317,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
     return S_OK;
 }
 
-HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output)
+HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -1383,6 +1384,7 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
 
             if (!argElementTypes.at(i).metadataTypeName.empty())
             {
+                // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }
             // else

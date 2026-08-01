@@ -198,12 +198,12 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
 {
     HRESULT Status = S_OK;
 
-    std::string methodName;
-    if (FAILED(MetadataHelpers::GetFullyQualifiedMethodName(pFrame, pDebugInfo, methodName)))
+    std::string displayMethodName;
+    if (FAILED(MetadataHelpers::GetFQDisplayMethodName(pFrame, pDebugInfo, displayMethodName)))
     {
-        methodName = "[Unnamed managed method in optimized code]";
+        displayMethodName = "[Unnamed managed method in optimized code]";
     }
-    stackFrame = StackFrame(threadId, level, methodName);
+    stackFrame = StackFrame(threadId, level, displayMethodName);
 
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(pFrame->GetFunction(&trFunc));
@@ -314,16 +314,16 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 continue;
             }
 
-            std::string methodName;
-            if (FAILED(MetadataHelpers::GetFullyQualifiedMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, methodName)))
+            std::string displayMethodName;
+            if (FAILED(MetadataHelpers::GetFQDisplayMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, displayMethodName)))
             {
-                methodName = "[Unnamed managed method in optimized code]";
+                displayMethodName = "[Unnamed managed method in optimized code]";
             }
 
             if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
                 SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath)))
             {
-                if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &methodName, &sourceFilePath) == S_CAN_EXIT)
+                if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &displayMethodName, &sourceFilePath) == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT;
                 }
@@ -331,7 +331,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             // Make sure that the last foreign exception frame itself is added to the stack trace.
             else if (exceptionObjectStackFrame.isLastForeignExceptionFrame == TRUE)
             {
-                if (cb(FrameType::CLRManagedException, nullptr, nullptr, &methodName, nullptr) == S_CAN_EXIT)
+                if (cb(FrameType::CLRManagedException, nullptr, nullptr, &displayMethodName, nullptr) == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT;
                 }
@@ -432,13 +432,13 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             }
 
             // Hide state machine related frames for both JMC and non-JMC cases.
-            std::string methodName;
+            std::string displayMethodName;
             ToRelease<ICorDebugFunction> trFunction;
             if ((pDebugInfo != nullptr && SUCCEEDED(trFrame->GetFunction(&trFunction)) && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
-                (pDebugInfo != nullptr && SUCCEEDED(MetadataHelpers::GetFullyQualifiedMethodName(trFrame, pDebugInfo, methodName)) &&
+                (pDebugInfo != nullptr && SUCCEEDED(MetadataHelpers::GetFQDisplayMethodName(trFrame, pDebugInfo, displayMethodName)) &&
                  // Note: starts_with() is C++20, use rfind() for compatibility
-                 (methodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
-                  methodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
+                 (displayMethodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
+                  displayMethodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
             {
                 continue;
             }
