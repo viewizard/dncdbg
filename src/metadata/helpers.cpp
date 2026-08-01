@@ -1192,7 +1192,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     return S_OK;
 }
 
-HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output)
+HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName)
 {
     HRESULT Status = S_OK;
 
@@ -1310,11 +1310,11 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
     addMethodParameters();
 
     ss << ")";
-    output = ss.str();
+    displayName = ss.str();
     return S_OK;
 }
 
-HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output)
+HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName)
 {
     HRESULT Status = S_OK;
 
@@ -1394,7 +1394,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
     addMethodParameters();
 
     ss << ")";
-    output = ss.str();
+    displayName = ss.str();
     return S_OK;
 }
 
