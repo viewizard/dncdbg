@@ -1898,8 +1898,11 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
             {
-                std::string methodName;
-                MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
+                if (fallbackTypeName != nullptr)
+                {
+                    std::string methodName;
+                    MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
+                }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
 
