@@ -14,27 +14,27 @@ namespace dncdbg
 namespace
 {
 
-using ForEachAttributeCallback = std::function<bool(const std::string &AttrName, const void *pBlob, ULONG cbBlob)>;
+using ForEachAttributeCallback = std::function<bool(const std::string &displayAttrName, const void *pBlob, ULONG cbBlob)>;
 
 bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const ForEachAttributeCallback &cb)
 {
     bool found = false;
     ULONG numAttributes = 0;
     HCORENUM fEnum = nullptr;
-    mdCustomAttribute attr = 0;
-    while (SUCCEEDED(pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &attr, 1, &numAttributes)) && numAttributes != 0)
+    mdCustomAttribute customAttr = 0;
+    while (SUCCEEDED(pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &customAttr, 1, &numAttributes)) && numAttributes != 0)
     {
-        std::string mdName;
-        mdToken tkType = mdTokenNil;
+        std::string displayAttrName;
+        mdToken attrToken = mdTokenNil;
         void const *pBlob = nullptr;
         ULONG cbBlob = 0;
-        if (FAILED(pMDImport->GetCustomAttributeProps(attr, nullptr, &tkType, &pBlob, &cbBlob)) ||
-            FAILED(MetadataHelpers::NameForToken(tkType, pMDImport, mdName, true, nullptr)))
+        if (FAILED(pMDImport->GetCustomAttributeProps(customAttr, nullptr, &attrToken, &pBlob, &cbBlob)) ||
+            FAILED(MetadataHelpers::GetFQDisplayNameForToken(attrToken, pMDImport, displayAttrName, nullptr)))
         {
             continue;
         }
 
-        found = cb(mdName, pBlob, cbBlob);
+        found = cb(displayAttrName, pBlob, cbBlob);
         if (found)
         {
             break;
@@ -128,18 +128,18 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName)
 {
     return ForEachAttribute(pMDImport, tok,
-        [&attrName](const std::string &AttrName, const void *, ULONG) -> bool
+        [&attrName](const std::string &displayAttrName, const void *, ULONG) -> bool
         {
-            return AttrName == attrName;
+            return displayAttrName == attrName;
         });
 }
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames)
 {
     return ForEachAttribute(pMDImport, tok,
-        [&attrNames](const std::string &AttrName, const void *, ULONG) -> bool
+        [&attrNames](const std::string &displayAttrName, const void *, ULONG) -> bool
         {
-            return std::find(attrNames.begin(), attrNames.end(), AttrName) != attrNames.end();
+            return std::find(attrNames.begin(), attrNames.end(), displayAttrName) != attrNames.end();
         });
 }
 
@@ -148,9 +148,9 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
     DebuggerBrowsableState browsableState = DebuggerBrowsableState::Collapsed;
 
     ForEachAttribute(pMDImport, tok,
-        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (attrName != DebuggerAttribute::Browsable)
+            if (displayAttrName != DebuggerAttribute::Browsable)
             {
                 return false;
             }
@@ -192,9 +192,9 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
     proxyTypeName.clear();
 
     return ForEachAttribute(pMDImport, tok,
-        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (attrName != DebuggerAttribute::TypeProxy)
+            if (displayAttrName != DebuggerAttribute::TypeProxy)
             {
                 return false;
             }
@@ -246,9 +246,9 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
     proxyTypeName.clear();
 
     return ForEachAttribute(pMDImport, tok,
-        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (attrName != DebuggerAttribute::TypeProxy)
+            if (displayAttrName != DebuggerAttribute::TypeProxy)
             {
                 return false;
             }
@@ -357,9 +357,9 @@ bool HasDebuggerDisplayAttribute(IMetaDataImport *pMDImport, mdToken tok, std::s
     text.clear();
 
     return ForEachAttribute(pMDImport, tok,
-        [&](const std::string &attrName, const void *pBlob, ULONG cbBlob) -> bool
+        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (attrName != DebuggerAttribute::Display)
+            if (displayAttrName != DebuggerAttribute::Display)
             {
                 return false;
             }

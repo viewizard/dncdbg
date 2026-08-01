@@ -37,10 +37,10 @@ HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataNam
 // Get fully-qualified metadata (FQMD) type name.
 HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadataName);
 
-HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &mdName,
-                       std::list<std::string> *args);
-HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
-                     std::list<std::string> *args);
+// Get fully-qualified display name for token.
+HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
+                                 std::list<std::string> *args);
+
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);

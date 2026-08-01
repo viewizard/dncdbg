@@ -210,7 +210,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
                     }
                 }
 
-                // Build placeholder args list for NameForToken/ConsumeGenericArgs.
+                // Build placeholder args list for GetFQDisplayNameForToken/ConsumeGenericArgs.
                 // Each placeholder "\x01{N}" will be replaced with the resolved type
                 // string by the caller after all type parameters are resolved.
                 std::list<std::string> placeholderArgs;
@@ -219,17 +219,17 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
                     placeholderArgs.emplace_back(std::string("\x01{") + std::to_string(i) + "}");
                 }
 
-                std::string name;
-                if (SUCCEEDED(NameForToken(TokenFromRid(typeDef, mdtTypeDef), trMDImport, name, false, &placeholderArgs)))
+                std::string displayTypeName;
+                if (SUCCEEDED(GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &placeholderArgs)))
                 {
                     static const std::string_view nullablePattern = "System.Nullable<";
-                    if (name.rfind(nullablePattern, 0) == 0)
+                    if (displayTypeName.rfind(nullablePattern, 0) == 0)
                     {
-                        ss << name.substr(nullablePattern.size(), name.rfind('>') - nullablePattern.size()) << "?";
+                        ss << displayTypeName.substr(nullablePattern.size(), displayTypeName.rfind('>') - nullablePattern.size()) << "?";
                     }
                     else
                     {
-                        ss << name;
+                        ss << displayTypeName;
                     }
                 }
             }
@@ -614,10 +614,10 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     mdToken tkExtends = mdTokenNil;
     IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
 
-    std::string eTypeName;
-    IfFailRet(MetadataHelpers::NameForToken(tkExtends, trMDImport, eTypeName, true, nullptr));
+    std::string displayTypeName;
+    IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(tkExtends, trMDImport, displayTypeName, nullptr));
 
-    const bool isValueType = eTypeName == "System.ValueType" || eTypeName == "System.Enum";
+    const bool isValueType = displayTypeName == "System.ValueType" || displayTypeName == "System.Enum";
     const CorElementType elemType = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
 
 #ifdef BIT64
@@ -805,10 +805,9 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
     return S_OK;
 }
 
-} // unnamed namespace
-
-HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
-                       std::string &mdName, std::list<std::string> *args)
+// Get fully-qualified display name for typedef token.
+HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
+                                   std::string &displayTypeName, std::list<std::string> *args)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -844,19 +843,21 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
     // Phase 2: Build the fully-qualified name from outside-in
     // nameStack contains: [innermost, ..., outermost]
     // Process generic args from outermost to innermost
-    mdName.clear();
+    displayTypeName.clear();
     for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
     {
-        if (!mdName.empty())
+        if (!displayTypeName.empty())
         {
-            mdName += ".";
+            displayTypeName += ".";
         }
 
-        mdName += ConsumeGenericArgs(*it, args);
+        displayTypeName += ConsumeGenericArgs(*it, args);
     }
 
     return S_OK;
 }
+
+} // unnamed namespace
 
 HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::string &metadataName)
 {
@@ -915,71 +916,71 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
     return GetFQMDTypeNameByICorType(trType, metadataName);
 }
 
-HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName, bool bClassName,
-                     std::list<std::string> *args)
+HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
+                                 std::list<std::string> *args)
 {
     HRESULT Status = S_OK;
-    mdName.clear();
+    displayName.clear();
 
-    if (TypeFromToken(mb) == mdtTypeDef)
+    if (TypeFromToken(token) == mdtTypeDef)
     {
-        IfFailRet(NameForTypeDef(mb, pMDImport, mdName, args));
+        IfFailRet(GetFQDisplayNameForTypeDef(token, pMDImport, displayName, args));
     }
-    else if (TypeFromToken(mb) == mdtFieldDef)
+    else if (TypeFromToken(token) == mdtFieldDef)
     {
         ULONG size = 0;
-        IfFailRet(pMDImport->GetMemberProps(mb, nullptr, nullptr, 0, &size, nullptr, nullptr,
+        IfFailRet(pMDImport->GetMemberProps(token, nullptr, nullptr, 0, &size, nullptr, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-        mdTypeDef mdClass = mdTypeDefNil;
+        mdTypeDef typeDef = mdTypeDefNil;
         std::vector<WCHAR> name(size, '\0');
-        IfFailRet(pMDImport->GetMemberProps(mb, &mdClass, name.data(), size, nullptr, nullptr, nullptr,
+        IfFailRet(pMDImport->GetMemberProps(token, &typeDef, name.data(), size, nullptr, nullptr, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-        if (mdClass != mdTypeDefNil && bClassName)
+        if (typeDef != mdTypeDefNil)
         {
-            IfFailRet(NameForTypeDef(mdClass, pMDImport, mdName, args));
-            mdName += ".";
+            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
+            displayName += ".";
         }
-        mdName += to_utf8(name.data());
+        displayName += to_utf8(name.data());
     }
-    else if (TypeFromToken(mb) == mdtMethodDef)
+    else if (TypeFromToken(token) == mdtMethodDef)
     {
         ULONG size = 0;
-        IfFailRet(pMDImport->GetMethodProps(mb, nullptr, nullptr, 0, &size,
+        IfFailRet(pMDImport->GetMethodProps(token, nullptr, nullptr, 0, &size,
                                             nullptr, nullptr, nullptr, nullptr, nullptr));
-        mdTypeDef mdClass = mdTypeDefNil;
-        std::vector<WCHAR> name(size, '\0');
-        IfFailRet(pMDImport->GetMethodProps(mb, &mdClass, name.data(), size, nullptr,
+        mdTypeDef typeDef = mdTypeDefNil;
+        std::vector<WCHAR> methodName(size, '\0');
+        IfFailRet(pMDImport->GetMethodProps(token, &typeDef, methodName.data(), size, nullptr,
                                             nullptr, nullptr, nullptr, nullptr, nullptr));
-        if (mdClass != mdTypeDefNil && bClassName)
+        if (typeDef != mdTypeDefNil)
         {
-            IfFailRet(NameForTypeDef(mdClass, pMDImport, mdName, args));
-            mdName += ".";
+            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
+            displayName += ".";
         }
-        mdName += to_utf8(name.data());
+        displayName += to_utf8(methodName.data());
     }
-    else if (TypeFromToken(mb) == mdtMemberRef)
+    else if (TypeFromToken(token) == mdtMemberRef)
     {
         ULONG size = 0;
-        IfFailRet(pMDImport->GetMemberRefProps(mb, nullptr, nullptr, 0, &size, nullptr, nullptr));
-        mdTypeDef mdClass = mdTypeDefNil;
-        std::vector<WCHAR> name(size, '\0');
-        IfFailRet(pMDImport->GetMemberRefProps(mb, &mdClass, name.data(), size, nullptr, nullptr, nullptr));
-        if (TypeFromToken(mdClass) == mdtTypeRef && bClassName)
+        IfFailRet(pMDImport->GetMemberRefProps(token, nullptr, nullptr, 0, &size, nullptr, nullptr));
+        mdToken typeToken = mdTypeDefNil;
+        std::vector<WCHAR> memberName(size, '\0');
+        IfFailRet(pMDImport->GetMemberRefProps(token, &typeToken, memberName.data(), size, nullptr, nullptr, nullptr));
+        if (TypeFromToken(typeToken) == mdtTypeRef)
         {
-            IfFailRet(GetFQMDNameForTypeRef(mdClass, pMDImport, mdName));
-            mdName += ".";
+            IfFailRet(GetFQMDNameForTypeRef(typeToken, pMDImport, displayName));
+            displayName += ".";
         }
-        else if (TypeFromToken(mdClass) == mdtTypeDef && bClassName)
+        else if (TypeFromToken(typeToken) == mdtTypeDef)
         {
-            IfFailRet(NameForTypeDef(mdClass, pMDImport, mdName, args));
-            mdName += ".";
+            IfFailRet(GetFQDisplayNameForTypeDef(typeToken, pMDImport, displayName, args));
+            displayName += ".";
         }
         // TODO TypeSpec
-        mdName += to_utf8(name.data());
+        displayName += to_utf8(memberName.data());
     }
-    else if (TypeFromToken(mb) == mdtTypeRef)
+    else if (TypeFromToken(token) == mdtTypeRef)
     {
-        IfFailRet(GetFQMDNameForTypeRef(mb, pMDImport, mdName));
+        IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, displayName));
     }
     else
     {
@@ -987,7 +988,7 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
         return CORDBG_E_UNSUPPORTED;
     }
 
-    mdName = RenameToCSharp(mdName);
+    displayName = RenameToCSharp(displayName);
     return S_OK;
 }
 
@@ -1046,9 +1047,6 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
 
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(pFrame->GetFunction(&trFunction));
-
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(trFunction->GetClass(&trClass));
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));
     mdMethodDef methodToken = mdMethodDefNil;
@@ -1065,9 +1063,6 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&typeDef));
-
     ToRelease<IMetaDataImport2> trMDImport2;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
@@ -1075,18 +1070,18 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
-    mdTypeDef memTypeDef = mdTypeDefNil;
+    mdTypeDef typeDef = mdTypeDefNil;
     std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
     std::string funcName = to_utf8(szFunctionName.data());
 
     ULONG methodGenericsCount = 0;
     HCORENUM hEnum = nullptr;
-    mdGenericParam gp = mdGenericParamNil;
+    mdGenericParam genParam = mdGenericParamNil;
     ULONG fetched = 0;
-    while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, methodDef, &gp, 1, &fetched)) && fetched == 1)
+    while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched)) && fetched == 1)
     {
         methodGenericsCount++;
     }
@@ -1102,9 +1097,9 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
     std::list<std::string> args;
     AddGenericArgs(pFrame, args);
 
-    if (memTypeDef != mdTypeDefNil)
+    if (typeDef != mdTypeDefNil)
     {
-        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, displayTypeName, &args)))
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
         {
             displayTypeName = "";
         }
@@ -1138,9 +1133,9 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
-    mdTypeDef memTypeDef = mdTypeDefNil;
+    mdTypeDef typeDef = mdTypeDefNil;
     std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
     std::list<std::string> args;
@@ -1183,10 +1178,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
         displayMethodName = to_utf8(szFunctionName.data());
     }
 
-    if (memTypeDef != mdTypeDefNil)
+    if (typeDef != mdTypeDefNil)
     {
-        getGenericNames(memTypeDef);
-        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, displayTypeName, &args)))
+        getGenericNames(typeDef);
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
         {
             displayTypeName = "";
         }
