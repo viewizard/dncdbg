@@ -33,13 +33,8 @@ void TrimString(std::string &str)
     str = str.substr(first, last - first + 1);
 }
 
-std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &args)
+std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *args)
 {
-    if (args.empty())
-    {
-        return name;
-    }
-
     const std::size_t offset = name.find_last_not_of("0123456789");
 
     if (offset == std::string::npos || offset == name.size() - 1 || name.at(offset) != '`')
@@ -61,7 +56,7 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
         return name;
     }
 
-    if (numArgs == 0 || numArgs > args.size())
+    if (numArgs == 0 || (args != nullptr && numArgs > args->size()))
     {
         return name;
     }
@@ -74,9 +69,17 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> &
     {
         numArgs--;
         ss << sep;
-        sep = ", ";
-        ss << args.front();
-        args.pop_front();
+
+        if (args != nullptr && !args->empty())
+        {
+            sep = ", ";
+            ss << args->front();
+            args->pop_front();
+        }
+        else
+        {
+            sep = ",";
+        }
     }
     ss << ">";
     return ss.str();
@@ -849,12 +852,7 @@ HRESULT NameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
             mdName += ".";
         }
 
-        std::string currentName = *it;
-        if (args != nullptr)
-        {
-            currentName = ConsumeGenericArgs(currentName, *args);
-        }
-        mdName += currentName;
+        mdName += ConsumeGenericArgs(*it, args);
     }
 
     return S_OK;
@@ -1041,7 +1039,8 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-HRESULT GetTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
+HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo,
+                                    std::string &displayTypeName, std::string &displayMethodName)
 {
     HRESULT Status = S_OK;
 
@@ -1105,25 +1104,21 @@ HRESULT GetTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std:
 
     if (memTypeDef != mdTypeDefNil)
     {
-        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, typeName, &args)))
+        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, displayTypeName, &args)))
         {
-            typeName = "";
+            displayTypeName = "";
         }
     }
 
-    methodName = ConsumeGenericArgs(funcName, args);
+    displayMethodName = ConsumeGenericArgs(funcName, &args);
 
     return S_OK;
 }
 
-HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName)
+HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo,
+                                    std::string &displayTypeName, std::string &displayMethodName)
 {
     HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(trFunction->GetClass(&trClass));
 
     mdMethodDef methodDef = mdMethodDefNil;
     if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
@@ -1135,9 +1130,6 @@ HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, 
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&typeDef));
 
     ToRelease<IMetaDataImport2> trMDImport2;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
@@ -1151,13 +1143,52 @@ HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, 
     IfFailRet(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-    methodName = to_utf8(szFunctionName.data());
+    std::list<std::string> args;
+    auto getGenericNames = [&](mdToken token) -> void
+    {
+        args.clear();
+
+        HCORENUM hEnum = nullptr;
+        mdGenericParam genParam = mdGenericParamNil;
+        ULONG fetched = 0;
+        while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
+        {
+            ULONG genNameLen = 0;
+            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+            {
+                continue;
+            }
+
+            std::vector<WCHAR> szGenName(genNameLen, '\0');
+            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                         szGenName.data(), genNameLen, nullptr)))
+            {
+                continue;
+            }
+
+            args.emplace_back(to_utf8(szGenName.data()));
+        }
+        trMDImport2->CloseEnum(hEnum);
+    };
+
+    getGenericNames(methodDef);
+    if (!args.empty())
+    {
+        std::ostringstream ss;
+        ss << to_utf8(szFunctionName.data()) << '`' << args.size();
+        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
+    }
+    else
+    {
+        displayMethodName = to_utf8(szFunctionName.data());
+    }
 
     if (memTypeDef != mdTypeDefNil)
     {
-        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, typeName, nullptr)))
+        getGenericNames(memTypeDef);
+        if (FAILED(NameForTypeDef(memTypeDef, trMDImport, displayTypeName, &args)))
         {
-            typeName = "";
+            displayTypeName = "";
         }
     }
 
@@ -1168,16 +1199,16 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
 {
     HRESULT Status = S_OK;
 
-    std::string typeName;
-    std::string methodName;
-
+    std::string displayTypeName;
+    std::string displayMethodName;
     std::ostringstream ss;
-    IfFailRet(GetTypeAndMethodName(pFrame, pDebugInfo, typeName, methodName));
-    if (!typeName.empty())
+    IfFailRet(GetDisplayTypeAndMethodName(pFrame, pDebugInfo, displayTypeName, displayMethodName));
+
+    if (!displayTypeName.empty())
     {
-        ss << typeName << ".";
+        ss << displayTypeName << ".";
     }
-    ss << methodName << "(";
+    ss << displayMethodName << "(";
 
     auto addMethodParameters = [&]() -> HRESULT
     {
@@ -1289,16 +1320,16 @@ HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef method
 {
     HRESULT Status = S_OK;
 
-    std::string typeName;
-    std::string methodName;
+    std::string displayTypeName;
+    std::string displayMethodName;
 
     std::ostringstream ss;
-    IfFailRet(GetTypeAndMethodName(pModule, methodToken, pDebugInfo, typeName, methodName));
-    if (!typeName.empty())
+    IfFailRet(GetDisplayTypeAndMethodName(pModule, methodToken, pDebugInfo, displayTypeName, displayMethodName));
+    if (!displayTypeName.empty())
     {
-        ss << typeName << ".";
+        ss << displayTypeName << ".";
     }
-    ss << methodName << "(";
+    ss << displayMethodName << "(";
 
     auto addMethodParameters = [&]() -> HRESULT
     {

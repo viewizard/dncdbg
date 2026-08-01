@@ -820,20 +820,19 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
     if (pForcedThisValue == nullptr && evalStack.front().identifiers.empty())
     {
-        std::string methodClass;
+        std::string metadataTypeName;
         idsEmpty = true;
-        IfFailRet(ed.pEvaluator->GetMethodClass(ed.pThread, ed.frameLevel, methodClass, isInstance));
+        IfFailRet(ed.pEvaluator->GetFQMDTypeName(ed.pThread, ed.frameLevel, metadataTypeName, isInstance));
         if (isInstance)
         {
             evalStack.front().identifiers.emplace_back("this");
         }
         else
         {
-            // here we add a full qualified "path" separated with dots (aka Class.Subclass.Subclass ..etc)
-            // although <identifiers> usually contains a vector of components of the full name qualification
+            // Note: <identifiers> usually contains a vector of components of the full name qualification.
             // Anyway, our added component will be correctly processed by Evaluator::ResolveIdentifiers() for
-            // that case as it seals all the qualification components into one with dots before using them.
-            evalStack.front().identifiers.emplace_back(methodClass);
+            // that case as it seals all the qualification components into one before using them.
+            evalStack.front().identifiers.emplace_back(metadataTypeName);
         }
     }
 

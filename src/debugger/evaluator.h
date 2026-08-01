@@ -104,13 +104,14 @@ class Evaluator
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
-    HRESULT GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis);
+    // Get the fully-qualified metadata (FQMD) type name of the method's declaring type.
+    HRESULT GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &metadataTypeName, bool &haveThis);
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
                          const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,
                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
-    HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
+    HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                   std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                   ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 

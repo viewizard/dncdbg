@@ -44,8 +44,14 @@ HRESULT NameForToken(mdToken mb, IMetaDataImport *pMDImport, std::string &mdName
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
 HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);
-HRESULT GetTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName);
-HRESULT GetTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &typeName, std::string &methodName);
+
+// Get fully-qualified display type and display method name.
+HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo,
+                                    std::string &displayTypeName, std::string &displayMethodName);
+// Get fully-qualified display type and display method name.
+HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo,
+                                    std::string &displayTypeName, std::string &displayMethodName);
+
 HRESULT GetFullyQualifiedMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &output);
 HRESULT GetFullyQualifiedMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &output);
 

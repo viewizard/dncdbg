@@ -497,13 +497,13 @@ HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeG
     return S_OK;
 }
 
-HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &methodClass,
+HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displayTypeName,
                              std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName, ranks);
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
@@ -1731,8 +1731,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-// Note: This method returns class name, not type name (will not provide generic initialization types if any).
-HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &methodClass, bool &haveThis)
+HRESULT Evaluator::GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &metadataTypeName, bool &haveThis)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -1784,14 +1783,14 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     // In case this is static method, this is not async/lambda case for sure.
     if (!haveThis)
     {
-        return MetadataHelpers::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
+        return MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName);
     }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
     {
-        return MetadataHelpers::NameForTypeDef(typeDef, trMDImport, methodClass, nullptr);
+        return MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName);
     }
 
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -1808,7 +1807,7 @@ HRESULT Evaluator::GetMethodClass(ICorDebugThread *pThread, FrameLevel frameLeve
     mdTypeDef userTypeDef = mdTypeDefNil;
     IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userTypeDef));
 
-    return MetadataHelpers::NameForTypeDef(userTypeDef, trMDImport, methodClass, nullptr);
+    return MetadataHelpers::GetFQMDTypeNameByToken(userTypeDef, trMDImport, metadataTypeName);
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
@@ -1900,8 +1899,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             {
                 if (fallbackTypeName != nullptr)
                 {
-                    std::string methodName;
-                    MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, methodName);
+                    std::string displayMethodName;
+                    MetadataHelpers::GetDisplayTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, displayMethodName);
                 }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
@@ -2191,14 +2190,14 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     return S_OK;
 }
 
-HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &methodClass,
+HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                          std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
 
     std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(methodClass, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName, ranks);
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};
@@ -2432,11 +2431,11 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return E_FAIL;
         }
 
-        std::string methodClass;
-        std::string methodName;
-        MetadataHelpers::GetTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), methodClass, methodName);
+        std::string displayTypeName;
+        std::string displayMethodName;
+        MetadataHelpers::GetDisplayTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), displayTypeName, displayMethodName);
 
-        if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, methodClass, identifiers, specifier,
+        if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
                                             &trResolvedValue, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
@@ -2444,7 +2443,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
 
         if ((ppResultType != nullptr) &&
-            SUCCEEDED(FollowNestedFindType(pThread, methodClass, identifiers, ppResultType)))
+            SUCCEEDED(FollowNestedFindType(pThread, displayTypeName, identifiers, ppResultType)))
         {
             return S_OK;
         }
