@@ -977,12 +977,11 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
                 continue;
             }
 
-            mdTypeDef memTypeDef = mdTypeDefNil;
             std::vector<WCHAR> szFunctionName(nameLen, '\0');
             DWORD methodAttr = 0;
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
                                                   &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
             {
                 continue;

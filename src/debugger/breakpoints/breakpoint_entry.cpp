@@ -162,9 +162,8 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
                 continue;
             }
 
-            mdTypeDef memTypeDef = mdTypeDefNil;
             WSTRING funcName(funcNameLen, '\0');
-            if (FAILED(pMDImport->GetMethodProps(methodDef, &memTypeDef, funcName.data(), funcNameLen, nullptr,
+            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
             {
                 continue;

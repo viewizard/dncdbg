@@ -246,8 +246,7 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
         }
 
         WSTRING szFunctionName(nameLen, '\0');
-        mdTypeDef memTypeDef = mdTypeDefNil;
-        if (FAILED(trMDImport->GetMethodProps(methodDef, &memTypeDef, szFunctionName.data(), nameLen, nullptr,
+        if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
                                               nullptr, nullptr, nullptr, nullptr, nullptr)))
         {
             continue;
