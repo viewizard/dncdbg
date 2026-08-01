@@ -25,7 +25,7 @@ class DebugInfo;
 namespace MetadataHelpers
 {
 
-// TODO: Fix all this mess with names, use:
+// Naming conventions for type names:
 // "metadata" prefix, for example "metadataTypeName", for metadata/CLR-related names, for example "MyNamespace.Class1`2+NestedClass`1"
 // "display" prefix, for example "displayTypeName", for display-related names, for example "MyNamespace.Class1<string,int>.NestedClass<int>"
 //                                                  or "MyNamespace.Class1<,>.NestedClass<>" in case generic types are not available
@@ -41,9 +41,12 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
                                  std::list<std::string> *args);
 
-HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output);
-HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output);
-HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType);
+// Get fully-qualified display type name.
+HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayElemType, std::string &displayArrayType);
+// Get fully-qualified display type name.
+HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName);
+// Get fully-qualified display type name.
+HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeName);
 
 // Get fully-qualified display type and display method name.
 HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo,

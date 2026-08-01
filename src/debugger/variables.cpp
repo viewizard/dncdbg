@@ -92,7 +92,7 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
         return S_FALSE;
     }
 
-    MetadataHelpers::GetTypeOfValue(member.trValue, var.type);
+    MetadataHelpers::GetFQDisplayTypeName(member.trValue, var.type);
     return PrintValue(pThread, pEvaluator, pEvalStackMachine, member.trValue, specifier, var.value);
 }
 
@@ -137,13 +137,13 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
                 return COR_E_OPERATIONCANCELED;
             }
 
-            std::string className;
+            std::string displayTypeName;
             if (pType)
             {
-                IfFailRet(MetadataHelpers::GetTypeOfValue(pType, className));
+                IfFailRet(MetadataHelpers::GetFQDisplayTypeName(pType, displayTypeName));
             }
 
-            members.emplace_back(name, className, trResultValue.Detach());
+            members.emplace_back(name, displayTypeName, trResultValue.Detach());
             return S_OK;
         }));
 
@@ -244,7 +244,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
 
         HRESULT Status = S_OK;
         IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trExceptionValue, FormatSpecifier::None, var.value));
-        IfFailRet(MetadataHelpers::GetTypeOfValue(trExceptionValue, var.type));
+        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, var.type));
 
         return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable, FormatSpecifier::None);
     }
@@ -285,7 +285,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             std::string fallbackTypeName;
             // If we fail to parse one variable, don't skip parsing the remaining variables.
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
-                FAILED(MetadataHelpers::GetTypeOfValue(trValue, var.type)) ||
+                FAILED(MetadataHelpers::GetFQDisplayTypeName(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, var.value)) ||
                 FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None)))
             {
@@ -409,7 +409,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
 
             Variable var;
             var.name = "Static members";
-            IfFailRet(MetadataHelpers::GetTypeOfValue(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
+            IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
             IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Class, ref.specifier));
             variables.push_back(var);
@@ -442,7 +442,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
                                                            nullptr, &trResultValue, output));
 
     variable.evaluateName = expression;
-    IfFailRet(MetadataHelpers::GetTypeOfValue(trResultValue, variable.type));
+    IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trResultValue, variable.type));
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier);
@@ -591,9 +591,9 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     }
 
     HRESULT Status = S_OK;
-    std::string className;
-    MetadataHelpers::GetTypeOfValue(trPrevValue, className);
-    if (className.back() == '?') // System.Nullable<T>
+    std::string displayTypeName;
+    MetadataHelpers::GetFQDisplayTypeName(trPrevValue, displayTypeName);
+    if (displayTypeName.back() == '?') // System.Nullable<T>
     {
         ToRelease<ICorDebugValue> trValueValue;
         ToRelease<ICorDebugValue> trHasValueValue;

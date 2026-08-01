@@ -570,9 +570,9 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     auto fillErrorOutput = [&]() -> void
     {
         std::string typeName1 = "unknown";
-        MetadataHelpers::GetTypeOfValue(trRealValue1, typeName1);
+        MetadataHelpers::GetFQDisplayTypeName(trRealValue1, typeName1);
         std::string typeName2 = "unknown";
-        MetadataHelpers::GetTypeOfValue(trRealValue2, typeName2);
+        MetadataHelpers::GetFQDisplayTypeName(trRealValue2, typeName2);
         output = "error: Operator '" + findOpName->second.second +
                     "' cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
     };
@@ -662,9 +662,9 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
                  (opcode.kind == Parser::SyntaxKind::LogicalAndExpression ||
                   opcode.kind == Parser::SyntaxKind::LogicalOrExpression))
         {
-            std::string typeName = "unknown";
-            MetadataHelpers::GetTypeOfValue(trRealValue1, typeName);
-            output = "error: Cannot implicitly convert type '" + typeName + "' to 'bool'";
+            std::string displayTypeName = "unknown";
+            MetadataHelpers::GetFQDisplayTypeName(trRealValue1, displayTypeName);
+            output = "error: Cannot implicitly convert type '" + displayTypeName + "' to 'bool'";
             return E_INVALIDARG;
         }
         else
@@ -707,9 +707,9 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
 
     auto fillErrorOutput = [&]() -> void
     {
-        std::string typeName = "unknown";
-        MetadataHelpers::GetTypeOfValue(trRealValue, typeName);
-        output = "error: Operator '" + findOpName->second.second + "' cannot be applied to operand of type '" + typeName + "'";
+        std::string displayTypeName = "unknown";
+        MetadataHelpers::GetFQDisplayTypeName(trRealValue, displayTypeName);
+        output = "error: Operator '" + findOpName->second.second + "' cannot be applied to operand of type '" + displayTypeName + "'";
     };
 
     if (elemType == ELEMENT_TYPE_VALUETYPE || elemType == ELEMENT_TYPE_CLASS)
@@ -757,7 +757,6 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
         ToRelease<ICorDebugValue> trValue;
         ToRelease<ICorDebugType> trType;
         ToRelease<ICorDebugValue2> trValue2;
-        std::string genericType;
         Status = GetFrontStackEntryValue(&trValue, nullptr, evalStack, ed, output);
         if (Status == S_OK)
         {
@@ -768,7 +767,8 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
         {
             IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
         }
-        MetadataHelpers::GetTypeOfValue(trType, genericType);
+        std::string genericType;
+        MetadataHelpers::GetFQDisplayTypeName(trType, genericType);
         generics.insert(0, "," + genericType);
         trGenericValues.emplace_back(trType.Detach());
         evalStack.pop_front();
@@ -886,7 +886,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
         else if (funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
         {
-            IfFailRet(MetadataHelpers::GetTypeOfValue(trValueArg, funcArgs.at(i).metadataTypeName));
+            // FIXME: should use GetFQMDTypeNameByICorValue instead, once it is fixed
+            IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trValueArg, funcArgs.at(i).metadataTypeName));
         }
     }
 
@@ -1473,8 +1474,8 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     // TODO add processing for parent-child class relationship
     std::string typeName1;
     std::string typeName2;
-    IfFailRet(MetadataHelpers::GetTypeOfValue(trRealValueLeftOp, typeName1));
-    IfFailRet(MetadataHelpers::GetTypeOfValue(trRealValueRightOp, typeName2));
+    IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trRealValueLeftOp, typeName1));
+    IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trRealValueRightOp, typeName2));
     output = "error CS0019: Operator ?? cannot be applied to operands of type '" + typeName1 + "' and '" + typeName2 + "'";
     return E_INVALIDARG;
 }

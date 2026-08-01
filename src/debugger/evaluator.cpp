@@ -1405,14 +1405,14 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
         while (trType != nullptr)
         {
-            std::string className;
-            MetadataHelpers::GetTypeOfValue(trType, className);
-            if (className == "decimal")
+            std::string displayTypeName;
+            MetadataHelpers::GetFQDisplayTypeName(trType, displayTypeName);
+            if (displayTypeName == "decimal")
             {
                 return S_OK;
             }
 
-            if (className.back() == '?') // System.Nullable<T>
+            if (displayTypeName.back() == '?') // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -1688,18 +1688,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            std::string baseTypeName;
+            std::string displayBaseTypeName;
             ToRelease<ICorDebugType> trBaseType;
             if (SUCCEEDED(trType->GetBase(&trBaseType)) && trBaseType != nullptr &&
-                SUCCEEDED(MetadataHelpers::GetTypeOfValue(trBaseType, baseTypeName)))
+                SUCCEEDED(MetadataHelpers::GetFQDisplayTypeName(trBaseType, displayBaseTypeName)))
             {
                 trType.Free();
 
-                if (baseTypeName == "System.Enum")
+                if (displayBaseTypeName == "System.Enum")
                 {
                     return S_OK;
                 }
-                else if (baseTypeName != "object" && baseTypeName != "System.Object" && baseTypeName != "System.ValueType")
+                else if (displayBaseTypeName != "object" && displayBaseTypeName != "System.Object" && displayBaseTypeName != "System.ValueType")
                 {
                     if (pThread != nullptr)
                     {

@@ -34,7 +34,7 @@ bool IsEnum(ICorDebugValue *pInputValue)
         return false;
     }
 
-    std::string baseTypeName;
+    std::string displayTypeName;
     ToRelease<ICorDebugValue2> trValue2;
     ToRelease<ICorDebugType> trType;
     ToRelease<ICorDebugType> trBaseType;
@@ -43,12 +43,12 @@ bool IsEnum(ICorDebugValue *pInputValue)
         FAILED(trValue2->GetExactType(&trType)) ||
         FAILED(trType->GetBase(&trBaseType)) ||
         trBaseType == nullptr ||
-        FAILED(MetadataHelpers::GetTypeOfValue(trBaseType, baseTypeName)))
+        FAILED(MetadataHelpers::GetFQDisplayTypeName(trBaseType, displayTypeName)))
     {
         return false;
     }
 
-    return baseTypeName == "System.Enum";
+    return displayTypeName == "System.Enum";
 }
 
 HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
@@ -381,21 +381,21 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         return E_UNEXPECTED;
     }
 
-    std::string elementType;
-    std::string arrayType;
+    std::string displayElemType;
+    std::string displayArrayType;
     ToRelease<ICorDebugValue2> trValue2;
     ToRelease<ICorDebugType> trType;
     ToRelease<ICorDebugType> trFirstParameter;
     if (FAILED(trArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
         FAILED(trValue2->GetExactType(&trType)) ||
         FAILED(trType->GetFirstTypeParameter(&trFirstParameter)) ||
-        FAILED(MetadataHelpers::GetTypeOfValue(trFirstParameter, elementType, arrayType)))
+        FAILED(MetadataHelpers::GetFQDisplayTypeName(trFirstParameter, displayElemType, displayArrayType)))
     {
-        elementType = "<error>";
+        displayElemType = "<error>";
     }
 
     std::ostringstream ss;
-    ss << '{' << elementType << '[';
+    ss << '{' << displayElemType << '[';
 
     std::vector<uint32_t> dims(nRank, 0);
     trArrayValue->GetDimensions(nRank, dims.data());
@@ -423,7 +423,7 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
         }
     }
 
-    ss << ']' << arrayType << '}';
+    ss << ']' << displayArrayType << '}';
     output = ss.str();
     return S_OK;
 }
@@ -643,19 +643,19 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
-            std::string typeName;
-            MetadataHelpers::GetTypeOfValue(trValue, typeName);
-            if (typeName == "decimal") // TODO: implement mechanism for printing custom type values
+            std::string displayTypeName;
+            MetadataHelpers::GetFQDisplayTypeName(trValue, displayTypeName);
+            if (displayTypeName == "decimal")
             {
                 std::string val;
                 PrintDecimalValue(trValue, val);
                 ss << val;
             }
-            else if (typeName == "void")
+            else if (displayTypeName == "void")
             {
                 ss << "Expression has been evaluated and has no value";
             }
-            else if (typeName.back() == '?') // System.Nullable<T>
+            else if (displayTypeName.back() == '?') // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -672,7 +672,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                     ss << "null";
                 }
             }
-            else if (typeName == "System.Guid")
+            else if (displayTypeName == "System.Guid")
             {
                 GUID guid{};
                 if (cbSize == sizeof(GUID) &&
@@ -707,14 +707,14 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
 
                 ss << '{';
                 std::string valueToString;
-                if (typeName != "System.Exception" && typeName != "System.Object" && typeName != "System.ValueType" &&
+                if (displayTypeName != "System.Exception" && displayTypeName != "System.Object" && displayTypeName != "System.ValueType" &&
                     SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
                     ss << valueToString;
                 }
                 else
                 {
-                    ss << typeName;
+                    ss << displayTypeName;
                 }
                 ss << '}';
             }

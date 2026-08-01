@@ -64,8 +64,8 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
     ULONG cParams = 0;
     IfFailRet(trParamEnum->GetCount(&cParams));
 
-    std::ostringstream ss_params;
-    ss_params << "(";
+    std::ostringstream ssParams;
+    ssParams << "(";
     if (cParams > 0)
     {
         for (ULONG i = 0; i < cParams; ++i)
@@ -77,18 +77,18 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 continue;
             }
 
-            std::string param;
-            IfFailRet(MetadataHelpers::GetTypeOfValue(trValue, param));
+            std::string displayTypeName;
+            IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trValue, displayTypeName));
             if (i > 0)
             {
-                ss_params << ",";
+                ssParams << ",";
             }
 
-            ss_params << param;
+            ssParams << displayTypeName;
         }
     }
-    ss_params << ")";
-    const std::string params = ss_params.str();
+    ssParams << ")";
+    const std::string params = ssParams.str();
 
     // Note, since IsEnableByCondition() during eval execution could neuter the frame, all frame-related calculations
     // must be done before entering this loop.

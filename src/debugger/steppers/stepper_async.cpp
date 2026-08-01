@@ -362,7 +362,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         // "If we are inside `async void` method, do normal step-out" from:
         // https://github.com/dotnet/runtime/blob/32d0360b73bd77256cc9a9314a3c4280a61ea9bc/src/mono/mono/component/debugger-engine.c#L1350
         std::string builderType;
-        IfFailRet(MetadataHelpers::GetTypeOfValue(trBuilderValue, builderType));
+        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trBuilderValue, builderType));
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
         {
             return m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);

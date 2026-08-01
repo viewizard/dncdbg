@@ -91,11 +91,11 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     assert(!condition.empty());
 
     std::string value;
-    std::string type;
+    std::string displayTypeName;
     ToRelease<ICorDebugValue> trResultValue;
     if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
                                                      nullptr, &trResultValue, output)) ||
-        FAILED(MetadataHelpers::GetTypeOfValue(trResultValue, type)) ||
+        FAILED(MetadataHelpers::GetFQDisplayTypeName(trResultValue, displayTypeName)) ||
         FAILED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
     {
         if (output.empty())
@@ -105,11 +105,11 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
 
         return S_OK; // some evaluation issue - ignore condition, stop at breakpoint
     }
-    if (type != "bool")
+    if (displayTypeName != "bool")
     {
         if (output.empty())
         {
-            output = "The breakpoint condition must evaluate to a boolean operation, result type is " + type;
+            output = "The breakpoint condition must evaluate to a boolean operation, result type is " + displayTypeName;
         }
 
         return S_OK; // wrong type - ignore condition, stop at breakpoint

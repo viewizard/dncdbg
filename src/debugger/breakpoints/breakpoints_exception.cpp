@@ -260,7 +260,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
 
     while (pDetails != nullptr)
     {
-        if (FAILED(MetadataHelpers::GetTypeOfValue(trExceptionValue, pDetails->fullTypeName)))
+        if (FAILED(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, pDetails->fullTypeName)))
         {
             pDetails->fullTypeName = "<unknown exception>";
         }
@@ -500,10 +500,10 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         return E_FAIL;
     }
 
-    std::string excType;
-    if (FAILED(MetadataHelpers::GetTypeOfValue(trExceptionValue, excType)))
+    std::string displayExcTypeName;
+    if (FAILED(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, displayExcTypeName)))
     {
-        excType = "<unknown exception>";
+        displayExcTypeName = "<unknown exception>";
     }
 
     const std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
@@ -549,8 +549,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 m_threadsExceptionCallbackType.emplace(tid, ExceptionCallbackType::FIRST_CHANCE);
             }
 
-            if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
-                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
+            if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, displayExcTypeName, ExceptionCategory::CLR) &&
+                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, displayExcTypeName, ExceptionCategory::CLR))
             {
                 return S_IGNORE;
             }
@@ -571,8 +571,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
             m_threadsExceptionCallbackType.emplace(tid, ExceptionCallbackType::USER_FIRST_CHANCE);
 
-            if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, excType, ExceptionCategory::CLR) &&
-                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
+            if (!CoveredByFilter(ExceptionBreakpointFilter::THROW, displayExcTypeName, ExceptionCategory::CLR) &&
+                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, displayExcTypeName, ExceptionCategory::CLR))
             {
                 return S_IGNORE;
             }
@@ -599,8 +599,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            if (!CoveredByFilter(ExceptionBreakpointFilter::USER_UNHANDLED, excType, ExceptionCategory::CLR) &&
-                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, excType, ExceptionCategory::CLR))
+            if (!CoveredByFilter(ExceptionBreakpointFilter::USER_UNHANDLED, displayExcTypeName, ExceptionCategory::CLR) &&
+                !CoveredByFilter(ExceptionBreakpointFilter::THROW_USER_UNHANDLED, displayExcTypeName, ExceptionCategory::CLR))
             {
                 m_threadsExceptionCallbackType.erase(tid);
                 return S_IGNORE;
@@ -634,7 +634,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             // By current logic, the debugger must stop at all unhandled exceptions (that will crash the application), no matter what the user has configured.
             // TODO: Some exceptions like System.AppDomainUnloadedException or System.Threading.ThreadAbortException could be ignored at unhandled,
             // since they don't crash the application. In this case:
-            //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, excType, ExceptionCategory::CLR)) - forced to emit event
+            //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, displayExcTypeName, ExceptionCategory::CLR)) - forced to emit event
 
             auto find = m_threadsExceptionCallbackType.find(tid);
             if (find != m_threadsExceptionCallbackType.end())

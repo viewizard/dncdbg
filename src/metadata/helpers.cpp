@@ -892,6 +892,8 @@ HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::s
 
 HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataName)
 {
+    // FIXME: add other CorElementType support, not only classes and structures
+
     HRESULT Status = S_OK;
     ToRelease<ICorDebugClass> trClass;
     IfFailRet(pType->GetClass(&trClass));
@@ -992,28 +994,11 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
     return S_OK;
 }
 
-HRESULT GetTypeOfValue(ICorDebugValue *pValue, std::string &output)
-{
-    ToRelease<ICorDebugType> trType;
-    ToRelease<ICorDebugValue2> trValue2;
-    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&trValue2)))) &&
-        SUCCEEDED(trValue2->GetExactType(&trType)))
-    {
-        return GetTypeOfValue(trType, output);
-    }
-    else
-    {
-        output = "<unknown>";
-    }
-
-    return S_OK;
-}
-
-HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::string &arrayType)
+HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayElemType, std::string &displayArrayType)
 {
     std::vector<ToRelease<ICorDebugType>> typeParams;
     HRESULT Status = S_OK;
-    IfFailRet(ResolveSingleType(pType, elementType, arrayType, typeParams));
+    IfFailRet(ResolveSingleType(pType, displayElemType, displayArrayType, typeParams));
 
     if (!typeParams.empty())
     {
@@ -1024,19 +1009,36 @@ HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &elementType, std::stri
         {
             IfFailRet(ResolveTypeToString(typeParams.at(i), resolvedParams.at(i)));
         }
-        ReplacePlaceholders(elementType, resolvedParams);
+        ReplacePlaceholders(displayElemType, resolvedParams);
     }
 
     return S_OK;
 }
 
-HRESULT GetTypeOfValue(ICorDebugType *pType, std::string &output)
+HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName)
 {
     HRESULT Status = S_OK;
-    std::string elementType;
-    std::string arrayType;
-    IfFailRet(GetTypeOfValue(pType, elementType, arrayType));
-    output = elementType + arrayType;
+    std::string displayElemType;
+    std::string displayArrayType;
+    IfFailRet(GetFQDisplayTypeName(pType, displayElemType, displayArrayType));
+    displayTypeName = displayElemType + displayArrayType;
+    return S_OK;
+}
+
+HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeName)
+{
+    ToRelease<ICorDebugType> trType;
+    ToRelease<ICorDebugValue2> trValue2;
+    if (SUCCEEDED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>((&trValue2)))) &&
+        SUCCEEDED(trValue2->GetExactType(&trType)))
+    {
+        return GetFQDisplayTypeName(trType, displayTypeName);
+    }
+    else
+    {
+        displayTypeName = "<unknown>";
+    }
+
     return S_OK;
 }
 
@@ -1285,7 +1287,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                 ss << ", ";
             }
 
-            std::string valueType;
+            std::string displayTypeName;
             ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about typeGenerics and methodGenerics
             {
@@ -1294,9 +1296,9 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
             }
             else if (!asyncMethod &&
                      SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
-                     SUCCEEDED(GetTypeOfValue(trValue, valueType)))
+                     SUCCEEDED(GetFQDisplayTypeName(trValue, displayTypeName)))
             {
-                ss << valueType << " ";
+                ss << displayTypeName << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
