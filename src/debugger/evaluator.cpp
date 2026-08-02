@@ -1076,7 +1076,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 
     // Get the MethodTable address via ICorDebugType2::GetTypeID.
     ToRelease<ICorDebugType2> trType2;
-    COR_TYPEID typeID = {0, 0};
+    COR_TYPEID typeID{0, 0};
     if (SUCCEEDED(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2))) &&
         SUCCEEDED(trType2->GetTypeID(&typeID)) && typeID.token1 != 0)
     {
