@@ -1309,6 +1309,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
 {
     HRESULT Status = S_OK;
+    bool showInRaw = (specifier & FormatSpecifier::DisplaysInRawMode) != FormatSpecifier::None ||
+                     (GetEvalFlags() & EVAL_SHOWRAWVALUES) != 0U;
 
     struct WalkValue
     {
@@ -1447,8 +1449,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
 
-            if ((specifier & FormatSpecifier::DisplaysInRawMode) == FormatSpecifier::None &&
-                (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U && isNull == FALSE && !isTypeProxyValue &&
+            if (!showInRaw && isNull == FALSE && !isTypeProxyValue &&
                 (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE))
             {
                 bool typeChecked = false;
@@ -1490,9 +1491,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(ForEachFields(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
-                    const DebuggerBrowsableState browsableState = (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U ?
-                                                                  GetDebuggerBrowsableAttributeState(trMDImport, fieldDef) :
-                                                                  DebuggerBrowsableState::Collapsed;
+                    const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :
+                                                                              GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
                         return S_OK; // Return with success to continue walk.
@@ -1590,9 +1590,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             Status = ForEachProperties(trMDImport, currentTypeDef,
                 [&](mdProperty propertyDef) -> HRESULT
                 {
-                    const DebuggerBrowsableState browsableState = (GetEvalFlags() & EVAL_SHOWRAWVALUES) == 0U ?
-                                                                  GetDebuggerBrowsableAttributeState(trMDImport, propertyDef) :
-                                                                  DebuggerBrowsableState::Collapsed;
+                    const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :
+                                                                              GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
                         return S_OK; // Return with success to continue walk.
