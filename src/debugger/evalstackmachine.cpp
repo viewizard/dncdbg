@@ -880,14 +880,10 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
         IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
 
-        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
+        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS ||
+            funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
         {
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
-        }
-        else if (funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
-        {
-            // FIXME: should use GetFQMDTypeNameByICorValue instead, once it is fixed
-            IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trValueArg, funcArgs.at(i).metadataTypeName));
         }
     }
 

@@ -20,67 +20,6 @@ namespace
 constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
 constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 
-void GetElementTypeName(CorElementType elemType, std::string &typeName)
-{
-    switch (elemType)
-    {
-    case ELEMENT_TYPE_VOID:
-        typeName = "void";
-        break;
-    case ELEMENT_TYPE_BOOLEAN:
-        typeName = "bool";
-        break;
-    case ELEMENT_TYPE_CHAR:
-        typeName = "char";
-        break;
-    case ELEMENT_TYPE_I1:
-        typeName = "sbyte";
-        break;
-    case ELEMENT_TYPE_U1:
-        typeName = "byte";
-        break;
-    case ELEMENT_TYPE_I2:
-        typeName = "short";
-        break;
-    case ELEMENT_TYPE_U2:
-        typeName = "ushort";
-        break;
-    case ELEMENT_TYPE_I4:
-        typeName = "int";
-        break;
-    case ELEMENT_TYPE_U4:
-        typeName = "uint";
-        break;
-    case ELEMENT_TYPE_I8:
-        typeName = "long";
-        break;
-    case ELEMENT_TYPE_U8:
-        typeName = "ulong";
-        break;
-    case ELEMENT_TYPE_R4:
-        typeName = "float";
-        break;
-    case ELEMENT_TYPE_R8:
-        typeName = "double";
-        break;
-    case ELEMENT_TYPE_U:
-        typeName = "nuint";
-        break;
-    case ELEMENT_TYPE_I:
-        typeName = "nint";
-        break;
-    case ELEMENT_TYPE_STRING:
-        typeName = "string";
-        break;
-    case ELEMENT_TYPE_OBJECT:
-        typeName = "object";
-        break;
-    default:
-        typeName = "";
-        break;
-    }
-}
-
 // Skip array shape data in the signature (rank, sizes, lower bounds).
 HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 {
@@ -229,7 +168,7 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 
 bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
 {
-    static const std::unordered_map<CorElementType, SigElementType> aliases = {
+    static const std::unordered_map<CorElementType, SigElementType> aliases{
         {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
         {ELEMENT_TYPE_CHAR,    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
         {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
@@ -398,7 +337,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         case ELEMENT_TYPE_OBJECT:
             if (addElementTypeName)
             {
-                GetElementTypeName(sigElementType.elemType, sigElementType.metadataTypeName);
+                Status = MetadataHelpers::GetBuiltInTypeName(sigElementType.elemType, sigElementType.metadataTypeName);
+                assert(SUCCEEDED(Status));
             }
             break;
 

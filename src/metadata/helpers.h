@@ -76,6 +76,10 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
 // and the proper "metadata" type name. It provides a result equivalent to a ParseElementType() call with the `addElementTypeName = false` parameter.
 SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName);
 
+// Returns the C# keyword/name for a built-in CorElementType (e.g. "void", "int", "string", "object").
+// Returns E_FAIL for element types that are not built-in primitives or keywords.
+HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName);
+
 } // namespace MetadataHelpers
 
 } // namespace dncdbg

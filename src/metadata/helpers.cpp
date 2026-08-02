@@ -103,7 +103,7 @@ HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, s
 // For ELEMENT_TYPE_VALUETYPE/ELEMENT_TYPE_CLASS with generic type parameters,
 // the type parameters are collected into `outTypeParams` without being resolved
 // to strings. The caller is responsible for resolving them separately.
-HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::string &arrayType,
+HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, std::string &arrayType,
                           std::vector<ToRelease<ICorDebugType>> &outTypeParams)
 {
     if (pType == nullptr)
@@ -136,7 +136,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
             trCurrentType = trFirstParameter.Detach();
             return true; // Continue processing the inner type
         }
-        elementType = "<unknown>";
+        elementTypeName = "<unknown>";
         for (const auto &suffix : typeSuffixes)
         {
             arrayType += suffix;
@@ -171,7 +171,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
         {
             std::ostringstream ss;
             ss << "(Unhandled CorElementType: 0x" << std::hex << elemType << ")";
-            elementType = ss.str();
+            elementTypeName = ss.str();
             return S_OK;
         }
 
@@ -180,7 +180,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
         {
             std::ostringstream ss;
             // Defaults in case we fail...
-            elementType = (elemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
+            elementTypeName = (elemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
 
             mdTypeDef typeDef = mdTypeDefNil;
             ToRelease<ICorDebugClass> trClass;
@@ -233,69 +233,38 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
                     }
                 }
             }
-            elementType = ss.str();
-            finalizeSuffixes();
-            return S_OK;
+            elementTypeName = ss.str();
+            break;
         }
 
         case ELEMENT_TYPE_VOID:
-            elementType = "void";
-            break;
         case ELEMENT_TYPE_BOOLEAN:
-            elementType = "bool";
-            break;
         case ELEMENT_TYPE_CHAR:
-            elementType = "char";
-            break;
         case ELEMENT_TYPE_I1:
-            elementType = "sbyte";
-            break;
         case ELEMENT_TYPE_U1:
-            elementType = "byte";
-            break;
         case ELEMENT_TYPE_I2:
-            elementType = "short";
-            break;
         case ELEMENT_TYPE_U2:
-            elementType = "ushort";
-            break;
         case ELEMENT_TYPE_I4:
-            elementType = "int";
-            break;
         case ELEMENT_TYPE_U4:
-            elementType = "uint";
-            break;
         case ELEMENT_TYPE_I8:
-            elementType = "long";
-            break;
         case ELEMENT_TYPE_U8:
-            elementType = "ulong";
-            break;
         case ELEMENT_TYPE_R4:
-            elementType = "float";
-            break;
         case ELEMENT_TYPE_R8:
-            elementType = "double";
-            break;
         case ELEMENT_TYPE_OBJECT:
-            elementType = "object";
-            break;
         case ELEMENT_TYPE_STRING:
-            elementType = "string";
-            break;
         case ELEMENT_TYPE_I:
-            elementType = "nint";
-            break;
         case ELEMENT_TYPE_U:
-            elementType = "nuint";
+            Status = GetBuiltInTypeName(elemType, elementTypeName);
+            assert(SUCCEEDED(Status));
             break;
+
         case ELEMENT_TYPE_SZARRAY:
             typeSuffixes.emplace_back("[]");
             if (processNestedType())
             {
                 continue;
             }
-            return S_OK;
+            break;
         case ELEMENT_TYPE_ARRAY:
         {
             std::ostringstream ss;
@@ -312,7 +281,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
             {
                 continue;
             }
-            return S_OK;
+            break;
         }
         case ELEMENT_TYPE_BYREF:
             typeSuffixes.emplace_back(""); // BYREF (in, out, ref) doesn't add visible suffix currently
@@ -320,25 +289,154 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementType, std::s
             {
                 continue;
             }
-            return S_OK;
+            break;
         case ELEMENT_TYPE_PTR:
             typeSuffixes.emplace_back("*");
             if (processNestedType())
             {
                 continue;
             }
-            return S_OK;
+            break;
         case ELEMENT_TYPE_FNPTR:
-            elementType = "*(...)";
+            elementTypeName = "*(...)";
             break;
         case ELEMENT_TYPE_TYPEDBYREF:
-            elementType = "typedbyref";
+            elementTypeName = "typedbyref";
             break;
         }
 
-        // For simple types, build arrayType from accumulated suffixes and return
+        // Build arrayType from accumulated suffixes and exit from the loop
         finalizeSuffixes();
-        return S_OK;
+        break;
+    }
+
+    return S_OK;
+}
+
+HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, std::string &arrayType)
+{
+    if (pType == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugType> trCurrentType(pType);
+    trCurrentType->AddRef(); // Hold reference since we're taking ownership
+
+    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
+    std::vector<std::string> typeSuffixes;
+
+    // Helper lambda to build arrayType from accumulated suffixes
+    auto finalizeSuffixes = [&]()
+    {
+        for (const auto &suffix : typeSuffixes)
+        {
+            arrayType += suffix;
+        }
+    };
+
+    // Helper lambda to process nested type - returns true if we should continue loop
+    auto processNestedType = [&]() -> bool
+    {
+        ToRelease<ICorDebugType> trFirstParameter;
+        if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
+        {
+            trCurrentType = trFirstParameter.Detach();
+            return true; // Continue processing the inner type
+        }
+        elementTypeName = "<unknown>";
+        for (const auto &suffix : typeSuffixes)
+        {
+            arrayType += suffix;
+        }
+        return false; // Exit loop
+    };
+
+    // Iteratively process nested types until we reach a base type
+    while (trCurrentType != nullptr)
+    {
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(trCurrentType->GetType(&elemType));
+
+        switch (elemType)
+        {
+        default:
+        {
+            std::ostringstream ss;
+            ss << "(Unhandled CorElementType: 0x" << std::hex << elemType << ")";
+            elementTypeName = ss.str();
+            return S_OK;
+        }
+
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+        {
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trCurrentType->GetClass(&trClass));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trClass->GetModule(&trModule));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            mdToken token = mdTokenNil;
+            IfFailRet(trClass->GetToken(&token));
+            IfFailRet(GetFQMDTypeNameByToken(token, trMDImport, elementTypeName));
+            break;
+        }
+
+        case ELEMENT_TYPE_VOID:
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_OBJECT:
+        case ELEMENT_TYPE_STRING:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_U:
+            Status = GetBuiltInTypeName(elemType, elementTypeName);
+            assert(SUCCEEDED(Status));
+            break;
+
+        case ELEMENT_TYPE_SZARRAY:
+            typeSuffixes.emplace_back("[]");
+            if (processNestedType())
+            {
+                continue;
+            }
+            break;
+        case ELEMENT_TYPE_ARRAY:
+        {
+            std::ostringstream ss;
+            uint32_t rank = 0;
+            trCurrentType->GetRank(&rank);
+            ss << "[";
+            for (uint32_t i = 0; i < rank - 1; i++)
+            {
+                ss << ",";
+            }
+            ss << "]";
+            typeSuffixes.emplace_back(ss.str());
+            if (processNestedType())
+            {
+                continue;
+            }
+            break;
+        }
+        }
+
+        // Build arrayType from accumulated suffixes and exit from the loop
+        finalizeSuffixes();
+        break;
     }
 
     return S_OK;
@@ -472,7 +570,7 @@ HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 
 std::string RenameToSystem(const std::string &typeName)
 {
-    static const std::unordered_map<std::string, std::string> cs2system = {
+    static const std::unordered_map<std::string, std::string> cs2system{
         {"void",    "System.Void"},
         {"bool",    "System.Boolean"},
         {"byte",    "System.Byte"},
@@ -498,7 +596,7 @@ std::string RenameToSystem(const std::string &typeName)
 
 std::string RenameToCSharp(const std::string &typeName)
 {
-    static const std::unordered_map<std::string, std::string> system2cs = {
+    static const std::unordered_map<std::string, std::string> system2cs{
         {"System.Void",    "void"},
         {"System.Boolean", "bool"},
         {"System.Byte",    "byte"},
@@ -892,20 +990,12 @@ HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::s
 
 HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataName)
 {
-    // FIXME: add other CorElementType support, not only classes and structures
-
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pType->GetClass(&trClass));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trClass->GetModule(&trModule));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-    mdToken token = mdTokenNil;
-    IfFailRet(trClass->GetToken(&token));
-    return GetFQMDTypeNameByToken(token, trMDImport, metadataName);
+    std::string metadataElemType;
+    std::string metadataArrayType;
+    IfFailRet(ResolveMDSingleType(pType, metadataElemType, metadataArrayType));
+    metadataName = metadataElemType + metadataArrayType;
+    return S_OK;
 }
 
 HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadataName)
@@ -1675,7 +1765,7 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
 
 SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName)
 {
-    static const std::unordered_map<std::string, SigElementType> stypes = {
+    static const std::unordered_map<std::string, SigElementType> stypes{
         {"void",    {ELEMENT_TYPE_VOID,    ""}},
         {"bool",    {ELEMENT_TYPE_BOOLEAN, ""}},
         {"byte",    {ELEMENT_TYPE_U1,      ""}},
@@ -1718,6 +1808,38 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
     sigElemType.elemType = ELEMENT_TYPE_CLASS;
     sigElemType.metadataTypeName = displayTypeName;
     return sigElemType;
+}
+
+HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName)
+{
+    static std::unordered_map<CorElementType, std::string> builtInTypesAndKeywords{
+        {ELEMENT_TYPE_VOID,    "void"},
+        {ELEMENT_TYPE_BOOLEAN, "bool"},
+        {ELEMENT_TYPE_CHAR,    "char"},
+        {ELEMENT_TYPE_I1,      "sbyte"},
+        {ELEMENT_TYPE_U1,      "byte"},
+        {ELEMENT_TYPE_I2,      "short"},
+        {ELEMENT_TYPE_U2,      "ushort"},
+        {ELEMENT_TYPE_I4,      "int"},
+        {ELEMENT_TYPE_U4,      "uint"},
+        {ELEMENT_TYPE_I8,      "long"},
+        {ELEMENT_TYPE_U8,      "ulong"},
+        {ELEMENT_TYPE_R4,      "float"},
+        {ELEMENT_TYPE_R8,      "double"},
+        {ELEMENT_TYPE_U,       "nuint"},
+        {ELEMENT_TYPE_I,       "nint"},
+        {ELEMENT_TYPE_STRING,  "string"},
+        {ELEMENT_TYPE_OBJECT,  "object"}
+    };
+
+    auto findName = builtInTypesAndKeywords.find(elemType);
+    if (findName == builtInTypesAndKeywords.end())
+    {
+        return E_FAIL;
+    }
+
+    typeName = findName->second;
+    return S_OK;
 }
 
 } // namespace dncdbg::MetadataHelpers
