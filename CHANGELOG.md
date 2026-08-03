@@ -47,6 +47,7 @@ Upcoming changes compared to previous version.
 - Fixed error handling in static-member detection.
 - Fixed type resolution corruption in `ResolveTypeParameters` where a partial type match in one module would corrupt the identifier start index for subsequent modules.
 - Fixed `FindType` to avoid committing partial identifier-match state on failure by using a temporary index.
+- Fixed inherited member name-change logic to avoid displaying an empty string instead of the corresponding base type.
 
 </br>
 </br>

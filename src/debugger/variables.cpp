@@ -150,13 +150,14 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
     return S_OK;
 }
 
-void FixupInheritedFieldNames(std::vector<VariableMember> &members)
+void FixupInheritedNames(std::vector<VariableMember> &members)
 {
-    std::unordered_set<std::string> names;
+    std::unordered_set<std::string> usedNames;
     for (auto &it : members)
     {
-        auto r = names.insert(it.name);
-        if (!r.second)
+        auto [iter, success] = usedNames.insert(it.name);
+
+        if (!success && !it.ownerType.empty())
         {
             it.name += " (" + it.ownerType + ")";
         }
@@ -380,7 +381,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
                                        ref.specifier, members, ref.valueKind == ValueKind::Class, hasStaticMembers,
                                        start, count == 0 ? INT_MAX : start + count));
 
-    FixupInheritedFieldNames(members);
+    FixupInheritedNames(members);
 
     for (auto &it : members)
     {
