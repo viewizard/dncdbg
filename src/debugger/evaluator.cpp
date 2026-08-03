@@ -1311,6 +1311,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     HRESULT Status = S_OK;
     bool showInRaw = (specifier & FormatSpecifier::DisplaysInRawMode) != FormatSpecifier::None ||
                      (GetEvalFlags() & EVAL_SHOWRAWVALUES) != 0U;
+    bool showHidden = (specifier & FormatSpecifier::DisplaysHiddenMembers) != FormatSpecifier::None;
 
     struct WalkValue
     {
@@ -1503,7 +1504,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, &fieldAttr,
                                                         nullptr, nullptr, nullptr, nullptr, nullptr));
 
-                    if (isTypeProxyValue &&
+                    if (isTypeProxyValue && !showHidden &&
                         (fieldAttr & fdFieldAccessMask) != fdPublic)
                     {
                         return S_OK; // Return with success to continue walk.
@@ -1528,7 +1529,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         // More about compiler generated names in Roslyn sources:
                         // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
                         // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-                        if (IsSynthesizedLocalName(mdName))
+                        if (!showHidden && IsSynthesizedLocalName(mdName))
                         {
                             return S_OK; // Return with success to continue walk.
                         }
@@ -1616,7 +1617,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
-                        if (isTypeProxyValue &&
+                        if (isTypeProxyValue && !showHidden &&
                             (getterAttr & mdMemberAccessMask) != mdPublic)
                         {
                             return S_OK; // Return with success to continue walk.

@@ -9,3 +9,5 @@ Related to [Format specifiers in C# in the Visual Studio debugger](https://learn
 **nq** : Display string with no quotes.
 
 **raw** : Display item as it appears in the raw item node. Valid on proxy objects only.
+
+**hidden** : Display all public and non-public members (non-public members of proxy object, auto-generated fields, etc).

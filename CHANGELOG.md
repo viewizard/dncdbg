@@ -19,7 +19,7 @@ Upcoming changes compared to previous version.
 - Added support for `DebuggerTypeProxyAttribute` to classes, structures and assemblies.
 - Added TestDebuggerTypeProxy.
 - Added TestDebuggerRawValues.
-- Added support for `ac`, `h`, `nq` and `raw` format specifiers in expression evaluation result display.
+- Added support for `ac`, `h`, `nq`, `raw` and `hidden` format specifiers in expression evaluation result display.
 - Added TestFormatSpecifiers.
 - Added TestFormatSpecifiersAc.
 - Added support for `DebuggerDisplayAttribute` to classes and structures.
