@@ -1377,15 +1377,15 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                 ss << ", ";
             }
 
+            if (argElementTypes.size() > i && !argElementTypes.at(i).parameterModifier.empty())
+            {
+                ss << argElementTypes.at(i).parameterModifier << " ";
+            }
+
             std::string displayTypeName;
             ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about genericTypeParameters and genericMethodParameters
             {
-                if (!argElementTypes.at(i).parameterModifiers.empty())
-                {
-                    ss << argElementTypes.at(i).parameterModifiers << " ";
-                }
-
                 // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }
@@ -1474,13 +1474,13 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
                 ss << ", ";
             }
 
+            if (!argElementTypes.at(i).parameterModifier.empty())
+            {
+                ss << argElementTypes.at(i).parameterModifier << " ";
+            }
+
             if (!argElementTypes.at(i).metadataTypeName.empty())
             {
-                if (!argElementTypes.at(i).parameterModifiers.empty())
-                {
-                    ss << argElementTypes.at(i).parameterModifiers << " ";
-                }
-
                 // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }

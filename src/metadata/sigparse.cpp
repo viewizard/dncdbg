@@ -300,15 +300,15 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             // 'ref' has both pdIn and pdOut, or neither flag set.
             if ((flags & pdOut) != 0U && (flags & pdIn) == 0U)
             {
-                sigElementType.parameterModifiers = "out";
+                sigElementType.parameterModifier = "out";
             }
             else if ((flags & pdIn) != 0U && (flags & pdOut) == 0U)
             {
-                sigElementType.parameterModifiers = "in";
+                sigElementType.parameterModifier = "in";
             }
             else
             {
-                sigElementType.parameterModifiers = "ref";
+                sigElementType.parameterModifier = "ref";
             }
 
             addElementTypeName = true;
@@ -447,7 +447,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 
     returnElementType.elemType = ELEMENT_TYPE_MAX;
     returnElementType.metadataTypeName.clear();
-    returnElementType.parameterModifiers.clear();
+    returnElementType.parameterModifier.clear();
     argElementTypes.clear();
 
     // 1. calling convention for MethodDefSig:
