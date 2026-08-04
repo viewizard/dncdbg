@@ -1332,8 +1332,8 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
 
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
-        const std::vector<SigElementType> typeGenerics; // TODO fill this vector
-        const std::vector<SigElementType> methodGenerics; // TODO fill this vector
+        const std::vector<SigElementType> genericTypeParameters; // TODO fill this vector
+        const std::vector<SigElementType> genericMethodParameters; // TODO fill this vector
         // Ignore failed return code here, we need all we could parse from sig.
         ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
@@ -1379,7 +1379,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
 
             std::string displayTypeName;
             ToRelease<ICorDebugValue> trValue;
-            if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about typeGenerics and methodGenerics
+            if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about genericTypeParameters and genericMethodParameters
             {
                 // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
@@ -1808,6 +1808,33 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
     sigElemType.elemType = ELEMENT_TYPE_CLASS;
     sigElemType.metadataTypeName = displayTypeName;
     return sigElemType;
+}
+
+HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+
+    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
+    {
+        ULONG fetched = 0;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
+
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
+        {
+            SigElementType argElType;
+            trCurrentTypeParam->GetType(&argElType.elemType);
+            if (argElType.elemType == ELEMENT_TYPE_VALUETYPE || argElType.elemType == ELEMENT_TYPE_CLASS ||
+                argElType.elemType == ELEMENT_TYPE_SZARRAY || argElType.elemType == ELEMENT_TYPE_ARRAY)
+            {
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trCurrentTypeParam, argElType.metadataTypeName));
+            }
+            genericTypeParameters.emplace_back(argElType);
+            trCurrentTypeParam.Free();
+        }
+    }
+
+    return S_OK;
 }
 
 HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName)

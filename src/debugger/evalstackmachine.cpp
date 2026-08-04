@@ -888,9 +888,9 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
     }
 
-    std::vector<SigElementType> methodGenerics;
-    methodGenerics.reserve(genericMethodFQDisplayTypeNames.size());
-    std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(methodGenerics),
+    std::vector<SigElementType> genericMethodParameters;
+    genericMethodParameters.reserve(genericMethodFQDisplayTypeNames.size());
+    std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(genericMethodParameters),
                    [&ed](const auto &displayTypeName)
                    {
                        return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName);
@@ -908,7 +908,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
         for (size_t i = 0; i < funcArgs.size(); ++i)
         {
-            if (FAILED(ApplyMethodGenerics(methodGenerics, methodArgs.at(i))) ||
+            if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i))) ||
                 funcArgs.at(i) != methodArgs.at(i))
             {
                 return S_OK; // Return with success to continue walk.

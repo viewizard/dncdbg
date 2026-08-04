@@ -471,33 +471,6 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
         });
 }
 
-HRESULT GetTypeGenerics(ICorDebugType *pType, std::vector<SigElementType> &typeGenerics)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-
-    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ULONG fetched = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
-
-        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &fetched)) && fetched == 1)
-        {
-            SigElementType argElType;
-            trCurrentTypeParam->GetType(&argElType.elemType);
-            if (argElType.elemType == ELEMENT_TYPE_VALUETYPE || argElType.elemType == ELEMENT_TYPE_CLASS ||
-                argElType.elemType == ELEMENT_TYPE_SZARRAY || argElType.elemType == ELEMENT_TYPE_ARRAY)
-            {
-                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trCurrentTypeParam, argElType.metadataTypeName));
-            }
-            typeGenerics.emplace_back(argElType);
-            trCurrentTypeParam.Free();
-        }
-    }
-
-    return S_OK;
-}
-
 HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displayTypeName,
                              std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
@@ -950,8 +923,8 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
     pInputType->AddRef();
     ToRelease<ICorDebugType> trInputType(pInputType);
 
-    std::vector<SigElementType> typeGenerics;
-    IfFailRet(GetTypeGenerics(pInputType, typeGenerics));
+    std::vector<SigElementType> genericTypeParameters;
+    IfFailRet(MetadataHelpers::GetGenericTypeParameters(pInputType, genericTypeParameters));
 
     while (trInputType != nullptr)
     {
@@ -995,7 +968,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
                 continue;
             }
 
-            if (FAILED(ApplyTypeGenerics(typeGenerics, returnElementType)))
+            if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, returnElementType)))
             {
                 continue;
             }
@@ -1003,7 +976,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
             bool applyFailed = false;
             for (auto &argType : argElementTypes)
             {
-                if (FAILED(ApplyTypeGenerics(typeGenerics, argType)))
+                if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, argType)))
                 {
                     applyFailed = true;
                 }

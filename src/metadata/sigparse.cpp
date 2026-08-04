@@ -493,16 +493,16 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     return S_OK;
 }
 
-HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigElementType &methodArg)
+HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg)
 {
     if (methodArg.genericElemType == ELEMENT_TYPE_VAR)
     {
-        if (methodArg.varNum >= typeGenerics.size())
+        if (methodArg.varNum >= genericTypeParameters.size())
         {
             return E_INVALIDARG;
         }
-        methodArg.elemType = typeGenerics.at(methodArg.varNum).elemType;
-        methodArg.metadataTypeName = typeGenerics.at(methodArg.varNum).metadataTypeName;
+        methodArg.elemType = genericTypeParameters.at(methodArg.varNum).elemType;
+        methodArg.metadataTypeName = genericTypeParameters.at(methodArg.varNum).metadataTypeName;
         methodArg.genericElemType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }
@@ -510,16 +510,16 @@ HRESULT ApplyTypeGenerics(const std::vector<SigElementType> &typeGenerics, SigEl
     return S_OK;
 }
 
-HRESULT ApplyMethodGenerics(const std::vector<SigElementType> &methodGenerics, SigElementType &methodArg)
+HRESULT ApplyGenericMethodParameters(const std::vector<SigElementType> &genericMethodParameters, SigElementType &methodArg)
 {
     if (methodArg.genericElemType == ELEMENT_TYPE_MVAR)
     {
-        if (methodArg.varNum >= methodGenerics.size())
+        if (methodArg.varNum >= genericMethodParameters.size())
         {
             return E_INVALIDARG;
         }
-        methodArg.elemType = methodGenerics.at(methodArg.varNum).elemType;
-        methodArg.metadataTypeName = methodGenerics.at(methodArg.varNum).metadataTypeName;
+        methodArg.elemType = genericMethodParameters.at(methodArg.varNum).elemType;
+        methodArg.metadataTypeName = genericMethodParameters.at(methodArg.varNum).metadataTypeName;
         methodArg.genericElemType = ELEMENT_TYPE_END;
         methodArg.varNum = 0;
     }
