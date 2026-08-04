@@ -257,12 +257,11 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 {
     HRESULT Status = S_OK;
 
-    // Collect array/wrapper prefixes and suffixes iteratively instead of recursing.
-    // Each entry: { outerElemType, prefix, suffix } where prefix and suffix are appended after the base type is resolved.
+    // Collect array/wrapper suffixes iteratively instead of recursing.
+    // Each entry: { outerElemType, suffix } where the suffix is appended after the base type is resolved.
     struct Wrapper
     {
         CorElementType outerElemType;
-        std::string prefix;
         std::string suffix;
     };
     std::vector<Wrapper> wrappers;
@@ -279,7 +278,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         {
             // The recursive version parsed the inner type first, then set elemType back to SZARRAY
             // and appended "[]". We record this and continue the loop to parse the inner type.
-            wrappers.push_back({elemType, {}, "[]"});
+            wrappers.push_back({elemType, "[]"});
             // addElementTypeName must be true for inner types (matches original recursive call).
             addElementTypeName = true;
             continue;
@@ -290,7 +289,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             // We need to read the inner type first (handled by continuing the loop),
             // but the array shape data follows the inner type in the signature.
             // Record a placeholder suffix; we'll fill it in after the loop.
-            wrappers.push_back({elemType, {}, {}});
+            wrappers.push_back({elemType, {}});
             addElementTypeName = true;
             continue;
         }
@@ -301,15 +300,15 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             // 'ref' has both pdIn and pdOut, or neither flag set.
             if ((flags & pdOut) != 0U && (flags & pdIn) == 0U)
             {
-                wrappers.push_back({elemType, "out ", {}});
+                sigElementType.parameterModifiers = "out";
             }
             else if ((flags & pdIn) != 0U && (flags & pdOut) == 0U)
             {
-                wrappers.push_back({elemType, "in ", {}});
+                sigElementType.parameterModifiers = "in";
             }
             else
             {
-                wrappers.push_back({elemType, "ref ", {}});
+                sigElementType.parameterModifiers = "ref";
             }
 
             addElementTypeName = true;
@@ -426,7 +425,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
                 it->suffix = "[" + std::string(rank - 1, ',') + "]";
             }
         }
-        sigElementType.metadataTypeName = it->prefix + sigElementType.metadataTypeName + it->suffix;
+        sigElementType.metadataTypeName = sigElementType.metadataTypeName + it->suffix;
     }
 
     // Set the outermost elemType if there were any wrappers.
@@ -448,6 +447,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 
     returnElementType.elemType = ELEMENT_TYPE_MAX;
     returnElementType.metadataTypeName.clear();
+    returnElementType.parameterModifiers.clear();
     argElementTypes.clear();
 
     // 1. calling convention for MethodDefSig:

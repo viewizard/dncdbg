@@ -284,7 +284,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             break;
         }
         case ELEMENT_TYPE_BYREF:
-            typeSuffixes.emplace_back(""); // BYREF (in, out, ref) doesn't add visible suffix currently
+            typeSuffixes.emplace_back(""); // BYREF (in, out, ref) doesn't add visible prefix currently
             if (processNestedType())
             {
                 continue;
@@ -1381,6 +1381,11 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
             ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about genericTypeParameters and genericMethodParameters
             {
+                if (!argElementTypes.at(i).parameterModifiers.empty())
+                {
+                    ss << argElementTypes.at(i).parameterModifiers << " ";
+                }
+
                 // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }
@@ -1471,6 +1476,11 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
 
             if (!argElementTypes.at(i).metadataTypeName.empty())
             {
+                if (!argElementTypes.at(i).parameterModifiers.empty())
+                {
+                    ss << argElementTypes.at(i).parameterModifiers << " ";
+                }
+
                 // TODO: convert to display type name
                 ss << argElementTypes.at(i).metadataTypeName << " ";
             }

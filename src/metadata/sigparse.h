@@ -23,6 +23,7 @@ struct SigElementType
 {
     CorElementType elemType{ELEMENT_TYPE_MAX};
     std::string metadataTypeName;
+    std::string parameterModifiers; // for example, `in`, `out` or `ref`
     CorElementType genericElemType{ELEMENT_TYPE_END};
     ULONG varNum{0};
 
