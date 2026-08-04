@@ -180,7 +180,8 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &metadataTypeName, Co
 {
     HRESULT Status = S_OK;
     IfFailRet(pTypeValue->GetType(&elemType));
-    if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
+    if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE ||
+        elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
         ToRelease<ICorDebugValue2> trTypeValue2;
         IfFailRet(pTypeValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trTypeValue2)));
