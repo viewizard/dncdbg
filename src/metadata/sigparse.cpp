@@ -445,9 +445,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     ULONG cParams = 0; // Count of signature parameters.
     ULONG convFlags = 0;
 
-    returnElementType.elemType = ELEMENT_TYPE_MAX;
-    returnElementType.metadataTypeName.clear();
-    returnElementType.parameterModifier.clear();
+    returnElementType.Clear();
     argElementTypes.clear();
 
     // 1. calling convention for MethodDefSig:

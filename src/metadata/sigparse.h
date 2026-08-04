@@ -34,6 +34,15 @@ struct SigElementType
     {
     }
 
+    void Clear()
+    {
+        elemType = ELEMENT_TYPE_MAX;
+        metadataTypeName.clear();
+        parameterModifier.clear();
+        genericElemType = ELEMENT_TYPE_END;
+        varNum = 0;
+    }
+
     static bool isAlias(CorElementType elemType1, CorElementType elemType2, const std::string &name2);
     [[nodiscard]] bool areEqual(const SigElementType &arg) const;
     bool operator==(const SigElementType &arg) const
