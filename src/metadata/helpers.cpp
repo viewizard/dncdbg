@@ -1386,8 +1386,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
             ToRelease<ICorDebugValue> trValue;
             if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about genericTypeParameters and genericMethodParameters
             {
-                // TODO: convert to display type name
-                ss << argElementTypes.at(i).metadataTypeName << " ";
+                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
             }
             else if (!asyncMethod &&
                      SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
@@ -1481,8 +1480,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
 
             if (!argElementTypes.at(i).metadataTypeName.empty())
             {
-                // TODO: convert to display type name
-                ss << argElementTypes.at(i).metadataTypeName << " ";
+                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
@@ -1571,6 +1569,54 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     TrimString(baseName);
     metadataName = baseName + '`' + std::to_string(genericTypes.size());
     return genericTypes;
+}
+
+std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *args)
+{
+    // If the metadata name has no type parameters or nested classes, it is identical to the display name.
+    if (metadataName.find_first_of("+`") == std::string::npos)
+    {
+        return metadataName;
+    }
+
+    std::string processName = metadataName;
+    std::string suffix;
+    const std::size_t startSuffix = processName.find('[');
+    if (startSuffix != std::string::npos)
+    {
+        suffix = processName.substr(startSuffix);
+        processName.erase(startSuffix);
+    }
+
+    static constexpr std::string_view mdDelimiters = ".+";
+    static constexpr char dispDelimiter = '.';
+
+    std::string::size_type start = 0;
+    std::string::size_type end = processName.find_first_of(mdDelimiters);
+    std::string result;
+
+    while (end != std::string::npos)
+    {
+        if (!result.empty())
+        {
+            result += dispDelimiter;
+        }
+        result += ConsumeGenericArgs(processName.substr(start, end - start), args);
+
+        start = end + 1;
+        end = processName.find_first_of(mdDelimiters, start);
+    }
+
+    if (start < processName.length())
+    {
+        if (!result.empty())
+        {
+            result += dispDelimiter;
+        }
+        result += ConsumeGenericArgs(processName.substr(start), args);
+    }
+
+    return result + suffix;
 }
 
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks)

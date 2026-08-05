@@ -63,6 +63,10 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
 std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
+// Convert a "metadata" type/method name (e.g. "Dictionary`2") into a "display" name (e.g. "Dictionary<int, string>").
+// When "args" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list; when null,
+// empty placeholders (e.g. "Dictionary<,>") are emitted for generic types whose arguments are not available.
+std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *args);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path); array ranks encountered are appended to "ranks".
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
