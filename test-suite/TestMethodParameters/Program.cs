@@ -29,6 +29,19 @@ class TestClass
     }
 }
 
+public class GenClass<X, Y>
+{
+    public void Ecd<W>(X i1, Y s1, W u1)
+    {
+        ;                                                                      Label.Breakpoint("instance4");
+    }
+
+    public static void Cde<W>(X s2, Y i2, W u2)
+    {
+        ;                                                                      Label.Breakpoint("static4");
+    }
+}
+
 class Program
 {
     static void Bcd(string s2, int i2, TestGeneric<int, string> u2)
@@ -52,8 +65,10 @@ class Program
                 Context.Launch(JMC: true, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "static1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "static3");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "static4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "instance1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "instance3");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "instance4");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
 
@@ -63,8 +78,9 @@ class Program
 
         // test static
         TestGeneric<int, string> genParam = new TestGeneric<int, string>();
-        Bcd("test", 1, genParam);                                               Label.Breakpoint("static2");
+        Bcd("test", 1, genParam);                                                   Label.Breakpoint("static2");
         int i = StaticFetchDataAsync("test", 1, genParam).GetAwaiter().GetResult();
+        GenClass<string, int>.Cde<TestGeneric<int, string>>("test", 1, genParam);   Label.Breakpoint("static5");
 
         Label.Checkpoint("test_static", "test_instance",
             (Object context) =>
@@ -79,12 +95,19 @@ class Program
                 string[] stacktrace2 = { "static3" };
                 Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.Program.StaticFetchDataAsync(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace2, 1);
                 Context.Continue(@"__FILE__:__LINE__");
+
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "static4");
+                string[] stacktrace3 = { "static4", "static5" };
+                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<string, int>.Cde<TestMethodParameters.TestGeneric<int, string>>(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace3, 2);
+                Context.Continue(@"__FILE__:__LINE__");
             });
 
         // test instance
         TestClass testClass = new TestClass();
-        testClass.Abc(1, "test", genParam);                                     Label.Breakpoint("instance2");
+        testClass.Abc(1, "test", genParam);                                         Label.Breakpoint("instance2");
         i = testClass.FetchDataAsync(1, "test", genParam).GetAwaiter().GetResult();
+        GenClass<int, string> genClass = new GenClass<int, string>();
+        genClass.Ecd<TestGeneric<int, string>>(1, "test", genParam);                Label.Breakpoint("instance5");
 
         Label.Checkpoint("test_instance", "finish",
             (Object context) =>
@@ -98,6 +121,11 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance3");
                 string[] stacktrace2 = { "instance3" };
                 Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.TestClass.FetchDataAsync(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace2, 1);
+                Context.Continue(@"__FILE__:__LINE__");
+
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance4");
+                string[] stacktrace3 = { "instance4", "instance5" };
+                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<int, string>.Ecd<TestMethodParameters.TestGeneric<int, string>>(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace3, 2);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
