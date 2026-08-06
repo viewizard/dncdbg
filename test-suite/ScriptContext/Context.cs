@@ -1082,7 +1082,7 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(stackTraceResponse.body.stackFrames[0].name , top_frame_name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(top_frame_name, stackTraceResponse.body.stackFrames[0].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         for (int i = 0; i < num; i++)
         {
