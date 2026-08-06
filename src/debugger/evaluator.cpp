@@ -363,114 +363,6 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
     return S_OK;
 }
 
-// Note, could return S_CAN_EXIT for fast exit.
-HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                 std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
-                                 DebugInfo *pDebugInfo, ICorDebugModule *pModule,
-                                 const Evaluator::WalkStackVarsCallback &cb)
-{
-    HRESULT Status = S_OK;
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-    if (isNull == TRUE)
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugClass> trClass;
-    mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(GetClassAndTypeDefByValue(trValue, &trClass, currentTypeDef));
-
-    return ForEachFields(pMDImport, currentTypeDef,
-        [&](mdFieldDef fieldDef) -> HRESULT
-        {
-            ULONG nameLen = 0;
-            IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
-                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-            WSTRING mdName(nameLen, '\0');
-            DWORD fieldAttr = 0;
-            if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
-                                                &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
-                (fieldAttr & fdStatic) != 0 ||
-                (fieldAttr & fdLiteral) != 0)
-            {
-                return S_OK; // Return with success to continue walk.
-            }
-            // Remove null terminator that was included in the length
-            if (!mdName.empty() && mdName.back() == '\0')
-            {
-                mdName.pop_back();
-            }
-
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
-            {
-                // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
-                trValue.Free();
-                IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-                ToRelease<ICorDebugObjectValue> trObjValue;
-                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
-                return S_OK;
-            };
-
-            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
-            if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
-            {
-                ToRelease<ICorDebugValue> trDisplayClassValue;
-                IfFailRet(getValue(&trDisplayClassValue, nullptr));
-                IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                                   pDebugInfo, pModule, cb));
-                if (Status == S_CAN_EXIT)
-                {
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-            }
-            else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
-            {
-                // Check that hoisted local is in scope.
-                // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
-                int32_t index = 0;
-                if (SUCCEEDED(TryParseSlotIndex(mdName, index)) && index >= 0 &&
-                    !pDebugInfo->IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
-                {
-                    return S_OK; // Return with success to continue walk.
-                }
-
-                if (usedNames.find(mdName) != usedNames.end())
-                {
-                    return S_OK; // Return with success to continue walk.
-                }
-
-                WSTRING wLocalName;
-                if (FAILED(TryParseGeneratedName(mdName, wLocalName)))
-                {
-                    return S_OK; // Return with success to continue walk.
-                }
-
-                IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
-                if (Status == S_CAN_EXIT)
-                {
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-                usedNames.insert(wLocalName);
-            }
-            // Ignore any other compiler generated fields, show only normal fields.
-            else if (!IsSynthesizedLocalName(mdName) &&
-                     usedNames.find(mdName) == usedNames.end())
-            {
-                IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
-                if (Status == S_CAN_EXIT)
-                {
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-                usedNames.insert(mdName);
-            }
-            return S_OK; // Return with success to continue walk.
-        });
-}
-
 HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displayTypeName,
                              std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
@@ -867,6 +759,113 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
 }
 
 } // unnamed namespace
+
+// Note, could return S_CAN_EXIT for fast exit.
+HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
+                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef, DebugInfo *pDebugInfo,
+                                            ICorDebugModule *pModule, const Evaluator::WalkStackVarsCallback &cb)
+{
+    HRESULT Status = S_OK;
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return S_OK;
+    }
+
+    ToRelease<ICorDebugClass> trClass;
+    mdTypeDef currentTypeDef = mdTypeDefNil;
+    IfFailRet(GetClassAndTypeDefByValue(trValue, &trClass, currentTypeDef));
+
+    return ForEachFields(pMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
+        {
+            ULONG nameLen = 0;
+            IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+            WSTRING mdName(nameLen, '\0');
+            DWORD fieldAttr = 0;
+            if (FAILED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
+                                                &fieldAttr, nullptr, nullptr, nullptr, nullptr, nullptr)) ||
+                (fieldAttr & fdStatic) != 0 ||
+                (fieldAttr & fdLiteral) != 0)
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+            // Remove null terminator that was included in the length
+            if (!mdName.empty() && mdName.back() == '\0')
+            {
+                mdName.pop_back();
+            }
+
+            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+            {
+                // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
+                trValue.Free();
+                IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
+                ToRelease<ICorDebugObjectValue> trObjValue;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
+                return S_OK;
+            };
+
+            const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
+            if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+            {
+                ToRelease<ICorDebugValue> trDisplayClassValue;
+                IfFailRet(getValue(&trDisplayClassValue, nullptr));
+                IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
+                                                   pDebugInfo, pModule, cb));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }
+            }
+            else if (generatedNameKind == GeneratedNameKind::HoistedLocalField)
+            {
+                // Check that hoisted local is in scope.
+                // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
+                int32_t index = 0;
+                if (SUCCEEDED(TryParseSlotIndex(mdName, index)) && index >= 0 &&
+                    !pDebugInfo->IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                if (usedNames.find(mdName) != usedNames.end())
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                WSTRING wLocalName;
+                if (FAILED(TryParseGeneratedName(mdName, wLocalName)))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }
+                usedNames.insert(wLocalName);
+            }
+            // Ignore any other compiler generated fields, show only normal fields.
+            else if (!IsSynthesizedLocalName(mdName) &&
+                     usedNames.find(mdName) == usedNames.end())
+            {
+                IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
+                if (Status == S_CAN_EXIT)
+                {
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }
+                usedNames.insert(mdName);
+            }
+            return S_OK; // Return with success to continue walk.
+        });
+}
 
 HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
 {

@@ -102,6 +102,10 @@ class Evaluator
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                         bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
 
+    static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
+                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef, DebugInfo *pDebugInfo,
+                                            ICorDebugModule *pModule, const Evaluator::WalkStackVarsCallback &cb);
+
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
     // Get the fully-qualified metadata (FQMD) type name of the method's declaring type.

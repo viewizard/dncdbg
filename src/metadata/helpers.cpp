@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/helpers.h"
+#include "debugger/evaluator.h" // FIXME: metadata should not depend on debugger
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
@@ -1338,6 +1339,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
         ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         auto cArguments = static_cast<ULONG>(argElementTypes.size());
+        std::unordered_map<std::string, ToRelease<ICorDebugValue>> asyncMethodParams;
         if (!asyncMethod)
         {
             ToRelease<ICorDebugValueEnum> trArgumentEnum;
@@ -1347,6 +1349,26 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
             if ((methodAttr & mdStatic) == 0)
             {
                 cArguments--;
+            }
+        }
+        else
+        {
+            ToRelease<ICorDebugValue> trCurrentThis;
+            if (SUCCEEDED(trILFrame->GetArgument(0, &trCurrentThis)))
+            {
+                std::unordered_set<WSTRING> usedNames;
+                Evaluator::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, pDebugInfo, trModule,
+                    [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+                    {
+                        ToRelease<ICorDebugValue> trValue;
+                        if (FAILED(getValue(&trValue, nullptr)))
+                        {
+                            return S_OK;
+                        }
+
+                        asyncMethodParams.emplace(name, trValue.Detach());
+                        return S_OK;
+                    });
             }
         }
 
@@ -1382,22 +1404,27 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                 ss << argElementTypes.at(i).parameterModifier << " ";
             }
 
+            const std::string paramName = to_utf8(wParamName.data());
+            auto asyncParam = asyncMethodParams.find(paramName);
+
             std::string displayTypeName;
             ToRelease<ICorDebugValue> trValue;
-            if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty()) // FIXME care about genericTypeParameters and genericMethodParameters
-            {
-                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
-            }
-            else if (!asyncMethod &&
-                     SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
-                     SUCCEEDED(GetFQDisplayTypeName(trValue, displayTypeName)))
+            if ((asyncMethod && asyncParam != asyncMethodParams.end() &&
+                 SUCCEEDED(GetFQDisplayTypeName(asyncParam->second, displayTypeName))) ||
+                (!asyncMethod &&
+                 SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
+                 SUCCEEDED(GetFQDisplayTypeName(trValue, displayTypeName))))
             {
                 ss << displayTypeName << " ";
+            }
+            else if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty())
+            {
+                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
 
-            ss << to_utf8(wParamName.data());
+            ss << paramName;
         }
         return S_OK;
     };
