@@ -272,9 +272,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // Care about attributes for "JMC disabled" case.
     if (!m_justMyCode)
     {
-        static const std::vector<std::string_view> attrNames{DebuggerAttribute::Hidden, DebuggerAttribute::StepThrough};
+        static const std::vector<WSTRING> attrNames{DebuggerAttribute::GetHidden(), DebuggerAttribute::GetStepThrough()};
 
-        if (HasAttribute(trMDImport, typeDef, DebuggerAttribute::StepThrough) ||
+        if (HasAttribute(trMDImport, typeDef, DebuggerAttribute::GetStepThrough()) ||
             HasAttribute(trMDImport, methodDef, attrNames))
         {
             IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));

@@ -147,7 +147,7 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        if (HasAttribute(trMDImport, methodToken, DebuggerAttribute::Hidden))
+        if (HasAttribute(trMDImport, methodToken, DebuggerAttribute::GetHidden()))
         {
             return S_SKIP;
         }

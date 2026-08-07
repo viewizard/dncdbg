@@ -2593,7 +2593,9 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
 
 HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
 {
-    static constexpr std::string_view extensionAttribute("System.Runtime.CompilerServices.ExtensionAttribute..ctor");
+    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.extensionattribute
+    // Indicates that a method is an extension method, or that a class or assembly contains extension methods.
+    static const WSTRING extensionAttribute(W("System.Runtime.CompilerServices.ExtensionAttribute"));
     HRESULT Status = S_OK;
 
     CORDB_ADDRESS modAddress = 0;
@@ -2603,6 +2605,15 @@ HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
+    mdAssembly assemblyToken = mdAssemblyNil;
+    if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+        SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)) &&
+        !HasAttribute(trMDImport, assemblyToken, extensionAttribute))
+    {
+        return S_OK;
+    }
 
     std::vector<mdMethodDef> moduleMethodDefs;
     HCORENUM hTypeEnum = nullptr;

@@ -125,66 +125,60 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
 
 } // unnamed namespace
 
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName)
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName)
 {
-    return ForEachAttribute(pMDImport, tok,
-        [&attrName](const std::string &displayAttrName, const void *, ULONG) -> bool
-        {
-            return displayAttrName == attrName;
-        });
+    // Note, in case the attribute is not found, GetCustomAttributeByName() returns S_FALSE or an error code.
+    return S_OK == pMDImport->GetCustomAttributeByName(tok, attrName.c_str(), nullptr, nullptr);
 }
 
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames)
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames)
 {
-    return ForEachAttribute(pMDImport, tok,
-        [&attrNames](const std::string &displayAttrName, const void *, ULONG) -> bool
+    return std::any_of(attrNames.begin(), attrNames.end(),
+        [&](const WSTRING &name)
         {
-            return std::find(attrNames.begin(), attrNames.end(), displayAttrName) != attrNames.end();
+            return HasAttribute(pMDImport, tok, name);
         });
 }
 
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok)
 {
-    DebuggerBrowsableState browsableState = DebuggerBrowsableState::Collapsed;
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
+    // Determines if and how a member is displayed in the debugger variable windows.
 
-    ForEachAttribute(pMDImport, tok,
-        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
-        {
-            if (displayAttrName != DebuggerAttribute::Browsable)
-            {
-                return false;
-            }
+    const void *pBlob = nullptr;
+    ULONG cbBlob = 0;
+    if (S_OK != pMDImport->GetCustomAttributeByName(tok, W("System.Diagnostics.DebuggerBrowsableAttribute"), &pBlob, &cbBlob))
+    {
+        return DebuggerBrowsableState::Collapsed;
+    }
 
-            // In case of DebuggerBrowsableAttribute, blob size must be 8 bytes:
-            // 2 bytes - blob prolog 0x0001
-            // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type in C# (int)
-            // 2 bytes - alignment
-            static constexpr ULONG debuggerBrowsableAttributeBlobSize = 8;
-            if (cbBlob != debuggerBrowsableAttributeBlobSize)
-            {
-                return false;
-            }
+    // In case of DebuggerBrowsableAttribute, blob size must be 8 bytes:
+    // 2 bytes - blob prolog 0x0001
+    // 4 bytes - data (DebuggerBrowsableAttribute::State), default enum type in C# (int)
+    // 2 bytes - alignment
+    static constexpr ULONG debuggerBrowsableAttributeBlobSize = 8;
+    if (cbBlob != debuggerBrowsableAttributeBlobSize)
+    {
+        return DebuggerBrowsableState::Collapsed;
+    }
 
-            const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+    const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
 
-            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-            {
-                return false;
-            }
+    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+    {
+        return DebuggerBrowsableState::Collapsed;
+    }
 
-            // Read the 4-byte data value in little-endian order, since metadata blobs are
-            // always little-endian regardless of the host platform byte order.
-            const uint32_t data = static_cast<uint32_t>(pbBlob[2]) |
-                                  static_cast<uint32_t>(pbBlob[3]) << 8 |
-                                  static_cast<uint32_t>(pbBlob[4]) << 16 |
-                                  static_cast<uint32_t>(pbBlob[5]) << 24;
-            browsableState = static_cast<DebuggerBrowsableState>(data);
-            return true;
-        });
+    // Read the 4-byte data value in little-endian order, since metadata blobs are
+    // always little-endian regardless of the host platform byte order.
+    const uint32_t data = static_cast<uint32_t>(pbBlob[2]) |
+                            static_cast<uint32_t>(pbBlob[3]) << 8 |
+                            static_cast<uint32_t>(pbBlob[4]) << 16 |
+                            static_cast<uint32_t>(pbBlob[5]) << 24;
 
-    return browsableState;
+    return static_cast<DebuggerBrowsableState>(data);
 }
 
 bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName)
@@ -342,13 +336,13 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
                 return false;
             }
 
-            if (detectTypeName == argumentValue)
+            if (detectTypeName != argumentValue)
             {
-                proxyTypeName = typeName;
-                return true;
+                return false;
             }
 
-            return false;
+            proxyTypeName = typeName;
+            return true;
         });
 }
 

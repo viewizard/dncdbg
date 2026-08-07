@@ -173,7 +173,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
 
     // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
     // that "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
-    const bool foundFlagsAttr = HasAttribute(trMDImport, currentTypeDef, "System.FlagsAttribute..ctor");
+    const bool foundFlagsAttr = HasAttribute(trMDImport, currentTypeDef, W("System.FlagsAttribute"));
 
     uint64_t remainingValue = curValue;
     std::map<uint64_t, std::string> OrderedFlags;

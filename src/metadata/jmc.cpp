@@ -16,21 +16,21 @@ namespace dncdbg
 namespace
 {
 
-const std::vector<std::string_view> &GetTypeAttrNames()
+const std::vector<WSTRING> &GetTypeAttrNames()
 {
-    static const std::vector<std::string_view> typeAttrNames{
-        DebuggerAttribute::NonUserCode,
-        DebuggerAttribute::StepThrough
+    static const std::vector<WSTRING> typeAttrNames{
+        DebuggerAttribute::GetNonUserCode(),
+        DebuggerAttribute::GetStepThrough()
     };
     return typeAttrNames;
 }
 
-const std::vector<std::string_view> &GetMethodAttrNames()
+const std::vector<WSTRING> &GetMethodAttrNames()
 {
-    static const std::vector<std::string_view> methodAttrNames{
-        DebuggerAttribute::NonUserCode,
-        DebuggerAttribute::StepThrough,
-        DebuggerAttribute::Hidden
+    static const std::vector<WSTRING> methodAttrNames{
+        DebuggerAttribute::GetNonUserCode(),
+        DebuggerAttribute::GetStepThrough(),
+        DebuggerAttribute::GetHidden()
     };
     return methodAttrNames;
 }

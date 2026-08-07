@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "utils/utf.h"
 #include <string_view>
 #include <string>
 #include <vector>
@@ -24,20 +25,29 @@ struct DebuggerAttribute
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggernonusercodeattribute
     // This attribute suppresses the display of these adjunct types and members in the debugger window and
     // automatically steps through, rather than into, designer provided code.
-    static constexpr std::string_view NonUserCode = "System.Diagnostics.DebuggerNonUserCodeAttribute..ctor";
+    static const WSTRING &GetNonUserCode()
+    {
+        static const WSTRING NonUserCode = W("System.Diagnostics.DebuggerNonUserCodeAttribute");
+        return NonUserCode;
+    }
     // Check `DebuggerStepThroughAttribute` for method and class.
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerstepthroughattribute
     // Instructs the debugger to step through the code instead of stepping into the code.
-    static constexpr std::string_view StepThrough = "System.Diagnostics.DebuggerStepThroughAttribute..ctor";
+    static const WSTRING &GetStepThrough()
+    {
+        static const WSTRING StepThrough = W("System.Diagnostics.DebuggerStepThroughAttribute");
+        return StepThrough;
+    }
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerhiddenattribute
     // ... debugger does not stop in a method marked with this attribute and does not allow a breakpoint to be set in the method.
     // https://docs.microsoft.com/en-us/dotnet/visual-basic/misc/bc40051
     // System.Diagnostics.DebuggerHiddenAttribute does not affect 'Get' or 'Set' when applied to the Property definition.
     // Apply the attribute directly to the 'Get' and 'Set' procedures as appropriate.
-    static constexpr std::string_view Hidden = "System.Diagnostics.DebuggerHiddenAttribute..ctor";
-    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
-    // Determines if and how a member is displayed in the debugger variable windows.
-    static constexpr std::string_view Browsable = "System.Diagnostics.DebuggerBrowsableAttribute..ctor";
+    static const WSTRING &GetHidden()
+    {
+        static const WSTRING Hidden = W("System.Diagnostics.DebuggerHiddenAttribute");
+        return Hidden;
+    }
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
     // Specifies the display proxy for a type.
     static constexpr std::string_view TypeProxy = "System.Diagnostics.DebuggerTypeProxyAttribute..ctor";
@@ -55,8 +65,8 @@ enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
     RootHidden = 3
 };
 
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName);
-bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<std::string_view> &attrNames);
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName);
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
 bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName);
 bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName);
