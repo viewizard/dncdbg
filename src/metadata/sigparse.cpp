@@ -491,6 +491,82 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     return S_OK;
 }
 
+HRESULT ParseMethodSigParameterModifiers(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE &pSig,
+                                         PCCOR_SIGNATURE pSigEnd, std::vector<std::string> &parameterModifiers)
+{
+    HRESULT Status = S_OK;
+    ULONG gParams = 0; // Count of signature generics
+    ULONG cParams = 0; // Count of signature parameters.
+    ULONG convFlags = 0;
+    parameterModifiers.clear();
+
+    // 1. calling convention for MethodDefSig:
+    // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
+    IfFailRet(CorSigUncompressCallingConv_EndPtr(pSig, pSigEnd, convFlags));
+
+    // TODO add VARARG methods support.
+    if ((convFlags & SIG_METHOD_VARARG) != 0U)
+    {
+        return E_NOTIMPL;
+    }
+
+    // 2. count of generics if any
+    if ((convFlags & SIG_METHOD_GENERIC) != 0U)
+    {
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, gParams));
+    }
+
+    // 3. count of params
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
+
+    // 4. return type
+    IfFailRet(SkipElementType(pSig, pSigEnd));
+
+    // 5. get next element from method signature
+    parameterModifiers.resize(cParams);
+    for (ULONG i = 0; i < cParams; ++i)
+    {
+        // The Param table is optional — not every parameter has a Param row.
+        // If GetParamForMethodIndex fails, leave the modifier empty and skip
+        // the parameter type in the signature.
+        mdParamDef paramDef = mdParamDefNil;
+        DWORD flags = 0;
+        if (FAILED(pMDImport->GetParamForMethodIndex(methodDef, i + 1, &paramDef)) ||
+            paramDef == mdParamDefNil ||
+            FAILED(pMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0, nullptr,
+                                 &flags, nullptr, nullptr, nullptr)))
+        {
+            IfFailRet(SkipElementType(pSig, pSigEnd));
+            continue;
+        }
+
+        IfFailRet(CheckBounds(pSig, pSigEnd));
+        const auto elemType = static_cast<CorElementType>(*pSig);
+
+        if (elemType == ELEMENT_TYPE_BYREF)
+        {
+            // In .NET metadata: 'out' has pdOut only, 'in' has pdIn only,
+            // 'ref' has both pdIn and pdOut, or neither flag set.
+            if ((flags & pdOut) != 0U && (flags & pdIn) == 0U)
+            {
+                parameterModifiers.at(i) = "out";
+            }
+            else if ((flags & pdIn) != 0U && (flags & pdOut) == 0U)
+            {
+                parameterModifiers.at(i) = "in";
+            }
+            else
+            {
+                parameterModifiers.at(i) = "ref";
+            }
+        }
+
+        IfFailRet(SkipElementType(pSig, pSigEnd));
+    }
+
+    return S_OK;
+}
+
 HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg)
 {
     if (methodArg.genericElemType == ELEMENT_TYPE_VAR)

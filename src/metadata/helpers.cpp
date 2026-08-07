@@ -1331,14 +1331,11 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
         IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
                                              &methodAttr, &pSig, &cbSig, nullptr, nullptr));
 
-        SigElementType returnElementType;
-        std::vector<SigElementType> argElementTypes;
-        const std::vector<SigElementType> genericTypeParameters; // TODO fill this vector
-        const std::vector<SigElementType> genericMethodParameters; // TODO fill this vector
+        std::vector<std::string> parameterModifiers;
         // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+        ParseMethodSigParameterModifiers(trMDImport, methodDef, pSig, pSig + cbSig, parameterModifiers);
 
-        auto cArguments = static_cast<ULONG>(argElementTypes.size());
+        ULONG cArguments = 0;
         std::unordered_map<std::string, ToRelease<ICorDebugValue>> asyncMethodParams;
         if (!asyncMethod)
         {
@@ -1367,6 +1364,7 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                         }
 
                         asyncMethodParams.emplace(name, trValue.Detach());
+                        cArguments++;
                         return S_OK;
                     });
             }
@@ -1399,9 +1397,9 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                 ss << ", ";
             }
 
-            if (argElementTypes.size() > i && !argElementTypes.at(i).parameterModifier.empty())
+            if (parameterModifiers.size() > i && !parameterModifiers.at(i).empty())
             {
-                ss << argElementTypes.at(i).parameterModifier << " ";
+                ss << parameterModifiers.at(i) << " ";
             }
 
             const std::string paramName = to_utf8(wParamName.data());
@@ -1416,10 +1414,6 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
                  SUCCEEDED(GetFQDisplayTypeName(trValue, displayTypeName))))
             {
                 ss << displayTypeName << " ";
-            }
-            else if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty())
-            {
-                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
             }
             // else
             //    in case of failure, ignore parameter type, print only parameter name
