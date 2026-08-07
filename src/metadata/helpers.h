@@ -48,17 +48,12 @@ HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName)
 // Get fully-qualified "display" type name.
 HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeName);
 
-// Get fully-qualified "display" type and "display" method name.
-HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo,
-                                    std::string &displayTypeName, std::string &displayMethodName);
-// Get fully-qualified "display" type and "display" method name.
-HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo,
-                                    std::string &displayTypeName, std::string &displayMethodName);
-
-// Get fully-qualified "display" method name.
-HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName);
-// Get fully-qualified "display" method name.
-HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName);
+// Get the fully-qualified "display" type name of the real (user) code, resolving async state-machine methods back to their kickoff method.
+HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayTypeName);
+// Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName);
+// Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName);
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".

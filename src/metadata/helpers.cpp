@@ -956,6 +956,140 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     return S_OK;
 }
 
+HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
+                                    std::string &displayTypeName, std::string &displayMethodName)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pFrame->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    ToRelease<IMetaDataImport2> trMDImport2;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+
+    ULONG nameLen = 0;
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    std::vector<WCHAR> szFunctionName(nameLen, '\0');
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    std::string funcName = to_utf8(szFunctionName.data());
+
+    ULONG methodGenericsCount = 0;
+    HCORENUM hEnum = nullptr;
+    mdGenericParam genParam = mdGenericParamNil;
+    ULONG fetched = 0;
+    while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched)) && fetched == 1)
+    {
+        methodGenericsCount++;
+    }
+    trMDImport2->CloseEnum(hEnum);
+
+    if (methodGenericsCount > 0)
+    {
+        std::ostringstream ss;
+        ss << funcName << '`' << methodGenericsCount;
+        funcName = ss.str();
+    }
+
+    std::list<std::string> args;
+    AddGenericArgs(pFrame, args);
+
+    if (typeDef != mdTypeDefNil)
+    {
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
+        {
+            displayTypeName = "";
+        }
+    }
+
+    displayMethodName = ConsumeGenericArgs(funcName, &args);
+
+    return S_OK;
+}
+
+HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodDef,
+                                    std::string &displayTypeName, std::string &displayMethodName)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    ToRelease<IMetaDataImport2> trMDImport2;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+
+    ULONG nameLen = 0;
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    std::vector<WCHAR> szFunctionName(nameLen, '\0');
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    std::list<std::string> args;
+    auto getGenericNames = [&](mdToken token) -> void
+    {
+        args.clear();
+
+        HCORENUM hEnum = nullptr;
+        mdGenericParam genParam = mdGenericParamNil;
+        ULONG fetched = 0;
+        while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
+        {
+            ULONG genNameLen = 0;
+            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+            {
+                continue;
+            }
+
+            std::vector<WCHAR> szGenName(genNameLen, '\0');
+            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                         szGenName.data(), genNameLen, nullptr)))
+            {
+                continue;
+            }
+
+            args.emplace_back(to_utf8(szGenName.data()));
+        }
+        trMDImport2->CloseEnum(hEnum);
+    };
+
+    getGenericNames(methodDef);
+    if (!args.empty())
+    {
+        std::ostringstream ss;
+        ss << to_utf8(szFunctionName.data()) << '`' << args.size();
+        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
+    }
+    else
+    {
+        displayMethodName = to_utf8(szFunctionName.data());
+    }
+
+    if (typeDef != mdTypeDefNil)
+    {
+        getGenericNames(typeDef);
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
+        {
+            displayTypeName = "";
+        }
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::string &metadataName)
@@ -1133,10 +1267,10 @@ HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeNam
     return S_OK;
 }
 
-HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo,
-                                    std::string &displayTypeName, std::string &displayMethodName)
+HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayTypeName)
 {
     HRESULT Status = S_OK;
+    displayTypeName.clear();
 
     ToRelease<ICorDebugFunction> trFunction;
     IfFailRet(pFrame->GetFunction(&trFunction));
@@ -1156,141 +1290,45 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInf
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
-
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+    mdTypeDef typeDef = mdTypeDefNil;
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, nullptr, 0, nullptr,
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
-    mdTypeDef typeDef = mdTypeDefNil;
-    std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    std::string funcName = to_utf8(szFunctionName.data());
-
-    ULONG methodGenericsCount = 0;
-    HCORENUM hEnum = nullptr;
-    mdGenericParam genParam = mdGenericParamNil;
-    ULONG fetched = 0;
-    while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched)) && fetched == 1)
+    if (typeDef == mdTypeDefNil)
     {
-        methodGenericsCount++;
-    }
-    trMDImport2->CloseEnum(hEnum);
-
-    if (methodGenericsCount > 0)
-    {
-        std::ostringstream ss;
-        ss << funcName << '`' << methodGenericsCount;
-        funcName = ss.str();
+        return E_FAIL;
     }
 
     std::list<std::string> args;
     AddGenericArgs(pFrame, args);
-
-    if (typeDef != mdTypeDefNil)
-    {
-        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
-        {
-            displayTypeName = "";
-        }
-    }
-
-    displayMethodName = ConsumeGenericArgs(funcName, &args);
+    IfFailRet(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args));
 
     return S_OK;
 }
 
-HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo,
-                                    std::string &displayTypeName, std::string &displayMethodName)
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName)
 {
     HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pFrame->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFunction->GetToken(&methodToken));
 
     mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
+    bool asyncMethod = true;
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
+        asyncMethod = false;
     }
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
-
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-    std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    std::list<std::string> args;
-    auto getGenericNames = [&](mdToken token) -> void
-    {
-        args.clear();
-
-        HCORENUM hEnum = nullptr;
-        mdGenericParam genParam = mdGenericParamNil;
-        ULONG fetched = 0;
-        while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
-        {
-            ULONG genNameLen = 0;
-            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
-            {
-                continue;
-            }
-
-            std::vector<WCHAR> szGenName(genNameLen, '\0');
-            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                         szGenName.data(), genNameLen, nullptr)))
-            {
-                continue;
-            }
-
-            args.emplace_back(to_utf8(szGenName.data()));
-        }
-        trMDImport2->CloseEnum(hEnum);
-    };
-
-    getGenericNames(methodDef);
-    if (!args.empty())
-    {
-        std::ostringstream ss;
-        ss << to_utf8(szFunctionName.data()) << '`' << args.size();
-        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
-    }
-    else
-    {
-        displayMethodName = to_utf8(szFunctionName.data());
-    }
-
-    if (typeDef != mdTypeDefNil)
-    {
-        getGenericNames(typeDef);
-        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
-        {
-            displayTypeName = "";
-        }
-    }
-
-    return S_OK;
-}
-
-HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName)
-{
-    HRESULT Status = S_OK;
-
+    std::ostringstream ss;
     std::string displayTypeName;
     std::string displayMethodName;
-    std::ostringstream ss;
-    IfFailRet(GetDisplayTypeAndMethodName(pFrame, pDebugInfo, displayTypeName, displayMethodName));
+    IfFailRet(GetDisplayTypeAndMethodName(pFrame, methodDef, displayTypeName, displayMethodName));
 
     if (!displayTypeName.empty())
     {
@@ -1300,27 +1338,10 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
 
     auto addMethodParameters = [&]() -> HRESULT
     {
-        ToRelease<ICorDebugFunction> trFunction;
-        IfFailRet(pFrame->GetFunction(&trFunction));
-
-        ToRelease<ICorDebugModule> trModule;
-        IfFailRet(trFunction->GetModule(&trModule));
-
         ToRelease<IUnknown> trUnknown;
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        mdMethodDef methodToken = mdMethodDefNil;
-        IfFailRet(trFunction->GetToken(&methodToken));
-
-        mdMethodDef methodDef = mdMethodDefNil;
-        bool asyncMethod = true;
-        if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
-        {
-            methodDef = methodToken;
-            asyncMethod = false;
-        }
 
         ToRelease<ICorDebugILFrame> trILFrame;
         IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
@@ -1429,15 +1450,20 @@ HRESULT GetFQDisplayMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, st
     return S_OK;
 }
 
-HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName)
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName)
 {
     HRESULT Status = S_OK;
 
-    std::string displayTypeName;
-    std::string displayMethodName;
+    mdMethodDef methodDef = mdMethodDefNil;
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
+    {
+        methodDef = methodToken;
+    }
 
     std::ostringstream ss;
-    IfFailRet(GetDisplayTypeAndMethodName(pModule, methodToken, pDebugInfo, displayTypeName, displayMethodName));
+    std::string displayTypeName;
+    std::string displayMethodName;
+    IfFailRet(GetDisplayTypeAndMethodName(pModule, methodDef, displayTypeName, displayMethodName));
     if (!displayTypeName.empty())
     {
         ss << displayTypeName << ".";
@@ -1450,12 +1476,6 @@ HRESULT GetFQDisplayMethodName(ICorDebugModule *pModule, mdMethodDef methodToken
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        mdMethodDef methodDef = mdMethodDefNil;
-        if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
-        {
-            methodDef = methodToken;
-        }
 
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;

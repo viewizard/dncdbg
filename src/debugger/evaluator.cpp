@@ -1871,8 +1871,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             {
                 if (fallbackTypeName != nullptr)
                 {
-                    std::string displayMethodName;
-                    MetadataHelpers::GetDisplayTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName, displayMethodName);
+                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName);
                 }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
@@ -2404,8 +2403,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
 
         std::string displayTypeName;
-        std::string displayMethodName;
-        MetadataHelpers::GetDisplayTypeAndMethodName(trFrame, m_sharedDebugInfo.get(), displayTypeName, displayMethodName);
+        MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
                                             &trResolvedValue, resultSetterData)))
