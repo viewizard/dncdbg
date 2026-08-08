@@ -20,6 +20,18 @@ class TestClass1
     }
 }
 
+class TestClass2
+{
+    [DebuggerDisplay("Test field")]
+    public int i = 5;
+    [DebuggerDisplay("Test property")]
+    public int j => 10;
+    [DebuggerDisplay("Test static field")]
+    public static int si = 5;
+    [DebuggerDisplay("Test static property")]
+    public static int sj => 10;
+}
+
 [DebuggerDisplay("Test enum")]
 public enum TestEnum
 {
@@ -48,6 +60,7 @@ class Program
             });
 
         TestClass1 testClass1 = new TestClass1();
+        TestClass2 testClass2 = new TestClass2();
         List<int> list1 = new List<int>(5) {10, 20, 30, 40, 50};
         Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
         TestEnum testEnum = TestEnum.append;
@@ -67,6 +80,13 @@ class Program
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.Collections.Generic.List<int>", "list1", "Count = 5");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.Collections.Generic.Dictionary<string, int>", "dictionary1", "Count = 2");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestDebuggerDisplay.TestEnum", "testEnum", "Test enum");
+
+                int variablesReference_testClass2 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testClass2");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass2, "int", "i", "Test field");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_testClass2, "int", "j", "Test property");
+                int staticReference = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_testClass2, "Static members");
+                Context.EvalVariable(@"__FILE__:__LINE__", staticReference, "int", "si", "Test static field");
+                Context.EvalVariable(@"__FILE__:__LINE__", staticReference, "int", "sj", "Test static property");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

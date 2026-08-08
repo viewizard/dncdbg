@@ -35,7 +35,7 @@ void GetNumChild(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue
     // Note: FrameLevel{0} is used here, since we need only count children.
     if (FAILED(pEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
                [&](ICorDebugType *, bool isStatic, const std::string &,
-                   const Evaluator::GetValueCallback &, Evaluator::SetterData *) -> HRESULT
+                   const Evaluator::GetValueCallback &, Evaluator::SetterData *, std::string *) -> HRESULT
                 {
                     if (isStatic)
                     {
@@ -67,10 +67,12 @@ struct VariableMember
     std::string name;
     std::string ownerType;
     ToRelease<ICorDebugValue> trValue;
-    VariableMember(std::string name, std::string &ownerType, ICorDebugValue *pValue)
-        : name(std::move(name)),
-          ownerType(std::move(ownerType)),
-          trValue(pValue)
+    std::string customDisplayTextWithEval;
+    VariableMember(std::string name_, std::string &ownerType_, ICorDebugValue *pValue, std::string customDisplayTextWithEval_)
+        : name(std::move(name_)),
+          ownerType(std::move(ownerType_)),
+          trValue(pValue),
+          customDisplayTextWithEval(std::move(customDisplayTextWithEval_))
     {
     }
 
@@ -93,6 +95,17 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
     }
 
     MetadataHelpers::GetFQDisplayTypeName(member.trValue, var.type);
+
+    // Note, in case of `DebuggerDisplayAttribute` on field or property, build display text from attribute
+    // and ignore `specifier`, since attribute text takes precedence over format specifiers (same as for type-level attribute).
+    if (!member.customDisplayTextWithEval.empty())
+    {
+        std::vector<std::pair<std::string, bool>> textWithEvalParts;
+        CreateTextWithEvalParts(member.customDisplayTextWithEval, textWithEvalParts);
+        BuildTextWithEval(pEvaluator, pEvalStackMachine, pThread, member.trValue, textWithEvalParts, var.value);
+        return S_OK;
+    }
+
     return PrintValue(pThread, pEvaluator, pEvalStackMachine, member.trValue, specifier, var.value);
 }
 
@@ -110,7 +123,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
 
     IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, false, specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
         {
             if (isStatic)
             {
@@ -143,7 +156,8 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
                 IfFailRet(MetadataHelpers::GetFQDisplayTypeName(pType, displayTypeName));
             }
 
-            members.emplace_back(name, displayTypeName, trResultValue.Detach());
+            members.emplace_back(name, displayTypeName, trResultValue.Detach(),
+                                 customDisplayTextWithEval != nullptr ? *customDisplayTextWithEval : std::string{});
             return S_OK;
         }));
 
@@ -521,7 +535,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     HRESULT Status = S_OK;
     IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
         [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
         {
             if (varName != name)
             {

@@ -280,7 +280,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
         HRESULT Status = S_OK;
         m_sharedEvaluator->WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
             [&](ICorDebugType *, bool, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *) -> HRESULT
+                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
             {
                 auto getMemberWithName =
                     [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT

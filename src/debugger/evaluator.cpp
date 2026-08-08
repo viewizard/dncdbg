@@ -1325,7 +1325,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             };
 
-            IfFailRet(cb(nullptr, false, "", getValue, nullptr));
+            IfFailRet(cb(nullptr, false, "", getValue, nullptr, nullptr));
             // Note, cb could return S_CAN_EXIT for fast exit.
             return S_OK;
         }
@@ -1359,7 +1359,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     return S_OK;
                 };
 
-                IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr));
+                IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr, nullptr));
                 if (Status == S_CAN_EXIT)
                 {
                     return S_OK;
@@ -1549,7 +1549,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
-                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
+                        std::string textWithEval;
+                        HasDebuggerDisplayAttribute(trMDImport, fieldDef, textWithEval);
+
+                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from the loop.
@@ -1629,6 +1632,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return with success to continue walk.
                         }
 
+                        std::string textWithEval;
+                        HasDebuggerDisplayAttribute(trMDImport, propertyDef, textWithEval);
+
                         if (provideSetterData)
                         {
                             ToRelease<ICorDebugFunction> trFuncSetter;
@@ -1637,7 +1643,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                 trFuncSetter.Free();
                             }
                             Evaluator::SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
-                            IfFailRet(cb(trType, isStatic, name, getValue, &setterData));
+                            IfFailRet(cb(trType, isStatic, name, getValue, &setterData, &textWithEval));
                             if (Status == S_CAN_EXIT)
                             {
                                 return S_CAN_EXIT; // Fast exit from the loop.
@@ -1645,7 +1651,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
                         else
                         {
-                            IfFailRet(cb(trType, isStatic, name, getValue, nullptr));
+                            IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
                             if (Status == S_CAN_EXIT)
                             {
                                 return S_CAN_EXIT; // Fast exit from the loop.
@@ -2130,7 +2136,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr), specifier,
             [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData) -> HRESULT
+                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
             {
                 if ((isStatic && valueKind == ValueKind::Variable) ||
                     (!isStatic && valueKind == ValueKind::Class) ||
