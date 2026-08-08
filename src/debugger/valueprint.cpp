@@ -695,14 +695,14 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
             }
             else
             {
-                if (IsEnum(trValue))
-                {
-                    return PrintEnumValue(trValue, genericValue.data(), output);
-                }
-
                 if (SUCCEEDED(PrintDebuggerDisplayAttribute(pEvaluator, pEvalStackMachine, pThread, trCurrentValue, output)))
                 {
                     return S_OK;
+                }
+
+                if (IsEnum(trValue))
+                {
+                    return PrintEnumValue(trValue, genericValue.data(), output);
                 }
 
                 ss << '{';
