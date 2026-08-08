@@ -1917,7 +1917,7 @@ static bool ts_query__analyze_patterns(TSQuery *self, unsigned *error_offset) {
     unsigned subgraph_index, exists;
     array_search_sorted_by(&subgraphs, .symbol, parent_symbol, &subgraph_index, &exists);
     if (!exists) {
-      uint16_t first_child_step_index = (uint16_t)(parent_step_index + 1);
+      unsigned first_child_step_index = parent_step_index + 1;
       uint32_t j, child_exists;
       array_search_sorted_by(&self->step_offsets, .step_index, first_child_step_index, &j, &child_exists);
       ts_assert(child_exists);
@@ -4445,9 +4445,26 @@ static inline bool ts_query_cursor__advance(
                   copy->seeking_immediate_match = true;
                 }
                 // Taking a `?`/`*` zero-skip means the quantified subpattern matched
-                // nothing, so an immediately-following anchor is vacuous for this copy.
+                // nothing. How an adjacent anchor behaves then depends on where it sat:
                 if (child_step->alternative_is_skip) {
-                  copy->skipped_quantifier = true;
+                  if (!child_step->is_immediate) {
+                    // No leading anchor on the skipped step, so an immediately-following
+                    // anchor on the skip target is vacuous (`Q* . B` with zero `Q` lets
+                    // `B` match anywhere).
+                    copy->skipped_quantifier = true;
+                  } else if (
+                    array_get(&self->query->steps, child_state->step_index - 1)->depth <
+                    child_step->depth
+                  ) {
+                    // The skipped step was the parent's first child pattern and carried a
+                    // leading *boundary* anchor (`(P . Q* Y)`). Transfer the first-child
+                    // requirement to the skip target so it survives the empty run: `Y`
+                    // must still be the parent's first named child.
+                    copy->seeking_immediate_match = true;
+                  }
+                  // Otherwise the skipped step carried a leading *between* anchor
+                  // (`A . Q* ...`): with zero `Q` that adjacency vanishes, while the skip
+                  // target's own anchor, if any, still applies (`A . Q* . B` stays adjacent).
                 }
               }
             }

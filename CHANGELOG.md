@@ -31,7 +31,7 @@ Upcoming changes compared to previous version.
 - Improved stack trace readability by hiding internal managed-to-native and native-to-managed transition frames.
 - Refactored PrintDecimalValue to use direct memory read instead of metadata iteration.
 - Used overridden `ToString()` for object variable display.
-- Updated tree-sitter version to 0.26.11.
+- Updated tree-sitter version to 0.26.12.
 - Refactored extension method lookup into callback-based WalkExtensionMethods.
 - Cached extension methods per module, populated on module load and cleared on unload, to avoid scanning all modules on each evaluation.
 - Refactored breakpoint condition/trace eval to use EvalStackMachine directly.
