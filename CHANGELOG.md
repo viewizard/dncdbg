@@ -22,7 +22,7 @@ Upcoming changes compared to previous version.
 - Added support for `ac`, `h`, `nq`, `raw` and `hidden` format specifiers in expression evaluation result display.
 - Added TestFormatSpecifiers.
 - Added TestFormatSpecifiersAc.
-- Added support for `DebuggerDisplayAttribute` to enumerations, classes, structures, fields and properties.
+- Added support for `DebuggerDisplayAttribute` to enumerations, classes, structures, fields, properties and assemblies.
 - Added TestDebuggerDisplay.
 
 #### Changed

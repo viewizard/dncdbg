@@ -76,9 +76,27 @@ HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *p
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     std::string textWithEval;
-    if (!HasDebuggerDisplayAttribute(trMDImport, currentTypeDef, textWithEval))
+    if (!HasDebuggerAttribute(trMDImport, currentTypeDef, DebuggerAttribute::Display, textWithEval))
     {
-        return E_INVALIDARG;
+        // Fall back to assembly-level DebuggerDisplayAttribute (Target / TargetTypeName).
+        bool found = false;
+        ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
+        mdAssembly assemblyToken = mdAssemblyNil;
+        if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+            SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
+        {
+            std::string detectTypeName;
+            if (SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByToken(currentTypeDef, trMDImport, detectTypeName)) &&
+                HasAssemblyDebuggerAttribute(trMDImport, assemblyToken, DebuggerAttribute::Display, detectTypeName, textWithEval))
+            {
+                found = true;
+            }
+        }
+
+        if (!found)
+        {
+            return E_INVALIDARG;
+        }
     }
 
     std::vector<std::pair<std::string, bool>> textWithEvalParts;

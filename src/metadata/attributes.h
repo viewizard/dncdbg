@@ -68,9 +68,11 @@ enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
-bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName);
-bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName);
-bool HasDebuggerDisplayAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &text);
+
+// Debugger Attributes only (DebuggerTypeProxyAttribute or DebuggerDisplayAttribute)
+bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output);
+bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName,
+                                  const std::string &detectTypeName, std::string &output);
 
 } // namespace dncdbg
 

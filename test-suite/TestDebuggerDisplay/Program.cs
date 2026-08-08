@@ -7,6 +7,9 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
+[assembly: DebuggerDisplay("Test class 3 i={i}", Target = typeof(TestDebuggerDisplay.TestClass3))]
+[assembly: DebuggerDisplay("Test class 4 j={j}", TargetTypeName = "TestDebuggerDisplay.TestClass4")]
+
 namespace TestDebuggerDisplay
 {
 
@@ -30,6 +33,16 @@ class TestClass2
     public static int si = 5;
     [DebuggerDisplay("Test static property")]
     public static int sj => 10;
+}
+
+class TestClass3
+{
+    int i = 3;
+}
+
+class TestClass4
+{
+    int j = 5;
 }
 
 [DebuggerDisplay("Test enum")]
@@ -61,6 +74,8 @@ class Program
 
         TestClass1 testClass1 = new TestClass1();
         TestClass2 testClass2 = new TestClass2();
+        TestClass3 testClass3 = new TestClass3();
+        TestClass4 testClass4 = new TestClass4();
         List<int> list1 = new List<int>(5) {10, 20, 30, 40, 50};
         Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
         TestEnum testEnum = TestEnum.append;
@@ -77,6 +92,8 @@ class Program
                 int variablesReference_Locals = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
 
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestDebuggerDisplay.TestClass1", "testClass1", "Test eval=0x0000000f");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestDebuggerDisplay.TestClass3", "testClass3", "Test class 3 i=3");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestDebuggerDisplay.TestClass4", "testClass4", "Test class 4 j=5");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.Collections.Generic.List<int>", "list1", "Count = 5");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.Collections.Generic.Dictionary<string, int>", "dictionary1", "Count = 2");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestDebuggerDisplay.TestEnum", "testEnum", "Test enum");

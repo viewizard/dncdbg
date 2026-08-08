@@ -6,6 +6,7 @@
 #include "metadata/attributes.h"
 #include "metadata/helpers.h"
 #include <algorithm>
+#include <cassert>
 #include <functional>
 
 namespace dncdbg
@@ -181,14 +182,16 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
     return static_cast<DebuggerBrowsableState>(data);
 }
 
-bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &proxyTypeName)
+bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output)
 {
-    proxyTypeName.clear();
+    assert(attrName == DebuggerAttribute::TypeProxy || attrName == DebuggerAttribute::Display);
+
+    output.clear();
 
     return ForEachAttribute(pMDImport, tok,
         [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (displayAttrName != DebuggerAttribute::TypeProxy)
+            if (displayAttrName != attrName)
             {
                 return false;
             }
@@ -196,11 +199,11 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
             const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
             PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
 
-            // In case of DebuggerTypeProxyAttribute, blob format is:
+            // In case of DebuggerTypeProxyAttribute and DebuggerDisplayAttribute, blob format is:
             // 2 bytes - blob prolog 0x0001
-            // 1-4 bytes - type name string length (compressed unsigned integer)
-            // N bytes - type name string data (UTF-8)
-            // 2 bytes - named arguments count (for class or struct attributes, must be 0)
+            // 1-4 bytes - text string length (compressed unsigned integer)
+            // N bytes - text string data (UTF-8)
+            // 2 bytes - named arguments count
             // ... named arguments are not provided in this case
 
             // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
@@ -211,8 +214,8 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
             }
             pbBlob += sizeof(uint16_t);
 
-            std::string_view typeName;
-            if (!ReadString(&pbBlob, pbBlobEnd, typeName))
+            std::string_view text;
+            if (!ReadString(&pbBlob, pbBlobEnd, text))
             {
                 return false;
             }
@@ -230,19 +233,22 @@ bool HasDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, std:
                 return false;
             }
 
-            proxyTypeName = typeName;
+            output = text;
             return true;
         });
 }
 
-bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::string &detectTypeName, std::string &proxyTypeName)
+bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName,
+                                  const std::string &detectTypeName, std::string &output)
 {
-    proxyTypeName.clear();
+    assert(attrName == DebuggerAttribute::TypeProxy || attrName == DebuggerAttribute::Display);
+
+    output.clear();
 
     return ForEachAttribute(pMDImport, tok,
         [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
         {
-            if (displayAttrName != DebuggerAttribute::TypeProxy)
+            if (displayAttrName != attrName)
             {
                 return false;
             }
@@ -250,10 +256,10 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
             const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
             PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
 
-            // In case of DebuggerTypeProxyAttribute with named arguments, blob format is:
+            // In case of DebuggerTypeProxyAttribute and DebuggerDisplayAttribute with named arguments, blob format is:
             // 2 bytes - blob prolog 0x0001
-            // 1-4 bytes - type name string length (compressed unsigned integer)
-            // N bytes - type name string data (UTF-8)
+            // 1-4 bytes - text string length (compressed unsigned integer)
+            // N bytes - text string data (UTF-8)
             // 2 bytes - named arguments count
             // For each named argument:
             //   1 byte - CorSerializationType (SERIALIZATION_TYPE_FIELD, SERIALIZATION_TYPE_PROPERTY)
@@ -271,8 +277,8 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
             }
             pbBlob += sizeof(uint16_t);
 
-            std::string_view typeName;
-            if (!ReadString(&pbBlob, pbBlobEnd, typeName))
+            std::string_view text;
+            if (!ReadString(&pbBlob, pbBlobEnd, text))
             {
                 return false;
             }
@@ -341,46 +347,7 @@ bool HasAssemblyDebuggerTypeProxyAttribute(IMetaDataImport *pMDImport, mdToken t
                 return false;
             }
 
-            proxyTypeName = typeName;
-            return true;
-        });
-}
-
-bool HasDebuggerDisplayAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &text)
-{
-    text.clear();
-
-    return ForEachAttribute(pMDImport, tok,
-        [&](const std::string &displayAttrName, const void *pBlob, ULONG cbBlob) -> bool
-        {
-            if (displayAttrName != DebuggerAttribute::Display)
-            {
-                return false;
-            }
-
-            const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
-            PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
-
-            // In case of DebuggerDisplayAttribute, blob format is:
-            // 2 bytes - blob prolog 0x0001
-            // 1-4 bytes - text string length (compressed unsigned integer)
-            // N bytes - text string data (UTF-8)
-
-            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-            {
-                return false;
-            }
-            pbBlob += sizeof(uint16_t);
-
-            std::string_view svText;
-            if (!ReadString(&pbBlob, pbBlobEnd, svText))
-            {
-                return false;
-            }
-
-            text = svText;
+            output = text;
             return true;
         });
 }

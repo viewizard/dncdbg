@@ -726,7 +726,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
             break;
         }
 
-        if (HasDebuggerTypeProxyAttribute(trMDImport, attrTypeDef, proxyTypeName))
+        if (HasDebuggerAttribute(trMDImport, attrTypeDef, DebuggerAttribute::TypeProxy, proxyTypeName))
         {
             proxyAttrTypeDef = attrTypeDef;
             break;
@@ -739,7 +739,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
         {
             std::string detectTypeName;
             if (SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByToken(attrTypeDef, trMDImport, detectTypeName)) &&
-                HasAssemblyDebuggerTypeProxyAttribute(trMDImport, assemblyToken, detectTypeName, proxyTypeName))
+                HasAssemblyDebuggerAttribute(trMDImport, assemblyToken, DebuggerAttribute::TypeProxy, detectTypeName, proxyTypeName))
             {
                 proxyAttrTypeDef = attrTypeDef;
                 break;
@@ -1550,7 +1550,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
 
                         std::string textWithEval;
-                        HasDebuggerDisplayAttribute(trMDImport, fieldDef, textWithEval);
+                        HasDebuggerAttribute(trMDImport, fieldDef, DebuggerAttribute::Display, textWithEval);
 
                         IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
                         if (Status == S_CAN_EXIT)
@@ -1633,7 +1633,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         }
 
                         std::string textWithEval;
-                        HasDebuggerDisplayAttribute(trMDImport, propertyDef, textWithEval);
+                        HasDebuggerAttribute(trMDImport, propertyDef, DebuggerAttribute::Display, textWithEval);
 
                         if (provideSetterData)
                         {
