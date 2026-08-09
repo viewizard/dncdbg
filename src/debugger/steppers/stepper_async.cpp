@@ -123,12 +123,12 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     return S_OK;
 }
 
-// Find Async ID, in our case - reference to created by builder object,
+// Find Async ID, in our case - reference to object created by builder,
 // that could be used as unique ID for builder (state machine) on yield and resume offset breakpoints.
 // [in] pThread - managed thread for evaluation (related to pFrame);
-// [in] pFrame - frame that used for get all info needed (function, module, etc);
+// [in] pFrame - frame used to get all info needed (function, module, etc);
 // [in] pEvalExec - pointer to managed debugger EvalExec;
-// [out] ppValueAsyncIdRef - result value (reference to created by builder object).
+// [out] ppValueAsyncIdRef - result value (reference to object created by builder).
 HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, EvalExec *pEvalExec,
                             ICorDebugValue **ppValueAsyncIdRef)
 {
@@ -209,7 +209,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
 
 // Set notification for wait completion - call SetNotificationForWaitCompletion() method for particular builder.
 // [in] pThread - managed thread for evaluation (related to pFrame);
-// [in] pFrame - frame that used for get all info needed (function, module, etc);
+// [in] pFrame - frame used to get all info needed (function, module, etc);
 // [in] pEvalExec - pointer to managed debugger EvalExec;
 HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, EvalExec *pEvalExec)
 {
@@ -479,7 +479,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         trFrame == nullptr ||
         FAILED(trFrame->GetFunctionToken(&methodToken)))
     {
-        LOGE(log << "Failed receive function token for async step");
+        LOGE(log << "Failed to receive function token for async step");
         return E_FAIL;
     }
     CORDB_ADDRESS modAddress = 0;
@@ -510,7 +510,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
         m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
         // Note, notification flag will be reset automatically in NotifyDebuggerOfWaitCompletion() method,
-        // no need call SetNotificationForWaitCompletion() with FALSE arg (at least, mono acts in the same way).
+        // no need to call SetNotificationForWaitCompletion() with FALSE arg (at least, mono acts in the same way).
 
         // Update stepping request to new thread/frame_count that we are continuing on
         // so continuing with normal step-out works as expected.
@@ -582,7 +582,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         if (FAILED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalExec.get(), &trValue)) ||
             FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_trHandleValueAsyncId))) ||
             FAILED(m_asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
-            // Note, we need only strong or pinned handle here, that will not invalidated on continue-break.
+            // Note, we need only strong or pinned handle here, that will not be invalidated on continue-break.
             handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
         {
             m_asyncStep->m_trHandleValueAsyncId.Free();
@@ -592,7 +592,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
     else
     {
         // For second breakpoint we could have 3 cases:
-        // 1. We still have initial thread, so, no need spend time and check asyncId.
+        // 1. We still have initial thread, so, no need to spend time and check asyncId.
         // 2. We have another thread with same asyncId - same execution of async method.
         // 3. We have another thread with different asyncId - parallel execution of async method.
         if (m_asyncStep->m_threadId == GetThreadId(pThread))
@@ -619,7 +619,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         CORDB_ADDRESS prevAsyncId = 0;
         ToRelease<ICorDebugValue> trDereferencedValue;
         ToRelease<ICorDebugValue> trValueAsyncId;
-        if ((m_asyncStep->m_trHandleValueAsyncId != nullptr) && // Note, we could fail with m_trHandleValueAsyncId on previous breakpoint by some reason.
+        if ((m_asyncStep->m_trHandleValueAsyncId != nullptr) && // Note, we could fail with m_trHandleValueAsyncId on previous breakpoint for some reason.
             SUCCEEDED(m_asyncStep->m_trHandleValueAsyncId->Dereference(&trDereferencedValue)) &&
             SUCCEEDED(DereferenceAndUnboxValue(trDereferencedValue, &trValueAsyncId, &isNull)) && (isNull == FALSE))
         {
@@ -630,7 +630,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
             LOGE(log << "Could not calculate previous async ID for await block");
         }
 
-        // Note, 'currentAsyncId' and 'prevAsyncId' is 64 bit addresses, in our case can't be 0.
+        // Note, 'currentAsyncId' and 'prevAsyncId' are 64 bit addresses, in our case can't be 0.
         // If we can't detect proper thread - continue stepping for this thread.
         if (currentAsyncId == prevAsyncId || currentAsyncId == 0 || prevAsyncId == 0)
         {

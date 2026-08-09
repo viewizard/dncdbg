@@ -59,7 +59,7 @@ class Steppers
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
     bool m_stepFiltering{true};
-    // Previous step-in was made in method that must not be stepped. We need store this information in order to step-in again as soon, as we leave this method.
+    // Previous step-in was made in method that must not be stepped. We need to store this information in order to step-in again as soon as we leave this method.
     // Usually this is code related to m_stepFiltering, but in some cases we could also filter compiler generated code and code covered by StepThrough attribute.
     bool m_filteredPrevStep{false};
 };

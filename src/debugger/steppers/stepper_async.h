@@ -98,7 +98,7 @@ class AsyncStepper
     };
 
     std::mutex m_asyncStepMutex;
-    // Pointer to object, that provide all active async step related data. Object will be created only in case of active async method stepping.
+    // Pointer to object that provides all active async step related data. Object will be created only in case of active async method stepping.
     std::unique_ptr<asyncStep_t> m_asyncStep;
     // System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data, will be configured at async method step-out setup.
     std::unique_ptr<asyncBreakpoint_t> m_asyncStepNotifyDebuggerOfWaitCompletion;
