@@ -250,43 +250,46 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             return S_OK;
         }
     },
-    // Roslyn: ObjectCreationExpression (e.g., new Foo())
+    // Roslyn: ObjectCreationExpression (e.g., new Foo(1, 2)). Object/collection
+    // initializers (`new Foo { X = 1 }`, `new List<int>{1,2,3}`) are a
+    // separate, unhandled node shape (the `initializer` field below) --
+    // rejected here with a clear error rather than silently dropped, since
+    // silently ignoring the initializer would evaluate to a real but wrong
+    // (uninitialized) object instead of failing.
     {"object_creation_expression",
-        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
+        [](TSNode node, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &workStack) -> HRESULT
         {
-            // TODO implement in evalstackmachine.cpp before uncommenting this code
+            static const char *const typeField = "type";
+            static const char *const argumentsField = "arguments";
+            static const char *const initializerField = "initializer";
+            const TSNode typeNode = ts_node_child_by_field_name(node, typeField, static_cast<uint32_t>(strlen(typeField)));
+            const TSNode argList = ts_node_child_by_field_name(node, argumentsField, static_cast<uint32_t>(strlen(argumentsField)));
+            const TSNode initializerNode = ts_node_child_by_field_name(node, initializerField, static_cast<uint32_t>(strlen(initializerField)));
 
-            // const TSNode typeNode = ts_node_named_child(node, 0);
-            // const TSNode argList = ts_node_named_child(node, 1);
-            // uint32_t argCount = 0;
-            // if (!ts_node_is_null(argList) && std::string_view(ts_node_type(argList)) == "argument_list")
-            // {
-            //     argCount = ts_node_named_child_count(argList);
-            //     // Push in reverse: post-action first, then arg children (last-to-first), then typeNode.
-            //     workStack.emplace(EmitAction{[argCount](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-            //     {
-            //         prog.emplace_back(SyntaxKind::ObjectCreationExpression, argCount);
-            //         return S_OK;
-            //     }});
-            //     workStack.emplace(VisitNode{typeNode});
-            //     for (uint32_t i = argCount; i > 0; --i)
-            //     {
-            //         workStack.emplace(VisitNode{ts_node_named_child(argList, i - 1)});
-            //     }
-            // }
-            // else
-            // {
-            //     workStack.emplace(EmitAction{[](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
-            //     {
-            //         prog.emplace_back(SyntaxKind::ObjectCreationExpression, uint32_t{0});
-            //         return S_OK;
-            //     }});
-            //     workStack.emplace(VisitNode{typeNode});
-            // }
-            // return S_OK;
+            if (!ts_node_is_null(initializerNode))
+            {
+                output = "Object/collection initializers are not implemented (only plain constructor calls, e.g. `new Foo(1, 2)`).";
+                return E_NOTIMPL;
+            }
 
-            output = "Object creation expression not implemented.";
-            return E_NOTIMPL;
+            const uint32_t argCount = ts_node_is_null(argList) ? 0 : ts_node_named_child_count(argList);
+
+            // Push in reverse: post-action, then arg children (last-to-first), then
+            // typeNode -- mirrors invocation_expression's function-then-args shape
+            // (see above) so EvalStackMachine's ObjectCreationExpression handler can
+            // pop args the same way InvocationExpression does, leaving the type
+            // identifier(s) at evalStack.front() afterward.
+            workStack.emplace(EmitAction{[argCount](std::list<Opcode> &prog, std::string &/*out*/) -> HRESULT
+            {
+                prog.emplace_back(SyntaxKind::ObjectCreationExpression, argCount);
+                return S_OK;
+            }});
+            for (uint32_t i = argCount; i > 0; --i)
+            {
+                workStack.emplace(VisitNode{ts_node_named_child(argList, i - 1)});
+            }
+            workStack.emplace(VisitNode{typeNode});
+            return S_OK;
         }
     },
     // Roslyn: SimpleMemberAccessExpression (a.b) AND PointerMemberAccessExpression (a->b)

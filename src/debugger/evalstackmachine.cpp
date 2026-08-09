@@ -1007,6 +1007,120 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     return Status;
 }
 
+// ObjectCreationExpression (e.g. `new Guid("...")`, `new Point(1, 2)`) --
+// plain constructor calls only, no object/collection initializers (see the
+// object_creation_expression parser handler in parser.cpp, which rejects
+// those before this ever runs).
+HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+{
+    const uint32_t argCount = opcode.count;
+    HRESULT Status = S_OK;
+
+    std::vector<ToRelease<ICorDebugValue>> trArgs(argCount);
+    uint32_t tmpArgCount = argCount;
+    while (tmpArgCount > 0)
+    {
+        tmpArgCount--;
+        IfFailRet(GetFrontStackEntryValue(&trArgs.at(tmpArgCount), nullptr, evalStack, ed, output));
+        evalStack.pop_front();
+    }
+
+    if (evalStack.front().preventBinding)
+    {
+        return S_OK;
+    }
+
+    // The type identifier(s) (e.g. "Guid", "System.Guid", "List<int>") are
+    // what's left in the front entry once all constructor arguments have
+    // been popped -- same shape InvocationExpression relies on for its
+    // "function" entry above, resolved as a *type* rather than a value via
+    // GetFrontStackEntryType (the same helper SizeOfExpression uses).
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
+
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(trType->GetType(&elemType));
+    if (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE)
+    {
+        output = "error: 'new' is only supported for class and struct types";
+        return E_NOTIMPL;
+    }
+
+    std::vector<SigElementType> funcArgs(argCount);
+    for (uint32_t i = 0; i < argCount; ++i)
+    {
+        ToRelease<ICorDebugValue> trValueArg;
+        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
+        IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
+
+        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS ||
+            funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
+        {
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
+        }
+    }
+
+    // Constructors aren't inherited in C# -- unlike InvocationExpression's
+    // method lookup above, this never walks to a base type.
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(Evaluator::WalkMethods(trType, false, nullptr,
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+           std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if (isStatic || methodName != ".ctor" || funcArgs.size() != methodArgs.size())
+            {
+                return S_OK; // Return with success to continue walk.
+            }
+
+            for (size_t i = 0; i < funcArgs.size(); ++i)
+            {
+                if (funcArgs.at(i) != methodArgs.at(i))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+            }
+
+            IfFailRet(getFunction(&trFunc));
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
+
+    if (trFunc == nullptr)
+    {
+        std::string typeName;
+        MetadataHelpers::GetFQDisplayTypeName(trType, typeName);
+        output = "error: '" + typeName + "' has no accessible constructor taking " +
+                 std::to_string(argCount) + " argument" + (argCount == 1 ? "" : "s");
+        return E_INVALIDARG;
+    }
+
+    // Generic type arguments for the type itself (e.g. the `int` in
+    // `List<int>`) -- constructor func-evals need these even though the
+    // constructor method itself isn't generic.
+    std::vector<ToRelease<ICorDebugType>> trTypeParams;
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+    if (SUCCEEDED(trType->EnumerateTypeParameters(&trTypeEnum)))
+    {
+        ICorDebugType *pCurType = nullptr;
+        ULONG fetched = 0;
+        while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
+        {
+            trTypeParams.emplace_back(pCurType);
+        }
+    }
+
+    std::vector<ICorDebugValue *> pValueArgs;
+    pValueArgs.reserve(argCount);
+    for (uint32_t i = 0; i < argCount; i++)
+    {
+        pValueArgs.emplace_back(trArgs.at(i).GetPtr());
+    }
+
+    evalStack.front().ResetEntry();
+    return ed.pEvalExec->CallConstructor(ed.pThread, trFunc, trTypeParams,
+                                         pValueArgs.empty() ? nullptr : pValueArgs.data(),
+                                         static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
+}
+
 HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
@@ -1523,6 +1637,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
         {Parser::SyntaxKind::IdentifierName, IdentifierName},
         {Parser::SyntaxKind::GenericName, GenericName},
         {Parser::SyntaxKind::InvocationExpression, InvocationExpression},
+        {Parser::SyntaxKind::ObjectCreationExpression, ObjectCreationExpression},
         {Parser::SyntaxKind::ElementAccessExpression, ElementAccessExpression},
         {Parser::SyntaxKind::ElementBindingExpression, ElementBindingExpression},
         {Parser::SyntaxKind::NumericLiteralExpression, NumericLiteralExpression},
