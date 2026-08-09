@@ -32,7 +32,7 @@ class AsyncStepper
                  std::shared_ptr<DebugInfo> &sharedDebugInfo,
                  std::shared_ptr<EvalExec> &sharedEvalExec)
         : m_simpleStepper(simpleStepper),
-          m_uniqueAsyncInfo(new AsyncInfo(sharedDebugInfo)),
+          m_uniqueAsyncInfo(std::make_unique<AsyncInfo>(sharedDebugInfo)),
           m_sharedEvalExec(sharedEvalExec),
           m_asyncStep(nullptr),
           m_asyncStepNotifyDebuggerOfWaitCompletion(nullptr)

@@ -20,11 +20,11 @@ namespace dncdbg
 Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
                          std::shared_ptr<Evaluator> &sharedEvaluator,
                          std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-    : m_breakBreakpoint(new BreakBreakpoint(sharedDebugInfo)),
-      m_entryBreakpoint(new EntryBreakpoint(sharedDebugInfo)),
-      m_exceptionBreakpoints(new ExceptionBreakpoints(sharedEvaluator, sharedEvalStackMachine)),
-      m_funcBreakpoints(new FunctionBreakpoints(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine)),
-      m_sourceBreakpoints(new SourceBreakpoints(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine))
+    : m_breakBreakpoint(std::make_shared<BreakBreakpoint>(sharedDebugInfo)),
+      m_entryBreakpoint(std::make_shared<EntryBreakpoint>(sharedDebugInfo)),
+      m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>(sharedEvaluator, sharedEvalStackMachine)),
+      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine)),
+      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine))
 {
 }
 

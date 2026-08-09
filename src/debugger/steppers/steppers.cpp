@@ -17,8 +17,8 @@ namespace dncdbg
 
 Steppers::Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo,
                    std::shared_ptr<EvalExec> &sharedEvalExec)
-    : m_simpleStepper(new SimpleStepper(sharedDebugInfo)),
-      m_asyncStepper(new AsyncStepper(m_simpleStepper, sharedDebugInfo, sharedEvalExec)),
+    : m_simpleStepper(std::make_shared<SimpleStepper>(sharedDebugInfo)),
+      m_asyncStepper(std::make_shared<AsyncStepper>(m_simpleStepper, sharedDebugInfo, sharedEvalExec)),
       m_sharedDebugInfo(sharedDebugInfo)
 {
 }
