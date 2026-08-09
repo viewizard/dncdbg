@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -29,6 +30,7 @@ namespace dncdbg
 class DebugInfo;
 class EvalExec;
 class EvalStackMachine;
+class TypeProxy;
 
 class Evaluator
 {
@@ -86,12 +88,7 @@ class Evaluator
     using ReturnElementType = SigElementType;
     using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<SigElementType> &, GetFunctionCallback)>;
 
-    Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-              std::shared_ptr<EvalExec> &sharedEvalExec)
-        : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedEvalExec(sharedEvalExec)
-    {
-    }
+    Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalExec> &sharedEvalExec);
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,
@@ -154,28 +151,10 @@ class Evaluator
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalExec> m_sharedEvalExec;
+    std::shared_ptr<TypeProxy> m_sharedTypeProxy;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
-
-    // DebuggerTypeProxyAttribute related
-
-    std::mutex m_debuggerTypeProxyMutex;
-    std::unordered_map<CORDB_ADDRESS, std::unordered_set<mdTypeDef>> m_debuggerTypeProxyCheckedTypes;
-    struct DebuggerTypeProxyCache
-    {
-        CORDB_ADDRESS modAddress{0};
-        mdMethodDef methodDef{mdMethodDefNil};
-        uint32_t enclosingTypesParamCount{0};
-    };
-    std::unordered_map<CORDB_ADDRESS, std::unordered_map<mdTypeDef, DebuggerTypeProxyCache>> m_debuggerTypeProxyCache;
-    std::unordered_map<CORDB_ADDRESS, ToRelease<ICorDebugModule>> m_debuggerTypeProxyModuleCache;
-
-    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
-                                      ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
-                                      mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
-    HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                            mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue);
 
     // Extension methods related
 
