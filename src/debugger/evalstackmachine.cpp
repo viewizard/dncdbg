@@ -1673,7 +1673,9 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
         {ELEMENT_TYPE_I8,       W("System.Int64")},
         {ELEMENT_TYPE_U8,       W("System.UInt64")},
         {ELEMENT_TYPE_R4,       W("System.Single")},
-        {ELEMENT_TYPE_R8,       W("System.Double")}
+        {ELEMENT_TYPE_R8,       W("System.Double")},
+        {ELEMENT_TYPE_I,        W("System.IntPtr")},
+        {ELEMENT_TYPE_U,        W("System.UIntPtr")}
     };
 
     for (const auto &[elemType, systemTypeName] : corElementToValueNameMap)
