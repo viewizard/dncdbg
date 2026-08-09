@@ -957,6 +957,39 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     return S_OK;
 }
 
+// Collect the names of generic parameters declared on the given type or method token.
+// The returned vector is ordered by the generic parameter ordinal (number), so the
+// element at index N corresponds to the N-th generic parameter (VAR/MVAR number N).
+// On failure or when the token has no generic parameters, an empty vector is returned.
+std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
+{
+    std::vector<std::string> names;
+
+    HCORENUM hEnum = nullptr;
+    mdGenericParam genParam = mdGenericParamNil;
+    ULONG fetched = 0;
+    while (SUCCEEDED(pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
+    {
+        ULONG genNameLen = 0;
+        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+        {
+            continue;
+        }
+
+        std::vector<WCHAR> szGenName(genNameLen, '\0');
+        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                    szGenName.data(), genNameLen, nullptr)))
+        {
+            continue;
+        }
+
+        names.emplace_back(to_utf8(szGenName.data()));
+    }
+    pMDImport2->CloseEnum(hEnum);
+
+    return names;
+}
+
 HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
                                     std::string &displayTypeName, std::string &displayMethodName)
 {
@@ -1040,34 +1073,13 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
     std::list<std::string> args;
-    auto getGenericNames = [&](mdToken token) -> void
+    auto fillArgs = [&](mdToken token) -> void
     {
-        args.clear();
-
-        HCORENUM hEnum = nullptr;
-        mdGenericParam genParam = mdGenericParamNil;
-        ULONG fetched = 0;
-        while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
-        {
-            ULONG genNameLen = 0;
-            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
-            {
-                continue;
-            }
-
-            std::vector<WCHAR> szGenName(genNameLen, '\0');
-            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                         szGenName.data(), genNameLen, nullptr)))
-            {
-                continue;
-            }
-
-            args.emplace_back(to_utf8(szGenName.data()));
-        }
-        trMDImport2->CloseEnum(hEnum);
+        const std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
+        args.assign(names.begin(), names.end());
     };
 
-    getGenericNames(methodDef);
+    fillArgs(methodDef);
     if (!args.empty())
     {
         std::ostringstream ss;
@@ -1081,7 +1093,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
 
     if (typeDef != mdTypeDefNil)
     {
-        getGenericNames(typeDef);
+        fillArgs(typeDef);
         if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
         {
             displayTypeName = "";
@@ -1536,16 +1548,43 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        ToRelease<IMetaDataImport2> trMDImport2;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
+        mdTypeDef typeDef = mdTypeDefNil;
         PCCOR_SIGNATURE pSig = nullptr;
         ULONG cbSig = 0;
-        IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+        IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, nullptr, 0, nullptr,
                                              nullptr, &pSig, &cbSig, nullptr, nullptr));
 
         SigElementType returnElementType;
         std::vector<SigElementType> argElementTypes;
         // Ignore failed return code here, we need all we could parse from sig.
         ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+
+        const std::vector<std::string> typeParameterNames = GetGenericParamNames(trMDImport2, typeDef);
+        const std::vector<std::string> methodParameterNames = GetGenericParamNames(trMDImport2, methodDef);
+
+        // Without an ICorDebugFrame we cannot resolve the concrete generic argument
+        // types, so fill `metadataTypeName` with the generic parameter declaration
+        // names (e.g. "T", "TKey") instead of the actual type names.
+        for (auto &methodArg : argElementTypes)
+        {
+            if (methodArg.genericElemType == ELEMENT_TYPE_VAR)
+            {
+                if (methodArg.varNum < typeParameterNames.size())
+                {
+                    methodArg.metadataTypeName = typeParameterNames.at(methodArg.varNum);
+                }
+            }
+            else if (methodArg.genericElemType == ELEMENT_TYPE_MVAR)
+            {
+                if (methodArg.varNum < methodParameterNames.size())
+                {
+                    methodArg.metadataTypeName = methodParameterNames.at(methodArg.varNum);
+                }
+            }
+        }
 
         auto cArguments = static_cast<ULONG>(argElementTypes.size());
         for (ULONG i = 0; i < cArguments; i++)
