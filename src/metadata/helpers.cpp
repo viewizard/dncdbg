@@ -6,6 +6,7 @@
 #include "metadata/helpers.h"
 #include "debugger/evaluator.h" // FIXME: metadata should not depend on debugger
 #include "debuginfo/debuginfo.h"
+#include "metadata/attributes.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -1090,6 +1091,67 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     return S_OK;
 }
 
+// Find kickoff method for an async state machine `MoveNext` method.
+// If possible, call the faster `DebugInfo::GetStateMachineKickoffMethod()` first.
+HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken, mdMethodDef &kickoffMethodToken)
+{
+    HRESULT Status = S_OK;
+    kickoffMethodToken = mdMethodDefNil;
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    ULONG funcNameLen = 0;
+    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, nullptr, 0, &funcNameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+    WSTRING funcName(funcNameLen, '\0');
+    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, funcName.data(), funcNameLen, nullptr,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    // Remove null terminator that was included in the length
+    if (!funcName.empty() && funcName.back() == '\0')
+    {
+        funcName.pop_back();
+    }
+
+    if (funcName != W("MoveNext"))
+    {
+        return E_INVALIDARG;
+    }
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pModule->GetFunctionFromToken(moveNextMethodToken, &trFunction));
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trFunction->GetClass(&trClass));
+    mdTypeDef typeDef = mdTypeDefNil;
+    IfFailRet(trClass->GetToken(&typeDef));
+    std::string metadataTypeName;
+    IfFailRet(GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName));
+
+    // Async state machine types are always nested classes; find the enclosing class with the kickoff method.
+    mdTypeDef enclosingClass = mdTypeDefNil;
+    IfFailRet(trMDImport->GetNestedClassProps(typeDef, &enclosingClass));
+
+    ULONG numMethods = 0;
+    HCORENUM fEnum = nullptr;
+    mdMethodDef methodDef = mdMethodDefNil;
+    while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, enclosingClass, &methodDef, 1, &numMethods)) && numMethods != 0)
+    {
+        std::string stateMachineClass;
+        if (HasAsyncStateMachineAttribute(trMDImport, methodDef, stateMachineClass) &&
+            stateMachineClass == metadataTypeName)
+        {
+            kickoffMethodToken = methodDef;
+            break;
+        }
+    }
+    trMDImport->CloseEnum(fEnum);
+
+    return kickoffMethodToken != mdMethodDefNil ? S_OK : E_FAIL;
+}
+
 } // unnamed namespace
 
 HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::string &metadataName)
@@ -1280,7 +1342,8 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugIn
     IfFailRet(trFunction->GetToken(&methodToken));
 
     mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
+        FAILED(GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
     }
@@ -1319,7 +1382,8 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
 
     mdMethodDef methodDef = mdMethodDefNil;
     bool asyncMethod = true;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
+        FAILED(GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
         asyncMethod = false;
@@ -1455,7 +1519,8 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
     HRESULT Status = S_OK;
 
     mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
+    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)) &&
+        FAILED(GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
     }

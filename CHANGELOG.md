@@ -24,6 +24,7 @@ Upcoming changes compared to previous version.
 - Added TestFormatSpecifiersAc.
 - Added support for `DebuggerDisplayAttribute` to enumerations, classes, structures, fields, properties and assemblies.
 - Added TestDebuggerDisplay.
+- Added metadata-based async kickoff method detection for non-user code frames.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
