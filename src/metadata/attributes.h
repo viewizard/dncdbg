@@ -68,6 +68,7 @@ enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
+bool HasAsyncStateMachineAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &metadataStateMachineType);
 
 // Debugger Attributes only (DebuggerTypeProxyAttribute or DebuggerDisplayAttribute)
 bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output);

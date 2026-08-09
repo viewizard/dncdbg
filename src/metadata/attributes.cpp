@@ -182,6 +182,50 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
     return static_cast<DebuggerBrowsableState>(data);
 }
 
+bool HasAsyncStateMachineAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &metadataStateMachineType)
+{
+    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.asyncstatemachineattribute
+    // Indicates whether a method is marked with the async modifier.
+    const void *pBlob = nullptr;
+    ULONG cbBlob = 0;
+    // Note, in case the attribute is not found, GetCustomAttributeByName() returns S_FALSE or an error code.
+    if (S_OK != pMDImport->GetCustomAttributeByName(tok, W("System.Runtime.CompilerServices.AsyncStateMachineAttribute"), &pBlob, &cbBlob))
+    {
+        return false;
+    }
+
+    const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+    PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
+
+    // In case of AsyncStateMachineAttribute, blob format is:
+    // 2 bytes - blob prolog 0x0001
+    // 1-4 bytes - text string length (compressed unsigned integer)
+    // N bytes - text string data (UTF-8)
+
+    // Ensure there are enough bytes for the blob prolog before accessing it.
+    if (cbBlob < sizeof(uint16_t))
+    {
+        return false;
+    }
+
+    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+    {
+        return false;
+    }
+    pbBlob += sizeof(uint16_t);
+
+    std::string_view text;
+    if (!ReadString(&pbBlob, pbBlobEnd, text))
+    {
+        return false;
+    }
+
+    metadataStateMachineType = text;
+    return true;
+}
+
 bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output)
 {
     assert(attrName == DebuggerAttribute::TypeProxy || attrName == DebuggerAttribute::Display);
@@ -205,6 +249,12 @@ bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_v
             // N bytes - text string data (UTF-8)
             // 2 bytes - named arguments count
             // ... named arguments are not provided in this case
+
+            // Ensure there are enough bytes for the blob prolog before accessing it.
+            if (cbBlob < sizeof(uint16_t))
+            {
+                return false;
+            }
 
             // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
             // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
@@ -268,6 +318,12 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             //   K bytes - argument name string data (UTF-8)
             //   1-4 bytes - argument value length (compressed unsigned integer)
             //   M bytes - argument value string data (UTF-8)
+
+            // Ensure there are enough bytes for the blob prolog before accessing it.
+            if (cbBlob < sizeof(uint16_t))
+            {
+                return false;
+            }
 
             // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
             // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
