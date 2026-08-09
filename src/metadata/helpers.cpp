@@ -1106,8 +1106,9 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     ULONG funcNameLen = 0;
     IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, nullptr, 0, &funcNameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
+    mdTypeDef typeDef = mdTypeDefNil;
     WSTRING funcName(funcNameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, funcName.data(), funcNameLen, nullptr,
+    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, &typeDef, funcName.data(), funcNameLen, nullptr,
                                          nullptr, nullptr, nullptr, nullptr, nullptr));
 
     // Remove null terminator that was included in the length
@@ -1121,12 +1122,6 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
         return E_INVALIDARG;
     }
 
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(pModule->GetFunctionFromToken(moveNextMethodToken, &trFunction));
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(trFunction->GetClass(&trClass));
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(trClass->GetToken(&typeDef));
     std::string metadataTypeName;
     IfFailRet(GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName));
 
