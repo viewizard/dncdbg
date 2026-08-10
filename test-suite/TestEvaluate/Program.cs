@@ -1178,6 +1178,8 @@ class Program
         long longToString = -8;
         ulong ulongToString = 8;
         string stringToString = "string";
+        nint nintToString = -11;
+        nuint nuintToString = 11;
 
         MethodCallTest3 mcTest3 = new MethodCallTest3();
 
@@ -1241,6 +1243,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"8\"", "string", "ulongToString.ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "\"string\".ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "stringToString.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"-11\"", "string", "nintToString.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"11\"", "string", "nuintToString.ToString()");
 
                 // Call with arguments.
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2.0", "decimal", "mcTest3.Calc1(1.0M)");
