@@ -2025,14 +2025,11 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     return S_OK;
 }
 
-HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::string &methodName,
+HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const std::string &methodName,
                                         std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
     const WSTRING wMethodName = to_utf16(methodName);
-
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(pInputType->GetType(&elemType));
 
     std::unordered_set<std::string> allIfaceTypeNames;
     auto fillIfaceTypeNames = [&]() -> HRESULT
@@ -2056,11 +2053,10 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
         mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
         ULONG pcImpls = 0;
         while (SUCCEEDED(trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls)) &&
-                pcImpls != 0)
+               pcImpls != 0)
         {
-            mdTypeDef tkClass = mdTypeDefNil;
             mdToken tkIface = mdTokenNil;
-            if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
+            if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
             {
                 continue;
             }
@@ -2076,9 +2072,45 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
         trMDImport->CloseEnum(hEnum);
         return S_OK;
     };
+
     if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
     {
         IfFailRet(fillIfaceTypeNames());
+    }
+    else if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
+    {
+        // Note: arrays use metadata type name check, not elemType.
+        std::string typeName;
+        IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(pInputType, typeName));
+        allIfaceTypeNames.emplace(typeName);
+
+        // Base Class Library collection interfaces for arrays.
+        for (const char *ifaceName : {
+                    "System.Collections.Generic.IList`1",
+                    "System.Collections.Generic.ICollection`1",
+                    "System.Collections.Generic.IEnumerable`1",
+                    "System.Collections.Generic.IReadOnlyList`1",
+                    "System.Collections.Generic.IReadOnlyCollection`1",
+                    "System.Collections.IList",
+                    "System.Collections.ICollection",
+                    "System.Collections.IEnumerable"
+                })
+        {
+            allIfaceTypeNames.emplace(ifaceName);
+        }
+    }
+    else if (elemType == ELEMENT_TYPE_STRING)
+    {
+        // Note: strings don't need a metadata type name, since they use elemType for the check.
+
+        // Base Class Library collection interfaces for strings.
+        for (const char *ifaceName : {
+                    "System.Collections.Generic.IEnumerable`1",
+                    "System.Collections.IEnumerable"
+                })
+        {
+            allIfaceTypeNames.emplace(ifaceName);
+        }
     }
 
     const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
@@ -2121,9 +2153,18 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, const std::st
                 continue;
             }
 
-            if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE)
+            if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE ||
+                elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
             {
                 if (allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.end())
+                {
+                    continue; // Type name didn't match, try next method
+                }
+            }
+            else if (elemType == ELEMENT_TYPE_STRING)
+            {
+                if (elemType != argElementTypes.at(0).elemType &&
+                    allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.end())
                 {
                     continue; // Type name didn't match, try next method
                 }

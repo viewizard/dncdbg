@@ -843,14 +843,16 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                                                 nullptr, evalStack.front().identifiers,
                                                 ed.specifier, &trValue, nullptr, &trType));
 
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+
     bool searchStatic = false;
     if (trType != nullptr)
     {
         searchStatic = true;
+        IfFailRet(trType->GetType(&elemType));
     }
     else
     {
-        CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&elemType));
 
         if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
@@ -941,17 +943,29 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     if (trFunc == nullptr)
     {
-        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, funcName, funcArgs.size(), walkMethodsCallback));
-    }
+        // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
+        // Note: in case of a generic extension method call we also need the proper type parameters.
+        if (trValue != nullptr && (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY))
+        {
+            trType.Free();
+            ToRelease<ICorDebugValue2> trValue2;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+            IfFailRet(trValue2->GetExactType(&trType));
+        }
 
-    if (trFunc == nullptr)
-    {
-        return E_INVALIDARG;
-    }
+        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType, funcName, funcArgs.size(), walkMethodsCallback));
 
-    if (trResultType != nullptr)
+        if (trFunc == nullptr)
+        {
+            return E_INVALIDARG;
+        }
+    }
+    else
     {
-        trType = trResultType.Detach();
+        if (trResultType != nullptr)
+        {
+            trType = trResultType.Detach();
+        }
     }
 
     const uint32_t realArgsCount = argCount + (isInstance ? 1 : 0);

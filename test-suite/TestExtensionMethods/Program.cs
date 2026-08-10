@@ -55,6 +55,11 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
+        int[] array1 = new int[] { 1, 2, 3, 4, 5 };
+        int[,] matrix1 = {{ 1, 2, 3 },
+                          { 4, 5, 6 }};
+        string test = "abcde";
+
         lists.Add("null");
         lists.Add("first");
         lists.Add("second");
@@ -83,6 +88,16 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "s.WordCount(\"first\")", "error: 0x80070057");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "s.WordCount(1, \"first\")", "error: 0x80070057");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "s.WordCount(\"first\", 1)", "error: 0x80070057");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "array1.ElementAt(1)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "array1.First()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "array1.Count()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "matrix1.GetLength(0)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3", "int", "matrix1.GetLength(1)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "6", "int", "matrix1.Count()");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "test.Contains('a')");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "test.Contains('z')");
 
                 // FIXME
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"null\"", "string", "lists.ElementAt(0)");

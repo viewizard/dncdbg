@@ -25,6 +25,7 @@ Upcoming changes compared to previous version.
 - Added support for `DebuggerDisplayAttribute` to enumerations, classes, structures, fields, properties and assemblies.
 - Added TestDebuggerDisplay.
 - Added metadata-based async kickoff method detection for non-user code frames.
+- Added BCL collection interface support for arrays and strings in extension method resolution.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
