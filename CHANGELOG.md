@@ -50,6 +50,7 @@ Upcoming changes compared to previous version.
 - Fixed type resolution corruption in `ResolveTypeParameters` where a partial type match in one module would corrupt the identifier start index for subsequent modules.
 - Fixed `FindType` to avoid committing partial identifier-match state on failure by using a temporary index.
 - Fixed inherited member name-change logic to avoid displaying an empty string instead of the corresponding base type.
+- Fixed method search for built-in types `nint` (System.IntPtr), `nuint` (System.UIntPtr) and arrays (System.Array).
 
 </br>
 </br>

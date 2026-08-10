@@ -853,25 +853,40 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&elemType));
 
-        // Boxing built-in element type into value type in order to call methods.
-        auto entry = ed.trElementToValueClassMap.find(elemType);
-        if (entry != ed.trElementToValueClassMap.end())
+        if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
         {
-            uint32_t cbSize = 0;
-            IfFailRet(trValue->GetSize(&cbSize));
-            std::vector<uint8_t> elemValue(cbSize, 0);
+            // Create proper System.Array type in order to walk methods.
+            ToRelease<ICorDebugClass2> trClass2;
+            IfFailRet(ed.trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+            IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
+        }
+        else
+        {
+            // Boxing built-in element type into value type in order to call methods.
+            auto entry = ed.trElementToValueClassMap.find(elemType);
+            if (entry != ed.trElementToValueClassMap.end())
+            {
+                uint32_t cbSize = 0;
+                IfFailRet(trValue->GetSize(&cbSize));
+                std::vector<uint8_t> elemValue(cbSize, 0);
 
-            ToRelease<ICorDebugGenericValue> trGenericValue;
-            IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
+                ToRelease<ICorDebugGenericValue> trGenericValue;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+                IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
-            trValue.Free();
-            IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
+                trValue.Free();
+                IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
+            }
+
+            ToRelease<ICorDebugValue2> trValue2;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+            IfFailRet(trValue2->GetExactType(&trType));
         }
 
-        ToRelease<ICorDebugValue2> trValue2;
-        IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-        IfFailRet(trValue2->GetExactType(&trType));
+        if (trType == nullptr)
+        {
+            return E_NOTIMPL;
+        }
     }
 
     std::vector<SigElementType> funcArgs(argCount);
@@ -1660,6 +1675,11 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     static const WSTRING strTypeDefVoid{W("System.Void")};
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trVoidClass));
+
+    typeDef = mdTypeDefNil;
+    static const WSTRING strTypeDefArray{W("System.Array")};
+    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefArray.c_str(), mdTypeDefNil, &typeDef));
+    IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trArrayClass));
 
     static const std::vector<std::pair<CorElementType, const WCHAR *>> corElementToValueNameMap{
         {ELEMENT_TYPE_BOOLEAN,  W("System.Boolean")},

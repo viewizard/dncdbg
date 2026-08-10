@@ -1180,6 +1180,10 @@ class Program
         string stringToString = "string";
         nint nintToString = -11;
         nuint nuintToString = 11;
+        int[] arrayToString = new int[] { 1, 2, 3, 4, 5 };
+        int[,] matrixToString = {{ 1, 2, 3 },
+                                 { 4, 5, 6 }};
+
 
         MethodCallTest3 mcTest3 = new MethodCallTest3();
 
@@ -1245,6 +1249,10 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "stringToString.ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"-11\"", "string", "nintToString.ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"11\"", "string", "nuintToString.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"System.Int32[]\"", "string", "arrayToString.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"2\"", "string", "arrayToString[1].ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"System.Int32[,]\"", "string", "matrixToString.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"5\"", "string", "matrixToString[1,1].ToString()");
 
                 // Call with arguments.
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2.0", "decimal", "mcTest3.Calc1(1.0M)");

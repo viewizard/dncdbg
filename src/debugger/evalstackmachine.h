@@ -78,6 +78,7 @@ struct EvalData
     ToRelease<ICorDebugClass> trDecimalClass;
     // In case eval return void, we are forced to create System.Void value.
     ToRelease<ICorDebugClass> trVoidClass;
+    ToRelease<ICorDebugClass> trArrayClass;
     std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> trElementToValueClassMap;
     FrameLevel frameLevel;
     FormatSpecifier specifier{FormatSpecifier::None};
