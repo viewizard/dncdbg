@@ -8,6 +8,7 @@
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
+#include <algorithm>
 #include <charconv>
 
 namespace dncdbg

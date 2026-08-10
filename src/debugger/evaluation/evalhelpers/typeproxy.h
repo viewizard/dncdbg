@@ -12,6 +12,7 @@
 #endif
 
 #include "utils/torelease.h"
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
