@@ -118,9 +118,9 @@ md_blob_parse_result_t md_parse_local_constant_sig(mdhandle_t handle, uint8_t co
 typedef struct md_imports__
 {
     uint32_t count;
-    struct
+    struct imports_t
     {
-        enum
+        enum kind_t
         {
             mdidk_ImportNamespace = 1,
             mdidk_ImportAssemblyNamespace = 2,

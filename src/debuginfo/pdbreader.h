@@ -37,6 +37,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
                            uint32_t sourceFileIndex, int32_t sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints);
 HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t, uint32_t> &moveNextToKickoff,
                                std::unordered_map<uint32_t, uint32_t> &kickoffToMoveNext);
+HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                          std::vector<std::string> &namespaces);
 
 } // namespace dncdbg::PDBReader
 

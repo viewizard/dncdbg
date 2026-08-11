@@ -11,12 +11,31 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <unordered_set>
 
 namespace dncdbg::PDBReader
 {
 
 namespace
 {
+
+// Hash and equality for mdcursor_t so it can be stored in unordered_set
+struct MDCursorHash
+{
+    size_t operator()(const mdcursor_t &c) const noexcept
+    {
+        return std::hash<intptr_t>{}(c._reserved1) ^
+            (std::hash<intptr_t>{}(c._reserved2) << 1U);
+    }
+};
+
+struct MDCursorEqual
+{
+    bool operator()(const mdcursor_t &a, const mdcursor_t &b) const noexcept
+    {
+        return a._reserved1 == b._reserved1 && a._reserved2 == b._reserved2;
+    }
+};
 
 // GUIDs are taken from Roslyn source code:
 // https://github.com/dotnet/roslyn/blob/afd10305a37c0ffb2cfb2c2d8446154c68cfa87a/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L14
@@ -1426,6 +1445,180 @@ HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t
         moveNextToKickoff.emplace(moveNextMethodToken, kickoffMethodToken);
         kickoffToMoveNext.emplace(kickoffMethodToken, moveNextMethodToken);
         md_cursor_move(&smmCursor, 1);
+    }
+
+    return S_OK;
+}
+
+HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                          std::vector<std::string> &namespaces)
+{
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Create cursor to the LocalScope table
+    mdcursor_t lscopeCursor{};
+    uint32_t lscopeCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_LocalScope, &lscopeCursor, &lscopeCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all local scopes
+    for (uint32_t i = 0; i < lscopeCount; ++i)
+    {
+        // Get the Method column to check if this scope belongs to our method
+        mdToken scopeMethodToken = mdTokenNil;
+        if (!md_get_column_value_as_token(lscopeCursor, mdtLocalScope_Method, &scopeMethodToken))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Check if this scope belongs to the requested method
+        if (scopeMethodToken != methodToken)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Get StartOffset and Length to check IL offset range
+        uint32_t startOffset = 0;
+        uint32_t length = 0;
+        if (!md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_StartOffset, &startOffset) ||
+            !md_get_column_value_as_constant(lscopeCursor, mdtLocalScope_Length, &length))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        const uint32_t endOffset = startOffset + length;
+
+        // Check if IL offset is within this scope [startOffset, endOffset)
+        if (ilOffset < startOffset || ilOffset >= endOffset)
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        mdcursor_t importScopeCursor{};
+        if (!md_get_column_value_as_cursor(lscopeCursor, mdtLocalScope_ImportScope, &importScopeCursor))
+        {
+            md_cursor_move(&lscopeCursor, 1);
+            continue;
+        }
+
+        // Walk the ImportScope chain following the Parent column up to the root.
+        std::unordered_set<mdcursor_t, MDCursorHash, MDCursorEqual> visitedImportScopes;
+
+        // Advance importScopeCursor to its Parent. Returns false (and leaves
+        // the cursor unchanged) if there is no parent or the read fails,
+        // signalling that the walk should stop.
+        auto moveToParent = [&importScopeCursor]() -> bool
+        {
+            mdcursor_t parentCursor{};
+            if (!md_get_column_value_as_cursor(importScopeCursor, mdtImportScope_Parent, &parentCursor))
+            {
+                return false;
+            }
+            importScopeCursor = parentCursor;
+            return true;
+        };
+
+        // A null/empty cursor means no (more) import scope to process
+        while (importScopeCursor._reserved1 != 0 || importScopeCursor._reserved2 != 0)
+        {
+            // Stop if we've already visited this cursor (cycle protection)
+            if (!visitedImportScopes.insert(importScopeCursor).second)
+            {
+                break;
+            }
+
+            // Get the Imports blob for this ImportScope row
+            uint8_t const *importBlob = nullptr;
+            uint32_t blobLen = 0;
+            if (!md_get_column_value_as_blob(importScopeCursor, mdtImportScope_Imports, &importBlob, &blobLen) ||
+                importBlob == nullptr || blobLen == 0)
+            {
+                // No imports blob on this row; try to follow the parent chain.
+                if (!moveToParent())
+                {
+                    break;
+                }
+                continue;
+            }
+
+            // First, query the required buffer size
+            size_t bufferLen = 0;
+            md_blob_parse_result_t result = md_parse_imports(pdbHandle, importBlob, blobLen, nullptr, &bufferLen);
+            if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+            {
+                if (!moveToParent())
+                {
+                    break;
+                }
+                continue;
+            }
+
+            std::vector<uint8_t> importsStorage(bufferLen);
+            auto *imports = reinterpret_cast<md_imports_t *>(importsStorage.data());
+
+            result = md_parse_imports(pdbHandle, importBlob, blobLen, imports, &bufferLen);
+            if (result != mdbpr_Success)
+            {
+                if (!moveToParent())
+                {
+                    break;
+                }
+                continue;
+            }
+
+            for (uint32_t k = 0; k < imports->count; ++k)
+            {
+                const auto &entry = imports->imports[k];
+
+                switch (entry.kind)
+                {
+                case md_imports__::imports_t::kind_t::mdidk_ImportNamespace:
+                    namespaces.emplace_back(entry.target_namespace, entry.target_namespace_len);
+                    break;
+/* TODO:
+                case md_imports__::imports_t::kind_t::mdidk_ImportAssemblyNamespace:
+                    // Namespace import: entry.target_namespace / entry.target_namespace_len
+                    // and entry.assembly (for assembly-qualified imports).
+                    break;
+                case md_imports__::imports_t::kind_t::mdidk_ImportType:
+                    // Type import: entry.target_type
+                    break;
+                case md_imports__::imports_t::kind_t::mdidk_ImportXmlNamespace:
+                    // XML namespace import: entry.alias / entry.target_namespace
+                    break;
+                case md_imports__::imports_t::kind_t::mdidk_ImportAssemblyReferenceAlias:
+                    // Assembly reference alias import: entry.alias
+                    break;
+                case md_imports__::imports_t::kind_t::mdidk_AliasAssemblyReference:
+                case md_imports__::imports_t::kind_t::mdidk_AliasNamespace:
+                case md_imports__::imports_t::kind_t::mdidk_AliasAssemblyNamespace:
+                case md_imports__::imports_t::kind_t::mdidk_AliasType:
+                    // Alias imports: entry.alias maps to entry.assembly /
+                    // entry.target_namespace / entry.target_type.
+                    break;
+*/
+                default:
+                    break;
+                }
+            }
+
+            // Follow the Parent column to the enclosing ImportScope, if any
+            if (!moveToParent())
+            {
+                break;
+            }
+        }
+
+        md_cursor_move(&lscopeCursor, 1);
     }
 
     return S_OK;
