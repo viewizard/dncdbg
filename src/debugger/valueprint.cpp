@@ -389,22 +389,12 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugArrayValue> trArrayValue;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue)));
-
-    uint32_t nRank = 0;
-    IfFailRet(trArrayValue->GetRank(&nRank));
-    if (nRank < 1)
-    {
-        return E_UNEXPECTED;
-    }
-
     std::string displayElemType;
     std::string displayArrayType;
     ToRelease<ICorDebugValue2> trValue2;
     ToRelease<ICorDebugType> trType;
     ToRelease<ICorDebugType> trFirstParameter;
-    if (FAILED(trArrayValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
+    if (FAILED(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
         FAILED(trValue2->GetExactType(&trType)) ||
         FAILED(trType->GetFirstTypeParameter(&trFirstParameter)) ||
         FAILED(MetadataHelpers::GetFQDisplayTypeName(trFirstParameter, displayElemType, displayArrayType)))
@@ -414,6 +404,16 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
 
     std::ostringstream ss;
     ss << '{' << displayElemType << '[';
+
+    ToRelease<ICorDebugArrayValue> trArrayValue;
+    IfFailRet(pValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue)));
+
+    uint32_t nRank = 0;
+    IfFailRet(trArrayValue->GetRank(&nRank));
+    if (nRank < 1)
+    {
+        return E_UNEXPECTED;
+    }
 
     std::vector<uint32_t> dims(nRank, 0);
     trArrayValue->GetDimensions(nRank, dims.data());
