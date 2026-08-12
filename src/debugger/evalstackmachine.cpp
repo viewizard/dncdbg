@@ -1025,11 +1025,6 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
         evalStack.pop_front();
     }
 
-    if (evalStack.front().preventBinding)
-    {
-        return S_OK;
-    }
-
     // The type identifier(s) (e.g. "Guid", "System.Guid", "List<int>") are
     // what's left in the front entry once all constructor arguments have
     // been popped -- same shape InvocationExpression relies on for its
