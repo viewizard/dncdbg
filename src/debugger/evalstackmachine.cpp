@@ -788,8 +788,6 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     const uint32_t argCount = opcode.count;
 
     HRESULT Status = S_OK;
-    bool idsEmpty = false;
-    bool isInstance = true;
     std::vector<ToRelease<ICorDebugValue>> trArgs(argCount);
     uint32_t tmpArgCount = argCount;
     while (tmpArgCount > 0)
@@ -818,6 +816,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         funcName.resize(pos);
     }
 
+    bool idsEmpty = false;
+    bool isInstance = true;
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
     if (pForcedThisValue == nullptr && evalStack.front().identifiers.empty())
     {
@@ -941,6 +941,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     ToRelease<ICorDebugType> trResultType;
     IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType, walkMethodsCallback));
 
+    bool isExtensionMethod = false;
     if (trFunc == nullptr)
     {
         // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
@@ -959,6 +960,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         {
             return E_INVALIDARG;
         }
+
+        isExtensionMethod = true;
     }
     else
     {
@@ -994,7 +997,17 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+    // Note: for extension methods, trType is the source value's type (e.g. an array), not the
+    // declaring type of the resolved (static) method. When the method has its own explicit generic
+    // type arguments (e.g. matrix1.Cast<int>()), passing trType as pArgType would incorrectly inject
+    // the source type's generic parameters (e.g. an array's element type) into the method's generic
+    // type parameter list, causing a TargetParameterCountException. In that case, pass nullptr so only
+    // the method's own generic type arguments are used. When there are no explicit type arguments,
+    // keep the old behavior: the source type's parameters (e.g. the array's element type)
+    // are relied upon to fill the method's generic parameter slot.
+    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc,
+                                        (isExtensionMethod && !trMethodGenericTypes.empty()) ? nullptr : trType.GetPtr(),
+                                        trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
                                         pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.

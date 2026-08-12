@@ -28,6 +28,7 @@ Upcoming changes compared to previous version.
 - Added BCL collection interface support for arrays and strings in extension method resolution.
 - Added support for plain object creation expressions (new T(...)) in expression evaluation.
 - Added TestObjectCreation.
+- Added walking base types when collecting interfaces for extension method resolution.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

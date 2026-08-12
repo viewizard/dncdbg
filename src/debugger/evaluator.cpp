@@ -2034,42 +2034,59 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
     std::unordered_set<std::string> allIfaceTypeNames;
     auto fillIfaceTypeNames = [&]() -> HRESULT
     {
-        ToRelease<ICorDebugClass> trClass;
-        IfFailRet(pInputType->GetClass(&trClass));
-        ToRelease<ICorDebugModule> trModule;
-        IfFailRet(trClass->GetModule(&trModule));
-        mdTypeDef typeDef = mdTypeDefNil;
-        IfFailRet(trClass->GetToken(&typeDef));
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-        std::string typeName;
-        IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, typeName));
-
-        allIfaceTypeNames.emplace(typeName);
-
-        HCORENUM hEnum = nullptr;
-        mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
-        ULONG pcImpls = 0;
-        while (SUCCEEDED(trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls)) &&
-               pcImpls != 0)
+        // Walk the type and all its base types, collecting the type name and all
+        // implemented interfaces (including those inherited from base types). This is
+        // required for extension method resolution on types whose interfaces are
+        // declared on a base class (e.g. CastICollectionIterator<int>, whose
+        // IEnumerable<TResult> is implemented by the base Iterator<TResult>).
+        ToRelease<ICorDebugType> trCurrentType(pInputType);
+        trCurrentType->AddRef();
+        while (trCurrentType != nullptr)
         {
-            mdToken tkIface = mdTokenNil;
-            if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
-            {
-                continue;
-            }
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trCurrentType->GetClass(&trClass));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trClass->GetModule(&trModule));
+            mdTypeDef typeDef = mdTypeDefNil;
+            IfFailRet(trClass->GetToken(&typeDef));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            std::string typeName;
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, typeName));
 
-            std::string ifaceTypeName;
-            if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, trMDImport, ifaceTypeName)))
-            {
-                continue;
-            }
+            allIfaceTypeNames.emplace(typeName);
 
-            allIfaceTypeNames.emplace(ifaceTypeName);
+            HCORENUM hEnum = nullptr;
+            mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
+            ULONG pcImpls = 0;
+            while (SUCCEEDED(trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls)) &&
+                   pcImpls != 0)
+            {
+                mdToken tkIface = mdTokenNil;
+                if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
+                {
+                    continue;
+                }
+
+                std::string ifaceTypeName;
+                if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, trMDImport, ifaceTypeName)))
+                {
+                    continue;
+                }
+
+                allIfaceTypeNames.emplace(ifaceTypeName);
+            }
+            trMDImport->CloseEnum(hEnum);
+
+            ToRelease<ICorDebugType> trBaseType;
+            if (FAILED(trCurrentType->GetBase(&trBaseType)) || trBaseType == nullptr)
+            {
+                break;
+            }
+            trCurrentType = trBaseType.Detach();
         }
-        trMDImport->CloseEnum(hEnum);
         return S_OK;
     };
 
@@ -2077,7 +2094,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
     {
         IfFailRet(fillIfaceTypeNames());
     }
-    else if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
+    else if (elemType == ELEMENT_TYPE_SZARRAY)
     {
         // Note: arrays use metadata type name check, not elemType.
         std::string typeName;
@@ -2091,6 +2108,23 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
                     "System.Collections.Generic.IEnumerable`1",
                     "System.Collections.Generic.IReadOnlyList`1",
                     "System.Collections.Generic.IReadOnlyCollection`1",
+                    "System.Collections.IList",
+                    "System.Collections.ICollection",
+                    "System.Collections.IEnumerable"
+                })
+        {
+            allIfaceTypeNames.emplace(ifaceName);
+        }
+    }
+    else if (elemType == ELEMENT_TYPE_ARRAY)
+    {
+        // Note: arrays use metadata type name check, not elemType.
+        std::string typeName;
+        IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(pInputType, typeName));
+        allIfaceTypeNames.emplace(typeName);
+
+        // Base Class Library collection interfaces for arrays.
+        for (const char *ifaceName : {
                     "System.Collections.IList",
                     "System.Collections.ICollection",
                     "System.Collections.IEnumerable"

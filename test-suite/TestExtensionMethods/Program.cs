@@ -94,7 +94,9 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "array1.Count()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "matrix1.GetLength(0)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3", "int", "matrix1.GetLength(1)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "6", "int", "matrix1.Count()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "6", "int", "matrix1.Cast<int>().Count()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "matrix1.Cast<int>().First()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "matrix1.Cast<int>().ElementAt(1)");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "test.Contains('a')");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "test.Contains('z')");
