@@ -22,7 +22,7 @@ class Program
     static void Main(string[] args)
     {
         // first checkpoint (initialization) must provide "init" as id
-        Label.Checkpoint("init", "bp_test",
+        Label.Checkpoint("init", "sizeof_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -46,7 +46,7 @@ class Program
         }
         uint d = c;                                                   Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint("bp_test", "finish",
+        Label.Checkpoint("sizeof_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

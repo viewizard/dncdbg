@@ -41,7 +41,7 @@ class Program
         List<string> lists = new List<string>();
 
         // first checkpoint (initialization) must provide "init" as id
-        Label.Checkpoint("init", "bp_test",
+        Label.Checkpoint("init", "methods_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -67,7 +67,7 @@ class Program
         lists.Add("fourth");
         string res = lists.ElementAt(1);                                   Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint("bp_test", "finish",
+        Label.Checkpoint("methods_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;

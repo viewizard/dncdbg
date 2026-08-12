@@ -12,7 +12,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Label.Checkpoint("init", "bp_test",
+        Label.Checkpoint("init", "threads_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -28,7 +28,7 @@ class Program
 
         Console.WriteLine("A breakpoint \"bp\" is set on this line"); Label.Breakpoint("bp");
 
-        Label.Checkpoint("bp_test", "finish",
+        Label.Checkpoint("threads_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
