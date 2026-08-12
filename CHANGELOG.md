@@ -26,6 +26,8 @@ Upcoming changes compared to previous version.
 - Added TestDebuggerDisplay.
 - Added metadata-based async kickoff method detection for non-user code frames.
 - Added BCL collection interface support for arrays and strings in extension method resolution.
+- Added support for plain object creation expressions (new T(...)) in expression evaluation.
+- Added TestObjectCreation.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
