@@ -37,8 +37,28 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
                            uint32_t sourceFileIndex, int32_t sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints);
 HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t, uint32_t> &moveNextToKickoff,
                                std::unordered_map<uint32_t, uint32_t> &kickoffToMoveNext);
+
+struct pdbImports
+{
+    std::string alias;
+    mdToken assemblyToken{0};
+    std::string targetNamespace;
+    mdToken targetType{0};
+};
+enum class importsKind : uint8_t
+{
+    ImportNamespace = 1,
+    ImportAssemblyNamespace = 2,
+    ImportType = 3,
+    ImportXmlNamespace = 4,
+    ImportAssemblyReferenceAlias = 5,
+    AliasAssemblyReference = 6,
+    AliasNamespace = 7,
+    AliasAssemblyNamespace = 8,
+    AliasType = 9
+};
 HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                          std::vector<std::string> &namespaces);
+                          std::unordered_map<importsKind, std::vector<pdbImports>> &pdbImports);
 
 } // namespace dncdbg::PDBReader
 
