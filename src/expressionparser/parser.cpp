@@ -9,6 +9,7 @@
 #include <functional>
 #include <new>
 #include <stack>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -259,12 +260,12 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
     {"object_creation_expression",
         [](TSNode node, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &workStack) -> HRESULT
         {
-            static const char *const typeField = "type";
-            static const char *const argumentsField = "arguments";
-            static const char *const initializerField = "initializer";
-            const TSNode typeNode = ts_node_child_by_field_name(node, typeField, static_cast<uint32_t>(strlen(typeField)));
-            const TSNode argList = ts_node_child_by_field_name(node, argumentsField, static_cast<uint32_t>(strlen(argumentsField)));
-            const TSNode initializerNode = ts_node_child_by_field_name(node, initializerField, static_cast<uint32_t>(strlen(initializerField)));
+            static constexpr std::string_view typeField = "type";
+            static constexpr std::string_view argumentsField = "arguments";
+            static constexpr std::string_view initializerField = "initializer";
+            const TSNode typeNode = ts_node_child_by_field_name(node, typeField.data(), static_cast<uint32_t>(typeField.size()));
+            const TSNode argList = ts_node_child_by_field_name(node, argumentsField.data(), static_cast<uint32_t>(argumentsField.size()));
+            const TSNode initializerNode = ts_node_child_by_field_name(node, initializerField.data(), static_cast<uint32_t>(initializerField.size()));
 
             if (!ts_node_is_null(initializerNode))
             {
