@@ -41,9 +41,8 @@ HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t
 struct pdbImports
 {
     std::string alias;
-    mdToken assemblyToken{0};
     std::string targetNamespace;
-    mdToken targetType{0};
+    mdToken token{0};
 };
 enum class importsKind : uint8_t
 {

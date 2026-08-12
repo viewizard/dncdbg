@@ -1593,14 +1593,14 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                     auto &vec = pdbImports[importsKind::ImportAssemblyNamespace];
                     vec.emplace_back();
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
-                    vec.back().assemblyToken = entry.assembly;
+                    vec.back().token = entry.assembly;
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportType:
                 {
                     auto &vec = pdbImports[importsKind::ImportType];
                     vec.emplace_back();
-                    vec.back().targetType = entry.target_type;
+                    vec.back().token = entry.target_type;
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportXmlNamespace:
@@ -1623,7 +1623,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                     auto &vec = pdbImports[importsKind::AliasAssemblyReference];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
-                    vec.back().assemblyToken = entry.assembly;
+                    vec.back().token = entry.assembly;
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_AliasNamespace:
@@ -1639,7 +1639,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                     auto &vec = pdbImports[importsKind::AliasAssemblyNamespace];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
-                    vec.back().assemblyToken = entry.assembly;
+                    vec.back().token = entry.assembly;
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
                     break;
                 }
@@ -1648,7 +1648,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                     auto &vec = pdbImports[importsKind::AliasType];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
-                    vec.back().targetType = entry.target_type;
+                    vec.back().token = entry.target_type;
                     break;
                 }
                 default:
