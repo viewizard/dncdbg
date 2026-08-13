@@ -438,7 +438,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 }
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addElementTypeName)
+                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes,
+                       bool addElementTypeName, uint32_t *methodGenParamCount)
 {
     HRESULT Status = S_OK;
     ULONG gParams = 0; // Count of signature generics
@@ -462,6 +463,10 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     if ((convFlags & SIG_METHOD_GENERIC) != 0U)
     {
         IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, gParams));
+        if (methodGenParamCount != nullptr)
+        {
+            *methodGenParamCount = static_cast<uint32_t>(gParams);
+        }
     }
 
     // 3. count of params

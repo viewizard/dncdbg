@@ -116,7 +116,17 @@ class Program
             return argw;
         }
 
-        public W test41<W, Y, Z>(W argw, Y argy, Z argz, T argt)
+        public Z test41<W, Y, Z>(W argw, Y argy, Z argz, T argt)
+        {
+            return argz;
+        }
+
+        public Y test41<W, Y>(W argw, Y argy, string argz, T argt)
+        {
+            return argy;
+        }
+
+        public W test41<W>(W argw, bool argy, string argz, T argt)
         {
             return argw;
         }
@@ -156,9 +166,19 @@ class Program
             return argw;
         }
 
-        static public W static_test41<W, Y, Z>(W argw, Y argy, Z argz, T argt)
+        static public W static_test41<W>(W argw, bool argy, string argz, T argt)
         {
             return argw;
+        }
+
+        static public Y static_test41<W, Y>(W argw, Y argy, string argz, T argt)
+        {
+            return argy;
+        }
+
+        static public Z static_test41<W, Y, Z>(W argw, Y argy, Z argz, T argt)
+        {
+            return argz;
         }
 
         static public Y static_test42<W, Y, Z>(W argw, Y argy, Z argz, T argt)
@@ -232,7 +252,9 @@ class Program
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "test3<bool>(101,\"string\",'a')", "error");
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "test3<char>(101,'a','a')", "error");
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "test3<char>('a',\"string\",'a')", "error");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "test41<char,bool,string>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "test41<char,bool,string>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "test41<char,bool>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "test41<char>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "test42<char,bool,string>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "test43<char,bool,string>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "test44<char,bool,string>('a',true,\"string\", 41)");
@@ -254,7 +276,9 @@ class Program
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "static_test3<bool>(101,\"string\",'a')", "error");
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "static_test3<char>(101,'a','a')", "error");
                     Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "static_test3<char>('a',\"string\",'a')", "error");
-                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "static_test41<char,bool,string>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "static_test41<char>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "static_test41<char,bool>('a',true,\"string\", 41)");
+                    Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "static_test41<char,bool,string>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "static_test42<char,bool,string>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "static_test43<char,bool,string>('a',true,\"string\", 41)");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "static_test44<char,bool,string>('a',true,\"string\", 41)");
@@ -384,7 +408,7 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ttt.test3<bool>(101,\"string\",'a')", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ttt.test3<char>(101,'a','a')", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "ttt.test3<char>('a',\"string\",'a')", "error");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "ttt.test41<char,bool,string>('a',true,\"string\", 41)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "ttt.test41<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "ttt.test42<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "ttt.test43<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "ttt.test44<char,bool,string>('a',true,\"string\", 41)");
@@ -416,7 +440,7 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<bool>(101,\"string\",'a')", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<char>(101,'a','a')", "error");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestGenericClass<int,string>.static_test3<char>('a',\"string\",'a')", "error");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "97 'a'", "char", "TestGenericClass<int,string>.static_test41<char,bool,string>('a',true,\"string\", 41)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "TestGenericClass<int,string>.static_test41<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "TestGenericClass<int,string>.static_test42<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"string\"", "string", "TestGenericClass<int,string>.static_test43<char,bool,string>('a',true,\"string\", 41)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "41", "int", "TestGenericClass<int,string>.static_test44<char,bool,string>('a',true,\"string\", 41)");

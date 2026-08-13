@@ -708,7 +708,9 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)))
+            uint32_t methodGenParamCount = 0;
+            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType,
+                                      argElementTypes, false, &methodGenParamCount)))
             {
                 continue;
             }
@@ -738,7 +740,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
                 return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
 
-            IfFailRet(cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            IfFailRet(cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, methodGenParamCount, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 if (ppResultType != nullptr)
@@ -1812,7 +1814,8 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(trInputType, false, nullptr,
         [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (isStatic || !methodArgs.empty() || methodName != "ToString")
             {
@@ -2185,7 +2188,9 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
 
             SigElementType returnElementType;
             std::vector<SigElementType> argElementTypes;
-            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)) ||
+            uint32_t methodGenParamCount = 0;
+            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType,
+                                      argElementTypes, false, &methodGenParamCount)) ||
                 // Early method args count check.
                 methodArgsCount + 1 != argElementTypes.size())
             {
@@ -2222,7 +2227,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
             argElementTypes.erase(argElementTypes.begin());
 
             // Pass `false` as isStatic - extension methods require `this` as their first parameter.
-            IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, getFunction));
+            IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, methodGenParamCount, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 return S_OK;

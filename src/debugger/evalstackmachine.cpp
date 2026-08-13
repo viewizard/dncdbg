@@ -202,7 +202,8 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(pValue, true,
         [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemType != methodArgs.at(0).elemType || metadataTypeName != methodArgs.at(0).metadataTypeName)
@@ -235,7 +236,8 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(pValue, true,
         [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
-            std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemRetType != methodRet.elemType || typeRetName != methodRet.metadataTypeName ||
@@ -437,7 +439,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             ToRelease<ICorDebugFunction> trFunc;
             IfFailRet(Evaluator::WalkMethods(pValue, true,
                 [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-                    std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                    std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
                 {
                     if (!isStatic || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     {
@@ -916,35 +919,39 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                        return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
                    });
 
+    bool isExtensionMethod = false;
+    const auto expectedMethodGenParamCount = static_cast<uint32_t>(evalStack.front().trGenericTypeCache.size());
     ToRelease<ICorDebugFunction> trFunc;
-    auto walkMethodsCallback = [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-                                   std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
-    {
-        if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
-            funcArgs.size() != methodArgs.size() || funcName != methodName)
+    auto walkMethodsCallback =
+        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+            std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
+            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
-            return S_OK; // Return with success to continue walk.
-        }
-
-        for (size_t i = 0; i < funcArgs.size(); ++i)
-        {
-            if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i))) ||
-                funcArgs.at(i) != methodArgs.at(i))
+            if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
+                funcArgs.size() != methodArgs.size() || funcName != methodName ||
+                (!isExtensionMethod && methodGenParamCount != expectedMethodGenParamCount))
             {
                 return S_OK; // Return with success to continue walk.
             }
-        }
 
-        IfFailRet(getFunction(&trFunc));
-        isInstance = !isStatic;
+            for (size_t i = 0; i < funcArgs.size(); ++i)
+            {
+                if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i))) ||
+                    funcArgs.at(i) != methodArgs.at(i))
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+            }
 
-        return S_CAN_EXIT; // Fast exit from the loop.
-    };
+            IfFailRet(getFunction(&trFunc));
+            isInstance = !isStatic;
+
+            return S_CAN_EXIT; // Fast exit from the loop.
+        };
 
     ToRelease<ICorDebugType> trResultType;
     IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType, walkMethodsCallback));
 
-    bool isExtensionMethod = false;
     if (trFunc == nullptr)
     {
         // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
@@ -957,14 +964,13 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             IfFailRet(trValue2->GetExactType(&trType));
         }
 
+        isExtensionMethod = true;
         IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType, funcName, funcArgs.size(), walkMethodsCallback));
 
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
         }
-
-        isExtensionMethod = true;
     }
     else
     {
@@ -1076,7 +1082,8 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(Evaluator::WalkMethods(trType, false, nullptr,
         [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-           std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+           std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+           const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (isStatic || methodName != ".ctor" || funcArgs.size() != methodArgs.size())
             {
@@ -1194,7 +1201,8 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         ToRelease<ICorDebugFunction> trFunc;
         IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);
@@ -1315,7 +1323,8 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         ToRelease<ICorDebugFunction> trFunc;
         IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
             [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);

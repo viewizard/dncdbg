@@ -59,7 +59,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
                          DWORD flags, SigElementType &sigElementType, bool addElementTypeName = false);
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes, bool addElementTypeName = false);
+                       SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes,
+                       bool addElementTypeName = false, uint32_t *methodGenParamCount = nullptr);
 
 HRESULT ParseMethodSigParameterModifiers(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE &pSig,
                                          PCCOR_SIGNATURE pSigEnd, std::vector<std::string> &parameterModifiers);

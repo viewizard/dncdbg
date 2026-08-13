@@ -87,7 +87,8 @@ class Evaluator
     using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
     using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
     using ReturnElementType = SigElementType;
-    using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &, std::vector<SigElementType> &, GetFunctionCallback)>;
+    using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &,
+                                                      std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalExec> &sharedEvalExec);
 
