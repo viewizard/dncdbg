@@ -905,12 +905,15 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
     }
 
+    PDB::ImportsAndAliases pdbImports;
+    ed.pEvaluator->GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
+
     std::vector<SigElementType> genericMethodParameters;
     genericMethodParameters.reserve(genericMethodFQDisplayTypeNames.size());
     std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(genericMethodParameters),
-                   [&ed](const auto &displayTypeName)
+                   [&ed, &pdbImports](const auto &displayTypeName)
                    {
-                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName);
+                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
                    });
 
     ToRelease<ICorDebugFunction> trFunc;

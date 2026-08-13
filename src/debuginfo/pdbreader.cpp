@@ -1458,6 +1458,8 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         return E_INVALIDARG;
     }
 
+    pdbImports.clear();
+
     // Create cursor to the LocalScope table
     mdcursor_t lscopeCursor{};
     uint32_t lscopeCount = 0;

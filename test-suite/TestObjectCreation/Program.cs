@@ -45,18 +45,15 @@ class Program
                     "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
                     "new System.Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
 
-                // TODO:
                 // Same, but bare/unqualified ("Guid" instead of "System.Guid").
-                // MetadataHelpers::FindType has no notion of the evaluated
-                // expression's `using` directives (unlike Roslyn's real
-                // binder), so this needs FindTypeByShortNameInModule's
-                // short-name fallback: search every loaded module's
-                // top-level types for one whose name (ignoring namespace)
-                // matches, tried only once the normal namespace-qualified
-                // lookup fails for a single wholly-unqualified identifier.
-                // Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId,
-                //     "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
-                //     "new Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
+                // MetadataHelpers::FindType resolves unqualified names by
+                // prefixing each imported namespace (from the evaluated
+                // expression's `using` directives, read from the PDB) onto
+                // the first identifier, retrying the lookup until a match is
+                // found.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId,
+                    "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
+                    "new Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
 
                 // User-defined struct, single identifier (no namespace needed).
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{TestObjectCreation.Coordinate}", "TestObjectCreation.Coordinate", "new Coordinate(3, 4)");

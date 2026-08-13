@@ -29,6 +29,7 @@ Upcoming changes compared to previous version.
 - Added support for plain object creation expressions (new T(...)) in expression evaluation.
 - Added TestObjectCreation.
 - Added walking base types when collecting interfaces for extension method resolution.
+- Added using-directive awareness to type resolution.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

@@ -15,7 +15,6 @@
 #include <map>
 #include <sstream>
 #include <string_view>
-#include <unordered_map>
 
 namespace dncdbg::MetadataHelpers
 {
@@ -691,6 +690,78 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     return S_OK;
 }
 
+// Search all modules for a type token matching `identifiers`. If the type is not
+// found, retry the search with each imported namespace prefixed onto the first
+// identifier (e.g. resolving `Console` into `System.Console` via `using System;`).
+// On success, outputs the found module, type token, and number of consumed
+// identifiers. Returns E_FAIL when the type cannot be resolved.
+HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, const std::vector<std::string> &identifiers,
+                                  const PDB::ImportsAndAliases &pdbImports, ToRelease<ICorDebugModule> &trTypeModule,
+                                  int &nextIdentifier, mdTypeDef &typeToken)
+{
+    HRESULT Status = S_OK;
+
+    IfFailRet(Modules::ForEachModule(pThread,
+        [&](ICorDebugModule *pModule) -> HRESULT
+        {
+            int tmpNextIdentifier = nextIdentifier;
+            if (SUCCEEDED(FindTypeInModule(pModule, identifiers, tmpNextIdentifier, typeToken)))
+            {
+                pModule->AddRef();
+                trTypeModule = pModule;
+                nextIdentifier = tmpNextIdentifier;
+                assert(typeToken != mdTypeDefNil);
+                return S_CAN_EXIT; // Fast exit from the loop.
+            }
+
+            return S_OK; // Return with success to continue walk.
+        }));
+
+    if (typeToken != mdTypeDefNil)
+    {
+        return S_OK;
+    }
+
+    if (nextIdentifier != 0)
+    {
+        return E_FAIL;
+    }
+
+    auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
+    if (importNamespace == pdbImports.end())
+    {
+        return E_FAIL;
+    }
+
+    for (const auto &importName : importNamespace->second)
+    {
+        std::vector<std::string> testIdentifiers = identifiers;
+        testIdentifiers.at(0) = importName.targetNamespace + "." + testIdentifiers.at(0);
+
+        IfFailRet(Modules::ForEachModule(pThread,
+            [&](ICorDebugModule *pModule) -> HRESULT
+            {
+                nextIdentifier = 0;
+                if (SUCCEEDED(FindTypeInModule(pModule, testIdentifiers, nextIdentifier, typeToken)))
+                {
+                    pModule->AddRef();
+                    trTypeModule = pModule;
+                    assert(typeToken != mdTypeDefNil);
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }
+
+                return S_OK; // Return with success to continue walk.
+            }));
+
+        if (typeToken != mdTypeDefNil)
+        {
+            break;
+        }
+    }
+
+    return typeToken != mdTypeDefNil ? S_OK : E_FAIL;
+}
+
 // Helper function to create a parameterized type from a class token.
 HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToken,
                                 std::vector<ToRelease<ICorDebugType>> &trTypes,
@@ -732,6 +803,7 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
 }
 
 HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
+                              const PDB::ImportsAndAliases &pdbImports,
                               std::vector<ToRelease<ICorDebugType>> &trTypes)
 {
     HRESULT Status = S_OK;
@@ -761,31 +833,16 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
+        const std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
+        if (classIdentifiers.empty())
+        {
+            return E_FAIL;
+        }
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugModule> trTypeModule;
         mdTypeDef typeToken = mdTypeDefNil;
-
-        IfFailRet(Modules::ForEachModule(pThread,
-            [&](ICorDebugModule *pModule) -> HRESULT
-            {
-                nextClassIdentifier = 0;
-                if (SUCCEEDED(FindTypeInModule(pModule, classIdentifiers, nextClassIdentifier, typeToken)))
-                {
-                    pModule->AddRef();
-                    trTypeModule = pModule;
-                    assert(typeToken != mdTypeDefNil);
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-
-                return S_OK;
-            }));
-
-        if (typeToken == mdTypeDefNil)
-        {
-            return E_FAIL;
-        }
+        IfFailRet(FindTypeTokenInAllModules(pThread, classIdentifiers, pdbImports, trTypeModule, nextClassIdentifier, typeToken));
 
         const std::vector<std::string> nestedParams = GatherGenericFQDisplayParameters(classIdentifiers, nextClassIdentifier);
 
@@ -1869,7 +1926,7 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
 }
 
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 ICorDebugModule *pModule, ICorDebugType **ppType)
+                 ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
 
@@ -1883,25 +1940,42 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
 
     if (trTypeModule == nullptr)
     {
-        IfFailRet(Modules::ForEachModule(pThread,
-            [&](ICorDebugModule *pModule) -> HRESULT
-            {
-                int tmpNextIdentifier = nextIdentifier;
-                if (SUCCEEDED(FindTypeInModule(pModule, identifiers, tmpNextIdentifier, typeToken)))
-                {
-                    pModule->AddRef();
-                    trTypeModule = pModule;
-                    nextIdentifier = tmpNextIdentifier;
-                    assert(typeToken != mdTypeDefNil);
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-
-                return S_OK; // Return with success to continue walk.
-            }));
+        IfFailRet(FindTypeTokenInAllModules(pThread, identifiers, pdbImports, trTypeModule, nextIdentifier, typeToken));
     }
     else
     {
-        FindTypeInModule(trTypeModule, identifiers, nextIdentifier, typeToken);
+        int tmpNextIdentifier = nextIdentifier;
+        if (SUCCEEDED(FindTypeInModule(trTypeModule, identifiers, tmpNextIdentifier, typeToken)))
+        {
+            nextIdentifier = tmpNextIdentifier;
+            assert(typeToken != mdTypeDefNil);
+        }
+        else if (nextIdentifier == 0)
+        {
+            auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
+            if (importNamespace == pdbImports.end())
+            {
+                return E_FAIL;
+            }
+
+            for (const auto &importName : importNamespace->second)
+            {
+                std::vector<std::string> testIdentifiers = identifiers;
+                testIdentifiers.at(0) = importName.targetNamespace + "." + testIdentifiers.at(0);
+
+                nextIdentifier = 0;
+                if (SUCCEEDED(FindTypeInModule(trTypeModule, testIdentifiers, nextIdentifier, typeToken)))
+                {
+                    assert(typeToken != mdTypeDefNil);
+                    break;
+                }
+            }
+
+            if (typeToken == mdTypeDefNil)
+            {
+                return E_FAIL;
+            }
+        }
     }
 
     if (typeToken == mdTypeDefNil)
@@ -1913,7 +1987,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     {
         const std::vector<std::string> params = GatherGenericFQDisplayParameters(identifiers, nextIdentifier);
         std::vector<ToRelease<ICorDebugType>> trTypes;
-        IfFailRet(ResolveTypeParameters(params, pThread, trTypes));
+        IfFailRet(ResolveTypeParameters(params, pThread, pdbImports, trTypes));
 
         ToRelease<ICorDebugType> trType;
         IfFailRet(CreateParameterizedType(trTypeModule, typeToken, trTypes, &trType));
@@ -1924,32 +1998,15 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     return S_OK;
 }
 
-HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule)
+HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread,
+                       const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugModule> trTypeModule;
     mdTypeDef typeToken = mdTypeDefNil;
-
-    IfFailRet(Modules::ForEachModule(pThread,
-        [&](ICorDebugModule *pModule) -> HRESULT
-        {
-            int nextIdentifier = 0;
-            if (SUCCEEDED(FindTypeInModule(pModule, identifiers, nextIdentifier, typeToken)))
-            {
-                pModule->AddRef();
-                trTypeModule = pModule;
-                assert(typeToken != mdTypeDefNil);
-                return S_CAN_EXIT; // Fast exit from the loop.
-            }
-
-            return S_OK; // Return with success to continue walk.
-        }));
-
-    if (trTypeModule == nullptr)
-    {
-        return E_FAIL;
-    }
+    int nextIdentifier = 0;
+    IfFailRet(FindTypeTokenInAllModules(pThread, identifiers, pdbImports, trTypeModule, nextIdentifier, typeToken));
 
     if (ppModule != nullptr)
     {
@@ -1959,7 +2016,8 @@ HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThr
     return S_OK;
 }
 
-SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName)
+SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName,
+                                                  const PDB::ImportsAndAliases &pdbImports)
 {
     static const std::unordered_map<std::string, SigElementType> stypes{
         {"void",    {ELEMENT_TYPE_VOID,    ""}},
@@ -1994,7 +2052,7 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
     SigElementType sigElemType;
     int nextIdentifier = 0;
     ToRelease<ICorDebugType> trType;
-    if (SUCCEEDED(FindType(identifiers, nextIdentifier, pThread, nullptr, &trType)) &&
+    if (SUCCEEDED(FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType)) &&
         SUCCEEDED(trType->GetType(&sigElemType.elemType)) &&
         SUCCEEDED(GetFQMDTypeNameByICorType(trType, sigElemType.metadataTypeName)))
     {

@@ -362,6 +362,7 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
 }
 
 HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displayTypeName,
+                             const PDB::ImportsAndAliases &pdbImports,
                              std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
     HRESULT Status = S_OK;
@@ -370,7 +371,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
     std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName, ranks);
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -385,7 +386,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
         {
             break;
         }
@@ -1725,6 +1726,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
 HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                          std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                                         const PDB::ImportsAndAliases &pdbImports,
                                          ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
@@ -1736,7 +1738,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     std::vector<std::string> fieldName{identifiers.back()};
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, &trModule));
+    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -1751,7 +1753,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, &trType)))
+        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
         {
             break;
         }
@@ -1955,6 +1957,9 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
     }
 
+    PDB::ImportsAndAliases pdbImports;
+    GetImportsAndAliases(pThread, frameLevel, pdbImports);
+
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
         ToRelease<ICorDebugFrame> trFrame;
@@ -1968,14 +1973,14 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
-                                            &trResolvedValue, resultSetterData)))
+                                            pdbImports, &trResolvedValue, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
         }
 
-        if ((ppResultType != nullptr) &&
-            SUCCEEDED(FollowNestedFindType(pThread, displayTypeName, identifiers, ppResultType)))
+        if (ppResultType != nullptr &&
+            SUCCEEDED(FollowNestedFindType(pThread, displayTypeName, pdbImports, identifiers, ppResultType)))
         {
             return S_OK;
         }
@@ -1996,7 +2001,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         ToRelease<ICorDebugType> trType;
-        IfFailRet(MetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, &trType));
+        IfFailRet(MetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
 
         // Identifiers resolved into type, not value. In case type could be result - provide type directly as result.
         // In this way caller will know, that no object instance here (should operate with static members/methods only).
@@ -2318,6 +2323,54 @@ HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     }
 
     return S_OK;
+}
+
+void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
+{
+    auto getImportsAndAliases = [&]() -> HRESULT
+    {
+        HRESULT Status = S_OK;
+        ToRelease<ICorDebugFrame> trFrame;
+        IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+        if (trFrame == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        ToRelease<ICorDebugFunction> trFunction;
+        IfFailRet(trFrame->GetFunction(&trFunction));
+
+        ToRelease<ICorDebugModule> trModule;
+        IfFailRet(trFunction->GetModule(&trModule));
+
+        mdMethodDef methodDef = mdMethodDefNil;
+        IfFailRet(trFunction->GetToken(&methodDef));
+
+        ToRelease<ICorDebugILFrame> trILFrame;
+        IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+        uint32_t currentIlOffset = 0;
+        CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
+        IfFailRet(trILFrame->GetIP(&currentIlOffset, &mappingResult));
+        if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
+            mappingResult == MAPPING_NO_INFO)
+        {
+            return E_FAIL;
+        }
+
+        return m_sharedDebugInfo->GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports);
+    };
+
+    pdbImports.clear();
+    getImportsAndAliases();
+
+    // In case of failure (or no debug info for this code), add the default "System" namespace.
+    auto &importNamespace = pdbImports[PDB::ImportsKind::ImportNamespace];
+    if (importNamespace.empty())
+    {
+        importNamespace.emplace_back();
+        importNamespace.back().targetNamespace = "System";
+    }
 }
 
 } // namespace dncdbg

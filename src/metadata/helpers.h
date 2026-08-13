@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/pdb.h"
 #include "metadata/sigparse.h"
 #include <list>
 #include <string>
@@ -68,12 +69,14 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
 
 // Note: `identifiers` contain "display" names and are converted into "metadata" names for lookup inside method logic.
 HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 ICorDebugModule *pModule, ICorDebugType **ppType);
-HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread, ICorDebugModule **ppModule);
+                 ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType);
+HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread,
+                       const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule);
 
 // Note: this is a heavy function, since it is forced to search for the type in all modules to detect the proper CorElementType
 // and the proper "metadata" type name. It provides a result equivalent to a ParseElementType() call with the `addElementTypeName = false` parameter.
-SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName);
+SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName,
+                                                  const PDB::ImportsAndAliases &pdbImports);
 
 // Get generic type parameters as array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);

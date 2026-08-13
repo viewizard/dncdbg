@@ -13,6 +13,7 @@
 #endif
 
 #include "debugger/evalhelpers.h"
+#include "debuginfo/pdb.h"
 #include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/torelease.h"
@@ -115,6 +116,7 @@ class Evaluator
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                   std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                                  const PDB::ImportsAndAliases &pdbImports,
                                   ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
@@ -128,6 +130,8 @@ class Evaluator
 
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+
+    void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
 
     [[nodiscard]] bool IsJustMyCode() const
     {
