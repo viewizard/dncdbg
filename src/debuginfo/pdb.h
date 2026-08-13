@@ -153,6 +153,28 @@ constexpr uint8_t IDSize = 20;
 // PDB ID = GUID (16 bytes) + date/time stamp (4 bytes)
 using Identity = std::array<uint8_t, IDSize>;
 
+struct Imports
+{
+    std::string alias;
+    std::string targetNamespace;
+    mdToken token{0};
+};
+
+enum class ImportsKind : uint8_t
+{
+    ImportNamespace = 1,
+    ImportAssemblyNamespace = 2,
+    ImportType = 3,
+    ImportXmlNamespace = 4,
+    ImportAssemblyReferenceAlias = 5,
+    AliasAssemblyReference = 6,
+    AliasNamespace = 7,
+    AliasAssemblyNamespace = 8,
+    AliasType = 9
+};
+
+using ImportsAndAliases = std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>>;
+
 } // namespace PDB
 
 struct PDBInfo

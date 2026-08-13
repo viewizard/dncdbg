@@ -720,4 +720,18 @@ HRESULT DebugInfo::GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMeth
         });
 }
 
+HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                        std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports)
+{
+    HRESULT Status = S_OK;
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    return GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            return PDBReader::GetImportsAndAliases(pdbInfo.m_pdbHandle, methodToken, ilOffset, pdbImports);
+        });
+}
+
 } // namespace dncdbg

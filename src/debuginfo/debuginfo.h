@@ -72,6 +72,8 @@ class DebugInfo
     HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,
                                          mdMethodDef &kickoffMethodToken);
 
+    HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                 std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
   private:
 
     std::mutex m_debugInfoMutex;

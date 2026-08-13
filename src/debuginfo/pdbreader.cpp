@@ -1450,8 +1450,8 @@ HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t
     return S_OK;
 }
 
-HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
-                          std::unordered_map<importsKind, std::vector<pdbImports>> &pdbImports)
+HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
+                             std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports)
 {
     if (pdbHandle == nullptr)
     {
@@ -1515,7 +1515,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
 
         // Advance importScopeCursor to its Parent. Returns false (and leaves
         // the cursor unchanged) if there is no parent or the read fails,
-        // signalling that the walk should stop.
+        // signaling that the walk should stop.
         auto moveToParent = [&importScopeCursor]() -> bool
         {
             mdcursor_t parentCursor{};
@@ -1583,14 +1583,14 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 {
                 case md_imports__::imports_t::kind_t::mdidk_ImportNamespace:
                 {
-                    auto &vec = pdbImports[importsKind::ImportNamespace];
+                    auto &vec = pdbImports[PDB::ImportsKind::ImportNamespace];
                     vec.emplace_back();
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportAssemblyNamespace:
                 {
-                    auto &vec = pdbImports[importsKind::ImportAssemblyNamespace];
+                    auto &vec = pdbImports[PDB::ImportsKind::ImportAssemblyNamespace];
                     vec.emplace_back();
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
                     vec.back().token = entry.assembly;
@@ -1598,14 +1598,14 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportType:
                 {
-                    auto &vec = pdbImports[importsKind::ImportType];
+                    auto &vec = pdbImports[PDB::ImportsKind::ImportType];
                     vec.emplace_back();
                     vec.back().token = entry.target_type;
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportXmlNamespace:
                 {
-                    auto &vec = pdbImports[importsKind::ImportXmlNamespace];
+                    auto &vec = pdbImports[PDB::ImportsKind::ImportXmlNamespace];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
@@ -1613,14 +1613,14 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 }
                 case md_imports__::imports_t::kind_t::mdidk_ImportAssemblyReferenceAlias:
                 {
-                    auto &vec = pdbImports[importsKind::ImportAssemblyReferenceAlias];
+                    auto &vec = pdbImports[PDB::ImportsKind::ImportAssemblyReferenceAlias];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     break;
                 }
                 case md_imports__::imports_t::kind_t::mdidk_AliasAssemblyReference:
                 {
-                    auto &vec = pdbImports[importsKind::AliasAssemblyReference];
+                    auto &vec = pdbImports[PDB::ImportsKind::AliasAssemblyReference];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     vec.back().token = entry.assembly;
@@ -1628,7 +1628,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 }
                 case md_imports__::imports_t::kind_t::mdidk_AliasNamespace:
                 {
-                    auto &vec = pdbImports[importsKind::AliasNamespace];
+                    auto &vec = pdbImports[PDB::ImportsKind::AliasNamespace];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     vec.back().targetNamespace = std::string(entry.target_namespace, entry.target_namespace_len);
@@ -1636,7 +1636,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 }
                 case md_imports__::imports_t::kind_t::mdidk_AliasAssemblyNamespace:
                 {
-                    auto &vec = pdbImports[importsKind::AliasAssemblyNamespace];
+                    auto &vec = pdbImports[PDB::ImportsKind::AliasAssemblyNamespace];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     vec.back().token = entry.assembly;
@@ -1645,7 +1645,7 @@ HRESULT GetImportAndAlias(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
                 }
                 case md_imports__::imports_t::kind_t::mdidk_AliasType:
                 {
-                    auto &vec = pdbImports[importsKind::AliasType];
+                    auto &vec = pdbImports[PDB::ImportsKind::AliasType];
                     vec.emplace_back();
                     vec.back().alias = std::string(entry.alias, entry.alias_len);
                     vec.back().token = entry.target_type;
