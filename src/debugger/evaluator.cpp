@@ -2223,10 +2223,8 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
                 return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
 
-            // Remove explicitly provided `this`.
-            argElementTypes.erase(argElementTypes.begin());
-
             // Pass `false` as isStatic - extension methods require `this` as their first parameter.
+            // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
             IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, methodGenParamCount, getFunction));
             if (Status == S_CAN_EXIT)
             {

@@ -97,6 +97,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "6", "int", "matrix1.Cast<int>().Count()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "matrix1.Cast<int>().First()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "matrix1.Cast<int>().ElementAt(1)");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "matrix1.Cast().First()", "error: 0x80070057");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "true", "bool", "test.Contains('a')");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "false", "bool", "test.Contains('z')");

@@ -89,10 +89,10 @@ uint32_t ParseGenericArity(std::string_view typeName)
 
     // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
     uint32_t count = 0;
-    auto [ptr, ec] = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+    auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
 
     // If conversion succeeded, return the count; otherwise, return 0.
-    if (ec == std::errc{})
+    if (result.ec == std::errc{})
     {
         return count;
     }

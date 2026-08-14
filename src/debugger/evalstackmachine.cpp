@@ -16,9 +16,11 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <functional>
 #include <iterator>
 #include <sstream>
+#include <string_view>
 #include <vector>
 #include <utility>
 
@@ -786,6 +788,37 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
     return S_OK;
 }
 
+// Parses the generic arity (number after '`') and returns it as uint32_t.
+// Returns 0 if there is no '`' character or if the parsing fails.
+uint32_t ParseLastGenericArity(std::string_view typeName)
+{
+    // 1. Find the backtick character '`'.
+    auto backtickPos = typeName.find_last_of('`');
+    if (backtickPos == std::string_view::npos)
+    {
+        return 0; // Not a generic type
+    }
+
+    // 2. Extract the substring representing the number.
+    const std::string_view numberPart = typeName.substr(backtickPos + 1);
+    if (numberPart.empty())
+    {
+        return 0; // Empty after backtick, e.g., "MyClass`"
+    }
+
+    // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
+    uint32_t count = 0;
+    auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+
+    // If conversion succeeded, return the count; otherwise, return 0.
+    if (result.ec == std::errc{})
+    {
+        return count;
+    }
+
+    return 0;
+}
+
 HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
@@ -919,17 +952,17 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                        return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
                    });
 
-    bool isExtensionMethod = false;
     const auto expectedMethodGenParamCount = static_cast<uint32_t>(evalStack.front().trGenericTypeCache.size());
     ToRelease<ICorDebugFunction> trFunc;
-    auto walkMethodsCallback =
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
-            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+    ToRelease<ICorDebugType> trResultType;
+    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
+            [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+                std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
+                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
         {
             if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
-                funcArgs.size() != methodArgs.size() || funcName != methodName ||
-                (!isExtensionMethod && methodGenParamCount != expectedMethodGenParamCount))
+                funcName != methodName || funcArgs.size() != methodArgs.size() ||
+                methodGenParamCount != expectedMethodGenParamCount)
             {
                 return S_OK; // Return with success to continue walk.
             }
@@ -947,10 +980,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             isInstance = !isStatic;
 
             return S_CAN_EXIT; // Fast exit from the loop.
-        };
-
-    ToRelease<ICorDebugType> trResultType;
-    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType, walkMethodsCallback));
+        }));
 
     if (trFunc == nullptr)
     {
@@ -964,12 +994,57 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             IfFailRet(trValue2->GetExactType(&trType));
         }
 
-        isExtensionMethod = true;
-        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType, funcName, funcArgs.size(), walkMethodsCallback));
+        bool hasThisTypeParams = false;
+        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType, funcName, funcArgs.size(),
+            [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+                std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
+                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            {
+                if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
+                    // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
+                    (funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>).
+                // In that case the source type's generic parameters are used to fill the method's generic
+                // parameter slots; otherwise trType is dropped to avoid injecting the wrong parameters.
+                hasThisTypeParams = false;
+                if (!methodArgs.at(0).metadataTypeName.empty())
+                {
+                    hasThisTypeParams = (ParseLastGenericArity(methodArgs.at(0).metadataTypeName) != 0);
+                }
+
+                if (!hasThisTypeParams &&
+                    methodGenParamCount != expectedMethodGenParamCount)
+                {
+                    return S_OK; // Return with success to continue walk.
+                }
+
+                for (size_t i = 0; i < funcArgs.size(); ++i)
+                {
+                    if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i + 1))) ||
+                        funcArgs.at(i) != methodArgs.at(i + 1))
+                    {
+                        return S_OK; // Return with success to continue walk.
+                    }
+                }
+
+                IfFailRet(getFunction(&trFunc));
+                isInstance = !isStatic;
+
+                return S_CAN_EXIT; // Fast exit from the loop.
+            }));
 
         if (trFunc == nullptr)
         {
             return E_INVALIDARG;
+        }
+
+        if (!hasThisTypeParams)
+        {
+            trType.Free();
         }
     }
     else
@@ -1006,17 +1081,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    // Note: for extension methods, trType is the source value's type (e.g. an array), not the
-    // declaring type of the resolved (static) method. When the method has its own explicit generic
-    // type arguments (e.g. matrix1.Cast<int>()), passing trType as pArgType would incorrectly inject
-    // the source type's generic parameters (e.g. an array's element type) into the method's generic
-    // type parameter list, causing a TargetParameterCountException. In that case, pass nullptr so only
-    // the method's own generic type arguments are used. When there are no explicit type arguments,
-    // keep the old behavior: the source type's parameters (e.g. the array's element type)
-    // are relied upon to fill the method's generic parameter slot.
-    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc,
-                                        (isExtensionMethod && !trMethodGenericTypes.empty()) ? nullptr : trType.GetPtr(),
-                                        trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
                                         pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.

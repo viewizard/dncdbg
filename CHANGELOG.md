@@ -57,6 +57,7 @@ Upcoming changes compared to previous version.
 - Fixed inherited member name-change logic to avoid displaying an empty string instead of the corresponding base type.
 - Fixed method search for built-in types `nint` (System.IntPtr), `nuint` (System.UIntPtr) and arrays (System.Array).
 - Fixed generic method overload resolution to match explicit type-argument arity.
+- Fixed extension method generic type argument resolution.
 
 </br>
 </br>
