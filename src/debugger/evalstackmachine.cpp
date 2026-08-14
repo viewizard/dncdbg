@@ -982,7 +982,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             return S_CAN_EXIT; // Fast exit from the loop.
         }));
 
-    if (trFunc == nullptr)
+    if (trFunc == nullptr && !searchStatic)
     {
         // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
         // Note: in case of a generic extension method call we also need the proper type parameters.
@@ -995,14 +995,16 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
 
         bool hasThisTypeParams = false;
-        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType, funcName, funcArgs.size(),
+        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType,
             [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
                 std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
                 const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
-                if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
-                    // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
-                    (funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
+                // Extension methods must provide `this` as first argument.
+                assert(!isStatic);
+
+                // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
+                if ((funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
                 {
                     return S_OK; // Return with success to continue walk.
                 }
@@ -1032,27 +1034,25 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                 }
 
                 IfFailRet(getFunction(&trFunc));
-                isInstance = !isStatic;
+                // Extension methods are invoked as instance methods.
+                isInstance = true;
 
                 return S_CAN_EXIT; // Fast exit from the loop.
             }));
-
-        if (trFunc == nullptr)
-        {
-            return E_INVALIDARG;
-        }
 
         if (!hasThisTypeParams)
         {
             trType.Free();
         }
     }
-    else
+    else if (trFunc != nullptr && trResultType != nullptr)
     {
-        if (trResultType != nullptr)
-        {
-            trType = trResultType.Detach();
-        }
+        trType = trResultType.Detach();
+    }
+
+    if (trFunc == nullptr)
+    {
+        return E_INVALIDARG;
     }
 
     const uint32_t realArgsCount = argCount + (isInstance ? 1 : 0);

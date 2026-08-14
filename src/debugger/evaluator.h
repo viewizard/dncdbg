@@ -126,8 +126,7 @@ class Evaluator
 
     static HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
     static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
-    HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const std::string &methodName,
-                                 std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb);
+    HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const Evaluator::WalkMethodsCallback &cb);
 
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);

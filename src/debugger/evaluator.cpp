@@ -2033,11 +2033,9 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     return S_OK;
 }
 
-HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const std::string &methodName,
-                                        std::size_t methodArgsCount, const Evaluator::WalkMethodsCallback &cb)
+HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const Evaluator::WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
-    const WSTRING wMethodName = to_utf16(methodName);
 
     std::unordered_set<std::string> allIfaceTypeNames;
     auto fillIfaceTypeNames = [&]() -> HRESULT
@@ -2179,9 +2177,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
             if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
-                                                  nullptr, &pSig, &cbSig, nullptr, nullptr)) ||
-                // Early method name check.
-                WSTRING(szFunctionName.data()) != wMethodName)
+                                                  nullptr, &pSig, &cbSig, nullptr, nullptr)))
             {
                 continue;
             }
@@ -2190,9 +2186,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
             std::vector<SigElementType> argElementTypes;
             uint32_t methodGenParamCount = 0;
             if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType,
-                                      argElementTypes, false, &methodGenParamCount)) ||
-                // Early method args count check.
-                methodArgsCount + 1 != argElementTypes.size())
+                                      argElementTypes, false, &methodGenParamCount)))
             {
                 continue;
             }
