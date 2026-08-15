@@ -726,11 +726,46 @@ HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef me
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     return GetPDBInfo(modAddress,
         [&](const PDBInfo &pdbInfo) -> HRESULT
         {
-            return PDBReader::GetImportsAndAliases(pdbInfo.m_pdbHandle, methodToken, ilOffset, pdbImports);
+            IfFailRet(PDBReader::GetImportsAndAliases(pdbInfo.m_pdbHandle, methodToken, ilOffset, pdbImports));
+
+            auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+            if (aliasType != pdbImports.end())
+            {
+                for (auto &entry : aliasType->second)
+                {
+                    std::list<std::string> args;
+                    if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, &args)) ||
+                        args.empty())
+                    {
+                        // Skip entries whose target type cannot be resolved or has no generic arguments.
+                        continue;
+                    }
+
+                    entry.displayName += '<';
+                    bool first = true;
+                    for (const auto &param : args)
+                    {
+                        if (!first)
+                        {
+                            entry.displayName += ", ";
+                        }
+
+                        entry.displayName += param;
+                        first = false;
+                    }
+                    entry.displayName += '>';
+                }
+            }
+
+            return S_OK;
         });
 }
 

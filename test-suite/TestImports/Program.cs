@@ -4,6 +4,12 @@ using System.Collections.Generic;
 using Sys = System;
 using GenericCollections = System.Collections.Generic;
 
+using UserInt32 = System.Int32;
+using UserInt64 = System.Int64;
+using UserSingle = System.Single;
+using UserGuid = System.Guid;
+using UserList1 = System.Collections.Generic.List<int>;
+
 using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
@@ -60,6 +66,18 @@ class Program
                                                                         "new Sys.Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
                                                                         "new GenericCollections.List<int>()");
+
+                // Test AliasType.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "UserInt32.MaxValue");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3.1415927", "float", "UserSingle.Pi");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "10", "int", "UserInt32.Abs(-10)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "UserInt32.Max(10, 20)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-1", "int", "UserInt64.Sign(-50L)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "float", "UserSingle.Floor(1.34F)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
+                                                                        "new UserGuid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
+                                                                        "new UserList1()");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

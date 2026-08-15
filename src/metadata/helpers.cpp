@@ -712,7 +712,47 @@ void ApplyNamespaceAlias(std::vector<std::string> &identifiers, int nextIdentifi
         if (entry.alias == identifiers.at(0))
         {
             identifiers.at(0) = entry.targetNamespace;
+            break;
         }
+    }
+}
+
+// Replace the first identifier with the target type of a matching
+// `using <alias> = <type>;` alias (ImportsKind::AliasType), if any.
+// Only applies when no identifiers have been consumed yet (nextIdentifier == 0),
+// since the alias can only substitute the leading type component.
+void ApplyTypeAlias(std::vector<std::string> &identifiers, int nextIdentifier, const PDB::ImportsAndAliases &pdbImports)
+{
+    if (nextIdentifier != 0)
+    {
+        return;
+    }
+
+    auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+    if (aliasType == pdbImports.end())
+    {
+        return;
+    }
+
+    for (const auto &entry : aliasType->second)
+    {
+        if (entry.alias != identifiers.at(0))
+        {
+            continue;
+        }
+
+        // Skip entries whose target type display name could not be resolved.
+        if (entry.displayName.empty())
+        {
+            continue;
+        }
+
+        std::vector<int> ranks;
+        std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName, ranks);
+
+        identifiers.erase(identifiers.begin());
+        identifiers.insert(identifiers.begin(), typeIdentifiers.begin(), typeIdentifiers.end());
+        break;
     }
 }
 
@@ -728,6 +768,7 @@ HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::str
     HRESULT Status = S_OK;
 
     ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
+    ApplyTypeAlias(identifiers, nextIdentifier, pdbImports);
 
     IfFailRet(Modules::ForEachModule(pThread,
         [&](ICorDebugModule *pModule) -> HRESULT
@@ -1265,7 +1306,7 @@ HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::s
         ULONG cbSig = 0;
         IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
-        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, true));
+        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, nullptr, true));
         metadataName = sigType.metadataTypeName;
     }
     else
@@ -1362,6 +1403,16 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
     else if (TypeFromToken(token) == mdtTypeRef)
     {
         IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, displayName));
+    }
+    else if (TypeFromToken(token) == mdtTypeSpec)
+    {
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
+        SigElementType sigType;
+        std::list<std::string> args;
+        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, &args, true));
+        displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, &args);
     }
     else
     {
@@ -1973,6 +2024,7 @@ HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICo
     else
     {
         ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
+        ApplyTypeAlias(identifiers, nextIdentifier, pdbImports);
 
         int tmpNextIdentifier = nextIdentifier;
         if (SUCCEEDED(FindTypeInModule(trTypeModule, identifiers, tmpNextIdentifier, typeToken)))

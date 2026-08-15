@@ -157,7 +157,9 @@ struct Imports
 {
     std::string alias;
     std::string targetNamespace;
+    // Token-related fields (used by ImportType/AliasType/AliasAssemblyReference/...).
     mdToken token{0};
+    std::string displayName;
 };
 
 enum class ImportsKind : uint8_t
