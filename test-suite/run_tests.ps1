@@ -58,6 +58,7 @@ $ALL_TEST_NAMES = @(
     "TestFormatSpecifiersAc"
     "TestDebuggerDisplay"
     "TestObjectCreation"
+    "TestImports"
 )
 
 $TEST_NAMES = $tests

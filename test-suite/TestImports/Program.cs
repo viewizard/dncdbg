@@ -1,0 +1,58 @@
+﻿using System;
+
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
+
+namespace TestImports
+{
+class Program
+{
+    static void Main(string[] args)
+    {
+        Label.Checkpoint("init", "imports_test",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1");
+                Context.SetBreakpoints(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+
+                Context.WasEntryPointHit(@"__FILE__:__LINE__");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        int i = 1;                                                Label.Breakpoint("bp1");
+
+        Label.Checkpoint("imports_test", "finish",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "bp1");
+
+                // Test ImportNamespace.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "Int32.MaxValue");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3.1415927", "float", "Single.Pi");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "10", "int", "Int32.Abs(-10)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "Int32.Max(10, 20)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-1", "int", "Int64.Sign(-50L)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "float", "Single.Floor(1.34F)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
+                                                                        "new Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
+
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("finish", "",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.DebuggerExit(@"__FILE__:__LINE__");
+            });
+    }
+}
+}

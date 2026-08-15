@@ -577,10 +577,6 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[]", "Expression has malformed or incomplete syntax."); // error, no such variable
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "multi_array2[,]", "Expression has malformed or incomplete syntax."); // error, no such variable
 
-                // Test built-in types methods without namespaces.
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "Int32.MaxValue");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3.1415927", "float", "Single.Pi");
-
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -1257,12 +1253,6 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"2\"", "string", "arrayToString[1].ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"System.Int32[,]\"", "string", "matrixToString.ToString()");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"5\"", "string", "matrixToString[1,1].ToString()");
-
-                // Test built-in types methods without namespaces.
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "10", "int", "Int32.Abs(-10)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "Int32.Max(10, 20)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-1", "int", "Int64.Sign(-50L)");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "float", "Single.Floor(1.34F)");
 
                 // Call with arguments.
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2.0", "decimal", "mcTest3.Calc1(1.0M)");

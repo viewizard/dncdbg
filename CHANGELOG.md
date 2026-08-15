@@ -30,6 +30,7 @@ Upcoming changes compared to previous version.
 - Added TestObjectCreation.
 - Added walking base types when collecting interfaces for extension method resolution.
 - Added using-directive awareness to type resolution.
+- Added TestImports.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
