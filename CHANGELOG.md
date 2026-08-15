@@ -31,6 +31,7 @@ Upcoming changes compared to previous version.
 - Added walking base types when collecting interfaces for extension method resolution.
 - Added using-directive awareness to type resolution.
 - Added TestImports.
+- Added namespace alias (`using X = Y;`) resolution to type lookup.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().

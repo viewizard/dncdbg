@@ -68,9 +68,9 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
 
 // Note: `identifiers` contain "display" names and are converted into "metadata" names for lookup inside method logic.
-HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
+HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType);
-HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread,
+HRESULT FindTypeModule(std::vector<std::string> &identifiers, ICorDebugThread *pThread,
                        const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule);
 
 // Note: this is a heavy function, since it is forced to search for the type in all modules to detect the proper CorElementType

@@ -690,16 +690,44 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
     return S_OK;
 }
 
+// Replace the first identifier with the target namespace of a matching
+// `using <alias> = <namespace>;` alias (ImportsKind::AliasNamespace), if any.
+// Only applies when no identifiers have been consumed yet (nextIdentifier == 0),
+// since the alias can only substitute the leading namespace component.
+void ApplyNamespaceAlias(std::vector<std::string> &identifiers, int nextIdentifier, const PDB::ImportsAndAliases &pdbImports)
+{
+    if (nextIdentifier != 0)
+    {
+        return;
+    }
+
+    auto aliasNamespace = pdbImports.find(PDB::ImportsKind::AliasNamespace);
+    if (aliasNamespace == pdbImports.end())
+    {
+        return;
+    }
+
+    for (const auto &entry : aliasNamespace->second)
+    {
+        if (entry.alias == identifiers.at(0))
+        {
+            identifiers.at(0) = entry.targetNamespace;
+        }
+    }
+}
+
 // Search all modules for a type token matching `identifiers`. If the type is not
 // found, retry the search with each imported namespace prefixed onto the first
 // identifier (e.g. resolving `Console` into `System.Console` via `using System;`).
 // On success, outputs the found module, type token, and number of consumed
 // identifiers. Returns E_FAIL when the type cannot be resolved.
-HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, const std::vector<std::string> &identifiers,
+HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::string> &identifiers,
                                   const PDB::ImportsAndAliases &pdbImports, ToRelease<ICorDebugModule> &trTypeModule,
                                   int &nextIdentifier, mdTypeDef &typeToken)
 {
     HRESULT Status = S_OK;
+
+    ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
 
     IfFailRet(Modules::ForEachModule(pThread,
         [&](ICorDebugModule *pModule) -> HRESULT
@@ -833,7 +861,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        const std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
+        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
         if (classIdentifiers.empty())
         {
             return E_FAIL;
@@ -1925,7 +1953,7 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
     return identifiers;
 }
 
-HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
+HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
                  ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType)
 {
     HRESULT Status = S_OK;
@@ -1944,6 +1972,8 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     }
     else
     {
+        ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
+
         int tmpNextIdentifier = nextIdentifier;
         if (SUCCEEDED(FindTypeInModule(trTypeModule, identifiers, tmpNextIdentifier, typeToken)))
         {
@@ -1998,7 +2028,7 @@ HRESULT FindType(const std::vector<std::string> &identifiers, int &nextIdentifie
     return S_OK;
 }
 
-HRESULT FindTypeModule(const std::vector<std::string> &identifiers, ICorDebugThread *pThread,
+HRESULT FindTypeModule(std::vector<std::string> &identifiers, ICorDebugThread *pThread,
                        const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
@@ -2047,7 +2077,7 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
 
     std::vector<int> ranks;
     const std::string parseDisplayTypeName = displayTypeName == "decimal" ? "System.Decimal" : displayTypeName;
-    const std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName, ranks);
+    std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName, ranks);
 
     SigElementType sigElemType;
     int nextIdentifier = 0;

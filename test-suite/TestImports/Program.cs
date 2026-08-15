@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+
+using Sys = System;
+using GenericCollections = System.Collections.Generic;
 
 using DbgTest;
 using DbgTest.DAP;
@@ -42,6 +46,20 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "float", "Single.Floor(1.34F)");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
                                                                         "new Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
+                                                                        "new List<int>()");
+
+                // Test AliasNamespace.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "Sys.Int32.MaxValue");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "3.1415927", "float", "Sys.Single.Pi");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "10", "int", "Sys.Int32.Abs(-10)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "20", "int", "Sys.Int32.Max(10, 20)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-1", "int", "Sys.Int64.Sign(-50L)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "float", "Sys.Single.Floor(1.34F)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{2a4ecdc1-6b94-410f-9823-a04cb8093363}", "System.Guid",
+                                                                        "new Sys.Guid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
+                                                                        "new GenericCollections.List<int>()");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
