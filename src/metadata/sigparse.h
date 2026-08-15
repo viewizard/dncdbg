@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include <list>
 #include <string>
 #include <vector>
 #include <utility>
@@ -56,7 +57,8 @@ struct SigElementType
 };
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, bool addElementTypeName = false);
+                         DWORD flags, SigElementType &sigElementType, std::list<std::string> *args = nullptr,
+                         bool addElementTypeName = false);
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                        SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes,

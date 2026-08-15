@@ -164,6 +164,129 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
     return S_OK;
 }
 
+HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig,
+                                PCCOR_SIGNATURE pSigEnd, std::string &displayName)
+{
+    HRESULT Status = S_OK;
+
+    // Collect array/wrapper suffixes iteratively instead of recursing.
+    // Each entry: { outerElemType, suffix } where the suffix is appended after the base type is resolved.
+    struct Wrapper
+    {
+        CorElementType outerElemType;
+        std::string suffix;
+    };
+    std::vector<Wrapper> wrappers;
+
+    // Peel off wrapping element types (SZARRAY, ARRAY) that modify the inner
+    // type, then post-process the result.
+    for (;;)
+    {
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, elemType));
+
+        if (elemType == ELEMENT_TYPE_SZARRAY)
+        {
+            // Record the "[]" suffix and continue the loop to parse the inner type.
+            wrappers.push_back({elemType, "[]"});
+            continue;
+        }
+
+        if (elemType == ELEMENT_TYPE_ARRAY)
+        {
+            // The array shape data follows the inner type in the signature, so we
+            // parse the inner type first (by continuing the loop) and fill in the
+            // suffix from the shape data after the loop.
+            wrappers.push_back({elemType, {}});
+            continue;
+        }
+
+        switch (elemType)
+        {
+        case ELEMENT_TYPE_VOID:
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_U:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_STRING:
+        case ELEMENT_TYPE_OBJECT:
+            Status = MetadataHelpers::GetBuiltInTypeName(elemType, displayName);
+            assert(SUCCEEDED(Status));
+            break;
+
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+        {
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, displayName));
+            break;
+        }
+
+        case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
+        {
+            CorElementType innerElemType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerElemType));
+            if (innerElemType != ELEMENT_TYPE_CLASS &&
+                innerElemType != ELEMENT_TYPE_VALUETYPE)
+            {
+                return E_NOTIMPL;
+            }
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+            IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, displayName));
+            ULONG number = 0;
+            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
+            for (ULONG i = 0; i < number; i++)
+            {
+                // TODO: implement support for nested generic types (e.g. List<List<int>>)
+                IfFailRet(SkipElementType(pSig, pSigEnd));
+            }
+            break;
+        }
+
+        default:
+            return E_INVALIDARG;
+        }
+
+        // Base type resolved, exit the peeling loop.
+        break;
+    }
+
+    // Apply the collected wrappers in reverse order. Wrappers are collected
+    // outermost-first (so the innermost wrapper is pushed last), and the array
+    // shape data in the signature appears right after the inner type, so reverse
+    // iteration matches the signature layout.
+    for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
+    {
+        if (it->outerElemType == ELEMENT_TYPE_ARRAY)
+        {
+            // Read the rank from a copy of the pointer, then skip the full shape.
+            PCCOR_SIGNATURE rankPtr = pSig;
+            ULONG rank = 0;
+            IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, rank));
+            IfFailRet(SkipArrayShape(pSig, pSigEnd));
+            if (rank != 0)
+            {
+                it->suffix = "[" + std::string(rank - 1, ',') + "]";
+            }
+        }
+        displayName += it->suffix;
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
@@ -253,7 +376,8 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // Number ::= 29-bit-encoded-integer
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, bool addElementTypeName)
+                         DWORD flags, SigElementType &sigElementType, std::list<std::string> *args,
+                         bool addElementTypeName)
 {
     HRESULT Status = S_OK;
 
@@ -276,8 +400,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 
         if (elemType == ELEMENT_TYPE_SZARRAY)
         {
-            // The recursive version parsed the inner type first, then set elemType back to SZARRAY
-            // and appended "[]". We record this and continue the loop to parse the inner type.
+            // Record the "[]" suffix and continue the loop to parse the inner type.
             wrappers.push_back({elemType, "[]"});
             // addElementTypeName must be true for inner types (matches original recursive call).
             addElementTypeName = true;
@@ -286,9 +409,9 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
 
         if (elemType == ELEMENT_TYPE_ARRAY)
         {
-            // We need to read the inner type first (handled by continuing the loop),
-            // but the array shape data follows the inner type in the signature.
-            // Record a placeholder suffix; we'll fill it in after the loop.
+            // The array shape data follows the inner type in the signature, so we
+            // parse the inner type first (by continuing the loop) and fill in the
+            // suffix from the shape data after the loop.
             wrappers.push_back({elemType, {}});
             addElementTypeName = true;
             continue;
@@ -385,7 +508,16 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
             for (ULONG i = 0; i < number; i++)
             {
-                IfFailRet(SkipElementType(pSig, pSigEnd)); // Not needed at the moment, just advance past each generic arg
+                if (args == nullptr)
+                {
+                    IfFailRet(SkipElementType(pSig, pSigEnd));
+                }
+                else
+                {
+                    std::string displayName;
+                    IfFailRet(ParseGenTypeDisplayName(pMDImport, pSig, pSigEnd, displayName));
+                    args->emplace_back(displayName);
+                }
             }
             break;
         }
@@ -405,20 +537,18 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         break;
     }
 
-    // Apply the collected wrappers in reverse order (innermost wrapper was pushed last).
-    // Wrappers are collected outermost-first, and the array shape data in the signature
-    // appears right after the inner type. We process wrappers in reverse order to match
-    // the signature layout.
+    // Apply the collected wrappers in reverse order. Wrappers are collected
+    // outermost-first (so the innermost wrapper is pushed last), and the array
+    // shape data in the signature appears right after the inner type, so reverse
+    // iteration matches the signature layout.
     for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
     {
         if (it->outerElemType == ELEMENT_TYPE_ARRAY)
         {
-            // Parse array shape from the signature and build the suffix.
-            // Save position to read rank before skipping.
+            // Read the rank from a copy of the pointer, then skip the full shape.
             PCCOR_SIGNATURE rankPtr = pSig;
             ULONG rank = 0;
             IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, rank));
-            // Skip the entire array shape data.
             IfFailRet(SkipArrayShape(pSig, pSigEnd));
             if (rank != 0)
             {
@@ -473,7 +603,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
 
     // 4. return type
-    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, addElementTypeName));
+    IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, nullptr, addElementTypeName));
 
     // 5. get next element from method signature
     argElementTypes.resize(cParams);
@@ -490,7 +620,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
             pMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0, nullptr,
                                      &flags, nullptr, nullptr, nullptr);
         }
-        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, flags, argElementTypes.at(i), addElementTypeName));
+        IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, flags, argElementTypes.at(i), nullptr, addElementTypeName));
     }
 
     return S_OK;

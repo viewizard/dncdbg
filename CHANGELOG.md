@@ -32,6 +32,7 @@ Upcoming changes compared to previous version.
 - Added using-directive awareness to type resolution.
 - Added TestImports.
 - Added namespace alias (`using X = Y;`) resolution to type lookup.
+- Added generic type argument resolution to display name rendering.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
