@@ -496,7 +496,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     // Try to execute operator for exact same type as provided values.
     if (SUCCEEDED(CallOperator([&](std::vector<SigElementType> &methodArgs) {
             return elemType1 != methodArgs.at(0).elemType || typeName1 != methodArgs.at(0).metadataTypeName ||
-                    elemType2 != methodArgs.at(1).elemType || typeName2 != methodArgs.at(1).metadataTypeName
+                   elemType2 != methodArgs.at(1).elemType || typeName2 != methodArgs.at(1).metadataTypeName
                     ? E_FAIL : S_OK;
         })))
     {
@@ -1255,6 +1255,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
             for (size_t i = 0; i < funcArgs.size(); ++i)
             {
+                // TODO: must care about implicit cast
                 if (funcArgs.at(i) != methodArgs.at(i))
                 {
                     return S_OK; // Return with success to continue walk.
@@ -1377,7 +1378,8 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (funcArgs.at(i).elemType != methodArgs.at(i).elemType || funcArgs.at(i).metadataTypeName != methodArgs.at(i).metadataTypeName)
+                    // TODO: must care about implicit cast
+                    if (funcArgs.at(i) != methodArgs.at(i))
                     {
                         return S_OK; // Return with success to continue walk.
                     }
@@ -1499,7 +1501,8 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (funcArgs.at(i).elemType != methodArgs.at(i).elemType || funcArgs.at(i).metadataTypeName != methodArgs.at(i).metadataTypeName)
+                    // TODO: must care about implicit cast
+                    if (funcArgs.at(i) != methodArgs.at(i))
                     {
                         return S_OK; // Return with success to continue walk.
                     }
