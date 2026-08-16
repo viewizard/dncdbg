@@ -63,6 +63,7 @@ Upcoming changes compared to previous version.
 - Fixed method search for built-in types `nint` (System.IntPtr), `nuint` (System.UIntPtr) and arrays (System.Array).
 - Fixed generic method overload resolution to match explicit type-argument arity.
 - Fixed extension method generic type argument resolution.
+- Fixed incorrect error handling in GetFrontStackEntryType.
 
 </br>
 </br>

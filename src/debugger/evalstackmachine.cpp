@@ -178,8 +178,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
                                                            nullptr, evalStack.front().identifiers,
                                                            ed.specifier, &trValue, nullptr, ppResultType)) &&
-         !evalStack.front().identifiers.empty()) ||
-        (trValue != nullptr))
+         !evalStack.front().identifiers.empty()))
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
@@ -1185,7 +1184,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
     {
-        // We can't create ELEMENT_TYPE_VOID, so, we are forced to use System.Void instead.
+        // We can't create ELEMENT_TYPE_VOID, so we are forced to use System.Void instead.
         IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, ed.trVoidClass, nullptr, &evalStack.front().trValue));
     }
 
@@ -1663,7 +1662,7 @@ HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list
     if (!evalStack.front().preventBinding)
     {
         evalStack.front().identifiers.emplace_back(std::move(identifier));
-        evalStack.front().trGenericTypeCache.clear(); // We need method's generics only, so remove all previous if exist.
+        evalStack.front().trGenericTypeCache.clear(); // We need method's generics only, so remove all previous if any exist.
         if (genericsCount > 0)
         {
             evalStack.front().trGenericTypeCache = std::move(trDebugTypes);
