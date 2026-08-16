@@ -120,10 +120,39 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
     }
 
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
-    if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
-                                                          evalStack.front().identifiers, ed.specifier,
-                                                          ppResultValue, resultSetterData, nullptr)) &&
-        !evalStack.front().identifiers.empty())
+    if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
+                                                             evalStack.front().identifiers, ed.specifier, ppResultValue,
+                                                             resultSetterData, nullptr)))
+    {
+        return S_OK;
+    }
+
+    if (pForcedThisValue == nullptr && !evalStack.front().identifiers.empty())
+    {
+        PDB::ImportsAndAliases pdbImports;
+        ed.pEvaluator->GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
+
+        auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+        if (importType != pdbImports.end())
+        {
+            for (const auto &entry : importType->second)
+            {
+                std::vector<std::string> testIdentifiers = evalStack.front().identifiers;
+                std::vector<int> ranks;
+                std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
+                testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.begin(), importTypeIdentifiers.end());
+
+                if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
+                                                                testIdentifiers, ed.specifier, ppResultValue, resultSetterData,
+                                                                nullptr)))
+                {
+                    return S_OK;
+                }
+            }
+        }
+    }
+
+    if (!evalStack.front().identifiers.empty())
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
@@ -852,78 +881,53 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         funcName.resize(pos);
     }
 
+    PDB::ImportsAndAliases pdbImports;
+    ed.pEvaluator->GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
+
     bool idsEmpty = false;
     bool isInstance = true;
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
+
+    std::vector<std::vector<std::string>> allIdentifiers;
+    allIdentifiers.emplace_back(evalStack.front().identifiers);
+
     if (pForcedThisValue == nullptr && evalStack.front().identifiers.empty())
     {
         std::string metadataTypeName;
         idsEmpty = true;
+        // FIXME: must be a display name with proper type parameters for generics
         IfFailRet(ed.pEvaluator->GetFQMDTypeName(ed.pThread, ed.frameLevel, metadataTypeName, isInstance));
         if (isInstance)
         {
-            evalStack.front().identifiers.emplace_back("this");
+            allIdentifiers.back().emplace_back("this");
         }
         else
         {
             // Note: <identifiers> usually contains a vector of components of the full name qualification.
             // Anyway, our added component will be correctly processed by Evaluator::ResolveIdentifiers() for
             // that case as it seals all the qualification components into one before using them.
-            evalStack.front().identifiers.emplace_back(metadataTypeName);
-        }
-    }
+            allIdentifiers.back().emplace_back(metadataTypeName);
 
-    ToRelease<ICorDebugValue> trValue;
-    ToRelease<ICorDebugType> trType;
-    IfFailRet(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
-                                                nullptr, evalStack.front().identifiers,
-                                                ed.specifier, &trValue, nullptr, &trType));
-
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-
-    bool searchStatic = false;
-    if (trType != nullptr)
-    {
-        searchStatic = true;
-        IfFailRet(trType->GetType(&elemType));
-    }
-    else
-    {
-        IfFailRet(trValue->GetType(&elemType));
-
-        if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
-        {
-            // Create proper System.Array type in order to walk methods.
-            ToRelease<ICorDebugClass2> trClass2;
-            IfFailRet(ed.trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
-            IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
-        }
-        else
-        {
-            // Boxing built-in element type into value type in order to call methods.
-            auto entry = ed.trElementToValueClassMap.find(elemType);
-            if (entry != ed.trElementToValueClassMap.end())
+            auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+            if (importType != pdbImports.end())
             {
-                uint32_t cbSize = 0;
-                IfFailRet(trValue->GetSize(&cbSize));
-                std::vector<uint8_t> elemValue(cbSize, 0);
+                for (const auto &entry : importType->second)
+                {
+                    // Skip entries whose target type display name could not be resolved.
+                    if (entry.displayName.empty())
+                    {
+                        continue;
+                    }
 
-                ToRelease<ICorDebugGenericValue> trGenericValue;
-                IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-                IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
+                    std::vector<int> ranks;
+                    std::vector<std::string> typeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
 
-                trValue.Free();
-                IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
+                    if (!typeIdentifiers.empty())
+                    {
+                        allIdentifiers.emplace_back(std::move(typeIdentifiers));
+                    }
+                }
             }
-
-            ToRelease<ICorDebugValue2> trValue2;
-            IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-            IfFailRet(trValue2->GetExactType(&trType));
-        }
-
-        if (trType == nullptr)
-        {
-            return E_NOTIMPL;
         }
     }
 
@@ -941,9 +945,6 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
     }
 
-    PDB::ImportsAndAliases pdbImports;
-    ed.pEvaluator->GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
-
     std::vector<SigElementType> genericMethodParameters;
     genericMethodParameters.reserve(genericMethodFQDisplayTypeNames.size());
     std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(genericMethodParameters),
@@ -954,71 +955,98 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     const auto expectedMethodGenParamCount = static_cast<uint32_t>(evalStack.front().trGenericTypeCache.size());
     ToRelease<ICorDebugFunction> trFunc;
-    ToRelease<ICorDebugType> trResultType;
-    IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
-            [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-                std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
-                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+    ToRelease<ICorDebugValue> trValue;
+    ToRelease<ICorDebugType> trType;
+    auto resolveFunc = [&](std::vector<std::string> &testIdentifiers) -> HRESULT
+    {
+        trValue.Free();
+        trType.Free();
+        if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
+                                                              testIdentifiers, ed.specifier, &trValue, nullptr, &trType)))
         {
-            if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
-                funcName != methodName || funcArgs.size() != methodArgs.size() ||
-                methodGenParamCount != expectedMethodGenParamCount)
+            if (pForcedThisValue == nullptr && !testIdentifiers.empty())
             {
-                return S_OK; // Return with success to continue walk.
-            }
-
-            for (size_t i = 0; i < funcArgs.size(); ++i)
-            {
-                if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i))) ||
-                    funcArgs.at(i) != methodArgs.at(i))
+                auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+                if (importType != pdbImports.end())
                 {
-                    return S_OK; // Return with success to continue walk.
+                    for (const auto &entry : importType->second)
+                    {
+                        std::vector<std::string> testIdents = testIdentifiers;
+                        std::vector<int> ranks;
+                        std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
+                        testIdents.insert(testIdents.begin(), importTypeIdents.begin(), importTypeIdents.end());
+
+                        if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
+                                                                        testIdents, ed.specifier, &trValue, nullptr, &trType)))
+                        {
+                            break;
+                        }
+                    }
                 }
             }
 
-            IfFailRet(getFunction(&trFunc));
-            isInstance = !isStatic;
-
-            return S_CAN_EXIT; // Fast exit from the loop.
-        }));
-
-    if (trFunc == nullptr && !searchStatic)
-    {
-        // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
-        // Note: in case of a generic extension method call we also need the proper type parameters.
-        if (trValue != nullptr && (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY))
-        {
-            trType.Free();
-            ToRelease<ICorDebugValue2> trValue2;
-            IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-            IfFailRet(trValue2->GetExactType(&trType));
+            if (trType == nullptr && trValue == nullptr)
+            {
+                return Status;
+            }
         }
 
-        bool hasThisTypeParams = false;
-        IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType,
-            [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
-                std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
-                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+        CorElementType elemType = ELEMENT_TYPE_MAX;
+
+        bool searchStatic = false;
+        if (trType != nullptr)
+        {
+            searchStatic = true;
+            IfFailRet(trType->GetType(&elemType));
+        }
+        else
+        {
+            IfFailRet(trValue->GetType(&elemType));
+
+            if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
             {
-                // Extension methods must provide `this` as first argument.
-                assert(!isStatic);
-
-                // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
-                if ((funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
+                // Create proper System.Array type in order to walk methods.
+                ToRelease<ICorDebugClass2> trClass2;
+                IfFailRet(ed.trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+                IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
+            }
+            else
+            {
+                // Boxing built-in element type into value type in order to call methods.
+                auto entry = ed.trElementToValueClassMap.find(elemType);
+                if (entry != ed.trElementToValueClassMap.end())
                 {
-                    return S_OK; // Return with success to continue walk.
+                    uint32_t cbSize = 0;
+                    IfFailRet(trValue->GetSize(&cbSize));
+                    std::vector<uint8_t> elemValue(cbSize, 0);
+
+                    ToRelease<ICorDebugGenericValue> trGenericValue;
+                    IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+                    IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
+
+                    trValue.Free();
+                    IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
                 }
 
-                // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>).
-                // In that case the source type's generic parameters are used to fill the method's generic
-                // parameter slots; otherwise trType is dropped to avoid injecting the wrong parameters.
-                hasThisTypeParams = false;
-                if (!methodArgs.at(0).metadataTypeName.empty())
-                {
-                    hasThisTypeParams = (ParseLastGenericArity(methodArgs.at(0).metadataTypeName) != 0);
-                }
+                ToRelease<ICorDebugValue2> trValue2;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                IfFailRet(trValue2->GetExactType(&trType));
+            }
 
-                if (!hasThisTypeParams &&
+            if (trType == nullptr)
+            {
+                return E_NOTIMPL;
+            }
+        }
+
+        ToRelease<ICorDebugType> trResultType;
+        IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
+                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+                    std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
+                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            {
+                if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
+                    funcName != methodName || funcArgs.size() != methodArgs.size() ||
                     methodGenParamCount != expectedMethodGenParamCount)
                 {
                     return S_OK; // Return with success to continue walk.
@@ -1026,28 +1054,98 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
                 {
-                    if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i + 1))) ||
-                        funcArgs.at(i) != methodArgs.at(i + 1))
+                    if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i))) ||
+                        // TODO: must care about implicit cast
+                        funcArgs.at(i) != methodArgs.at(i))
                     {
                         return S_OK; // Return with success to continue walk.
                     }
                 }
 
                 IfFailRet(getFunction(&trFunc));
-                // Extension methods are invoked as instance methods.
-                isInstance = true;
+                isInstance = !isStatic;
 
                 return S_CAN_EXIT; // Fast exit from the loop.
             }));
 
-        if (!hasThisTypeParams)
+        if (trFunc == nullptr && !searchStatic)
         {
-            trType.Free();
+            // Restore the initial array type, since we need the proper type name in WalkExtensionMethods().
+            // Note: in case of a generic extension method call we also need the proper type parameters.
+            if (trValue != nullptr && (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY))
+            {
+                trType.Free();
+                ToRelease<ICorDebugValue2> trValue2;
+                IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                IfFailRet(trValue2->GetExactType(&trType));
+            }
+
+            bool hasThisTypeParams = false;
+            IfFailRet(ed.pEvaluator->WalkExtensionMethods(trType, elemType,
+                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+                    std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
+                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                {
+                    // Extension methods must provide `this` as first argument.
+                    assert(!isStatic);
+
+                    // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
+                    if ((funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
+                    {
+                        return S_OK; // Return with success to continue walk.
+                    }
+
+                    // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>).
+                    // In that case the source type's generic parameters are used to fill the method's generic
+                    // parameter slots; otherwise trType is dropped to avoid injecting the wrong parameters.
+                    hasThisTypeParams = false;
+                    if (!methodArgs.at(0).metadataTypeName.empty())
+                    {
+                        hasThisTypeParams = (ParseLastGenericArity(methodArgs.at(0).metadataTypeName) != 0);
+                    }
+
+                    if (!hasThisTypeParams &&
+                        methodGenParamCount != expectedMethodGenParamCount)
+                    {
+                        return S_OK; // Return with success to continue walk.
+                    }
+
+                    for (size_t i = 0; i < funcArgs.size(); ++i)
+                    {
+                        if (FAILED(ApplyGenericMethodParameters(genericMethodParameters, methodArgs.at(i + 1))) ||
+                            // TODO: must care about implicit cast
+                            funcArgs.at(i) != methodArgs.at(i + 1))
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
+                    }
+
+                    IfFailRet(getFunction(&trFunc));
+                    // Extension methods are invoked as instance methods.
+                    isInstance = true;
+
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }));
+
+            if (!hasThisTypeParams)
+            {
+                trType.Free();
+            }
         }
-    }
-    else if (trFunc != nullptr && trResultType != nullptr)
+        else if (trFunc != nullptr && trResultType != nullptr)
+        {
+            trType = trResultType.Detach();
+        }
+
+        return trFunc != nullptr ? S_OK : E_INVALIDARG;
+    };
+
+    for (auto &idents : allIdentifiers)
     {
-        trType = trResultType.Detach();
+        if (SUCCEEDED(resolveFunc(idents)))
+        {
+            break;
+        }
     }
 
     if (trFunc == nullptr)

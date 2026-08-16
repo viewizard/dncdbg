@@ -10,6 +10,8 @@ using UserSingle = System.Single;
 using UserGuid = System.Guid;
 using UserList1 = System.Collections.Generic.List<int>;
 
+using static System.Int32;
+
 using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
@@ -78,6 +80,12 @@ class Program
                                                                         "new UserGuid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
                                                                         "new UserList1()");
+
+                // Test ImportType.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "MaxValue");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"2147483647\"", "string", "MaxValue.ToString()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "10", "int", "Abs(-10)");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"10\"", "string", "Abs(-10).ToString()");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

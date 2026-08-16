@@ -736,10 +736,9 @@ HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef me
         {
             IfFailRet(PDBReader::GetImportsAndAliases(pdbInfo.m_pdbHandle, methodToken, ilOffset, pdbImports));
 
-            auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
-            if (aliasType != pdbImports.end())
+            auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias)
             {
-                for (auto &entry : aliasType->second)
+                for (auto &entry : alias)
                 {
                     std::list<std::string> args;
                     if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, &args)) ||
@@ -763,6 +762,18 @@ HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef me
                     }
                     entry.displayName += '>';
                 }
+            };
+
+            auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+            if (importType != pdbImports.end())
+            {
+                applyTokenName(importType->second);
+            }
+
+            auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+            if (aliasType != pdbImports.end())
+            {
+                applyTokenName(aliasType->second);
             }
 
             return S_OK;

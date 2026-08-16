@@ -34,6 +34,7 @@ Upcoming changes compared to previous version.
 - Added namespace alias (`using X = Y;`) resolution to type lookup.
 - Added generic type argument resolution to display name rendering.
 - Added support for `using` type aliases (AliasType) in expression evaluation.
+- Added support for `using static` type import (ImportType) in expression evaluation.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
