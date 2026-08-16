@@ -1389,7 +1389,9 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         IfFailRet(pMDImport->GetMemberRefProps(token, &typeToken, memberName.data(), size, nullptr, nullptr, nullptr));
         if (TypeFromToken(typeToken) == mdtTypeRef)
         {
-            IfFailRet(GetFQMDNameForTypeRef(typeToken, pMDImport, displayName));
+            std::string metadataName;
+            IfFailRet(GetFQMDNameForTypeRef(typeToken, pMDImport, metadataName));
+            displayName = ConvertMetadataToDisplayName(metadataName, args);
             displayName += ".";
         }
         else if (TypeFromToken(typeToken) == mdtTypeDef)
@@ -1397,12 +1399,18 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
             IfFailRet(GetFQDisplayNameForTypeDef(typeToken, pMDImport, displayName, args));
             displayName += ".";
         }
-        // TODO TypeSpec
+        else
+        {
+            // Unsupported token type (TypeSpec is not yet handled here).
+            return CORDBG_E_UNSUPPORTED;
+        }
         displayName += to_utf8(memberName.data());
     }
     else if (TypeFromToken(token) == mdtTypeRef)
     {
-        IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, displayName));
+        std::string metadataName;
+        IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, metadataName));
+        displayName = ConvertMetadataToDisplayName(metadataName, args);
     }
     else if (TypeFromToken(token) == mdtTypeSpec)
     {
@@ -1410,10 +1418,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         ULONG cbSig = 0;
         IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
-        if (args != nullptr)
-        {
-            IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, args, true));
-        }
+        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, nullptr, true));
         displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, args);
     }
     else

@@ -2355,7 +2355,58 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
             return E_FAIL;
         }
 
-        return m_sharedDebugInfo->GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports);
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+        IfFailRet(m_sharedDebugInfo->GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
+
+        auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias) -> HRESULT
+        {
+            for (auto &entry : alias)
+            {
+                // For TypeSpec tokens, pre-resolve the generic type arguments from the signature
+                // so that GetFQDisplayNameForToken() can substitute them into the display name.
+                std::list<std::string> args;
+                std::list<std::string> *pArgs = nullptr;
+                if (TypeFromToken(entry.token) == mdtTypeSpec)
+                {
+                    PCCOR_SIGNATURE pSig = nullptr;
+                    ULONG cbSig = 0;
+                    SigElementType sigType;
+                    if (FAILED(trMDImport->GetTypeSpecFromToken(entry.token, &pSig, &cbSig)) ||
+                        FAILED(ParseElementType(trMDImport, pSig, pSig + cbSig, 0, sigType, &args, true)))
+                    {
+                        // Skip entries whose TypeSpec signature cannot be parsed.
+                        continue;
+                    }
+                    pArgs = &args;
+                }
+
+                if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, pArgs)))
+                {
+                    // Skip entries whose target type cannot be resolved.
+                    continue;
+                }
+            }
+
+            return S_OK;
+        };
+
+        auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+        if (importType != pdbImports.end())
+        {
+            applyTokenName(importType->second);
+        }
+
+        auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+        if (aliasType != pdbImports.end())
+        {
+            applyTokenName(aliasType->second);
+        }
+
+        return S_OK;
     };
 
     pdbImports.clear();
