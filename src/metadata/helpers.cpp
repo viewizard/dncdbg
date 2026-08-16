@@ -1410,9 +1410,11 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         ULONG cbSig = 0;
         IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
-        std::list<std::string> args;
-        IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, &args, true));
-        displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, &args);
+        if (args != nullptr)
+        {
+            IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, args, true));
+        }
+        displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, args);
     }
     else
     {
