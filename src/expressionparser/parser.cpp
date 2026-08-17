@@ -253,7 +253,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
     },
     // Roslyn: ObjectCreationExpression (e.g., new Foo(1, 2)). Object/collection
     // initializers (`new Foo { X = 1 }`, `new List<int>{1,2,3}`) are a
-    // separate, unhandled node shape (the `initializer` field below) --
+    // separate, unimplemented node shape (the `initializer` field below) --
     // rejected here with a clear error rather than silently dropped, since
     // silently ignoring the initializer would evaluate to a real but wrong
     // (uninitialized) object instead of failing.
