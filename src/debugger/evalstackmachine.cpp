@@ -175,10 +175,10 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
-    if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
-                                                           nullptr, evalStack.front().identifiers,
-                                                           ed.specifier, &trValue, nullptr, ppResultType)) &&
-         !evalStack.front().identifiers.empty()))
+    if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
+                                                          nullptr, evalStack.front().identifiers,
+                                                          ed.specifier, &trValue, nullptr, ppResultType)) &&
+        !evalStack.front().identifiers.empty())
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
