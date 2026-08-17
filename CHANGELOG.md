@@ -47,6 +47,7 @@ Upcoming changes compared to previous version.
 - Cached extension methods per module, populated on module load and cleared on unload, to avoid scanning all modules on each evaluation.
 - Refactored breakpoint condition/trace eval to use EvalStackMachine directly.
 - Improved custom attribute detection.
+- Refactored ResolveTypeParameters to detect circular type dependencies.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.

@@ -13,6 +13,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <map>
+#include <set>
 #include <sstream>
 #include <string_view>
 
@@ -879,30 +880,46 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
     // Map to store resolved types by type name.
     std::map<std::string, ToRelease<ICorDebugType>> resolvedTypes;
-    // Work queue: type names that need to be resolved.
-    std::vector<std::string> workQueue(params.begin(), params.end());
 
-    // Use a stack-based (LIFO) work queue: when a type has unresolved dependencies,
-    // re-push it after its dependencies so they get resolved first.
-    std::size_t maxIterations = (params.size() + 1) * (params.size() + 1);
-    while (!workQueue.empty())
+    // Work stack entry (LIFO). Since a generic type cannot be created before all its
+    // generic arguments are created, each type name is processed in two steps:
+    // 1. `expanded == false` - all not-yet-resolved generic arguments of this type are pushed
+    //    on top of this entry, so they will be processed (created) first;
+    // 2. `expanded == true`  - all generic arguments are resolved, the type can be created.
+    struct WorkEntry
     {
-        if (maxIterations-- == 0)
-        {
-            return E_FAIL; // Prevent infinite loop on circular type dependencies.
-        }
+        std::string typeName;
+        bool expanded{false};
+    };
+    std::vector<WorkEntry> workStack;
 
-        std::string currentType = std::move(workQueue.back());
-        workQueue.pop_back();
+    // Type names that are expanded, but not resolved yet (waiting for their generic arguments).
+    // Used to detect circular type dependencies instead of relying on an iterations limit.
+    std::set<std::string> inProgress;
 
-        // Skip if already resolved.
-        if (resolvedTypes.find(currentType) != resolvedTypes.end())
+    // Note, the work stack is LIFO, push in reverse order to process `params` in original order.
+    for (auto it = params.rbegin(); it != params.rend(); ++it)
+    {
+        workStack.push_back({*it, false});
+    }
+
+    // Note, each type name can be expanded only once (it is protected by `inProgress` and
+    // `resolvedTypes` checks) and each generic argument is pushed only for an expanded type name,
+    // so the total count of iterations is bounded by the generic arguments count and nesting depth.
+    while (!workStack.empty())
+    {
+        WorkEntry entry = std::move(workStack.back());
+        workStack.pop_back();
+
+        // Skip if already resolved (the same type name can be used as a generic argument
+        // in several places, for example Dictionary<List<int>, List<int>>).
+        if (resolvedTypes.find(entry.typeName) != resolvedTypes.end())
         {
             continue;
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(currentType, ranks);
+        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.typeName, ranks);
         if (classIdentifiers.empty())
         {
             return E_FAIL;
@@ -915,27 +932,48 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
         const std::vector<std::string> nestedParams = GatherGenericFQDisplayParameters(classIdentifiers, nextClassIdentifier);
 
-        // Check for unresolved nested parameters and add them to the queue.
-        bool hasUnresolved = false;
-        for (const auto &np : nestedParams)
+        if (!entry.expanded)
         {
-            if (resolvedTypes.find(np) == resolvedTypes.end())
+            // Collect generic arguments that must be resolved before this type can be created.
+            std::vector<std::string> unresolved;
+            for (const auto &np : nestedParams)
             {
-                workQueue.push_back(np);
-                hasUnresolved = true;
+                if (resolvedTypes.find(np) != resolvedTypes.end())
+                {
+                    continue;
+                }
+                if (inProgress.find(np) != inProgress.end())
+                {
+                    return E_FAIL; // Circular type dependency.
+                }
+                unresolved.emplace_back(np);
             }
-        }
-        if (hasUnresolved)
-        {
-            workQueue.push_back(std::move(currentType));
-            continue;
+
+            if (!unresolved.empty())
+            {
+                inProgress.emplace(entry.typeName);
+                entry.expanded = true;
+                // Push this type name first, so it will be processed after all its generic
+                // arguments that are pushed on top of it (the work stack is LIFO).
+                workStack.push_back(std::move(entry));
+                for (auto it = unresolved.rbegin(); it != unresolved.rend(); ++it)
+                {
+                    workStack.push_back({std::move(*it), false});
+                }
+                continue;
+            }
         }
 
         // Collect resolved nested types.
         std::vector<ToRelease<ICorDebugType>> trNestedTypes;
         for (const auto &np : nestedParams)
         {
-            ICorDebugType *pType = resolvedTypes.at(np).GetPtr();
+            auto findType = resolvedTypes.find(np);
+            if (findType == resolvedTypes.end())
+            {
+                return E_FAIL;
+            }
+            ICorDebugType *pType = findType->second.GetPtr();
             pType->AddRef();
             trNestedTypes.emplace_back(pType);
         }
@@ -960,7 +998,8 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
             }
         }
 
-        resolvedTypes.emplace(currentType, std::move(trType));
+        inProgress.erase(entry.typeName);
+        resolvedTypes.emplace(std::move(entry.typeName), std::move(trType));
     }
 
     // Copy resolved types to output in original order.
