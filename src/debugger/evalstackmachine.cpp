@@ -175,10 +175,13 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
-    if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
-                                                          nullptr, evalStack.front().identifiers,
-                                                          ed.specifier, &trValue, nullptr, ppResultType)) &&
-        !evalStack.front().identifiers.empty())
+    // ResolveIdentifiers may succeed without producing a type (e.g. when only a
+    // value/this is resolved and no type identifier is left), leaving *ppResultType
+    // null. Treat that as a failure too, otherwise callers would dereference null.
+    if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
+                                                           nullptr, evalStack.front().identifiers,
+                                                           ed.specifier, &trValue, nullptr, ppResultType)) &&
+         !evalStack.front().identifiers.empty()) || *ppResultType == nullptr)
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
