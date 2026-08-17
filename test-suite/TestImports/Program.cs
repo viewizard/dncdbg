@@ -9,6 +9,7 @@ using UserInt64 = System.Int64;
 using UserSingle = System.Single;
 using UserGuid = System.Guid;
 using UserList1 = System.Collections.Generic.List<int>;
+using UserList2 = System.Collections.Generic.List<System.Collections.Generic.List<System.Collections.Generic.Dictionary<int, string>>>;
 
 using static System.Int32;
 
@@ -80,6 +81,9 @@ class Program
                                                                         "new UserGuid(\"2a4ecdc1-6b94-410f-9823-a04cb8093363\")");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0", "System.Collections.Generic.List<int>",
                                                                         "new UserList1()");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 0",
+                    "System.Collections.Generic.List<System.Collections.Generic.List<System.Collections.Generic.Dictionary<int, string>>>",
+                    "new UserList2()");
 
                 // Test ImportType.
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2147483647", "int", "MaxValue");

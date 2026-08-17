@@ -164,109 +164,25 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
     return S_OK;
 }
 
-HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig,
-                                PCCOR_SIGNATURE pSigEnd, std::string &displayName)
+// Array wrapper (SZARRAY/ARRAY) that modifies a type in the signature.
+// Each entry: { outerElemType, suffix }, where the suffix is appended after the
+// wrapped type is completely resolved.
+struct TypeWrapper
+{
+    CorElementType outerElemType;
+    std::string suffix;
+};
+
+// Append the collected array suffixes to `name`.
+// Wrappers are collected outermost-first (so the innermost wrapper is pushed
+// last), and the array shape data in the signature appears right after the
+// wrapped type (innermost shape first), so reverse iteration matches the
+// signature layout.
+HRESULT ApplyTypeWrappers(std::vector<TypeWrapper> &wrappers, PCCOR_SIGNATURE &pSig,
+                          PCCOR_SIGNATURE pSigEnd, std::string &name)
 {
     HRESULT Status = S_OK;
 
-    // Collect array/wrapper suffixes iteratively instead of recursing.
-    // Each entry: { outerElemType, suffix } where the suffix is appended after the base type is resolved.
-    struct Wrapper
-    {
-        CorElementType outerElemType;
-        std::string suffix;
-    };
-    std::vector<Wrapper> wrappers;
-
-    // Peel off wrapping element types (SZARRAY, ARRAY) that modify the inner
-    // type, then post-process the result.
-    for (;;)
-    {
-        CorElementType elemType = ELEMENT_TYPE_MAX;
-        IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, elemType));
-
-        if (elemType == ELEMENT_TYPE_SZARRAY)
-        {
-            // Record the "[]" suffix and continue the loop to parse the inner type.
-            wrappers.push_back({elemType, "[]"});
-            continue;
-        }
-
-        if (elemType == ELEMENT_TYPE_ARRAY)
-        {
-            // The array shape data follows the inner type in the signature, so we
-            // parse the inner type first (by continuing the loop) and fill in the
-            // suffix from the shape data after the loop.
-            wrappers.push_back({elemType, {}});
-            continue;
-        }
-
-        switch (elemType)
-        {
-        case ELEMENT_TYPE_VOID:
-        case ELEMENT_TYPE_BOOLEAN:
-        case ELEMENT_TYPE_CHAR:
-        case ELEMENT_TYPE_I1:
-        case ELEMENT_TYPE_U1:
-        case ELEMENT_TYPE_I2:
-        case ELEMENT_TYPE_U2:
-        case ELEMENT_TYPE_I4:
-        case ELEMENT_TYPE_U4:
-        case ELEMENT_TYPE_I8:
-        case ELEMENT_TYPE_U8:
-        case ELEMENT_TYPE_R4:
-        case ELEMENT_TYPE_R8:
-        case ELEMENT_TYPE_U:
-        case ELEMENT_TYPE_I:
-        case ELEMENT_TYPE_STRING:
-        case ELEMENT_TYPE_OBJECT:
-            Status = MetadataHelpers::GetBuiltInTypeName(elemType, displayName);
-            assert(SUCCEEDED(Status));
-            break;
-
-        case ELEMENT_TYPE_VALUETYPE:
-        case ELEMENT_TYPE_CLASS:
-        {
-            mdToken token = mdTokenNil;
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, displayName));
-            break;
-        }
-
-        case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
-        {
-            CorElementType innerElemType = ELEMENT_TYPE_MAX;
-            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerElemType));
-            if (innerElemType != ELEMENT_TYPE_CLASS &&
-                innerElemType != ELEMENT_TYPE_VALUETYPE)
-            {
-                return E_NOTIMPL;
-            }
-            mdToken token = mdTokenNil;
-            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
-            IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, displayName));
-            ULONG number = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
-            for (ULONG i = 0; i < number; i++)
-            {
-                // TODO: implement support for nested generic types (e.g. List<List<int>>)
-                IfFailRet(SkipElementType(pSig, pSigEnd));
-            }
-            break;
-        }
-
-        default:
-            return E_INVALIDARG;
-        }
-
-        // Base type resolved, exit the peeling loop.
-        break;
-    }
-
-    // Apply the collected wrappers in reverse order. Wrappers are collected
-    // outermost-first (so the innermost wrapper is pushed last), and the array
-    // shape data in the signature appears right after the inner type, so reverse
-    // iteration matches the signature layout.
     for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
     {
         if (it->outerElemType == ELEMENT_TYPE_ARRAY)
@@ -281,7 +197,182 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
                 it->suffix = "[" + std::string(rank - 1, ',') + "]";
             }
         }
-        displayName += it->suffix;
+        name += it->suffix;
+    }
+
+    return S_OK;
+}
+
+// Parse one `Type` from the signature blob and build its "display" name, for example
+// "System.Collections.Generic.List<System.Collections.Generic.List<int>>".
+//
+// ELEMENT_TYPE_GENERICINST could be used multiple times in the same signature blob
+// (nested generic type parameters like List<List<List<int>>>), so this method must not
+// rely on recursion. Instead, an explicit stack of "frames" is used, where each frame
+// represents one generic instantiation with generic arguments that are not parsed yet.
+// Since the signature stores types in prefix order (generic type first, then its generic
+// arguments), a frame could be finalized (its "<...>" argument list filled in) as soon as
+// all its generic arguments are resolved, and the resulting string is handed over to the
+// enclosing frame as one of its generic arguments (or returned as the final result for the
+// outermost/root type).
+HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig,
+                                PCCOR_SIGNATURE pSigEnd, std::string &displayName)
+{
+    HRESULT Status = S_OK;
+    displayName.clear();
+
+    // One pending generic instantiation (ELEMENT_TYPE_GENERICINST).
+    struct GenericInstFrame
+    {
+        std::string baseMetadataName;      // "metadata" name of the generic type, for example "...List`1"
+        ULONG argsLeft{0};                 // count of generic arguments that are not parsed yet
+        std::list<std::string> args;       // "display" names of already parsed generic arguments
+        std::vector<TypeWrapper> wrappers; // array suffixes applied to the whole generic type
+    };
+    std::vector<GenericInstFrame> frames;
+
+    bool rootDone = false; // the outermost (root) type is completely resolved
+
+    // Store a completely resolved type name as the next generic argument of the innermost
+    // pending generic instantiation, or as the final result in case of the root type.
+    auto deliverTypeName = [&frames, &displayName, &rootDone](std::string &&name)
+    {
+        if (frames.empty())
+        {
+            displayName = std::move(name);
+            rootDone = true;
+            return;
+        }
+
+        GenericInstFrame &parent = frames.back();
+        assert(parent.argsLeft != 0);
+        parent.args.emplace_back(std::move(name));
+        parent.argsLeft--;
+    };
+
+    // Note, each iteration either consumes signature data or pops one frame, so the loop
+    // is bounded by the signature blob size (pSigEnd) and cannot spin forever.
+    while (!rootDone)
+    {
+        // 1. Finalize the innermost generic instantiation with all generic arguments resolved.
+        if (!frames.empty() && frames.back().argsLeft == 0)
+        {
+            GenericInstFrame frame = std::move(frames.back());
+            frames.pop_back();
+            // Note, ConvertMetadataToDisplayName() consumes `args` in order to fill the
+            // "<...>" argument list(s) and converts "metadata" nested type delimiters ('+')
+            // into "display" ones ('.').
+            std::string name = MetadataHelpers::ConvertMetadataToDisplayName(frame.baseMetadataName, &frame.args);
+            // The array shape data follows the whole wrapped type in the signature; this is
+            // why it must be processed only after all generic arguments have been parsed.
+            IfFailRet(ApplyTypeWrappers(frame.wrappers, pSig, pSigEnd, name));
+            deliverTypeName(std::move(name));
+            continue;
+        }
+
+        // 2. Parse next type from the signature - the root type at the very first iteration,
+        //    the next generic argument of the innermost pending generic instantiation after that.
+        std::vector<TypeWrapper> wrappers;
+        std::string typeName;
+        bool genericInstPushed = false;
+
+        // Peel off wrapping element types (SZARRAY, ARRAY) that modify the inner type.
+        for (;;)
+        {
+            CorElementType elemType = ELEMENT_TYPE_MAX;
+            IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, elemType));
+
+            if (elemType == ELEMENT_TYPE_SZARRAY)
+            {
+                // Record the "[]" suffix and continue the loop to parse the inner type.
+                wrappers.push_back({elemType, "[]"});
+                continue;
+            }
+
+            if (elemType == ELEMENT_TYPE_ARRAY)
+            {
+                // The array shape data follows the inner type in the signature, so we
+                // parse the inner type first (by continuing the loop) and fill in the
+                // suffix from the shape data later.
+                wrappers.push_back({elemType, {}});
+                continue;
+            }
+
+            switch (elemType)
+            {
+            case ELEMENT_TYPE_VOID:
+            case ELEMENT_TYPE_BOOLEAN:
+            case ELEMENT_TYPE_CHAR:
+            case ELEMENT_TYPE_I1:
+            case ELEMENT_TYPE_U1:
+            case ELEMENT_TYPE_I2:
+            case ELEMENT_TYPE_U2:
+            case ELEMENT_TYPE_I4:
+            case ELEMENT_TYPE_U4:
+            case ELEMENT_TYPE_I8:
+            case ELEMENT_TYPE_U8:
+            case ELEMENT_TYPE_R4:
+            case ELEMENT_TYPE_R8:
+            case ELEMENT_TYPE_U:
+            case ELEMENT_TYPE_I:
+            case ELEMENT_TYPE_STRING:
+            case ELEMENT_TYPE_OBJECT:
+                Status = MetadataHelpers::GetBuiltInTypeName(elemType, typeName);
+                assert(SUCCEEDED(Status));
+                break;
+
+            case ELEMENT_TYPE_VALUETYPE:
+            case ELEMENT_TYPE_CLASS:
+            {
+                mdToken token = mdTokenNil;
+                IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+                std::string metadataName;
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, metadataName));
+                // Note, this is a non-generic type here (generic types are always represented
+                // by ELEMENT_TYPE_GENERICINST in the signature); the conversion is needed only
+                // for nested type delimiters ('+' in "metadata" name, '.' in "display" name).
+                typeName = MetadataHelpers::ConvertMetadataToDisplayName(metadataName, nullptr);
+                break;
+            }
+
+            case ELEMENT_TYPE_GENERICINST: // A type modifier for generic types - List<>, Dictionary<>, ...
+            {
+                CorElementType innerElemType = ELEMENT_TYPE_MAX;
+                IfFailRet(CorSigUncompressElementType_EndPtr(pSig, pSigEnd, innerElemType));
+                if (innerElemType != ELEMENT_TYPE_CLASS &&
+                    innerElemType != ELEMENT_TYPE_VALUETYPE)
+                {
+                    return E_NOTIMPL;
+                }
+                mdToken token = mdTokenNil;
+                IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+
+                GenericInstFrame frame;
+                IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, frame.baseMetadataName));
+                IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, frame.argsLeft));
+                frame.wrappers = std::move(wrappers);
+                frames.emplace_back(std::move(frame));
+                genericInstPushed = true;
+                break;
+            }
+
+            default:
+                return E_INVALIDARG;
+            }
+
+            // Base type resolved, exit the peeling loop.
+            break;
+        }
+
+        if (genericInstPushed)
+        {
+            // Generic arguments of this generic instantiation (which could be generic
+            // instantiations too) will be parsed by subsequent loop iterations.
+            continue;
+        }
+
+        IfFailRet(ApplyTypeWrappers(wrappers, pSig, pSigEnd, typeName));
+        deliverTypeName(std::move(typeName));
     }
 
     return S_OK;
@@ -382,13 +473,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     HRESULT Status = S_OK;
 
     // Collect array/wrapper suffixes iteratively instead of recursing.
-    // Each entry: { outerElemType, suffix } where the suffix is appended after the base type is resolved.
-    struct Wrapper
-    {
-        CorElementType outerElemType;
-        std::string suffix;
-    };
-    std::vector<Wrapper> wrappers;
+    std::vector<TypeWrapper> wrappers;
 
     // Peel off wrapping element types (SZARRAY, ARRAY, BYREF) that modify the inner
     // type, then post-process the result.
@@ -514,9 +599,11 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
                 }
                 else
                 {
+                    // Note, ParseGenTypeDisplayName() supports nested generic type parameters
+                    // (for example, List<List<List<int>>>) and provides a ready-to-use "display" name.
                     std::string displayName;
                     IfFailRet(ParseGenTypeDisplayName(pMDImport, pSig, pSigEnd, displayName));
-                    args->emplace_back(displayName);
+                    args->emplace_back(std::move(displayName));
                 }
             }
             break;
@@ -537,26 +624,8 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
         break;
     }
 
-    // Apply the collected wrappers in reverse order. Wrappers are collected
-    // outermost-first (so the innermost wrapper is pushed last), and the array
-    // shape data in the signature appears right after the inner type, so reverse
-    // iteration matches the signature layout.
-    for (auto it = wrappers.rbegin(); it != wrappers.rend(); ++it)
-    {
-        if (it->outerElemType == ELEMENT_TYPE_ARRAY)
-        {
-            // Read the rank from a copy of the pointer, then skip the full shape.
-            PCCOR_SIGNATURE rankPtr = pSig;
-            ULONG rank = 0;
-            IfFailRet(CorSigUncompressData_EndPtr(rankPtr, pSigEnd, rank));
-            IfFailRet(SkipArrayShape(pSig, pSigEnd));
-            if (rank != 0)
-            {
-                it->suffix = "[" + std::string(rank - 1, ',') + "]";
-            }
-        }
-        sigElementType.metadataTypeName = sigElementType.metadataTypeName + it->suffix;
-    }
+    // Apply the collected array suffixes ("[]", "[,]", ...) to the resolved type name.
+    IfFailRet(ApplyTypeWrappers(wrappers, pSig, pSigEnd, sigElementType.metadataTypeName));
 
     // Set the outermost elemType if there were any wrappers.
     if (!wrappers.empty())

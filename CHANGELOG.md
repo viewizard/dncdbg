@@ -65,6 +65,7 @@ Upcoming changes compared to previous version.
 - Fixed generic method overload resolution to match explicit type-argument arity.
 - Fixed extension method generic type argument resolution.
 - Fixed incorrect error handling in GetFrontStackEntryType.
+- Fixed display name resolution for nested generic types (e.g. List<List<List<int>>>).
 
 </br>
 </br>
