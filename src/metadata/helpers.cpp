@@ -545,31 +545,6 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-HRESULT AddGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugILFrame2> trILFrame2;
-    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, reinterpret_cast<void **>(&trILFrame2)));
-
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-    if (SUCCEEDED(trILFrame2->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ULONG numTypes = 0;
-        ToRelease<ICorDebugType> trCurrentTypeParam;
-
-        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &numTypes)) && numTypes == 1)
-        {
-            std::string name;
-            ResolveTypeToString(trCurrentTypeParam, name);
-            args.emplace_back(name);
-            trCurrentTypeParam.Free();
-        }
-    }
-
-    return S_OK;
-}
-
 std::string RenameToSystem(const std::string &typeName)
 {
     static const std::unordered_map<std::string, std::string> cs2system{
@@ -748,8 +723,7 @@ void ApplyTypeAlias(std::vector<std::string> &identifiers, int nextIdentifier, c
             continue;
         }
 
-        std::vector<int> ranks;
-        std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName, ranks);
+        std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName);
 
         identifiers.erase(identifiers.begin());
         identifiers.insert(identifiers.begin(), typeIdentifiers.begin(), typeIdentifiers.end());
@@ -919,7 +893,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         }
 
         std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.typeName, ranks);
+        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.typeName, &ranks);
         if (classIdentifiers.empty())
         {
             return E_FAIL;
@@ -1201,7 +1175,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     }
 
     std::list<std::string> args;
-    AddGenericArgs(pFrame, args);
+    GetGenericArgs(pFrame, args);
 
     if (typeDef != mdTypeDefNil)
     {
@@ -1552,7 +1526,7 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugIn
     }
 
     std::list<std::string> args;
-    AddGenericArgs(pFrame, args);
+    GetGenericArgs(pFrame, args);
     IfFailRet(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args));
 
     return S_OK;
@@ -1941,10 +1915,11 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
     return result + suffix;
 }
 
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks)
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *ranks)
 {
     // Splits a fully-qualified display type name into its dot-separated
-    // identifier components (namespace/class path) and records array ranks.
+    // identifier components (namespace/class path). When "ranks" is non-null,
+    // the array ranks encountered are recorded into it.
     //
     // Examples:
     //   "System.Collections.Generic.Dictionary<int, string>"
@@ -1990,9 +1965,9 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
             // An opening bracket at the top level starts a new array rank.
             // Brackets inside generic args belong to an argument's array
             // type (e.g. "List<int[]>") and are preserved verbatim.
-            if (paramDepth == 0)
+            if (ranks != nullptr && paramDepth == 0)
             {
-                ranks.push_back(1);
+                (*ranks).push_back(1);
                 continue;
             }
             break;
@@ -2009,9 +1984,9 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
             // generic args separate type arguments and are preserved.
             if (paramDepth == 0)
             {
-                if (!ranks.empty())
+                if (ranks != nullptr && !(*ranks).empty())
                 {
-                    ranks.back()++;
+                    (*ranks).back()++;
                 }
                 continue;
             }
@@ -2173,9 +2148,8 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
         return found->second;
     }
 
-    std::vector<int> ranks;
     const std::string parseDisplayTypeName = displayTypeName == "decimal" ? "System.Decimal" : displayTypeName;
-    std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName, ranks);
+    std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName);
 
     SigElementType sigElemType;
     int nextIdentifier = 0;
@@ -2212,6 +2186,31 @@ HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementTyp
                 IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trCurrentTypeParam, argElType.metadataTypeName));
             }
             genericTypeParameters.emplace_back(argElType);
+            trCurrentTypeParam.Free();
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugILFrame2> trILFrame2;
+    IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame2, reinterpret_cast<void **>(&trILFrame2)));
+
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+    if (SUCCEEDED(trILFrame2->EnumerateTypeParameters(&trTypeEnum)))
+    {
+        ULONG numTypes = 0;
+        ToRelease<ICorDebugType> trCurrentTypeParam;
+
+        while (SUCCEEDED(trTypeEnum->Next(1, &trCurrentTypeParam, &numTypes)) && numTypes == 1)
+        {
+            std::string name;
+            ResolveTypeToString(trCurrentTypeParam, name);
+            args.emplace_back(name);
             trCurrentTypeParam.Free();
         }
     }

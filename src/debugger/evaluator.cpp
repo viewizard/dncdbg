@@ -367,8 +367,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
 {
     HRESULT Status = S_OK;
 
-    std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
@@ -1268,7 +1267,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-HRESULT Evaluator::GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &metadataTypeName, bool &haveThis)
+HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -1316,18 +1315,21 @@ HRESULT Evaluator::GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLev
         return E_FAIL;
     }
 
+    std::list<std::string> args;
+    MetadataHelpers::GetGenericArgs(trFrame, args);
+
     haveThis = ((methodAttr & mdStatic) == 0);
     // In case this is static method, this is not async/lambda case for sure.
     if (!haveThis)
     {
-        return MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName);
+        return MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &args);
     }
 
     GeneratedCodeKind generatedCodeKind = GeneratedCodeKind::Normal;
     IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
     if (generatedCodeKind == GeneratedCodeKind::Normal)
     {
-        return MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, metadataTypeName);
+        return MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &args);
     }
 
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -1344,7 +1346,7 @@ HRESULT Evaluator::GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLev
     mdTypeDef userTypeDef = mdTypeDefNil;
     IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userTypeDef));
 
-    return MetadataHelpers::GetFQMDTypeNameByToken(userTypeDef, trMDImport, metadataTypeName);
+    return MetadataHelpers::GetFQDisplayNameForToken(userTypeDef, trMDImport, displayTypeName, &args);
 }
 
 HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
@@ -1733,8 +1735,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
 {
     HRESULT Status = S_OK;
 
-    std::vector<int> ranks;
-    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName, ranks);
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
     const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
     std::vector<std::string> fieldName{identifiers.back()};

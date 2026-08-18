@@ -138,8 +138,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
             for (const auto &entry : importType->second)
             {
                 std::vector<std::string> testIdentifiers = evalStack.front().identifiers;
-                std::vector<int> ranks;
-                std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
+                std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
                 testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.begin(), importTypeIdentifiers.end());
 
                 if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
@@ -895,20 +894,16 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     if (pForcedThisValue == nullptr && evalStack.front().identifiers.empty())
     {
-        std::string metadataTypeName;
         idsEmpty = true;
-        // FIXME: must be a display name with proper type parameters for generics
-        IfFailRet(ed.pEvaluator->GetFQMDTypeName(ed.pThread, ed.frameLevel, metadataTypeName, isInstance));
+        std::string displayTypeName;
+        IfFailRet(ed.pEvaluator->GetFQDisplayTypeName(ed.pThread, ed.frameLevel, displayTypeName, isInstance));
         if (isInstance)
         {
             allIdentifiers.back().emplace_back("this");
         }
         else
         {
-            // Note: <identifiers> usually contains a vector of components of the full name qualification.
-            // Anyway, our added component will be correctly processed by Evaluator::ResolveIdentifiers() for
-            // that case as it seals all the qualification components into one before using them.
-            allIdentifiers.back().emplace_back(metadataTypeName);
+            allIdentifiers.back() = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
 
             auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
             if (importType != pdbImports.end())
@@ -921,8 +916,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                         continue;
                     }
 
-                    std::vector<int> ranks;
-                    std::vector<std::string> typeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
+                    std::vector<std::string> typeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
 
                     if (!typeIdentifiers.empty())
                     {
@@ -974,8 +968,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                     for (const auto &entry : importType->second)
                     {
                         std::vector<std::string> testIdents = testIdentifiers;
-                        std::vector<int> ranks;
-                        std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName, ranks);
+                        std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
                         testIdents.insert(testIdents.begin(), importTypeIdents.begin(), importTypeIdents.end());
 
                         if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,

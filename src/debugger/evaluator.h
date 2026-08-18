@@ -108,8 +108,8 @@ class Evaluator
 
     HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
 
-    // Get the fully-qualified metadata (FQMD) type name of the method's declaring type.
-    HRESULT GetFQMDTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &metadataTypeName, bool &haveThis);
+    // Get the fully-qualified "display" type name of the method's declaring type.
+    HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis);
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
                          const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,

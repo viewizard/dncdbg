@@ -66,6 +66,7 @@ Upcoming changes compared to previous version.
 - Fixed extension method generic type argument resolution.
 - Fixed incorrect error handling in GetFrontStackEntryType.
 - Fixed display name resolution for nested generic types (e.g. List<List<List<int>>>).
+- Fixed static method resolution to use fully-qualified display type names including generic arguments.
 
 </br>
 </br>

@@ -66,8 +66,8 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
 std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *args);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
-// (namespace/class path); array ranks encountered are appended to "ranks".
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> &ranks);
+// (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *ranks = nullptr);
 
 // Note: `identifiers` contain "display" names and are converted into "metadata" names for lookup inside method logic.
 HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
@@ -80,8 +80,10 @@ HRESULT FindTypeModule(std::vector<std::string> &identifiers, ICorDebugThread *p
 SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName,
                                                   const PDB::ImportsAndAliases &pdbImports);
 
-// Get generic type parameters as array of SigElementTypes.
+// Get generic type parameters as an array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);
+// Get the generic type arguments of the current frame as a list of fully-qualified "display" type names.
+HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
 
 // Returns the C# keyword/name for a built-in CorElementType (e.g. "void", "int", "string", "object").
 // Returns E_FAIL for element types that are not built-in primitives or keywords.
