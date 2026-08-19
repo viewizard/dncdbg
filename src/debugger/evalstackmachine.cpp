@@ -48,7 +48,6 @@ void ReplaceAllSubstring(std::string &str, const std::string &from, const std::s
 
 void ReplaceInternalNames(std::string &expression, bool restore = false)
 {
-    // TODO more internal names should be added (see internal variables supported by MSVS C# debugger)
     static const std::vector<std::pair<std::string, std::string>> internalNamesMap{
         {"$exception", "__INTERNAL_DNCDBG_EXCEPTION_VARIABLE"},
         {"$pid", "__INTERNAL_DNCDBG_PID_VARIABLE"},

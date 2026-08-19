@@ -841,11 +841,6 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
         case ELEMENT_TYPE_OBJECT:
             ss << "object";
             break;
-
-            // TODO: The following corElementTypes are not yet implemented here.  Array
-            // might be interesting to add, though the others may be of rather limited use:
-            //
-            // ELEMENT_TYPE_GENERICINST    = 0x15,     // GENERICINST <generic type> <argCnt> <arg1> ... <argn>
         }
 
         output = ss.str();

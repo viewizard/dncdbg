@@ -3,7 +3,6 @@
 # Extract current revision from .git (only .git/HEAD referenced).
 # Optional argument: root directory for the source tree.
 # Result might be empty string in case of error.
-# TODO add same logic for SVN if you need this..
 function(VCSInfo result)
     if (${ARGC} GREATER 1)
         set(path "${ARGV1}")
