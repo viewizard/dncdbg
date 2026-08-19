@@ -644,11 +644,10 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 
     if (elemType == ELEMENT_TYPE_STRING)
     {
-        // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for string in trValue in this case
+        // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for a string in trValue in this case
         trValue.Free();
         IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, nullptr, &trValue, output));
 
-        CorElementType elemType = ELEMENT_TYPE_MAX;
         IfFailRet(trValue->GetType(&elemType));
         if (elemType != ELEMENT_TYPE_STRING)
         {
