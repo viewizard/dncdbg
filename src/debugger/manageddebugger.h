@@ -108,8 +108,7 @@ class ManagedDebugger
                           std::vector<StackFrame> &stackFrames);
     HRESULT StepCommand(ThreadId threadId, StepType stepType);
     HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes);
-    HRESULT GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count,
-                         std::vector<Variable> &variables);
+    HRESULT GetVariables(uint32_t variablesReference, std::vector<Variable> &variables);
     HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output);
     void CancelEvalRunning();
     HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref, std::string &output);

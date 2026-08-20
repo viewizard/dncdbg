@@ -4,6 +4,10 @@ Upcoming changes compared to previous version.
 #### DAP
 - Added support for the `allowToString` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
 - Added support for the `showRawValues` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
+- Removed broken implementation of `filter`, `start` and `count` from Variables Request.
+- Removed broken implementation of `namedVariables` from Evaluate Response.
+- Removed broken implementation of `namedVariables` and `indexedVariables` from Scope.
+- Removed broken implementation of `namedVariables` and `indexedVariables` from Variable.
 
 #### Added
 - Added TestUnhandledExceptionInstance.

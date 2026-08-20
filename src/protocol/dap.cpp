@@ -541,21 +541,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"variables", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
-                const std::string filterName = arguments.value("filter", "");
-                VariablesFilter filter = VariablesFilter::Both;
-                if (filterName == "named")
-                {
-                    filter = VariablesFilter::Named;
-                }
-                else if (filterName == "indexed")
-                {
-                    filter = VariablesFilter::Indexed;
-                }
-
                 std::vector<Variable> variables;
-                IfFailRet(m_sharedDebugger->GetVariables(arguments.at("variablesReference"), filter,
-                                                         arguments.value("start", 0), arguments.value("count", 0),
-                                                         variables));
+                IfFailRet(m_sharedDebugger->GetVariables(arguments.at("variablesReference"), variables));
 
                 responseBody.emplace("variables", variables);
 
@@ -608,11 +595,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("result", variable.value);
                 responseBody.emplace("type", variable.type);
                 responseBody.emplace("variablesReference", variable.variablesReference);
-                if (variable.variablesReference > 0)
-                {
-                    responseBody.emplace("namedVariables", variable.namedVariables);
-                    // indexedVariables
-                }
                 return S_OK;
             }},
         {"setExpression", [&](const json &arguments, json &responseBody)

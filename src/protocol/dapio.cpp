@@ -75,12 +75,6 @@ void to_json(json &j, const Scope &s)
     j = json{{"name", s.name},
              {"variablesReference", s.variablesReference},
              {"expensive", false}};
-
-    if (s.variablesReference > 0)
-    {
-        j.emplace("namedVariables", s.namedVariables);
-        // j.emplace("indexedVariables", s.indexedVariables);
-    }
 }
 
 void to_json(json &j, const Variable &v)
@@ -90,12 +84,6 @@ void to_json(json &j, const Variable &v)
              {"type", v.type},
              {"evaluateName", v.evaluateName},
              {"variablesReference", v.variablesReference}};
-
-    if (v.variablesReference > 0)
-    {
-        j.emplace("namedVariables", v.namedVariables);
-        // j.emplace("indexedVariables", v.indexedVariables);
-    }
 }
 
 void to_json(json &j, const Module &m)

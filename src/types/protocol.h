@@ -303,9 +303,9 @@ struct Scope
     std::string name;
     // presentationHint?: 'arguments' | 'locals' | 'registers' | 'returnValue' | string;
     uint32_t variablesReference;
-    int namedVariables;
-    int indexedVariables;
-    bool expensive;
+    // namedVariables?: number;
+    // indexedVariables?: number;
+    // expensive: boolean;
     // source?: Source;
     // line?: number;
     // column?: number;
@@ -313,21 +313,14 @@ struct Scope
     // endColumn?: number;
 
     Scope()
-        : variablesReference(0),
-          namedVariables(0),
-          indexedVariables(0),
-          expensive(false)
+        : variablesReference(0)
     {
     }
 
     Scope(uint32_t variablesReference,
-          std::string name,
-          int namedVariables)
+          std::string name)
         : name(std::move(name)),
-          variablesReference(variablesReference),
-          namedVariables(namedVariables),
-          indexedVariables(0),
-          expensive(false)
+          variablesReference(variablesReference)
     {
     }
 };
@@ -349,8 +342,8 @@ struct Variable
     VariablePresentationHint presentationHint;
     std::string evaluateName;
     uint32_t variablesReference{0};
-    int namedVariables{0};
-    int indexedVariables{0};
+    // namedVariables?: number;
+    // indexedVariables?: number;
     // memoryReference?: string;
     // declarationLocationReference?: number;
     // valueLocationReference?: number;

@@ -870,14 +870,13 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     return Status;
 }
 
-HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, VariablesFilter filter, int start, int count,
-                                      std::vector<Variable> &variables)
+HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, std::vector<Variable> &variables)
 {
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->GetVariables(m_trProcess, variablesReference, filter, start, count, variables);
+    return m_sharedVariables->GetVariables(m_trProcess, variablesReference, variables);
 }
 
 HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)

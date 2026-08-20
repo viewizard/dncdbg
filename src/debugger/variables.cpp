@@ -20,48 +20,6 @@ namespace dncdbg
 namespace
 {
 
-void GetNumChild(ICorDebugThread *pThread, Evaluator *pEvaluator, ICorDebugValue *pValue,
-                 FormatSpecifier specifier, bool static_members, int &numChild)
-{
-    numChild = 0;
-
-    if (pValue == nullptr)
-    {
-        return;
-    }
-
-    int numStatic = 0;
-    int numInstance = 0;
-    // Note: FrameLevel{0} is used here, since we need only count children.
-    if (FAILED(pEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
-               [&](ICorDebugType *, bool isStatic, const std::string &,
-                   const Evaluator::GetValueCallback &, Evaluator::SetterData *, std::string *) -> HRESULT
-                {
-                    if (isStatic)
-                    {
-                        numStatic++;
-                    }
-                    else
-                    {
-                        numInstance++;
-                    }
-                    return S_OK;
-                })))
-    {
-        return;
-    }
-
-    if (static_members)
-    {
-        numChild = numStatic;
-    }
-    else
-    {
-        // Note, "+1", since all static members will be "packed" into "Static members" entry
-        numChild = (numStatic > 0) ? numInstance + 1 : numInstance;
-    }
-}
-
 struct VariableMember
 {
     std::string name;
@@ -111,15 +69,13 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
 
 HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
                                  FrameLevel frameLevel, FormatSpecifier specifier, std::vector<VariableMember> &members,
-                                 bool fetchOnlyStatic, bool &hasStaticMembers, int childStart, int childEnd)
+                                 bool fetchOnlyStatic, bool &hasStaticMembers)
 {
     hasStaticMembers = false;
     HRESULT Status = S_OK;
 
     DWORD threadId = 0;
     IfFailRet(pThread->GetID(&threadId));
-
-    int currentIndex = -1;
 
     IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, false, specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
@@ -136,14 +92,8 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
                 return S_OK;
             }
 
-            ++currentIndex;
-            if (currentIndex < childStart ||
-                currentIndex >= childEnd)
-            {
-                return S_OK;
-            }
-
-            // Note, in this case error is not fatal, but if protocol side need cancel command execution, stop walk and return error to caller.
+            // Note, in this case error is not fatal, but if protocol side needs to
+            // cancel command execution, stop walk and return error to caller.
             ToRelease<ICorDebugValue> trResultValue;
             if (getValue(&trResultValue, nullptr) == COR_E_OPERATIONCANCELED)
             {
@@ -181,8 +131,7 @@ void FixupInheritedNames(std::vector<VariableMember> &members)
 } // unnamed namespace
 
 // Caller should guarantee, that pProcess is not null.
-HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, VariablesFilter filter,
-                                int start, int count, std::vector<Variable> &variables)
+HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables)
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
@@ -199,23 +148,13 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &trThread));
 
-    // Named and Indexed variables are in the same index (internally), Named variables go first
-    if (filter == VariablesFilter::Named && (start + count > ref.namedVariables || count == 0))
-    {
-        count = ref.namedVariables - start;
-    }
-    if (filter == VariablesFilter::Indexed)
-    {
-        start += ref.namedVariables;
-    }
-
     if (ref.IsScope())
     {
-        IfFailRet(GetStackVariables(ref.frameId, trThread, start, count, variables));
+        IfFailRet(GetStackVariables(ref.frameId, trThread, variables));
     }
     else
     {
-        IfFailRet(GetChildren(ref, trThread, start, count, variables));
+        IfFailRet(GetChildren(ref, trThread, variables));
     }
     return S_OK;
 }
@@ -230,9 +169,27 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
         return E_FAIL;
     }
 
-    int numChild = 0;
-    GetNumChild(pThread, m_sharedEvaluator.get(), pValue, specifier, valueKind == ValueKind::Class, numChild);
-    if (numChild == 0)
+    bool hasChildren = false;
+    if (pValue != nullptr)
+    {
+        // Note: FrameLevel{0} is used here, since we only need to check whether the value has children.
+        m_sharedEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
+            [&](ICorDebugType *, bool isStatic, const std::string &,
+                const Evaluator::GetValueCallback &, Evaluator::SetterData *, std::string *) -> HRESULT
+            {
+                // Note, for ValueKind::Static (the "Static members" node) only static members are children.
+                // For other kinds both static and instance members count, since static members are packed
+                // into a separate "Static members" entry (see GetChildren()).
+                if (!isStatic && valueKind == ValueKind::Static)
+                {
+                    return S_OK;
+                }
+
+                hasChildren = true;
+                return S_CAN_EXIT;
+            });
+    }
+    if (!hasChildren)
     {
         return S_OK;
     }
@@ -240,7 +197,6 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
 #ifdef BIT64
     assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
-    variable.namedVariables = numChild;
     variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
     pValue->AddRef();
     VariableReference variableReference(variable, frameId, pValue, valueKind, specifier);
@@ -267,31 +223,17 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
     return E_FAIL;
 }
 
-HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, int start, int count,
-                                     std::vector<Variable> &variables)
+HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector<Variable> &variables)
 {
-    int currentIndex = -1;
     Variable var;
     if (SUCCEEDED(GetExceptionVariable(frameId, pThread, var)))
     {
         variables.push_back(var);
-        ++currentIndex;
     }
 
     return m_sharedEvaluator->WalkStackVars(pThread, frameId.getLevel(),
         [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
         {
-            ++currentIndex;
-
-            if (currentIndex < start)
-            {
-                return S_OK;
-            }
-            if (count != 0 && currentIndex >= start + count)
-            {
-                return S_CAN_EXIT; // Fast exit from the loop.
-            }
-
             Variable var;
             var.name = name;
             var.evaluateName = var.name;
@@ -336,23 +278,26 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
     HRESULT Status = S_OK;
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
-    int namedVariables = 0;
+    bool haveVariables = false;
     uint32_t variablesReference = 0;
 
     ToRelease<ICorDebugValue> trExceptionValue;
     if (SUCCEEDED(trThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
     {
-        namedVariables++;
+        haveVariables = true;
     }
 
-    IfFailRet(m_sharedEvaluator->WalkStackVars(trThread, frameId.getLevel(),
-        [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
-        {
-            namedVariables++;
-            return S_OK;
-        }));
+    if (!haveVariables)
+    {
+        IfFailRet(m_sharedEvaluator->WalkStackVars(trThread, frameId.getLevel(),
+            [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
+            {
+                haveVariables = true;
+                return S_CAN_EXIT;
+            }));
+    }
 
-    if (namedVariables > 0)
+    if (haveVariables)
     {
         const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
@@ -365,17 +310,16 @@ HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::v
         assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
         variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
-        VariableReference scopeReference(variablesReference, frameId, namedVariables);
+        VariableReference scopeReference(variablesReference, frameId);
         m_references.emplace(variablesReference, std::move(scopeReference));
     }
 
-    scopes.emplace_back(variablesReference, "Locals", namedVariables);
+    scopes.emplace_back(variablesReference, "Locals");
 
     return S_OK;
 }
 
-HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pThread,
-                               int start, int count, std::vector<Variable> &variables)
+HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std::vector<Variable> &variables)
 {
     if (ref.IsScope())
     {
@@ -392,8 +336,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     bool hasStaticMembers = false;
 
     IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), ref.trValue, pThread, ref.frameId.getLevel(),
-                                       ref.specifier, members, ref.valueKind == ValueKind::Class, hasStaticMembers,
-                                       start, count == 0 ? INT_MAX : start + count));
+                                       ref.specifier, members, ref.valueKind == ValueKind::Static, hasStaticMembers));
 
     FixupInheritedNames(members);
 
@@ -413,22 +356,18 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
 
     if (ref.valueKind == ValueKind::Variable && hasStaticMembers)
     {
-        const bool staticsInRange = start < ref.namedVariables && (count == 0 || start + count >= ref.namedVariables);
-        if (staticsInRange)
-        {
-            ToRelease<ICorDebugValue2> trValue2;
-            IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-            ToRelease<ICorDebugType> trType;
-            IfFailRet(trValue2->GetExactType(&trType));
-            m_sharedEvalExec->CreateTypeObject(pThread, trType, nullptr);
+        ToRelease<ICorDebugValue2> trValue2;
+        IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+        ToRelease<ICorDebugType> trType;
+        IfFailRet(trValue2->GetExactType(&trType));
+        m_sharedEvalExec->CreateTypeObject(pThread, trType, nullptr);
 
-            Variable var;
-            var.name = "Static members";
-            IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
+        Variable var;
+        var.name = "Static members";
+        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
-            IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Class, ref.specifier));
-            variables.push_back(var);
-        }
+        IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Static, ref.specifier));
+        variables.push_back(var);
     }
 
     return S_OK;

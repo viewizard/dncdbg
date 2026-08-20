@@ -1700,7 +1700,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
             {
                 if ((isStatic && valueKind == ValueKind::Variable) ||
-                    (!isStatic && valueKind == ValueKind::Class) ||
+                    (!isStatic && valueKind == ValueKind::Static) ||
                     memberName != identifiers.at(i))
                 {
                     return S_OK;
@@ -1774,7 +1774,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             ToRelease<ICorDebugValue> trTypeObject;
             if (TypeHasStaticMembers(trType) &&
                 SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
-                SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, staticName,
+                SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
                                        0, specifier, ppResult, resultSetterData)))
             {
                 return S_OK;
@@ -1786,7 +1786,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         ToRelease<ICorDebugValue> trTypeObject;
         if (TypeHasStaticMembers(trType) &&
             SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
-            SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Class, fieldName,
+            SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
                                    0, specifier, ppResult, resultSetterData)))
         {
             return S_OK;
@@ -2023,7 +2023,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             return E_INVALIDARG;
         }
 
-        valueKind = ValueKind::Class;
+        valueKind = ValueKind::Static;
     }
 
     ToRelease<ICorDebugValue> trResultValue;

@@ -298,9 +298,9 @@
 #### VariablesRequest `variables`
 ```diff
 +   variablesReference: number;
-+   filter?: 'indexed' | 'named';
-+   start?: number;
-+   count?: number;
+-   filter?: 'indexed' | 'named';
+-   start?: number;
+-   count?: number;
 -   format?: ValueFormat;
 ```
 #### VariablesResponse
@@ -357,7 +357,7 @@
 +   type?: string;
 -   presentationHint?: VariablePresentationHint;
 +   variablesReference: number;
-+   namedVariables?: number;
+-   namedVariables?: number;
 -   indexedVariables?: number;
 -   memoryReference?: string;
 -   valueLocationReference?: number;
@@ -496,8 +496,8 @@
 +   name: string;
 -   presentationHint?: 'arguments' | 'locals' | 'registers' | 'returnValue' | string;
 +   variablesReference: number;
-+   namedVariables?: number;
-+   indexedVariables?: number;
+-   namedVariables?: number;
+-   indexedVariables?: number;
 +   expensive: boolean;
 -   source?: Source;
 -   line?: number;
@@ -513,8 +513,8 @@
 -   presentationHint?: VariablePresentationHint;
 +   evaluateName?: string;
 +   variablesReference: number;
-+   namedVariables?: number;
-+   indexedVariables?: number;
+-   namedVariables?: number;
+-   indexedVariables?: number;
 -   memoryReference?: string;
 -   declarationLocationReference?: number;
 -   valueLocationReference?: number;

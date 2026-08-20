@@ -225,13 +225,6 @@ inline FormatSpecifier operator & (FormatSpecifier lhs, FormatSpecifier rhs)
     return static_cast<FormatSpecifier>(static_cast<T>(lhs) & static_cast<T>(rhs));
 }
 
-enum class VariablesFilter : uint8_t
-{
-    Named,
-    Indexed,
-    Both
-};
-
 enum class StepType : uint8_t
 {
     STEP_IN = 0,
@@ -242,7 +235,7 @@ enum class StepType : uint8_t
 enum class ValueKind : uint8_t
 {
     Scope,
-    Class,
+    Static,
     Variable
 };
 
