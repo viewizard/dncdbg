@@ -291,6 +291,33 @@ HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pTyp
     return S_OK;
 }
 
+HRESULT EvalExec::CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
+                              std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult)
+{
+    if (dimensions.empty())
+    {
+        return E_INVALIDARG;
+    }
+
+    HRESULT Status = S_OK;
+
+    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+
+            // The `lowBounds` parameter is not used in `ICorDebugEval2::NewParameterizedArray`; ignore it.
+            // https://github.com/dotnet/runtime/blob/cb8ddc8cac0182e932903d921bd09300be7ae2a6/src/coreclr/debug/di/rsthread.cpp#L10178
+            IfFailRet(trEval2->NewParameterizedArray(pElementType, static_cast<uint32_t>(dimensions.size()),
+                                                     dimensions.data(), nullptr));
+            return S_OK;
+        }));
+
+    return S_OK;
+}
+
 HRESULT EvalExec::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                           UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
 {

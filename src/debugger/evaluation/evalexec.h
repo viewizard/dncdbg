@@ -47,6 +47,9 @@ class EvalExec
 
     HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
 
+    HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
+                        std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
+
     HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                     UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
 
