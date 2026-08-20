@@ -26,11 +26,17 @@ struct VariableMember
     std::string ownerType;
     ToRelease<ICorDebugValue> trValue;
     std::string customDisplayTextWithEval;
-    VariableMember(std::string name_, std::string &ownerType_, ICorDebugValue *pValue, std::string customDisplayTextWithEval_)
+    uint32_t skipToChildIndex;
+    bool extendEntry;
+
+    VariableMember(std::string name_, std::string ownerType_, ICorDebugValue *pValue,
+                   std::string customDisplayTextWithEval_, uint32_t skipToChildIndex_ = 0, bool extendEntry_ = false)
         : name(std::move(name_)),
           ownerType(std::move(ownerType_)),
           trValue(pValue),
-          customDisplayTextWithEval(std::move(customDisplayTextWithEval_))
+          customDisplayTextWithEval(std::move(customDisplayTextWithEval_)),
+          skipToChildIndex(skipToChildIndex_),
+          extendEntry(extendEntry_)
     {
     }
 
@@ -67,9 +73,8 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
     return PrintValue(pThread, pEvaluator, pEvalStackMachine, member.trValue, specifier, var.value);
 }
 
-HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputValue, ICorDebugThread *pThread,
-                                 FrameLevel frameLevel, FormatSpecifier specifier, std::vector<VariableMember> &members,
-                                 bool fetchOnlyStatic, bool &hasStaticMembers)
+HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread, const Variables::VariableReference &ref,
+                                 std::vector<VariableMember> &members, bool &hasStaticMembers)
 {
     hasStaticMembers = false;
     HRESULT Status = S_OK;
@@ -77,7 +82,10 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
     DWORD threadId = 0;
     IfFailRet(pThread->GetID(&threadId));
 
-    IfFailRet(pEvaluator->WalkMembers(pInputValue, pThread, frameLevel, false, specifier,
+    uint32_t count = 0;
+    static constexpr uint32_t maxCount = 25;
+
+    IfFailRet(pEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
         {
@@ -86,10 +94,24 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugValue *pInputVa
                 hasStaticMembers = true;
             }
 
-            const bool addMember = fetchOnlyStatic ? isStatic : !isStatic;
+            const bool addMember = ref.valueKind == ValueKind::Static ? isStatic : !isStatic;
             if (!addMember)
             {
                 return S_OK;
+            }
+
+            count++;
+
+            if (count <= ref.skipToChildIndex)
+            {
+                return S_OK;
+            }
+
+            if (count > ref.skipToChildIndex + maxCount)
+            {
+                ref.trValue->AddRef();
+                members.emplace_back("[More]", std::string{}, ref.trValue, std::string{}, ref.skipToChildIndex + maxCount, true);
+                return S_CAN_EXIT;
             }
 
             // Note, in this case error is not fatal, but if protocol side needs to
@@ -159,8 +181,8 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
     return S_OK;
 }
 
-HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId,
-                                        ICorDebugValue *pValue, ValueKind valueKind, FormatSpecifier specifier)
+HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
+                                        ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex)
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
@@ -199,7 +221,7 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
 #endif
     variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
     pValue->AddRef();
-    VariableReference variableReference(variable, frameId, pValue, valueKind, specifier);
+    VariableReference variableReference(variable, frameId, pValue, valueKind, specifier, skipToChildIndex);
     m_references.emplace(variable.variablesReference, std::move(variableReference));
 
     return S_OK;
@@ -217,7 +239,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trExceptionValue, FormatSpecifier::None, var.value));
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, var.type));
 
-        return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable, FormatSpecifier::None);
+        return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable, FormatSpecifier::None, 0);
     }
 
     return E_FAIL;
@@ -244,14 +266,14 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
                 FAILED(MetadataHelpers::GetFQDisplayTypeName(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, var.value)) ||
-                FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None)))
+                FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None, 0)))
             {
                 if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
                 {
                     var.type = fallbackTypeName.empty() ? "unknown" : fallbackTypeName;
                     var.value = "Cannot obtain value of the local variable or argument because it is not available at this instruction pointer, possibly because it has been optimized away.";
 
-                    if (FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None)))
+                    if (FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None, 0)))
                     {
                         return S_OK;
                     }
@@ -335,8 +357,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     std::vector<VariableMember> members;
     bool hasStaticMembers = false;
 
-    IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), ref.trValue, pThread, ref.frameId.getLevel(),
-                                       ref.specifier, members, ref.valueKind == ValueKind::Static, hasStaticMembers));
+    IfFailRet(FetchFieldsAndProperties(m_sharedEvaluator.get(), pThread, ref, members, hasStaticMembers));
 
     FixupInheritedNames(members);
 
@@ -344,17 +365,32 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     {
         Variable var;
         var.name = it.name;
-        const bool isIndex = !it.name.empty() && it.name.at(0) == '[';
-        if (var.name.find('(') == std::string::npos) // expression evaluator does not support typecasts
+
+        if (it.extendEntry)
         {
-            var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
+            var.evaluateName = ref.evaluateName;
+#ifdef BIT64
+            assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+            var.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
+            VariableReference variableReference(var, ref.frameId, it.trValue.Detach(), ref.valueKind, ref.specifier, it.skipToChildIndex);
+            m_references.emplace(var.variablesReference, std::move(variableReference));
         }
-        IfFailRet(FillValueAndType(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), ref.specifier, it, var));
-        IfFailRet(AddVariableReference(pThread, var, ref.frameId, it.trValue, ValueKind::Variable, ref.specifier));
+        else
+        {
+            const bool isIndex = !it.name.empty() && it.name.at(0) == '[';
+            if (var.name.find('(') == std::string::npos) // expression evaluator does not support typecasts
+            {
+                var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
+            }
+            IfFailRet(FillValueAndType(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), ref.specifier, it, var));
+            IfFailRet(AddVariableReference(pThread, var, ref.frameId, it.trValue, ValueKind::Variable, ref.specifier, it.skipToChildIndex));
+        }
+
         variables.push_back(var);
     }
 
-    if (ref.valueKind == ValueKind::Variable && hasStaticMembers)
+    if (ref.valueKind == ValueKind::Variable && hasStaticMembers && ref.skipToChildIndex == 0)
     {
         ToRelease<ICorDebugValue2> trValue2;
         IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
@@ -366,7 +402,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
         var.name = "Static members";
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
 
-        IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Static, ref.specifier));
+        IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Static, ref.specifier, 0));
         variables.push_back(var);
     }
 
@@ -399,7 +435,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trResultValue, variable.type));
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
 
-    return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier);
+    return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier, 0);
 }
 
 HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,

@@ -58,8 +58,6 @@ class Variables
         m_referencesMutex.unlock();
     }
 
-  private:
-
     struct VariableReference
     {
         uint32_t variablesReference; // key
@@ -70,18 +68,21 @@ class Variables
         ToRelease<ICorDebugValue> trValue;
         FrameId frameId;
         FormatSpecifier specifier;
+        uint32_t skipToChildIndex;
 
         VariableReference(const Variable &variable,
                           FrameId frameId,
                           ICorDebugValue *pValue,
                           ValueKind valueKind,
-                          FormatSpecifier specifier)
+                          FormatSpecifier specifier,
+                          uint32_t skipToChildIndex)
             : variablesReference(variable.variablesReference),
               evaluateName(variable.evaluateName),
               valueKind(valueKind),
               trValue(pValue),
               frameId(frameId),
-              specifier(specifier)
+              specifier(specifier),
+              skipToChildIndex(skipToChildIndex)
         {
         }
 
@@ -91,7 +92,8 @@ class Variables
               valueKind(ValueKind::Scope),
               trValue(nullptr),
               frameId(frameId),
-              specifier(FormatSpecifier::None)
+              specifier(FormatSpecifier::None),
+              skipToChildIndex(0)
         {
         }
 
@@ -107,6 +109,8 @@ class Variables
         ~VariableReference() = default;
     };
 
+  private:
+
     std::shared_ptr<EvalExec> m_sharedEvalExec;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
@@ -114,8 +118,8 @@ class Variables
     std::recursive_mutex m_referencesMutex;
     std::unordered_map<uint32_t, VariableReference> m_references;
 
-    HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId,
-                                 ICorDebugValue *pValue, ValueKind valueKind, FormatSpecifier specifier);
+    HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
+                                 ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex);
 
     HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector<Variable> &variables);
 

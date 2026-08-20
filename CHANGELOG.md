@@ -39,6 +39,7 @@ Upcoming changes compared to previous version.
 - Added generic type argument resolution to display name rendering.
 - Added support for `using` type aliases (AliasType) in expression evaluation.
 - Added support for `using static` type import (ImportType) in expression evaluation.
+- Added pagination for variable children, fetching members in batches of 25 with a `[More]` continuation entry.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
