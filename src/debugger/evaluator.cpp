@@ -906,7 +906,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             };
 
             IfFailRet(cb(nullptr, false, "", getValue, nullptr, nullptr));
-            // Note, cb could return S_CAN_EXIT for fast exit.
+            if (Status == S_CAN_EXIT)
+            {
+                return S_CAN_EXIT; // Fast exit from the loop.
+            }
             return S_OK;
         }
 
@@ -942,7 +945,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr, nullptr));
                 if (Status == S_CAN_EXIT)
                 {
-                    return S_OK;
+                    return S_CAN_EXIT; // Fast exit from the loop.
                 }
                 IncIndices(dims, ind);
             }
@@ -1222,7 +1225,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(Status);
             if (Status == S_CAN_EXIT)
             {
-                return S_OK;
+                return S_CAN_EXIT;
             }
 
             std::string displayBaseTypeName;
@@ -1262,6 +1265,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         trWalkQueue.pop_front();
 
         IfFailRet(walkNext(trFrontValue, isTypeProxyValue));
+        if (Status == S_CAN_EXIT)
+        {
+            return S_OK;
+        }
     }
 
     return S_OK;
