@@ -64,9 +64,6 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
                        SigElementType &returnElementType, std::vector<SigElementType> &argElementTypes,
                        bool addElementTypeName = false, uint32_t *methodGenParamCount = nullptr);
 
-HRESULT ParseMethodSigParameterModifiers(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE &pSig,
-                                         PCCOR_SIGNATURE pSigEnd, std::vector<std::string> &parameterModifiers);
-
 HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg);
 HRESULT ApplyGenericMethodParameters(const std::vector<SigElementType> &genericMethodParameters, SigElementType &methodArg);
 

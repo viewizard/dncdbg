@@ -1579,9 +1579,10 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
         IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
                                              &methodAttr, &pSig, &cbSig, nullptr, nullptr));
 
-        std::vector<std::string> parameterModifiers;
-        // Ignore failed return code here, we need all we could parse from sig.
-        ParseMethodSigParameterModifiers(trMDImport, methodDef, pSig, pSig + cbSig, parameterModifiers);
+        SigElementType returnElementType;
+        std::vector<SigElementType> argElementTypes;
+        // Ignore failed return code here; we need all we could parse from the sig.
+        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
 
         ULONG cArguments = 0;
         std::unordered_map<std::string, ToRelease<ICorDebugValue>> asyncMethodParams;
@@ -1645,9 +1646,9 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
                 ss << ", ";
             }
 
-            if (parameterModifiers.size() > i && !parameterModifiers.at(i).empty())
+            if (argElementTypes.size() > i && !argElementTypes.at(i).parameterModifier.empty())
             {
-                ss << parameterModifiers.at(i) << " ";
+                ss << argElementTypes.at(i).parameterModifier << " ";
             }
 
             const std::string paramName = to_utf8(wParamName.data());
@@ -1663,8 +1664,15 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
             {
                 ss << displayTypeName << " ";
             }
+            else if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty() &&
+                     // TODO: replace with proper type and method generic parameters
+                     argElementTypes.at(i).genericElemType != ELEMENT_TYPE_VAR &&
+                     argElementTypes.at(i).genericElemType != ELEMENT_TYPE_MVAR)
+            {
+                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
+            }
             // else
-            //    in case of failure, ignore parameter type, print only parameter name
+            //    in case of failure, ignore the parameter type and print only the parameter name
 
             ss << paramName;
         }
