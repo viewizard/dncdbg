@@ -176,10 +176,15 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     // ResolveIdentifiers may succeed without producing a type (e.g. when only a
     // value/this is resolved and no type identifier is left), leaving *ppResultType
     // null. Treat that as a failure too, otherwise callers would dereference null.
-    if ((FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
-                                                           nullptr, evalStack.front().identifiers,
-                                                           ed.specifier, &trValue, nullptr, ppResultType)) &&
-         !evalStack.front().identifiers.empty()) || *ppResultType == nullptr)
+    if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
+                                                             nullptr, evalStack.front().identifiers,
+                                                             ed.specifier, &trValue, nullptr, ppResultType)) &&
+        *ppResultType != nullptr)
+    {
+        return S_OK;
+    }
+
+    if (!evalStack.front().identifiers.empty())
     {
         std::ostringstream ss;
         for (size_t i = 0; i < evalStack.front().identifiers.size(); i++)
@@ -198,10 +203,11 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
         {
             output = "error: '" + ss.str() + "' is a variable but is used like a type";
         }
-        if (SUCCEEDED(Status))
-        {
-            Status = E_FAIL;
-        }
+    }
+
+    if (SUCCEEDED(Status))
+    {
+        Status = E_FAIL;
     }
 
     return Status;
