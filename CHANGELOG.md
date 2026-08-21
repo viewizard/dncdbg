@@ -73,8 +73,8 @@ Upcoming changes compared to previous version.
 - Fixed display name resolution for nested generic types (e.g. List<List<List<int>>>).
 - Fixed static method resolution to use fully-qualified display type names including generic arguments.
 
-</br>
-</br>
+<br>
+<br>
 
 ## Version 1.1.0
 
@@ -141,8 +141,8 @@ Upcoming changes compared to previous version.
 - Fixed implicit casting logic in managed expressions to properly support all primitive types.
 - Fixed argument handling for paths with trailing backslash.
 
-</br>
-</br>
+<br>
+<br>
 
 ## Version 1.0.0
 Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 3.1.3 codebase.

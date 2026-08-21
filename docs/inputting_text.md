@@ -2,7 +2,7 @@
 
 ***Note: parameters below work only in case the target app is launched into the debugger and will not work if you are attaching the debugger to an already running process.***
 
-</br>
+<br>
 
 ## Inputting text from Debug Console (Evaluate Request)
 
@@ -16,7 +16,7 @@ To do so in VSCode, while the program is running, type text into the input box a
 
 More info: https://aka.ms/VSCode-CS-LaunchJson-Console
 
-</br>
+<br>
 
 ## Remote Console
 
@@ -38,7 +38,7 @@ The default TCP port used is `22534`. This can be changed by providing the `DNCD
         }
 ```
 
-</br>
+<br>
 
 ## External Terminal (Windows OS only)
 
