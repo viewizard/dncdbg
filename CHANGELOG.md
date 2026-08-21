@@ -172,9 +172,9 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 - Added cppcheck checks.
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
-- Added methods parameters output in stacktrace.
-- Added active CLR internal frames output in stacktrace.
-- Added proper Just My Code enabled stacktrace.
+- Added output of method parameters in stack traces.
+- Added output of active CLR internal frames in stack traces.
+- Added proper Just My Code-enabled stack traces.
 - Added source and function breakpoints reset during module unload.
 - Added `--loglevel` launch option for setup minimal log level output.
 - Added end-pointer bounds checking to metadata signature parsing.
@@ -226,7 +226,7 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 - Fixed logic bug in TryParseSlotIndex method.
 - Fixed bug in corhost related logic (TPA list creation).
 - Fixed some methods `void *&` (`PVOID &`) parameters to `void **`.
-- Fixed stacktrace for exception in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
+- Fixed stack trace for exceptions in async methods (exception rethrow with `System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()`).
 - Fixed exception type name fail handling logic in GetExceptionDetails().
 - Fixed disable JIT optimization related logic.
 - Fixed constant field (literal) evaluation logic.
