@@ -50,11 +50,11 @@ class EvalExec
     HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
                         std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
 
-    HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                    UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue);
+    HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
+                                    ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
     HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                    ICorDebugValue **ppLiteralValue);
+                                    ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
     HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
@@ -100,7 +100,7 @@ class EvalExec
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
     HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                    CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                   ICorDebugValue **ppLiteralValue);
+                                   ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 };
 
 } // namespace dncdbg

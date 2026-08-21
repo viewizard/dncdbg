@@ -7,7 +7,9 @@
 #include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evalhelpers.h"
 #include "metadata/corhelpers.h"
+#include "metadata/helpers.h"
 #include "metadata/modules.h"
+#include "metadata/sigparse.h"
 #include "utils/utf.h"
 #include <algorithm>
 #include <iterator>
@@ -318,8 +320,8 @@ HRESULT EvalExec::CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementT
     return S_OK;
 }
 
-HRESULT EvalExec::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                          UVCP_CONSTANT pRawValue, ULONG rawValueLength, ICorDebugValue **ppLiteralValue)
+HRESULT EvalExec::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
+                                          ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -352,11 +354,11 @@ HRESULT EvalExec::CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNAT
         rawValueLength = rawValueLength * sizeof(WCHAR);
     }
 
-    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
+    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue, realDisplayTypeName);
 }
 
 HRESULT EvalExec::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                          ICorDebugValue **ppLiteralValue)
+                                          ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName)
 {
     // https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
@@ -389,12 +391,12 @@ HRESULT EvalExec::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNAT
         rawValueLength = 0;
     }
 
-    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue);
+    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue, realDisplayTypeName);
 }
 
 HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                          CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                         ICorDebugValue **ppLiteralValue)
+                                         ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName)
 {
     if (pThread == nullptr || pSig == nullptr || pSigEnd == nullptr || ppLiteralValue == nullptr)
     {
@@ -402,6 +404,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
     }
 
     *ppLiteralValue = nullptr;
+    realDisplayTypeName.clear();
     HRESULT Status = S_OK;
 
     auto createByTypeDef = [&](ICorDebugModule *pModule, mdTypeDef typeDef) -> HRESULT
@@ -462,10 +465,32 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
     switch (underlyingType)
     {
         case ELEMENT_TYPE_OBJECT:
+        {
+            IfFailRet(createNullObjectValue());
+            break;
+        }
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            // FIXME for arrays create reference to proper type instead of object
+            ToRelease<ICorDebugFrame> trFrame;
+            IfFailRet(pThread->GetActiveFrame(&trFrame));
+            ToRelease<ICorDebugFunction> trFunction;
+            IfFailRet(trFrame->GetFunction(&trFunction));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trFunction->GetModule(&trModule));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+            std::list<std::string> args;
+            SigElementType sigType;
+            pSig--; // step back to the element type byte so ParseElementType() can re-read it
+            if (SUCCEEDED(ParseElementType(trMDImport, pSig, pSigEnd, 0, sigType, &args, true)))
+            {
+                realDisplayTypeName = MetadataHelpers::ConvertMetadataToDisplayName(sigType.metadataTypeName, &args);
+            }
+
             IfFailRet(createNullObjectValue());
             break;
         }
@@ -480,6 +505,10 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
             if (TypeFromToken(typeToken) == mdtTypeDef)
             {
@@ -487,11 +516,6 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             }
             else if (TypeFromToken(typeToken) == mdtTypeRef)
             {
-                ToRelease<IUnknown> trUnknown;
-                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-                ToRelease<IMetaDataImport> trMDImport;
-                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
                 // Note, IMetaDataImport::GetTypeRefProps() returns a fully-qualified name.
                 ULONG nameSize = 0;
                 IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &nameSize));
@@ -501,7 +525,16 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             }
             else if (TypeFromToken(typeToken) == mdtTypeSpec)
             {
-                // FIXME create reference to proper type instead of object
+                PCCOR_SIGNATURE pTypeSig = nullptr;
+                ULONG cbSig = 0;
+                IfFailRet(trMDImport->GetTypeSpecFromToken(typeToken, &pTypeSig, &cbSig));
+                SigElementType sigType;
+                std::list<std::string> args;
+                if (SUCCEEDED(ParseElementType(trMDImport, pTypeSig, pTypeSig + cbSig, 0, sigType, &args, true)))
+                {
+                    realDisplayTypeName = MetadataHelpers::ConvertMetadataToDisplayName(sigType.metadataTypeName, &args);
+                }
+
                 IfFailRet(createNullObjectValue());
             }
             else

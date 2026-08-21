@@ -24,15 +24,17 @@ struct VariableMember
 {
     std::string name;
     std::string ownerType;
+    std::string realDisplayTypeName;
     ToRelease<ICorDebugValue> trValue;
     std::string customDisplayTextWithEval;
     uint32_t skipToChildIndex;
     bool extendEntry;
 
-    VariableMember(std::string name_, std::string ownerType_, ICorDebugValue *pValue,
+    VariableMember(std::string name_, std::string ownerType_, std::string realDisplayTypeName_, ICorDebugValue *pValue,
                    std::string customDisplayTextWithEval_, uint32_t skipToChildIndex_ = 0, bool extendEntry_ = false)
         : name(std::move(name_)),
           ownerType(std::move(ownerType_)),
+          realDisplayTypeName(std::move(realDisplayTypeName_)),
           trValue(pValue),
           customDisplayTextWithEval(std::move(customDisplayTextWithEval_)),
           skipToChildIndex(skipToChildIndex_),
@@ -110,14 +112,15 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread
             if (count > ref.skipToChildIndex + maxCount)
             {
                 ref.trValue->AddRef();
-                members.emplace_back("[More]", std::string{}, ref.trValue, std::string{}, ref.skipToChildIndex + maxCount, true);
+                members.emplace_back("[More]", std::string{}, std::string{}, ref.trValue, std::string{}, ref.skipToChildIndex + maxCount, true);
                 return S_CAN_EXIT;
             }
 
             // Note, in this case error is not fatal, but if protocol side needs to
             // cancel command execution, stop walk and return error to caller.
             ToRelease<ICorDebugValue> trResultValue;
-            if (getValue(&trResultValue, nullptr) == COR_E_OPERATIONCANCELED)
+            std::string fallbackTypeName;
+            if (getValue(&trResultValue, &fallbackTypeName) == COR_E_OPERATIONCANCELED)
             {
                 return COR_E_OPERATIONCANCELED;
             }
@@ -128,7 +131,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread
                 IfFailRet(MetadataHelpers::GetFQDisplayTypeName(pType, displayTypeName));
             }
 
-            members.emplace_back(name, displayTypeName, trResultValue.Detach(),
+            members.emplace_back(name, displayTypeName, fallbackTypeName, trResultValue.Detach(),
                                  customDisplayTextWithEval != nullptr ? *customDisplayTextWithEval : std::string{});
             return S_OK;
         }));
@@ -284,6 +287,11 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
                 }
             }
 
+            if (!fallbackTypeName.empty())
+            {
+                var.type = std::move(fallbackTypeName);
+            }
+
             variables.push_back(var);
             return S_OK;
         });
@@ -384,6 +392,10 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
                 var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
             }
             IfFailRet(FillValueAndType(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), ref.specifier, it, var));
+            if (!it.realDisplayTypeName.empty())
+            {
+                var.type = std::move(it.realDisplayTypeName);
+            }
             IfFailRet(AddVariableReference(pThread, var, ref.frameId, it.trValue, ValueKind::Variable, ref.specifier, it.skipToChildIndex));
         }
 
@@ -401,7 +413,6 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
         Variable var;
         var.name = "Static members";
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
-
         IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Static, ref.specifier, 0));
         variables.push_back(var);
     }

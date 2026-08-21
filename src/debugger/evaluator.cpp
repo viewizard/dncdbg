@@ -1076,12 +1076,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(mdName.c_str());
 
-                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
                         {
                             if (fieldAttr & fdLiteral)
                             {
+                                std::string realDisplayTypeName;
                                 IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                    rawValueLength, ppResultValue));
+                                                                                    rawValueLength, ppResultValue, realDisplayTypeName));
+
+                                if (fallbackTypeName != nullptr)
+                                {
+                                    *fallbackTypeName = std::move(realDisplayTypeName);
+                                }
                             }
                             else if (fieldAttr & fdStatic)
                             {
@@ -1643,11 +1649,19 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     continue;
                 }
 
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
-                    return m_sharedEvalExec->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue);
+                    std::string realDisplayTypeName;
+                    IfFailRet(m_sharedEvalExec->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue, realDisplayTypeName));
+
+                    if (fallbackTypeName != nullptr)
+                    {
+                        *fallbackTypeName = std::move(realDisplayTypeName);
+                    }
+
+                    return S_OK;
                 };
 
                 IfFailRet(cb(to_utf8(constant.name.c_str()), getValue));

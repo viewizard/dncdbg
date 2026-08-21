@@ -11,6 +11,27 @@ using DbgTest.Script;
 
 namespace TestVariables
 {
+
+class TestClass
+{
+    int i;
+};
+
+class TestLiteralsClass
+{
+    const int literal2_int = 5;
+    const string literal2_string = "literal";
+    const string? literal2_string_null = null;
+    const object? literal2_object = null;
+    const System.IO.StreamReader? literal2_reader = null;
+    const TestClass? literal2_testclass = null;
+    const int[]? literal2_array = null;
+    const TestClass[]? literal2_array_testclass = null;
+    const int[,,]? literal2_array2 = null;
+    const Random[,,]? literal2_array2_random = null;
+    const TestClass[,,]? literal2_array2_testclass = null;
+};
+
 public class TestImplicitCast1
 {
     public int data;
@@ -288,6 +309,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp5");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp6");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp7");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_func1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_func2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_getter");
@@ -1192,7 +1214,7 @@ class Program
 
         i++;                                                            Label.Breakpoint("bp6");
 
-        Label.Checkpoint("test_special_types", "finish",
+        Label.Checkpoint("test_special_types", "test_literals",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1203,6 +1225,59 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringGuid", "{556da01f-9abd-4d9d-80c7-02af85c82255}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringVersion", "{1.2.3.4}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "toStringTimeSpan", "{01:02:03}");
+
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        const int literal1_int = 5;
+        const string literal1_string = "literal";
+        const string? literal1_string_null = null;
+        const object? literal1_object = null;
+        const System.IO.StreamReader? literal1_reader = null;
+        const TestClass? literal1_testclass = null;
+        const int[]? literal1_array = null;
+        const TestClass[]? literal1_array_testclass = null;
+        const int[,,]? literal1_array2 = null;
+        const Random[,,]? literal1_array2_random = null;
+        const TestClass[,,]? literal1_array2_testclass = null;
+        TestLiteralsClass testLiteralsClass;
+
+        i++;                                                            Label.Breakpoint("bp7");
+
+        Label.Checkpoint("test_literals", "finish",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp7");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "bp7");
+
+                int variablesReference_Locals = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
+
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "int", "literal1_int", "5");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "string", "literal1_string", "\"literal\"");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "string", "literal1_string_null", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "object", "literal1_object", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.IO.StreamReader", "literal1_reader", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestVariables.TestClass", "literal1_testclass", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "int[]", "literal1_array", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestVariables.TestClass[]", "literal1_array_testclass", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "int[,,]", "literal1_array2", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "System.Random[,,]", "literal1_array2_random", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_Locals, "TestVariables.TestClass[,,]", "literal1_array2_testclass", "null");
+
+                int variablesReference_LitClass = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "testLiteralsClass");
+                int variablesReference_StaticReference = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_LitClass, "Static members");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "int", "literal2_int", "5");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "string", "literal2_string", "\"literal\"");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "string", "literal2_string_null", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "object", "literal2_object", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "System.IO.StreamReader", "literal2_reader", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "TestVariables.TestClass", "literal2_testclass", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "int[]", "literal2_array", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "TestVariables.TestClass[]", "literal2_array_testclass", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "int[,,]", "literal2_array2", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "System.Random[,,]", "literal2_array2_random", "null");
+                Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_StaticReference, "TestVariables.TestClass[,,]", "literal2_array2_testclass", "null");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

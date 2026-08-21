@@ -416,7 +416,7 @@ class Program
     const string literal1_string = "literal";
     const string? literal1_string_null = null;
     const object? literal1_object = null;
-    const System.IO.StreamReader? literal1_random = null;
+    const System.IO.StreamReader? literal1_reader = null;
     const TestClass? literal1_testclass = null;
     const int[]? literal1_array = null;
     const TestClass[]? literal1_array_testclass = null;
@@ -1063,7 +1063,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal1_string");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_object");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "string", "literal1_string_null");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "System.IO.StreamReader", "literal1_random");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "System.IO.StreamReader", "literal1_reader");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvaluate.TestClass", "literal1_testclass");
                 // FIXME should return proper type, fix after debugger will be fixed
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array");
