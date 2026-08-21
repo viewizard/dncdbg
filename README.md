@@ -38,6 +38,10 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 
 The project uses Trunk-Based Development, which means you can build the current upstream code and be sure you have the latest version with all features and fixes included. Upcoming changes can be found in [CHANGELOG.md](CHANGELOG.md).
 
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) to learn how you can report bugs, propose features, or contribute code changes through forks.
+
 ## Building from Source Code
 
 - [Windows OS build.](docs/build_windows.md)
