@@ -12,7 +12,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 |:---------------------------|:------------:|:------------:|:--------------------------------------------------------:|
 | **License** | MIT | MIT | Commercial<sup>1</sup> |
 | **Implementation** | C++ | C++ and C#<sup>2</sup> | C# |
-| **Physical memory footprint<sup>3</sup>** | 37.9M | 52.4M | 146.8M |
+| **Physical memory footprint<sup>3</sup>** | 11.7M | 52.4M | 146.8M |
 | **[Inputting text into the target process](docs/inputting_text.md)** | ✅ | ❌ | ✅ |
 | **[Source File Map](https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map)** | ✅ | ❌ | ✅ |
 | **Display method parameters in stack trace** | ✅ | ❌ | ✅ |
