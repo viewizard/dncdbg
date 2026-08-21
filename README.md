@@ -8,6 +8,30 @@ Initially DNCDbg was based on [NetCoreDbg](https://github.com/Samsung/netcoredbg
 
 Current [Debug Adapter Protocol support status](docs/dap_status.md).
 
+|                            |    DNCDbg    |  NetCoreDbg  |
+|:---------------------------|:------------:|:------------:|
+| Physical memory footprint<sup>1</sup> | 37.9M | 52.4M |
+| Implementation | C++ | C++ and C#<sup>2</sup> |
+| Display method parameters in stack trace | ✅ | ❌ |
+| Display in/ref/out parameter modifiers | ✅ | ❌ |
+| Display active CLR internal frames in stack trace | ✅ | ❌ |
+| Module unload support | ✅ | ❌ |
+| Local constants (literals) support | ✅ | ❌ |
+| Embedded PDB support | ✅ | ❌ |
+| `ac`, `h`, `nq`, `raw` and `hidden` format specifiers support | ✅ | ❌ |
+| DebuggerDisplay attribute support | ✅ | ❌ |
+| DebuggerTypeProxy attribute support | ✅ | ❌ |
+| Using-directive awareness in type resolution | ✅ | ❌ |
+| Pagination for variable children | ✅ | ❌ |
+| MI/GDB and CLI protocols | ❌ | ✅ |
+| Interop (Mixed) debug | ❌ | ✅<sup>3</sup> |
+| Hot Reload feature | ❌ | ✅<sup>4</sup> |
+
+<small><sup>1</sup> Measured on macOS 26.6.2 using a simple application stopped at a breakpoint with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VS Code IDE using the DAP protocol; NetCoreDbg was built without interop and Hot Reload features.</small>
+<small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small>
+<small><sup>3</sup> Linux and Tizen operating systems only.</small>
+<small><sup>4</sup> Available via the MI/GDB protocol only and currently limited to the MSVS Tizen plugin.</small>
+
 ## Development process
 
 The project's development strategy is Trunk-Based Development, this means you can build current upstream code and be sure you have last version with all features and fixes included. You can find upcoming changes in [CHANGELOG.md](CHANGELOG.md).
