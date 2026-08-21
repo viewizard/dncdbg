@@ -27,9 +27,9 @@ Current [Debug Adapter Protocol support status](docs/dap_status.md).
 | Interop (Mixed) debug | ❌ | ✅<sup>3</sup> |
 | Hot Reload feature | ❌ | ✅<sup>4</sup> |
 
-<small><sup>1</sup> Measured on macOS 26.6.2 using a simple application stopped at a breakpoint with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VS Code IDE using the DAP protocol; NetCoreDbg was built without interop and Hot Reload features.</small>
-<small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small>
-<small><sup>3</sup> Linux and Tizen operating systems only.</small>
+<small><sup>1</sup> Measured on macOS 26.6.2 using a simple application stopped at a breakpoint with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VS Code IDE using the DAP protocol; NetCoreDbg was built without interop and Hot Reload features.</small><br>
+<small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
+<small><sup>3</sup> Linux and Tizen operating systems only.</small><br>
 <small><sup>4</sup> Available via the MI/GDB protocol only and currently limited to the MSVS Tizen plugin.</small>
 
 ## Development process
