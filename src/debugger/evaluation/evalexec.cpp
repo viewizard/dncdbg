@@ -494,6 +494,41 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             IfFailRet(createNullObjectValue());
             break;
         }
+        case ELEMENT_TYPE_VALUETYPE:
+        {
+            mdToken typeToken = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, typeToken));
+
+            ToRelease<ICorDebugFrame> trFrame;
+            IfFailRet(pThread->GetActiveFrame(&trFrame));
+            ToRelease<ICorDebugFunction> trFunction;
+            IfFailRet(trFrame->GetFunction(&trFunction));
+            ToRelease<ICorDebugModule> trModule;
+            IfFailRet(trFunction->GetModule(&trModule));
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+
+            ToRelease<ICorDebugValue> trBoxedValue;
+            IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trBoxedValue,
+                [&](ICorDebugEval *pEval) -> HRESULT
+                {
+                    // Note, this code execution is protected by EvalWaiter mutex.
+                    ToRelease<ICorDebugEval2> trEval2;
+                    IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+                    IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, 0, nullptr));
+                    return S_OK;
+                }));
+
+            BOOL isNull = FALSE;
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(DereferenceAndUnboxValue(trBoxedValue, &trValue, &isNull));
+
+            ToRelease<ICorDebugGenericValue> trGenericValue;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+            *ppLiteralValue = trValue.Detach();
+            break;
+        }
         case ELEMENT_TYPE_CLASS:
         {
             mdToken typeToken = mdTokenNil;
