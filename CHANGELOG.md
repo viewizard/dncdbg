@@ -40,6 +40,7 @@ Upcoming changes compared to previous version.
 - Added support for `using` type aliases (AliasType) in expression evaluation.
 - Added support for `using static` type import (ImportType) in expression evaluation.
 - Added pagination for variable children, fetching members in batches of 25 with a `[More]` continuation entry.
+- Added decimal literal support to local constant evaluation.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
