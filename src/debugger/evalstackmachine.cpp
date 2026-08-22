@@ -1982,17 +1982,17 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefDecimal{W("System.Decimal")};
+    static const WSTRING strTypeDefDecimal(W("System.Decimal"));
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDefDecimal.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trDecimalClass));
 
     typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefVoid{W("System.Void")};
+    static const WSTRING strTypeDefVoid(W("System.Void"));
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trVoidClass));
 
     typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefArray{W("System.Array")};
+    static const WSTRING strTypeDefArray(W("System.Array"));
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDefArray.c_str(), mdTypeDefNil, &typeDef));
     IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trArrayClass));
 
