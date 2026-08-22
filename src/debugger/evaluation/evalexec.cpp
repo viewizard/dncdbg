@@ -12,6 +12,8 @@
 #include "metadata/sigparse.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <iterator>
 
 namespace dncdbg
@@ -386,17 +388,20 @@ HRESULT EvalExec::CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNAT
 
     static constexpr uint8_t nullStringMarker = 0xFF;
     if (underlyingType == ELEMENT_TYPE_STRING &&
+        rawValueLength > 0 &&
         *reinterpret_cast<const uint8_t *>(pRawValue) == nullStringMarker)
     {
         rawValueLength = 0;
     }
 
-    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength, ppLiteralValue, realDisplayTypeName);
+    return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength,
+                                  ppLiteralValue, realDisplayTypeName, true);
 }
 
 HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                          CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                         ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName)
+                                         ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
+                                         bool valueInlineInSig)
 {
     if (pThread == nullptr || pSig == nullptr || pSigEnd == nullptr || ppLiteralValue == nullptr)
     {
@@ -499,14 +504,77 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             mdToken typeToken = mdTokenNil;
             IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, typeToken));
 
+            if (valueInlineInSig)
+            {
+                pRawValue = pSig;
+                // Note, rawValueLength is not updated here, since it is never read for local constants.
+            }
+
             ToRelease<ICorDebugFrame> trFrame;
             IfFailRet(pThread->GetActiveFrame(&trFrame));
             ToRelease<ICorDebugFunction> trFunction;
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
+            ToRelease<IUnknown> trUnknown;
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+            ToRelease<IMetaDataImport> trMDImport;
+            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+            std::string metadataName;
+            MetadataHelpers::GetFQMDTypeNameByToken(typeToken, trMDImport, metadataName);
+            const bool decimalConstant = (metadataName == "System.Decimal");
+
             ToRelease<ICorDebugClass> trClass;
-            IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+            if (TypeFromToken(typeToken) == mdtTypeDef)
+            {
+                IfFailRet(trModule->GetClassFromToken(typeToken, &trClass));
+            }
+            else if (TypeFromToken(typeToken) == mdtTypeRef)
+            {
+                // Note, IMetaDataImport::GetTypeRefProps() returns a fully-qualified name.
+                ULONG nameSize = 0;
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, nullptr, 0, &nameSize));
+                WSTRING wName(nameSize, '\0');
+                IfFailRet(trMDImport->GetTypeRefProps(typeToken, nullptr, wName.data(), nameSize, nullptr));
+
+                IfFailRet(Modules::ForEachModule(pThread,
+                    [&](ICorDebugModule *pModule) -> HRESULT
+                    {
+                        if (pModule == nullptr)
+                        {
+                            return E_POINTER;
+                        }
+
+                        ToRelease<IUnknown> trUnknownDef;
+                        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
+                        ToRelease<IMetaDataImport> trMDImportDef;
+                        IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
+
+                        mdTypeDef typeDef = mdTypeDefNil;
+                        if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
+                        {
+                            return S_OK; // Return with success to continue walk.
+                        }
+
+                        IfFailRet(pModule->GetClassFromToken(typeDef, &trClass));
+
+                        return S_CAN_EXIT; // Fast exit from the loop.
+                    }));
+            }
+            else if (TypeFromToken(typeToken) == mdtTypeSpec)
+            {
+                return E_NOTIMPL;
+            }
+            else
+            {
+                return E_INVALIDARG;
+            }
+
+            if (trClass == nullptr)
+            {
+                return E_INVALIDARG;
+            }
 
             ToRelease<ICorDebugValue> trBoxedValue;
             IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trBoxedValue,
@@ -525,7 +593,66 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
 
             ToRelease<ICorDebugGenericValue> trGenericValue;
             IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+
+            // Note, for local constants Roslyn serializes System.Decimal in the
+            // DecimalConstantAttribute format (13 bytes: 1 scale byte + 3x uint32
+            // lo/mid/hi), not as the raw 16-byte in-memory struct (flags + hi + lo + mid).
+            const void *pSetValueData = pRawValue;
+            // System.Decimal in-memory size: 4 x uint32 (flags, hi, lo, mid).
+            static constexpr size_t decimalMemSize = 16;
+            std::array<uint8_t, decimalMemSize> decimalMem{};
+            if (valueInlineInSig && decimalConstant)
+            {
+                // DecimalConstantAttribute blob layout:
+                //   byte 0:     packed scale byte (sign in bit 7, scale in bits 0-6)
+                //   bytes 1-4:  lo  (uint32 LE)
+                //   bytes 5-8:  mid (uint32 LE)
+                //   bytes 9-12: hi  (uint32 LE)
+                // In-memory System.Decimal layout (matches DotNetDecimal):
+                //   flags (uint32): scale in bits 16-23, sign in bit 31
+                //   hi    (uint32)
+                //   lo    (uint32)
+                //   mid   (uint32)
+                // Scale-byte decoding (sign in bit 7, scale in bits 0-6).
+                static constexpr uint32_t scaleValueMask = 0x7F;
+                static constexpr uint32_t scaleSignMask = 0x80;
+                // Flags uint32 encoding (scale in bits 16-23, sign in bit 31).
+                static constexpr uint32_t flagsScaleShift = 16;
+                static constexpr uint32_t flagsSignBit = 0x80000000U;
+                // DecimalConstantAttribute blob byte offsets (LE uint32 after the scale byte).
+                static constexpr size_t blobOffLo = 1;
+                static constexpr size_t blobOffMid = 5;
+                static constexpr size_t blobOffHi = 9;
+                // In-memory System.Decimal field byte offsets.
+                static constexpr size_t memOffFlags = 0;
+                static constexpr size_t memOffHi = 4;
+                static constexpr size_t memOffLo = 8;
+                static constexpr size_t memOffMid = 12;
+
+                const auto *blob = static_cast<const uint8_t *>(pRawValue);
+                const uint8_t scaleByte = blob[0];
+                const uint32_t scale = scaleByte & scaleValueMask;
+                const bool isNegative = (scaleByte & scaleSignMask) != 0;
+                uint32_t flags = (scale << flagsScaleShift);
+                if (isNegative)
+                {
+                    flags |= flagsSignBit;
+                }
+                uint32_t lo = 0;
+                uint32_t mid = 0;
+                uint32_t hi = 0;
+                std::memcpy(&lo, blob + blobOffLo, sizeof(uint32_t));
+                std::memcpy(&mid, blob + blobOffMid, sizeof(uint32_t));
+                std::memcpy(&hi, blob + blobOffHi, sizeof(uint32_t));
+                // Pack into the in-memory layout: flags, hi, lo, mid.
+                std::memcpy(decimalMem.data() + memOffFlags, &flags, sizeof(uint32_t));
+                std::memcpy(decimalMem.data() + memOffHi, &hi, sizeof(uint32_t));
+                std::memcpy(decimalMem.data() + memOffLo, &lo, sizeof(uint32_t));
+                std::memcpy(decimalMem.data() + memOffMid, &mid, sizeof(uint32_t));
+                pSetValueData = decimalMem.data();
+            }
+
+            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pSetValueData))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
             *ppLiteralValue = trValue.Detach();
             break;
         }

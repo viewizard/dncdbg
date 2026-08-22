@@ -100,7 +100,8 @@ class EvalExec
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
     HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                    CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                   ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+                                   ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
+                                   bool valueInlineInSig = false);
 };
 
 } // namespace dncdbg

@@ -413,6 +413,7 @@ class Program
     static test_nested? test_nested_static_instance;
 
     const int literal1_int = 5;
+    const decimal literal1_dec = 7m;
     const string literal1_string = "literal";
     const string? literal1_string_null = null;
     const object? literal1_object = null;
@@ -1006,6 +1007,7 @@ class Program
 
         {
             const int literal2_int = 5;
+            const decimal literal2_dec = 7m;
             const string literal2_string = "literal";
             const string? literal2_string_null = null;
             const object? literal2_object = null;
@@ -1018,6 +1020,7 @@ class Program
             const TestClass[,,]? literal2_array2_testclass = null;
         }
         const int literal3_int = 15;
+        const decimal literal3_dec = 15m;
         const string literal3_string = "localliteral";
         const string? literal3_string_null = null;
         const object? literal3_object = null;
@@ -1060,6 +1063,7 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "Failed to parse character."); // '𐌞' character needs 2 wchars and is not supported
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal1_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "decimal", "literal1_dec");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal1_string");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_object");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "string", "literal1_string_null");
@@ -1073,6 +1077,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_array2_testclass");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "int", "literal3_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "15", "decimal", "literal3_dec");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"localliteral\"", "string", "literal3_string");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_object");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "string", "literal3_string_null");
@@ -1086,6 +1091,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal3_array2_testclass");
 
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_int", "error"); // not in scope
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_dec", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_object", "error"); // not in scope
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "literal2_string_null", "error"); // not in scope
