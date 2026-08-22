@@ -128,10 +128,12 @@ class Evaluator
     static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
     HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const Evaluator::WalkMethodsCallback &cb);
 
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, bool privateCoreLib);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
     void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
+
+    bool IsEnumeration(ICorDebugValue *pInputValue) const;
 
     [[nodiscard]] bool IsJustMyCode() const
     {
@@ -159,6 +161,9 @@ class Evaluator
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
+
+    mdTypeDef m_systemEnumTypeDef{mdTypeDefNil};
+    CORDB_ADDRESS m_systemEnumModAddress{0};
 
     // Extension methods related
 

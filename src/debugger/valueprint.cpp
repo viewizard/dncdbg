@@ -26,31 +26,6 @@ namespace dncdbg
 namespace
 {
 
-bool IsEnum(ICorDebugValue *pInputValue)
-{
-    ToRelease<ICorDebugValue> trValue;
-    if (FAILED(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr)))
-    {
-        return false;
-    }
-
-    std::string displayTypeName;
-    ToRelease<ICorDebugValue2> trValue2;
-    ToRelease<ICorDebugType> trType;
-    ToRelease<ICorDebugType> trBaseType;
-
-    if (FAILED(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) ||
-        FAILED(trValue2->GetExactType(&trType)) ||
-        FAILED(trType->GetBase(&trBaseType)) ||
-        trBaseType == nullptr ||
-        FAILED(MetadataHelpers::GetFQDisplayTypeName(trBaseType, displayTypeName)))
-    {
-        return false;
-    }
-
-    return displayTypeName == "System.Enum";
-}
-
 HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
                                       ICorDebugValue *pInputValue, std::string &output)
 {
@@ -718,7 +693,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                     return S_OK;
                 }
 
-                if (IsEnum(trValue))
+                if (pEvaluator->IsEnumeration(trValue))
                 {
                     return PrintEnumValue(trValue, genericValue.data(), output);
                 }

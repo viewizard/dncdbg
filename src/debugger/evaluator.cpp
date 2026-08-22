@@ -861,6 +861,12 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                                bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
 {
+    // Same behavior as MS vsdbg and MSVS C# debugger have - don't show enumeration members.
+    if (IsEnumeration(pInputValue))
+    {
+        return S_OK;
+    }
+
     HRESULT Status = S_OK;
     bool showInRaw = (specifier & FormatSpecifier::DisplaysInRawMode) != FormatSpecifier::None ||
                      (GetEvalFlags() & EVAL_SHOWRAWVALUES) != 0U;
@@ -1241,11 +1247,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             {
                 trType.Free();
 
-                if (displayBaseTypeName == "System.Enum")
-                {
-                    return S_OK;
-                }
-                else if (displayBaseTypeName != "object" && displayBaseTypeName != "System.Object" && displayBaseTypeName != "System.ValueType")
+                if (displayBaseTypeName != "object" && displayBaseTypeName != "System.Object" && displayBaseTypeName != "System.ValueType")
                 {
                     if (pThread != nullptr)
                     {
@@ -2320,10 +2322,22 @@ HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule, bool privateCoreLib)
 {
     HRESULT Status = S_OK;
     IfFailRet(FillModuleExtensionMethodsCache(pModule));
+
+    if (privateCoreLib)
+    {
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        static const WSTRING strTypeDef(W("System.Enum"));
+        IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), mdTypeDefNil, &m_systemEnumTypeDef));
+        IfFailRet(pModule->GetBaseAddress(&m_systemEnumModAddress));
+    }
+
     return S_OK;
 }
 
@@ -2441,6 +2455,35 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
         importNamespace.emplace_back();
         importNamespace.back().targetNamespace = "System";
     }
+}
+
+bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue) const
+{
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> trValue;
+    if (FAILED(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull)) ||
+        isNull == TRUE)
+    {
+        return false;
+    }
+
+    ToRelease<ICorDebugValue2> trValue2;
+    ToRelease<ICorDebugType> trType;
+    ToRelease<ICorDebugType> trBaseType;
+    ToRelease<ICorDebugClass> trBaseClass;
+    ToRelease<ICorDebugModule> trModule;
+    CORDB_ADDRESS modAddress = 0;
+    mdTypeDef typeDef = mdTypeDefNil;
+    return SUCCEEDED(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) &&
+           SUCCEEDED(trValue2->GetExactType(&trType)) &&
+           SUCCEEDED(trType->GetBase(&trBaseType)) &&
+           trBaseType != nullptr &&
+           SUCCEEDED(trBaseType->GetClass(&trBaseClass)) &&
+           SUCCEEDED(trBaseClass->GetModule(&trModule)) &&
+           SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
+           modAddress == m_systemEnumModAddress &&
+           SUCCEEDED(trBaseClass->GetToken(&typeDef)) &&
+           typeDef == m_systemEnumTypeDef;
 }
 
 } // namespace dncdbg
