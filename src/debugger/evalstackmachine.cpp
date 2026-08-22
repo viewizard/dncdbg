@@ -104,8 +104,8 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
     return trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppValue);
 }
 
-HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<Evaluator::SetterData> *resultSetterData,
-                                std::list<EvalStackEntry> &evalStack, EvalData &ed, std::string &output)
+HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, EvalData &ed, ICorDebugValue **ppResultValue,
+                                std::unique_ptr<Evaluator::SetterData> *resultSetterData, std::string &output)
 {
     HRESULT Status = S_OK;
     Evaluator::SetterData *inputPropertyData = nullptr;
@@ -121,7 +121,7 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
     if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
                                                              evalStack.front().identifiers, ed.specifier, ppResultValue,
-                                                             resultSetterData, nullptr)))
+                                                             &evalStack.front().realDisplayTypeName, resultSetterData, nullptr)))
     {
         return S_OK;
     }
@@ -141,8 +141,8 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
                 testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.begin(), importTypeIdentifiers.end());
 
                 if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
-                                                                testIdentifiers, ed.specifier, ppResultValue, resultSetterData,
-                                                                nullptr)))
+                                                                testIdentifiers, ed.specifier, ppResultValue,
+                                                                &evalStack.front().realDisplayTypeName, resultSetterData, nullptr)))
                 {
                     return S_OK;
                 }
@@ -167,8 +167,8 @@ HRESULT GetFrontStackEntryValue(ICorDebugValue **ppResultValue, std::unique_ptr<
     return Status;
 }
 
-HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStackEntry> &evalStack, EvalData &ed,
-                               std::string &output)
+HRESULT GetFrontStackEntryType(std::list<EvalStackEntry> &evalStack, EvalData &ed,
+                               ICorDebugType **ppResultType, std::string &output)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
@@ -178,7 +178,7 @@ HRESULT GetFrontStackEntryType(ICorDebugType **ppResultType, std::list<EvalStack
     // null. Treat that as a failure too, otherwise callers would dereference null.
     if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
                                                              nullptr, evalStack.front().identifiers,
-                                                             ed.specifier, &trValue, nullptr, ppResultType)) &&
+                                                             ed.specifier, &trValue, nullptr, nullptr, ppResultType)) &&
         *ppResultType != nullptr)
     {
         return S_OK;
@@ -569,14 +569,14 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue2;
-    IfFailRet(GetFrontStackEntryValue(&trValue2, nullptr, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue2, nullptr, output));
     evalStack.pop_front();
     ToRelease<ICorDebugValue> trRealValue2;
     CorElementType elemType2 = ELEMENT_TYPE_MAX;
     IfFailRet(GetRealValueWithType(trValue2, &trRealValue2, &elemType2));
 
     ToRelease<ICorDebugValue> trValue1;
-    IfFailRet(GetFrontStackEntryValue(&trValue1, nullptr, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue1, nullptr, output));
     evalStack.front().ResetEntry();
     ToRelease<ICorDebugValue> trRealValue1;
     CorElementType elemType1 = ELEMENT_TYPE_MAX;
@@ -728,7 +728,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
-    IfFailRet(GetFrontStackEntryValue(&trValue, nullptr, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue, nullptr, output));
     evalStack.front().ResetEntry(EvalStackEntry::ResetLiteralStatus::No);
     ToRelease<ICorDebugValue> trRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
@@ -798,7 +798,7 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
         ToRelease<ICorDebugValue> trValue;
         ToRelease<ICorDebugType> trType;
         ToRelease<ICorDebugValue2> trValue2;
-        Status = GetFrontStackEntryValue(&trValue, nullptr, evalStack, ed, output);
+        Status = GetFrontStackEntryValue(evalStack, ed, &trValue, nullptr, output);
         if (Status == S_OK)
         {
             IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
@@ -806,7 +806,7 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
         }
         else
         {
-            IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
+            IfFailRet(GetFrontStackEntryType(evalStack, ed, &trType, output));
         }
         std::string genericType;
         MetadataHelpers::GetFQDisplayTypeName(trType, genericType);
@@ -864,7 +864,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     while (tmpArgCount > 0)
     {
         tmpArgCount--;
-        IfFailRet(GetFrontStackEntryValue(&trArgs.at(tmpArgCount), nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trArgs.at(tmpArgCount), nullptr, output));
         evalStack.pop_front();
     }
 
@@ -963,7 +963,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         trValue.Free();
         trType.Free();
         if (FAILED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
-                                                              testIdentifiers, ed.specifier, &trValue, nullptr, &trType)))
+                                                              testIdentifiers, ed.specifier, &trValue, nullptr, nullptr, &trType)))
         {
             if (pForcedThisValue == nullptr && !testIdentifiers.empty())
             {
@@ -977,7 +977,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                         testIdents.insert(testIdents.begin(), importTypeIdents.begin(), importTypeIdents.end());
 
                         if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
-                                                                        testIdents, ed.specifier, &trValue, nullptr, &trType)))
+                                                                        testIdents, ed.specifier, &trValue, nullptr, nullptr, &trType)))
                         {
                             break;
                         }
@@ -1206,7 +1206,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
     while (tmpArgCount > 0)
     {
         tmpArgCount--;
-        IfFailRet(GetFrontStackEntryValue(&trArgs.at(tmpArgCount), nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trArgs.at(tmpArgCount), nullptr, output));
         evalStack.pop_front();
     }
 
@@ -1216,7 +1216,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
     // "function" entry above, resolved as a *type* rather than a value via
     // GetFrontStackEntryType (the same helper SizeOfExpression uses).
     ToRelease<ICorDebugType> trType;
-    IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryType(evalStack, ed, &trType, output));
 
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(trType->GetType(&elemType));
@@ -1314,7 +1314,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
     while (tmpArgCount > 0)
     {
         tmpArgCount--;
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(tmpArgCount), nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trIndexValues.at(tmpArgCount), nullptr, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1324,7 +1324,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
 
     ToRelease<ICorDebugValue> trObjectValue;
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(&trObjectValue, &setterData, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trObjectValue, &setterData, output));
 
     ToRelease<ICorDebugValue> trRealValue;
     CorElementType elemType = ELEMENT_TYPE_MAX;
@@ -1343,6 +1343,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
             indexes.insert(indexes.begin(), index);
         }
         evalStack.front().trValue.Free();
+        evalStack.front().realDisplayTypeName.clear();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
         Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
@@ -1426,7 +1427,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
     while (tmpArgCount > 0)
     {
         tmpArgCount--;
-        IfFailRet(GetFrontStackEntryValue(&trIndexValues.at(tmpArgCount), nullptr, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trIndexValues.at(tmpArgCount), nullptr, output));
         evalStack.pop_front();
     }
     if (evalStack.front().preventBinding)
@@ -1436,7 +1437,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
 
     ToRelease<ICorDebugValue> trObjectValue;
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(&trObjectValue, &setterData, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trObjectValue, &setterData, output));
 
     ToRelease<ICorDebugReferenceValue> trReferenceValue;
     IfFailRet(trObjectValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue)));
@@ -1466,6 +1467,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
             indexes.insert(indexes.begin(), index);
         }
         evalStack.front().trValue.Free();
+        evalStack.front().realDisplayTypeName.clear();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
         Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
@@ -1611,7 +1613,7 @@ HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<Eval
 {
     assert(evalStack.size() > 1);
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
-    assert(!evalStack.front().trValue);              // Should be unresolved identifier only front element.
+    assert(!evalStack.front().trValue); // The front element should be only an unresolved identifier.
 
     std::string identifier = std::move(evalStack.front().identifiers.at(0));
     evalStack.pop_front();
@@ -1624,8 +1626,9 @@ HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<Eval
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(&trValue, &setterData, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue, &setterData, output));
     evalStack.front().trValue = trValue.Detach();
+    evalStack.front().realDisplayTypeName.clear();
     evalStack.front().identifiers.clear();
     evalStack.front().setterData = std::move(setterData);
 
@@ -1649,7 +1652,7 @@ HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<Eval
 HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
 {
     assert(evalStack.size() > 1);
-    assert(!evalStack.front().trValue);                // Should be unresolved identifier only front element.
+    assert(!evalStack.front().trValue); // The front element should be only an unresolved identifier.
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
 
     std::string identifier = std::move(evalStack.front().identifiers.at(0));
@@ -1727,7 +1730,7 @@ HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEn
         ToRelease<ICorDebugValue> trValue;
         ToRelease<ICorDebugValue> trValueRef;
 
-        IfFailRet(GetFrontStackEntryType(&trType, evalStack, ed, output));
+        IfFailRet(GetFrontStackEntryType(evalStack, ed, &trType, output));
         if (trType != nullptr)
         {
             CorElementType elType = ELEMENT_TYPE_MAX;
@@ -1763,7 +1766,7 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     ToRelease<ICorDebugValue> trRealValueRightOp;
     ToRelease<ICorDebugValue> trRightOpValue;
     CorElementType elemTypeRightOp = ELEMENT_TYPE_MAX;
-    IfFailRet(GetFrontStackEntryValue(&trRightOpValue, nullptr, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trRightOpValue, nullptr, output));
     IfFailRet(GetRealValueWithType(trRightOpValue, &trRealValueRightOp, &elemTypeRightOp));
     auto rightOperand = std::move(evalStack.front());
     evalStack.pop_front();
@@ -1771,7 +1774,7 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     ToRelease<ICorDebugValue> trRealValueLeftOp;
     ToRelease<ICorDebugValue> trLeftOpValue;
     CorElementType elemTypeLeftOp = ELEMENT_TYPE_MAX;
-    IfFailRet(GetFrontStackEntryValue(&trLeftOpValue, nullptr, evalStack, ed, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trLeftOpValue, nullptr, output));
     IfFailRet(GetRealValueWithType(trLeftOpValue, &trRealValueLeftOp, &elemTypeLeftOp));
     std::string typeNameLeft;
     std::string typeNameRight;
@@ -1928,8 +1931,8 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
 
 HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                                              FormatSpecifier specifier, ICorDebugValue *pForcedThisValue,
-                                             ICorDebugValue **ppResultValue, std::string &output, bool *editable,
-                                             std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+                                             ICorDebugValue **ppResultValue, std::string *realDisplayTypeName, std::string &output,
+                                             bool *editable, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
@@ -1940,7 +1943,11 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     assert(evalStack.size() == 1);
 
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(ppResultValue, &setterData, evalStack, m_evalData, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, ppResultValue, &setterData, output));
+    if (realDisplayTypeName != nullptr)
+    {
+        *realDisplayTypeName = evalStack.front().realDisplayTypeName;
+    }
 
     if (editable != nullptr)
     {
@@ -1968,7 +1975,7 @@ HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLe
     assert(evalStack.size() == 1);
 
     ToRelease<ICorDebugValue> trValue;
-    IfFailRet(GetFrontStackEntryValue(&trValue, nullptr, evalStack, m_evalData, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, &trValue, nullptr, output));
 
     return ImplicitCast(trValue, pValue, evalStack.front().literal, m_evalData);
 }

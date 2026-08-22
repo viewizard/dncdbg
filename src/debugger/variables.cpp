@@ -439,11 +439,19 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
 
     ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
+    std::string realDisplayTypeName;
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameLevel, expression, specifier,
-                                                           nullptr, &trResultValue, output));
+                                                           nullptr, &trResultValue, &realDisplayTypeName, output));
 
     variable.evaluateName = expression;
-    IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trResultValue, variable.type));
+    if (realDisplayTypeName.empty())
+    {
+        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trResultValue, variable.type));
+    }
+    else
+    {
+        variable.type = realDisplayTypeName;
+    }
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier, 0);
@@ -569,7 +577,7 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     bool editable = false;
     std::unique_ptr<Evaluator::SetterData> setterData;
     IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameId.getLevel(), expression, specifier,
-                                                           nullptr, &trValue, output, &editable, &setterData));
+                                                           nullptr, &trValue, nullptr, output, &editable, &setterData));
     if (!editable ||
         (setterData != nullptr && setterData->trSetterFunction == nullptr)) // property that doesn't have a setter
     {
@@ -632,7 +640,8 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     {
         // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for a string in trValue in this case
         trValue.Free();
-        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None, nullptr, &trValue, output));
+        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None,
+                                                               nullptr, &trValue, nullptr, output));
 
         IfFailRet(trValue->GetType(&elemType));
         if (elemType != ELEMENT_TYPE_STRING)

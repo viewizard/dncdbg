@@ -1694,8 +1694,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 }
 
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                ValueKind valueKind, const std::vector<std::string> &identifiers,
-                                int nextIdentifier, FormatSpecifier specifier, ICorDebugValue **ppResult,
+                                ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
+                                FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *realDisplayTypeName,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
@@ -1729,7 +1729,14 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     return S_OK;
                 }
 
-                IfFailRet(getValue(&trResultValue, nullptr));
+                if (FAILED(Status = getValue(&trResultValue, realDisplayTypeName)))
+                {
+                    if (realDisplayTypeName != nullptr)
+                    {
+                        (*realDisplayTypeName).clear();
+                    }
+                    return Status;
+                }
                 if (setterData != nullptr &&
                     resultSetterData != nullptr)
                 {
@@ -1753,8 +1760,8 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
 HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                          std::vector<std::string> &identifiers, FormatSpecifier specifier,
-                                         const PDB::ImportsAndAliases &pdbImports,
-                                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+                                         const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
+                                         std::string *realDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -1798,7 +1805,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             if (TypeHasStaticMembers(trType) &&
                 SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
                 SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
-                                       0, specifier, ppResult, resultSetterData)))
+                                       0, specifier, ppResult, realDisplayTypeName, resultSetterData)))
             {
                 return S_OK;
             }
@@ -1810,7 +1817,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         if (TypeHasStaticMembers(trType) &&
             SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
-                                   0, specifier, ppResult, resultSetterData)))
+                                   0, specifier, ppResult, realDisplayTypeName, resultSetterData)))
         {
             return S_OK;
         }
@@ -1866,14 +1873,14 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
 
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                       SetterData *inputSetterData, std::vector<std::string> &identifiers,
-                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *realDisplayTypeName,
                                       std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
 {
-    if ((pForcedThisValue != nullptr) && identifiers.empty())
+    if (pForcedThisValue != nullptr && identifiers.empty())
     {
         pForcedThisValue->AddRef();
         *ppResultValue = pForcedThisValue;
-        if ((inputSetterData != nullptr) && (resultSetterData != nullptr))
+        if (inputSetterData != nullptr && resultSetterData != nullptr)
         {
             *resultSetterData = std::make_unique<Evaluator::SetterData>(*inputSetterData);
         }
@@ -1882,7 +1889,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else if (pForcedThisValue != nullptr)
     {
         return FollowFields(pThread, frameLevel, pForcedThisValue, ValueKind::Variable, identifiers,
-                            0, specifier, ppResultValue, resultSetterData);
+                            0, specifier, ppResultValue, realDisplayTypeName, resultSetterData);
     }
 
     HRESULT Status = S_OK;
@@ -1945,8 +1952,12 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             {
                 if (name == "this")
                 {
-                    if (FAILED(getValue(&trThisValue, nullptr)) || (trThisValue == nullptr))
+                    if (FAILED(getValue(&trThisValue, realDisplayTypeName)) || (trThisValue == nullptr))
                     {
+                        if (realDisplayTypeName != nullptr)
+                        {
+                            (*realDisplayTypeName).clear();
+                        }
                         return S_OK;
                     }
 
@@ -1957,8 +1968,12 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                 }
                 else if (name == identifiers.at(nextIdentifier))
                 {
-                    if (FAILED(getValue(&trResolvedValue, nullptr)) || (trResolvedValue == nullptr))
+                    if (FAILED(getValue(&trResolvedValue, realDisplayTypeName)) || (trResolvedValue == nullptr))
                     {
+                        if (realDisplayTypeName != nullptr)
+                        {
+                            (*realDisplayTypeName).clear();
+                        }
                         return S_OK;
                     }
 
@@ -1977,7 +1992,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
 
         if (SUCCEEDED(FollowFields(pThread, frameLevel, trThisValue, ValueKind::Variable, identifiers,
-                                   nextIdentifier, specifier, &trResolvedValue, resultSetterData)))
+                                   nextIdentifier, specifier, &trResolvedValue, realDisplayTypeName, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2000,7 +2015,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
-                                            pdbImports, &trResolvedValue, resultSetterData)))
+                                            pdbImports, &trResolvedValue, realDisplayTypeName, resultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2051,7 +2066,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
     ToRelease<ICorDebugValue> trResultValue;
     IfFailRet(FollowFields(pThread, frameLevel, trResolvedValue, valueKind, identifiers,
-                           nextIdentifier, specifier, &trResultValue, resultSetterData));
+                           nextIdentifier, specifier, &trResultValue, realDisplayTypeName, resultSetterData));
 
     *ppResultValue = trResultValue.Detach();
     return S_OK;

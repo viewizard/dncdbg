@@ -326,7 +326,7 @@ void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
             ToRelease<ICorDebugValue> trResultValue;
             if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, expression,
                                                                 pForcedThisValue == nullptr ? specifier : specifier | FormatSpecifier::DisplaysInRawMode,
-                                                                pForcedThisValue, &trResultValue, errorText)) &&
+                                                                pForcedThisValue, &trResultValue, nullptr, errorText)) &&
                 SUCCEEDED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, specifier, value)))
             {
                 output += value;

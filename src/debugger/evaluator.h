@@ -94,7 +94,7 @@ class Evaluator
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                SetterData *inputSetterData, std::vector<std::string> &identifiers,
-                               FormatSpecifier specifier, ICorDebugValue **ppResultValue,
+                               FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *realDisplayTypeName,
                                std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType);
 
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
@@ -113,12 +113,13 @@ class Evaluator
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
                          const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,
-                         ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
+                         ICorDebugValue **ppResult, std::string *realDisplayTypeName,
+                         std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                   std::vector<std::string> &identifiers, FormatSpecifier specifier,
-                                  const PDB::ImportsAndAliases &pdbImports,
-                                  ICorDebugValue **ppResult, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
+                                  const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
+                                  std::string *realDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *resultSetterData);
 
     HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
 

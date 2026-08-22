@@ -94,7 +94,7 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     std::string displayTypeName;
     ToRelease<ICorDebugValue> trResultValue;
     if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
-                                                     nullptr, &trResultValue, output)) ||
+                                                     nullptr, &trResultValue, nullptr, output)) ||
         FAILED(MetadataHelpers::GetFQDisplayTypeName(trResultValue, displayTypeName)) ||
         FAILED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
     {

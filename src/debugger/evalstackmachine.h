@@ -39,6 +39,9 @@ struct EvalStackEntry
     std::vector<std::string> identifiers;
     // Resolved to value identifiers.
     ToRelease<ICorDebugValue> trValue;
+    // Real display type name of the resolved value, more precise than what GetFQDisplayTypeName() may provide
+    // (e.g. for literal array types). Empty when the type should be obtained via the regular metadata lookup.
+    std::string realDisplayTypeName;
     // Generic types cache. Note, finally we need the method's generic types only, i.e. the last element of
     // identifiers vector. The other type(class)'s generics can easily be got from the corresponding ICorDebugType
     std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
@@ -57,6 +60,7 @@ struct EvalStackEntry
     {
         identifiers.clear();
         trValue.Free();
+        realDisplayTypeName.clear();
         trGenericTypeCache.clear();
         preventBinding = false;
         if (resetLiteral == ResetLiteralStatus::Yes)
@@ -100,8 +104,8 @@ class EvalStackMachine
 
     // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
     HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
-                               ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string &output,
-                               bool *editable = nullptr, std::unique_ptr<Evaluator::SetterData> *resultSetterData = nullptr);
+                               ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *realDisplayTypeName,
+                               std::string &output, bool *editable = nullptr, std::unique_ptr<Evaluator::SetterData> *resultSetterData = nullptr);
 
     // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.
     HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
