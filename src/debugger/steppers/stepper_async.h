@@ -34,8 +34,7 @@ class AsyncStepper
         : m_simpleStepper(simpleStepper),
           m_uniqueAsyncInfo(std::make_unique<AsyncInfo>(sharedDebugInfo)),
           m_sharedEvalExec(sharedEvalExec),
-          m_asyncStep(nullptr),
-          m_asyncStepNotifyDebuggerOfWaitCompletion(nullptr)
+          m_asyncStep(nullptr)
     {
     }
 
@@ -100,10 +99,12 @@ class AsyncStepper
     std::mutex m_asyncStepMutex;
     // Pointer to object that provides all active async step related data. Object will be created only in case of active async method stepping.
     std::unique_ptr<asyncStep_t> m_asyncStep;
-    // System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data, will be configured at async method step-out setup.
-    std::unique_ptr<asyncBreakpoint_t> m_asyncStepNotifyDebuggerOfWaitCompletion;
+    // System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data.
+    ToRelease<ICorDebugFunctionBreakpoint> m_trStepNotifyFuncBreakpoint;
+    CORDB_ADDRESS m_privateCoreLibModAddress{0};
+    mdMethodDef m_asyncStepNotifyDebuggerMethodDef{mdMethodDefNil};
 
-    HRESULT SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread);
+    HRESULT CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread);
 };
 
 } // namespace dncdbg

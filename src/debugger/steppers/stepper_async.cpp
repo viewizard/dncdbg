@@ -345,7 +345,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
 
     // If we are at end of async method with await blocks and doing step-in or step-over,
-    // switch to step-out, so whole NotifyDebuggerOfWaitCompletion magic happens.
+    // switch to step-out, so the whole NotifyDebuggerOfWaitCompletion magic happens.
     uint32_t lastIlOffset = 0;
     if (stepType != StepType::STEP_OUT &&
         m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
@@ -369,8 +369,20 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         }
 
         IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue, m_sharedEvalExec.get()));
-        IfFailRet(SetBreakpointIntoNotifyDebuggerOfWaitCompletion(pThread));
-        // Note, we don't create stepper here, since all we need in case of breakpoint is call Continue() from StepCommand().
+
+        if ((m_trStepNotifyFuncBreakpoint == nullptr ||
+             m_privateCoreLibModAddress == 0 ||
+             m_asyncStepNotifyDebuggerMethodDef == mdMethodDefNil) &&
+            FAILED(Status = CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(pThread)))
+        {
+            m_trStepNotifyFuncBreakpoint.Free();
+            m_privateCoreLibModAddress = 0;
+            m_asyncStepNotifyDebuggerMethodDef = mdMethodDefNil;
+            return Status;
+        }
+        IfFailRet(m_trStepNotifyFuncBreakpoint->Activate(TRUE));
+
+        // Note, we don't create stepper here, since all we need in case of a breakpoint is to call Continue() from StepCommand().
         return S_OK;
     }
 
@@ -424,9 +436,9 @@ HRESULT AsyncStepper::DisableAllSteppers()
     {
         m_asyncStep.reset(nullptr);
     }
-    if (m_asyncStepNotifyDebuggerOfWaitCompletion)
+    if (m_trStepNotifyFuncBreakpoint != nullptr)
     {
-        m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
+        m_trStepNotifyFuncBreakpoint->Activate(FALSE);
     }
     m_asyncStepMutex.unlock();
 
@@ -437,7 +449,7 @@ HRESULT AsyncStepper::DisableAllSteppers()
 // called at wait completion if notification was enabled by SetNotificationForWaitCompletion().
 // Note: NotifyDebuggerOfWaitCompletion() will be called only once, since the notification flag
 // will be automatically disabled inside the NotifyDebuggerOfWaitCompletion() method itself.
-HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
+HRESULT AsyncStepper::CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
 {
     HRESULT Status = S_OK;
     static const std::string moduleFileName("System.Private.CoreLib.dll");
@@ -448,23 +460,12 @@ HRESULT AsyncStepper::SetBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugT
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunc->GetModule(&trModule));
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(trModule->GetBaseAddress(&modAddress));
-    mdMethodDef methodDef = mdMethodDefNil;
-    IfFailRet(trFunc->GetToken(&methodDef));
+    IfFailRet(trModule->GetBaseAddress(&m_privateCoreLibModAddress));
+    IfFailRet(trFunc->GetToken(&m_asyncStepNotifyDebuggerMethodDef));
 
     ToRelease<ICorDebugCode> trCode;
     IfFailRet(trFunc->GetILCode(&trCode));
-
-    ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-    IfFailRet(trCode->CreateBreakpoint(0, &trFuncBreakpoint));
-    IfFailRet(trFuncBreakpoint->Activate(TRUE));
-
-    const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
-    m_asyncStepNotifyDebuggerOfWaitCompletion = std::make_unique<asyncBreakpoint_t>();
-    m_asyncStepNotifyDebuggerOfWaitCompletion->trFuncBreakpoint = trFuncBreakpoint.Detach();
-    m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress = modAddress;
-    m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken = methodDef;
+    IfFailRet(trCode->CreateBreakpoint(0, &m_trStepNotifyFuncBreakpoint));
 
     return S_OK;
 }
@@ -501,14 +502,16 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // and NotifyDebuggerOfWaitCompletion magic happens with breakpoint in this method.
         // Note, if we hit NotifyDebuggerOfWaitCompletion breakpoint, it's ours no matter which thread.
 
-        if (!m_asyncStepNotifyDebuggerOfWaitCompletion ||
-            modAddress != m_asyncStepNotifyDebuggerOfWaitCompletion->modAddress ||
-            methodToken != m_asyncStepNotifyDebuggerOfWaitCompletion->methodToken)
+        if (modAddress != m_privateCoreLibModAddress ||
+            methodToken != m_asyncStepNotifyDebuggerMethodDef)
         {
             return S_OK;
         }
 
-        m_asyncStepNotifyDebuggerOfWaitCompletion.reset(nullptr);
+        if (m_trStepNotifyFuncBreakpoint != nullptr)
+        {
+            m_trStepNotifyFuncBreakpoint->Activate(FALSE);
+        }
         // Note, notification flag will be reset automatically in NotifyDebuggerOfWaitCompletion() method,
         // no need to call SetNotificationForWaitCompletion() with FALSE arg (at least, mono acts in the same way).
 
