@@ -273,11 +273,10 @@ HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pTyp
             static const WSTRING gcTypeName(W("System.GC"));
             static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
             IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &m_trSuppressFinalize));
-        }
-
-        if (m_trSuppressFinalize == nullptr)
-        {
-            return E_FAIL;
+            if (m_trSuppressFinalize == nullptr)
+            {
+                return E_FAIL;
+            }
         }
 
         // Note: this call must ignore any eval flags.
