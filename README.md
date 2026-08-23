@@ -18,8 +18,9 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 | **Display method parameters in stack trace** | ✅ | ❌ | ✅ |
 | **Display in/ref/out parameter modifiers** | ✅ | ❌ | ✅ |
 | **Display active CLR internal frames in stack trace** | ✅ | ❌ | ✅ |
+| **Display human readable async stack trace** | ✅ | ❌ | ✅ |
+| **Display local constants (literals)** | ✅ | ❌ | ✅ |
 | **Module unload** | ✅ | ❌ | ✅ |
-| **Constants (literals)** | ✅ | ❌ | ✅ |
 | **Embedded PDB** | ✅ | ❌ | ✅ |
 | **[Evaluation format specifiers](docs/evaluation_format_specifiers.md)** | ✅ | ❌ | ✅ |
 | **DebuggerDisplay attribute** | ✅ | ❌ | ✅ |
