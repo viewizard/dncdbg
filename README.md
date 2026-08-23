@@ -8,6 +8,8 @@ Initially, DNCDbg was based on version 3.1.3 of the [NetCoreDbg](https://github.
 
 See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 
+<div align="center">
+
 |                            |    DNCDbg    |  NetCoreDbg  |  [VsDbg](https://github.com/omnisharp/omnisharp-vscode)  |
 |:---------------------------|:------------:|:------------:|:--------------------------------------------------------:|
 | **License** | MIT | MIT | Commercial<sup>1</sup> |
@@ -33,6 +35,8 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 | **Interop (Mixed) debug** | ❌ | ✅<sup>5</sup> | ❓ |
 | **Hot Reload** | ❌ | ✅<sup>6</sup> | ❓ |
 | **Cross Platform** | ✅ | ✅<sup>7</sup> | ✅ |
+
+</div>
 
 <small><sup>1</sup> From the VsDbg console output: "You may only use the Microsoft .NET Core Debugger (vsdbg) with Visual Studio Code, Visual Studio or Visual Studio for Mac software to help you develop and test your applications."</small><br>
 <small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
