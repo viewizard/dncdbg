@@ -65,8 +65,8 @@ class ExceptionBreakpoints
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
-    CORDB_ADDRESS PrivateCoreLibModAddress{0};
-    mdMethodDef ExceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
+    CORDB_ADDRESS m_privateCoreLibModAddress{0};
+    mdMethodDef m_exceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
 
     std::mutex m_threadsExceptionMutex;
     std::unordered_map<DWORD, ExceptionCallbackType> m_threadsExceptionCallbackType;

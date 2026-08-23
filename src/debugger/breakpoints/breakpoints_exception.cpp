@@ -422,8 +422,8 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
 
 bool ExceptionBreakpoints::IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread)
 {
-    if ((PrivateCoreLibModAddress == 0 || ExceptionDispatchInfoThrowMethodDef == mdMethodDefNil) &&
-        FAILED(FindExceptionDispatchInfoThrow(pThread, PrivateCoreLibModAddress, ExceptionDispatchInfoThrowMethodDef)))
+    if ((m_privateCoreLibModAddress == 0 || m_exceptionDispatchInfoThrowMethodDef == mdMethodDefNil) &&
+        FAILED(FindExceptionDispatchInfoThrow(pThread, m_privateCoreLibModAddress, m_exceptionDispatchInfoThrowMethodDef)))
     {
         return false;
     }
@@ -440,8 +440,8 @@ bool ExceptionBreakpoints::IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread 
            SUCCEEDED(trFunction->GetModule(&trModule)) &&
            SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
            SUCCEEDED(trFunction->GetToken(&methodDef)) &&
-           PrivateCoreLibModAddress == modAddress &&
-           ExceptionDispatchInfoThrowMethodDef == methodDef;
+           m_privateCoreLibModAddress == modAddress &&
+           m_exceptionDispatchInfoThrowMethodDef == methodDef;
 }
 
 /*
