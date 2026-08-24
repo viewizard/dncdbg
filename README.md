@@ -10,7 +10,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 
 <div align="center">
 
-|                            |    DNCDbg    |  [NetCoreDbg](https://github.com/Samsung/netcoredbg)  |  [VsDbg](https://github.com/omnisharp/omnisharp-vscode)  |
+|                            |    DNCDbg    |  [NetCoreDbg](https://github.com/Samsung/netcoredbg)  |  [VsDbg](https://github.com/dotnet/vscode-csharp)  |
 |:---------------------------|:------------:|:------------:|:--------------------------------------------------------:|
 | **License** | MIT | MIT | Commercial<sup>1</sup> |
 | **Implementation** | C++ | C++ and C#<sup>2</sup> | C# |
