@@ -1811,12 +1811,28 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
         return genericTypes;
     }
 
+    // The closing '>' of the outermost generic "<...>" is the last '>' in the
+    // name: array suffixes ("[]", "[,]", ...) never contain '>'.
+    // Everything after it is the suffix, preserved verbatim so it is not
+    // swallowed into the last generic argument (and lost from the metadata name).
+    std::size_t end = displayName.rfind('>');
+    std::string suffix;
+    if (end == std::string::npos)
+    {
+        // No closing '>': malformed input. Fall back to processing the whole string (no suffix).
+        end = displayName.size() - 1;
+    }
+    else if (end + 1 < displayName.size())
+    {
+        suffix = displayName.substr(end + 1);
+    }
+
     int paramDepth = 0; // Depth inside generic angle brackets "<...>".
     int arrayDepth = 0; // Depth inside array brackets "[...]"; commas inside are rank separators, not arg separators.
 
     genericTypes.emplace_back();
 
-    for (std::size_t i = start; i < displayName.size(); i++)
+    for (std::size_t i = start; i <= end; i++)
     {
         const char c = displayName.at(i);
         switch (c)
@@ -1871,7 +1887,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 
     std::string baseName = displayName.substr(0, start);
     TrimString(baseName);
-    metadataName = baseName + '`' + std::to_string(genericTypes.size());
+    metadataName = baseName + '`' + std::to_string(genericTypes.size()) + suffix;
     return genericTypes;
 }
 
