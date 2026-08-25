@@ -25,6 +25,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 | **[Source File Map](https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map)** | ✅ | ❌ | ✅ |
 | **Module unload** | ✅ | ❌ | ✅ |
 | **Embedded PDB** | ✅ | ❌ | ✅ |
+| **Tracepoints/Logpoints** | ✅ | ❌ | ✅ |
 | **[Evaluation format specifiers](docs/evaluation_format_specifiers.md)** | ✅ | ❌ | ✅ |
 | **DebuggerBrowsable attribute** | ✅ | ✅<sup>4</sup> | ✅ |
 | **DebuggerDisplay attribute** | ✅ | ❌ | ✅ |
