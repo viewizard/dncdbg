@@ -54,6 +54,7 @@ Upcoming changes compared to previous version.
 - Refactored breakpoint condition/trace eval to use EvalStackMachine directly.
 - Improved custom attribute detection.
 - Refactored ResolveTypeParameters to detect circular type dependencies.
+- Pinned heap values via GC handles to survive evaluations on break.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.

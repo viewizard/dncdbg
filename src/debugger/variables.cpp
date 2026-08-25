@@ -153,6 +153,38 @@ void FixupInheritedNames(std::vector<VariableMember> &members)
     }
 }
 
+HRESULT CreatePinnedHandle(ICorDebugValue *pValue, ICorDebugHandleValue **ppHandleValue)
+{
+    HRESULT Status = S_OK;
+
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(pValue->GetType(&elemType));
+
+    // Note, reference objects (class, array, szarray, byref) may be moved or invalidated by the GC/runtime during
+    // evaluations (which happen during break), so pin heap values via a GC handle that survives across continue-break
+    // (same behavior as MS vsdbg).
+    // DereferenceAndUnboxValue produces the inner heap object in trValue, so ICorDebugHeapValue2 must be queried on it
+    // (not on pValue, which may be a byref/ELEMENT_TYPE_BYREF and does not support IID_ICorDebugHeapValue2).
+    if (elemType == ELEMENT_TYPE_CLASS ||
+        elemType == ELEMENT_TYPE_ARRAY ||
+        elemType == ELEMENT_TYPE_SZARRAY ||
+        elemType == ELEMENT_TYPE_BYREF)
+    {
+        BOOL isNull = FALSE;
+        ToRelease<ICorDebugValue> trValue;
+        IfFailRet(DereferenceAndUnboxValue(pValue, &trValue, &isNull));
+        ToRelease<ICorDebugHeapValue2> trHeapValue2;
+        if (isNull == FALSE && trValue != nullptr)
+        {
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugHeapValue2, reinterpret_cast<void **>(&trHeapValue2)));
+            IfFailRet(trHeapValue2->CreateHandle(CorDebugHandleType::HANDLE_PINNED, ppHandleValue));
+            return S_OK;
+        }
+    }
+
+    return E_FAIL;
+}
+
 } // unnamed namespace
 
 // Caller should guarantee, that pProcess is not null.
@@ -223,9 +255,22 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
     assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
     variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
-    pValue->AddRef();
-    VariableReference variableReference(variable, frameId, pValue, valueKind, specifier, skipToChildIndex);
-    m_references.emplace(variable.variablesReference, std::move(variableReference));
+
+    ToRelease<ICorDebugHandleValue> trHandleValue;
+    if (SUCCEEDED(CreatePinnedHandle(pValue, &trHandleValue)))
+    {
+        // Note, ICorDebugHandleValue derives from ICorDebugValue, so it can be stored in VariableReference.
+        VariableReference variableReference(variable, frameId, trHandleValue.Detach(),
+                                            valueKind, specifier, skipToChildIndex);
+        m_references.emplace(variable.variablesReference, std::move(variableReference));
+    }
+    else
+    {
+        // Fallback for value types, null references or in case pinning failed - store raw pValue.
+        pValue->AddRef();
+        VariableReference variableReference(variable, frameId, pValue, valueKind, specifier, skipToChildIndex);
+        m_references.emplace(variable.variablesReference, std::move(variableReference));
+    }
 
     return S_OK;
 }
@@ -381,8 +426,21 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
             var.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
-            VariableReference variableReference(var, ref.frameId, it.trValue.Detach(), ref.valueKind, ref.specifier, it.skipToChildIndex);
-            m_references.emplace(var.variablesReference, std::move(variableReference));
+
+            ToRelease<ICorDebugHandleValue> trHandleValue;
+            if (SUCCEEDED(CreatePinnedHandle(it.trValue, &trHandleValue)))
+            {
+                // Note, ICorDebugHandleValue derives from ICorDebugValue, so it can be stored in VariableReference.
+                VariableReference variableReference(var, ref.frameId, trHandleValue.Detach(), ref.valueKind,
+                                                    ref.specifier, it.skipToChildIndex);
+                m_references.emplace(var.variablesReference, std::move(variableReference));
+            }
+            else
+            {
+                // Fallback for value types, null references or in case pinning failed - store raw it.trValue.
+                VariableReference variableReference(var, ref.frameId, it.trValue.Detach(), ref.valueKind, ref.specifier, it.skipToChildIndex);
+                m_references.emplace(var.variablesReference, std::move(variableReference));
+            }
         }
         else
         {
