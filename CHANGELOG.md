@@ -56,6 +56,7 @@ Upcoming changes compared to previous version.
 - Improved custom attribute detection.
 - Refactored ResolveTypeParameters to detect circular type dependencies.
 - Pinned heap values via GC handles to survive evaluations on break.
+- Updated GSL version to 5.0.0.
 
 #### Removed
 - Removed stderr output from PDBReader::GetStateMachineMethods if no async methods were found.
