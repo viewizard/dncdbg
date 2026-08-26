@@ -289,7 +289,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     }
                 }
             }
-            return S_OK; // Return with success to continue walk.
+            return S_OK; // Return success to continue walking.
         });
 
     // Note, ForEachFields() could return S_CAN_EXIT for fast exit.
@@ -458,7 +458,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
             (fieldAttr & fdStatic) != 0 ||
             (fieldAttr & fdLiteral) != 0)
         {
-            return S_OK; // Return with success to continue walk.
+            return S_OK; // Return success to continue walking.
         }
         // Remove null terminator that was included in the length
         if (!mdName.empty() && mdName.back() == '\0')
@@ -471,7 +471,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
             FAILED(TryParseGeneratedName(mdName, wParameterName)) ||
             usedNames.find(wParameterName) != usedNames.end())
         {
-            return S_OK; // Return with success to continue walk.
+            return S_OK; // Return success to continue walking.
         }
 
         auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
@@ -537,7 +537,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 (fieldAttr & fdStatic) != 0 ||
                 (fieldAttr & fdLiteral) != 0)
             {
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }
             // Remove null terminator that was included in the length
             if (!mdName.empty() && mdName.back() == '\0')
@@ -576,18 +576,18 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 if (SUCCEEDED(TryParseSlotIndex(mdName, index)) && index >= 0 &&
                     !pDebugInfo->IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 if (usedNames.find(mdName) != usedNames.end())
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 WSTRING wLocalName;
                 if (FAILED(TryParseGeneratedName(mdName, wLocalName)))
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 IfFailRet(cb(to_utf8(wLocalName.c_str()), getValue));
@@ -608,7 +608,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 }
                 usedNames.insert(mdName);
             }
-            return S_OK; // Return with success to continue walk.
+            return S_OK; // Return success to continue walking.
         });
 }
 
@@ -1036,7 +1036,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                                               GetDebuggerBrowsableAttributeState(trMDImport, fieldDef);
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     ULONG nameLen = 0;
@@ -1047,7 +1047,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     if (isTypeProxyValue && !showHidden &&
                         (fieldAttr & fdFieldAccessMask) != fdPublic)
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     WSTRING mdName(nameLen, '\0');
@@ -1071,13 +1071,13 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
                         if (!showHidden && IsSynthesizedLocalName(mdName))
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         const bool isStatic = (fieldAttr & fdStatic);
                         if (isNull == TRUE && !isStatic)
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         const std::string name = to_utf8(mdName.c_str());
@@ -1119,7 +1119,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             {
                                 trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         std::string textWithEval;
@@ -1131,7 +1131,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_CAN_EXIT; // Fast exit from the loop.
                         }
                     }
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }));
             if (Status == S_CAN_EXIT)
             {
@@ -1144,7 +1144,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                                               GetDebuggerBrowsableAttributeState(trMDImport, propertyDef);
                     if (browsableState == DebuggerBrowsableState::Never)
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     ULONG propertyNameLen = 0;
@@ -1163,19 +1163,19 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
                                                               nullptr, nullptr, nullptr, nullptr)))
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         if (isTypeProxyValue && !showHidden &&
                             (getterAttr & mdMemberAccessMask) != mdPublic)
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         bool isStatic = (getterAttr & mdStatic);
                         if (isNull == TRUE && !isStatic)
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         const std::string name = to_utf8(propertyName.data());
@@ -1202,7 +1202,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             {
                                 trWalkQueue.emplace_back(trResultValue.Detach(), false);
                             }
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         std::string textWithEval;
@@ -1231,7 +1231,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             }
                         }
                     }
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 });
             // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
             IfFailRet(Status);
@@ -1850,7 +1850,7 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
         {
             if (isStatic || !methodArgs.empty() || methodName != "ToString")
             {
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }
 
             IfFailRet(getFunction(&trFunc));

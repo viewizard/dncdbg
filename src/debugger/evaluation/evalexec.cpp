@@ -450,7 +450,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
                 mdTypeDef typeDef = mdTypeDefNil;
                 if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 IfFailRet(createByTypeDef(pModule, typeDef));
@@ -553,7 +553,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
                         mdTypeDef typeDef = mdTypeDefNil;
                         if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
 
                         IfFailRet(pModule->GetClassFromToken(typeDef, &trClass));

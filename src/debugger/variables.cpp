@@ -99,14 +99,14 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread
             const bool addMember = ref.valueKind == ValueKind::Static ? isStatic : !isStatic;
             if (!addMember)
             {
-                return S_OK;
+                return S_OK; // Return success to continue walking.
             }
 
             count++;
 
             if (count <= ref.skipToChildIndex)
             {
-                return S_OK;
+                return S_OK; // Return success to continue walking.
             }
 
             if (count > ref.skipToChildIndex + maxCount)
@@ -133,7 +133,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread
 
             members.emplace_back(name, displayTypeName, fallbackTypeName, trResultValue.Detach(),
                                  customDisplayTextWithEval != nullptr ? *customDisplayTextWithEval : std::string{});
-            return S_OK;
+            return S_OK; // Return success to continue walking.
         }));
 
     return S_OK;
@@ -239,7 +239,7 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
                 // into a separate "Static members" entry (see GetChildren()).
                 if (!isStatic && valueKind == ValueKind::Static)
                 {
-                    return S_OK;
+                    return S_OK; // Return success to continue walking.
                 }
 
                 hasChildren = true;
@@ -323,12 +323,12 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
 
                     if (FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None, 0)))
                     {
-                        return S_OK;
+                        return S_OK; // Return success to continue walking.
                     }
                 }
                 else
                 {
-                    return S_OK;
+                    return S_OK; // Return success to continue walking.
                 }
             }
 
@@ -338,7 +338,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             }
 
             variables.push_back(var);
-            return S_OK;
+            return S_OK; // Return success to continue walking.
         });
 }
 
@@ -553,7 +553,7 @@ HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThrea
         {
             if (varName != name)
             {
-                return S_OK;
+                return S_OK; // Return success to continue walking.
             }
 
             ToRelease<ICorDebugValue> trValue;
@@ -591,7 +591,7 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
         {
             if (varName != name)
             {
-                return S_OK;
+                return S_OK; // Return success to continue walking.
             }
 
             if (setterData && !setterData->trSetterFunction)

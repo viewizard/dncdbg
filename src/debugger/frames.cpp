@@ -576,7 +576,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
                 return S_CAN_EXIT; // Fast exit from the loop.
             }
 
-            return S_OK; // Continue walk.
+            return S_OK; // Return success to continue walking.
         });
 
     int currentFrame = -1;
@@ -704,7 +704,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
                 return S_CAN_EXIT; // Fast exit from the loop.
             }
 
-            return S_OK; // Continue walk.
+            return S_OK; // Return success to continue walking.
         });
 
     int currentFrame = -1;

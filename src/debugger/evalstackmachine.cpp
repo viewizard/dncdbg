@@ -245,7 +245,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemType != methodArgs.at(0).elemType || metadataTypeName != methodArgs.at(0).metadataTypeName)
             {
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }
 
             IfFailRet(getFunction(&trFunc));
@@ -280,7 +280,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
                 elemRetType != methodRet.elemType || typeRetName != methodRet.metadataTypeName ||
                 elemType != methodArgs.at(0).elemType || typeName != methodArgs.at(0).metadataTypeName)
             {
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }
 
             IfFailRet(getFunction(&trFunc));
@@ -481,7 +481,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
                 {
                     if (!isStatic || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     IfFailRet(getFunction(&trFunc));
@@ -1049,7 +1049,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                     funcName != methodName || funcArgs.size() != methodArgs.size() ||
                     methodGenParamCount != expectedMethodGenParamCount)
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
@@ -1058,7 +1058,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                         // TODO: must care about implicit cast
                         funcArgs.at(i) != methodArgs.at(i))
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
                 }
 
@@ -1092,7 +1092,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                     // Note: extension methods explicitly provide `this` as first argument in argElementTypes.
                     if ((funcArgs.size() + 1) != methodArgs.size() || funcName != methodName)
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>).
@@ -1107,7 +1107,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                     if (!hasThisTypeParams &&
                         methodGenParamCount != expectedMethodGenParamCount)
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
 
                     for (size_t i = 0; i < funcArgs.size(); ++i)
@@ -1116,7 +1116,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                             // TODO: must care about implicit cast
                             funcArgs.at(i) != methodArgs.at(i + 1))
                         {
-                            return S_OK; // Return with success to continue walk.
+                            return S_OK; // Return success to continue walking.
                         }
                     }
 
@@ -1250,7 +1250,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
         {
             if (isStatic || methodName != ".ctor" || funcArgs.size() != methodArgs.size())
             {
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }
 
             for (size_t i = 0; i < funcArgs.size(); ++i)
@@ -1258,7 +1258,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
                 // TODO: must care about implicit cast
                 if (funcArgs.at(i) != methodArgs.at(i))
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
             }
 
@@ -1374,7 +1374,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
                 if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                     found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
@@ -1382,7 +1382,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
                     // TODO: must care about implicit cast
                     if (funcArgs.at(i) != methodArgs.at(i))
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
                 }
                 IfFailRet(getFunction(&trFunc));
@@ -1498,7 +1498,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
                 if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
                     found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
                 {
-                    return S_OK; // Return with success to continue walk.
+                    return S_OK; // Return success to continue walking.
                 }
 
                 for (size_t i = 0; i < funcArgs.size(); ++i)
@@ -1506,7 +1506,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
                     // TODO: must care about implicit cast
                     if (funcArgs.at(i) != methodArgs.at(i))
                     {
-                        return S_OK; // Return with success to continue walk.
+                        return S_OK; // Return success to continue walking.
                     }
                 }
                 IfFailRet(getFunction(&trFunc));

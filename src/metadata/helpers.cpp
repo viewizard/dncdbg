@@ -758,7 +758,7 @@ HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::str
                 return S_CAN_EXIT; // Fast exit from the loop.
             }
 
-            return S_OK; // Return with success to continue walk.
+            return S_OK; // Return success to continue walking.
         }));
 
     if (typeToken != mdTypeDefNil)
@@ -794,7 +794,7 @@ HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::str
                     return S_CAN_EXIT; // Fast exit from the loop.
                 }
 
-                return S_OK; // Return with success to continue walk.
+                return S_OK; // Return success to continue walking.
             }));
 
         if (typeToken != mdTypeDefNil)
