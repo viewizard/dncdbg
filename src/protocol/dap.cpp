@@ -203,6 +203,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 m_sharedDebugger->Initialize();
                 // clientID, clientName, adapterID - not in use now
 
+                // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
+
                 DAPIO::AddCapabilitiesTo(responseBody);
 
                 return S_OK;
@@ -595,6 +597,10 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("result", variable.value);
                 responseBody.emplace("type", variable.type);
                 responseBody.emplace("variablesReference", variable.variablesReference);
+                if (!variable.memoryReference.empty())
+                {
+                    responseBody.emplace("memoryReference", variable.memoryReference);
+                }
                 return S_OK;
             }},
         {"setExpression", [&](const json &arguments, json &responseBody)
@@ -632,7 +638,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                     return Status;
                 }
-
+                // TODO: add `memoryReference`
                 responseBody.emplace("value", output);
                 return S_OK;
             }},
@@ -659,7 +665,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     responseBody.emplace("message", output);
                     return Status;
                 }
-
+                // TODO: add `type` and `memoryReference`
                 responseBody.emplace("value", output);
 
                 return S_OK;

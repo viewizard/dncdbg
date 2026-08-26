@@ -84,6 +84,11 @@ void to_json(json &j, const Variable &v)
              {"type", v.type},
              {"evaluateName", v.evaluateName},
              {"variablesReference", v.variablesReference}};
+
+    if (!v.memoryReference.empty())
+    {
+        j.emplace("memoryReference", v.memoryReference);
+    }
 }
 
 void to_json(json &j, const Module &m)

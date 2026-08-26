@@ -11,6 +11,7 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include <array>
+#include <charconv>
 #include <unordered_set>
 #include <vector>
 
@@ -185,6 +186,43 @@ HRESULT CreatePinnedHandle(ICorDebugValue *pValue, ICorDebugHandleValue **ppHand
     return E_FAIL;
 }
 
+HRESULT GetMemoryReference(ICorDebugValue *pInputValue, std::string &memoryReference)
+{
+    // Note: in case of error during evaluation, pInputValue could be nullptr.
+    if (pInputValue == nullptr)
+    {
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugReferenceValue> trReferenceValue;
+    CORDB_ADDRESS addr = 0;
+    if (FAILED(pInputValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+    {
+        IfFailRet(pInputValue->GetAddress(&addr));
+    }
+    else
+    {
+        IfFailRet(trReferenceValue->GetValue(&addr));
+    }
+
+    static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
+    memoryReference.resize(addrSize + 2, '0');
+    memoryReference.at(1) = 'x';
+
+    auto [ptr, ec] = std::to_chars(memoryReference.data() + 2, memoryReference.data() + memoryReference.size(), addr, addrSize);
+
+    if (ptr < memoryReference.data() + memoryReference.size())
+    {
+        const std::size_t writtenLen = ptr - (memoryReference.data() + 2);
+        std::copy_backward(memoryReference.data() + 2, ptr, memoryReference.data() + memoryReference.size());
+        std::fill_n(memoryReference.data() + 2, addrSize - writtenLen, '0');
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 // Caller should guarantee, that pProcess is not null.
@@ -286,6 +324,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         HRESULT Status = S_OK;
         IfFailRet(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trExceptionValue, FormatSpecifier::None, var.value));
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, var.type));
+        IfFailRet(GetMemoryReference(trExceptionValue, var.memoryReference));
 
         return AddVariableReference(pThread, var, frameId, trExceptionValue, ValueKind::Variable, FormatSpecifier::None, 0);
     }
@@ -314,6 +353,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
                 FAILED(MetadataHelpers::GetFQDisplayTypeName(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, var.value)) ||
+                FAILED(GetMemoryReference(trValue, var.memoryReference)) ||
                 FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None, 0)))
             {
                 if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
@@ -454,6 +494,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             {
                 var.type = std::move(it.realDisplayTypeName);
             }
+            IfFailRet(GetMemoryReference(it.trValue, var.memoryReference));
             IfFailRet(AddVariableReference(pThread, var, ref.frameId, it.trValue, ValueKind::Variable, ref.specifier, it.skipToChildIndex));
         }
 
@@ -511,6 +552,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
         variable.type = realDisplayTypeName;
     }
     IfFailRet(PrintValue(trThread, m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
+    IfFailRet(GetMemoryReference(trResultValue, variable.memoryReference));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier, 0);
 }

@@ -342,9 +342,9 @@ struct Variable
     VariablePresentationHint presentationHint;
     std::string evaluateName;
     uint32_t variablesReference{0};
+    std::string memoryReference;
     // namedVariables?: number;
     // indexedVariables?: number;
-    // memoryReference?: string;
     // declarationLocationReference?: number;
     // valueLocationReference?: number;
 };

@@ -359,7 +359,7 @@
 +   variablesReference: number;
 -   namedVariables?: number;
 -   indexedVariables?: number;
--   memoryReference?: string;
++   memoryReference?: string;
 -   valueLocationReference?: number;
 ```
 #### SetExpressionRequest `setExpression`
@@ -515,7 +515,7 @@
 +   variablesReference: number;
 -   namedVariables?: number;
 -   indexedVariables?: number;
--   memoryReference?: string;
++   memoryReference?: string;
 -   declarationLocationReference?: number;
 -   valueLocationReference?: number;
 ```
