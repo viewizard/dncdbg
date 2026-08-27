@@ -230,8 +230,27 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     return S_OK;
 }
 
+CORDB_ADDRESS GetIP(CONTEXT *context)
+{
+#ifdef _TARGET_AMD64_
+    return static_cast<CORDB_ADDRESS>(context->Rip);
+#elif defined(_TARGET_X86_)
+    return static_cast<CORDB_ADDRESS>(context->Eip);
+#elif defined(_TARGET_ARM_)
+    return static_cast<CORDB_ADDRESS>(context->Pc);
+#elif defined(_TARGET_ARM64_)
+    return static_cast<CORDB_ADDRESS>(context->Pc);
+#elif defined(_TARGET_RISCV64_)
+    return static_cast<CORDB_ADDRESS>(context->Pc);
+#elif defined(_TARGET_LOONGARCH64_)
+    return static_cast<CORDB_ADDRESS>(context->Pc);
+#else
+#error "Unsupported platform"
+#endif
+}
+
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
-                                                 const std::string *, const std::string *)>;
+                                                 const std::string *, const std::string *, CORDB_ADDRESS)>;
 
 HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb)
 {
@@ -323,7 +342,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
                 SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath)))
             {
-                if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &displayMethodName, &sourceFilePath) == S_CAN_EXIT)
+                if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &displayMethodName,
+                       &sourceFilePath, exceptionObjectStackFrame.ip) == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT;
                 }
@@ -331,7 +351,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             // Make sure that the last foreign exception frame itself is added to the stack trace.
             else if (exceptionObjectStackFrame.isLastForeignExceptionFrame == TRUE)
             {
-                if (cb(FrameType::CLRManagedException, nullptr, nullptr, &displayMethodName, nullptr) == S_CAN_EXIT)
+                if (cb(FrameType::CLRManagedException, nullptr, nullptr, &displayMethodName,
+                       nullptr, exceptionObjectStackFrame.ip) == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT;
                 }
@@ -393,7 +414,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                     if (SUCCEEDED((*it)->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
                         AllowInternalFrame(*it, false))
                     {
-                        if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+                        if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
                         {
                             return S_OK;
                         }
@@ -443,7 +464,12 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 continue;
             }
 
-            if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+            CONTEXT currentCtx;
+            uint32_t contextSize = 0;
+            static constexpr uint32_t ctxFlags = CONTEXT_CONTROL;
+            IfFailRet(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<BYTE*>(&currentCtx)));
+
+            if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr, GetIP(&currentCtx)) == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -454,7 +480,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         ToRelease<ICorDebugNativeFrame> trNativeFrame;
         if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&trNativeFrame))))
         {
-            if (cb(FrameType::CLRNative, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+            if (cb(FrameType::CLRNative, nullptr, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -462,7 +488,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             continue;
         }
 
-        if (cb(FrameType::Unknown, nullptr, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+        if (cb(FrameType::Unknown, nullptr, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
         {
             return S_OK;
         }
@@ -474,7 +500,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         if (SUCCEEDED(trIntFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
             AllowInternalFrame(trIntFrame2, true))
         {
-            if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr) == S_CAN_EXIT)
+            if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -562,7 +588,8 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
     // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
-        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *, const std::string *, const std::string *) -> HRESULT
+        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *,
+            const std::string *, const std::string *, CORDB_ADDRESS) -> HRESULT
         {
             if (pFrame != nullptr)
             {
@@ -659,10 +686,12 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         FrameType frameType;
         ToRelease<ICorDebugFrame> trFrame;
         IntWalkExceptionFrame *excFrame{nullptr};
+        CORDB_ADDRESS ip{0};
 
-        IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_)
+        IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_, CORDB_ADDRESS ip_)
             : frameType(frameType_),
-              trFrame(pFrame_)
+              trFrame(pFrame_),
+              ip(ip_)
         {
         }
     };
@@ -676,7 +705,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
-            const std::string *methodName, const std::string *sourceFilePath) -> HRESULT
+            const std::string *methodName, const std::string *sourceFilePath, CORDB_ADDRESS ip) -> HRESULT
         {
             if (pFrame != nullptr)
             {
@@ -689,7 +718,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
                 return S_CAN_EXIT; // Fast exit from the loop.
             }
 
-            walkFrames.emplace_back(frameType, pFrame);
+            walkFrames.emplace_back(frameType, pFrame, ip);
 
             if (frameType == FrameType::CLRManagedException ||
                 frameType == FrameType::CLRManagedExceptionUser)
@@ -774,6 +803,10 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         {
             StackFrame stackFrame;
             GetFrameLocation(frame.trFrame, threadId, FrameLevel{currentFrame}, pDebugInfo, stackFrame);
+            if (frame.ip != 0)
+            {
+                stackFrame.instructionPointerReference = MetadataHelpers::AddrToString(frame.ip);
+            }
             stackFrames.push_back(stackFrame);
             break;
         }
@@ -786,6 +819,10 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
                 stackFrames.back().source = Source(frame.excFrame->sourceFilePath);
                 stackFrames.back().line = frame.excFrame->sequencePoint.startLine;
                 stackFrames.back().endLine = frame.excFrame->sequencePoint.endLine;
+            }
+            if (frame.ip != 0)
+            {
+                stackFrames.back().instructionPointerReference = MetadataHelpers::AddrToString(frame.ip);
             }
             break;
         }

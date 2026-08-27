@@ -487,7 +487,7 @@
 +   endLine?: number;
 +   endColumn?: number;
 -   canRestart?: boolean;
--   instructionPointerReference?: string;
++   instructionPointerReference?: string;
 +   moduleId?: number | string;
 -   presentationHint?: 'normal' | 'label' | 'subtle';
 ```

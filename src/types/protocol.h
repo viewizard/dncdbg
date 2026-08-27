@@ -60,7 +60,7 @@ struct StackFrame
     int endLine;
     int endColumn;
     // canRestart?: boolean;
-    // instructionPointerReference?: string;
+    std::string instructionPointerReference;
     std::string moduleId;
     // presentationHint?: 'normal' | 'label' | 'subtle';
 
@@ -342,9 +342,9 @@ struct Variable
     VariablePresentationHint presentationHint;
     std::string evaluateName;
     uint32_t variablesReference{0};
-    std::string memoryReference;
     // namedVariables?: number;
     // indexedVariables?: number;
+    std::string memoryReference;
     // declarationLocationReference?: number;
     // valueLocationReference?: number;
 };
