@@ -1,5 +1,4 @@
-## [Unreleased]
-Upcoming changes compared to previous version.
+## Version 1.2.0
 
 #### DAP
 - Added support for the `allowToString` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
