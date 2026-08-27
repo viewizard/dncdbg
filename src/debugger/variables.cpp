@@ -11,7 +11,6 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include <array>
-#include <charconv>
 #include <unordered_set>
 #include <vector>
 
@@ -207,18 +206,7 @@ HRESULT GetMemoryReference(ICorDebugValue *pInputValue, std::string &memoryRefer
         IfFailRet(trReferenceValue->GetValue(&addr));
     }
 
-    static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
-    memoryReference.resize(addrSize + 2, '0');
-    memoryReference.at(1) = 'x';
-
-    auto [ptr, ec] = std::to_chars(memoryReference.data() + 2, memoryReference.data() + memoryReference.size(), addr, addrSize);
-
-    if (ptr < memoryReference.data() + memoryReference.size())
-    {
-        const std::size_t writtenLen = ptr - (memoryReference.data() + 2);
-        std::copy_backward(memoryReference.data() + 2, ptr, memoryReference.data() + memoryReference.size());
-        std::fill_n(memoryReference.data() + 2, addrSize - writtenLen, '0');
-    }
+    memoryReference = MetadataHelpers::AddrToString(addr);
 
     return S_OK;
 }

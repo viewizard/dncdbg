@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/modules.h"
+#include "metadata/helpers.h"
 #include "metadata/jmc.h"
 #include "protocol/dapio.h"
 #include "utils/filesystem.h"
@@ -12,7 +13,6 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <cassert>
-#include <iomanip>
 #include <sstream>
 
 #define MINIZ_NO_STDIO
@@ -503,12 +503,10 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
     if (SUCCEEDED(pModule->GetBaseAddress(&moduleBaseAddress)) &&
         SUCCEEDED(pModule->GetSize(&moduleSize)))
     {
-        static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
-        std::ostringstream ss;
-        ss << "0x" << std::hex << std::setfill('0')
-           << std::setw(addrSize) << moduleBaseAddress << "-0x"
-           << std::setw(addrSize) << moduleBaseAddress + moduleSize;
-        module.addressRange = ss.str();
+        // "0x" + CORDB_ADDRESS (16 hex digits) + "-" + "0x" + CORDB_ADDRESS (16 hex digits).
+        // AddrToString already includes the "0x" prefix, so the total length is 37 characters.
+        module.addressRange = MetadataHelpers::AddrToString(moduleBaseAddress) + '-' +
+                              MetadataHelpers::AddrToString(moduleBaseAddress + moduleSize);
     }
     else
     {

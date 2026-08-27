@@ -89,6 +89,10 @@ HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
 // Returns E_FAIL for element types that are not built-in primitives or keywords.
 HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName);
 
+// Fast conversion of a CORDB_ADDRESS to a std::string for DAP memory address related fields.
+// The result includes the "0x" prefix followed by 16 hexadecimal digits.
+std::string AddrToString(CORDB_ADDRESS corAddr);
+
 } // namespace MetadataHelpers
 
 } // namespace dncdbg

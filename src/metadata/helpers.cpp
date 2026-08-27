@@ -12,6 +12,7 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <charconv>
 #include <map>
 #include <set>
 #include <sstream>
@@ -2272,6 +2273,24 @@ HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName)
 
     typeName = findName->second;
     return S_OK;
+}
+
+std::string AddrToString(CORDB_ADDRESS corAddr)
+{
+    static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
+    std::string strAddr(addrSize + 2, '0');
+    strAddr.at(1) = 'x';
+
+    auto [ptr, ec] = std::to_chars(strAddr.data() + 2, strAddr.data() + strAddr.size(), corAddr, addrSize);
+
+    if (ptr < strAddr.data() + strAddr.size())
+    {
+        const std::size_t writtenLen = ptr - (strAddr.data() + 2);
+        std::copy_backward(strAddr.data() + 2, ptr, strAddr.data() + strAddr.size());
+        std::fill_n(strAddr.data() + 2, addrSize - writtenLen, '0');
+    }
+
+    return strAddr;
 }
 
 } // namespace dncdbg::MetadataHelpers
