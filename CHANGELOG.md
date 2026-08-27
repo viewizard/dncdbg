@@ -6,6 +6,7 @@ Upcoming changes compared to previous version.
 - Added support for the `showRawValues` configuration option in Launch Request (part of `ExpressionEvaluationOptions`).
 - Added `memoryReference` support in Variable and Evaluate Response.
 - Added `instructionPointerReference` support in StackFrame.
+- Added `presentationHint` support in StackFrame.
 - Removed broken implementation of `filter`, `start` and `count` from Variables Request.
 - Removed broken implementation of `namedVariables` from Evaluate Response.
 - Removed broken implementation of `namedVariables` and `indexedVariables` from Scope.

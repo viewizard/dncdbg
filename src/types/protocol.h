@@ -62,7 +62,7 @@ struct StackFrame
     // canRestart?: boolean;
     std::string instructionPointerReference;
     std::string moduleId;
-    // presentationHint?: 'normal' | 'label' | 'subtle';
+    std::string presentationHint;
 
     StackFrame()
         : line(0),

@@ -65,6 +65,10 @@ void to_json(json &j, const StackFrame &f)
     {
         j.emplace("instructionPointerReference", f.instructionPointerReference);
     }
+    if (!f.presentationHint.empty())
+    {
+        j.emplace("presentationHint", f.presentationHint);
+    }
 }
 
 void to_json(json &j, const Thread &t)

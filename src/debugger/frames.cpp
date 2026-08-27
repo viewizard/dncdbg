@@ -760,6 +760,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
                 {
                     currentFrame++;
                     stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExternalCodeText);
+                    stackFrames.back().presentationHint = "subtle";
                     prevFrameExternal = true;
                 }
                 continue;
@@ -781,9 +782,11 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         {
         case FrameType::Unknown:
             stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameUnknownText);
+            stackFrames.back().presentationHint = "subtle";
             break;
         case FrameType::CLRNative:
             stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, FrameCLRNativeText);
+            stackFrames.back().presentationHint = "subtle";
             break;
         case FrameType::CLRInternal:
         {
@@ -797,6 +800,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             name += GetInternalTypeName(corFrameType);
             name += "]";
             stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
+            stackFrames.back().presentationHint = "subtle";
             break;
         }
         case FrameType::CLRManaged:
@@ -807,6 +811,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             {
                 stackFrame.instructionPointerReference = MetadataHelpers::AddrToString(frame.ip);
             }
+            stackFrame.presentationHint = "normal";
             stackFrames.push_back(stackFrame);
             break;
         }
@@ -814,6 +819,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         case FrameType::CLRManagedExceptionUser:
         {
             stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + frame.excFrame->methodName);
+            stackFrames.back().presentationHint = "normal";
             if (frame.frameType == FrameType::CLRManagedExceptionUser)
             {
                 stackFrames.back().source = Source(frame.excFrame->sourceFilePath);
@@ -832,6 +838,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     if (stackTruncated)
     {
         stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, TruncatedStackTrace);
+        stackFrames.back().presentationHint = "subtle";
     }
 
     return S_OK;

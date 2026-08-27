@@ -489,7 +489,7 @@
 -   canRestart?: boolean;
 +   instructionPointerReference?: string;
 +   moduleId?: number | string;
--   presentationHint?: 'normal' | 'label' | 'subtle';
++   presentationHint?: 'normal' | 'label' | 'subtle';
 ```
 #### Scope
 ```diff
