@@ -478,12 +478,14 @@ HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilO
     return GetNextUserCodeILOffset(trModule, methodToken, ilOffset, ilNextOffset);
 }
 
-HRESULT DebugInfo::GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath)
+HRESULT DebugInfo::GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
+                                 std::string *algorithm, std::string *checksum)
 {
     return GetPDBInfo(globalFileIndex.modAddress,
         [&](const PDBInfo &pdbInfo) -> HRESULT
         {
-            return PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, globalFileIndex.sourceFileIndex, sourceFilePath);
+            return PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, globalFileIndex.sourceFileIndex,
+                                            sourceFilePath, algorithm, checksum);
         });
 }
 

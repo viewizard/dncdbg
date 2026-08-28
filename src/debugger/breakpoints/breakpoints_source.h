@@ -95,7 +95,8 @@ class SourceBreakpoints
         ManagedSourceBreakpoint() = default;
         ~ManagedSourceBreakpoint();
 
-        void ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile) const;
+        void ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile,
+                          const std::string *algorithm = nullptr, const std::string *checksum = nullptr) const;
 
         ManagedSourceBreakpoint(ManagedSourceBreakpoint &&) = default;
         ManagedSourceBreakpoint(const ManagedSourceBreakpoint &) = delete;

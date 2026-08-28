@@ -66,7 +66,8 @@ class DebugInfo
     HRESULT GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::SequencePoint &sequencePoint,
                                     PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
 
-    HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath);
+    HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
+                          std::string *algorithm = nullptr, std::string *checksum = nullptr);
 
     bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
     HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,

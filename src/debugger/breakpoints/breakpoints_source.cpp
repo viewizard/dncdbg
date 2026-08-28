@@ -100,11 +100,16 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
 } // unnamed namespace
 
-void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile) const
+void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile,
+                                                              const std::string *algorithm, const std::string *checksum) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
     breakpoint.source = Source(sourceFile);
+    if (algorithm != nullptr && checksum != nullptr && !(*algorithm).empty() && !(*checksum).empty())
+    {
+        breakpoint.source.checksums.emplace_back(*algorithm, *checksum);
+    }
     breakpoint.line = this->lineNum;
     breakpoint.endLine = this->endLine;
 }
@@ -166,7 +171,9 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     IfFailRet(trFrame->GetFunctionToken(&methodToken));
 
     std::string sourceFilePath;
-    m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath);
+    std::string algorithm;
+    std::string checksum;
+    m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, &algorithm, &checksum);
 
     // Same logic as in vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
     for (auto &b : bList)
@@ -192,7 +199,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sourceFilePath);
+                    b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
                     << b.condition << "'. The error returned was '" << output << "'. - "
@@ -221,7 +228,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sourceFilePath);
+                    b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
                     << b.hitCondition << "'. The error returned was '" << output << "'. - "
@@ -244,6 +251,10 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath);
+                if (!algorithm.empty() && !checksum.empty())
+                {
+                    event.source.checksums.emplace_back(algorithm, checksum);
+                }
                 event.line = b.lineNum;
                 DAPIO::EmitOutputEvent(event);
                 continue;
@@ -287,10 +298,12 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             }
 
             std::string resolvedPath;
-            m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath);
+            std::string algorithm;
+            std::string checksum;
+            m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
 
             Breakpoint breakpoint;
-            bp.ToBreakpoint(breakpoint, resolvedPath);
+            bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
             DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
 
             initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
@@ -519,9 +532,11 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 initialBreakpoint.resolvedLineNum = bp.lineNum;
 
                 std::string resolvedPath;
-                m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath);
+                std::string algorithm;
+                std::string checksum;
+                m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
 
-                bp.ToBreakpoint(breakpoint, resolvedPath);
+                bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
                 m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][initialBreakpoint.resolvedLineNum].push_back(std::move(bp));
             }
             else
@@ -579,8 +594,10 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                         bp.logMessageParts.clear();
                     }
                     std::string resolvedPath;
-                    m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath);
-                    bp.ToBreakpoint(breakpoint, resolvedPath);
+                    std::string algorithm;
+                    std::string checksum;
+                    m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
+                    bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
                     if (changedCondition || changedHitCondition || changedLogMessage)
                     {
                         std::string changed;

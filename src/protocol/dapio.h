@@ -23,6 +23,7 @@ constexpr std::string_view LOG_COMMAND("-> (C) ");
 constexpr std::string_view LOG_RESPONSE("<- (R) ");
 constexpr std::string_view LOG_EVENT("<- (E) ");
 
+void to_json(nlohmann::json &j, const Checksum &c);
 void to_json(nlohmann::json &j, const Source &s);
 void to_json(nlohmann::json &j, const Breakpoint &b);
 void to_json(nlohmann::json &j, const StackFrame &f);

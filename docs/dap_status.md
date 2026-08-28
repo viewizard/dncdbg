@@ -439,6 +439,11 @@
 -   breakpointModes?: BreakpointMode[];
 -   supportsANSIStyling?: boolean;
 ```
+#### Checksum
+```diff
++   algorithm: ChecksumAlgorithm;
++   checksum: string;
+```
 #### ExceptionBreakpointsFilter
 ```diff
 +   filter: string;
@@ -475,7 +480,7 @@
 -   origin?: string;
 -   sources?: Source[];
 -   adapterData?: any;
--   checksums?: Checksum[];
++   checksums?: Checksum[];
 ```
 #### StackFrame
 ```diff

@@ -15,10 +15,21 @@ namespace dncdbg
 std::mutex DAPIO::m_outMutex;
 uint64_t DAPIO::m_seqCounter = 1;
 
+void to_json(json &j, const Checksum &c)
+{
+    j = json{{"algorithm", c.algorithm},
+             {"checksum", c.checksum}};
+}
+
 void to_json(json &j, const Source &s)
 {
     j = json{{"name", s.name},
              {"path", s.path}};
+
+    if (!s.checksums.empty())
+    {
+        j.emplace("checksums", s.checksums);
+    }
 }
 
 void to_json(json &j, const Breakpoint &b)

@@ -29,6 +29,24 @@ struct Thread
     }
 };
 
+struct Checksum
+{
+    std::string algorithm;
+    std::string checksum;
+
+    Checksum(std::string &&algorithm_, std::string &&checksum_)
+        : algorithm(std::move(algorithm_)),
+          checksum(std::move(checksum_))
+    {
+    }
+
+    Checksum(const std::string &algorithm_, const std::string &checksum_)
+        : algorithm(algorithm_),
+          checksum(checksum_)
+    {
+    }
+};
+
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_Source
 struct Source
 {
@@ -39,7 +57,7 @@ struct Source
     // origin?: string;
     // sources?: Source[];
     // adapterData?: any;
-    // checksums?: Checksum[];
+    std::vector<Checksum> checksums;
 
     explicit Source(const std::string &path = {});
 

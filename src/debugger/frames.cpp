@@ -216,9 +216,15 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     if (SUCCEEDED(pDebugInfo->GetSequencePointByFrame(pFrame, sp, &globalFileIndex)))
     {
         std::string sourceFilePath;
-        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath);
+        std::string algorithm;
+        std::string checksum;
+        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, &algorithm, &checksum);
 
         stackFrame.source = Source(sourceFilePath);
+        if (!algorithm.empty() && !checksum.empty())
+        {
+            stackFrame.source.checksums.emplace_back(std::move(algorithm), std::move(checksum));
+        }
         stackFrame.line = sp.startLine;
         stackFrame.column = sp.startColumn;
         stackFrame.endLine = sp.endLine;

@@ -8,6 +8,7 @@
 #include "utils/utftoupper.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -52,6 +53,24 @@ constexpr std::array<uint8_t, 16> asyncMethodSteppingInformation{
     0x25, 0xe9,                                    // Data2 (0xE925)
     0x1a, 0x40,                                    // Data3 (0x401A)
     0x9c, 0x2a, 0xf9, 0x4f, 0x17, 0x10, 0x72, 0xf8 // Data4 (9C2A-F94F171072F8)
+};
+
+// https://github.com/dotnet/runtime/blob/main/docs/design/specs/PortablePdb-Metadata.md#document-table-0x30
+// | _HashAlgorithm_ field value          | hash field semantics |
+// |:-------------------------------------|:---------------------|
+// | ff1816ec-aa5e-4d10-87f7-6f4963833460 | SHA-1 hash           |
+// | 8829d00f-11b8-4213-878b-770e8597ac16 | SHA-256 hash         |
+constexpr std::array<uint8_t, 16> guidSHA1{
+    0xec, 0x16, 0x18, 0xff,                        // Data1 (0xFF1816EC)
+    0x5e, 0xaa,                                    // Data2 (0xAA5E)
+    0x10, 0x4d,                                    // Data3 (0x4D10)
+    0x87, 0xf7, 0x6f, 0x49, 0x63, 0x83, 0x34, 0x60 // Data4 (87F7-6F4963833460)
+};
+constexpr std::array<uint8_t, 16> guidSHA256{
+    0x0f, 0xd0, 0x29, 0x88,                        // Data1 (0x8829D00F)
+    0xb8, 0x11,                                    // Data2 (0x11B8)
+    0x13, 0x42,                                    // Data3 (0x4213)
+    0x87, 0x8b, 0x77, 0x0e, 0x85, 0x97, 0xac, 0x16 // Data4 (878B-770E8597AC16)
 };
 
 // Constants for parsing StateMachineHoistedLocalScopes blob
@@ -165,7 +184,8 @@ HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBu
     return S_OK;
 }
 
-HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath)
+HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath,
+                      std::string *algorithm, std::string *checksum)
 {
     if (pdbHandle == nullptr)
     {
@@ -220,6 +240,58 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
     if (!docFilePath.empty() && docFilePath.back() == '\0')
     {
         docFilePath.pop_back();
+    }
+
+    // The HashAlgorithm and Hash columns are optional in Portable PDBs; a document may
+    // legitimately have no hash. Retrieval is therefore best-effort: on any failure or
+    // unknown algorithm, algorithm/checksum are left empty (callers guard on emptiness)
+    // rather than aborting the whole call, so the source file path is still returned.
+    if (algorithm != nullptr && checksum != nullptr)
+    {
+        algorithm->clear();
+        checksum->clear();
+
+        // Get the hash algorithm
+        mdguid_t guid{};
+        if (md_get_column_value_as_guid(docCursor, mdtDocument_HashAlgorithm, &guid))
+        {
+            std::string hashAlgo;
+            if (std::memcmp(&guid, guidSHA256.data(), sizeof(mdguid_t)) == 0)
+            {
+                hashAlgo = "SHA256";
+            }
+            else if (std::memcmp(&guid, guidSHA1.data(), sizeof(mdguid_t)) == 0)
+            {
+                hashAlgo = "SHA1";
+            }
+
+            if (!hashAlgo.empty())
+            {
+                // Get the hash blob
+                uint8_t const *hashBlob = nullptr;
+                uint32_t hashBlobLen = 0;
+                if (md_get_column_value_as_blob(docCursor, mdtDocument_Hash, &hashBlob, &hashBlobLen) &&
+                    hashBlob != nullptr && hashBlobLen > 0)
+                {
+                    // Convert hashBlob to hex string
+                    static constexpr std::array<char, 16> hexChars{'0', '1', '2', '3', '4', '5', '6', '7',
+                                                                   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+                    static constexpr uint8_t highNibbleShift = 4;
+                    static constexpr uint8_t lowNibbleMask = 0x0F;
+                    std::string hashHex;
+                    hashHex.reserve(static_cast<size_t>(hashBlobLen) * 2);
+                    for (uint32_t b = 0; b < hashBlobLen; ++b)
+                    {
+                        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+                        hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] >> highNibbleShift)]);
+                        hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] & lowNibbleMask)]);
+                        // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+                    }
+                    *checksum = std::move(hashHex);
+                    *algorithm = std::move(hashAlgo);
+                }
+            }
+        }
     }
 
     sourceFilePath = SourceFileMap::Path(docFilePath);

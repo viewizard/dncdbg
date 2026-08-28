@@ -1,3 +1,12 @@
+## [Unreleased]
+Upcoming changes compared to previous version.
+
+#### DAP
+- Added `checksums` support in Source.
+
+<br>
+<br>
+
 ## Version 1.2.0
 
 #### DAP
