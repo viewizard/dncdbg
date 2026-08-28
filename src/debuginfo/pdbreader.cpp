@@ -185,7 +185,7 @@ HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBu
 }
 
 HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath,
-                      std::string *algorithm, std::string *checksum)
+                      std::string &algorithm, std::string &checksum)
 {
     if (pdbHandle == nullptr)
     {
@@ -246,50 +246,47 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
     // legitimately have no hash. Retrieval is therefore best-effort: on any failure or
     // unknown algorithm, algorithm/checksum are left empty (callers guard on emptiness)
     // rather than aborting the whole call, so the source file path is still returned.
-    if (algorithm != nullptr && checksum != nullptr)
+    algorithm.clear();
+    checksum.clear();
+
+    // Get the hash algorithm
+    mdguid_t guid{};
+    if (md_get_column_value_as_guid(docCursor, mdtDocument_HashAlgorithm, &guid))
     {
-        algorithm->clear();
-        checksum->clear();
-
-        // Get the hash algorithm
-        mdguid_t guid{};
-        if (md_get_column_value_as_guid(docCursor, mdtDocument_HashAlgorithm, &guid))
+        std::string hashAlgo;
+        if (std::memcmp(&guid, guidSHA256.data(), sizeof(mdguid_t)) == 0)
         {
-            std::string hashAlgo;
-            if (std::memcmp(&guid, guidSHA256.data(), sizeof(mdguid_t)) == 0)
-            {
-                hashAlgo = "SHA256";
-            }
-            else if (std::memcmp(&guid, guidSHA1.data(), sizeof(mdguid_t)) == 0)
-            {
-                hashAlgo = "SHA1";
-            }
+            hashAlgo = "SHA256";
+        }
+        else if (std::memcmp(&guid, guidSHA1.data(), sizeof(mdguid_t)) == 0)
+        {
+            hashAlgo = "SHA1";
+        }
 
-            if (!hashAlgo.empty())
+        if (!hashAlgo.empty())
+        {
+            // Get the hash blob
+            uint8_t const *hashBlob = nullptr;
+            uint32_t hashBlobLen = 0;
+            if (md_get_column_value_as_blob(docCursor, mdtDocument_Hash, &hashBlob, &hashBlobLen) &&
+                hashBlob != nullptr && hashBlobLen > 0)
             {
-                // Get the hash blob
-                uint8_t const *hashBlob = nullptr;
-                uint32_t hashBlobLen = 0;
-                if (md_get_column_value_as_blob(docCursor, mdtDocument_Hash, &hashBlob, &hashBlobLen) &&
-                    hashBlob != nullptr && hashBlobLen > 0)
+                // Convert hashBlob to hex string
+                static constexpr std::array<char, 16> hexChars{'0', '1', '2', '3', '4', '5', '6', '7',
+                                                               '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+                static constexpr uint8_t highNibbleShift = 4;
+                static constexpr uint8_t lowNibbleMask = 0x0F;
+                std::string hashHex;
+                hashHex.reserve(static_cast<size_t>(hashBlobLen) * 2);
+                for (uint32_t b = 0; b < hashBlobLen; ++b)
                 {
-                    // Convert hashBlob to hex string
-                    static constexpr std::array<char, 16> hexChars{'0', '1', '2', '3', '4', '5', '6', '7',
-                                                                   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-                    static constexpr uint8_t highNibbleShift = 4;
-                    static constexpr uint8_t lowNibbleMask = 0x0F;
-                    std::string hashHex;
-                    hashHex.reserve(static_cast<size_t>(hashBlobLen) * 2);
-                    for (uint32_t b = 0; b < hashBlobLen; ++b)
-                    {
-                        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-                        hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] >> highNibbleShift)]);
-                        hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] & lowNibbleMask)]);
-                        // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-                    }
-                    *checksum = std::move(hashHex);
-                    *algorithm = std::move(hashAlgo);
+                    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+                    hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] >> highNibbleShift)]);
+                    hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] & lowNibbleMask)]);
+                    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
                 }
+                checksum = std::move(hashHex);
+                algorithm = std::move(hashAlgo);
             }
         }
     }

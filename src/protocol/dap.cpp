@@ -315,8 +315,19 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                                            b.value("logMessage", std::string()));
                                });
 
+                const auto &sourceJson = arguments.at("source");
+                Source source(sourceJson.at("path"));
+                if (sourceJson.contains("checksums"))
+                {
+                    std::transform(sourceJson.at("checksums").begin(), sourceJson.at("checksums").end(),
+                                   std::back_inserter(source.checksums), [](const auto &c)
+                                   {
+                                       return Checksum(c.value("algorithm", std::string()),
+                                                       c.value("checksum", std::string()));
+                                   });
+                }
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetSourceBreakpoints(arguments.at("source").at("path"), sourceBreakpoints, breakpoints));
+                IfFailRet(m_sharedDebugger->SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
 
                 responseBody.emplace("breakpoints", breakpoints);
 

@@ -17,7 +17,7 @@ namespace dncdbg::PDBReader
 
 HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBuffer &memBuffer, mdhandle_t &pdbHandle);
 HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath,
-                      std::string *algorithm = nullptr, std::string *checksum = nullptr);
+                      std::string &algorithm, std::string &checksum);
 HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNameToIndices);
 HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
                          std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> &srcMethodRanges);

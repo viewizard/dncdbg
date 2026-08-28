@@ -24,10 +24,10 @@ namespace
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
 HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule, const SourceBreakpoints::ManagedSourceBreakpoint &bp,
-                                const std::string &sourcePath, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints,
+                                const Source &source, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints,
                                 PDB::GlobalFileIndex &globalFileIndex)
 {
-    if (sourcePath.empty() || bp.lineNum <= 0 || bp.endLine <= 0)
+    if (source.path.empty() || bp.lineNum <= 0 || bp.endLine <= 0)
     {
         return E_INVALIDARG;
     }
@@ -40,7 +40,7 @@ HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule,
         IfFailRet(pModule->GetBaseAddress(&modAddress));
     }
 
-    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, sourcePath, bp.lineNum, globalFileIndex, resolvedPoints));
+    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, source, bp.lineNum, globalFileIndex, resolvedPoints));
     if (resolvedPoints.empty())
     {
         return E_FAIL;
@@ -173,7 +173,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     std::string sourceFilePath;
     std::string algorithm;
     std::string checksum;
-    m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, &algorithm, &checksum);
+    m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
 
     // Same logic as in vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
     for (auto &b : bList)
@@ -289,8 +289,10 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             PDB::GlobalFileIndex resolvedGlobalFileIndex;
             std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
+            Source source(initialPathToSource);
+            source.checksums = initialBreakpoint.checksums;
 
-            if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, initialPathToSource,
+            if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, source,
                                                resolvedPoints, resolvedGlobalFileIndex)) ||
                 FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, m_justMyCode, resolvedPoints)))
             {
@@ -300,7 +302,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             std::string resolvedPath;
             std::string algorithm;
             std::string checksum;
-            m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
+            m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
 
             Breakpoint breakpoint;
             bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
@@ -398,7 +400,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::string &sourcePath, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
@@ -447,7 +449,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
     HRESULT Status = S_OK;
     if (sourceBreakpoints.empty())
     {
-        auto it = m_sourceBreakpointMapping.find(sourcePath);
+        auto it = m_sourceBreakpointMapping.find(source.path);
         if (it != m_sourceBreakpointMapping.end())
         {
             for (auto &initialBreakpoint : it->second)
@@ -465,7 +467,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
         return S_OK;
     }
 
-    auto &breakpointsInSource = m_sourceBreakpointMapping[sourcePath];
+    auto &breakpointsInSource = m_sourceBreakpointMapping[source.path];
     std::unordered_map<int, ManagedSourceBreakpointMapping *> breakpointsInSourceMap;
 
     // Remove old breakpoints
@@ -512,6 +514,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             ManagedSourceBreakpointMapping initialBreakpoint;
             initialBreakpoint.breakpoint = sb;
             initialBreakpoint.id = getId();
+            initialBreakpoint.checksums = source.checksums;
 
             // New breakpoint
             ManagedSourceBreakpoint bp;
@@ -525,8 +528,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
             std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
 
             if (haveProcess &&
-                SUCCEEDED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), nullptr, bp, sourcePath, resolvedPoints, resolvedGlobalFileIndex)) &&
-                SUCCEEDED(ActivateSourceBreakpoint(bp, sourcePath, m_justMyCode, resolvedPoints)))
+                SUCCEEDED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), nullptr, bp, source, resolvedPoints, resolvedGlobalFileIndex)) &&
+                SUCCEEDED(ActivateSourceBreakpoint(bp, source.path, m_justMyCode, resolvedPoints)))
             {
                 initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
                 initialBreakpoint.resolvedLineNum = bp.lineNum;
@@ -534,14 +537,14 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 std::string resolvedPath;
                 std::string algorithm;
                 std::string checksum;
-                m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
+                m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
 
                 bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
                 m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][initialBreakpoint.resolvedLineNum].push_back(std::move(bp));
             }
             else
             {
-                bp.ToBreakpoint(breakpoint, sourcePath);
+                bp.ToBreakpoint(breakpoint, source.path);
                 if (!haveProcess)
                 {
                     breakpoint.message = "The breakpoint is pending and will be resolved when debugging starts.";
@@ -596,7 +599,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                     std::string resolvedPath;
                     std::string algorithm;
                     std::string checksum;
-                    m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath, &algorithm, &checksum);
+                    m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
                     bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
                     if (changedCondition || changedHitCondition || changedLogMessage)
                     {
@@ -641,7 +644,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const std::str
                 bp.condition = initialBreakpoint.breakpoint.condition;
                 bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                 bp.logMessage = initialBreakpoint.breakpoint.logMessage;
-                bp.ToBreakpoint(breakpoint, sourcePath);
+                bp.ToBreakpoint(breakpoint, source.path);
                 if (!haveProcess)
                 {
                     breakpoint.message = "The breakpoint is pending and will be resolved when debugging starts.";

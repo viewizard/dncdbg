@@ -31,7 +31,7 @@ class DebugInfo
 {
   public:
 
-    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filePath, int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
+    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
                               std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 
     using PDBInfoCallback = std::function<HRESULT(const PDBInfo &)>;
@@ -67,7 +67,7 @@ class DebugInfo
                                     PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
 
     HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
-                          std::string *algorithm = nullptr, std::string *checksum = nullptr);
+                          std::string &algorithm, std::string &checksum);
 
     bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
     HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,

@@ -479,7 +479,7 @@ HRESULT DebugInfo::GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilO
 }
 
 HRESULT DebugInfo::GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
-                                 std::string *algorithm, std::string *checksum)
+                                 std::string &algorithm, std::string &checksum)
 {
     return GetPDBInfo(globalFileIndex.modAddress,
         [&](const PDBInfo &pdbInfo) -> HRESULT
@@ -538,14 +538,14 @@ HRESULT DebugInfo::GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::Sequence
     return S_OK;
 }
 
-HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string &filePath,
+HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source,
                                      int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
                                      std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    std::string fixedFilePath = to_uppercase(filePath);
+    std::string fixedFilePath = to_uppercase(source.path);
 #else
-    std::string fixedFilePath = filePath;
+    std::string fixedFilePath = source.path;
 #endif
 
     const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
@@ -604,9 +604,38 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const std::string
 
                 const PDBInfo &pdbInfo = infoPair->second;
                 std::string sourceFilePath;
-                if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath)))
+                std::string algorithm;
+                std::string checksum;
+                if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath, algorithm, checksum)))
                 {
                     continue;
+                }
+
+                if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
+                {
+                    bool hasChecksum = false;
+                    for (const auto &entry : source.checksums)
+                    {
+                        if (entry.algorithm.empty() || entry.checksum.empty())
+                        {
+                            continue;
+                        }
+
+                        hasChecksum = true;
+
+                        if (entry.algorithm == algorithm && entry.checksum == checksum)
+                        {
+                            globalFileIndex.sourceFileIndex = sourceIndex;
+                            globalFileIndex.modAddress = modAddr;
+                            pPDBInfo = &pdbInfo;
+                            return;
+                        }
+                    }
+
+                    if (hasChecksum)
+                    {
+                        continue;
+                    }
                 }
 
                 if (fixedFilePath == sourceFilePath)

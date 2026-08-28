@@ -218,7 +218,7 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
         std::string sourceFilePath;
         std::string algorithm;
         std::string checksum;
-        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, &algorithm, &checksum);
+        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
 
         stackFrame.source = Source(sourceFilePath);
         if (!algorithm.empty() && !checksum.empty())
@@ -256,7 +256,7 @@ CORDB_ADDRESS GetIP(CONTEXT *context)
 }
 
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
-                                                 const std::string *, const std::string *, CORDB_ADDRESS)>;
+                                                 const std::string *, const Source *, CORDB_ADDRESS)>;
 
 HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb)
 {
@@ -345,11 +345,15 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 displayMethodName = "[Unnamed managed method in optimized code]";
             }
 
+            std::string algorithm;
+            std::string checksum;
             if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
-                SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath)))
+                SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath, algorithm, checksum)))
             {
+                Source source(sourceFilePath);
+                source.checksums.emplace_back(std::move(algorithm), std::move(checksum));
                 if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &displayMethodName,
-                       &sourceFilePath, exceptionObjectStackFrame.ip) == S_CAN_EXIT)
+                       &source, exceptionObjectStackFrame.ip) == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT;
                 }
@@ -595,7 +599,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *,
-            const std::string *, const std::string *, CORDB_ADDRESS) -> HRESULT
+            const std::string *, const Source *, CORDB_ADDRESS) -> HRESULT
         {
             if (pFrame != nullptr)
             {
@@ -678,11 +682,11 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     {
         PDB::SequencePoint sequencePoint;
         std::string methodName;
-        std::string sourceFilePath;
-        IntWalkExceptionFrame(const PDB::SequencePoint *sequencePoint_, const std::string *methodName_, const std::string *sourceFilePath_)
+        Source source;
+        IntWalkExceptionFrame(const PDB::SequencePoint *sequencePoint_, const std::string *methodName_, const Source *source_)
             : sequencePoint(sequencePoint_ != nullptr ? *sequencePoint_ : PDB::SequencePoint{}),
               methodName(methodName_ != nullptr ? *methodName_ : ""),
-              sourceFilePath(sourceFilePath_ != nullptr ? *sourceFilePath_ : "")
+              source(source_ != nullptr ? *source_ : Source{})
         {
         }
     };
@@ -711,7 +715,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
-            const std::string *methodName, const std::string *sourceFilePath, CORDB_ADDRESS ip) -> HRESULT
+            const std::string *methodName, const Source *source, CORDB_ADDRESS ip) -> HRESULT
         {
             if (pFrame != nullptr)
             {
@@ -729,7 +733,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             if (frameType == FrameType::CLRManagedException ||
                 frameType == FrameType::CLRManagedExceptionUser)
             {
-                walkExceptionFrames.emplace_back(sequencePoint, methodName, sourceFilePath);
+                walkExceptionFrames.emplace_back(sequencePoint, methodName, source);
                 walkFrames.back().excFrame = &walkExceptionFrames.back();
             }
 
@@ -828,7 +832,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             stackFrames.back().presentationHint = "normal";
             if (frame.frameType == FrameType::CLRManagedExceptionUser)
             {
-                stackFrames.back().source = Source(frame.excFrame->sourceFilePath);
+                stackFrames.back().source = frame.excFrame->source;
                 stackFrames.back().line = frame.excFrame->sequencePoint.startLine;
                 stackFrames.back().endLine = frame.excFrame->sequencePoint.endLine;
             }

@@ -49,7 +49,7 @@ class SourceBreakpoints
         m_justMyCode = enable;
     };
     void DeleteAll();
-    HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &sourcePath, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+    HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                  std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
     // Important! Must provide succeeded return code:
@@ -116,6 +116,7 @@ class SourceBreakpoints
         SourceBreakpoint breakpoint{0, ""};
         uint32_t id{0};
         PDB::GlobalFileIndex resolvedGlobalFileIndex{};
+        std::vector<Checksum> checksums;
         int resolvedLineNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
         ManagedSourceBreakpointMapping() = default;

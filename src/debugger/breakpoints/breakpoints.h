@@ -49,7 +49,7 @@ class Breakpoints
 
     HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                    std::vector<Breakpoint> &breakpoints);
-    HRESULT SetSourceBreakpoints(bool haveProcess, const std::string &sourcePath, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+    HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                                  std::vector<Breakpoint> &breakpoints);
     HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
 
