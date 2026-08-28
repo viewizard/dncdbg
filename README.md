@@ -32,6 +32,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 | **DebuggerTypeProxy attribute** | ✅ | ❌ | ✅ |
 | **Using-directive awareness in type resolution** | ✅ | ❌ | ✅ |
 | **Pagination for variable children** | ✅ | ❌ | ✅ |
+| **Source checksums** | ✅ | ❌ | ✅ |
 | **MI/GDB and CLI protocols** | ❌ | ✅ | ❌ |
 | **Interop (Mixed) debug** | ❌ | ✅<sup>5</sup> | ❓ |
 | **Hot Reload** | ❌ | ✅<sup>6</sup> | ❓ |
