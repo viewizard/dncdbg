@@ -7,7 +7,7 @@
 #include <iostream>
 
 // for convenience
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace dncdbg
 {
