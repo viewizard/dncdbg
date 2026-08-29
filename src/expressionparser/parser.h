@@ -79,7 +79,7 @@ struct Opcode
     std::string str;
     uint32_t count{0};
 
-    Opcode(SyntaxKind kind_)
+    explicit Opcode(SyntaxKind kind_)
         : kind(kind_)
     {
     }

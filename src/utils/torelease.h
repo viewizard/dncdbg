@@ -56,7 +56,7 @@ template <class T> class ToRelease
         return m_ptr;
     }
 
-    operator T *() const
+    operator T *() const // NOLINT(cppcoreguidelines-explicit-constructor,misc-explicit-constructor)
     {
         return m_ptr;
     }

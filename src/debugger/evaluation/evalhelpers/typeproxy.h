@@ -27,7 +27,7 @@ class TypeProxy
 {
   public:
 
-    TypeProxy(std::shared_ptr<EvalExec> &sharedEvalExec)
+    explicit TypeProxy(std::shared_ptr<EvalExec> &sharedEvalExec)
         : m_sharedEvalExec(sharedEvalExec)
     {
     }
