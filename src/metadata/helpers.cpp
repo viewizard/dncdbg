@@ -1088,7 +1088,7 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     {
         if (!displayTypeName.empty())
         {
-            displayTypeName += ".";
+            displayTypeName += '.';
         }
 
         displayTypeName += ConsumeGenericArgs(*it, args);
@@ -1374,7 +1374,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         if (typeDef != mdTypeDefNil)
         {
             IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
-            displayName += ".";
+            displayName += '.';
         }
         displayName += to_utf8(name.data());
     }
@@ -1390,7 +1390,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         if (typeDef != mdTypeDefNil)
         {
             IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
-            displayName += ".";
+            displayName += '.';
         }
         displayName += to_utf8(methodName.data());
     }
@@ -1406,12 +1406,12 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
             std::string metadataName;
             IfFailRet(GetFQMDNameForTypeRef(typeToken, pMDImport, metadataName));
             displayName = ConvertMetadataToDisplayName(metadataName, args);
-            displayName += ".";
+            displayName += '.';
         }
         else if (TypeFromToken(typeToken) == mdtTypeDef)
         {
             IfFailRet(GetFQDisplayNameForTypeDef(typeToken, pMDImport, displayName, args));
-            displayName += ".";
+            displayName += '.';
         }
         else
         {

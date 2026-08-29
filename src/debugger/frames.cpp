@@ -812,7 +812,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             }
             std::string name = "[";
             name += GetInternalTypeName(corFrameType);
-            name += "]";
+            name += ']';
             stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, name);
             stackFrames.back().presentationHint = "subtle";
             break;
