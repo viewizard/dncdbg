@@ -6,6 +6,7 @@
 #include "debuginfo/debugsources.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include <algorithm>
 #include <list>
 #include <map>
 #include <set>

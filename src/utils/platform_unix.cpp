@@ -10,6 +10,7 @@
 #endif
 
 #include "utils/platform.h"
+#include <cstdlib>
 #include <unistd.h>
 
 //extern char **environ; // unistd.h should have this line
