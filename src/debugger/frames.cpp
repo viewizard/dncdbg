@@ -12,6 +12,7 @@
 #include "utils/torelease.h"
 #include <algorithm>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <vector>
 
@@ -113,9 +114,9 @@ HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef metho
     {
         return E_FAIL; // The address belongs to a different memory region
     }
-    auto nativeOffset = static_cast<ULONG32>(nativeAddress - nativeBaseAddress);
+    auto nativeOffset = static_cast<uint32_t>(nativeAddress - nativeBaseAddress);
 
-    ULONG32 mapElementsCount = 0;
+    uint32_t mapElementsCount = 0;
     IfFailRet(trNativeCode->GetILToNativeMapping(0, &mapElementsCount, nullptr));
     if (mapElementsCount == 0)
     {
@@ -127,8 +128,9 @@ HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef metho
 
     // Search the JIT map to find which IL offset corresponds to our native offset
     ilOffset = 0;
+    uint32_t diff = std::numeric_limits<uint32_t>::max();
 
-    for (ULONG32 i = 0; i < mapElementsCount; ++i)
+    for (uint32_t i = 0; i < mapElementsCount; ++i)
     {
         const auto &entry = mapping.at(i);
 
@@ -152,9 +154,11 @@ HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef metho
 
         // Closest match: The native address most likely points inside an assembly instruction sequence.
         // We keep track of the closest preceding boundary (the 'left' bound of the instruction sequence).
-        if (entry.nativeStartOffset <= nativeOffset)
+        if (entry.nativeStartOffset <= nativeOffset &&
+            diff > nativeOffset - entry.nativeStartOffset)
         {
             ilOffset = entry.ilOffset;
+            diff = nativeOffset - entry.nativeStartOffset;
         }
     }
 
