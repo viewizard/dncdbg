@@ -129,8 +129,8 @@ inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pSig,
     IfFailRet(CorSigUncompressData(pSig, dwDataSize, &iData, &cbDataOutLength));
     pSig += cbDataOutLength;
 
-    const ULONG ulSigned = iData & 0x1;
-    iData = iData >> 1;
+    const ULONG ulSigned = iData & 0x1U;
+    iData = iData >> 1U;
     if (ulSigned != 0U)
     {
         if (cbDataOutLength == 1)

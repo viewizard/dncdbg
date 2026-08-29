@@ -196,13 +196,13 @@ HRESULT ShiftExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValu
 HRESULT LeftShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return ShiftExpressionImpl(leftValue, rightValue, outputValue, output, "<<",
-                               [](const auto &left, const auto &right) { return left << right; });
+                               [](const auto &left, const auto &right) { return left << right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 HRESULT RightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return ShiftExpressionImpl(leftValue, rightValue, outputValue, output, ">>",
-                               [](const auto &left, const auto &right) { return left >> right; });
+                               [](const auto &left, const auto &right) { return left >> right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 // Helper template for bitwise operations (AND, OR, XOR)
@@ -265,21 +265,21 @@ HRESULT BitwiseAndExpression(const PrimitiveValue &leftValue, const PrimitiveVal
 {
     return BitwiseExpressionImpl(leftValue, rightValue, outputValue, output, "&",
                                  [](bool left, bool right) { return left && right; },
-                                 [](const auto &left, const auto &right) { return left & right; });
+                                 [](const auto &left, const auto &right) { return left & right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 HRESULT BitwiseOrExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return BitwiseExpressionImpl(leftValue, rightValue, outputValue, output, "|",
                                  [](bool left, bool right) { return left || right; },
-                                 [](const auto &left, const auto &right) { return left | right; });
+                                 [](const auto &left, const auto &right) { return left | right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 HRESULT ExclusiveOrExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return BitwiseExpressionImpl(leftValue, rightValue, outputValue, output, "^",
                                  [](bool left, bool right) { return left ^ right; },
-                                 [](const auto &left, const auto &right) { return left ^ right; });
+                                 [](const auto &left, const auto &right) { return left ^ right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 // Helper template for logical operations (AND, OR)

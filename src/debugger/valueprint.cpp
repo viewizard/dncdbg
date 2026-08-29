@@ -187,7 +187,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
         if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
                                                 nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
         {
-            const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault;
+            const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault; // NOLINT(bugprone-signed-bitwise)
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
             {
                 continue;
@@ -332,7 +332,7 @@ HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
 
     static constexpr uint32_t ScaleMask = 0x00FF0000UL;
     static constexpr uint32_t ScaleShift = 16;
-    static constexpr uint32_t SignMask = 1UL << 31;
+    static constexpr uint32_t SignMask = 1UL << 31U;
 
     const uint32_t scale = (decimal.flags & ScaleMask) >> ScaleShift;
     const bool is_negative = ((decimal.flags & SignMask) != 0U);
@@ -743,8 +743,8 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
             assert(genericValue.size() == 1);
             if ((specifier & FormatSpecifier::HexadecimalInteger) == FormatSpecifier::HexadecimalInteger)
             {
-                static constexpr int32_t oneByteMask = 0xFF;
-                ss << (static_cast<int32_t>(*reinterpret_cast<int8_t *>(genericValue.data())) & oneByteMask);
+                static constexpr uint32_t oneByteMask = 0xFF;
+                ss << static_cast<int32_t>(static_cast<uint32_t>(*reinterpret_cast<int8_t *>(genericValue.data())) & oneByteMask);
             }
             else
             {

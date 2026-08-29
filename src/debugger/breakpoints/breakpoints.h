@@ -118,7 +118,7 @@ class Breakpoints
             const std::size_t h2 = std::hash<uint32_t>{}(key.methodToken);
             const std::size_t h3 = std::hash<uint32_t>{}(key.ilOffset);
             // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
-            return h1 ^ (h2 << 1) ^ (h3 << 2);
+            return h1 ^ (h2 << 1U) ^ (h3 << 2U);
         }
     };
 

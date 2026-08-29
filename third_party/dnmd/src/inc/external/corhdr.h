@@ -1514,8 +1514,8 @@ typedef enum CorTokenType
 //
 #define RidToToken(rid,tktype) ((rid) |= (tktype))
 #define TokenFromRid(rid,tktype) ((rid) | (tktype))
-#define RidFromToken(tk) ((RID) ((tk) & 0x00ffffff))
-#define TypeFromToken(tk) ((ULONG32)((tk) & 0xff000000))
+#define RidFromToken(tk) ((RID) ((tk) & 0x00ffffffU))
+#define TypeFromToken(tk) ((ULONG32)((tk) & 0xff000000U))
 #define IsNilToken(tk) ((RidFromToken(tk)) == 0)
 
 //

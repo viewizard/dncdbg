@@ -48,7 +48,7 @@ constexpr uint16_t packString(std::string_view str)
     if (str.size() == 2)
     {
         constexpr uint8_t bitsInByte = 8;
-        result |= (static_cast<uint16_t>(static_cast<uint8_t>(str.at(1))) << bitsInByte);
+        result |= static_cast<uint16_t>(static_cast<uint16_t>(static_cast<uint8_t>(str.at(1))) << bitsInByte);
     }
 
     return result;

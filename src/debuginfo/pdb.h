@@ -140,7 +140,7 @@ struct GlobalFileIndexHash
         const std::size_t h1 = std::hash<CORDB_ADDRESS>{}(key.modAddress);
         const std::size_t h2 = std::hash<uint32_t>{}(key.sourceFileIndex);
         // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
-        return h1 ^ (h2 << 1);
+        return h1 ^ (h2 << 1U);
     }
 };
 

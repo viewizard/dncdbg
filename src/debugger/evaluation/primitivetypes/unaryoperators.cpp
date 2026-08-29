@@ -74,11 +74,11 @@ HRESULT BitwiseNotExpression(const PrimitiveValue &inputValue, PrimitiveValue &o
 
             if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int64_t>)
             {
-                return ~arg;
+                return ~arg; // NOLINT(bugprone-signed-bitwise)
             }
             else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>)
             {
-                return ~static_cast<int32_t>(arg);
+                return ~static_cast<int32_t>(arg); // NOLINT(bugprone-signed-bitwise)
             }
             return std::nullopt;
         });

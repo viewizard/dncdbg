@@ -2312,7 +2312,7 @@ HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
             DWORD methodAttr = 0;
             if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
                                                   &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
-                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) ||
+                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
                 !HasAttribute(trMDImport, methodDef, extensionAttribute))
             {
                 continue;

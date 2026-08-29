@@ -94,11 +94,11 @@ bool IORedirect::SetInheritable(PipeHandle handle, bool inheritable)
 
     if (inheritable)
     {
-        flags &= ~FD_CLOEXEC; // Allow inheritance.
+        flags = static_cast<int>(static_cast<unsigned int>(flags) & ~static_cast<unsigned int>(FD_CLOEXEC)); // Allow inheritance.
     }
     else
     {
-        flags |= FD_CLOEXEC; // Prevent inheritance.
+        flags = static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(FD_CLOEXEC)); // Prevent inheritance.
     }
 
     if (fcntl(handle, F_SETFD, flags) < 0) // NOLINT(cppcoreguidelines-pro-type-vararg)

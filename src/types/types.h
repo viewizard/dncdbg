@@ -202,15 +202,15 @@ constexpr uint32_t defaultEvalFlags = 0;
 enum class FormatSpecifier : uint16_t
 {
     None                       = 0,
-    ForceEvaluation            = 1 << 0,
-    DecimalInteger             = 1 << 1,
-    HexadecimalInteger         = 1 << 2,
-    Dynamic                    = 1 << 3,
-    EvaluatesWithNoSideEffects = 1 << 4,
-    StringWithNoQuotes         = 1 << 5,
-    DisplaysHiddenMembers      = 1 << 6,
-    DisplaysInRawMode          = 1 << 7,
-    Results                    = 1 << 8
+    ForceEvaluation            = 1U,
+    DecimalInteger             = 1U << 1U,
+    HexadecimalInteger         = 1U << 2U,
+    Dynamic                    = 1U << 3U,
+    EvaluatesWithNoSideEffects = 1U << 4U,
+    StringWithNoQuotes         = 1U << 5U,
+    DisplaysHiddenMembers      = 1U << 6U,
+    DisplaysInRawMode          = 1U << 7U,
+    Results                    = 1U << 8U
 };
 
 inline FormatSpecifier operator | (FormatSpecifier lhs, FormatSpecifier rhs)

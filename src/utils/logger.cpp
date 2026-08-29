@@ -184,7 +184,7 @@ void Logger::LogPrint(LogLevel level, const char *file, int line, const char *fu
         levelSymb = levelSymbol.at(static_cast<uint8_t>(level));
     }
 
-    GetLogStream() << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.'
+    GetLogStream() << (ts.tv_sec & MAX_TIMESTAMP_SECONDS) << '.' // NOLINT(bugprone-signed-bitwise)
                    << std::dec << std::setfill('0') << std::setw(3)
                    << (ts.tv_nsec / NSEC_TO_MSEC) << ' '
                    << levelSymb << "(P" << std::setw(4) << get_pid()

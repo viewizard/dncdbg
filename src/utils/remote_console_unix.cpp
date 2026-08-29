@@ -51,7 +51,7 @@ bool RemoteConsoleServer::CreateListener(int port)
     const int flags = ::fcntl(s, F_GETFD, 0);
     if (flags >= 0)
     {
-        static_cast<void>(::fcntl(s, F_SETFD, flags | FD_CLOEXEC)); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        static_cast<void>(::fcntl(s, F_SETFD, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(FD_CLOEXEC)))); // NOLINT(cppcoreguidelines-pro-type-vararg)
     }
 
     sockaddr_in addr{};
@@ -120,7 +120,7 @@ bool RemoteConsoleServer::AcceptOne()
     const int flags = ::fcntl(c, F_GETFD, 0);
     if (flags >= 0)
     {
-        static_cast<void>(::fcntl(c, F_SETFD, flags | FD_CLOEXEC)); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        static_cast<void>(::fcntl(c, F_SETFD, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(FD_CLOEXEC)))); // NOLINT(cppcoreguidelines-pro-type-vararg)
     }
 
     int noDelay = 1;

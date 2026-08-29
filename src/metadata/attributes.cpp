@@ -57,9 +57,9 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
     static constexpr uint8_t kCompressedUint4ByteMask = 0xE0;
     static constexpr uint8_t kCompressedUint4ByteMarker = 0xC0;
     static constexpr uint8_t kCompressedUint4ByteBitsMask = 0x1F;
-    static constexpr int kBitShift1Byte = 8;
-    static constexpr int kBitShift2Bytes = 16;
-    static constexpr int kBitShift3Bytes = 24;
+    static constexpr uint8_t kBitShift1Byte = 8;
+    static constexpr uint8_t kBitShift2Bytes = 16;
+    static constexpr uint8_t kBitShift3Bytes = 24;
 
     if (pBlob >= pEnd)
     {
@@ -85,7 +85,7 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
     const uint8_t b2 = *pBlob++;
     if ((b1 & kCompressedUint2ByteMask) == kCompressedUint2ByteMarker)
     {
-        length = ((b1 & kCompressedUint2ByteBitsMask) << kBitShift1Byte) | b2;
+        length = (static_cast<uint32_t>(b1 & kCompressedUint2ByteBitsMask) << kBitShift1Byte) | b2;
         return true;
     }
 
@@ -97,7 +97,8 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
     const uint8_t b4 = *pBlob++;
     if ((b1 & kCompressedUint4ByteMask) == kCompressedUint4ByteMarker)
     {
-        length = ((b1 & kCompressedUint4ByteBitsMask) << kBitShift3Bytes) | (b2 << kBitShift2Bytes) | (b3 << kBitShift1Byte) | b4;
+        length = (static_cast<uint32_t>(b1 & kCompressedUint4ByteBitsMask) << kBitShift3Bytes) |
+                 (static_cast<uint32_t>(b2) << kBitShift2Bytes) | (static_cast<uint32_t>(b3) << kBitShift1Byte) | b4;
         return true;
     }
 
@@ -175,9 +176,9 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
     // Read the 4-byte data value in little-endian order, since metadata blobs are
     // always little-endian regardless of the host platform byte order.
     const uint32_t data = static_cast<uint32_t>(pbBlob[2]) |
-                            static_cast<uint32_t>(pbBlob[3]) << 8 |
-                            static_cast<uint32_t>(pbBlob[4]) << 16 |
-                            static_cast<uint32_t>(pbBlob[5]) << 24;
+                            static_cast<uint32_t>(pbBlob[3]) << 8U |
+                            static_cast<uint32_t>(pbBlob[4]) << 16U |
+                            static_cast<uint32_t>(pbBlob[5]) << 24U;
 
     return static_cast<DebuggerBrowsableState>(data);
 }
@@ -277,7 +278,7 @@ bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_v
             }
 
             const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
-                                            static_cast<uint16_t>(pbBlob[1]) << 8;
+                                            static_cast<uint16_t>(static_cast<uint16_t>(pbBlob[1]) << 8U);
             if (namedArguments != 0)
             {
                 return false;
@@ -346,7 +347,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             }
 
             const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
-                                            static_cast<uint16_t>(pbBlob[1]) << 8;
+                                            static_cast<uint16_t>(static_cast<uint16_t>(pbBlob[1]) << 8U);
             if (namedArguments != 1)
             {
                 return false;
