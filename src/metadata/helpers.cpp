@@ -1735,19 +1735,15 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
         // names (e.g. "T", "TKey") instead of the actual type names.
         for (auto &methodArg : argElementTypes)
         {
-            if (methodArg.genericElemType == ELEMENT_TYPE_VAR)
+            if (methodArg.genericElemType == ELEMENT_TYPE_VAR &&
+                methodArg.varNum < typeParameterNames.size())
             {
-                if (methodArg.varNum < typeParameterNames.size())
-                {
-                    methodArg.metadataTypeName = typeParameterNames.at(methodArg.varNum);
-                }
+                methodArg.metadataTypeName = typeParameterNames.at(methodArg.varNum);
             }
-            else if (methodArg.genericElemType == ELEMENT_TYPE_MVAR)
+            else if (methodArg.genericElemType == ELEMENT_TYPE_MVAR &&
+                     methodArg.varNum < methodParameterNames.size())
             {
-                if (methodArg.varNum < methodParameterNames.size())
-                {
-                    methodArg.metadataTypeName = methodParameterNames.at(methodArg.varNum);
-                }
+                methodArg.metadataTypeName = methodParameterNames.at(methodArg.varNum);
             }
         }
 

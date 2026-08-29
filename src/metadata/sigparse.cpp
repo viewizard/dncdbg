@@ -418,14 +418,9 @@ bool SigElementType::isAlias(const CorElementType elemType1, const CorElementTyp
     };
 
     const auto found = aliases.find(elemType1);
-    if (found != aliases.cend())
-    {
-        if (found->second.elemType == elemType2 && found->second.metadataTypeName == name2)
-        {
-            return true;
-        }
-    }
-    return false;
+    return found != aliases.cend() &&
+           found->second.elemType == elemType2 &&
+           found->second.metadataTypeName == name2;
 }
 
 bool SigElementType::areEqual(const SigElementType &arg) const
