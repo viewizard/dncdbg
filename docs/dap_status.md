@@ -549,7 +549,7 @@
 -   column?: number;
 +   endLine?: number;
 -   endColumn?: number;
--   instructionReference?: string;
++   instructionReference?: string;
 -   offset?: number;
 -   reason?: 'pending' | 'failed';
 ```

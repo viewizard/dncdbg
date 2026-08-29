@@ -46,6 +46,7 @@ void to_json(json &j, const Breakpoint &b)
     {
         j.emplace("message", b.message);
     }
+
     if (b.verified)
     {
         if (b.endLine != 0)
@@ -56,6 +57,11 @@ void to_json(json &j, const Breakpoint &b)
         {
             j.emplace("source", b.source);
         }
+    }
+
+    if (!b.instructionReference.empty())
+    {
+        j.emplace("instructionReference", b.instructionReference);
     }
 }
 

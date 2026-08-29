@@ -135,7 +135,7 @@ struct Breakpoint
     // column?: number;
     int endLine{0};
     // endColumn?: number;
-    // instructionReference?: string;
+    std::string instructionReference;
     // offset?: number;
     // reason?: 'pending' | 'failed';
 };

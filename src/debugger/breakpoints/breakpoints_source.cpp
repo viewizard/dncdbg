@@ -8,6 +8,7 @@
 #include "debugger/breakpoints/helpers.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
@@ -80,7 +81,9 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
         IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, resolvedBP.methodToken, resolvedBP.ilOffset,
                                                          resolvedBP.trModule, &trFuncBreakpoint));
-        bp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
+        CORDB_ADDRESS nativeAddress = 0;
+        BreakpointHelpers::GetBreakpointNativeAddress(trFuncBreakpoint, nativeAddress);
+        bp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach(), nativeAddress);
     }
 
     if (modAddress == 0)
@@ -116,7 +119,7 @@ void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakp
 
 SourceBreakpoints::ManagedSourceBreakpoint::~ManagedSourceBreakpoint()
 {
-    for (auto &trFuncBreakpoint : trFuncBreakpoints)
+    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
     {
         Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
     }
@@ -178,12 +181,23 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     // Same logic as in vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
     for (auto &b : bList)
     {
-        for (const auto &trFuncBreakpoint : b.trFuncBreakpoints)
+        for (auto &[trFuncBreakpoint, nativeAddress] : b.trFuncBreakpoints)
         {
             if (FAILED(Status = BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
                 Status == S_FALSE)
             {
                 continue;
+            }
+
+            CORDB_ADDRESS currentNativeAddress = 0;
+            if (SUCCEEDED(BreakpointHelpers::GetBreakpointNativeAddress(trFunctionBreakpoint, currentNativeAddress)) &&
+                currentNativeAddress != nativeAddress)
+            {
+                nativeAddress = currentNativeAddress;
+                Breakpoint breakpoint;
+                b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
+                DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
             }
 
             if (!b.condition.empty())
@@ -200,6 +214,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 {
                     Breakpoint breakpoint;
                     b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
                     << b.condition << "'. The error returned was '" << output << "'. - "
@@ -229,6 +244,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 {
                     Breakpoint breakpoint;
                     b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
                     << b.hitCondition << "'. The error returned was '" << output << "'. - "
@@ -345,7 +361,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
                 CORDB_ADDRESS brModAddress = 0;
                 // Check only first element, see ActivateSourceBreakpoint() code,
                 // debugger doesn't support breakpoint with same source name in different modules.
-                if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0), brModAddress)) ||
+                if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0).first, brModAddress)) ||
                     modAddress != brModAddress)
                 {
                     ++it;

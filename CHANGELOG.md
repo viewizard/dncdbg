@@ -3,6 +3,7 @@ Upcoming changes compared to previous version.
 
 #### DAP
 - Added `checksums` support in Source.
+- Added `instructionReference` support in Breakpoint.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
