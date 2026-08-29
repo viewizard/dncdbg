@@ -167,7 +167,7 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
 {
     std::vector<std::string> splitName = split_on_tokens(funcName, '.');
 
-    auto functor = [&](const std::string &fullName, mdMethodDef &mdMethod) -> bool
+    const auto functor = [&](const std::string &fullName, mdMethodDef &mdMethod) -> bool
         {
             const std::vector<std::string> splitFullName = split_on_tokens(fullName, '.');
 
@@ -268,8 +268,8 @@ void DebugInfo::Cleanup()
 HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-    auto infoPair = m_debugInfo.find(modAddress);
-    return (infoPair == m_debugInfo.end()) ? E_FAIL : cb(infoPair->second);
+    const auto infoPair = m_debugInfo.find(modAddress);
+    return (infoPair == m_debugInfo.cend()) ? E_FAIL : cb(infoPair->second);
 }
 
 HRESULT DebugInfo::ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
@@ -553,21 +553,21 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
     const std::string pathName = GetFileName(fixedFilePath);
     std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
 
-    auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
+    const auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
     {
-            auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
-            if (findName == pdbInfo.m_sourceFileNameToIndices.end())
+            const auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
+            if (findName == pdbInfo.m_sourceFileNameToIndices.cend())
             {
                 return;
             }
             foundSourceIndices[modAddr].insert_after(foundSourceIndices[modAddr].before_begin(),
-                                                     findName->second.begin(), findName->second.end());
+                                                     findName->second.cbegin(), findName->second.cend());
     };
 
     if (modAddress != 0)
     {
-        auto infoPair = m_debugInfo.find(modAddress);
-        if (infoPair != m_debugInfo.end())
+        const auto infoPair = m_debugInfo.find(modAddress);
+        if (infoPair != m_debugInfo.cend())
         {
             const PDBInfo &pdbInfo = infoPair->second;
             addSourceIndices(modAddress, pdbInfo);
@@ -589,15 +589,15 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
     fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
     const PDBInfo *pPDBInfo = nullptr;
-    auto findPDBInfoAndIndex = [&]()
+    const auto findPDBInfoAndIndex = [&]()
     {
         std::string currentResult;
         for (auto &[modAddr, sourceIndices] : foundSourceIndices)
         {
-            for (auto &sourceIndex : sourceIndices)
+            for (const auto &sourceIndex : sourceIndices)
             {
-                auto infoPair = m_debugInfo.find(modAddr);
-                if (infoPair == m_debugInfo.end())
+                const auto infoPair = m_debugInfo.find(modAddr);
+                if (infoPair == m_debugInfo.cend())
                 {
                     continue;
                 }
@@ -652,7 +652,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                 }
 
                 // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
-                auto BinaryPredicate =
+                const auto BinaryPredicate =
                     [](const char &a, const char &b) -> bool
                     {
                         if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
@@ -670,7 +670,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                     continue;
                 }
                 if (currentResult.empty() ||
-                    (std::equal(fixedFilePath.begin(), fixedFilePath.end(), sourceFilePath.end() -
+                    (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), sourceFilePath.end() -
                                 static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
                      currentResult.length() > fixedFilePath.length()))
                 {
@@ -723,7 +723,7 @@ bool DebugInfo::IsStateMachineKickoffMethod(ICorDebugFunction *pFunction)
     GetPDBInfo(modAddress,
         [&](const PDBInfo &pdbInfo) -> HRESULT
         {
-            res = pdbInfo.m_kickoffToMoveNext.find(methodToken) != pdbInfo.m_kickoffToMoveNext.end();
+            res = pdbInfo.m_kickoffToMoveNext.find(methodToken) != pdbInfo.m_kickoffToMoveNext.cend();
             return S_OK;
         });
 
@@ -740,8 +740,8 @@ HRESULT DebugInfo::GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMeth
     return GetPDBInfo(modAddress,
         [&](const PDBInfo &pdbInfo) -> HRESULT
         {
-            auto find = pdbInfo.m_moveNextToKickoff.find(moveNextMethodToken);
-            if (find == pdbInfo.m_moveNextToKickoff.end())
+            const auto find = pdbInfo.m_moveNextToKickoff.find(moveNextMethodToken);
+            if (find == pdbInfo.m_moveNextToKickoff.cend())
             {
                 return E_FAIL;
             }

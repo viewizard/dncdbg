@@ -220,7 +220,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     }
 
     uint32_t entryPointOffset = 0;
-    auto setupAsyncEntryBreakpoint = [&]() -> HRESULT
+    const auto setupAsyncEntryBreakpoint = [&]() -> HRESULT
     {
         ToRelease<IUnknown> trUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));

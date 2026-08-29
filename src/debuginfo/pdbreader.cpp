@@ -455,7 +455,7 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
         docIndex = RidFromToken(docToken) - 1;
 
         // Check if this method is a constructor
-        const bool isCtor = constrTokens.find(methodToken) != constrTokens.end();
+        const bool isCtor = constrTokens.find(methodToken) != constrTokens.cend();
 
         for (uint32_t j = 0; j < seqPoints->record_count; ++j)
         {
@@ -1271,7 +1271,7 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
         Last
     };
 
-    auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, PDB::SequencePoint &nearestSP) -> HRESULT
+    const auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, PDB::SequencePoint &nearestSP) -> HRESULT
     {
         // Create cursor to the MethodDebugInformation table
         mdcursor_t mdiCursor{};
@@ -1587,7 +1587,7 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         // Advance importScopeCursor to its Parent. Returns false (and leaves
         // the cursor unchanged) if there is no parent or the read fails,
         // signaling that the walk should stop.
-        auto moveToParent = [&importScopeCursor]() -> bool
+        const auto moveToParent = [&importScopeCursor]() -> bool
         {
             mdcursor_t parentCursor{};
             if (!md_get_column_value_as_cursor(importScopeCursor, mdtImportScope_Parent, &parentCursor))

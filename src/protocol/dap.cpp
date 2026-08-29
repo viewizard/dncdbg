@@ -112,7 +112,7 @@ std::string ReadData(std::istream &cin)
         }
 
         if (line.size() > CONTENT_LENGTH.size() &&
-            std::equal(CONTENT_LENGTH.begin(), CONTENT_LENGTH.end(), line.begin()))
+            std::equal(CONTENT_LENGTH.cbegin(), CONTENT_LENGTH.cend(), line.begin()))
         {
             if (content_len >= 0)
             {
@@ -224,8 +224,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 for (const auto &entry : filters)
                 {
-                    auto findFilter = DAPIO::GetExceptionFilters().find(entry);
-                    if (findFilter == DAPIO::GetExceptionFilters().end())
+                    const auto findFilter = DAPIO::GetExceptionFilters().find(entry);
+                    if (findFilter == DAPIO::GetExceptionFilters().cend())
                     {
                         return E_INVALIDARG;
                     }
@@ -236,14 +236,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 for (auto &entry : filterOptions)
                 {
-                    auto findId = entry.find("filterId");
-                    if (findId == entry.end() || findId->second.empty())
+                    const auto findId = entry.find("filterId");
+                    if (findId == entry.cend() || findId->second.empty())
                     {
                         return E_INVALIDARG;
                     }
 
-                    auto findFilter = DAPIO::GetExceptionFilters().find(findId->second);
-                    if (findFilter == DAPIO::GetExceptionFilters().end())
+                    const auto findFilter = DAPIO::GetExceptionFilters().find(findId->second);
+                    if (findFilter == DAPIO::GetExceptionFilters().cend())
                     {
                         return E_INVALIDARG;
                     }
@@ -251,8 +251,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     // since this protocol doesn't provide such information
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
 
-                    auto findCondition = entry.find("condition");
-                    if (findCondition == entry.end() || findCondition->second.empty())
+                    const auto findCondition = entry.find("condition");
+                    if (findCondition == entry.cend() || findCondition->second.empty())
                     {
                         continue;
                     }
@@ -306,7 +306,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 HRESULT Status = S_OK;
 
                 std::vector<SourceBreakpoint> sourceBreakpoints;
-                std::transform(arguments.at("breakpoints").begin(), arguments.at("breakpoints").end(),
+                std::transform(arguments.at("breakpoints").cbegin(), arguments.at("breakpoints").cend(),
                                std::back_inserter(sourceBreakpoints), [](const auto &b)
                                {
                                    return SourceBreakpoint(b.at("line"),
@@ -325,7 +325,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 Source source(sourcePath.empty() ? sourceName : sourcePath);
                 if (sourceJson.contains("checksums"))
                 {
-                    std::transform(sourceJson.at("checksums").begin(), sourceJson.at("checksums").end(),
+                    std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
                                    std::back_inserter(source.checksums), [](const auto &c)
                                    {
                                        return Checksum(c.value("algorithm", std::string()),
@@ -341,8 +341,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"launch", [&](const json &arguments, json &/*responseBody*/)
             {
-                auto cwdIt = arguments.find("cwd");
-                const std::string cwd(cwdIt != arguments.end() ? cwdIt.value().get<std::string>() : std::string{});
+                const auto cwdIt = arguments.find("cwd");
+                const std::string cwd(cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{});
 
                 std::map<std::string, std::string> env;
                 try
@@ -377,15 +377,15 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 // https://aka.ms/VSCode-CS-LaunchJson-Console
                 std::string console;
-                auto findConsole = env.find("DNCDBG_CONSOLE");
-                if (findConsole != env.end())
+                const auto findConsole = env.find("DNCDBG_CONSOLE");
+                if (findConsole != env.cend())
                 {
                     console = findConsole->second;
                 }
                 else // fallback to `console` field
                 {
-                    auto consoleIter = arguments.find("console");
-                    if (consoleIter != arguments.end())
+                    const auto consoleIter = arguments.find("console");
+                    if (consoleIter != arguments.cend())
                     {
                         console = consoleIter.value();
                     }
@@ -399,8 +399,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 {
                     constexpr int defaultPort = 22534;
                     int remoteConsolePort = defaultPort;
-                    auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
-                    if (findConsolePort != env.end())
+                    const auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
+                    if (findConsolePort != env.cend())
                     {
                         try
                         {
@@ -481,9 +481,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"disconnect", [&](const json &arguments, json &/*responseBody*/)
             {
-                auto terminateArgIter = arguments.find("terminateDebuggee");
+                const auto terminateArgIter = arguments.find("terminateDebuggee");
                 DisconnectAction action = DisconnectAction::Default;
-                if (terminateArgIter == arguments.end())
+                if (terminateArgIter == arguments.cend())
                 {
                     action = DisconnectAction::Default;
                 }
@@ -572,8 +572,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::string expression = arguments.at("expression");
                 const FrameId frameId([&]()
                     {
-                        auto frameIdIter = arguments.find("frameId");
-                        if (frameIdIter == arguments.end())
+                        const auto frameIdIter = arguments.find("frameId");
+                        if (frameIdIter == arguments.cend())
                         {
                             const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
@@ -626,8 +626,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const std::string value = arguments.at("value");
                 const FrameId frameId([&]()
                     {
-                        auto frameIdIter = arguments.find("frameId");
-                        if (frameIdIter == arguments.end())
+                        const auto frameIdIter = arguments.find("frameId");
+                        if (frameIdIter == arguments.cend())
                         {
                             const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
@@ -735,8 +735,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         return CORDBG_E_DEBUGGING_DISABLED;
     }
 
-    auto command_it = commands.find(command);
-    if (command_it == commands.end())
+    const auto command_it = commands.find(command);
+    if (command_it == commands.cend())
     {
         return E_NOTIMPL;
     }
@@ -843,7 +843,7 @@ void DAP::CommandsWorker()
         DAPIO::EmitMessageWithLog(LOG_RESPONSE, c.response);
 
         // Post command action.
-        if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().end())
+        if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().cend())
         {
             m_commandSyncCV.notify_one();
         }
@@ -930,15 +930,15 @@ void DAP::CommandLoop()
                 throw bad_format("wrong request type!");
             }
 
-            auto argIter = request.find("arguments");
-            queueEntry.arguments = (argIter == request.end() ? json::object() : argIter.value());
+            const auto argIter = request.find("arguments");
+            queueEntry.arguments = (argIter == request.cend() ? json::object() : argIter.value());
 
             // Pre command action.
             if (queueEntry.command == "initialize")
             {
                 DAPIO::EmitCapabilitiesEvent();
             }
-            else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().end())
+            else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().cend())
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
                 if (m_sharedDebugger != nullptr)
@@ -948,7 +948,7 @@ void DAP::CommandLoop()
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
                 {
-                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().end())
+                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().cend())
                     {
                         ++iter;
                     }
@@ -969,7 +969,7 @@ void DAP::CommandLoop()
                     continue;
                 }
 
-                auto requestId = queueEntry.arguments.at("requestId");
+                const auto requestId = queueEntry.arguments.at("requestId");
                 std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
                 queueEntry.response.emplace("success", false);
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end(); ++iter)
@@ -979,7 +979,7 @@ void DAP::CommandLoop()
                         continue;
                     }
 
-                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().end())
+                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().cend())
                     {
                         break;
                     }
@@ -1001,7 +1001,7 @@ void DAP::CommandLoop()
             }
 
             std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
-            const bool isCommandNeedSync = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().end();
+            const bool isCommandNeedSync = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().cend();
             m_commandsQueue.emplace_back(std::move(queueEntry));
             m_commandsCV.notify_one(); // notify_one with lock
 

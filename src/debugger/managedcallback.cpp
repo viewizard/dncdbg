@@ -338,12 +338,12 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         SUCCEEDED(m_debugger.GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames)))
     {
         // Find first frame with source file data (code with PDB/user code).
-        auto it = std::find_if(stackFrames.begin(), stackFrames.end(),
+        const auto it = std::find_if(stackFrames.cbegin(), stackFrames.cend(),
                                [](const StackFrame &stackFrame)
                                {
                                    return !stackFrame.source.IsNull();
                                });
-        if (it != stackFrames.end())
+        if (it != stackFrames.cend())
         {
             event.source = it->source;
             event.line = it->line;

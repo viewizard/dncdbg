@@ -50,7 +50,7 @@ struct VariableMember
 };
 
 HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine,
-                         FormatSpecifier specifier, VariableMember &member, Variable &var)
+                         FormatSpecifier specifier, const VariableMember &member, Variable &var)
 {
     if (member.trValue == nullptr)
     {
@@ -218,8 +218,8 @@ HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesRe
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
-    auto it = m_references.find(variablesReference);
-    if (it == m_references.end())
+    const auto it = m_references.find(variablesReference);
+    if (it == m_references.cend())
     {
         return E_FAIL;
     }
@@ -550,8 +550,8 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
 
-    auto it = m_references.find(ref);
-    if (it == m_references.end())
+    const auto it = m_references.find(ref);
+    if (it == m_references.cend())
     {
         return E_FAIL;
     }

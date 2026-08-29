@@ -61,10 +61,10 @@ std::string GetExeAbsPath()
 
 // Function returns path to directory, which should be used for creation of
 // temporary files. Typically this is `/tmp` on Unix and something like
-// `C:\Users\localuser\Appdata\Local\Temp` on Windows.
+// `C:\Users\localuser\AppData\Local\Temp` on Windows.
 std::string_view GetTempDir()
 {
-    auto get_tmpdir = []()
+    const auto get_tmpdir = []()
         {
             const char *pPath = getenv("TMPDIR");
             if (pPath != nullptr)

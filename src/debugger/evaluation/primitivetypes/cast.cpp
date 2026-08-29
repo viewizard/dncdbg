@@ -163,7 +163,7 @@ HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstVa
     int32_t srcData = 0;
     IfFailRet(trSrcGenValue->GetValue(&srcData));
 
-    auto checkAndWrite = [&](auto typeDummy) -> HRESULT
+    const auto checkAndWrite = [&](auto typeDummy) -> HRESULT
     {
         using T = decltype(typeDummy);
 

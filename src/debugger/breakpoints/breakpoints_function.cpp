@@ -101,7 +101,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             continue;
         }
 
-        for (auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
+        for (const auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
         {
             if (FAILED(Status = BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
                 Status == S_FALSE)
@@ -252,7 +252,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
     }
     for (auto it = m_funcBreakpoints.begin(); it != m_funcBreakpoints.end();)
     {
-        if (funcBreakpointFuncs.find(it->first) == funcBreakpointFuncs.end())
+        if (funcBreakpointFuncs.find(it->first) == funcBreakpointFuncs.cend())
         {
             Breakpoint breakpoint;
             it->second.ToBreakpoint(breakpoint);
@@ -279,8 +279,8 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
         const std::string fullFuncName = fb.func + fb.params;
         Breakpoint breakpoint;
 
-        auto b = m_funcBreakpoints.find(fullFuncName);
-        if (b == m_funcBreakpoints.end())
+        const auto b = m_funcBreakpoints.find(fullFuncName);
+        if (b == m_funcBreakpoints.cend())
         {
             // New function breakpoint
             ManagedFunctionBreakpoint fbp;
@@ -333,7 +333,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
 {
     HRESULT Status = S_OK;
 
-    for (auto &entry : fbpResolved)
+    for (const auto &entry : fbpResolved)
     {
         const mdMethodDef &methodToken = entry.second;
         ICorDebugModule *pModule = entry.first;
@@ -401,7 +401,7 @@ size_t FunctionBreakpoints::GetBreakpointsCount()
 
     size_t count = 0;
 
-    for (auto &functionBreakpoints : m_funcBreakpoints)
+    for (const auto &functionBreakpoints : m_funcBreakpoints)
     {
         count += functionBreakpoints.second.trFuncBreakpoints.size();
     }

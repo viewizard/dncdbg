@@ -146,7 +146,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    auto methodShouldBeFiltered = [&]() -> bool
+    const auto methodShouldBeFiltered = [&]() -> bool
     {
         // In case stepping by method code lines or return to caller, don't check filtering (don't need to):
         // 1) filtering check for this method was already "passed" or 2) execution was stopped at breakpoint inside method or its callee.
@@ -172,7 +172,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 szFunctionName.pop_back();
             }
 
-            if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.end())
+            if (g_operatorMethodNames.find(szFunctionName) != g_operatorMethodNames.cend())
             {
                 return true;
             }

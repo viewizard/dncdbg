@@ -219,8 +219,8 @@ HRESULT Breakpoints::ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_
 {
     const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
 
-    auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
-    if (find != GetManagedBreakpoints().end())
+    const auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
+    if (find != GetManagedBreakpoints().cend())
     {
         find->second.trBreakpoint->AddRef();
         find->second.refCount++;
@@ -264,8 +264,8 @@ HRESULT Breakpoints::DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBrea
 
     const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
 
-    auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
-    if (find == GetManagedBreakpoints().end())
+    const auto find = GetManagedBreakpoints().find({modAddress, methodToken, ilOffset});
+    if (find == GetManagedBreakpoints().cend())
     {
         return E_FAIL;
     }

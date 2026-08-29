@@ -134,7 +134,7 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrNa
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames)
 {
-    return std::any_of(attrNames.begin(), attrNames.end(),
+    return std::any_of(attrNames.cbegin(), attrNames.cend(),
         [&](const WSTRING &name)
         {
             return HasAttribute(pMDImport, tok, name);

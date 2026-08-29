@@ -55,13 +55,13 @@ class IndexedStorage
     // Return iterator pointing on first element.
     [[nodiscard]] iterator begin() const
     {
-        return m_data.begin();
+        return m_data.cbegin();
     }
 
     // Return iterator pointing beyond last element.
     [[nodiscard]] iterator end() const
     {
-        return m_data.end();
+        return m_data.cend();
     }
 
     // Constructor which creates new empty container.
@@ -101,24 +101,24 @@ class IndexedStorage
     std::pair<iterator, bool> insert(const value_type &val)
     {
         const auto it = do_insert(val);
-        if (it != m_data.end())
+        if (it != m_data.cend())
         {
             return {it, false};
         }
         m_data.push_back(value_type(next_id(), val));
-        return {--m_data.end(), true};
+        return {--m_data.cend(), true};
     }
 
     // This function do the same as previous, but avoid copying of `val'.
     std::pair<iterator, bool> insert(mapped_type &&val)
     {
         const auto it = do_insert(val);
-        if (it != m_data.end())
+        if (it != m_data.cend())
         {
             return {it, false};
         }
         m_data.push_back(value_type(next_id(), std::move(val)));
-        return {--m_data.end(), true};
+        return {--m_data.cend(), true};
     }
 
     // This function finds the data element which corresponds to the supplied `key'
@@ -264,8 +264,8 @@ ThreadId FrameId::getThread() const noexcept
 {
     if (*this)
     {
-        auto list = KnownFrames::instance().get();
-        auto it = list->find(m_id);
+        const auto list = KnownFrames::instance().get();
+        const auto it = list->find(m_id);
         if (it != list->end())
         {
             return std::get<0>(it->second);
@@ -278,8 +278,8 @@ FrameLevel FrameId::getLevel() const noexcept
 {
     if (*this)
     {
-        auto list = KnownFrames::instance().get();
-        auto it = list->find(m_id);
+        const auto list = KnownFrames::instance().get();
+        const auto it = list->find(m_id);
         if (it != list->end())
         {
             return std::get<1>(it->second);

@@ -67,7 +67,7 @@ inline HRESULT CorSigUncompressData_EndPtr(PCCOR_SIGNATURE &pSig,
     intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed integer cannot be bigger than 4 bytes
     cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
-    auto dwDataSize = static_cast<DWORD>(cbDataSize);
+    const auto dwDataSize = static_cast<DWORD>(cbDataSize);
 
     ULONG cbDataOutLength = 0;
     IfFailRet(CorSigUncompressData(pSig, dwDataSize, &nDataOut, &cbDataOutLength));
@@ -124,7 +124,7 @@ inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pSig,
     intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed integer cannot be bigger than 4 bytes
     cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
-    auto dwDataSize = static_cast<DWORD>(cbDataSize);
+    const auto dwDataSize = static_cast<DWORD>(cbDataSize);
 
     IfFailRet(CorSigUncompressData(pSig, dwDataSize, &iData, &cbDataOutLength));
     pSig += cbDataOutLength;

@@ -160,7 +160,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     };
 
     bool evalTimeOut = false;
-    auto WaitResult = [&]() -> HRESULT
+    const auto WaitResult = [&]() -> HRESULT
     {
         ChangeThreadsState(THREAD_SUSPEND);
 

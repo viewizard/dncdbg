@@ -145,7 +145,7 @@ bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t 
 
     for (auto it = methodBpData.cbegin(); it != methodBpData.cend(); ++it)
     {
-        auto lower = std::lower_bound(it->cbegin(), it->cend(), correctedLineNum);
+        const auto lower = std::lower_bound(it->cbegin(), it->cend(), correctedLineNum);
         if (lower == it->cend())
         {
             break; // point after last method for this nested level
@@ -338,7 +338,7 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
         for (uint32_t j = 0; j < inputMethodRanges.size(); ++j)
         {
             methodRanges.at(j).resize(inputMethodRanges.at(j).size());
-            std::copy(inputMethodRanges.at(j).begin(), inputMethodRanges.at(j).end(), methodRanges.at(j).begin());
+            std::copy(inputMethodRanges.at(j).cbegin(), inputMethodRanges.at(j).cend(), methodRanges.at(j).begin());
         }
     }
 
@@ -351,8 +351,8 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
     // In case the line doesn't belong to any method, if possible, will be "moved" to the first line of the method below sourceLine.
     int32_t correctedStartLine = 0;
     mdMethodDef closestNestedToken = mdMethodDefNil;
-    auto methodRanges = pdbInfo.m_sourceMethodRanges.find(sourceFileIndex);
-    if (methodRanges == pdbInfo.m_sourceMethodRanges.end() ||
+    const auto methodRanges = pdbInfo.m_sourceMethodRanges.find(sourceFileIndex);
+    if (methodRanges == pdbInfo.m_sourceMethodRanges.cend() ||
         !GetMethodTokensByLineNumber(methodRanges->second, sourceLine, correctedStartLine, methodTokens, closestNestedToken))
     {
         return E_FAIL;

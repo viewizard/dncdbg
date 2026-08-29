@@ -147,20 +147,20 @@ int
 
         for (const std::string &arg : args)
         {
-            auto findEntire = entireArguments.find(arg);
-            if (findEntire != entireArguments.end())
+            const auto findEntire = entireArguments.find(arg);
+            if (findEntire != entireArguments.cend())
             {
                 findEntire->second();
             }
             else
             {
-                auto it = std::find_if(partialArguments.begin(), partialArguments.end(),
+                const auto it = std::find_if(partialArguments.cbegin(), partialArguments.cend(),
                     [&arg](const auto &entry)
                     {
                         // Note: starts_with() is C++20, use rfind() for compatibility
                         return arg.rfind(entry.first, 0) == 0;
                     });
-                if (it != partialArguments.end())
+                if (it != partialArguments.cend())
                 {
                     it->second(arg);
                 }

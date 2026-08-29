@@ -484,8 +484,8 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorD
         {Parser::SyntaxKind::GreaterThanOrEqualExpression, GreaterThanOrEqualExpression}
     };
 
-    auto findOperator = OperatorImplementation.find(kind);
-    if (findOperator == OperatorImplementation.end())
+    const auto findOperator = OperatorImplementation.find(kind);
+    if (findOperator == OperatorImplementation.cend())
     {
         output = "Unknown binary operator.";
         return E_INVALIDARG;

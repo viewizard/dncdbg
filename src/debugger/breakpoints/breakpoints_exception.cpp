@@ -47,11 +47,11 @@ size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcep
         // Hash all conditions in a deterministic order
         // Note: unordered_set iteration order is not guaranteed, so we need to sort
         // for consistent hash values across different runs
-        std::vector<std::string> sortedConditions(expb.condition.begin(), expb.condition.end());
+        std::vector<std::string> sortedConditions(expb.condition.cbegin(), expb.condition.cend());
         std::sort(sortedConditions.begin(), sortedConditions.end());
 
         const std::hash<std::string> stringHasher;
-        hash = std::accumulate(sortedConditions.begin(), sortedConditions.end(), hash,
+        hash = std::accumulate(sortedConditions.cbegin(), sortedConditions.cend(), hash,
                                [&stringHasher](size_t h, const auto &entry)
                                {
                                    return HashCombine(h, stringHasher(entry));
@@ -172,7 +172,7 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
     {
         for (auto it = m_exceptionBreakpoints.at(filter).begin(); it != m_exceptionBreakpoints.at(filter).end();)
         {
-            if (expBreakpoints.at(filter).find(it->first) == expBreakpoints.at(filter).end())
+            if (expBreakpoints.at(filter).find(it->first) == expBreakpoints.at(filter).cend())
             {
                 it = m_exceptionBreakpoints.at(filter).erase(it);
             }
@@ -195,8 +195,8 @@ HRESULT ExceptionBreakpoints::SetExceptionBreakpoints(const std::vector<Exceptio
 
         Breakpoint breakpoint;
 
-        auto b = m_exceptionBreakpoints.at(static_cast<size_t>(expb.filterId)).find(expHash);
-        if (b == m_exceptionBreakpoints.at(static_cast<size_t>(expb.filterId)).end())
+        const auto b = m_exceptionBreakpoints.at(static_cast<size_t>(expb.filterId)).find(expHash);
+        if (b == m_exceptionBreakpoints.at(static_cast<size_t>(expb.filterId)).cend())
         {
             // New breakpoint
             ManagedExceptionBreakpoint bp;
@@ -241,7 +241,7 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
             return true;
         }
 
-        const bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.end() ?
+        const bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.cend() ?
                                           expb.second.negativeCondition : !expb.second.negativeCondition;
         if (isCoveredByCondition)
         {
@@ -265,7 +265,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
             pDetails->fullTypeName = "<unknown exception>";
         }
 
-        auto lastDotPosition = pDetails->fullTypeName.find_last_of('.');
+        const auto lastDotPosition = pDetails->fullTypeName.find_last_of('.');
         if (lastDotPosition < pDetails->fullTypeName.size())
         {
             pDetails->typeName = pDetails->fullTypeName.substr(lastDotPosition + 1);
@@ -282,7 +282,7 @@ HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICor
             [&](ICorDebugType *, bool, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
             {
-                auto getMemberWithName =
+                const auto getMemberWithName =
                     [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT
                     {
                         if (memberName != name)
@@ -381,8 +381,8 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
 
     const std::scoped_lock<std::mutex> lock(m_threadsExceptionMutex);
 
-    auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
-    if (findBreakMode == m_threadsExceptionBreakMode.end() || findBreakMode->second == ExceptionBreakMode::NEVER)
+    const auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+    if (findBreakMode == m_threadsExceptionBreakMode.cend() || findBreakMode->second == ExceptionBreakMode::NEVER)
     {
         return E_FAIL;
     }
@@ -515,8 +515,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             // Prevent debugger from breaking on internal async state machine rethrow when user code leaves an exception unhandled.
             if (IsTopFrameExceptionDispatchInfoThrow(pThread))
             {
-                auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
-                if (findExceptionCallbackType != m_threadsExceptionCallbackType.end())
+                const auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
+                if (findExceptionCallbackType != m_threadsExceptionCallbackType.cend())
                 {
                     findExceptionCallbackType->second = ExceptionCallbackType::FIRST_CHANCE;
                 }
@@ -529,8 +529,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             }
 
             // Important, reset previous stage for this thread.
-            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
-            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            const auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.cend())
             {
                 findBreakMode->second = ExceptionBreakMode::NEVER;
             }
@@ -539,8 +539,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 m_threadsExceptionBreakMode.emplace(tid, ExceptionBreakMode::NEVER);
             }
 
-            auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
-            if (findExceptionCallbackType != m_threadsExceptionCallbackType.end())
+            const auto findExceptionCallbackType = m_threadsExceptionCallbackType.find(tid);
+            if (findExceptionCallbackType != m_threadsExceptionCallbackType.cend())
             {
                 findExceptionCallbackType->second = ExceptionCallbackType::FIRST_CHANCE;
             }
@@ -562,8 +562,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
         case ExceptionCallbackType::USER_FIRST_CHANCE:
         {
             // In case we already "THROW" at FIRST CHANCE, don't emit "THROW" event again.
-            auto find = m_threadsExceptionCallbackType.find(tid);
-            if (find != m_threadsExceptionCallbackType.end())
+            const auto find = m_threadsExceptionCallbackType.find(tid);
+            if (find != m_threadsExceptionCallbackType.cend())
             {
                 find->second = ExceptionCallbackType::USER_FIRST_CHANCE;
                 return S_IGNORE;
@@ -577,8 +577,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
                 return S_IGNORE;
             }
 
-            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
-            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            const auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.cend())
             {
                 findBreakMode->second = ExceptionBreakMode::THROW;
             }
@@ -591,7 +591,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
         case ExceptionCallbackType::CATCH_HANDLER_FOUND:
         {
-            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.end());
+            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.cend());
 
             if (!m_justMyCode || m_threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::FIRST_CHANCE)
             {
@@ -608,8 +608,8 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
             m_threadsExceptionCallbackType.erase(tid);
 
-            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
-            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            const auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.cend())
             {
                 findBreakMode->second = ExceptionBreakMode::USER_UNHANDLED;
             }
@@ -622,7 +622,7 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
 
         case ExceptionCallbackType::USER_CATCH_HANDLER_FOUND:
         {
-            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.end());
+            assert(m_threadsExceptionCallbackType.find(tid) != m_threadsExceptionCallbackType.cend());
             assert(m_threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::USER_FIRST_CHANCE);
 
             m_threadsExceptionCallbackType.erase(tid);
@@ -636,14 +636,14 @@ HRESULT ExceptionBreakpoints::ManagedCallbackException(ICorDebugThread *pThread,
             // since they don't crash the application. In this case:
             //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, displayExcTypeName, ExceptionCategory::CLR)) - forced to emit event
 
-            auto find = m_threadsExceptionCallbackType.find(tid);
-            if (find != m_threadsExceptionCallbackType.end())
+            const auto find = m_threadsExceptionCallbackType.find(tid);
+            if (find != m_threadsExceptionCallbackType.cend())
             {
                 m_threadsExceptionCallbackType.erase(find);
             }
 
-            auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
-            if (findBreakMode != m_threadsExceptionBreakMode.end())
+            const auto findBreakMode = m_threadsExceptionBreakMode.find(tid);
+            if (findBreakMode != m_threadsExceptionBreakMode.cend())
             {
                 findBreakMode->second = ExceptionBreakMode::UNHANDLED;
             }

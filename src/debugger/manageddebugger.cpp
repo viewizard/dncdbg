@@ -182,8 +182,8 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         // Override the system value (PATHs appending needs a complex implementation)
         for (const auto &pair : env)
         {
-            auto findEnv = envMap.find(pair.first);
-            if (findEnv != envMap.end())
+            const auto findEnv = envMap.find(pair.first);
+            if (findEnv != envMap.cend())
             {
                 findEnv->second = pair.second;
             }
@@ -194,9 +194,9 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         }
         for (const auto &pair : envMap)
         {
-            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
             outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());
             outEnv.push_back('\0');
         }
         outEnv.push_back('\0');
@@ -205,9 +205,9 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     {
         for (const auto &pair : env)
         {
-            outEnv.insert(outEnv.end(), pair.first.begin(), pair.first.end());
+            outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
             outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.begin(), pair.second.end());
+            outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());
             outEnv.push_back('\0');
         }
         outEnv.push_back('\0');

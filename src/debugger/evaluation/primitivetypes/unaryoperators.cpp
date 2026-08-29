@@ -145,8 +145,8 @@ HRESULT CalculateUnary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorDe
         {Parser::SyntaxKind::LogicalNotExpression, LogicalNotExpression}
     };
 
-    auto findOperator = OperatorImplementation.find(kind);
-    if (findOperator == OperatorImplementation.end())
+    const auto findOperator = OperatorImplementation.find(kind);
+    if (findOperator == OperatorImplementation.cend())
     {
         output = "Unknown unary operator.";
         return E_INVALIDARG;

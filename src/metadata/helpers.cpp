@@ -122,7 +122,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
     std::vector<std::string> typeSuffixes;
 
     // Helper lambda to build arrayType from accumulated suffixes
-    auto finalizeSuffixes = [&]()
+    const auto finalizeSuffixes = [&]()
     {
         for (const auto &suffix : typeSuffixes)
         {
@@ -131,7 +131,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
     };
 
     // Helper lambda to process nested type - returns true if we should continue loop
-    auto processNestedType = [&]() -> bool
+    const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;
         if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
@@ -331,7 +331,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
     std::vector<std::string> typeSuffixes;
 
     // Helper lambda to build arrayType from accumulated suffixes
-    auto finalizeSuffixes = [&]()
+    const auto finalizeSuffixes = [&]()
     {
         for (const auto &suffix : typeSuffixes)
         {
@@ -340,7 +340,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
     };
 
     // Helper lambda to process nested type - returns true if we should continue loop
-    auto processNestedType = [&]() -> bool
+    const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;
         if (SUCCEEDED(trCurrentType->GetFirstTypeParameter(&trFirstParameter)))
@@ -568,8 +568,8 @@ std::string RenameToSystem(const std::string &typeName)
         {"nint",    "System.IntPtr"},
         {"nuint",   "System.UIntPtr"}
     };
-    auto renamed = cs2system.find(typeName);
-    return renamed != cs2system.end() ? renamed->second : typeName;
+    const auto renamed = cs2system.find(typeName);
+    return renamed != cs2system.cend() ? renamed->second : typeName;
 }
 
 std::string RenameToCSharp(const std::string &typeName)
@@ -594,8 +594,8 @@ std::string RenameToCSharp(const std::string &typeName)
         {"System.IntPtr",  "nint"},
         {"System.UIntPtr", "nuint"}
     };
-    auto renamed = system2cs.find(typeName);
-    return renamed != system2cs.end() ? renamed->second : typeName;
+    const auto renamed = system2cs.find(typeName);
+    return renamed != system2cs.cend() ? renamed->second : typeName;
 }
 
 std::vector<std::string> GatherGenericFQDisplayParameters(const std::vector<std::string> &identifiers, int indexEnd)
@@ -604,8 +604,8 @@ std::vector<std::string> GatherGenericFQDisplayParameters(const std::vector<std:
     for (int i = 0; i < indexEnd; i++)
     {
         std::string metadataTypeName;
-        std::vector<std::string> genericFQDisplayTypeNames = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
-        result.insert(result.end(), genericFQDisplayTypeNames.begin(), genericFQDisplayTypeNames.end());
+        const std::vector<std::string> genericFQDisplayTypeNames = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
+        result.insert(result.end(), genericFQDisplayTypeNames.cbegin(), genericFQDisplayTypeNames.cend());
     }
     return result;
 }
@@ -678,8 +678,8 @@ void ApplyNamespaceAlias(std::vector<std::string> &identifiers, int nextIdentifi
         return;
     }
 
-    auto aliasNamespace = pdbImports.find(PDB::ImportsKind::AliasNamespace);
-    if (aliasNamespace == pdbImports.end())
+    const auto aliasNamespace = pdbImports.find(PDB::ImportsKind::AliasNamespace);
+    if (aliasNamespace == pdbImports.cend())
     {
         return;
     }
@@ -705,8 +705,8 @@ void ApplyTypeAlias(std::vector<std::string> &identifiers, int nextIdentifier, c
         return;
     }
 
-    auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
-    if (aliasType == pdbImports.end())
+    const auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+    if (aliasType == pdbImports.cend())
     {
         return;
     }
@@ -724,10 +724,10 @@ void ApplyTypeAlias(std::vector<std::string> &identifiers, int nextIdentifier, c
             continue;
         }
 
-        std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName);
+        const std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName);
 
         identifiers.erase(identifiers.begin());
-        identifiers.insert(identifiers.begin(), typeIdentifiers.begin(), typeIdentifiers.end());
+        identifiers.insert(identifiers.begin(), typeIdentifiers.cbegin(), typeIdentifiers.cend());
         break;
     }
 }
@@ -772,8 +772,8 @@ HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::str
         return E_FAIL;
     }
 
-    auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
-    if (importNamespace == pdbImports.end())
+    const auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
+    if (importNamespace == pdbImports.cend())
     {
         return E_FAIL;
     }
@@ -888,7 +888,7 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
 
         // Skip if already resolved (the same type name can be used as a generic argument
         // in several places, for example Dictionary<List<int>, List<int>>).
-        if (resolvedTypes.find(entry.typeName) != resolvedTypes.end())
+        if (resolvedTypes.find(entry.typeName) != resolvedTypes.cend())
         {
             continue;
         }
@@ -913,11 +913,11 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
             std::vector<std::string> unresolved;
             for (const auto &np : nestedParams)
             {
-                if (resolvedTypes.find(np) != resolvedTypes.end())
+                if (resolvedTypes.find(np) != resolvedTypes.cend())
                 {
                     continue;
                 }
-                if (inProgress.find(np) != inProgress.end())
+                if (inProgress.find(np) != inProgress.cend())
                 {
                     return E_FAIL; // Circular type dependency.
                 }
@@ -943,8 +943,8 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
         std::vector<ToRelease<ICorDebugType>> trNestedTypes;
         for (const auto &np : nestedParams)
         {
-            auto findType = resolvedTypes.find(np);
-            if (findType == resolvedTypes.end())
+            const auto findType = resolvedTypes.find(np);
+            if (findType == resolvedTypes.cend())
             {
                 return E_FAIL;
             }
@@ -980,8 +980,8 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
     // Copy resolved types to output in original order.
     for (const auto &param : params)
     {
-        auto it = resolvedTypes.find(param);
-        if (it != resolvedTypes.end())
+        const auto it = resolvedTypes.find(param);
+        if (it != resolvedTypes.cend())
         {
             trTypes.push_back(std::move(it->second));
         }
@@ -1213,10 +1213,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
     std::list<std::string> args;
-    auto fillArgs = [&](mdToken token) -> void
+    const auto fillArgs = [&](mdToken token) -> void
     {
         const std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
-        args.assign(names.begin(), names.end());
+        args.assign(names.cbegin(), names.cend());
     };
 
     fillArgs(methodDef);
@@ -1564,7 +1564,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
     }
     ss << displayMethodName << "(";
 
-    auto addMethodParameters = [&]() -> HRESULT
+    const auto addMethodParameters = [&]() -> HRESULT
     {
         ToRelease<IUnknown> trUnknown;
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
@@ -1653,11 +1653,11 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
             }
 
             const std::string paramName = to_utf8(wParamName.data());
-            auto asyncParam = asyncMethodParams.find(paramName);
+            const auto asyncParam = asyncMethodParams.find(paramName);
 
             std::string displayTypeName;
             ToRelease<ICorDebugValue> trValue;
-            if ((asyncMethod && asyncParam != asyncMethodParams.end() &&
+            if ((asyncMethod && asyncParam != asyncMethodParams.cend() &&
                  SUCCEEDED(GetFQDisplayTypeName(asyncParam->second, displayTypeName))) ||
                 (!asyncMethod &&
                  SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
@@ -1707,7 +1707,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
     }
     ss << displayMethodName << "(";
 
-    auto addMethodParameters = [&]() -> HRESULT
+    const auto addMethodParameters = [&]() -> HRESULT
     {
         ToRelease<IUnknown> trUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
@@ -1751,7 +1751,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
             }
         }
 
-        auto cArguments = static_cast<ULONG>(argElementTypes.size());
+        const auto cArguments = static_cast<ULONG>(argElementTypes.size());
         for (ULONG i = 0; i < cArguments; i++)
         {
             // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
@@ -2080,8 +2080,8 @@ HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICo
         }
         else if (nextIdentifier == 0)
         {
-            auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
-            if (importNamespace == pdbImports.end())
+            const auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
+            if (importNamespace == pdbImports.cend())
             {
                 return E_FAIL;
             }
@@ -2167,8 +2167,8 @@ SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, cons
         {"nuint",   {ELEMENT_TYPE_U,       ""}}
     };
 
-    auto found = stypes.find(displayTypeName);
-    if (found != stypes.end())
+    const auto found = stypes.find(displayTypeName);
+    if (found != stypes.cend())
     {
         return found->second;
     }
@@ -2265,8 +2265,8 @@ HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName)
         {ELEMENT_TYPE_OBJECT,  "object"}
     };
 
-    auto findName = builtInTypesAndKeywords.find(elemType);
-    if (findName == builtInTypesAndKeywords.end())
+    const auto findName = builtInTypesAndKeywords.find(elemType);
+    if (findName == builtInTypesAndKeywords.cend())
     {
         return E_FAIL;
     }

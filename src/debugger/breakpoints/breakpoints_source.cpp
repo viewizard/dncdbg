@@ -151,15 +151,15 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     PDB::GlobalFileIndex globalFileIndex;
     IfFailRet(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, sp, &globalFileIndex));
 
-    auto breakpoints = m_sourceResolvedBreakpoints.find(globalFileIndex);
-    if (breakpoints == m_sourceResolvedBreakpoints.end())
+    const auto breakpoints = m_sourceResolvedBreakpoints.find(globalFileIndex);
+    if (breakpoints == m_sourceResolvedBreakpoints.cend())
     {
         return E_FAIL;
     }
 
     auto &breakpointsInSource = breakpoints->second;
-    auto it = breakpointsInSource.find(sp.startLine);
-    if (it == breakpointsInSource.end())
+    const auto it = breakpointsInSource.find(sp.startLine);
+    if (it == breakpointsInSource.cend())
     {
         return S_FALSE; // Stopped at break, but no breakpoints.
     }
@@ -398,7 +398,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     {
         for (auto &bp : sourceBreakpoints.second)
         {
-            if (removedIds.find(bp.id) != removedIds.end())
+            if (removedIds.find(bp.id) != removedIds.cend())
             {
                 bp.resolvedGlobalFileIndex.modAddress = 0;
                 bp.resolvedGlobalFileIndex.sourceFileIndex = 0;
@@ -421,7 +421,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 {
     const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
 
-    auto RemoveResolvedByInitialBreakpoint =
+    const auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
         {
             if (initialBreakpoint.resolvedLineNum == 0) // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
@@ -429,14 +429,14 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 return S_OK;
             }
 
-            auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
-            if (bMap_it == m_sourceResolvedBreakpoints.end())
+            const auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
+            if (bMap_it == m_sourceResolvedBreakpoints.cend())
             {
                 return E_FAIL;
             }
 
-            auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
-            if (bList_it == bMap_it->second.end())
+            const auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
+            if (bList_it == bMap_it->second.cend())
             {
                 return E_FAIL;
             }
@@ -465,8 +465,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
     HRESULT Status = S_OK;
     if (sourceBreakpoints.empty())
     {
-        auto it = m_sourceBreakpointMapping.find(source.path);
-        if (it != m_sourceBreakpointMapping.end())
+        const auto it = m_sourceBreakpointMapping.find(source.path);
+        if (it != m_sourceBreakpointMapping.cend())
         {
             for (auto &initialBreakpoint : it->second)
             {
@@ -497,7 +497,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
         // Note, we don't remove breakpoint in case `condition`, `hitCondition` or `logMessage` changed,
         // only change these fields in resolved breakpoint.
-        if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.end())
+        if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.cend())
         {
             Breakpoint breakpoint;
             breakpoint.id = initialBreakpoint.id;
@@ -511,7 +511,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
         else
         {
             // Note, debugger assumes that IDE can provide only one breakpoint for one line.
-            assert(breakpointsInSourceMap.find(initialBreakpoint.breakpoint.line) == breakpointsInSourceMap.end());
+            assert(breakpointsInSourceMap.find(initialBreakpoint.breakpoint.line) == breakpointsInSourceMap.cend());
             breakpointsInSourceMap.emplace(initialBreakpoint.breakpoint.line, &initialBreakpoint);
             ++it;
         }
@@ -524,8 +524,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
         const int line = sb.line;
         Breakpoint breakpoint;
 
-        auto b = breakpointsInSourceMap.find(line);
-        if (b == breakpointsInSourceMap.end())
+        const auto b = breakpointsInSourceMap.find(line);
+        if (b == breakpointsInSourceMap.cend())
         {
             ManagedSourceBreakpointMapping initialBreakpoint;
             initialBreakpoint.breakpoint = sb;
@@ -582,14 +582,14 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 
             if (initialBreakpoint.resolvedLineNum != 0)
             {
-                auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
-                if (bMap_it == m_sourceResolvedBreakpoints.end())
+                const auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
+                if (bMap_it == m_sourceResolvedBreakpoints.cend())
                 {
                     return E_FAIL;
                 }
 
-                auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
-                if (bList_it == bMap_it->second.end())
+                const auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
+                if (bList_it == bMap_it->second.cend())
                 {
                     return E_FAIL;
                 }
@@ -685,11 +685,11 @@ size_t SourceBreakpoints::GetBreakpointsCount()
 
     size_t count = 0;
 
-    for (auto &fileResolvedBreakpoints : m_sourceResolvedBreakpoints)
+    for (const auto &fileResolvedBreakpoints : m_sourceResolvedBreakpoints)
     {
-        for (auto &lineResolvedBreakpoints : fileResolvedBreakpoints.second)
+        for (const auto &lineResolvedBreakpoints : fileResolvedBreakpoints.second)
         {
-            for (auto &managedSourceBreakpoint : lineResolvedBreakpoints.second)
+            for (const auto &managedSourceBreakpoint : lineResolvedBreakpoints.second)
             {
                 count += managedSourceBreakpoint.trFuncBreakpoints.size();
             }

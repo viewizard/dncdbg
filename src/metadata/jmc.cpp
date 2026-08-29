@@ -155,7 +155,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
             excludeTokens.push_back(methodToken);
         }
     }
-    std::copy(excludeTypeTokens.begin(), excludeTypeTokens.end(), std::back_inserter(excludeTokens));
+    std::copy(excludeTypeTokens.cbegin(), excludeTypeTokens.cend(), std::back_inserter(excludeTokens));
 
     DisableJMCForTokenList(pModule, excludeTokens);
     return S_OK;

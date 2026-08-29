@@ -268,12 +268,12 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
     };
 
     // Loaded layout (ReadyToRun DLLs): RVA directly maps to VA
-    auto loadedLayout = [&]() -> HRESULT
+    const auto loadedLayout = [&]() -> HRESULT
     {
         if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
                                         debugDirs.data(), debugDataDir.size)))
         {
-            auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+            const auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
             {
                 return moduleBaseAddress + dir.address_of_raw_data;
             };
@@ -288,7 +288,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
     };
 
     // File layout (JIT-compiled DLL): Convert RVA to file offset
-    auto fileLayout = [&]() -> HRESULT
+    const auto fileLayout = [&]() -> HRESULT
     {
         // Read FILE_HEADER to get section count and optional header size
         const CORDB_ADDRESS fileHeaderAddr = ntHeaderAddr + 4;
@@ -312,7 +312,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
         }
 
         // Helper: Convert RVA to file offset using section table
-        auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
+        const auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
         {
             for (const auto &section : sections)
             {
@@ -339,7 +339,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
             return E_FAIL;
         }
 
-        auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+        const auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
         {
             return (dir.pointer_to_raw_data != 0) ? moduleBaseAddress + dir.pointer_to_raw_data : 0;
         };
@@ -559,8 +559,8 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
         return;
     }
 
-    auto startIt = std::next(m_moduleList.begin(), startModule);
-    auto endIt = m_moduleList.end();
+    const auto startIt = std::next(m_moduleList.cbegin(), startModule);
+    auto endIt = m_moduleList.cend();
     if (moduleCount != 0 &&
         startModule + moduleCount < static_cast<int>(m_moduleList.size()))
     {

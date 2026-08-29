@@ -211,8 +211,8 @@ void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &
         // Extract the tail substring strictly after the comma
         const std::string_view tail = std::string_view(expression).substr(commaPos + 1);
 
-        auto find = formatMap.find(tail);
-        if (find == formatMap.end())
+        const auto find = formatMap.find(tail);
+        if (find == formatMap.cend())
         {
             // Stop as soon as a comma-separated tail is not a known specifier:
             // the remaining text is the actual expression, which may legitimately

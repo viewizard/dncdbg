@@ -43,7 +43,7 @@ HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, st
     if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
         fetchedFrames == cInternalFrames)
     {
-        std::transform(pInternalFrames.begin(), pInternalFrames.end(),
+        std::transform(pInternalFrames.cbegin(), pInternalFrames.cend(),
                        std::back_inserter(trInternalFrames), [](ICorDebugInternalFrame2 *p)
                        {
                            return ToRelease<ICorDebugInternalFrame2>(p);
@@ -114,7 +114,7 @@ HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef metho
     {
         return E_FAIL; // The address belongs to a different memory region
     }
-    auto nativeOffset = static_cast<uint32_t>(nativeAddress - nativeBaseAddress);
+    const auto nativeOffset = static_cast<uint32_t>(nativeAddress - nativeBaseAddress);
 
     uint32_t mapElementsCount = 0;
     IfFailRet(trNativeCode->GetILToNativeMapping(0, &mapElementsCount, nullptr));
@@ -240,7 +240,7 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     return S_OK;
 }
 
-CORDB_ADDRESS GetIP(CONTEXT *context)
+CORDB_ADDRESS GetIP(const CONTEXT *context)
 {
 #ifdef _TARGET_AMD64_
     return static_cast<CORDB_ADDRESS>(context->Rip);
@@ -266,7 +266,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
 {
     HRESULT Status = S_OK;
 
-    auto exceptionStackTrace = [&]() -> HRESULT
+    const auto exceptionStackTrace = [&]() -> HRESULT
     {
         ToRelease<ICorDebugThread4> trThread4;
         IfFailRet(pThread->QueryInterface(IID_ICorDebugThread4, reinterpret_cast<void **>(&trThread4)));
@@ -528,7 +528,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
 
 HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame)
 {
-    auto foreignExceptionFrameDetected = [&]() -> bool
+    const auto foreignExceptionFrameDetected = [&]() -> bool
     {
         HRESULT Status = S_OK;
         ToRelease<ICorDebugThread4> trThread4;

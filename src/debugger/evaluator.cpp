@@ -261,7 +261,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     mdName.pop_back();
                 }
 
-                auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
+                const auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
                 {
                     ToRelease<ICorDebugObjectValue> trObjValue;
                     IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
@@ -363,7 +363,7 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
 
 HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displayTypeName,
                              const PDB::ImportsAndAliases &pdbImports,
-                             std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
+                             const std::vector<std::string> &identifiers, ICorDebugType **ppResultType)
 {
     HRESULT Status = S_OK;
 
@@ -381,7 +381,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
         }
 
         std::vector<std::string> fullpath = classIdentifiers;
-        std::copy(identifiers.begin(), identifiers.end(), std::back_inserter(fullpath));
+        std::copy(identifiers.cbegin(), identifiers.cend(), std::back_inserter(fullpath));
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
@@ -469,12 +469,12 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
         WSTRING wParameterName;
         if (GetLocalOrFieldNameKind(mdName) != GeneratedNameKind::PrimaryConstructorParameterField ||
             FAILED(TryParseGeneratedName(mdName, wParameterName)) ||
-            usedNames.find(wParameterName) != usedNames.end())
+            usedNames.find(wParameterName) != usedNames.cend())
         {
             return S_OK; // Return success to continue walking.
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
         {
             trValue.Free();
             IfFailRet(DereferenceAndUnboxValue(pInputValue, &trValue, nullptr));
@@ -545,7 +545,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 mdName.pop_back();
             }
 
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+            const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
             {
                 // Get pValue again, since it could be neutered at eval call in `cb` on previous loop.
                 trValue.Free();
@@ -579,7 +579,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                     return S_OK; // Return success to continue walking.
                 }
 
-                if (usedNames.find(mdName) != usedNames.end())
+                if (usedNames.find(mdName) != usedNames.cend())
                 {
                     return S_OK; // Return success to continue walking.
                 }
@@ -599,7 +599,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
             }
             // Ignore any other compiler generated fields, show only normal fields.
             else if (!IsSynthesizedLocalName(mdName) &&
-                     usedNames.find(mdName) == usedNames.end())
+                     usedNames.find(mdName) == usedNames.cend())
             {
                 IfFailRet(cb(to_utf8(mdName.c_str()), getValue));
                 if (Status == S_CAN_EXIT)
@@ -734,7 +734,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
 
             const bool isStatic = ((methodAttr & mdStatic) != 0U);
 
-            auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
+            const auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
             {
                 return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
@@ -890,7 +890,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     pInputValue->AddRef();
     trWalkQueue.emplace_back(pInputValue, false);
 
-    auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue) -> HRESULT
+    const auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue) -> HRESULT
     {
         BOOL isNull = FALSE;
         ToRelease<ICorDebugValue> trValue;
@@ -904,7 +904,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         IfFailRet(pFrontValue->GetType(&inputElemType));
         if (inputElemType == ELEMENT_TYPE_PTR)
         {
-            auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+            const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
             {
                 trValue->AddRef();
                 *ppResultValue = trValue;
@@ -942,7 +942,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
             for (uint32_t i = 0; i < cElements; ++i)
             {
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                 {
                     IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
                     return S_OK;
@@ -1082,7 +1082,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(mdName.c_str());
 
-                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
                         {
                             if (fieldAttr & fdLiteral)
                             {
@@ -1180,7 +1180,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(propertyName.data());
 
-                        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                         {
                             if (pThread == nullptr)
                             {
@@ -1449,7 +1449,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         Status = trILFrame->GetArgument(0, &trCurrentThis);
         if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
         {
-            auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
+            const auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
             {
                 if (fallbackTypeName != nullptr)
                 {
@@ -1494,7 +1494,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
             if (trUserThis != nullptr)
             {
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                 {
                     trUserThis->AddRef();
                     *ppResultValue = trUserThis;
@@ -1545,7 +1545,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             wParamName.pop_back();
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -1593,7 +1593,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             continue;
         }
 
-        auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -1640,7 +1640,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             for (const auto &constant : localConstants)
             {
-                if (usedNames.find(constant.name) != usedNames.end())
+                if (usedNames.find(constant.name) != usedNames.cend())
                 {
                     continue;
                 }
@@ -1651,7 +1651,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     continue;
                 }
 
-                auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
@@ -1782,7 +1782,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         }
 
         std::vector<std::string> fullpath = classIdentifiers;
-        std::copy(identifiers.begin(), identifiers.begin() + identifiersNum, std::back_inserter(fullpath));
+        std::copy(identifiers.cbegin(), identifiers.cbegin() + identifiersNum, std::back_inserter(fullpath));
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
@@ -2077,7 +2077,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
     HRESULT Status = S_OK;
 
     std::unordered_set<std::string> allIfaceTypeNames;
-    auto fillIfaceTypeNames = [&]() -> HRESULT
+    const auto fillIfaceTypeNames = [&]() -> HRESULT
     {
         // Walk the type and all its base types, collecting the type name and all
         // implemented interfaces (including those inherited from base types). This is
@@ -2233,7 +2233,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
             if (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE ||
                 elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
             {
-                if (allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.end())
+                if (allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.cend())
                 {
                     continue; // Type name didn't match, try next method
                 }
@@ -2241,7 +2241,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
             else if (elemType == ELEMENT_TYPE_STRING)
             {
                 if (elemType != argElementTypes.at(0).elemType &&
-                    allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.end())
+                    allIfaceTypeNames.find(argElementTypes.at(0).metadataTypeName) == allIfaceTypeNames.cend())
                 {
                     continue; // Type name didn't match, try next method
                 }
@@ -2251,7 +2251,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
                 continue;
             }
 
-            auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
+            const auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
             {
                 return pModule->GetFunctionFromToken(methodDef, ppResultFunction);
             };
@@ -2375,7 +2375,7 @@ HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 
 void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
 {
-    auto getImportsAndAliases = [&]() -> HRESULT
+    const auto getImportsAndAliases = [&]() -> HRESULT
     {
         HRESULT Status = S_OK;
         ToRelease<ICorDebugFrame> trFrame;
@@ -2413,7 +2413,7 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
 
         IfFailRet(m_sharedDebugInfo->GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
 
-        auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias) -> HRESULT
+        const auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias) -> HRESULT
         {
             for (auto &entry : alias)
             {
@@ -2445,14 +2445,14 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
             return S_OK;
         };
 
-        auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
-        if (importType != pdbImports.end())
+        const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+        if (importType != pdbImports.cend())
         {
             applyTokenName(importType->second);
         }
 
-        auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
-        if (aliasType != pdbImports.end())
+        const auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
+        if (aliasType != pdbImports.cend())
         {
             applyTokenName(aliasType->second);
         }

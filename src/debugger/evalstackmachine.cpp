@@ -104,7 +104,7 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
     return trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppValue);
 }
 
-HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, EvalData &ed, ICorDebugValue **ppResultValue,
+HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const EvalData &ed, ICorDebugValue **ppResultValue,
                                 std::unique_ptr<Evaluator::SetterData> *resultSetterData, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -131,14 +131,14 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, EvalData &
         PDB::ImportsAndAliases pdbImports;
         ed.pEvaluator->GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
 
-        auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
-        if (importType != pdbImports.end())
+        const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+        if (importType != pdbImports.cend())
         {
             for (const auto &entry : importType->second)
             {
                 std::vector<std::string> testIdentifiers = evalStack.front().identifiers;
-                std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
-                testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.begin(), importTypeIdentifiers.end());
+                const std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
+                testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.cbegin(), importTypeIdentifiers.cend());
 
                 if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
                                                                 testIdentifiers, ed.specifier, ppResultValue,
@@ -167,7 +167,7 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, EvalData &
     return Status;
 }
 
-HRESULT GetFrontStackEntryType(std::list<EvalStackEntry> &evalStack, EvalData &ed,
+HRESULT GetFrontStackEntryType(std::list<EvalStackEntry> &evalStack, const EvalData &ed,
                                ICorDebugType **ppResultType, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -229,7 +229,7 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &metadataTypeName, Co
     return S_OK;
 };
 
-HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue **pResultValue, EvalData &ed)
+HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue **pResultValue, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     std::string metadataTypeName;
@@ -263,7 +263,7 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
-                         const std::string &typeRetName, ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, EvalData &ed)
+                         const std::string &typeRetName, ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     std::string typeName;
@@ -298,7 +298,7 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
-                         ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, EvalData &ed)
+                         ICorDebugValue *pTypeValue, ICorDebugValue **pResultValue, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     std::string typeRetName;
@@ -379,7 +379,7 @@ HRESULT CopyValue(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, CorEleme
     return E_NOTIMPL;
 }
 
-HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool srcLiteral, EvalData &ed)
+HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool srcLiteral, const EvalData &ed)
 {
     HRESULT Status = S_OK;
 
@@ -449,7 +449,7 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
 }
 
 HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pType1Value,
-                           ICorDebugValue *pType2Value, ICorDebugValue **pResultValue, EvalData &ed)
+                           ICorDebugValue *pType2Value, ICorDebugValue **pResultValue, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     std::string typeName1;
@@ -470,7 +470,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     }
 
     ToRelease<ICorDebugValue> trTypeValue;
-    auto CallOperator =
+    const auto CallOperator =
         [&](std::function<HRESULT(std::vector<SigElementType> &)> cb) -> HRESULT
         {
             ToRelease<ICorDebugFunction> trFunc;
@@ -565,7 +565,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
     });
 }
 
-HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue2;
@@ -603,12 +603,12 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         {Parser::SyntaxKind::GreaterThanOrEqualExpression, {"op_GreaterThanOrEqual", ">="}}};
 
     auto findOpName = opMap.find(opcode.kind);
-    if (findOpName == opMap.end())
+    if (findOpName == opMap.cend())
     {
         return E_FAIL;
     }
 
-    auto fillErrorOutput = [&]() -> void
+    const auto fillErrorOutput = [&]() -> void
     {
         std::string typeName1 = "unknown";
         MetadataHelpers::GetFQDisplayTypeName(trRealValue1, typeName1);
@@ -662,7 +662,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     if ((elemType1 == ELEMENT_TYPE_STRING && (elemType2 == ELEMENT_TYPE_STRING || PrimitiveTypes::IsPrimitiveType(elemType2))) ||
         (elemType2 == ELEMENT_TYPE_STRING && (elemType1 == ELEMENT_TYPE_STRING || PrimitiveTypes::IsPrimitiveType(elemType1))))
     {
-        auto getString = [](ICorDebugValue *pValue, CorElementType elemType, std::string &strValue) -> HRESULT
+        const auto getString = [](ICorDebugValue *pValue, CorElementType elemType, std::string &strValue) -> HRESULT
         {
             HRESULT Status = S_OK;
             BOOL isNull = FALSE;
@@ -724,7 +724,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     return PrimitiveTypes::CalculateBinary(opcode.kind, ed.pThread, trRealValue1, trRealValue2, &evalStack.front().trValue, output);
 }
 
-HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
@@ -740,13 +740,13 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
         {Parser::SyntaxKind::UnaryPlusExpression, {"op_UnaryPlus", "+"}},
         {Parser::SyntaxKind::UnaryMinusExpression, {"op_UnaryNegation", "-"}}};
 
-    auto findOpName = opMap.find(opcode.kind);
-    if (findOpName == opMap.end())
+    const auto findOpName = opMap.find(opcode.kind);
+    if (findOpName == opMap.cend())
     {
         return E_FAIL;
     }
 
-    auto fillErrorOutput = [&]() -> void
+    const auto fillErrorOutput = [&]() -> void
     {
         std::string displayTypeName = "unknown";
         MetadataHelpers::GetFQDisplayTypeName(trRealValue, displayTypeName);
@@ -774,7 +774,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
     return PrimitiveTypes::CalculateUnary(opcode.kind, ed.pThread, trRealValue, &evalStack.front().trValue, output);
 }
 
-HRESULT IdentifierName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT IdentifierName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &/*ed*/)
 {
     std::string argString = opcode.str;
     ReplaceInternalNames(argString, true);
@@ -785,7 +785,7 @@ HRESULT IdentifierName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     return S_OK;
 }
 
-HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     const uint32_t argCount = opcode.count;
@@ -828,7 +828,7 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
 uint32_t ParseLastGenericArity(std::string_view typeName)
 {
     // 1. Find the backtick character '`'.
-    auto backtickPos = typeName.find_last_of('`');
+    const auto backtickPos = typeName.find_last_of('`');
     if (backtickPos == std::string_view::npos)
     {
         return 0; // Not a generic type
@@ -843,7 +843,7 @@ uint32_t ParseLastGenericArity(std::string_view typeName)
 
     // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
     uint32_t count = 0;
-    auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+    const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
 
     // If conversion succeeded, return the count; otherwise, return 0.
     if (result.ec == std::errc{})
@@ -854,7 +854,7 @@ uint32_t ParseLastGenericArity(std::string_view typeName)
     return 0;
 }
 
-HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
 
@@ -910,8 +910,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         {
             allIdentifiers.back() = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
 
-            auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
-            if (importType != pdbImports.end())
+            const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+            if (importType != pdbImports.cend())
             {
                 for (const auto &entry : importType->second)
                 {
@@ -948,7 +948,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 
     std::vector<SigElementType> genericMethodParameters;
     genericMethodParameters.reserve(genericMethodFQDisplayTypeNames.size());
-    std::transform(genericMethodFQDisplayTypeNames.begin(), genericMethodFQDisplayTypeNames.end(), std::back_inserter(genericMethodParameters),
+    std::transform(genericMethodFQDisplayTypeNames.cbegin(), genericMethodFQDisplayTypeNames.cend(), std::back_inserter(genericMethodParameters),
                    [&ed, &pdbImports](const auto &displayTypeName)
                    {
                        return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
@@ -958,7 +958,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     ToRelease<ICorDebugFunction> trFunc;
     ToRelease<ICorDebugValue> trValue;
     ToRelease<ICorDebugType> trType;
-    auto resolveFunc = [&](std::vector<std::string> &testIdentifiers) -> HRESULT
+    const auto resolveFunc = [&](std::vector<std::string> &testIdentifiers) -> HRESULT
     {
         trValue.Free();
         trType.Free();
@@ -967,14 +967,14 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         {
             if (pForcedThisValue == nullptr && !testIdentifiers.empty())
             {
-                auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
-                if (importType != pdbImports.end())
+                const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
+                if (importType != pdbImports.cend())
                 {
                     for (const auto &entry : importType->second)
                     {
                         std::vector<std::string> testIdents = testIdentifiers;
-                        std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
-                        testIdents.insert(testIdents.begin(), importTypeIdents.begin(), importTypeIdents.end());
+                        const std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
+                        testIdents.insert(testIdents.begin(), importTypeIdents.cbegin(), importTypeIdents.cend());
 
                         if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
                                                                         testIdents, ed.specifier, &trValue, nullptr, nullptr, &trType)))
@@ -1013,8 +1013,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             else
             {
                 // Boxing built-in element type into value type in order to call methods.
-                auto entry = ed.trElementToValueClassMap.find(elemType);
-                if (entry != ed.trElementToValueClassMap.end())
+                const auto entry = ed.trElementToValueClassMap.find(elemType);
+                if (entry != ed.trElementToValueClassMap.cend())
                 {
                     uint32_t cbSize = 0;
                     IfFailRet(trValue->GetSize(&cbSize));
@@ -1196,7 +1196,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
 // plain constructor calls only, no object/collection initializers (see the
 // object_creation_expression parser handler in parser.cpp, which rejects
 // those before this ever runs).
-HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
@@ -1303,7 +1303,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
                                          static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 }
 
-HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
@@ -1416,7 +1416,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
     return Status;
 }
 
-HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
@@ -1540,7 +1540,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
     return Status;
 }
 
-HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const bool argRealLiteral = (opcode.count == 1);
     const std::string argString = opcode.str;
@@ -1562,7 +1562,7 @@ HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalSta
     }
 }
 
-HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &ed)
 {
     std::string argString = opcode.str;
     ReplaceInternalNames(argString, true);
@@ -1571,7 +1571,7 @@ HRESULT StringLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStac
     return ed.pEvalExec->CreateString(ed.pThread, argString, &evalStack.front().trValue);
 }
 
-HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     WSTRING wStr = to_utf16(opcode.str);
     if (wStr.empty() || wStr.size() > 1)
@@ -1586,7 +1586,7 @@ HRESULT CharacterLiteralExpression(const Parser::Opcode &opcode, std::list<EvalS
     return PrimitiveTypes::CreateICorValue(ed.pThread, ELEMENT_TYPE_CHAR, &value, &evalStack.front().trValue);
 }
 
-HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     CorElementType elemType = ELEMENT_TYPE_MAX;
@@ -1609,7 +1609,7 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     }
 }
 
-HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     assert(evalStack.size() > 1);
     assert(evalStack.front().identifiers.size() == 1); // Only one unresolved identifier must be here.
@@ -1649,7 +1649,7 @@ HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<Eval
     return S_OK;
 }
 
-HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &/*ed*/)
 {
     assert(evalStack.size() > 1);
     assert(!evalStack.front().trValue); // The front element should be only an unresolved identifier.
@@ -1675,33 +1675,33 @@ HRESULT SimpleMemberAccessExpression(const Parser::Opcode &/*opcode*/, std::list
     return S_OK;
 }
 
-HRESULT QualifiedName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT QualifiedName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     return SimpleMemberAccessExpression(opcode, evalStack, output, ed);
 }
 
-HRESULT TrueLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT TrueLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, true);
 }
 
-HRESULT FalseLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT FalseLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateBooleanValue(ed.pThread, &evalStack.front().trValue, false);
 }
 
-HRESULT NullLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &ed)
+HRESULT NullLiteralExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &ed)
 {
     evalStack.emplace_front();
     evalStack.front().literal = true;
     return CreateNullValue(ed.pThread, &evalStack.front().trValue);
 }
 
-HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     assert(!evalStack.empty());
     HRESULT Status = S_OK;
@@ -1760,7 +1760,7 @@ HRESULT SizeOfExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEn
     return PrimitiveTypes::CreateICorValue(ed.pThread, ELEMENT_TYPE_U4, szPtr, &evalStack.front().trValue);
 }
 
-HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, EvalData &ed)
+HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trRealValueRightOp;
@@ -1809,7 +1809,7 @@ HRESULT CoalesceExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStack
     return E_INVALIDARG;
 }
 
-HRESULT ThisExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, EvalData &/*ed*/)
+HRESULT ThisExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntry> &evalStack, std::string &/*output*/, const EvalData &/*ed*/)
 {
     evalStack.emplace_front();
     evalStack.front().identifiers.emplace_back("this");
@@ -1822,7 +1822,7 @@ HRESULT ThisExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntr
 HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                               std::list<EvalStackEntry> &evalStack, std::string &output)
 {
-    static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const Parser::Opcode &, std::list<EvalStackEntry> &, std::string &, EvalData &)>> CommandImplementation{
+    static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const Parser::Opcode &, std::list<EvalStackEntry> &, std::string &, const EvalData &)>> CommandImplementation{
         {Parser::SyntaxKind::IdentifierName, IdentifierName},
         {Parser::SyntaxKind::GenericName, GenericName},
         {Parser::SyntaxKind::InvocationExpression, InvocationExpression},
@@ -1880,8 +1880,8 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
 
     for (const auto &executionStep : stackProgram)
     {
-        auto findStep = CommandImplementation.find(executionStep.kind);
-        if (findStep == CommandImplementation.end())
+        const auto findStep = CommandImplementation.find(executionStep.kind);
+        if (findStep == CommandImplementation.cend())
         {
             output = "Invalid syntax kind.";
             Status = E_INVALIDARG;
@@ -2025,7 +2025,7 @@ HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
         typeDef = mdTypeDefNil;
         IfFailRet(trMDImport->FindTypeDefByName(systemTypeName, mdTypeDefNil, &typeDef));
 
-        assert(m_evalData.trElementToValueClassMap.find(elemType) == m_evalData.trElementToValueClassMap.end());
+        assert(m_evalData.trElementToValueClassMap.find(elemType) == m_evalData.trElementToValueClassMap.cend());
         m_evalData.trElementToValueClassMap.emplace(elemType, nullptr);
         IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap.at(elemType)));
     }

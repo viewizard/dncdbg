@@ -66,7 +66,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
 {
     const ThreadId threadId(GetThreadId(pThread));
 
-    auto stepForcedIgnoreBP =
+    const auto stepForcedIgnoreBP =
         [&]()
         {
             {

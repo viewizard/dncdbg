@@ -313,8 +313,8 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     m_debugger.GetThreads(threads);
 
     // In case of DAP, command provides "pause" thread id.
-    if (std::find_if(threads.begin(), threads.end(),
-                     [&](const Thread &t) { return t.id == lastStoppedThread; }) != threads.end())
+    if (std::find_if(threads.cbegin(), threads.cend(),
+                     [&](const Thread &t) { return t.id == lastStoppedThread; }) != threads.cend())
     {
         // DAP event must provide thread only (VSCode IDE counts on this), even if this thread doesn't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);

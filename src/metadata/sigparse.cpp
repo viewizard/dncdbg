@@ -235,7 +235,7 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
 
     // Store a completely resolved type name as the next generic argument of the innermost
     // pending generic instantiation, or as the final result in case of the root type.
-    auto deliverTypeName = [&frames, &displayName, &rootDone](std::string &&name)
+    const auto deliverTypeName = [&frames, &displayName, &rootDone](std::string &&name)
     {
         if (frames.empty())
         {
@@ -417,8 +417,8 @@ bool SigElementType::isAlias(const CorElementType elemType1, const CorElementTyp
         {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
     };
 
-    auto found = aliases.find(elemType1);
-    if (found != aliases.end())
+    const auto found = aliases.find(elemType1);
+    if (found != aliases.cend())
     {
         if (found->second.elemType == elemType2 && found->second.metadataTypeName == name2)
         {

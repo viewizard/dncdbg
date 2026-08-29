@@ -80,7 +80,7 @@ HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *p
     return S_OK;
 }
 
-HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string &output)
+HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -128,7 +128,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, void *enumValue, std::string
     }
     trMDImport->CloseEnum(fEnum);
 
-    auto getValue = [&enumUnderlyingType](const void *data) -> uint64_t
+    const auto getValue = [&enumUnderlyingType](const void *data) -> uint64_t
     {
         switch (enumUnderlyingType)
         {

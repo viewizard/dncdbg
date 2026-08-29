@@ -469,8 +469,8 @@ HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemTyp
         {"ulong",   ELEMENT_TYPE_U8}
     };
 
-    auto find = predefinedTypeMap.find(typeName);
-    if (find == predefinedTypeMap.end())
+    const auto find = predefinedTypeMap.find(typeName);
+    if (find == predefinedTypeMap.cend())
     {
         output = "Unknown predefined type: " + typeName;
         return E_INVALIDARG;

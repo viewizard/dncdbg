@@ -32,14 +32,14 @@ std::string_view TrimString(std::string_view str)
 void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typeNameParts, std::string &assemblyName)
 {
     // 1. Separate the full type info from the assembly metadata using the first comma.
-    auto firstComma = proxyTypeName.find(',');
+    const auto firstComma = proxyTypeName.find(',');
     const std::string_view typePart = TrimString(proxyTypeName.substr(0, firstComma));
     const std::string_view remainder = (firstComma != std::string_view::npos) ? proxyTypeName.substr(firstComma + 1) : "";
 
     // 2. Extract the assembly name if it exists.
     if (!remainder.empty())
     {
-        auto nextComma = remainder.find(',');
+        const auto nextComma = remainder.find(',');
         const std::string_view assemblyPart = TrimString(remainder.substr(0, nextComma));
 
         // Per C# spec, the assembly name cannot start with properties like "Version=", "Culture=", etc.
@@ -56,7 +56,7 @@ void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typ
     size_t start = 0;
     while (start < typePart.size())
     {
-        auto plusPos = typePart.find('+', start);
+        const auto plusPos = typePart.find('+', start);
         const std::string_view part = typePart.substr(start, plusPos - start);
 
         typeNameParts.emplace_back(TrimString(part));
@@ -74,7 +74,7 @@ void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typ
 uint32_t ParseGenericArity(std::string_view typeName)
 {
     // 1. Find the backtick character '`'.
-    auto backtickPos = typeName.find('`');
+    const auto backtickPos = typeName.find('`');
     if (backtickPos == std::string_view::npos)
     {
         return 0; // Not a generic type
@@ -89,7 +89,7 @@ uint32_t ParseGenericArity(std::string_view typeName)
 
     // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
     uint32_t count = 0;
-    auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+    const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
 
     // If conversion succeeded, return the count; otherwise, return 0.
     if (result.ec == std::errc{})
@@ -164,7 +164,7 @@ HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImp
         }
 
         if (argElementTypes.size() != 1 ||
-            parameterMetadataTypeNames.find(argElementTypes.front().metadataTypeName) == parameterMetadataTypeNames.end())
+            parameterMetadataTypeNames.find(argElementTypes.front().metadataTypeName) == parameterMetadataTypeNames.cend())
         {
             continue;
         }
@@ -328,7 +328,7 @@ HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     mdTypeDef typeDef = mdTypeDefNil;
     if (proxyTypeNameParts.size() == 1 && assemblyName.empty() &&
-        std::count(proxyTypeNameParts.front().begin(), proxyTypeNameParts.front().end(), '.') == 0)
+        std::count(proxyTypeNameParts.front().cbegin(), proxyTypeNameParts.front().cend(), '.') == 0)
     {
         const WSTRING wProxyTypeName = to_utf16(proxyTypeNameParts.front());
         IfFailRet(trMDImport->FindTypeDefByName(wProxyTypeName.c_str(), proxyAttrTypeDef, &typeDef));
@@ -383,7 +383,7 @@ HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
 
     m_debuggerTypeProxyCache[modAddress].emplace(currentTypeDef, DebuggerTypeProxyCache{proxyTypeModAddress, constrMethodDef, enclosingTypesParamCount});
 
-    if (m_debuggerTypeProxyModuleCache.find(proxyTypeModAddress) == m_debuggerTypeProxyModuleCache.end())
+    if (m_debuggerTypeProxyModuleCache.find(proxyTypeModAddress) == m_debuggerTypeProxyModuleCache.cend())
     {
         m_debuggerTypeProxyModuleCache.emplace(proxyTypeModAddress, trProxyTypeModule.Detach());
     }
@@ -402,16 +402,16 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     std::unique_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
 
-    auto findCheckedModule = m_debuggerTypeProxyCheckedTypes.find(modAddress);
-    if (findCheckedModule == m_debuggerTypeProxyCheckedTypes.end())
+    const auto findCheckedModule = m_debuggerTypeProxyCheckedTypes.find(modAddress);
+    if (findCheckedModule == m_debuggerTypeProxyCheckedTypes.cend())
     {
         m_debuggerTypeProxyCheckedTypes.emplace(modAddress, std::unordered_set<mdTypeDef>{});
         m_debuggerTypeProxyCheckedTypes.at(modAddress).emplace(currentTypeDef);
         return E_FAIL;
     }
 
-    auto findCheckedType = findCheckedModule->second.find(currentTypeDef);
-    if (findCheckedType == findCheckedModule->second.end())
+    const auto findCheckedType = findCheckedModule->second.find(currentTypeDef);
+    if (findCheckedType == findCheckedModule->second.cend())
     {
         findCheckedModule->second.emplace(currentTypeDef);
         return E_FAIL;
@@ -419,14 +419,14 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     typeChecked = true;
 
-    auto findCacheByModule = m_debuggerTypeProxyCache.find(modAddress);
-    if (findCacheByModule == m_debuggerTypeProxyCache.end())
+    const auto findCacheByModule = m_debuggerTypeProxyCache.find(modAddress);
+    if (findCacheByModule == m_debuggerTypeProxyCache.cend())
     {
         return E_FAIL;
     }
 
-    auto findCache = findCacheByModule->second.find(currentTypeDef);
-    if (findCache == findCacheByModule->second.end())
+    const auto findCache = findCacheByModule->second.find(currentTypeDef);
+    if (findCache == findCacheByModule->second.cend())
     {
         return E_FAIL;
     }

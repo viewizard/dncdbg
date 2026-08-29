@@ -473,7 +473,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             };
 
             const auto findOp = opMap.find(packString(op));
-            if (findOp == opMap.end())
+            if (findOp == opMap.cend())
             {
                 output = "Unknown binary expression: " + std::string(op);
                 return E_INVALIDARG;
@@ -845,7 +845,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
         WorkItem item = std::move(workStack.top());
         workStack.pop();
 
-        if (auto *emit = std::get_if<EmitAction>(&item))
+        if (const auto *emit = std::get_if<EmitAction>(&item))
         {
             // Execute deferred opcode emission.
             HRESULT hr = S_OK;
@@ -890,7 +890,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
         const std::string_view type = ts_node_type(node);
 
         const auto findHandler = syntaxKindHandlerMap.find(type);
-        if (findHandler != syntaxKindHandlerMap.end())
+        if (findHandler != syntaxKindHandlerMap.cend())
         {
             HRESULT hr = S_OK;
             try

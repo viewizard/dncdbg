@@ -66,7 +66,7 @@ bool AsyncInfo::FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodTo
         return false;
     }
 
-    for (auto &await : asyncMethodSteppingInfo.awaits)
+    for (const auto &await : asyncMethodSteppingInfo.awaits)
     {
         if (ipOffset <= await.yieldOffset)
         {

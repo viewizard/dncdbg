@@ -143,12 +143,12 @@ HRESULT EvalExec::TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugVal
     COR_TYPEID typeID;
     IfFailRet(trType2->GetTypeID(&typeID));
 
-    auto is_same = [&typeID](const type_object_t &typeObject)
+    const auto is_same = [&typeID](const type_object_t &typeObject)
                    {
                        return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
                    };
-    auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
-    if (it == m_typeObjectCache.end())
+    const auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
+    if (it == m_typeObjectCache.cend())
     {
         return E_FAIL;
     }
@@ -181,12 +181,12 @@ HRESULT EvalExec::AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTy
     COR_TYPEID typeID;
     IfFailRet(trType2->GetTypeID(&typeID));
 
-    auto is_same = [&typeID](const type_object_t &typeObject)
+    const auto is_same = [&typeID](const type_object_t &typeObject)
                    {
                        return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
                    };
-    auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
-    if (it != m_typeObjectCache.end())
+    const auto it = std::find_if(m_typeObjectCache.begin(), m_typeObjectCache.end(), is_same);
+    if (it != m_typeObjectCache.cend())
     {
         return S_OK;
     }
@@ -427,7 +427,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
     };
 
     // Create by fully-qualified metadata (FQMD) name.
-    auto createByFQMDName = [&](const WSTRING &wName) -> HRESULT
+    const auto createByFQMDName = [&](const WSTRING &wName) -> HRESULT
     {
         if (wName.empty())
         {
@@ -458,7 +458,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             });
     };
 
-    auto createNullObjectValue = [&]() -> HRESULT
+    const auto createNullObjectValue = [&]() -> HRESULT
     {
         ToRelease<ICorDebugEval> trEval;
         IfFailRet(pThread->CreateEval(&trEval));

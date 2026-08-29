@@ -101,7 +101,7 @@ void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICor
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
     const ThreadId threadId(GetThreadId(pThread));
 
-    assert(m_userThreads.find(threadId) != m_userThreads.end());
+    assert(m_userThreads.find(threadId) != m_userThreads.cend());
     m_userThreads.at(threadId) = threadName;
 }
 
@@ -109,8 +109,8 @@ void Threads::Remove(const ThreadId &threadId)
 {
     const WriteLock w_lock(m_userThreadsRWLock);
 
-    auto it = m_userThreads.find(threadId);
-    if (it == m_userThreads.end())
+    const auto it = m_userThreads.find(threadId);
+    if (it == m_userThreads.cend())
     {
         return;
     }
@@ -123,7 +123,7 @@ HRESULT Threads::GetThreads(std::vector<Thread> &threads)
     const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
-    std::transform(m_userThreads.begin(), m_userThreads.end(),
+    std::transform(m_userThreads.cbegin(), m_userThreads.cend(),
                    std::back_inserter(threads), [](const auto &userThread)
                    {
                        return Thread(userThread.first, userThread.second);
@@ -137,7 +137,7 @@ HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
     const ReadLock r_lock(m_userThreadsRWLock);
 
     threads.reserve(m_userThreads.size());
-    std::transform(m_userThreads.begin(), m_userThreads.end(),
+    std::transform(m_userThreads.cbegin(), m_userThreads.cend(),
                    std::back_inserter(threads), [](const auto &userThread)
                    {
                        return userThread.first;

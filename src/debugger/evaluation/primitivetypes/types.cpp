@@ -21,7 +21,7 @@ bool IsPrimitiveType(CorElementType elemType)
         ELEMENT_TYPE_R4,      ELEMENT_TYPE_R8, ELEMENT_TYPE_I4, ELEMENT_TYPE_U4,
         ELEMENT_TYPE_I2,      ELEMENT_TYPE_U2, ELEMENT_TYPE_I8, ELEMENT_TYPE_U8};
 
-    return supportedElementTypes.find(elemType) != supportedElementTypes.end();
+    return supportedElementTypes.find(elemType) != supportedElementTypes.cend();
 }
 
 HRESULT GetPrimitiveData(ICorDebugValue *pValue, PrimitiveValue &primValue)
@@ -41,7 +41,7 @@ HRESULT GetPrimitiveData(ICorDebugValue *pValue, PrimitiveValue &primValue)
         return S_OK;
     }
 
-    auto readValue = [&](auto typeDummy) -> HRESULT
+    const auto readValue = [&](auto typeDummy) -> HRESULT
     {
         using T = decltype(typeDummy);
         auto &addr = primValue.emplace<T>();
