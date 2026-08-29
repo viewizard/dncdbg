@@ -27,7 +27,7 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
     if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
-        (*uniqueEvalResult).Status = pEval->GetResult(&((*uniqueEvalResult).trEval));
+        (*uniqueEvalResult).Status = pEval->GetResult(&(*uniqueEvalResult).trEval);
     }
 
     if (!m_evalResult || m_evalResult->threadId != threadId)

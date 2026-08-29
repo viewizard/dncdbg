@@ -109,7 +109,7 @@ HRESULT ArithmeticExpressionImpl(const PrimitiveValue &leftValue, const Primitiv
     {
         outputValue.emplace<uint64_t>(intOp(ConvertToNumeric<uint64_t>(leftValue), ConvertToNumeric<uint64_t>(rightValue)));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || std::holds_alternative<uint32_t>(rightValue))
     {
         outputValue.emplace<uint32_t>(intOp(ConvertToNumeric<uint32_t>(leftValue), ConvertToNumeric<uint32_t>(rightValue)));
     }
@@ -249,7 +249,7 @@ HRESULT BitwiseExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveVa
     {
         outputValue.emplace<uint64_t>(bitwiseOp(ConvertToNumeric<uint64_t>(leftValue), ConvertToNumeric<uint64_t>(rightValue)));
     }
-    else if (std::holds_alternative<uint32_t>(leftValue) || (std::holds_alternative<uint32_t>(rightValue)))
+    else if (std::holds_alternative<uint32_t>(leftValue) || std::holds_alternative<uint32_t>(rightValue))
     {
         outputValue.emplace<uint32_t>(bitwiseOp(ConvertToNumeric<uint32_t>(leftValue), ConvertToNumeric<uint32_t>(rightValue)));
     }

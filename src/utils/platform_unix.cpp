@@ -28,7 +28,7 @@ void USleep(unsigned long usec)
 char **GetSystemEnvironment()
 {
 #if (defined(__APPLE__) && defined(__MACH__))
-    return *(_NSGetEnviron());
+    return *_NSGetEnviron();
 #else
     return environ;
 #endif
