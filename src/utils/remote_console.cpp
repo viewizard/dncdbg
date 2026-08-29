@@ -66,7 +66,7 @@ bool RemoteConsoleServer::Initialize(int port, DataCallback callback)
         m_initialized.store(true);
 
         // Spawn worker thread. The thread itself performs the (potentially long) accept() so Initialize() returns immediately.
-        m_workerThread = std::thread([this]()
+        m_workerThread = std::thread([this]
         {
             try
             {

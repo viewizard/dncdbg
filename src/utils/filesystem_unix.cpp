@@ -64,7 +64,7 @@ std::string GetExeAbsPath()
 // `C:\Users\localuser\AppData\Local\Temp` on Windows.
 std::string_view GetTempDir()
 {
-    const auto get_tmpdir = []()
+    const auto get_tmpdir = []
         {
             const char *pPath = getenv("TMPDIR");
             if (pPath != nullptr)

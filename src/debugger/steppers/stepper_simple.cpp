@@ -67,7 +67,7 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
     const ThreadId threadId(GetThreadId(pThread));
 
     const auto stepForcedIgnoreBP =
-        [&]()
+        [&]() -> bool
         {
             {
                 const std::scoped_lock<std::mutex> lock(m_stepMutex);

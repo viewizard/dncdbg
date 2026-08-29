@@ -570,7 +570,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"evaluate", [&](const json &arguments, json &responseBody)
             {
                 std::string expression = arguments.at("expression");
-                const FrameId frameId([&]()
+                const FrameId frameId([&]
                     {
                         const auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.cend())
@@ -624,7 +624,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
-                const FrameId frameId([&]()
+                const FrameId frameId([&]
                     {
                         const auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.cend())
@@ -787,7 +787,7 @@ void DAP::CommandsWorker()
         }
 
         json responseBody = json::object();
-        std::future<HRESULT> future = std::async(std::launch::async, [&]()
+        std::future<HRESULT> future = std::async(std::launch::async, [&]
             {
                 return HandleCommandJSON(c.command, c.arguments, responseBody);
             });

@@ -620,7 +620,8 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
         m_cwd.clear();
     }
 
-    m_ioredirect.Exec([&]() {
+    m_ioredirect.Exec([&]
+        {
             Status = m_dbgshim.GetCreateProcessForLaunch()(
                 const_cast<WCHAR *>(to_utf16(ss.str()).c_str()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process

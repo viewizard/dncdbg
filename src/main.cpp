@@ -117,19 +117,19 @@ int
         const std::vector<std::string> args(argv + 1, argv + argc);
 
         std::unordered_map<std::string, std::function<void()>> entireArguments{
-            {"--help", [&]() {
+            {"--help", [&] {
                 print_help();
                 exit(EXIT_SUCCESS);
             }},
-            {"--buildinfo", [&]() {
+            {"--buildinfo", [&] {
                 print_buildinfo();
                 exit(EXIT_SUCCESS);
             }},
-            {"--version", [&]() {
+            {"--version", [&] {
                 print_version();
                 exit(EXIT_SUCCESS);
             }},
-            {"--interpreter=vscode" , [&]() {
+            {"--interpreter=vscode" , [&] {
                 // VSCode IDE sends this option silently to debugger, just ignore it
             }}};
 

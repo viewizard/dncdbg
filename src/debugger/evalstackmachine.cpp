@@ -608,7 +608,7 @@ HRESULT BinaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         return E_FAIL;
     }
 
-    const auto fillErrorOutput = [&]() -> void
+    const auto fillErrorOutput = [&]
     {
         std::string typeName1 = "unknown";
         MetadataHelpers::GetFQDisplayTypeName(trRealValue1, typeName1);
@@ -746,7 +746,7 @@ HRESULT UnaryOperator(const Parser::Opcode &opcode, std::list<EvalStackEntry> &e
         return E_FAIL;
     }
 
-    const auto fillErrorOutput = [&]() -> void
+    const auto fillErrorOutput = [&]
     {
         std::string displayTypeName = "unknown";
         MetadataHelpers::GetFQDisplayTypeName(trRealValue, displayTypeName);

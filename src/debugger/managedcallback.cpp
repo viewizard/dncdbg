@@ -110,7 +110,8 @@ ULONG STDMETHODCALLTYPE ManagedCallback::Release()
 HRESULT STDMETHODCALLTYPE ManagedCallback::Breakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                                       ICorDebugBreakpoint *pBreakpoint)
 {
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]
+    {
         pAppDomain->AddRef();
         pThread->AddRef();
         pBreakpoint->AddRef();
@@ -122,7 +123,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Breakpoint(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::StepComplete(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                                         ICorDebugStepper */*pStepper*/, CorDebugStepReason reason)
 {
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]
+    {
         pAppDomain->AddRef();
         pThread->AddRef();
         m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::StepComplete, pAppDomain, pThread, nullptr, reason,
@@ -132,7 +134,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::StepComplete(ICorDebugAppDomain *pApp
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::Break(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]
+    {
         pAppDomain->AddRef();
         pThread->AddRef();
         m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::Break, pAppDomain, pThread, nullptr, STEP_NORMAL,
@@ -176,7 +179,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
         // At this point we have only one domain for sure.
         if (SUCCEEDED(trAppDomainEnum->Next(1, &trAppDomain, &domainsFetched)) && domainsFetched == 1)
         {
-            return m_sharedCallbacksQueue->AddCallbackToQueue(trAppDomain, [&]()
+            return m_sharedCallbacksQueue->AddCallbackToQueue(trAppDomain, [&]
             {
                 m_sharedCallbacksQueue->EmplaceBack(CallbackQueueCall::CreateProcess, trAppDomain.Detach(), nullptr, nullptr, STEP_NORMAL, ExceptionCallbackType::FIRST_CHANCE);
             });
@@ -439,8 +442,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
                                                      ICorDebugFrame *pFrame, uint32_t /*nOffset*/,
                                                      CorDebugExceptionCallbackType dwEventType, DWORD /*dwFlags*/)
 {
-    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]() {
-        // pFrame could be neutered in case of evaluation during break, do all stuff with pFrame in callback itself.
+    return m_sharedCallbacksQueue->AddCallbackToQueue(pAppDomain, [&]
+    {
+        // pFrame could be neutered in case of evaluation during break, so all work with pFrame must be done in the callback itself.
         ExceptionCallbackType eventType = ExceptionCallbackType::UNKNOWN;
         switch (dwEventType)
         {

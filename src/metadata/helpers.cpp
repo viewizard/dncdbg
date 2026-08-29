@@ -122,7 +122,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
     std::vector<std::string> typeSuffixes;
 
     // Helper lambda to build arrayType from accumulated suffixes
-    const auto finalizeSuffixes = [&]()
+    const auto finalizeSuffixes = [&]
     {
         for (const auto &suffix : typeSuffixes)
         {
@@ -331,7 +331,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
     std::vector<std::string> typeSuffixes;
 
     // Helper lambda to build arrayType from accumulated suffixes
-    const auto finalizeSuffixes = [&]()
+    const auto finalizeSuffixes = [&]
     {
         for (const auto &suffix : typeSuffixes)
         {

@@ -589,7 +589,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
     fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
     const PDBInfo *pPDBInfo = nullptr;
-    const auto findPDBInfoAndIndex = [&]()
+    const auto findPDBInfoAndIndex = [&]
     {
         std::string currentResult;
         for (auto &[modAddr, sourceIndices] : foundSourceIndices)
