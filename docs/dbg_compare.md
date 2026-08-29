@@ -1,12 +1,4 @@
-# Debugger for the .NET Core Runtime
-
-**DNCDbg** is an acronym for .NET Core (dot net core) Debugger. It implements the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/), allowing you to debug .NET applications running on all versions of the .NET runtime.
-
-Initially, DNCDbg was based on version 3.1.3 of the [NetCoreDbg](https://github.com/Samsung/netcoredbg) source code, but unlike NetCoreDbg, its development is fully hosted on GitHub, making it more collaborative and flexible.
-
-**Project goals:** implement functionality close to that of the MSVS C# debugger (excluding features related to the MSVS IDE and those not supported by DAP), provide complete [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) support, and achieve low memory consumption and high performance.
-
-See the current [Debug Adapter Protocol support status](docs/dap_status.md).
+# DNCDbg / NetCoreDbg Comparison Table
 
 <div align="center">
 
@@ -45,13 +37,37 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Display in/ref/out parameter modifiers</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Display active CLR internal frames in stack trace</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Display human readable async stack trace</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><b>Display local constants (literals)</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><a href="docs/inputting_text.md"><b>Inputting text into the target process</b></a></td>
+      <td align="left"><b>Use <code>ToString()</code> for object variable display</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><a href="inputting_text.md"><b>Inputting text into the target process</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -81,7 +97,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><a href="docs/evaluation_format_specifiers.md"><b>Evaluation format specifiers</b></a></td>
+      <td align="left"><a href="evaluation_format_specifiers.md"><b>Evaluation format specifiers</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -100,6 +116,24 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     </tr>
     <tr>
       <td align="left"><b>DebuggerTypeProxy attribute</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Using-directive awareness in type resolution</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Pagination for variable children</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Source checksums</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -128,11 +162,6 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅<sup>7</sup></td>
       <td align="center">✅</td>
     </tr>
-    <tr>
-      <td align="center" colspan="4">
-        <a href="docs/dbg_compare.md">View Full Comparison Table</a>
-      </td>
-    </tr>
   </tbody>
 </table>
 
@@ -145,26 +174,3 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 <small><sup>5</sup> Linux and Tizen operating systems only.</small><br>
 <small><sup>6</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
 <small><sup>7</sup> Does not support `musl`-based Linux distros.</small><br>
-
-## Development Process
-
-The project uses Trunk-Based Development, which means you can build the current upstream code and be sure you have the latest version with all features and fixes included. Upcoming changes can be found in [CHANGELOG.md](CHANGELOG.md).
-
-## Contributing
-
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) to learn how you can report bugs, propose features, or contribute code changes through forks.
-
-## Building from Source Code
-
-- [Windows OS build.](docs/build_windows.md)
-- [Linux OS build.](docs/build_linux.md)
-- [macOS build.](docs/build_macos.md)
-- [Local testing.](test-suite/README.md)
-
-## Usage
-
-- [VSCode IDE, Windows OS.](docs/usage_vscode_windows.md)
-- [VSCode IDE, Linux and macOS.](docs/usage_vscode_unix.md)
-- [Debugger pseudo-variables.](docs/pseudo_variables.md)
-- [Inputting text into the target process.](docs/inputting_text.md)
-- [Evaluation format specifiers.](docs/evaluation_format_specifiers.md)
