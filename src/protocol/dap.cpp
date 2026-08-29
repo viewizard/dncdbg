@@ -316,7 +316,13 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                });
 
                 const auto &sourceJson = arguments.at("source");
-                Source source(sourceJson.at("path"));
+                const std::string sourcePath = sourceJson.value("path", std::string());
+                const std::string sourceName = sourceJson.value("name", std::string());
+                if (sourcePath.empty() && sourceName.empty())
+                {
+                    return E_INVALIDARG;
+                }
+                Source source(sourcePath.empty() ? sourceName : sourcePath);
                 if (sourceJson.contains("checksums"))
                 {
                     std::transform(sourceJson.at("checksums").begin(), sourceJson.at("checksums").end(),
