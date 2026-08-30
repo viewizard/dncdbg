@@ -24,7 +24,7 @@ void FunctionBreakpoints::ManagedFunctionBreakpoint::ToBreakpoint(Breakpoint &br
 
 FunctionBreakpoints::ManagedFunctionBreakpoint::~ManagedFunctionBreakpoint()
 {
-    for (auto &trFuncBreakpoint : trFuncBreakpoints)
+    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
     {
         Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
     }
@@ -101,12 +101,23 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             continue;
         }
 
-        for (const auto &trFuncBreakpoint : fbp.trFuncBreakpoints)
+        for (auto &[trFuncBreakpoint, nativeAddress] : fbp.trFuncBreakpoints)
         {
             if (FAILED(Status = BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, trFuncBreakpoint)) ||
                 Status == S_FALSE)
             {
                 continue;
+            }
+
+            CORDB_ADDRESS currentNativeAddress = 0;
+            if (SUCCEEDED(BreakpointHelpers::GetBreakpointNativeAddress(trFunctionBreakpoint, currentNativeAddress)) &&
+                currentNativeAddress != nativeAddress)
+            {
+                nativeAddress = currentNativeAddress;
+                Breakpoint breakpoint;
+                fbp.ToBreakpoint(breakpoint);
+                breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
+                DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
             }
 
             if (!fbp.condition.empty())
@@ -123,6 +134,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 {
                     Breakpoint breakpoint;
                     fbp.ToBreakpoint(breakpoint);
+                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate. The condition was '"
                     << fbp.condition << "'. The error returned was '" << output << "'. - "
@@ -152,6 +164,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 {
                     Breakpoint breakpoint;
                     fbp.ToBreakpoint(breakpoint);
+                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate. The hitCondition was '"
                     << fbp.hitCondition << "'. The error returned was '" << output << "'. - "
@@ -211,14 +224,14 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
         for (auto it = fb.trFuncBreakpoints.begin(); it != fb.trFuncBreakpoints.end();)
         {
             CORDB_ADDRESS brModAddress = 0;
-            if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(*it, brModAddress)) ||
+            if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(it->first, brModAddress)) ||
                 modAddress != brModAddress)
             {
                 ++it;
             }
             else
             {
-                Breakpoints::DeactivateManagedBreakpoint((*it));
+                Breakpoints::DeactivateManagedBreakpoint(it->first);
                 it = fb.trFuncBreakpoints.erase(it);
             }
         }
@@ -357,7 +370,9 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
         IfFailRet(pModule->GetBaseAddress(&modAddress));
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
         IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, methodToken, ilOffset, pModule, &trFuncBreakpoint));
-        fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach());
+        CORDB_ADDRESS nativeAddress = 0;
+        BreakpointHelpers::GetBreakpointNativeAddress(trFuncBreakpoint, nativeAddress);
+        fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach(), nativeAddress);
     }
 
     return S_OK;

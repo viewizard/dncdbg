@@ -87,7 +87,7 @@ class FunctionBreakpoints
         uint32_t hitCount{0};
         std::string hitCondition;
         std::string condition;
-        std::list<ToRelease<ICorDebugFunctionBreakpoint>> trFuncBreakpoints;
+        std::list<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
 
         [[nodiscard]] bool IsVerified() const
         {

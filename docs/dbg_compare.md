@@ -133,6 +133,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Variable memory reference</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><b>Source checksums</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
@@ -143,6 +149,12 @@
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">❓</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Breakpoint instruction reference</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
