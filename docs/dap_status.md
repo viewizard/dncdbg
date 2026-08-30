@@ -23,7 +23,7 @@
 
 #### Types
 
-[Capabilities](#capabilities), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
+[Capabilities](#capabilities), [Checksum](#checksum), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
 
 ## Base Protocol
 
