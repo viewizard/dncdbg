@@ -197,7 +197,7 @@ typedef struct {
  *    step must be matched by the very next sibling. This is used when
  *    processing repetitions, or when processing a wildcard node followed by
  *    an anchor.
- * - `has_in_progress_alternatives` - A flag that indicates that there is are
+ * - `has_in_progress_alternatives` - A flag that indicates that there are
  *    other states that have the same captures as this state, but are at
  *    different steps in their pattern. This means that in order to obey the
  *    'longest-match' rule, this state should not be returned as a match until
@@ -3227,6 +3227,39 @@ void ts_query_delete(TSQuery *self) {
     array_delete(&self->capture_quantifiers);
     ts_free(self);
   }
+}
+
+TSQuery *ts_query_copy(const TSQuery *self) {
+  TSQuery *copy = ts_malloc(sizeof(TSQuery));
+  *copy = (TSQuery) {
+    .captures = symbol_table_new(),
+    .predicate_values = symbol_table_new(),
+    .language = ts_language_copy(self->language),
+    .wildcard_root_pattern_count = self->wildcard_root_pattern_count,
+  };
+
+  array_assign(&copy->steps, &self->steps);
+  array_assign(&copy->pattern_map, &self->pattern_map);
+  array_assign(&copy->predicate_steps, &self->predicate_steps);
+  array_assign(&copy->patterns, &self->patterns);
+  array_assign(&copy->step_offsets, &self->step_offsets);
+  array_assign(&copy->negated_fields, &self->negated_fields);
+  array_assign(&copy->string_buffer, &self->string_buffer);
+  array_assign(&copy->repeat_symbols_with_rootless_patterns, &self->repeat_symbols_with_rootless_patterns);
+  array_assign(&copy->captures.characters, &self->captures.characters);
+  array_assign(&copy->captures.slices, &self->captures.slices);
+  array_assign(&copy->predicate_values.characters, &self->predicate_values.characters);
+  array_assign(&copy->predicate_values.slices, &self->predicate_values.slices);
+
+  array_assign(&copy->capture_quantifiers, &self->capture_quantifiers);
+  for (uint32_t i = 0; i < copy->capture_quantifiers.size; i++) {
+    CaptureQuantifiers *dst = array_get(&copy->capture_quantifiers, i);
+    const CaptureQuantifiers *src = array_get(&self->capture_quantifiers, i);
+    *dst = capture_quantifiers_new();
+    array_assign(dst, src);
+  }
+
+  return copy;
 }
 
 uint32_t ts_query_pattern_count(const TSQuery *self) {

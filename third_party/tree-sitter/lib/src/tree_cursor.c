@@ -3,6 +3,11 @@
 #include "./language.h"
 #include "./tree.h"
 
+_Static_assert(
+  sizeof(TreeCursor) <= sizeof(TSTreeCursor),
+  "TreeCursor must fit within TSTreeCursor"
+);
+
 typedef struct {
   Subtree parent;
   const TSTree *tree;
