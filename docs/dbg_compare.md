@@ -139,6 +139,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Source breakpoints on columns</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">❓</td>
+    </tr>
+    <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
       <td align="center">❌</td>
       <td align="center">✅</td>

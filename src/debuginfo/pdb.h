@@ -108,14 +108,19 @@ struct ResolvedBreakpoint
 {
     mdMethodDef methodToken{mdMethodDefNil};
     int32_t startLine{0};
+    int32_t startColumn{0};
     int32_t endLine{0};
+    int32_t endColumn{0};
     uint32_t ilOffset{0};
     ToRelease<ICorDebugModule> trModule;
 
-    ResolvedBreakpoint(mdMethodDef method, int32_t start, int32_t end, uint32_t offset)
+    ResolvedBreakpoint(mdMethodDef method, int32_t startLine, int32_t startColumn,
+                       int32_t endLine, int32_t endColumn, uint32_t offset)
         : methodToken(method),
-          startLine(start),
-          endLine(end),
+          startLine(startLine),
+          startColumn(startColumn),
+          endLine(endLine),
+          endColumn(endColumn),
           ilOffset(offset)
     {
     }

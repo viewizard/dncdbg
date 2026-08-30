@@ -538,8 +538,8 @@ HRESULT DebugInfo::GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::Sequence
     return S_OK;
 }
 
-HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source,
-                                     int sourceLine, PDB::GlobalFileIndex &globalFileIndex,
+HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine,
+                                     int32_t sourceColumn, PDB::GlobalFileIndex &globalFileIndex,
                                      std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
@@ -689,7 +689,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
         return E_FAIL;
     }
 
-    return DebugSources::ResolveBreakpoints(*pPDBInfo, globalFileIndex.sourceFileIndex, sourceLine, resolvedPoints);
+    return DebugSources::ResolveBreakpoints(*pPDBInfo, globalFileIndex.sourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
 }
 
 HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,

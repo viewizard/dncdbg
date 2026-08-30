@@ -3,10 +3,12 @@ Upcoming changes compared to previous version.
 
 #### DAP
 - Added `checksums` support in Source.
-- Added `instructionReference` support in Breakpoint.
+- Added `instructionReference`, `column` and `endColumn` support in Breakpoint.
+- Added `column` support in SourceBreakpoint.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
+- Added support for source breakpoints on columns.
 
 <br>
 <br>

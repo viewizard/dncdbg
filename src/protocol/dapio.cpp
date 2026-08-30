@@ -42,6 +42,11 @@ void to_json(json &j, const Breakpoint &b)
         j.emplace("line", b.line);
     }
 
+    if (b.column != 0)
+    {
+        j.emplace("column", b.column);
+    }
+
     if (!b.message.empty())
     {
         j.emplace("message", b.message);
@@ -52,6 +57,10 @@ void to_json(json &j, const Breakpoint &b)
         if (b.endLine != 0)
         {
             j.emplace("endLine", b.endLine);
+        }
+        if (b.endColumn != 0)
+        {
+            j.emplace("endColumn", b.endColumn);
         }
         if (!b.source.IsNull())
         {

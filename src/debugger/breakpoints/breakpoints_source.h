@@ -16,6 +16,8 @@
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <memory>
@@ -23,9 +25,21 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 namespace dncdbg
 {
+
+// Hash functor for std::pair<int32_t, int32_t> (line, column) key used in unordered containers.
+struct LineColumnHash
+{
+    std::size_t operator()(const std::pair<int32_t, int32_t> &key) const
+    {
+        const std::size_t h1 = std::hash<int32_t>{}(key.first);
+        const std::size_t h2 = std::hash<int32_t>{}(key.second);
+        return h1 ^ (h2 << 1U);
+    }
+};
 
 class Evaluator;
 class EvalStackMachine;
@@ -75,8 +89,10 @@ class SourceBreakpoints
     struct ManagedSourceBreakpoint
     {
         uint32_t id{0};
-        int lineNum{0};
-        int endLine{0};
+        int32_t lineNum{0};
+        int32_t columnNum{0};
+        int32_t endLine{0};
+        int32_t endColumn{0};
         uint32_t hitCount{0};
         std::string hitCondition;
         std::string condition;
@@ -113,11 +129,12 @@ class SourceBreakpoints
 
     struct ManagedSourceBreakpointMapping
     {
-        SourceBreakpoint breakpoint{0, ""};
+        SourceBreakpoint breakpoint{0, 0};
         uint32_t id{0};
         PDB::GlobalFileIndex resolvedGlobalFileIndex{};
         std::vector<Checksum> checksums;
-        int resolvedLineNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
+        int32_t resolvedLineNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
+        int32_t resolvedColumnNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
 
         ManagedSourceBreakpointMapping() = default;
         ManagedSourceBreakpointMapping(ManagedSourceBreakpointMapping &&) = default;
@@ -129,10 +146,11 @@ class SourceBreakpoints
     };
 
     std::mutex m_breakpointsMutex;
-    // Resolved line breakpoints:
+    // Resolved source breakpoints:
     // Mapped for fast search with mapping data (see container below):
-    // resolved global source path index -> resolved line number -> list of all ManagedSourceBreakpoint resolved to this line.
-    std::unordered_map<PDB::GlobalFileIndex, std::unordered_map<int, std::list<ManagedSourceBreakpoint>>, PDB::GlobalFileIndexHash> m_sourceResolvedBreakpoints;
+    // resolved global source path index -> resolved (line, column) pair -> list of all ManagedSourceBreakpoint objects resolved to this line:column.
+    std::unordered_map<PDB::GlobalFileIndex, std::unordered_map<std::pair<int32_t, int32_t>,
+                       std::list<ManagedSourceBreakpoint>, LineColumnHash>, PDB::GlobalFileIndexHash> m_sourceResolvedBreakpoints;
     // Mapping for input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
     // Note, unlike FunctionBreakpoint, for a resolved breakpoint we could have changed source path and/or line number.
     // In this way we can connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.

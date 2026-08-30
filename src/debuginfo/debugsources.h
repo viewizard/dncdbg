@@ -18,7 +18,8 @@
 namespace dncdbg::DebugSources
 {
 
-HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
+HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int32_t sourceLine,
+                           int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::SourceMethodRanges &sourceMethodRanges);
 
 } // namespace dncdbg::DebugSources

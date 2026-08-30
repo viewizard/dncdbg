@@ -1255,7 +1255,7 @@ HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, 
 }
 
 HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
-                           uint32_t sourceFileIndex, int32_t sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints)
+                           uint32_t sourceFileIndex, int32_t sourceLine, int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints)
 {
     if (pdbHandle == nullptr || methodTokens.empty())
     {
@@ -1373,6 +1373,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
                 continue;
             }
 
+            const auto startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            const auto startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
             const auto endLine = static_cast<int32_t>(record.sequence_point.rolling_start_line + // NOLINT(cppcoreguidelines-pro-type-union-access)
                                                       static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
             const auto endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
@@ -1381,7 +1383,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
             // Note: in case of constructors, we must care about source too, since we may have a situation when
             // a field/property has the same line in another source.
             if (sourceFileIndex != docIndex ||
-                endLine < sourceLine)
+                endLine < sourceLine ||
+                (sourceLine == endLine && endColumn < sourceColumn))
             {
                 continue;
             }
@@ -1407,8 +1410,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
                 }
             }
 
-            nearestSP.startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
-            nearestSP.startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            nearestSP.startLine = startLine;
+            nearestSP.startColumn = startColumn;
             nearestSP.endLine = endLine;
             nearestSP.endColumn = endColumn;
             nearestSP.ilOffset = record.sequence_point.rolling_il_offset; // NOLINT(cppcoreguidelines-pro-type-union-access)
@@ -1445,10 +1448,19 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
             {
                 continue;
             }
-            if ((nestedStartSP.startLine > currentSP.startLine || (nestedStartSP.startLine == currentSP.startLine && nestedStartSP.startColumn > currentSP.startColumn)) &&
-                (nestedEndSP.endLine < currentSP.endLine || (nestedEndSP.endLine == currentSP.endLine && nestedEndSP.endColumn < currentSP.endColumn)))
+            const bool nestedWithinOuter =
+                (nestedStartSP.startLine > currentSP.startLine || (nestedStartSP.startLine == currentSP.startLine && nestedStartSP.startColumn > currentSP.startColumn)) &&
+                (nestedEndSP.endLine < currentSP.endLine || (nestedEndSP.endLine == currentSP.endLine && nestedEndSP.endColumn < currentSP.endColumn));
+
+            // When a column is provided, the breakpoint belongs to the nested method only if the column is at/after
+            // the nested method's start column. When no column is provided (sourceColumn == 0), the breakpoint
+            // belongs to the outer method (same behavior as before column support was added).
+            const bool columnInNested = (sourceColumn != 0) && (sourceColumn >= nestedStartSP.startColumn);
+
+            if (nestedWithinOuter && !columnInNested)
             {
-                resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.endLine, currentSP.ilOffset);
+                resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.startColumn,
+                                                 currentSP.endLine, currentSP.endColumn, currentSP.ilOffset);
                 break;
             }
 
@@ -1457,7 +1469,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
             // the current method sequence point and the first nested method sequence point.
             if (currentSP.endLine > nestedStartSP.endLine || (currentSP.endLine == nestedStartSP.endLine && currentSP.endColumn > nestedStartSP.endColumn))
             {
-                resolvedBreakpoints.emplace_back(nestedMethodToken, nestedStartSP.startLine, nestedStartSP.endLine, nestedStartSP.ilOffset);
+                resolvedBreakpoints.emplace_back(nestedMethodToken, nestedStartSP.startLine, nestedStartSP.startColumn,
+                                                 nestedStartSP.endLine, nestedStartSP.endColumn, nestedStartSP.ilOffset);
                 // When methodTokens.size() > 1, we can have lines added to multiple constructors. In this case, the result will be the same for all methodTokens.
                 // We need unique tokens only for breakpoints, to prevent adding nestedMethodToken multiple times.
                 break;
@@ -1466,7 +1479,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
 
         nestedMethodToken = 0; // Don't check nested block in the next cycle (will have the same results).
 
-        resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.endLine, currentSP.ilOffset);
+        resolvedBreakpoints.emplace_back(token, currentSP.startLine, currentSP.startColumn,
+                                         currentSP.endLine, currentSP.endColumn, currentSP.ilOffset);
     }
 
     return resolvedBreakpoints.empty() ? E_FAIL : S_OK;

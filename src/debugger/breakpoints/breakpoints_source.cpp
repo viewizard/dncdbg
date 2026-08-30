@@ -41,7 +41,7 @@ HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule,
         IfFailRet(pModule->GetBaseAddress(&modAddress));
     }
 
-    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, source, bp.lineNum, globalFileIndex, resolvedPoints));
+    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, source, bp.lineNum, bp.columnNum, globalFileIndex, resolvedPoints));
     if (resolvedPoints.empty())
     {
         return E_FAIL;
@@ -96,7 +96,9 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
     // Same for multiple breakpoint resolve for one module.
     bp.lineNum = resolvedPoints.at(0).startLine;
+    bp.columnNum = resolvedPoints.at(0).startColumn;
     bp.endLine = resolvedPoints.at(0).endLine;
+    bp.endColumn = resolvedPoints.at(0).endColumn;
 
     return S_OK;
 }
@@ -114,7 +116,9 @@ void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakp
         breakpoint.source.checksums.emplace_back(*algorithm, *checksum);
     }
     breakpoint.line = this->lineNum;
+    breakpoint.column = this->columnNum;
     breakpoint.endLine = this->endLine;
+    breakpoint.endColumn = this->endColumn;
 }
 
 SourceBreakpoints::ManagedSourceBreakpoint::~ManagedSourceBreakpoint()
@@ -158,7 +162,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     }
 
     auto &breakpointsInSource = breakpoints->second;
-    const auto it = breakpointsInSource.find(sp.startLine);
+    const auto it = breakpointsInSource.find({sp.startLine, sp.startColumn});
     if (it == breakpointsInSource.cend())
     {
         return S_FALSE; // Stopped at break, but no breakpoints.
@@ -178,7 +182,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     std::string checksum;
     m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
 
-    // Same logic as in vsdbg - only one breakpoint is active for one line, find all active in the list and add to hitBreakpointIds.
+    // Only one source breakpoint is active per line:column pair; iterate the list to find all
+    // matching active source breakpoints and add them to hitBreakpointIds.
     for (auto &b : bList)
     {
         for (auto &[trFuncBreakpoint, nativeAddress] : b.trFuncBreakpoints)
@@ -218,7 +223,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
                     << b.condition << "'. The error returned was '" << output << "'. - "
-                    << sourceFilePath << ":" << b.lineNum << "\n";
+                    << sourceFilePath << ':' << b.lineNum << ':' << b.columnNum << "\n";
                     breakpoint.message = ss.str();
                     DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
                     DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
@@ -248,7 +253,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
                     << b.hitCondition << "'. The error returned was '" << output << "'. - "
-                    << sourceFilePath << ":" << b.lineNum << "\n";
+                    << sourceFilePath << ':' << b.lineNum << ':' << b.columnNum << "\n";
                     breakpoint.message = ss.str();
                     DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
                     DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
@@ -272,6 +277,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     event.source.checksums.emplace_back(algorithm, checksum);
                 }
                 event.line = b.lineNum;
+                event.column = b.columnNum;
                 DAPIO::EmitOutputEvent(event);
                 continue;
             }
@@ -299,7 +305,9 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             ManagedSourceBreakpoint bp;
             bp.id = initialBreakpoint.id;
             bp.lineNum = initialBreakpoint.breakpoint.line;
+            bp.columnNum = initialBreakpoint.breakpoint.column;
             bp.endLine = initialBreakpoint.breakpoint.line;
+            bp.endColumn = initialBreakpoint.breakpoint.column;
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
@@ -326,8 +334,9 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
             initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
             initialBreakpoint.resolvedLineNum = bp.lineNum;
+            initialBreakpoint.resolvedColumnNum = bp.columnNum;
 
-            m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][initialBreakpoint.resolvedLineNum].push_back(std::move(bp));
+            m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
         }
     }
 
@@ -346,7 +355,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 
     for (auto fit = m_sourceResolvedBreakpoints.begin(); fit != m_sourceResolvedBreakpoints.end();)
     {
-        std::unordered_map<int, std::list<ManagedSourceBreakpoint>> &fileResolvedBreakpoints = fit->second;
+        std::unordered_map<std::pair<int32_t, int32_t>, std::list<ManagedSourceBreakpoint>, LineColumnHash> &fileResolvedBreakpoints = fit->second;
 
         for (auto lit = fileResolvedBreakpoints.begin(); lit != fileResolvedBreakpoints.end();)
         {
@@ -403,6 +412,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
                 bp.resolvedGlobalFileIndex.modAddress = 0;
                 bp.resolvedGlobalFileIndex.sourceFileIndex = 0;
                 bp.resolvedLineNum = 0;
+                bp.resolvedColumnNum = 0;
 
                 Breakpoint breakpoint;
                 breakpoint.id = bp.id;
@@ -435,7 +445,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 return E_FAIL;
             }
 
-            const auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
+            const auto bList_it = bMap_it->second.find({initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum});
             if (bList_it == bMap_it->second.cend())
             {
                 return E_FAIL;
@@ -484,20 +494,22 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
     }
 
     auto &breakpointsInSource = m_sourceBreakpointMapping[source.path];
-    std::unordered_map<int, ManagedSourceBreakpointMapping *> breakpointsInSourceMap;
+    // Note, unlike before column support was added, an IDE may provide multiple breakpoints
+    // on one line (with different columns). Key by the (line, column) pair to distinguish them.
+    std::unordered_map<std::pair<int32_t, int32_t>, ManagedSourceBreakpointMapping *, LineColumnHash> breakpointsInSourceMap;
 
     // Remove old breakpoints
-    std::unordered_set<int> funcBreakpointLines;
+    std::unordered_set<std::pair<int32_t, int32_t>, LineColumnHash> funcBreakpointLinesColumns;
     for (const auto &sb : sourceBreakpoints)
     {
-        funcBreakpointLines.insert(sb.line);
+        funcBreakpointLinesColumns.emplace(sb.line, sb.column);
     }
     for (auto it = breakpointsInSource.begin(); it != breakpointsInSource.end();)
     {
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
         // Note, we don't remove breakpoint in case `condition`, `hitCondition` or `logMessage` changed,
         // only change these fields in resolved breakpoint.
-        if (funcBreakpointLines.find(initialBreakpoint.breakpoint.line) == funcBreakpointLines.cend())
+        if (funcBreakpointLinesColumns.find({initialBreakpoint.breakpoint.line, initialBreakpoint.breakpoint.column}) == funcBreakpointLinesColumns.cend())
         {
             Breakpoint breakpoint;
             breakpoint.id = initialBreakpoint.id;
@@ -510,9 +522,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
         }
         else
         {
-            // Note, debugger assumes that IDE can provide only one breakpoint for one line.
-            assert(breakpointsInSourceMap.find(initialBreakpoint.breakpoint.line) == breakpointsInSourceMap.cend());
-            breakpointsInSourceMap.emplace(initialBreakpoint.breakpoint.line, &initialBreakpoint);
+            assert(breakpointsInSourceMap.find({initialBreakpoint.breakpoint.line, initialBreakpoint.breakpoint.column}) == breakpointsInSourceMap.cend());
+            breakpointsInSourceMap.emplace(std::make_pair(initialBreakpoint.breakpoint.line, initialBreakpoint.breakpoint.column), &initialBreakpoint);
             ++it;
         }
     }
@@ -521,10 +532,11 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 
     for (const auto &sb : sourceBreakpoints)
     {
-        const int line = sb.line;
+        const int32_t line = sb.line;
+        const int32_t column = sb.column;
         Breakpoint breakpoint;
 
-        const auto b = breakpointsInSourceMap.find(line);
+        const auto b = breakpointsInSourceMap.find({line, column});
         if (b == breakpointsInSourceMap.cend())
         {
             ManagedSourceBreakpointMapping initialBreakpoint;
@@ -536,7 +548,9 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
             ManagedSourceBreakpoint bp;
             bp.id = initialBreakpoint.id;
             bp.lineNum = line;
+            bp.columnNum = column;
             bp.endLine = line;
+            bp.endColumn = column;
             bp.condition = initialBreakpoint.breakpoint.condition;
             bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
@@ -549,6 +563,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
             {
                 initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
                 initialBreakpoint.resolvedLineNum = bp.lineNum;
+                initialBreakpoint.resolvedColumnNum = bp.columnNum;
 
                 std::string resolvedPath;
                 std::string algorithm;
@@ -556,7 +571,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
 
                 bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
-                m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][initialBreakpoint.resolvedLineNum].push_back(std::move(bp));
+                m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
             }
             else
             {
@@ -588,7 +603,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                     return E_FAIL;
                 }
 
-                const auto bList_it = bMap_it->second.find(initialBreakpoint.resolvedLineNum);
+                const auto bList_it = bMap_it->second.find({initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum});
                 if (bList_it == bMap_it->second.cend())
                 {
                     return E_FAIL;
@@ -656,7 +671,9 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 ManagedSourceBreakpoint bp;
                 bp.id = initialBreakpoint.id;
                 bp.lineNum = line;
+                bp.columnNum = column;
                 bp.endLine = line;
+                bp.endColumn = column;
                 bp.condition = initialBreakpoint.breakpoint.condition;
                 bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                 bp.logMessage = initialBreakpoint.breakpoint.logMessage;

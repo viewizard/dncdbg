@@ -73,10 +73,10 @@ struct StackFrame
     FrameId id;
     std::string name;
     Source source;
-    int line;
-    int column;
-    int endLine;
-    int endColumn;
+    int32_t line;
+    int32_t column;
+    int32_t endLine;
+    int32_t endColumn;
     // canRestart?: boolean;
     std::string instructionPointerReference;
     std::string moduleId;
@@ -131,10 +131,10 @@ struct Breakpoint
     bool verified{false};
     std::string message;
     Source source;
-    int line{0};
-    // column?: number;
-    int endLine{0};
-    // endColumn?: number;
+    int32_t line{0};
+    int32_t column{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
     std::string instructionReference;
     // offset?: number;
     // reason?: 'pending' | 'failed';
@@ -275,8 +275,8 @@ struct OutputEvent
     // group?: 'start' | 'startCollapsed' | 'end';
     // variablesReference?: number;
     Source source;
-    int line{0};
-    int column{0};
+    int32_t line{0};
+    int32_t column{0};
     // data?: any;
     // locationReference?: number;
 
@@ -370,18 +370,20 @@ struct Variable
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_SourceBreakpoint
 struct SourceBreakpoint
 {
-    int line;
-    // column?: number;
+    int32_t line;
+    int32_t column;
     std::string condition;
     std::string hitCondition;
     std::string logMessage;
     // mode?: string;
 
-    explicit SourceBreakpoint(int line_,
+    explicit SourceBreakpoint(int32_t line_,
+                              int32_t column_,
                               std::string condition_ = std::string(),
                               std::string hitCondition_ = std::string(),
                               std::string logMessage_ = std::string())
         : line(line_),
+          column(column_),
           condition(std::move(condition_)),
           hitCondition(std::move(hitCondition_)),
           logMessage(std::move(logMessage_))

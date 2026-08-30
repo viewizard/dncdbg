@@ -546,9 +546,9 @@
 +   message?: string;
 +   source?: Source;
 +   line?: number;
--   column?: number;
++   column?: number;
 +   endLine?: number;
--   endColumn?: number;
++   endColumn?: number;
 +   instructionReference?: string;
 -   offset?: number;
 -   reason?: 'pending' | 'failed';

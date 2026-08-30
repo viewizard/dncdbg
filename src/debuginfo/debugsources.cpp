@@ -136,12 +136,14 @@ void CompactConstructorRanges(std::map<size_t, std::set<PDB::MethodRange>> &inpu
     }
 }
 
-bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t lineNum, int32_t &correctedLineNum,
-                                 std::vector<mdMethodDef> &Tokens, mdMethodDef &closestNestedToken)
+bool GetMethodTokensByLineAndColumn(const PDB::MethodRanges &methodBpData, int32_t lineNum, int32_t columnNum,
+                                    int32_t &correctedLineNum, int32_t &correctedColumnNum,
+                                    std::vector<mdMethodDef> &Tokens, mdMethodDef &closestNestedToken)
 {
     const PDB::MethodRange *result = nullptr;
     closestNestedToken = 0;
     correctedLineNum = lineNum;
+    correctedColumnNum = columnNum;
 
     for (auto it = methodBpData.cbegin(); it != methodBpData.cend(); ++it)
     {
@@ -156,10 +158,12 @@ bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t 
         //            void Method(){ void Method(){...  <- breakpoint at this line
         if (correctedLineNum == lower->startLine)
         {
-            // At this point we can't check this case, let managed part decide (since it sees Columns):
+            // If two methods start on the same line, use the column to determine which one
+            // the breakpoint belongs to:
             // void Method() {
             // ... code ...; void Method() {     <- breakpoint at this line
             //  };
+            // When the column is not provided (columnNum == 0), the resolver decides (old behavior).
             if (result != nullptr)
             {
                 if (lower->isCtor) // part of constructor
@@ -170,7 +174,10 @@ bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t 
                     continue; // need check nested level (if available)
                 }
 
-                closestNestedToken = lower->methodToken;
+                if (columnNum == 0 || columnNum >= lower->startColumn)
+                {
+                    closestNestedToken = lower->methodToken;
+                }
             }
             else
             {
@@ -199,6 +206,7 @@ bool GetMethodTokensByLineNumber(const PDB::MethodRanges &methodBpData, int32_t 
         else if (it == methodBpData.cbegin() && correctedLineNum < lower->startLine)
         {
             correctedLineNum = lower->startLine;
+            correctedColumnNum = lower->startColumn;
             result = &(*lower);
 
             if (lower->isCtor) // part of constructor
@@ -345,15 +353,18 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
     return S_OK;
 }
 
-HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int sourceLine, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
+HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int32_t sourceLine,
+                           int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
     std::vector<mdMethodDef> methodTokens;
     // In case the line doesn't belong to any method, if possible, will be "moved" to the first line of the method below sourceLine.
     int32_t correctedStartLine = 0;
+    int32_t correctedStartColumn = 0;
     mdMethodDef closestNestedToken = mdMethodDefNil;
     const auto methodRanges = pdbInfo.m_sourceMethodRanges.find(sourceFileIndex);
     if (methodRanges == pdbInfo.m_sourceMethodRanges.cend() ||
-        !GetMethodTokensByLineNumber(methodRanges->second, sourceLine, correctedStartLine, methodTokens, closestNestedToken))
+        !GetMethodTokensByLineAndColumn(methodRanges->second, sourceLine, sourceColumn, correctedStartLine,
+                                        correctedStartColumn, methodTokens, closestNestedToken))
     {
         return E_FAIL;
     }
@@ -365,7 +376,7 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
 
     HRESULT Status = S_OK;
     IfFailRet(PDBReader::ResolveBreakpoints(pdbInfo.m_pdbHandle, methodTokens, closestNestedToken,
-                                            sourceFileIndex, correctedStartLine, resolvedPoints));
+                                            sourceFileIndex, correctedStartLine, correctedStartColumn, resolvedPoints));
 
     for (auto &entry : resolvedPoints)
     {
