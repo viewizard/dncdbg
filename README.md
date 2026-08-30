@@ -39,6 +39,12 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">146.8M</td>
     </tr>
     <tr>
+      <td align="left"><b>Cross Platform</b></td>
+      <td align="center">✅</td>
+      <td align="center">✅<sup>4</sup></td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><b>Display method parameters in stack trace</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
@@ -46,36 +52,6 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     </tr>
     <tr>
       <td align="left"><b>Display local constants (literals)</b></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
-      <td align="left"><a href="docs/inputting_text.md"><b>Inputting text into the target process</b></a></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
-      <td align="left"><a href="https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map"><b>Source File Map</b></a></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
-      <td align="left"><b>Module unload</b></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
-      <td align="left"><b>Embedded PDB</b></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
-      <td align="left"><b>Tracepoints/Logpoints</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -89,7 +65,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>4</sup></td>
+      <td align="center">✅<sup>5</sup></td>
       <td align="center">✅</td>
     </tr>
     <tr>
@@ -105,6 +81,36 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Tracepoints/Logpoints</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Embedded PDB</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><a href="https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map"><b>Source File Map</b></a></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><a href="docs/inputting_text.md"><b>Inputting text into the target process</b></a></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Module unload</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -113,20 +119,14 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>Interop (Mixed) debug</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>5</sup></td>
+      <td align="center">✅<sup>6</sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>6</sup></td>
-      <td align="center">❓</td>
-    </tr>
-    <tr>
-      <td align="left"><b>Cross Platform</b></td>
-      <td align="center">✅</td>
       <td align="center">✅<sup>7</sup></td>
-      <td align="center">✅</td>
+      <td align="center">❓</td>
     </tr>
     <tr>
       <td align="center" colspan="4">
@@ -141,10 +141,10 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 <small><sup>1</sup> From the VsDbg console output: "You may only use the Microsoft .NET Core Debugger (vsdbg) with Visual Studio Code, Visual Studio or Visual Studio for Mac software to help you develop and test your applications."</small><br>
 <small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
 <small><sup>3</sup> Measured on macOS 26.6.2 using the `vmmap` utility on a simple application stopped at a breakpoint, with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VSCode IDE using the DAP protocol; NetCoreDbg was built without the interop and Hot Reload features.</small><br>
-<small><sup>4</sup> Only the `Never` state for properties is supported.</small><br>
-<small><sup>5</sup> Linux and Tizen operating systems only.</small><br>
-<small><sup>6</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
-<small><sup>7</sup> Does not support `musl`-based Linux distros.</small><br>
+<small><sup>4</sup> Does not support `musl`-based Linux distros.</small><br>
+<small><sup>5</sup> Only the `Never` state for properties is supported.</small><br>
+<small><sup>6</sup> Linux and Tizen operating systems only.</small><br>
+<small><sup>7</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
 
 ## Development Process
 
