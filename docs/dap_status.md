@@ -550,7 +550,7 @@
 +   endLine?: number;
 +   endColumn?: number;
 +   instructionReference?: string;
--   offset?: number;
++   offset?: number;
 -   reason?: 'pending' | 'failed';
 ```
 #### ExceptionFilterOptions

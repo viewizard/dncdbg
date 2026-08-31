@@ -136,7 +136,7 @@ struct Breakpoint
     int32_t endLine{0};
     int32_t endColumn{0};
     std::string instructionReference;
-    // offset?: number;
+    int32_t offset{0};
     // reason?: 'pending' | 'failed';
 };
 

@@ -71,6 +71,7 @@ void to_json(json &j, const Breakpoint &b)
     if (!b.instructionReference.empty())
     {
         j.emplace("instructionReference", b.instructionReference);
+        j.emplace("offset", b.offset);
     }
 }
 
