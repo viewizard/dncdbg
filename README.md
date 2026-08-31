@@ -41,8 +41,8 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>Cross Platform</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>4</sup></td>
-      <td align="center">✅<sup>5</sup></td>
+      <td align="center">⚠️<sup>4</sup></td>
+      <td align="center">⚠️<sup>5</sup></td>
     </tr>
     <tr>
       <td align="left"><b>Display method parameters in stack trace</b></td>
@@ -65,7 +65,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>6</sup></td>
+      <td align="center">⚠️<sup>6</sup></td>
       <td align="center">✅</td>
     </tr>
     <tr>
@@ -119,13 +119,13 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>Interop (Mixed) debug</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>7</sup></td>
+      <td align="center">⚠️<sup>7</sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>8</sup></td>
+      <td align="center">⚠️<sup>8</sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>

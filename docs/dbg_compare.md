@@ -36,8 +36,8 @@
     <tr>
       <td align="left"><b>Cross Platform</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>4</sup></td>
-      <td align="center">✅<sup>5</sup></td>
+      <td align="center">⚠️<sup>4</sup></td>
+      <td align="center">⚠️<sup>5</sup></td>
     </tr>
     <tr>
       <td colspan="4" align="center"><b>Stack Trace</b></td>
@@ -105,7 +105,7 @@
     <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>6</sup></td>
+      <td align="center">⚠️<sup>6</sup></td>
       <td align="center">✅</td>
     </tr>
     <tr>
@@ -195,13 +195,13 @@
     <tr>
       <td align="left"><b>Interop (Mixed) debug</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>7</sup></td>
+      <td align="center">⚠️<sup>7</sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>8</sup></td>
+      <td align="center">⚠️<sup>8</sup></td>
       <td align="center">❓</td>
     </tr>
   </tbody>
