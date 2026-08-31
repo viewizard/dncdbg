@@ -37,7 +37,7 @@
       <td align="left"><b>Cross Platform</b></td>
       <td align="center">✅</td>
       <td align="center">✅<sup>4</sup></td>
-      <td align="center">✅</td>
+      <td align="center">✅<sup>5</sup></td>
     </tr>
     <tr>
       <td colspan="4" align="center"><b>Stack Trace</b></td>
@@ -105,7 +105,7 @@
     <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
-      <td align="center">✅<sup>5</sup></td>
+      <td align="center">✅<sup>6</sup></td>
       <td align="center">✅</td>
     </tr>
     <tr>
@@ -195,13 +195,13 @@
     <tr>
       <td align="left"><b>Interop (Mixed) debug</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>6</sup></td>
+      <td align="center">✅<sup>7</sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">✅<sup>7</sup></td>
+      <td align="center">✅<sup>8</sup></td>
       <td align="center">❓</td>
     </tr>
   </tbody>
@@ -213,6 +213,7 @@
 <small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
 <small><sup>3</sup> Measured on macOS 26.6.2 using the `vmmap` utility on a simple application stopped at a breakpoint, with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VSCode IDE using the DAP protocol; NetCoreDbg was built without the interop and Hot Reload features.</small><br>
 <small><sup>4</sup> Does not support `musl`-based Linux distros.</small><br>
-<small><sup>5</sup> Only the `Never` state for properties is supported.</small><br>
-<small><sup>6</sup> Linux and Tizen operating systems only.</small><br>
-<small><sup>7</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
+<small><sup>5</sup> Does not support `musl`-based Linux arm32 distros.</small><br>
+<small><sup>6</sup> Only the `Never` state for properties is supported.</small><br>
+<small><sup>7</sup> Linux and Tizen operating systems only.</small><br>
+<small><sup>8</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
