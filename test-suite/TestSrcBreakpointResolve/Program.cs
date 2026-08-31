@@ -203,19 +203,19 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
         // tests resolve for nested methods
                                                                                 Label.Breakpoint("bp10");
         void nested_func1()
-        {                                                                       Label.Breakpoint("resloved_bp10");
+        {                                                                       Label.Breakpoint("resolved_bp10");
             Console.WriteLine("Hello World!");
                                                                                 Label.Breakpoint("bp11");
-        }                                                                       Label.Breakpoint("resloved_bp11");
+        }                                                                       Label.Breakpoint("resolved_bp11");
         nested_func1();
                                                                                 Label.Breakpoint("bp12");
         void nested_func2()
-        {                                                                       Label.Breakpoint("resloved_bp12");
+        {                                                                       Label.Breakpoint("resolved_bp12");
             Console.WriteLine("Hello World!");                                  Label.Breakpoint("bp13");
         }
         nested_func2();
                                                                                 Label.Breakpoint("bp14");
-        Console.WriteLine("Hello World!");                                      Label.Breakpoint("resloved_bp14");
+        Console.WriteLine("Hello World!");                                      Label.Breakpoint("resolved_bp14");
 
         void nested_func3()
         {
@@ -236,7 +236,7 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
 
         void nested_func11() { void nested_func12() { void nested_func13() {
                                                                                 Label.Breakpoint("bp19");
-        };                                                                      Label.Breakpoint("resloved_bp19");
+        };                                                                      Label.Breakpoint("resolved_bp19");
         nested_func13(); };
         nested_func12(); };
         nested_func11();
@@ -263,15 +263,15 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp10", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp10", false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp11", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp11", false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp12", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp12", false);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp13", false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp14", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp14", false);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp15", false);
                 Context.Continue(@"__FILE__:__LINE__");
@@ -281,7 +281,7 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp18", false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resloved_bp19", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp19", false);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20", false);
                 Context.Continue(@"__FILE__:__LINE__");
