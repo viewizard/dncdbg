@@ -109,7 +109,7 @@ void to_json(json &j, const Scope &s)
 {
     j = json{{"name", s.name},
              {"variablesReference", s.variablesReference},
-             {"expensive", false}};
+             {"expensive", s.expensive}};
 }
 
 void to_json(json &j, const Variable &v)

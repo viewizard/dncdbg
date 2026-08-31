@@ -323,7 +323,7 @@ struct Scope
     uint32_t variablesReference;
     // namedVariables?: number;
     // indexedVariables?: number;
-    // expensive: boolean;
+    bool expensive{false};
     // source?: Source;
     // line?: number;
     // column?: number;
