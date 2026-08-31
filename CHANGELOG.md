@@ -9,6 +9,7 @@ Upcoming changes compared to previous version.
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
 - Added support for source breakpoints on columns.
+- Added TestBreakpointColumn.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

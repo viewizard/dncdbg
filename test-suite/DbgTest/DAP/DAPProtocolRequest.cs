@@ -167,6 +167,11 @@ public class SourceBreakpoint
         hitCondition = HitCondition ?? string.Empty;
         logMessage = LogMessage ?? string.Empty;
     }
+    public SourceBreakpoint(int bpLine, int bpColumn)
+    {
+        line = bpLine;
+        column = bpColumn;
+    }
     public int line;
     public int? column;
     public string condition = string.Empty;

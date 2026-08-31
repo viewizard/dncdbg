@@ -220,6 +220,17 @@ class Context
         BreakpointLines.Add(lbp.NumLine);
     }
 
+    public void AddBreakpointWithColumn(string caller_trace, string bpName, int column)
+    {
+        Breakpoint bp = ControlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var lbp = (LineBreakpoint)bp;
+
+        BreakpointSourceName = lbp.FileName;
+        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, column));
+        BreakpointLines.Add(lbp.NumLine);
+    }
+
     public void RemoveBreakpoint(string caller_trace, string bpName)
     {
         Breakpoint bp = ControlInfo.Breakpoints[bpName];
@@ -441,7 +452,7 @@ class Context
         throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void WasBreakpointHit(string caller_trace, string bpName, bool checkSourcePath = true)
+    public void WasBreakpointHit(string caller_trace, string bpName, bool checkSourcePath = true, int column = 0)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -470,6 +481,7 @@ class Context
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
         if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
+            (column == 0 || column == stackTraceResponse.body.stackFrames[0].column) &&
             stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
             // Note: this code works only with one source file
             && (!checkSourcePath || (checkSourcePath && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)))
