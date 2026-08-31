@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
 #include <sstream>
@@ -67,6 +68,73 @@ std::string IndicesToStr(const std::vector<uint32_t> &ind, const std::vector<uin
         ss << (base.at(i) + ind.at(i));
     }
     return ss.str();
+}
+
+// Parse an array element designator (e.g. "[1]" or "[5, 5]") into the displayed
+// indexes it contains, in their original order. Each entry must be a non-negative
+// decimal integer; the enclosing brackets are required.
+HRESULT ParseArrayElementName(const std::string &arrayElementName, std::vector<uint32_t> &indexes)
+{
+    indexes.clear();
+
+    if (arrayElementName.size() < 2 || arrayElementName.front() != '[' || arrayElementName.back() != ']')
+    {
+        return E_FAIL;
+    }
+
+    const std::string inner = arrayElementName.substr(1, arrayElementName.size() - 2);
+
+    constexpr uint64_t base = 10;
+
+    size_t pos = 0;
+    while (pos < inner.size())
+    {
+        while (pos < inner.size() && (inner.at(pos) == ' ' || inner.at(pos) == '\t'))
+        {
+            pos++;
+        }
+        if (pos >= inner.size())
+        {
+            break;
+        }
+
+        size_t end = pos;
+        while (end < inner.size() && inner.at(end) >= '0' && inner.at(end) <= '9')
+        {
+            end++;
+        }
+        if (end == pos)
+        {
+            return E_FAIL; // Expected a decimal index.
+        }
+
+        uint64_t value = 0;
+        for (size_t i = pos; i < end; ++i)
+        {
+            value = (value * base) + static_cast<uint64_t>(inner.at(i) - '0');
+            if (value > std::numeric_limits<uint32_t>::max())
+            {
+                return E_FAIL;
+            }
+        }
+        indexes.push_back(static_cast<uint32_t>(value));
+
+        pos = end;
+        while (pos < inner.size() && (inner.at(pos) == ' ' || inner.at(pos) == '\t'))
+        {
+            pos++;
+        }
+        if (pos < inner.size())
+        {
+            if (inner.at(pos) != ',')
+            {
+                return E_FAIL;
+            }
+            pos++;
+        }
+    }
+
+    return indexes.empty() ? E_FAIL : S_OK;
 }
 
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
@@ -858,8 +926,8 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     return S_OK;
 }
 
-HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
+HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel, bool provideSetterData,
+                               FormatSpecifier specifier, const std::string &arrayElementName, const WalkMembersCallback &cb)
 {
     // Same behavior as MS vsdbg and MSVS C# debugger have - don't show enumeration members.
     if (IsEnumeration(pInputValue))
@@ -925,18 +993,51 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             uint32_t nRank = 0;
             IfFailRet(trArrayValue->GetRank(&nRank));
 
-            uint32_t cElements = 0;
-            IfFailRet(trArrayValue->GetCount(&cElements));
-
-            std::vector<uint32_t> dims(nRank, 0);
-            IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
-
             std::vector<uint32_t> base(nRank, 0);
             BOOL hasBaseIndices = FALSE;
             if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndices)) && (hasBaseIndices == TRUE))
             {
                 IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
             }
+
+            if (!arrayElementName.empty())
+            {
+                // Direct access to a single element designated by its name (e.g. "[1]" or "[5, 5]").
+                std::vector<uint32_t> indexes;
+                IfFailRet(ParseArrayElementName(arrayElementName, indexes));
+                if (indexes.size() != nRank)
+                {
+                    return E_FAIL;
+                }
+
+                // Convert displayed indexes into zero-based positions used by ICorDebugArrayValue::GetElement.
+                std::vector<uint32_t> ind(nRank, 0);
+                for (uint32_t r = 0; r < nRank; ++r)
+                {
+                    if (indexes.at(r) < base.at(r))
+                    {
+                        return E_FAIL;
+                    }
+                    ind.at(r) = indexes.at(r) - base.at(r);
+                }
+
+                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                {
+#ifdef BIT64
+                    assert(ind.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+                    return trArrayValue->GetElement(static_cast<uint32_t>(ind.size()), ind.data(), ppResultValue);
+                };
+
+                IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr, nullptr));
+                return S_OK;
+            }
+
+            uint32_t cElements = 0;
+            IfFailRet(trArrayValue->GetCount(&cElements));
+
+            std::vector<uint32_t> dims(nRank, 0);
+            IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
 
             std::vector<uint32_t> ind(nRank, 0);
 
@@ -957,6 +1058,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             }
 
             return S_OK;
+        }
+
+        if (!arrayElementName.empty())
+        {
+            return E_FAIL; // arrayElementName was provided, but the value is not an array.
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1718,13 +1824,16 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
 
-        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr), specifier,
+        const std::string &identifier = identifiers.at(i);
+        const bool isArrayElement = !identifier.empty() && identifier.front() == '[';
+        const std::string arrayElementName = isArrayElement ? identifier : std::string{};
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr), specifier, arrayElementName,
             [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
                 const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
             {
                 if ((isStatic && valueKind == ValueKind::Variable) ||
                     (!isStatic && valueKind == ValueKind::Static) ||
-                    memberName != identifiers.at(i))
+                    memberName != identifier)
                 {
                     return S_OK;
                 }

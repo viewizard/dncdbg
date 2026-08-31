@@ -87,7 +87,7 @@ HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread
     uint32_t count = 0;
     static constexpr uint32_t maxCount = 25;
 
-    IfFailRet(pEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
+    IfFailRet(pEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier, std::string{},
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
         {
@@ -256,7 +256,7 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
     if (pValue != nullptr)
     {
         // Note: FrameLevel{0} is used here, since we only need to check whether the value has children.
-        m_sharedEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
+        m_sharedEvaluator->WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier, std::string{},
             [&](ICorDebugType *, bool isStatic, const std::string &,
                 const Evaluator::GetValueCallback &, Evaluator::SetterData *, std::string *) -> HRESULT
             {
@@ -615,7 +615,8 @@ HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, co
     }
 
     HRESULT Status = S_OK;
-    IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
+    const std::string arrayElementName = (!name.empty() && name.front() == '[') ? name : std::string{};
+    IfFailRet(m_sharedEvaluator->WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier, arrayElementName,
         [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
         {

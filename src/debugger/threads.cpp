@@ -32,7 +32,7 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
     }
 
     HRESULT Status = S_OK;
-    sharedEvaluator->WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None,
+    sharedEvaluator->WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None, std::string{},
         [&](ICorDebugType *, bool, const std::string &memberName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
         {

@@ -99,8 +99,8 @@ class Evaluator
 
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
                            mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
-    HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                        bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
+    HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel, bool provideSetterData,
+                        FormatSpecifier specifier, const std::string &arrayElementName, const WalkMembersCallback &cb);
 
     static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
                                             std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef, DebugInfo *pDebugInfo,
