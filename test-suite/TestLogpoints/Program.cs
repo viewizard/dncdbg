@@ -7,28 +7,28 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestTracePoint
+namespace TestLogpoints
 {
 class Program
 {
     static void Main(string[] args)
     {
-        Label.Checkpoint("init", "trace_test",
+        Label.Checkpoint("init", "log_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test1", null, null, "Start test.");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test2", null, null, "x={x}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test3", null, null, "x={x}, y={y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test4", null, null, "x==>>{x*5}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test5", null, null, "y={y}y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test6", null, null, "z={z}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test7", null, null, "y={y{y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test8", null, null, "y=y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test9", null, null, "y={y");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test10", null, null, "i={i");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test1", null, null, "Start test.");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test2", null, null, "x={x}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test3", null, null, "x={x}, y={y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test4", null, null, "x==>>{x*5}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test5", null, null, "y={y}y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test6", null, null, "z={z}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test7", null, null, "y={y{y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test8", null, null, "y=y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test9", null, null, "y={y");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test10", null, null, "i={i");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", null, "1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -40,34 +40,34 @@ class Program
 
         Console.WriteLine("Start");
 
-        int x = 1;                                                   Label.Breakpoint("trace_test1");
-        int y = 2;                                                   Label.Breakpoint("trace_test2");
-        x++;                                                         Label.Breakpoint("trace_test3");
-        y++;                                                         Label.Breakpoint("trace_test4");
-        x++;                                                         Label.Breakpoint("trace_test5");
-        x++;                                                         Label.Breakpoint("trace_test6");
-        x++;                                                         Label.Breakpoint("trace_test7");
-        x++;                                                         Label.Breakpoint("trace_test8");
-        x++;                                                         Label.Breakpoint("trace_test9");
+        int x = 1;                                                   Label.Breakpoint("log_test1");
+        int y = 2;                                                   Label.Breakpoint("log_test2");
+        x++;                                                         Label.Breakpoint("log_test3");
+        y++;                                                         Label.Breakpoint("log_test4");
+        x++;                                                         Label.Breakpoint("log_test5");
+        x++;                                                         Label.Breakpoint("log_test6");
+        x++;                                                         Label.Breakpoint("log_test7");
+        x++;                                                         Label.Breakpoint("log_test8");
+        x++;                                                         Label.Breakpoint("log_test9");
 
         for (int i = 0; i < 2; i++)
         {
             x++;                                                     Label.Breakpoint("bp1");
-            x++;                                                     Label.Breakpoint("trace_test10");
+            x++;                                                     Label.Breakpoint("log_test10");
         }
 
         Console.WriteLine("End");                                    Label.Breakpoint("bp2");
 
-        Label.Checkpoint("trace_test", "finish",
+        Label.Checkpoint("log_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
 
                 Context.RemoveBreakpoint(@"__FILE__:__LINE__", "bp1");
-                // change logMessate to already set bp
-                Context.RemoveBreakpoint(@"__FILE__:__LINE__", "trace_test10");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "trace_test10", null, null, "i={i}");
+                // change logMessage to already set bp
+                Context.RemoveBreakpoint(@"__FILE__:__LINE__", "log_test10");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test10", null, null, "i={i}");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");

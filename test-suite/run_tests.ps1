@@ -41,7 +41,7 @@ $ALL_TEST_NAMES = @(
     "TestUnhandledExceptionInstance"
     "TestStdIO"
     "TestModules"
-    "TestTracePoint"
+    "TestLogpoints"
     "TestRemoteConsole"
     "TestSourceFileMap"
     "TestEvaluatePrimitiveUnary"

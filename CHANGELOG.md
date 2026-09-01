@@ -14,6 +14,7 @@ Upcoming changes compared to previous version.
 #### Changed
 - Updated tree-sitter version to 0.27.0.
 - Resolve array element access by name directly instead of enumerating all elements.
+- Renamed TestTracePoint to TestLogpoints to match VS Code terminology.
 
 <br>
 <br>

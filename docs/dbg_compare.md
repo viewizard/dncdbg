@@ -130,7 +130,7 @@
       <td colspan="4" align="center"><b>Breakpoints</b></td>
     </tr>
     <tr>
-      <td align="left"><b>Tracepoints/Logpoints</b></td>
+      <td align="left"><b>Logpoints</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>

@@ -81,7 +81,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><b>Tracepoints/Logpoints</b></td>
+      <td align="left"><b>Logpoints</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
