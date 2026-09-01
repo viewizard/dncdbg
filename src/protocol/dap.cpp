@@ -279,7 +279,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
-                // TODO form responseBody with breakpoints (optional output, MS vsdbg doesn't provide it for VSCode IDE now)
+                // TODO form responseBody with breakpoints (optional output, MS vsdbg doesn't provide it for VS Code IDE now)
                 // responseBody.emplace("breakpoints", breakpoints);
 
                 return S_OK;

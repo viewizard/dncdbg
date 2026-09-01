@@ -160,7 +160,7 @@
 ```diff
 -   noDebug?: boolean;
 -   __restart?: any;
-@@ VSCode IDE additional fields: @@
+@@ VS Code IDE additional fields: @@
 +   cwd?: string;
 +   env?: { [key: string]: string; };
 +   program?: string;
@@ -237,7 +237,7 @@
 #### ContinueResponse
 ```diff
 +   allThreadsContinued?: boolean;
-@@ VSCode IDE additional field: @@
+@@ VS Code IDE additional field: @@
 +   threadId: number;
 ```
 #### NextRequest `next`
@@ -572,13 +572,13 @@
 +   evaluateName?: string;
 +   stackTrace?: string;
 +   innerException?: ExceptionDetails[];
-@@ VSCode IDE additional fields: @@
+@@ VS Code IDE additional fields: @@
 +   std::string formattedDescription;
 +   std::string source;
 ```
 #### ExpressionEvaluationOptions
 ```diff
-@@ VSCode IDE additional field: @@
+@@ VS Code IDE additional field: @@
 +   allowImplicitFuncEval?: boolean;
 +   allowToString?: boolean;
 +   showRawValues?: boolean;

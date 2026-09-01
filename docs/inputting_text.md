@@ -8,11 +8,11 @@
 
 Can be enabled by `DNCDBG_CONSOLE` variable with the `internalConsole` value in `env` dictionary in the [Launch Request](dap_status.md#launchrequest-launch), or (as a fallback) as the `console` field with the `internalConsole` value in the [Launch Request](dap_status.md#launchrequest-launch).
 
-**VSCode IDE:** Add the `"console": "internalConsole"` property to your `.vscode/launch.json` configuration file. VSCode will then include the `console` field with the `internalConsole` value in the [Launch Request](dap_status.md#launchrequest-launch).
+**VS Code IDE:** Add the `"console": "internalConsole"` property to your `.vscode/launch.json` configuration file. VS Code will then include the `console` field with the `internalConsole` value in the [Launch Request](dap_status.md#launchrequest-launch).
 
 When using `internalConsole`, you can input text that will be returned from `Console.ReadLine` and similar APIs that read from `stdin` by sending an [Evaluate Request](dap_status.md#evaluaterequest-evaluate) with the text you need. Note that if you send an Evaluate Request with text while your program is stopped under the debugger, this text will be evaluated as a C# expression, not sent to the target process.
 
-To do so in VSCode, while the program is running, type text into the input box at the bottom of the Debug Console in VSCode IDE. Pressing `Enter` will send the text to the target process.
+To do so in VS Code, while the program is running, type text into the input box at the bottom of the Debug Console in VS Code IDE. Pressing `Enter` will send the text to the target process.
 
 More info: https://aka.ms/VSCode-CS-LaunchJson-Console
 
@@ -26,7 +26,7 @@ When using `remoteConsole`, the debugger will start a local server and open a TC
 
 The default TCP port used is `22534`. This can be changed by providing the `DNCDBG_REMOTECONSOLEPORT` variable with the number as **string** value in `env` dictionary in the [Launch Request](dap_status.md#launchrequest-launch).
 
-***Note: VSCode IDE doesn't support the `remoteConsole` value for the `console` property in the `.vscode/launch.json` configuration file, use `env` instead, for example:***
+***Note: VS Code IDE doesn't support the `remoteConsole` value for the `console` property in the `.vscode/launch.json` configuration file, use `env` instead, for example:***
 ```json
         {
             ...
@@ -44,9 +44,9 @@ The default TCP port used is `22534`. This can be changed by providing the `DNCD
 
 Can be enabled by the `DNCDBG_CONSOLE` variable with the `externalTerminal` value in `env` dictionary in the [Launch Request](dap_status.md#launchrequest-launch), or (as a fallback) as the `console` field with the `externalTerminal` value in the [Launch Request](dap_status.md#launchrequest-launch).
 
-**VSCode IDE:** Add the `"console": "externalTerminal"` property to your `.vscode/launch.json` configuration file. VSCode will then include the `console` field with the `externalTerminal` value in the [Launch Request](dap_status.md#launchrequest-launch).
+**VS Code IDE:** Add the `"console": "externalTerminal"` property to your `.vscode/launch.json` configuration file. VS Code will then include the `console` field with the `externalTerminal` value in the [Launch Request](dap_status.md#launchrequest-launch).
 
-When using `externalTerminal`, the target process will run inside its own external terminal. You will need to switch focus between VSCode and the external terminal window.
+When using `externalTerminal`, the target process will run inside its own external terminal. You will need to switch focus between VS Code and the external terminal window.
 
 ***Note:***
  - ***This is a Windows OS only feature implemented inside Windows API (`CreateProcessW` with `CREATE_NEW_CONSOLE` creation flag). This feature is not implemented in dbgshim for other OSes.***

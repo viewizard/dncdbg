@@ -130,7 +130,7 @@ int
                 exit(EXIT_SUCCESS);
             }},
             {"--interpreter=vscode" , [&] {
-                // VSCode IDE sends this option silently to debugger, just ignore it
+                // VS Code IDE sends this option silently to debugger, just ignore it
             }}};
 
         const std::vector<std::pair<std::string, std::function<void(const std::string &arg)>>> partialArguments{

@@ -443,7 +443,7 @@ struct ExceptionDetails
     // here, since exception object have only one exception object reference in InnerException field.
     std::unique_ptr<ExceptionDetails> innerException;
 
-    // not part of DAP specification, but send by vsdbg in `exceptionInfo` response in VSCode IDE
+    // not part of DAP specification, but sent by vsdbg in `exceptionInfo` response in VS Code IDE
     std::string formattedDescription;
     std::string source;
 };

@@ -1,4 +1,4 @@
-# VSCode IDE, local debugging, Windows OS
+# VS Code IDE, local debugging, Windows OS
 
 1. Install `C#` extension from Microsoft
 2. Switch to `Run and Debug` panel
@@ -28,7 +28,7 @@
             "stopAtEntry": false,
             "justMyCode" : true,
             "enableStepFiltering": true,
-            // Note: dncdbg has different behaviour compared to VSCode vsdbg, in case dll has debug symbols debugger suppresses JIT optimization.
+            // Note: dncdbg has different behaviour compared to VS Code vsdbg, in case dll has debug symbols debugger suppresses JIT optimization.
             "suppressJITOptimizations": false,
             "expressionEvaluationOptions": {
                 "allowImplicitFuncEval": true,

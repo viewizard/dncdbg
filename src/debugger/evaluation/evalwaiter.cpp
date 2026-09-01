@@ -182,7 +182,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             // C:\Program Files (x86)\Microsoft Visual Studio\YYYY\VERSION\Common7\IDE\Profiles\CSharp.vssettings
             // by default NormalEvalTimeout is 5000 milliseconds
             //
-            // TODO add timeout configuration feature (care about VSCode, MSVS with Tizen plugin, standalone usage)
+            // TODO add timeout configuration feature (care about VS Code, MSVS with Tizen plugin, standalone usage)
 
             static constexpr uint32_t normalEvalTimeout = 5000; // TODO config
             std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(normalEvalTimeout));

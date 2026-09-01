@@ -211,7 +211,7 @@
 
 <small><sup>1</sup> From the VsDbg console output: "You may only use the Microsoft .NET Core Debugger (vsdbg) with Visual Studio Code, Visual Studio or Visual Studio for Mac software to help you develop and test your applications."</small><br>
 <small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
-<small><sup>3</sup> Measured on macOS 26.6.2 using the `vmmap` utility on a simple application stopped at a breakpoint, with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VSCode IDE using the DAP protocol; NetCoreDbg was built without the interop and Hot Reload features.</small><br>
+<small><sup>3</sup> Measured on macOS 26.6.2 using the `vmmap` utility on a simple application stopped at a breakpoint, with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VS Code IDE using the DAP protocol; NetCoreDbg was built without the interop and Hot Reload features.</small><br>
 <small><sup>4</sup> Does not support `musl`-based Linux distros.</small><br>
 <small><sup>5</sup> Does not support `musl`-based Linux arm32 distros.</small><br>
 <small><sup>6</sup> Only the `Never` state for properties is supported.</small><br>
