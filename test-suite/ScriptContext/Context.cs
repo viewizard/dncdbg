@@ -286,11 +286,8 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == bp_line &&
-            stackTraceResponse.body.stackFrames[0].source!.name == bp_fileName)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(bp_line, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(bp_fileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void AddBreakpointAndAddID(string caller_trace, string bpName, string? bpPath = null, string? Condition = null)
@@ -443,13 +440,9 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void WasBreakpointHit(string caller_trace, string bpName, bool checkSourcePath = true, int column = 0)
@@ -480,14 +473,13 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            (column == 0 || column == stackTraceResponse.body.stackFrames[0].column) &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && (!checkSourcePath || (checkSourcePath && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)))
-            return;
-
-        throw new ResultNotSuccessException(@"stackTraceResponse.body.stackFrames[0].source.path" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (column != 0)
+            Assert.Equal(column, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        // Note: this code works only with one source file
+        if (checkSourcePath)
+            Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void WasBreakpointHitWithProperThreadID(string caller_trace, string bpName)
@@ -522,13 +514,9 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     bool isThreadInThreadsList(string caller_trace, int ThreadId)
@@ -583,13 +571,9 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void Continue(string caller_trace)
@@ -659,13 +643,11 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)
-            return stackTraceResponse.body.stackFrames[0].id;
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        return stackTraceResponse.body.stackFrames[0].id;
     }
 
     public void CalcAndCheckExpression(string caller_trace, Int64? frameId, string ExpectedResult, string Expression)
@@ -1055,12 +1037,9 @@ class Context
         ExceptionInfoResponse exceptionInfoResponse =
             JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr)!;
 
-        if (exceptionInfoResponse.body.breakMode == excMode &&
-            exceptionInfoResponse.body.exceptionId == excCategory + "/" + excName &&
-            exceptionInfoResponse.body.details!.fullTypeName == excName)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excMode, exceptionInfoResponse.body.breakMode, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excCategory + "/" + excName, exceptionInfoResponse.body.exceptionId, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excName, exceptionInfoResponse.body.details!.fullTypeName, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void TestInnerException(string caller_trace, int innerLevel, string excName, string excMessage)
@@ -1077,10 +1056,8 @@ class Context
         for (int i = 0; i < innerLevel; ++i)
             exceptionDetails = exceptionDetails.innerException![0]!;
 
-        if (exceptionDetails.fullTypeName == excName && exceptionDetails.message == excMessage)
-            return;
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excName, exceptionDetails.fullTypeName, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excMessage, exceptionDetails.message, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void TestStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
@@ -1102,12 +1079,9 @@ class Context
             Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
             var lbp = (LineBreakpoint)bp;
 
-            if (lbp.FileName != stackTraceResponse.body.stackFrames[i].source!.name ||
-                ControlInfo.SourceFilesPath != stackTraceResponse.body.stackFrames[i].source!.path ||
-                lbp.NumLine != stackTraceResponse.body.stackFrames[i].line)
-            {
-                throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-            }
+            Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[i].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[i].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[i].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
         }
     }
 
@@ -1130,12 +1104,9 @@ class Context
         Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
         var lbp = (LineBreakpoint)bp;
 
-        if (lbp.FileName != stackTraceResponse.body.stackFrames[lastIndex].source!.name ||
-            ControlInfo.SourceFilesPath != stackTraceResponse.body.stackFrames[lastIndex].source!.path ||
-            lbp.NumLine != stackTraceResponse.body.stackFrames[lastIndex].line)
-        {
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-        }
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[lastIndex].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[lastIndex].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[lastIndex].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void TestExceptionStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
@@ -1181,13 +1152,8 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].name == extFrame)
-        {
-            TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
-            return;
-        }
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(extFrame, stackTraceResponse.body.stackFrames[0].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
     }
 
     public void WasExceptionBreakpointHit(string caller_trace, string bpName, string excCategory, string excMode, string excName)
@@ -1218,16 +1184,11 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        if (stackTraceResponse.body.stackFrames[0].line == lbp.NumLine &&
-            stackTraceResponse.body.stackFrames[0].source!.name == lbp.FileName
-            // Note: this code works only with one source file
-            && stackTraceResponse.body.stackFrames[0].source!.path == ControlInfo.SourceFilesPath)
-        {
-            TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
-            return;
-        }
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
     }
 
     public void GetResultAsString(string caller_trace, Int64 frameId, string expr, out string strRes)
