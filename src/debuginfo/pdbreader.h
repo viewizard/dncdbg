@@ -40,6 +40,8 @@ HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t
                                std::unordered_map<uint32_t, uint32_t> &kickoffToMoveNext);
 HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                              std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
+HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t line, int32_t column,
+                      PDB::SequencePoint &sequencePoint, std::string &output);
 
 } // namespace dncdbg::PDBReader
 
