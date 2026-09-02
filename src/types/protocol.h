@@ -493,6 +493,18 @@ struct ExceptionBreakpoint
     }
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_GotoTarget
+struct GotoTarget
+{
+    uint32_t id;
+    std::string label;
+    int32_t line;
+    int32_t column;
+    int32_t endLine;
+    int32_t endColumn;
+    std::string instructionPointerReference;
+};
+
 } // namespace dncdbg
 
 #endif // TYPES_PROTOCOL_H

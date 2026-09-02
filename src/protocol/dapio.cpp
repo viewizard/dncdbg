@@ -158,6 +158,33 @@ void to_json(json &j, const Module &m)
     }
 }
 
+void to_json(json &j, const GotoTarget &g)
+{
+    j = json{{"id", g.id},
+             {"label", g.label},
+             {"line", g.line}};
+
+    if (g.column != 0)
+    {
+        j.emplace("column", g.column);
+    }
+
+    if (g.endLine != 0)
+    {
+        j.emplace("endLine", g.endLine);
+    }
+
+    if (g.endColumn != 0)
+    {
+        j.emplace("endColumn", g.endColumn);
+    }
+
+    if (!g.instructionPointerReference.empty())
+    {
+        j.emplace("instructionPointerReference", g.instructionPointerReference);
+    }
+}
+
 const std::unordered_map<std::string, ExceptionBreakpointFilter> &DAPIO::GetExceptionFilters()
 {
     static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
