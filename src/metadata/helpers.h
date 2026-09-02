@@ -89,6 +89,10 @@ HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
 // Returns E_FAIL for element types that are not built-in primitives or keywords.
 HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName);
 
+// Resolves a native code address for the given IL offset of a function by mapping IL offsets
+// to native offsets via the JIT-generated IL-to-native map. Returns E_FAIL when mapping data
+// is unavailable (e.g., lightweight/dynamic methods).
+HRESULT GetNativeAddress(ICorDebugFunction *pFunction, uint32_t ilOffset, CORDB_ADDRESS &nativeAddress);
 // Fast conversion of a CORDB_ADDRESS to a std::string for DAP memory address related fields.
 // The result includes the "0x" prefix followed by 16 hexadecimal digits.
 std::string AddrToString(CORDB_ADDRESS corAddr);
