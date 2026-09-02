@@ -470,6 +470,8 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
                 { packString(">="), SyntaxKind::GreaterThanOrEqualExpression },
                 { packString("<="), SyntaxKind::LessThanOrEqualExpression },
                 { packString("??"), SyntaxKind::CoalesceExpression }
+
+                // TODO: ">>>" SyntaxKind::UnsignedRightShiftExpression
             };
 
             const auto findOp = opMap.find(packString(op));
@@ -844,10 +846,24 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             return E_NOTIMPL;
         }
     },
-    // Roslyn: AssignmentExpression (=, +=, -=, /=, *=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=)
+    // Roslyn Assignment Group: =, +=, -=, /=, *=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=
     {"assignment_expression",
         [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
         {
+            // = SyntaxKind.SimpleAssignmentExpression
+            // += SyntaxKind.AddAssignmentExpression
+            // -= SyntaxKind.SubtractAssignmentExpression
+            // *= SyntaxKind.MultiplyAssignmentExpression
+            // /= SyntaxKind.DivideAssignmentExpression
+            // %= SyntaxKind.ModuloAssignmentExpression
+            // &= SyntaxKind.AndAssignmentExpression
+            // |= SyntaxKind.OrAssignmentExpression
+            // ^= SyntaxKind.ExclusiveOrAssignmentExpression
+            // <<= SyntaxKind.LeftShiftAssignmentExpression
+            // >>= SyntaxKind.RightShiftAssignmentExpression
+            // >>>= SyntaxKind.UnsignedRightShiftAssignmentExpression
+            // ??= SyntaxKind.CoalesceAssignmentExpression
+
             output = "Assignment expressions not implemented.";
             return E_NOTIMPL;
         }
