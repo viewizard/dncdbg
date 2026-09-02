@@ -263,6 +263,7 @@ void DebugInfo::Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
     m_debugInfo.clear();
+    m_gotoTargetId = 0;
 }
 
 HRESULT DebugInfo::GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
@@ -651,6 +652,14 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                     continue;
                 }
 
+                // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
+                if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
+                    sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
+                                      fixedFilePath.size() - 1) != '\\')
+                {
+                    continue;
+                }
+
                 // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
                 const auto BinaryPredicate =
                     [](const char &a, const char &b) -> bool
@@ -661,14 +670,6 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                         }
                         return a == b;
                     };
-
-                // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
-                if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
-                    sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
-                                     fixedFilePath.size() - 1) != '\\')
-                {
-                    continue;
-                }
                 if (currentResult.empty() ||
                     (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), sourceFilePath.end() -
                                 static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
@@ -762,6 +763,140 @@ HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef me
         [&](const PDBInfo &pdbInfo) -> HRESULT
         {
             return PDBReader::GetImportsAndAliases(pdbInfo.m_pdbHandle, methodToken, ilOffset, pdbImports);
+        });
+}
+
+HRESULT DebugInfo::GetGotoTarget(ICorDebugThread *pThread, const Source &source, int32_t line, int32_t column,
+                                 GotoTarget &target, uint32_t &targetIlOffset, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(pThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
+    {
+        return E_FAIL;
+    }
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(trFrame->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    return GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            PDB::SequencePoint sequencePoint;
+            IfFailRet(PDBReader::GetGotoTarget(pdbInfo.m_pdbHandle, methodToken, line, column, sequencePoint, output));
+
+            std::string sourceFilePath;
+            std::string algorithm;
+            std::string checksum;
+            IfFailRet(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sequencePoint.sourceFileIndex,
+                                               sourceFilePath, algorithm, checksum));
+
+            auto fillTarget = [&]
+            {
+                if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, this, target.label)))
+                {
+                    target.label = sourceFilePath;
+                }
+
+                CORDB_ADDRESS nativeAddress = 0;
+                MetadataHelpers::GetNativeAddress(trFunction, sequencePoint.ilOffset, nativeAddress);
+                if (nativeAddress != 0)
+                {
+                    target.instructionPointerReference = MetadataHelpers::AddrToString(nativeAddress);
+                }
+
+                m_gotoTargetId++;
+                target.id = m_gotoTargetId;
+                target.line = sequencePoint.startLine;
+                target.column = sequencePoint.startColumn;
+                target.endLine = sequencePoint.endLine;
+                target.endColumn = sequencePoint.endColumn;
+                targetIlOffset = sequencePoint.ilOffset;
+            };
+
+            if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
+            {
+                bool hasChecksum = false;
+                for (const auto &entry : source.checksums)
+                {
+                    if (entry.algorithm.empty() || entry.checksum.empty())
+                    {
+                        continue;
+                    }
+
+                    hasChecksum = true;
+
+                    if (entry.algorithm == algorithm && entry.checksum == checksum)
+                    {
+                        fillTarget();
+                        return S_OK;
+                    }
+                }
+
+                if (hasChecksum)
+                {
+                    output = "Error setting next statement. Source not found.";
+                    return E_FAIL;
+                }
+            }
+
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+            std::string fixedFilePath = to_uppercase(source.path);
+            const std::string fixedSourceFilePath = to_uppercase(sourceFilePath);
+#else
+            std::string fixedFilePath = source.path;
+            const std::string fixedSourceFilePath = sourceFilePath;
+#endif
+
+            if (fixedFilePath.size() > fixedSourceFilePath.size())
+            {
+                output = "Error setting next statement. Source not found.";
+                return E_FAIL;
+            }
+
+            fixedFilePath = CanonicalizeFilePath(fixedFilePath);
+
+            if (fixedFilePath == fixedSourceFilePath)
+            {
+                fillTarget();
+                return S_OK;
+            }
+
+            // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
+            if (fixedFilePath.size() < fixedSourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
+                fixedSourceFilePath.at(fixedSourceFilePath.size() - fixedFilePath.size() - 1) != '/' && fixedSourceFilePath.at(fixedSourceFilePath.size() -
+                                       fixedFilePath.size() - 1) != '\\')
+            {
+                output = "Error setting next statement. Source not found.";
+                return E_FAIL;
+            }
+
+            // Note, since assemblies could be built in different OSes, we could have different delimiters in source file paths.
+            const auto BinaryPredicate =
+                [](const char &a, const char &b) -> bool
+                {
+                    if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
+                    {
+                        return true;
+                    }
+                    return a == b;
+                };
+            if (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), fixedSourceFilePath.end() -
+                           static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate))
+            {
+                fillTarget();
+                return S_OK;
+            }
+
+            output = "Error setting next statement. Source not found.";
+            return E_FAIL;
         });
 }
 

@@ -75,10 +75,16 @@ class DebugInfo
 
     HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                  std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
+
+    HRESULT GetGotoTarget(ICorDebugThread *pThread, const Source &source, int32_t line,
+                          int32_t column, GotoTarget &target, uint32_t &targetIlOffset, std::string &output);
+
   private:
 
     std::mutex m_debugInfoMutex;
     std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
+
+    uint32_t m_gotoTargetId = 0;
 };
 
 } // namespace dncdbg
