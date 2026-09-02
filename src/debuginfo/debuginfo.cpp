@@ -798,7 +798,7 @@ HRESULT DebugInfo::GetGotoTarget(ICorDebugThread *pThread, const Source &source,
             IfFailRet(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sequencePoint.sourceFileIndex,
                                                sourceFilePath, algorithm, checksum));
 
-            auto fillTarget = [&]
+            const auto fillTarget = [&]
             {
                 if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, this, target.label)))
                 {
