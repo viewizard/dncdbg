@@ -71,7 +71,8 @@ enum class SyntaxKind : uint8_t
     TypeOfExpression,
     CoalesceExpression,
     ThisExpression,
-    LambdaExpression
+    LambdaExpression,
+    AssignmentExpression
 };
 
 struct Opcode

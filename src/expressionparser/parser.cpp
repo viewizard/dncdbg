@@ -843,6 +843,14 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             output = "Lambda expressions not implemented.";
             return E_NOTIMPL;
         }
+    },
+    // Roslyn: AssignmentExpression (=, +=, -=, /=, *=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=)
+    {"assignment_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
+        {
+            output = "Assignment expressions not implemented.";
+            return E_NOTIMPL;
+        }
     }};
 
     std::stack<WorkItem> workStack;
