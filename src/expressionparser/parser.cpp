@@ -835,6 +835,14 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             workStack.emplace(VisitNode{exprNode});
             return S_OK;
         }
+    },
+    // Roslyn: SimpleLambdaExpression and ParenthesizedLambdaExpression
+    {"lambda_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
+        {
+            output = "Lambda expressions not implemented.";
+            return E_NOTIMPL;
+        }
     }};
 
     std::stack<WorkItem> workStack;

@@ -70,7 +70,8 @@ enum class SyntaxKind : uint8_t
     SizeOfExpression,
     TypeOfExpression,
     CoalesceExpression,
-    ThisExpression
+    ThisExpression,
+    LambdaExpression
 };
 
 struct Opcode
