@@ -867,6 +867,24 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             output = "Assignment expressions not implemented.";
             return E_NOTIMPL;
         }
+    },
+    // Roslyn: QueryExpression, LINQ query expression
+    {"query_expression",
+        [](TSNode /*node*/, const std::string &/*source*/, std::list<Opcode> &/*program*/, std::string &output, std::stack<WorkItem> &/*workStack*/) -> HRESULT
+        {
+            // query_body - SyntaxKind.QueryBody
+            // from_clause - SyntaxKind.FromClause
+            // where_clause - SyntaxKind.WhereClause
+            // select_clause - SyntaxKind.SelectClause
+            // group_clause - SyntaxKind.GroupClause
+            // order_by_clause - SyntaxKind.OrderByClause
+            // ordering - SyntaxKind.Ordering
+            // join_clause - SyntaxKind.JoinClause / SyntaxKind.JoinIntoClause
+            // let_clause - SyntaxKind.LetClause
+
+            output = "LINQ query expression not implemented.";
+            return E_NOTIMPL;
+        }
     }};
 
     std::stack<WorkItem> workStack;
