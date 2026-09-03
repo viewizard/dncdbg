@@ -105,23 +105,23 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
 }
 
 HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const EvalData &ed, ICorDebugValue **ppResultValue,
-                                std::unique_ptr<Evaluator::SetterData> *resultSetterData, std::string &output)
+                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData, std::string &output)
 {
     HRESULT Status = S_OK;
-    Evaluator::SetterData *inputPropertyData = nullptr;
+    Evaluator::SetterData *pInputPropertyData = nullptr;
     if (evalStack.front().editable)
     {
-        inputPropertyData = evalStack.front().setterData.get();
+        pInputPropertyData = evalStack.front().setterData.get();
     }
     else
     {
-        resultSetterData = nullptr;
+        pResultSetterData = nullptr;
     }
 
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
-    if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
+    if (SUCCEEDED(Status = ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
                                                              evalStack.front().identifiers, ed.specifier, ppResultValue,
-                                                             &evalStack.front().realDisplayTypeName, resultSetterData, nullptr)))
+                                                             &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
     {
         return S_OK;
     }
@@ -140,9 +140,9 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const Eval
                 const std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
                 testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.cbegin(), importTypeIdentifiers.cend());
 
-                if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, inputPropertyData,
+                if (SUCCEEDED(ed.pEvaluator->ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
                                                                 testIdentifiers, ed.specifier, ppResultValue,
-                                                                &evalStack.front().realDisplayTypeName, resultSetterData, nullptr)))
+                                                                &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
                 {
                     return S_OK;
                 }
@@ -1931,8 +1931,8 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
 
 HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                                              FormatSpecifier specifier, ICorDebugValue *pForcedThisValue,
-                                             ICorDebugValue **ppResultValue, std::string *realDisplayTypeName, std::string &output,
-                                             bool *editable, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+                                             ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName, std::string &output,
+                                             bool *pEditable, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
@@ -1944,20 +1944,20 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
 
     std::unique_ptr<Evaluator::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, ppResultValue, &setterData, output));
-    if (realDisplayTypeName != nullptr)
+    if (pRealDisplayTypeName != nullptr)
     {
-        *realDisplayTypeName = evalStack.front().realDisplayTypeName;
+        *pRealDisplayTypeName = evalStack.front().realDisplayTypeName;
     }
 
-    if (editable != nullptr)
+    if (pEditable != nullptr)
     {
-        *editable = (setterData != nullptr) && (setterData->trSetterFunction == nullptr) ? false /*property don't have setter*/
-                                                                                         : evalStack.front().editable;
+        *pEditable = (setterData != nullptr) && (setterData->trSetterFunction == nullptr) ? false /*property doesn't have a setter*/
+                                                                                          : evalStack.front().editable;
     }
 
-    if (resultSetterData != nullptr)
+    if (pResultSetterData != nullptr)
     {
-        *resultSetterData = std::move(setterData);
+        *pResultSetterData = std::move(setterData);
     }
 
     return S_OK;

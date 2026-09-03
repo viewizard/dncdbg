@@ -1188,7 +1188,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         const std::string name = to_utf8(mdName.c_str());
 
-                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *pFallbackTypeName) -> HRESULT
                         {
                             if (fieldAttr & fdLiteral)
                             {
@@ -1196,9 +1196,9 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                 IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
                                                                                     rawValueLength, ppResultValue, realDisplayTypeName));
 
-                                if (fallbackTypeName != nullptr)
+                                if (pFallbackTypeName != nullptr)
                                 {
-                                    *fallbackTypeName = std::move(realDisplayTypeName);
+                                    *pFallbackTypeName = std::move(realDisplayTypeName);
                                 }
                             }
                             else if (fieldAttr & fdStatic)
@@ -1555,11 +1555,11 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         Status = trILFrame->GetArgument(0, &trCurrentThis);
         if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
         {
-            const auto getValue = [&](ICorDebugValue **, std::string *fallbackTypeName) -> HRESULT
+            const auto getValue = [&](ICorDebugValue **, std::string *pFallbackTypeName) -> HRESULT
             {
-                if (fallbackTypeName != nullptr)
+                if (pFallbackTypeName != nullptr)
                 {
-                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), *fallbackTypeName);
+                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), *pFallbackTypeName);
                 }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
@@ -1651,7 +1651,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             wParamName.pop_back();
         }
 
-        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *pFallbackTypeName) -> HRESULT
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
@@ -1664,7 +1664,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             }
 
             Status = trILFrame->GetArgument(i, ppResultValue);
-            if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE && fallbackTypeName != nullptr)
+            if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE && pFallbackTypeName != nullptr)
             {
                 SigElementType returnElementType;
                 std::vector<SigElementType> argElementTypes;
@@ -1673,7 +1673,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     const ULONG index = ((methodAttr & mdStatic) == 0) ? (i - 1) : i;
                     if (argElementTypes.size() > index)
                     {
-                        *fallbackTypeName = argElementTypes.at(index).metadataTypeName;
+                        *pFallbackTypeName = argElementTypes.at(index).metadataTypeName;
                     }
                 }
             }
@@ -1757,16 +1757,16 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     continue;
                 }
 
-                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *fallbackTypeName) -> HRESULT
+                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *pFallbackTypeName) -> HRESULT
                 {
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
                     std::string realDisplayTypeName;
                     IfFailRet(m_sharedEvalExec->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue, realDisplayTypeName));
 
-                    if (fallbackTypeName != nullptr)
+                    if (pFallbackTypeName != nullptr)
                     {
-                        *fallbackTypeName = std::move(realDisplayTypeName);
+                        *pFallbackTypeName = std::move(realDisplayTypeName);
                     }
 
                     return S_OK;
@@ -1801,8 +1801,8 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                 ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
-                                FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *realDisplayTypeName,
-                                std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+                                FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
+                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -1827,9 +1827,9 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
         const std::string &identifier = identifiers.at(i);
         const bool isArrayElement = !identifier.empty() && identifier.front() == '[';
         const std::string arrayElementName = isArrayElement ? identifier : std::string{};
-        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (resultSetterData != nullptr), specifier, arrayElementName,
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier, arrayElementName,
             [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
+                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *pSetterData, std::string *) -> HRESULT
             {
                 if ((isStatic && valueKind == ValueKind::Variable) ||
                     (!isStatic && valueKind == ValueKind::Static) ||
@@ -1838,18 +1838,18 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                     return S_OK;
                 }
 
-                if (FAILED(Status = getValue(&trResultValue, realDisplayTypeName)))
+                if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
                 {
-                    if (realDisplayTypeName != nullptr)
+                    if (pRealDisplayTypeName != nullptr)
                     {
-                        (*realDisplayTypeName).clear();
+                        pRealDisplayTypeName->clear();
                     }
                     return Status;
                 }
-                if (setterData != nullptr &&
-                    resultSetterData != nullptr)
+                if (pSetterData != nullptr &&
+                    pResultSetterData != nullptr)
                 {
-                    *resultSetterData = std::make_unique<Evaluator::SetterData>(*setterData);
+                    *pResultSetterData = std::make_unique<Evaluator::SetterData>(*pSetterData);
                 }
 
                 return S_CAN_EXIT; // Fast exit from the loop.
@@ -1870,7 +1870,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                          std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                          const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                                         std::string *realDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *resultSetterData)
+                                         std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -1914,7 +1914,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
             if (TypeHasStaticMembers(trType) &&
                 SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
                 SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
-                                       0, specifier, ppResult, realDisplayTypeName, resultSetterData)))
+                                       0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
             {
                 return S_OK;
             }
@@ -1926,7 +1926,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
         if (TypeHasStaticMembers(trType) &&
             SUCCEEDED(m_sharedEvalExec->CreateTypeObject(pThread, trType, &trTypeObject)) &&
             SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
-                                   0, specifier, ppResult, realDisplayTypeName, resultSetterData)))
+                                   0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
         {
             return S_OK;
         }
@@ -1981,24 +1981,24 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
 }
 
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
-                                      SetterData *inputSetterData, std::vector<std::string> &identifiers,
-                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *realDisplayTypeName,
-                                      std::unique_ptr<SetterData> *resultSetterData, ICorDebugType **ppResultType)
+                                      SetterData *pInputSetterData, std::vector<std::string> &identifiers,
+                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
+                                      std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType)
 {
     if (pForcedThisValue != nullptr && identifiers.empty())
     {
         pForcedThisValue->AddRef();
         *ppResultValue = pForcedThisValue;
-        if (inputSetterData != nullptr && resultSetterData != nullptr)
+        if (pInputSetterData != nullptr && pResultSetterData != nullptr)
         {
-            *resultSetterData = std::make_unique<Evaluator::SetterData>(*inputSetterData);
+            *pResultSetterData = std::make_unique<Evaluator::SetterData>(*pInputSetterData);
         }
         return S_OK;
     }
     else if (pForcedThisValue != nullptr)
     {
         return FollowFields(pThread, frameLevel, pForcedThisValue, ValueKind::Variable, identifiers,
-                            0, specifier, ppResultValue, realDisplayTypeName, resultSetterData);
+                            0, specifier, ppResultValue, pRealDisplayTypeName, pResultSetterData);
     }
 
     HRESULT Status = S_OK;
@@ -2061,11 +2061,11 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
             {
                 if (name == "this")
                 {
-                    if (FAILED(getValue(&trThisValue, realDisplayTypeName)) || (trThisValue == nullptr))
+                    if (FAILED(getValue(&trThisValue, pRealDisplayTypeName)) || (trThisValue == nullptr))
                     {
-                        if (realDisplayTypeName != nullptr)
+                        if (pRealDisplayTypeName != nullptr)
                         {
-                            (*realDisplayTypeName).clear();
+                            pRealDisplayTypeName->clear();
                         }
                         return S_OK;
                     }
@@ -2077,11 +2077,11 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
                 }
                 else if (name == identifiers.at(nextIdentifier))
                 {
-                    if (FAILED(getValue(&trResolvedValue, realDisplayTypeName)) || (trResolvedValue == nullptr))
+                    if (FAILED(getValue(&trResolvedValue, pRealDisplayTypeName)) || (trResolvedValue == nullptr))
                     {
-                        if (realDisplayTypeName != nullptr)
+                        if (pRealDisplayTypeName != nullptr)
                         {
-                            (*realDisplayTypeName).clear();
+                            pRealDisplayTypeName->clear();
                         }
                         return S_OK;
                     }
@@ -2101,7 +2101,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         }
 
         if (SUCCEEDED(FollowFields(pThread, frameLevel, trThisValue, ValueKind::Variable, identifiers,
-                                   nextIdentifier, specifier, &trResolvedValue, realDisplayTypeName, resultSetterData)))
+                                   nextIdentifier, specifier, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2124,7 +2124,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
-                                            pdbImports, &trResolvedValue, realDisplayTypeName, resultSetterData)))
+                                            pdbImports, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -2175,7 +2175,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
 
     ToRelease<ICorDebugValue> trResultValue;
     IfFailRet(FollowFields(pThread, frameLevel, trResolvedValue, valueKind, identifiers,
-                           nextIdentifier, specifier, &trResultValue, realDisplayTypeName, resultSetterData));
+                           nextIdentifier, specifier, &trResultValue, pRealDisplayTypeName, pResultSetterData));
 
     *ppResultValue = trResultValue.Detach();
     return S_OK;

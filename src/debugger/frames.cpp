@@ -240,20 +240,20 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     return S_OK;
 }
 
-CORDB_ADDRESS GetIP(const CONTEXT *context)
+CORDB_ADDRESS GetIP(const CONTEXT *pContext)
 {
 #ifdef _TARGET_AMD64_
-    return static_cast<CORDB_ADDRESS>(context->Rip);
+    return static_cast<CORDB_ADDRESS>(pContext->Rip);
 #elif defined(_TARGET_X86_)
-    return static_cast<CORDB_ADDRESS>(context->Eip);
+    return static_cast<CORDB_ADDRESS>(pContext->Eip);
 #elif defined(_TARGET_ARM_)
-    return static_cast<CORDB_ADDRESS>(context->Pc);
+    return static_cast<CORDB_ADDRESS>(pContext->Pc);
 #elif defined(_TARGET_ARM64_)
-    return static_cast<CORDB_ADDRESS>(context->Pc);
+    return static_cast<CORDB_ADDRESS>(pContext->Pc);
 #elif defined(_TARGET_RISCV64_)
-    return static_cast<CORDB_ADDRESS>(context->Pc);
+    return static_cast<CORDB_ADDRESS>(pContext->Pc);
 #elif defined(_TARGET_LOONGARCH64_)
-    return static_cast<CORDB_ADDRESS>(context->Pc);
+    return static_cast<CORDB_ADDRESS>(pContext->Pc);
 #else
 #error "Unsupported platform"
 #endif
@@ -687,10 +687,10 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         PDB::SequencePoint sequencePoint;
         std::string methodName;
         Source source;
-        IntWalkExceptionFrame(const PDB::SequencePoint *sequencePoint_, const std::string *methodName_, const Source *source_)
-            : sequencePoint(sequencePoint_ != nullptr ? *sequencePoint_ : PDB::SequencePoint{}),
-              methodName(methodName_ != nullptr ? *methodName_ : ""),
-              source(source_ != nullptr ? *source_ : Source{})
+        IntWalkExceptionFrame(const PDB::SequencePoint *pSequencePoint, const std::string *pMethodName, const Source *pSource)
+            : sequencePoint(pSequencePoint != nullptr ? *pSequencePoint : PDB::SequencePoint{}),
+              methodName(pMethodName != nullptr ? *pMethodName : ""),
+              source(pSource != nullptr ? *pSource : Source{})
         {
         }
     };
@@ -699,7 +699,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     {
         FrameType frameType;
         ToRelease<ICorDebugFrame> trFrame;
-        IntWalkExceptionFrame *excFrame{nullptr};
+        IntWalkExceptionFrame *pExcFrame{nullptr};
         CORDB_ADDRESS ip{0};
 
         IntWalkFrame(FrameType frameType_, ICorDebugFrame *pFrame_, CORDB_ADDRESS ip_)
@@ -718,8 +718,8 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
     // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
     WalkFrames(pThread, pDebugInfo,
-        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *sequencePoint,
-            const std::string *methodName, const Source *source, CORDB_ADDRESS ip) -> HRESULT
+        [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *pSequencePoint,
+            const std::string *pMethodName, const Source *pSource, CORDB_ADDRESS ip) -> HRESULT
         {
             if (pFrame != nullptr)
             {
@@ -737,8 +737,8 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
             if (frameType == FrameType::CLRManagedException ||
                 frameType == FrameType::CLRManagedExceptionUser)
             {
-                walkExceptionFrames.emplace_back(sequencePoint, methodName, source);
-                walkFrames.back().excFrame = &walkExceptionFrames.back();
+                walkExceptionFrames.emplace_back(pSequencePoint, pMethodName, pSource);
+                walkFrames.back().pExcFrame = &walkExceptionFrames.back();
             }
 
             if (!justMyCode && maxFrames != 0 &&
@@ -832,13 +832,13 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         case FrameType::CLRManagedException:
         case FrameType::CLRManagedExceptionUser:
         {
-            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + frame.excFrame->methodName);
+            stackFrames.emplace_back(threadId, FrameLevel{currentFrame}, ExceptionFramePrefix + frame.pExcFrame->methodName);
             stackFrames.back().presentationHint = "normal";
             if (frame.frameType == FrameType::CLRManagedExceptionUser)
             {
-                stackFrames.back().source = frame.excFrame->source;
-                stackFrames.back().line = frame.excFrame->sequencePoint.startLine;
-                stackFrames.back().endLine = frame.excFrame->sequencePoint.endLine;
+                stackFrames.back().source = frame.pExcFrame->source;
+                stackFrames.back().line = frame.pExcFrame->sequencePoint.startLine;
+                stackFrames.back().endLine = frame.pExcFrame->sequencePoint.endLine;
             }
             if (frame.ip != 0)
             {

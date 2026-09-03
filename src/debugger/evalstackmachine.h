@@ -102,10 +102,10 @@ class EvalStackMachine
         m_evalData.pEvalExec = m_sharedEvalExec.get();
     }
 
-    // Evaluate expression. Optional, return `editable` state and in case result is property - setter related information.
+    // Evaluate expression. Optional, return `editable` state and in case the result is a property - setter-related information.
     HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
-                               ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *realDisplayTypeName,
-                               std::string &output, bool *editable = nullptr, std::unique_ptr<Evaluator::SetterData> *resultSetterData = nullptr);
+                               ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
+                               std::string &output, bool *pEditable = nullptr, std::unique_ptr<Evaluator::SetterData> *pResultSetterData = nullptr);
 
     // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.
     HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,

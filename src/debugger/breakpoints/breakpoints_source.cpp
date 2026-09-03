@@ -106,14 +106,14 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 } // unnamed namespace
 
 void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile,
-                                                              const std::string *algorithm, const std::string *checksum) const
+                                                              const std::string *pAlgorithm, const std::string *pChecksum) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
     breakpoint.source = Source(sourceFile);
-    if (algorithm != nullptr && checksum != nullptr && !(*algorithm).empty() && !(*checksum).empty())
+    if (pAlgorithm != nullptr && pChecksum != nullptr && !(*pAlgorithm).empty() && !(*pChecksum).empty())
     {
-        breakpoint.source.checksums.emplace_back(*algorithm, *checksum);
+        breakpoint.source.checksums.emplace_back(*pAlgorithm, *pChecksum);
     }
     breakpoint.line = this->lineNum;
     breakpoint.column = this->columnNum;

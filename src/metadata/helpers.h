@@ -39,10 +39,10 @@ HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataNam
 HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadataName);
 
 // Get fully-qualified "display" name for token.
-// When "args" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
+// When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
-                                 std::list<std::string> *args);
+                                 std::list<std::string> *pArgs);
 
 // Get fully-qualified "display" type name.
 HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayElemType, std::string &displayArrayType);
@@ -62,12 +62,12 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
 std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
 // Convert a "metadata" type/method name (e.g. "Dictionary`2") into a "display" name (e.g. "Dictionary<int, string>").
-// When "args" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
+// When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
-std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *args);
+std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *ranks = nullptr);
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
 
 // Note: `identifiers` contain "display" names and are converted into "metadata" names for lookup inside method logic.
 HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,

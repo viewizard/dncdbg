@@ -37,7 +37,7 @@ void TrimString(std::string &str)
     str = str.substr(first, last - first + 1);
 }
 
-std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *args)
+std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *pArgs)
 {
     const std::size_t offset = name.find_last_not_of("0123456789");
 
@@ -60,7 +60,7 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *
         return name;
     }
 
-    if (numArgs == 0 || (args != nullptr && numArgs > args->size()))
+    if (numArgs == 0 || (pArgs != nullptr && numArgs > pArgs->size()))
     {
         return name;
     }
@@ -74,11 +74,11 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *
         numArgs--;
         ss << sep;
 
-        if (args != nullptr && !args->empty())
+        if (pArgs != nullptr && !pArgs->empty())
         {
             sep = ", ";
-            ss << args->front();
-            args->pop_front();
+            ss << pArgs->front();
+            pArgs->pop_front();
         }
         else
         {
@@ -481,7 +481,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
         std::vector<ToRelease<ICorDebugType>> typeParams; // generic type params to resolve
         std::vector<std::string> resolvedParams;          // resolved strings for each param
         std::size_t nextParamIdx = 0;                     // next param index to resolve
-        std::string *resultSlot = nullptr;                // where to write the final result
+        std::string *pResultSlot = nullptr;                // where to write the final result
     };
 
     std::vector<StackFrame> stack;
@@ -489,7 +489,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
     // Push the initial type
     {
         StackFrame frame;
-        frame.resultSlot = &output;
+        frame.pResultSlot = &output;
 
         std::string elementType;
         std::string arrayType;
@@ -514,7 +514,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             ICorDebugType *paramType = current.typeParams.at(paramIdx).GetPtr();
 
             StackFrame childFrame;
-            childFrame.resultSlot = &current.resolvedParams.at(paramIdx);
+            childFrame.pResultSlot = &current.resolvedParams.at(paramIdx);
 
             std::string elementType;
             std::string arrayType;
@@ -526,7 +526,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             if (childFrame.typeParams.empty())
             {
                 // Simple type with no generic params - resolve immediately
-                *childFrame.resultSlot = childFrame.baseString;
+                *childFrame.pResultSlot = childFrame.baseString;
             }
             else
             {
@@ -539,7 +539,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             // All generic type parameters have been resolved.
             // Replace placeholders in the base string and write the result.
             ReplacePlaceholders(current.baseString, current.resolvedParams);
-            *current.resultSlot = current.baseString;
+            *current.pResultSlot = current.baseString;
             stack.pop_back();
         }
     }
@@ -1048,7 +1048,7 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
 
 // Get fully-qualified display name for typedef token.
 HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
-                                   std::string &displayTypeName, std::list<std::string> *args)
+                                   std::string &displayTypeName, std::list<std::string> *pArgs)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -1092,7 +1092,7 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
             displayTypeName += '.';
         }
 
-        displayTypeName += ConsumeGenericArgs(*it, args);
+        displayTypeName += ConsumeGenericArgs(*it, pArgs);
     }
 
     return S_OK;
@@ -1354,14 +1354,14 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
 }
 
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
-                                 std::list<std::string> *args)
+                                 std::list<std::string> *pArgs)
 {
     HRESULT Status = S_OK;
     displayName.clear();
 
     if (TypeFromToken(token) == mdtTypeDef)
     {
-        IfFailRet(GetFQDisplayNameForTypeDef(token, pMDImport, displayName, args));
+        IfFailRet(GetFQDisplayNameForTypeDef(token, pMDImport, displayName, pArgs));
     }
     else if (TypeFromToken(token) == mdtFieldDef)
     {
@@ -1374,7 +1374,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
         if (typeDef != mdTypeDefNil)
         {
-            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
+            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, pArgs));
             displayName += '.';
         }
         displayName += to_utf8(name.data());
@@ -1390,7 +1390,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
                                             nullptr, nullptr, nullptr, nullptr, nullptr));
         if (typeDef != mdTypeDefNil)
         {
-            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, args));
+            IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, pArgs));
             displayName += '.';
         }
         displayName += to_utf8(methodName.data());
@@ -1406,12 +1406,12 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         {
             std::string metadataName;
             IfFailRet(GetFQMDNameForTypeRef(typeToken, pMDImport, metadataName));
-            displayName = ConvertMetadataToDisplayName(metadataName, args);
+            displayName = ConvertMetadataToDisplayName(metadataName, pArgs);
             displayName += '.';
         }
         else if (TypeFromToken(typeToken) == mdtTypeDef)
         {
-            IfFailRet(GetFQDisplayNameForTypeDef(typeToken, pMDImport, displayName, args));
+            IfFailRet(GetFQDisplayNameForTypeDef(typeToken, pMDImport, displayName, pArgs));
             displayName += '.';
         }
         else
@@ -1425,7 +1425,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
     {
         std::string metadataName;
         IfFailRet(GetFQMDNameForTypeRef(token, pMDImport, metadataName));
-        displayName = ConvertMetadataToDisplayName(metadataName, args);
+        displayName = ConvertMetadataToDisplayName(metadataName, pArgs);
     }
     else if (TypeFromToken(token) == mdtTypeSpec)
     {
@@ -1434,7 +1434,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
         IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, nullptr, true));
-        displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, args);
+        displayName = ConvertMetadataToDisplayName(sigType.metadataTypeName, pArgs);
     }
     else
     {
@@ -1889,7 +1889,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     return genericTypes;
 }
 
-std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *args)
+std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs)
 {
     // If the metadata name has no type parameters or nested classes, it is identical to the display name.
     if (metadataName.find_first_of("+`") == std::string::npos)
@@ -1919,7 +1919,7 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
         {
             result += dispDelimiter;
         }
-        result += ConsumeGenericArgs(processName.substr(start, end - start), args);
+        result += ConsumeGenericArgs(processName.substr(start, end - start), pArgs);
 
         start = end + 1;
         end = processName.find_first_of(mdDelimiters, start);
@@ -1931,16 +1931,16 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
         {
             result += dispDelimiter;
         }
-        result += ConsumeGenericArgs(processName.substr(start), args);
+        result += ConsumeGenericArgs(processName.substr(start), pArgs);
     }
 
     return result + suffix;
 }
 
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *ranks)
+std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks)
 {
     // Splits a fully-qualified display type name into its dot-separated
-    // identifier components (namespace/class path). When "ranks" is non-null,
+    // identifier components (namespace/class path). When "pRanks" is non-null,
     // the array ranks encountered are recorded into it.
     //
     // Examples:
@@ -1987,9 +1987,9 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
             // An opening bracket at the top level starts a new array rank.
             // Brackets inside generic args belong to an argument's array
             // type (e.g. "List<int[]>") and are preserved verbatim.
-            if (ranks != nullptr && paramDepth == 0)
+            if (pRanks != nullptr && paramDepth == 0)
             {
-                (*ranks).push_back(1);
+                pRanks->push_back(1);
                 continue;
             }
             break;
@@ -2006,9 +2006,9 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
             // generic args separate type arguments and are preserved.
             if (paramDepth == 0)
             {
-                if (ranks != nullptr && !(*ranks).empty())
+                if (pRanks != nullptr && !(*pRanks).empty())
                 {
-                    (*ranks).back()++;
+                    (*pRanks).back()++;
                 }
                 continue;
             }
