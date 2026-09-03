@@ -106,7 +106,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 
 // Try to setup proper entry breakpoint method token and IL offset for async Main method.
 // [in] pModule - module with async Main method;
-// [in] pMDImport - metadataimport interface for pModule;
+// [in] pMDImport - metadata import interface for pModule;
 // [in] pDebugInfo - all loaded modules debug related data;
 // [in] mdMainClass - class token with Main method in module pModule;
 // [out] entryPointToken - corrected method token;
