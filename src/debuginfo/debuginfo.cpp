@@ -766,138 +766,67 @@ HRESULT DebugInfo::GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef me
         });
 }
 
-HRESULT DebugInfo::GetGotoTarget(ICorDebugThread *pThread, const Source &source, int32_t line, int32_t column,
-                                 GotoTarget &target, uint32_t &targetIlOffset, std::string &output)
+HRESULT DebugInfo::GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
+                                 std::vector<GotoTargetInternal> &intTargets, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(pThread->GetActiveFrame(&trFrame));
-    if (trFrame == nullptr)
+    // Reuse breakpoint related logic in order to find MethodToken and Module.
+    PDB::GlobalFileIndex globalFileIndex;
+    std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
+    IfFailRet(ResolveBreakpoint(0, source, line, column, globalFileIndex, resolvedPoints));
+
+    for (const auto &bp : resolvedPoints)
     {
-        return E_FAIL;
-    }
-    mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(trFrame->GetFunctionToken(&methodToken));
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(trFrame->GetFunction(&trFunction));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunction->GetModule(&trModule));
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(trModule->GetBaseAddress(&modAddress));
+        CORDB_ADDRESS modAddress = 0;
+        IfFailRet(bp.trModule->GetBaseAddress(&modAddress));
 
-    return GetPDBInfo(modAddress,
-        [&](const PDBInfo &pdbInfo) -> HRESULT
+        PDB::SequencePoint sequencePoint;
+        if (FAILED(GetPDBInfo(modAddress,
+            [&](const PDBInfo &pdbInfo) -> HRESULT
+            {
+                IfFailRet(PDBReader::GetGotoTarget(pdbInfo.m_pdbHandle, bp.methodToken, line, column,
+                                                   sequencePoint, output));
+                return S_OK;
+            })))
         {
-            PDB::SequencePoint sequencePoint;
-            IfFailRet(PDBReader::GetGotoTarget(pdbInfo.m_pdbHandle, methodToken, line, column, sequencePoint, output));
+            continue;
+        }
 
-            std::string sourceFilePath;
-            std::string algorithm;
-            std::string checksum;
-            IfFailRet(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sequencePoint.sourceFileIndex,
-                                               sourceFilePath, algorithm, checksum));
+        m_gotoTargetId++;
 
-            const auto fillTarget = [&]
-            {
-                if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, this, target.label)))
-                {
-                    target.label = sourceFilePath;
-                }
+        targets.emplace_back();
+        auto &target = targets.back();
+        target.id = m_gotoTargetId;
+        target.line = sequencePoint.startLine;
+        target.column = sequencePoint.startColumn;
+        target.endLine = sequencePoint.endLine;
+        target.endColumn = sequencePoint.endColumn;
 
-                CORDB_ADDRESS nativeAddress = 0;
-                MetadataHelpers::GetNativeAddress(trFunction, sequencePoint.ilOffset, nativeAddress);
-                if (nativeAddress != 0)
-                {
-                    target.instructionPointerReference = MetadataHelpers::AddrToString(nativeAddress);
-                }
+        if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(bp.trModule, bp.methodToken, this, target.label)))
+        {
+            target.label = std::to_string(m_gotoTargetId);
+        }
 
-                m_gotoTargetId++;
-                target.id = m_gotoTargetId;
-                target.line = sequencePoint.startLine;
-                target.column = sequencePoint.startColumn;
-                target.endLine = sequencePoint.endLine;
-                target.endColumn = sequencePoint.endColumn;
-                targetIlOffset = sequencePoint.ilOffset;
-            };
+        ToRelease<ICorDebugFunction> trFunction;
+        IfFailRet(bp.trModule->GetFunctionFromToken(bp.methodToken, &trFunction));
 
-            if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
-            {
-                bool hasChecksum = false;
-                for (const auto &entry : source.checksums)
-                {
-                    if (entry.algorithm.empty() || entry.checksum.empty())
-                    {
-                        continue;
-                    }
+        CORDB_ADDRESS nativeAddress = 0;
+        MetadataHelpers::GetNativeAddress(trFunction, sequencePoint.ilOffset, nativeAddress);
+        if (nativeAddress != 0)
+        {
+            target.instructionPointerReference = MetadataHelpers::AddrToString(nativeAddress);
+        }
 
-                    hasChecksum = true;
+        intTargets.emplace_back();
+        auto &intTarget = intTargets.back();
+        intTarget.id = m_gotoTargetId;
+        intTarget.modAddress = modAddress;
+        intTarget.methodToken = bp.methodToken;
+        intTarget.ilOffset = sequencePoint.ilOffset;
+    }
 
-                    if (entry.algorithm == algorithm && entry.checksum == checksum)
-                    {
-                        fillTarget();
-                        return S_OK;
-                    }
-                }
-
-                if (hasChecksum)
-                {
-                    output = "Error setting next statement. Source not found.";
-                    return E_FAIL;
-                }
-            }
-
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-            std::string fixedFilePath = to_uppercase(source.path);
-            const std::string fixedSourceFilePath = to_uppercase(sourceFilePath);
-#else
-            std::string fixedFilePath = source.path;
-            const std::string fixedSourceFilePath = sourceFilePath;
-#endif
-
-            if (fixedFilePath.size() > fixedSourceFilePath.size())
-            {
-                output = "Error setting next statement. Source not found.";
-                return E_FAIL;
-            }
-
-            fixedFilePath = CanonicalizeFilePath(fixedFilePath);
-
-            if (fixedFilePath == fixedSourceFilePath)
-            {
-                fillTarget();
-                return S_OK;
-            }
-
-            // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
-            if (fixedFilePath.size() < fixedSourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
-                fixedSourceFilePath.at(fixedSourceFilePath.size() - fixedFilePath.size() - 1) != '/' && fixedSourceFilePath.at(fixedSourceFilePath.size() -
-                                       fixedFilePath.size() - 1) != '\\')
-            {
-                output = "Error setting next statement. Source not found.";
-                return E_FAIL;
-            }
-
-            // Note, since assemblies could be built in different OSes, we could have different delimiters in source file paths.
-            const auto BinaryPredicate =
-                [](const char &a, const char &b) -> bool
-                {
-                    if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
-                    {
-                        return true;
-                    }
-                    return a == b;
-                };
-            if (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), fixedSourceFilePath.end() -
-                           static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate))
-            {
-                fillTarget();
-                return S_OK;
-            }
-
-            output = "Error setting next statement. Source not found.";
-            return E_FAIL;
-        });
+    return targets.empty() ? E_FAIL : S_OK;
 }
 
 } // namespace dncdbg

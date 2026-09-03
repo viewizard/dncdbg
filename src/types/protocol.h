@@ -496,12 +496,12 @@ struct ExceptionBreakpoint
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_GotoTarget
 struct GotoTarget
 {
-    uint32_t id;
+    uint32_t id{0};
     std::string label;
-    int32_t line;
-    int32_t column;
-    int32_t endLine;
-    int32_t endColumn;
+    int32_t line{0};
+    int32_t column{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
     std::string instructionPointerReference;
 };
 

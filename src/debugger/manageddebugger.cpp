@@ -19,7 +19,6 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
-#include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
@@ -967,6 +966,20 @@ bool ManagedDebugger::InitializeRemoteConsoleServer(int port)
 void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
 {
     m_sharedModules->GetModules(startModule, moduleCount, modules, totalModules);
+}
+
+HRESULT ManagedDebugger::GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets, std::string &output)
+{
+    HRESULT Status = S_OK;
+
+    m_targets.clear();
+    m_intTargets.clear();
+
+    IfFailRet(m_sharedDebugInfo->GetGotoTarget(source, line, column, m_targets, m_intTargets, output));
+
+    targets = m_targets;
+
+    return S_OK;
 }
 
 } // namespace dncdbg

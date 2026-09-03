@@ -11,7 +11,6 @@
 #include <array>
 #include <cstddef>
 #include <cstring>
-#include <limits>
 #include <memory>
 #include <unordered_set>
 
@@ -1834,9 +1833,6 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
     }
     docIndex = RidFromToken(docToken) - 1;
 
-    int32_t startMethodLine = std::numeric_limits<int32_t>::max();
-    int32_t endMethodLine = 0;
-
     for (uint32_t j = 0; j < seqPoints->record_count; ++j)
     {
         const auto &record = seqPoints->records[j];
@@ -1863,9 +1859,6 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
                                                     static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
         const auto endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
                                                     record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
-
-        startMethodLine = std::min(startMethodLine, startLine);
-        endMethodLine = std::max(endMethodLine, endLine);
 
         if (line < startLine || line > endLine ||
             (line == endLine && column > endColumn))
@@ -1901,18 +1894,9 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
 
     if (sequencePoint.startLine == 0)
     {
-        if ((startMethodLine != std::numeric_limits<int32_t>::max() && line < startMethodLine) ||
-            (endMethodLine != 0 && line > endMethodLine))
-        {
-            output = "Error setting next statement. The next statement cannot be set to another function.";
-        }
-        else if (startMethodLine == std::numeric_limits<int32_t>::max() || endMethodLine == 0 ||
-                 (line >= startMethodLine && line <= endMethodLine))
-        {
-            output = "No executable code of the debugger's target code type is associated with this line. "
-                     "Possible causes include: conditional compilation, compiler optimization, or the target "
-                     "architecture of this line is not supported by the current debugger code type.";
-        }
+        output = "No executable code of the debugger's target code type is associated with this line. "
+                 "Possible causes include: conditional compilation, compiler optimization, or the target "
+                 "architecture of this line is not supported by the current debugger code type.";
 
         return E_INVALIDARG;
     }

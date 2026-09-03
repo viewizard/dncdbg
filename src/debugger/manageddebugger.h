@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debuginfo/debuginfo.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/ioredirect.h"
@@ -115,6 +116,8 @@ class ManagedDebugger
     HRESULT SetExpression(FrameId frameId, const std::string &expression, const std::string &value, std::string &output);
     HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo);
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
+    HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column,
+                          std::vector<GotoTarget> &targets, std::string &output);
 
     void WriteStdin(gsl::span<const char> text);
     bool InitializeRemoteConsoleServer(int port);
@@ -171,6 +174,9 @@ class ManagedDebugger
     dbgshim_t m_dbgshim;
     IORedirect m_ioredirect;
     RemoteConsoleServer m_remoteConsoleServer;
+
+    std::vector<GotoTarget> m_targets;
+    std::vector<GotoTargetInternal> m_intTargets;
 
     HRESULT CheckDebugProcess();
     bool HaveDebugProcess();

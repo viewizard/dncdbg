@@ -6,6 +6,7 @@ Upcoming changes compared to previous version.
 - Added `instructionReference`, `offset`, `column` and `endColumn` support in Breakpoint.
 - Added `column` support in SourceBreakpoint.
 - Added `GotoTarget` type.
+- Added `GotoTargets` Request and Response.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.

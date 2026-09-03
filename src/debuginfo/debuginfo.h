@@ -27,6 +27,14 @@ namespace dncdbg
 
 using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
 
+struct GotoTargetInternal
+{
+    uint32_t id{0};
+    CORDB_ADDRESS modAddress{0};
+    mdMethodDef methodToken{0};
+    uint32_t ilOffset{0};
+};
+
 class DebugInfo
 {
   public:
@@ -76,8 +84,8 @@ class DebugInfo
     HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                  std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
 
-    HRESULT GetGotoTarget(ICorDebugThread *pThread, const Source &source, int32_t line,
-                          int32_t column, GotoTarget &target, uint32_t &targetIlOffset, std::string &output);
+    HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
+                          std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
   private:
 
