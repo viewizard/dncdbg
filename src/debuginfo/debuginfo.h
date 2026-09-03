@@ -13,6 +13,7 @@
 #endif
 
 #include "debuginfo/pdb.h"
+#include "debuginfo/types.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
@@ -26,14 +27,6 @@ namespace dncdbg
 {
 
 using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
-
-struct GotoTargetInternal
-{
-    uint32_t id{0};
-    CORDB_ADDRESS modAddress{0};
-    mdMethodDef methodToken{0};
-    uint32_t ilOffset{0};
-};
 
 class DebugInfo
 {

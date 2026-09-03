@@ -19,6 +19,7 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
+#include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"

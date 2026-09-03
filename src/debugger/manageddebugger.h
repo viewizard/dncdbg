@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/debuginfo.h"
+#include "debuginfo/types.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/ioredirect.h"
