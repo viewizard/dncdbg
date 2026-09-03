@@ -540,7 +540,7 @@ HRESULT DebugInfo::GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::Sequence
 }
 
 HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine,
-                                     int32_t sourceColumn, PDB::GlobalFileIndex &globalFileIndex,
+                                     int32_t sourceColumn, PDB::GlobalFileIndex *pGlobalFileIndex,
                                      std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
@@ -590,6 +590,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
     fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
     const PDBInfo *pPDBInfo = nullptr;
+    uint32_t resolvedSourceFileIndex = 0;
     const auto findPDBInfoAndIndex = [&]
     {
         std::string currentResult;
@@ -626,8 +627,12 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
 
                         if (entry.algorithm == algorithm && entry.checksum == checksum)
                         {
-                            globalFileIndex.sourceFileIndex = sourceIndex;
-                            globalFileIndex.modAddress = modAddr;
+                            if (pGlobalFileIndex != nullptr)
+                            {
+                                pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                                pGlobalFileIndex->modAddress = modAddr;
+                            }
+                            resolvedSourceFileIndex = sourceIndex;
                             pPDBInfo = &pdbInfo;
                             return;
                         }
@@ -641,8 +646,12 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
 
                 if (fixedFilePath == sourceFilePath)
                 {
-                    globalFileIndex.sourceFileIndex = sourceIndex;
-                    globalFileIndex.modAddress = modAddr;
+                    if (pGlobalFileIndex != nullptr)
+                    {
+                        pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                        pGlobalFileIndex->modAddress = modAddr;
+                    }
+                    resolvedSourceFileIndex = sourceIndex;
                     pPDBInfo = &pdbInfo;
                     return;
                 }
@@ -676,8 +685,12 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                      currentResult.length() > fixedFilePath.length()))
                 {
                     currentResult = fixedFilePath;
-                    globalFileIndex.sourceFileIndex = sourceIndex;
-                    globalFileIndex.modAddress = modAddr;
+                    if (pGlobalFileIndex != nullptr)
+                    {
+                        pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                        pGlobalFileIndex->modAddress = modAddr;
+                    }
+                    resolvedSourceFileIndex = sourceIndex;
                     pPDBInfo = &pdbInfo;
                 }
             }
@@ -690,7 +703,7 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
         return E_FAIL;
     }
 
-    return DebugSources::ResolveBreakpoints(*pPDBInfo, globalFileIndex.sourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
+    return DebugSources::ResolveBreakpoints(*pPDBInfo, resolvedSourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
 }
 
 HRESULT DebugInfo::GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
@@ -772,9 +785,8 @@ HRESULT DebugInfo::GetGotoTarget(const Source &source, int32_t line, int32_t col
     HRESULT Status = S_OK;
 
     // Reuse breakpoint related logic in order to find MethodToken and Module.
-    PDB::GlobalFileIndex globalFileIndex;
     std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
-    IfFailRet(ResolveBreakpoint(0, source, line, column, globalFileIndex, resolvedPoints));
+    IfFailRet(ResolveBreakpoint(0, source, line, column, nullptr, resolvedPoints));
 
     for (const auto &bp : resolvedPoints)
     {

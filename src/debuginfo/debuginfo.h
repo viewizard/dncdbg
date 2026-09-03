@@ -33,7 +33,7 @@ class DebugInfo
   public:
 
     HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine, int32_t sourceColumn,
-                              PDB::GlobalFileIndex &globalFileIndex, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
+                              PDB::GlobalFileIndex *pGlobalFileIndex, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 
     using PDBInfoCallback = std::function<HRESULT(const PDBInfo &)>;
     HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);

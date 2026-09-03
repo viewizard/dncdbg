@@ -41,7 +41,7 @@ HRESULT ResolveSourceBreakpoint(DebugInfo *pDebugInfo, ICorDebugModule *pModule,
         IfFailRet(pModule->GetBaseAddress(&modAddress));
     }
 
-    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, source, bp.lineNum, bp.columnNum, globalFileIndex, resolvedPoints));
+    IfFailRet(pDebugInfo->ResolveBreakpoint(modAddress, source, bp.lineNum, bp.columnNum, &globalFileIndex, resolvedPoints));
     if (resolvedPoints.empty())
     {
         return E_FAIL;
