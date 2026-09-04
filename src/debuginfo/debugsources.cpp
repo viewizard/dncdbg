@@ -174,6 +174,16 @@ bool GetMethodTokensByLineAndColumn(const PDB::MethodRanges &methodBpData, int32
                     continue; // need check nested level (if available)
                 }
 
+                // When the outer method is a constructor, prefer the nested method at its
+                // first line. The constructor's sequence point starts at a different line
+                // (e.g., the constructor declaration), so a breakpoint at the nested method's
+                // first line should resolve to the nested method, not the constructor's start.
+                if (result->isCtor)
+                {
+                    result = &(*lower);
+                    continue; // need check nested level (if available)
+                }
+
                 if (columnNum == 0 || columnNum >= lower->startColumn)
                 {
                     closestNestedToken = lower->methodToken;

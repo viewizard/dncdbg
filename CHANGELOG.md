@@ -26,6 +26,7 @@ Upcoming changes compared to previous version.
 
 #### Fixed
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
+- Fixed breakpoint on first line of method nested in constructor being moved to constructor's declaration line.
 
 <br>
 <br>
