@@ -1131,6 +1131,39 @@ std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdTo
     return names;
 }
 
+HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::string &constrName)
+{
+    HRESULT Status = S_OK;
+    ULONG nameLen = 0;
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+
+    std::vector<WCHAR> name(nameLen, '\0');
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), nameLen, nullptr, nullptr, nullptr));
+
+    const std::string typeName = to_utf8(name.data());
+    std::string_view str = typeName;
+
+    const auto last_dot_pos = str.rfind('.');
+    if (last_dot_pos != std::string_view::npos)
+    {
+        str = str.substr(last_dot_pos + 1);
+    }
+
+    const auto backtick_pos = str.rfind('`');
+    if (backtick_pos != std::string_view::npos)
+    {
+        str = str.substr(0, backtick_pos);
+    }
+
+    if (str.empty())
+    {
+        return E_FAIL;
+    }
+
+    constrName = std::string(str);
+    return S_OK;
+}
+
 HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
                                     std::string &displayTypeName, std::string &displayMethodName)
 {
@@ -1168,6 +1201,11 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
         methodGenericsCount++;
     }
     trMDImport2->CloseEnum(hEnum);
+
+    if (funcName == ".ctor" || funcName == ".cctor")
+    {
+        GetConstructorName(trMDImport, typeDef, funcName);
+    }
 
     if (methodGenericsCount > 0)
     {
@@ -1213,6 +1251,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
                                          nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
+    std::string funcName = to_utf8(szFunctionName.data());
+
     std::list<std::string> args;
     const auto fillArgs = [&](mdToken token) -> void
     {
@@ -1220,16 +1260,21 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
         args.assign(names.cbegin(), names.cend());
     };
 
+    if (funcName == ".ctor" || funcName == ".cctor")
+    {
+        GetConstructorName(trMDImport, typeDef, funcName);
+    }
+
     fillArgs(methodDef);
     if (!args.empty())
     {
         std::ostringstream ss;
-        ss << to_utf8(szFunctionName.data()) << '`' << args.size();
+        ss << funcName << '`' << args.size();
         displayMethodName = ConsumeGenericArgs(ss.str(), &args);
     }
     else
     {
-        displayMethodName = to_utf8(szFunctionName.data());
+        displayMethodName = funcName;
     }
 
     if (typeDef != mdTypeDefNil)

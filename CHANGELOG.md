@@ -23,6 +23,9 @@ Upcoming changes compared to previous version.
 - Resolve array element access by name directly instead of enumerating all elements.
 - Renamed TestTracePoint to TestLogpoints to match VS Code terminology.
 
+#### Fixed
+- Fixed constructor display in stack traces (`.ctor` and `.cctor`).
+
 <br>
 <br>
 
