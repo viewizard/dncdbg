@@ -243,26 +243,26 @@ class Context
         BreakpointLines.Remove(lbp.NumLine);
     }
 
-    public void AddManualBreakpointAndAddID(string caller_trace, string bp_fileName, int bp_line)
+    public void AddManualBreakpointAndAddID(string caller_trace, string FileName, int Line)
     {
         List<SourceBreakpoint> listBp;
-        if (!SrcBreakpoints.TryGetValue(bp_fileName, out listBp!))
+        if (!SrcBreakpoints.TryGetValue(FileName, out listBp!))
         {
             listBp = new List<SourceBreakpoint>();
-            SrcBreakpoints[bp_fileName] = listBp;
+            SrcBreakpoints[FileName] = listBp;
         }
-        listBp.Add(new SourceBreakpoint(bp_line));
+        listBp.Add(new SourceBreakpoint(Line));
 
         List<int?> listBpId;
-        if (!SrcBreakpointIds.TryGetValue(bp_fileName, out listBpId!))
+        if (!SrcBreakpointIds.TryGetValue(FileName, out listBpId!))
         {
             listBpId = new List<int?>();
-            SrcBreakpointIds[bp_fileName] = listBpId;
+            SrcBreakpointIds[FileName] = listBpId;
         }
         listBpId.Add(null);
     }
 
-    public void WasManualBreakpointHit(string caller_trace, string bp_fileName, int bp_line)
+    public void WasManualBreakpointHit(string caller_trace, string FileName, int Line)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -286,8 +286,8 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(bp_line, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(bp_fileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(Line, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void AddBreakpointAndAddID(string caller_trace, string bpName, string? bpPath = null, string? Condition = null)
