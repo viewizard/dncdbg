@@ -220,14 +220,14 @@ class Context
         BreakpointLines.Add(lbp.NumLine);
     }
 
-    public void AddBreakpointWithColumn(string caller_trace, string bpName, int column)
+    public void AddBreakpointWithColumn(string caller_trace, string bpName, int Column)
     {
         Breakpoint bp = ControlInfo.Breakpoints[bpName];
         Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
         var lbp = (LineBreakpoint)bp;
 
         BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, column));
+        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Column));
         BreakpointLines.Add(lbp.NumLine);
     }
 
@@ -418,7 +418,7 @@ class Context
                 DAPDebugger.IsResponseContainProperty(resJSON, "reason", "step"))
             {
 
-                // In case of async method, thread could be changed, care about this.
+                // In case of an async method, the thread could change; account for this.
                 threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
@@ -445,7 +445,7 @@ class Context
         Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void WasBreakpointHit(string caller_trace, string bpName, bool checkSourcePath = true, int column = 0)
+    public void WasBreakpointHit(string caller_trace, string bpName, bool CheckSourcePath = true, int ExpectedColumn = 0)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -474,11 +474,11 @@ class Context
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
         Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        if (column != 0)
-            Assert.Equal(column, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (ExpectedColumn != 0)
+            Assert.Equal(ExpectedColumn, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
         Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        // Note: this code works only with one source file
-        if (checkSourcePath)
+        // Note: this code works only with one source file.
+        if (CheckSourcePath)
             Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
@@ -1332,7 +1332,7 @@ class Context
     ExceptionFilterOptions? ExceptionFilterUserUnhandledOptions = null;
 
     public int CurrentBpId = 0;
-    // Note, SrcBreakpoints and SrcBreakpointIds must have same order of the elements, since we use indexes for mapping.
+    // Note: SrcBreakpoints and SrcBreakpointIds must have the same order of elements, since we use indexes for mapping.
     Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
     Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
 

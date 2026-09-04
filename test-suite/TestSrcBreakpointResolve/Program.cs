@@ -10,22 +10,22 @@ namespace TestSrcBreakpointResolve
 {
 public partial class test_constructors
 {
-                         // bp here! make sure you correct code (test constructor)!
+                         // bp here! make sure you correct the code (test constructor)!
     int test_field1 = 1;
 
-    int test_field2 = 2; // bp here! make sure you correct code (test constructor)!
+    int test_field2 = 2; // bp here! make sure you correct the code (test constructor)!
 
-                         // bp here! make sure you correct code (test constructor)!
+                         // bp here! make sure you correct the code (test constructor)!
     int test_field3 = 3;
 
     int test_field4 = 4
        + test1
-       + test2           // bp here! make sure you correct code (test constructor)!
+       + test2           // bp here! make sure you correct the code (test constructor)!
        + test3;
 
     public test_constructors()
     {
-        int i = 5; // bp here! make sure you correct code (test constructor)!
+        int i = 5; // bp here! make sure you correct the code (test constructor)!
     }
 
     public test_constructors(int i)
@@ -49,8 +49,8 @@ class Program
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
 
-                // setup breakpoints before process start
-                // in this way we will check breakpoint resolve routine during module load
+                // set up breakpoints before process start
+                // this way we check the breakpoint resolution routine during module load
 
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp0_delete_test1");
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp0_delete_test2");
@@ -85,10 +85,10 @@ Label.Breakpoint("resolved_bp1");       Console.WriteLine(
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp1", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp1", CheckSourcePath: false);
 
-                // check, that we have proper breakpoint ids
-                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp0_delete_test1"); // previously was deleted with id1
+                // check that we have proper breakpoint ids
+                Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp0_delete_test1"); // it was previously deleted with id1
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 int? id7 = Context.GetBreakpointId(@"__FILE__:__LINE__", "bp0_delete_test1");
                 Assert.Equal(Context.CurrentBpId, id7, @"__FILE__:__LINE__");
@@ -116,7 +116,7 @@ Label.Breakpoint("resolved_bp2");       Console.WriteLine("Hello World!");
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp2", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp2", CheckSourcePath: false);
 
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp5_resolve_wrong_source", "../wrong_folder/./Program.cs");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp5");
@@ -142,7 +142,7 @@ Label.Breakpoint("resolved_bp3");       Console.WriteLine(
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp3", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp3", CheckSourcePath: false);
 
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6", "TestSrcBreakpointResolve/PROGRAM.CS");
                 Context.RemoveBreakpointAndRemoveID(@"__FILE__:__LINE__", "bp6_resolve_wrong_source", "./wrong_folder/Program.cs");
@@ -154,7 +154,7 @@ Label.Breakpoint("resolved_bp3");       Console.WriteLine(
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp9", "./TestSrcBreakpointResolve/folder/../Program.cs");
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 int? current_bp_id = Context.GetBreakpointId(@"__FILE__:__LINE__", "bp9", "./TestSrcBreakpointResolve/folder/../Program.cs");
-                // one more check, that we have proper breakpoint ids
+                // one more check that we have proper breakpoint ids
                 Assert.Equal(Context.CurrentBpId, current_bp_id, @"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
@@ -169,8 +169,8 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
             (Object context) =>
             {
                 Context Context = (Context)context;
-                // check, that actually we have only one active breakpoint per line
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp4", false);
+                // check that we actually have only one active breakpoint per line
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp4", CheckSourcePath: false);
 
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp10");
                 Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp11");
@@ -200,7 +200,7 @@ Label.Breakpoint("resolved_bp4");       Console.WriteLine(
 
         TestSrcBreakpointResolve2.Program.testfunc();
 
-        // tests resolve for nested methods
+        // tests breakpoint resolution for nested methods
                                                                                 Label.Breakpoint("bp10");
         void nested_func1()
         {                                                                       Label.Breakpoint("resolved_bp10");
@@ -263,53 +263,53 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp10", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp10", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp11", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp11", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp12", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp12", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp13", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp13", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp14", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp14", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp15", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp15", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp16", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp16", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp17", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp17", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp18", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp18", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp19", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp19", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22", false);
-                Context.Continue(@"__FILE__:__LINE__");
-
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20_1", false);
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_1", false);
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_1", false);
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_1", false);
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_1", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20_2", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20_1", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_2_resolved", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_1", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_2", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_1", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_2_resolved", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_1", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_2", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_1", CheckSourcePath: false);
+                Context.Continue(@"__FILE__:__LINE__");
+
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp20_2", CheckSourcePath: false);
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_2_resolved", CheckSourcePath: false);
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_2", CheckSourcePath: false);
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp21_2_resolved", CheckSourcePath: false);
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp22_2", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -323,7 +323,7 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp23", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp23", CheckSourcePath: false);
 
                 Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", 13); // line number before "int test_field1 = 1;" code
                 Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", 16); // line number with "int test_field2 = 2;" code
@@ -352,7 +352,7 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test code with sequence points that not ordered by line numbers
+        // test code with sequence points that are not ordered by line numbers
 
         Label.Breakpoint("bp24"); while(true)
         {
@@ -363,9 +363,9 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp24", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp24", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp25", false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp25", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

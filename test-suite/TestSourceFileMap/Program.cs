@@ -51,7 +51,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", checkSourcePath: false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", CheckSourcePath: false);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
