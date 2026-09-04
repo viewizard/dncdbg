@@ -791,12 +791,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
     if (m_sharedDebugger == nullptr)
     {
+        responseBody.emplace("message", "Debugger is not initialized.");
         return CORDBG_E_DEBUGGING_DISABLED;
     }
 
     const auto command_it = commands.find(command);
     if (command_it == commands.cend())
     {
+        responseBody.emplace("message", "Request '" + command + "' is not supported.");
         return E_NOTIMPL;
     }
 
