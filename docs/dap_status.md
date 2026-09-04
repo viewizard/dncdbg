@@ -64,8 +64,9 @@
 ```
 #### StoppedEvent
 ```diff
-+   reason: 'step' | 'breakpoint' | 'exception' | 'pause' | 'entry' | 'function breakpoint'
--       | 'goto' | 'data breakpoint' | 'instruction breakpoint'
++   reason: 'step' | 'breakpoint' | 'exception' | 'pause'
++       | 'entry' | 'function breakpoint' | 'goto'
+-       | 'data breakpoint' | 'instruction breakpoint'
 +       | string;
 -   description?: string;
 +   threadId?: number;

@@ -7,6 +7,7 @@ Upcoming changes compared to previous version.
 - Added `column` support in SourceBreakpoint.
 - Added `GotoTarget` type.
 - Added `GotoTargets` Request and Response.
+- Added `goto` reason in Stopped Event.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.

@@ -276,6 +276,9 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
     case StoppedEventReason::Entry:
         body.emplace("reason", "entry");
         break;
+    case StoppedEventReason::Goto:
+        body.emplace("reason", "goto");
+        break;
     }
 
     // Note, `description` not in use at this moment, provide `reason` only.

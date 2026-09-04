@@ -175,7 +175,8 @@ enum class StoppedEventReason : uint8_t
     Breakpoint,
     Exception,
     Pause,
-    Entry
+    Entry,
+    Goto
 };
 
 // https://microsoft.github.io/debug-adapter-protocol/specification#Events_Stopped
