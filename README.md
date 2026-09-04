@@ -111,6 +111,12 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Jump To Cursor (Goto)</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
       <td align="center">❌</td>
       <td align="center">✅</td>

@@ -52,7 +52,8 @@ const std::unordered_set<std::string> &GetCancelCommandQueueSet()
         "continue",
         "next",
         "stepIn",
-        "stepOut"
+        "stepOut",
+        "goto"
     };
     return cancelCommandQueueSet;
 }
@@ -768,6 +769,24 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("targets", targets);
 
                 return S_OK;
+            }},
+        {"goto", [&](const json &arguments, json &responseBody)
+            {
+                const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
+                const uint32_t targetId = arguments.at("targetId");
+
+                HRESULT Status = S_OK;
+                std::string output;
+                if (FAILED(Status = m_sharedDebugger->Goto(threadId, targetId, output)))
+                {
+                    if (!output.empty())
+                    {
+                        responseBody.emplace("message", output);
+                    }
+                    return Status;
+                }
+
+                return S_OK;
             }}};
 
     if (m_sharedDebugger == nullptr)
@@ -897,6 +916,11 @@ void DAP::CommandsWorker()
         else if (c.command == "initialize" && SUCCEEDED(Status))
         {
             DAPIO::EmitInitializedEvent();
+        }
+        // Emit StoppedEvent, since with Goto command IP was changed without real process execution.
+        else if (c.command == "goto" && SUCCEEDED(Status) && m_sharedDebugger != nullptr)
+        {
+            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, m_sharedDebugger->GetLastStoppedThreadId()));
         }
 
         lockCommandsMutex.lock();

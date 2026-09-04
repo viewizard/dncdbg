@@ -118,6 +118,7 @@ class ManagedDebugger
     void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
     HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column,
                           std::vector<GotoTarget> &targets, std::string &output);
+    HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output);
 
     void WriteStdin(gsl::span<const char> text);
     bool InitializeRemoteConsoleServer(int port);

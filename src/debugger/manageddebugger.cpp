@@ -983,4 +983,86 @@ HRESULT ManagedDebugger::GetGotoTarget(const Source &source, int32_t line, int32
     return S_OK;
 }
 
+HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string &output)
+{
+    if (m_intTargets.empty())
+    {
+        return E_INVALIDARG;
+    }
+
+    bool targetFound = false;
+    uint32_t targetIndex = 0;
+    for (const auto &target : m_intTargets)
+    {
+        if (targetId != target.id)
+        {
+            targetIndex++;
+            continue;
+        }
+
+        targetFound = true;
+        break;
+    }
+
+    if (!targetFound)
+    {
+        return E_INVALIDARG;
+    }
+
+    const ReadLock r_lock(m_debugProcessRWLock);
+    HRESULT Status = S_OK;
+    IfFailRet(CheckDebugProcess());
+
+    if (m_sharedEvalWaiter->IsEvalRunning())
+    {
+        // Important! Abort all evals before 'Goto' in protocol, during eval we have inconsistent thread state.
+        LOGE(log << "Can't 'Goto' during running evaluation.");
+        return E_UNEXPECTED;
+    }
+
+    if (m_sharedCallbacksQueue->IsRunning())
+    {
+        LOGI(log << "Can't 'Goto', process already running.");
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(trThread->GetActiveFrame(&trFrame));
+    if (trFrame == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFrame->GetFunctionToken(&methodToken));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(trFrame->GetFunction(&trFunc));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    const GotoTargetInternal &target = m_intTargets.at(targetIndex);
+
+    if (target.modAddress != modAddress ||
+        target.methodToken != methodToken)
+    {
+        output = "Error setting next statement. The next statement cannot be set to another function.";
+        return E_INVALIDARG;
+    }
+
+    ToRelease<ICorDebugILFrame> trILFrame;
+    IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+    IfFailRet(trILFrame->SetIP(target.ilOffset));
+
+    m_sharedVariables->Cleanup();
+    FrameId::invalidate();               // Clear all created during break frames.
+
+    SetLastStoppedThreadId(threadId);
+
+    return S_OK;
+}
+
 } // namespace dncdbg

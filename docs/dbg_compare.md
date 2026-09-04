@@ -184,6 +184,15 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td colspan="4" align="center"><b>Execution Control</b></td>
+    </tr>
+    <tr>
+      <td align="left"><b>Jump To Cursor (Goto)</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td colspan="4" align="center"><b>Protocols & Advanced Features</b></td>
     </tr>
     <tr>

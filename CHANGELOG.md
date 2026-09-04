@@ -8,11 +8,14 @@ Upcoming changes compared to previous version.
 - Added `GotoTarget` type.
 - Added `GotoTargets` Request and Response.
 - Added `goto` reason in Stopped Event.
+- Added `supportsGotoTargetsRequest` support in Capabilities.
+- Added `Goto` Request and Response.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
 - Added support for source breakpoints on columns.
 - Added TestBreakpointColumn.
+- Added "Jump to Cursor" (Goto) feature support.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
