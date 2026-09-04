@@ -53,6 +53,7 @@ ALL_TEST_NAMES=(
     "TestObjectCreation"
     "TestImports"
     "TestBreakpointColumn"
+    "TestGoto"
 )
 
 TEST_NAMES="$@"

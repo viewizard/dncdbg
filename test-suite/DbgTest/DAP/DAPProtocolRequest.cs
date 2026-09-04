@@ -467,4 +467,33 @@ public class ModulesArguments
     public int? startModule;
     public int? moduleCount;
 }
+
+public class GotoRequest : Request
+{
+    public GotoRequest()
+    {
+        command = "goto";
+    }
+    public GotoArguments arguments = new GotoArguments();
+}
+public class GotoArguments
+{
+    public int threadId;
+    public int targetId;
+}
+
+public class GotoTargetsRequest : Request
+{
+    public GotoTargetsRequest()
+    {
+        command = "gotoTargets";
+    }
+    public GotoTargetsArguments arguments = new GotoTargetsArguments();
+}
+public class GotoTargetsArguments
+{
+    public Source source = new Source();
+    public int line;
+    public int? column;
+}
 }

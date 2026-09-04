@@ -229,4 +229,25 @@ public class ModulesResponseBody
     public List<Module> modules = new();
     public int? totalModules = null;
 }
+
+public class GotoTarget
+{
+    public int id;
+    public string label;
+    public int line;
+    public int? column;
+    public int? endLine;
+    public int? endColumn;
+    public string? instructionPointerReference;
+}
+
+public class GotoTargetsResponse : Response
+{
+    public GotoTargetsResponseBody body = new();
+}
+
+public class GotoTargetsResponseBody
+{
+    public List<GotoTarget> targets = new();
+}
 }

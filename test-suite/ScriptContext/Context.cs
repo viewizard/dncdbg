@@ -1282,7 +1282,7 @@ class Context
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
         var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__"+"\n"+caller_trace);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n"+caller_trace);
 
         VariablesResponse variablesResponse =
             JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
@@ -1294,7 +1294,81 @@ class Context
                 count++;
         }
 
-        Assert.Equal(expectedCount, count, @"__FILE__:__LINE__"+"\n"+caller_trace);
+        Assert.Equal(expectedCount, count, @"__FILE__:__LINE__" + "\n"+caller_trace);
+    }
+
+    public void GetGotoTargets(string caller_trace, string FileName, int Line, int Column, int ExpectedCount)
+    {
+        GotoTargetsRequest gotoTargetsRequest = new GotoTargetsRequest();
+        gotoTargetsRequest.arguments.source.name = FileName;
+        gotoTargetsRequest.arguments.source.path = FileName;
+        gotoTargetsRequest.arguments.line = Line;
+        gotoTargetsRequest.arguments.column = Column;
+
+        var ret = DAPDebugger.Request(gotoTargetsRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        GotoTargetsResponse gotoTargetsResponse =
+            JsonConvert.DeserializeObject<GotoTargetsResponse>(ret.ResponseStr)!;
+
+        Assert.Equal(ExpectedCount, gotoTargetsResponse.body.targets.Count, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void CheckErrorGotoTargets(string caller_trace, string FileName, int Line, int Column)
+    {
+        GotoTargetsRequest gotoTargetsRequest = new GotoTargetsRequest();
+        gotoTargetsRequest.arguments.source.name = FileName;
+        gotoTargetsRequest.arguments.source.path = FileName;
+        gotoTargetsRequest.arguments.line = Line;
+        gotoTargetsRequest.arguments.column = Column;
+
+        var ret = DAPDebugger.Request(gotoTargetsRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void Goto(string caller_trace, int TargetID, int ExpectedLine, int ExpectedColumn)
+    {
+        GotoRequest gotoRequest = new GotoRequest();
+        gotoRequest.arguments.threadId = threadId;
+        gotoRequest.arguments.targetId = TargetID;
+
+        var ret = DAPDebugger.Request(gotoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        Func<string, bool> filter = (resJSON) =>
+        {
+            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "goto"))
+            {
+                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                return true;
+            }
+            return false;
+        };
+
+        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 50;
+        ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
+
+        Assert.Equal(ExpectedLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ExpectedColumn, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void CheckErrorGoto(string caller_trace, int TargetID)
+    {
+        GotoRequest gotoRequest = new GotoRequest();
+        gotoRequest.arguments.threadId = threadId;
+        gotoRequest.arguments.targetId = TargetID;
+
+        var ret = DAPDebugger.Request(gotoRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public string? GetSourceFilesPath()

@@ -16,6 +16,7 @@ Upcoming changes compared to previous version.
 - Added support for source breakpoints on columns.
 - Added TestBreakpointColumn.
 - Added "Jump to Cursor" (Goto) feature support.
+- Added TestGoto.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
