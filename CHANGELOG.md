@@ -13,7 +13,7 @@ Upcoming changes compared to previous version.
 - Added `supportsSingleThreadExecutionRequests` support in Capabilities.
 - Added `singleThread` support in Continue, Next, StepIn and StepOut Requests.
 - Removed `threadId` from Pause Response, according to the DAP specification.
-- Fix pause response order: send response before 'stopped' event (DAP spec).
+- Fixed pause response order: send response before `stopped` event (DAP specification).
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
