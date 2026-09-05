@@ -576,10 +576,14 @@ class Context
         Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void Continue(string caller_trace)
+    public void Continue(string caller_trace, bool? SingleThread = null)
     {
         ContinueRequest continueRequest = new ContinueRequest();
         continueRequest.arguments.threadId = threadId;
+        if (SingleThread.HasValue)
+        {
+            continueRequest.arguments.singleThread = SingleThread.Value;
+        }
         Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
@@ -607,24 +611,36 @@ class Context
         Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void StepOver(string caller_trace)
+    public void StepOver(string caller_trace, bool? SingleThread = null)
     {
         NextRequest nextRequest = new NextRequest();
         nextRequest.arguments.threadId = threadId;
+        if (SingleThread.HasValue)
+        {
+            nextRequest.arguments.singleThread = SingleThread.Value;
+        }
         Assert.True(DAPDebugger.Request(nextRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void StepIn(string caller_trace)
+    public void StepIn(string caller_trace, bool? SingleThread = null)
     {
         StepInRequest stepInRequest = new StepInRequest();
         stepInRequest.arguments.threadId = threadId;
+        if (SingleThread.HasValue)
+        {
+            stepInRequest.arguments.singleThread = SingleThread.Value;
+        }
         Assert.True(DAPDebugger.Request(stepInRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void StepOut(string caller_trace)
+    public void StepOut(string caller_trace, bool? SingleThread = null)
     {
         StepOutRequest stepOutRequest = new StepOutRequest();
         stepOutRequest.arguments.threadId = threadId;
+        if (SingleThread.HasValue)
+        {
+            stepOutRequest.arguments.singleThread = SingleThread.Value;
+        }
         Assert.True(DAPDebugger.Request(stepOutRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 

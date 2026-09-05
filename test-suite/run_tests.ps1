@@ -61,6 +61,7 @@ $ALL_TEST_NAMES = @(
     "TestImports"
     "TestBreakpointColumn"
     "TestGoto"
+    "TestSingleThreadExec"
 )
 
 $TEST_NAMES = $tests

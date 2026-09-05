@@ -110,6 +110,7 @@ public class ContinueRequest : Request
 public class ContinueArguments
 {
     public int threadId;
+    public bool? singleThread;
 }
 
 public class DisconnectRequest : Request
@@ -357,6 +358,7 @@ public class NextRequest : Request
 public class NextArguments
 {
     public int threadId;
+    public bool? singleThread;
 }
 
 public class StepInRequest : Request
@@ -372,6 +374,7 @@ public class StepInArguments
 {
     public int threadId;
     public int? targetId;
+    public bool? singleThread;
 }
 
 public class StepOutRequest : Request
@@ -386,6 +389,7 @@ public class StepOutRequest : Request
 public class StepOutArguments
 {
     public int threadId;
+    public bool? singleThread;
 }
 
 public class SetExceptionBreakpointsRequest : Request

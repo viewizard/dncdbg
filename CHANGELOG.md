@@ -23,6 +23,7 @@ Upcoming changes compared to previous version.
 - Added TestGoto.
 - Added `>>>` unsigned right shift operator support in expression evaluation.
 - Added single thread execution and stepping support.
+- Added TestSingleThreadExec.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

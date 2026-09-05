@@ -233,7 +233,7 @@ public class ModulesResponseBody
 public class GotoTarget
 {
     public int id;
-    public string label;
+    public required string label;
     public int line;
     public int? column;
     public int? endLine;
