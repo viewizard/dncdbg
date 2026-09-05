@@ -524,14 +524,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 const bool singleThread = arguments.value("singleThread", false);
 
-                const HRESULT Status = m_sharedDebugger->Continue(threadId, singleThread);
-                if (SUCCEEDED(Status))
-                {
-                    responseBody.emplace("allThreadsContinued", !singleThread);
-                    responseBody.emplace("threadId", static_cast<int>(threadId));
-                }
+                HRESULT Status = S_OK;
+                IfFailRet(m_sharedDebugger->Continue(threadId, singleThread));
 
-                return Status;
+                responseBody.emplace("allThreadsContinued", !singleThread);
+                responseBody.emplace("threadId", static_cast<int>(threadId));
+                return S_OK;
             }},
         {"pause", [&](const json &arguments, json &/*responseBody*/)
             {
