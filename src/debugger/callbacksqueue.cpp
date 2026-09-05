@@ -313,10 +313,36 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     m_debugger.GetThreads(threads);
 
     // In case of DAP, command provides "pause" thread id.
-    if (std::find_if(threads.cbegin(), threads.cend(),
-                     [&](const Thread &t) { return t.id == lastStoppedThread; }) != threads.cend())
+    const auto lastStoppedIt = std::find_if(threads.begin(), threads.end(),
+                                            [&](const Thread &t) { return t.id == lastStoppedThread; });
+    if (lastStoppedIt != threads.end())
     {
-        // DAP event must provide thread only (VS Code IDE counts on this), even if this thread doesn't have user code.
+        // Reorder threads so that the last stopped thread is checked first.
+        std::swap(threads.front(), *lastStoppedIt);
+
+        // Now get the stack trace for each thread and find a frame with a valid user source location.
+        for (const Thread &thread : threads)
+        {
+            std::vector<StackFrame> stackFrames;
+
+            if (FAILED(m_debugger.GetStackTrace(thread.id, FrameLevel(0), 0, stackFrames)))
+            {
+                continue;
+            }
+
+            for (const StackFrame &stackFrame : stackFrames)
+            {
+                if (stackFrame.source.IsNull())
+                {
+                    continue;
+                }
+
+                m_debugger.SetLastStoppedThreadId(thread.id);
+                return S_OK;
+            }
+        }
+
+        // DAP event must provide a thread (VS Code IDE counts on this), even if this thread doesn't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);
         return S_OK;
     }
