@@ -40,6 +40,8 @@ void FunctionBreakpoints::DeleteAll()
 HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                                                 std::vector<uint32_t> &hitBreakpointIds)
 {
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
     if (m_funcBreakpoints.empty())
     {
         return S_FALSE; // Stopped at break, but no breakpoints.

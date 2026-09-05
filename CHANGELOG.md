@@ -34,6 +34,7 @@ Upcoming changes compared to previous version.
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
 - Fixed breakpoint on first line of method nested in constructor being moved to constructor's declaration line.
 - Fixed pause selecting a thread without user code as the last stopped thread; now the first thread with a valid user source location is preferred.
+- Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers during running debuggee.
 
 <br>
 <br>

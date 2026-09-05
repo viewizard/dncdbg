@@ -140,6 +140,8 @@ void SourceBreakpoints::DeleteAll()
 HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                                               std::vector<uint32_t> &hitBreakpointIds)
 {
+    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
