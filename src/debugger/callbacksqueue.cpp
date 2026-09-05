@@ -318,7 +318,6 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     {
         // DAP event must provide thread only (VS Code IDE counts on this), even if this thread doesn't have user code.
         m_debugger.SetLastStoppedThreadId(lastStoppedThread);
-        DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, lastStoppedThread));
         return S_OK;
     }
 

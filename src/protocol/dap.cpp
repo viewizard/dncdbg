@@ -527,10 +527,9 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("threadId", static_cast<int>(threadId));
                 return m_sharedDebugger->Continue(threadId);
             }},
-        {"pause", [&](const json &arguments, json &responseBody)
+        {"pause", [&](const json &arguments, json &/*responseBody*/)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                responseBody.emplace("threadId", static_cast<int>(threadId));
                 return m_sharedDebugger->Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &/*responseBody*/)
@@ -882,7 +881,10 @@ void DAP::CommandsWorker()
         if (SUCCEEDED(Status))
         {
             c.response.emplace("success", true);
-            c.response.emplace("body", responseBody);
+            if (!responseBody.empty())
+            {
+                c.response.emplace("body", responseBody);
+            }
         }
         else
         {
@@ -923,6 +925,11 @@ void DAP::CommandsWorker()
         else if (c.command == "goto" && SUCCEEDED(Status) && m_sharedDebugger != nullptr)
         {
             DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, m_sharedDebugger->GetLastStoppedThreadId()));
+        }
+        // Emit StoppedEvent after the response is sent.
+        else if (c.command == "pause" && SUCCEEDED(Status) && m_sharedDebugger != nullptr)
+        {
+            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, m_sharedDebugger->GetLastStoppedThreadId()));
         }
 
         lockCommandsMutex.lock();

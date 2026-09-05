@@ -10,6 +10,8 @@ Upcoming changes compared to previous version.
 - Added `goto` reason in Stopped Event.
 - Added `supportsGotoTargetsRequest` support in Capabilities.
 - Added `Goto` Request and Response.
+- Removed `threadId` from Pause Response, according to the DAP specification.
+- Fix pause response order: send response before 'stopped' event (DAP spec).
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
