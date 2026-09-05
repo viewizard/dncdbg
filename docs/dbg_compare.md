@@ -67,6 +67,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Readable constructor names in stack trace</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td colspan="4" align="center"><b>Variables</b></td>
     </tr>
     <tr>
