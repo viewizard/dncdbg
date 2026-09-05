@@ -521,11 +521,17 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"continue", [&](const json &arguments, json &responseBody)
             {
-                responseBody.emplace("allThreadsContinued", true);
-
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                responseBody.emplace("threadId", static_cast<int>(threadId));
-                return m_sharedDebugger->Continue(threadId);
+                const bool singleThread = arguments.value("singleThread", false);
+
+                const HRESULT Status = m_sharedDebugger->Continue(threadId, singleThread);
+                if (SUCCEEDED(Status))
+                {
+                    responseBody.emplace("allThreadsContinued", !singleThread);
+                    responseBody.emplace("threadId", static_cast<int>(threadId));
+                }
+
+                return Status;
             }},
         {"pause", [&](const json &arguments, json &/*responseBody*/)
             {
@@ -534,18 +540,21 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"next", [&](const json &arguments, json &/*responseBody*/)
             {
+                const bool singleThread = arguments.value("singleThread", false);
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_OVER);
+                                                     StepType::STEP_OVER, singleThread);
             }},
         {"stepIn", [&](const json &arguments, json &/*responseBody*/)
             {
+                const bool singleThread = arguments.value("singleThread", false);
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_IN);
+                                                     StepType::STEP_IN, singleThread);
             }},
         {"stepOut", [&](const json &arguments, json &/*responseBody*/)
             {
+                const bool singleThread = arguments.value("singleThread", false);
                 return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_OUT);
+                                                     StepType::STEP_OUT, singleThread);
             }},
         {"scopes", [&](const json &arguments, json &responseBody)
             {

@@ -46,7 +46,7 @@ class DAPIO
     static void EmitStoppedEvent(const StoppedEvent &event);
     static void EmitExitedEvent(const ExitedEvent &event);
     static void EmitTerminatedEvent();
-    static void EmitContinuedEvent(ThreadId threadId);
+    static void EmitContinuedEvent(ThreadId threadId, bool singleThread);
     static void EmitThreadEvent(const ThreadEvent &event);
     static void EmitModuleEvent(const ModuleEvent &event);
     static void EmitOutputEvent(const OutputEvent &event);

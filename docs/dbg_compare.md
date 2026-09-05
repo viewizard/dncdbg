@@ -199,6 +199,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Single thread execution and stepping</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">❓</td>
+    </tr>
+    <tr>
       <td colspan="4" align="center"><b>Protocols & Advanced Features</b></td>
     </tr>
     <tr>

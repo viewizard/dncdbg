@@ -117,6 +117,12 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Single thread execution and stepping</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">❓</td>
+    </tr>
+    <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
       <td align="center">❌</td>
       <td align="center">✅</td>

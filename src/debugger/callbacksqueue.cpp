@@ -15,6 +15,7 @@
 #include "debugger/threads.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
+#include "utils/logger.h"
 #include <algorithm>
 
 namespace dncdbg
@@ -269,20 +270,54 @@ bool CallbacksQueue::IsRunning()
     return !m_stopEventInProcess;
 }
 
-HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess)
+HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread)
 {
     const std::unique_lock<std::mutex> lock(m_callbacksMutex);
 
     assert(m_stopEventInProcess);
     m_stopEventInProcess = false;
 
-    if (m_callbacksQueue.empty())
+    if (!m_callbacksQueue.empty())
     {
-        return pProcess->Continue(0);
+        m_callbacksCV.notify_one(); // notify_one with lock
+        return S_OK;
     }
 
-    m_callbacksCV.notify_one(); // notify_one with lock
-    return S_OK;
+    // Note, we must set the debug state of every thread on each continue: a previous
+    // single-thread continue/step may have left some threads in THREAD_SUSPEND, so the
+    // all-thread case (singleThread == false) restores them to THREAD_RUN.
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugThreadEnum> trThreadEnum;
+    if (FAILED(Status = pProcess->EnumerateThreads(&trThreadEnum)))
+    {
+        m_stopEventInProcess = true;
+        return Status;
+    }
+    ULONG fetched = 0;
+    ToRelease<ICorDebugThread> trThread;
+    const int iThreadId = static_cast<int>(threadId);
+    const CorDebugThreadState state = singleThread ? THREAD_SUSPEND : THREAD_RUN;
+    while (SUCCEEDED(trThreadEnum->Next(1, &trThread, &fetched)) && fetched == 1)
+    {
+        DWORD tid = 0;
+        if (FAILED(Status = trThread->GetID(&tid)))
+        {
+            LOGW(log << "ICorDebugThread::GetID() call failed, target threadId=" << iThreadId);
+            m_stopEventInProcess = true;
+            return Status;
+        }
+        // Run the target thread; suspend all others only in the single-thread case.
+        if (FAILED(Status = trThread->SetDebugState(iThreadId == static_cast<int>(tid) ? THREAD_RUN : state)))
+        {
+            LOGW(log << "ICorDebugThread::SetDebugState() call failed, threadId=" << static_cast<int>(tid)
+                     << ", target threadId=" << iThreadId);
+            m_stopEventInProcess = true;
+            return Status;
+        }
+        trThread.Free();
+    }
+
+    return pProcess->Continue(0);
 }
 
 // Stop process and set last stopped thread.

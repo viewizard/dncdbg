@@ -219,6 +219,7 @@ void DAPIO::AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsModulesRequest", true);
     capabilities.emplace("supportsLogPoints", true);
     capabilities.emplace("supportsGotoTargetsRequest", true);
+    capabilities.emplace("supportsSingleThreadExecutionRequests", true);
 }
 
 void DAPIO::SetupProtocolLogging(const std::string &path)
@@ -317,7 +318,7 @@ void DAPIO::EmitTerminatedEvent()
     EmitEvent("terminated", json::object());
 }
 
-void DAPIO::EmitContinuedEvent(ThreadId threadId)
+void DAPIO::EmitContinuedEvent(ThreadId threadId, bool singleThread)
 {
     json body;
 
@@ -326,7 +327,7 @@ void DAPIO::EmitContinuedEvent(ThreadId threadId)
         body.emplace("threadId", static_cast<int>(threadId));
     }
 
-    body.emplace("allThreadsContinued", true);
+    body.emplace("allThreadsContinued", !singleThread);
     EmitEvent("continued", body);
 }
 

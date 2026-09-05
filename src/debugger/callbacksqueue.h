@@ -65,7 +65,7 @@ class CallbacksQueue
 
     // Called from ManagedDebugger by protocol request (Continue/Pause).
     bool IsRunning();
-    HRESULT Continue(ICorDebugProcess *pProcess);
+    HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread);
     // Stop process and set last stopped thread. If `lastStoppedThread` not passed value from protocol, find best
     // thread.
     HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread);

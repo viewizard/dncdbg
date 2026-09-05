@@ -10,6 +10,8 @@ Upcoming changes compared to previous version.
 - Added `goto` reason in Stopped Event.
 - Added `supportsGotoTargetsRequest` support in Capabilities.
 - Added `Goto` Request and Response.
+- Added `supportsSingleThreadExecutionRequests` support in Capabilities.
+- Added `singleThread` support in Continue, Next, StepIn and StepOut Requests.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fix pause response order: send response before 'stopped' event (DAP spec).
 
@@ -20,6 +22,7 @@ Upcoming changes compared to previous version.
 - Added "Jump to Cursor" (Goto) feature support.
 - Added TestGoto.
 - Added `>>>` unsigned right shift operator support in expression evaluation.
+- Added single thread execution and stepping support.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

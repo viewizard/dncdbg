@@ -95,7 +95,7 @@ class ManagedDebugger
     HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);
 
     ThreadId GetLastStoppedThreadId();
-    HRESULT Continue(ThreadId threadId);
+    HRESULT Continue(ThreadId threadId, bool singleThread);
     bool IsProcessRunning();
     HRESULT Pause(ThreadId lastStoppedThread);
     HRESULT GetThreads(std::vector<Thread> &threads);
@@ -107,7 +107,7 @@ class ManagedDebugger
                                     std::vector<Breakpoint> &breakpoints);
     HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
                           std::vector<StackFrame> &stackFrames);
-    HRESULT StepCommand(ThreadId threadId, StepType stepType);
+    HRESULT StepCommand(ThreadId threadId, StepType stepType, bool singleThread);
     HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes);
     HRESULT GetVariables(uint32_t variablesReference, std::vector<Variable> &variables);
     HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output);

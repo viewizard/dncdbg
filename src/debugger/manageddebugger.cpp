@@ -406,7 +406,7 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
     return TerminateProcess();
 }
 
-HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
+HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
 {
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
@@ -429,20 +429,25 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType)
     IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
     IfFailRet(m_uniqueSteppers->SetupStep(trThread, stepType));
 
-    m_sharedVariables->Cleanup();
-    FrameId::invalidate();               // Clear all created during break frames.
-    DAPIO::EmitContinuedEvent(threadId); // DAP needs thread ID.
-
-    // Note, process continue must be after event emitted, since we could get new stop event from queue here.
-    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
+    // Note, the continued event is emitted only on success, so we don't report continuation
+    // when the process failed to resume. On failure, disable all steppers, since we set up
+    // a step above but the process didn't actually resume.
+    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
     {
+        m_uniqueSteppers->DisableAllSteppers(m_trProcess);
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+    }
+    else
+    {
+        m_sharedVariables->Cleanup();
+        FrameId::invalidate();                             // Clear all created during break frames.
+        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
     return Status;
 }
 
-HRESULT ManagedDebugger::Continue(ThreadId threadId)
+HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
 {
     const ReadLock r_lock(m_debugProcessRWLock);
     HRESULT Status = S_OK;
@@ -461,14 +466,17 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId)
         return S_OK; // Send 'OK' response, but don't generate continue event.
     }
 
-    m_sharedVariables->Cleanup();
-    FrameId::invalidate();               // Clear all created during break frames.
-    DAPIO::EmitContinuedEvent(threadId); // DAP needs thread ID.
-
-    // Note, process continue must be after event emitted, since we could get new stop event from queue here.
-    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess)))
+    // Note, the continued event is emitted only on success, so we don't report continuation
+    // when the process failed to resume.
+    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
     {
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+    }
+    else
+    {
+        m_sharedVariables->Cleanup();
+        FrameId::invalidate();                             // Clear all created during break frames.
+        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
     return Status;

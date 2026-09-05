@@ -233,7 +233,7 @@
 #### ContinueRequest `continue`
 ```diff
 +   threadId: number;
--   singleThread?: boolean;
++   singleThread?: boolean;
 ```
 #### ContinueResponse
 ```diff
@@ -244,7 +244,7 @@
 #### NextRequest `next`
 ```diff
 +   threadId: number;
--   singleThread?: boolean;
++   singleThread?: boolean;
 -   granularity?: SteppingGranularity;
 ```
 #### NextResponse
@@ -253,7 +253,7 @@
 #### StepInRequest `stepIn`
 ```diff
 +   threadId: number;
--   singleThread?: boolean;
++   singleThread?: boolean;
 -   targetId?: number;
 -   granularity?: SteppingGranularity;
 ```
@@ -263,7 +263,7 @@
 #### StepOutRequest `stepOut`
 ```diff
 +   threadId: number;
--   singleThread?: boolean;
++   singleThread?: boolean;
 -   granularity?: SteppingGranularity;
 ```
 #### StepOutResponse
@@ -453,7 +453,7 @@
 -   supportsSteppingGranularity?: boolean;
 -   supportsInstructionBreakpoints?: boolean;
 +   supportsExceptionFilterOptions?: boolean;
--   supportsSingleThreadExecutionRequests?: boolean;
++   supportsSingleThreadExecutionRequests?: boolean;
 -   supportsDataBreakpointBytes?: boolean;
 -   breakpointModes?: BreakpointMode[];
 -   supportsANSIStyling?: boolean;
