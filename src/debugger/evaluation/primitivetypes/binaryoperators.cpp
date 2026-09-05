@@ -196,13 +196,26 @@ HRESULT ShiftExpressionImpl(const PrimitiveValue &leftValue, const PrimitiveValu
 HRESULT LeftShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return ShiftExpressionImpl(leftValue, rightValue, outputValue, output, "<<",
-                               [](const auto &left, const auto &right) { return left << right; }); // NOLINT(bugprone-signed-bitwise)
+                               [](const auto &left, const uint64_t &right) { return left << right; }); // NOLINT(bugprone-signed-bitwise)
 }
 
 HRESULT RightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
 {
     return ShiftExpressionImpl(leftValue, rightValue, outputValue, output, ">>",
-                               [](const auto &left, const auto &right) { return left >> right; }); // NOLINT(bugprone-signed-bitwise)
+                               [](const auto &left, const uint64_t &right) { return left >> right; }); // NOLINT(bugprone-signed-bitwise)
+}
+
+template <typename T>
+constexpr T UnsignedShiftRight(T value, uint64_t shift)
+{
+    using UnsignedT = std::make_unsigned_t<T>;
+    return static_cast<T>(static_cast<UnsignedT>(value) >> shift);
+}
+
+HRESULT UnsignedRightShiftExpression(const PrimitiveValue &leftValue, const PrimitiveValue &rightValue, PrimitiveValue &outputValue, std::string &output)
+{
+    return ShiftExpressionImpl(leftValue, rightValue, outputValue, output, ">>>",
+                               [](const auto &left, const uint64_t &right) { return UnsignedShiftRight(left, right); });
 }
 
 // Helper template for bitwise operations (AND, OR, XOR)
@@ -471,6 +484,7 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorD
         {Parser::SyntaxKind::ModuloExpression, ModuloExpression},
         {Parser::SyntaxKind::LeftShiftExpression, LeftShiftExpression},
         {Parser::SyntaxKind::RightShiftExpression, RightShiftExpression},
+        {Parser::SyntaxKind::UnsignedRightShiftExpression, UnsignedRightShiftExpression},
         {Parser::SyntaxKind::BitwiseAndExpression, BitwiseAndExpression},
         {Parser::SyntaxKind::BitwiseOrExpression, BitwiseOrExpression},
         {Parser::SyntaxKind::ExclusiveOrExpression, ExclusiveOrExpression},

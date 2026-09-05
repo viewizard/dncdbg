@@ -44,6 +44,7 @@ enum class SyntaxKind : uint8_t
     ModuloExpression,
     LeftShiftExpression,
     RightShiftExpression,
+    UnsignedRightShiftExpression,
     BitwiseAndExpression,
     BitwiseOrExpression,
     ExclusiveOrExpression,

@@ -35,20 +35,26 @@ std::string_view GetNodeText(TSNode node, const std::string &source)
     return std::string_view(source).substr(start, end - start);
 }
 
-// Pack 1 or 2 character string into uint16_t for use as map key.
-// First character goes in low byte, second character (if present) in high byte.
-constexpr uint16_t packString(std::string_view str)
+// Pack 1-4 character string into uint32_t for use as a map key.
+// The first character goes in the lowest byte, subsequent characters in
+// progressively higher bytes. This guarantees that operators of different
+// lengths never collide (e.g. "<", "<<", "<<<" produce distinct values),
+// which a fixed-width 2-byte scheme could not represent for 3+ character
+// tokens like ">>>" (UnsignedRightShiftExpression) or future assignment
+// operators like ">>>=" (UnsignedRightShiftAssignmentExpression).
+constexpr uint32_t packString(std::string_view str)
 {
-    if (str.empty() || str.size() > 2)
+    if (str.empty() || str.size() > 4)
     {
-        assert(false && "String must be 1 or 2 characters only");
+        assert(false && "String must be 1 to 4 characters only");
     }
 
-    uint16_t result = static_cast<uint8_t>(str.at(0));
-    if (str.size() == 2)
+    constexpr uint8_t bitsInByte = 8;
+    uint32_t result = 0;
+    for (size_t i = 0; i < str.size(); ++i)
     {
-        constexpr uint8_t bitsInByte = 8;
-        result |= static_cast<uint16_t>(static_cast<uint16_t>(static_cast<uint8_t>(str.at(1))) << bitsInByte);
+        result |= static_cast<uint32_t>(static_cast<uint8_t>(str.at(i)))
+                  << (bitsInByte * static_cast<uint32_t>(i));
     }
 
     return result;
@@ -444,13 +450,13 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
             const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
             const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // Operator is index 1
 
-            if (op.empty() || op.size() > 2)
+            if (op.empty() || op.size() > 4)
             {
                 output = "Unknown binary expression: " + std::string(op);
                 return E_INVALIDARG;
             }
 
-            static const std::unordered_map<uint16_t, SyntaxKind> opMap{
+            static const std::unordered_map<uint32_t, SyntaxKind> opMap{
                 { packString("+"),  SyntaxKind::AddExpression },
                 { packString("-"),  SyntaxKind::SubtractExpression },
                 { packString("*"),  SyntaxKind::MultiplyExpression },
@@ -458,6 +464,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
                 { packString("%"),  SyntaxKind::ModuloExpression },
                 { packString("<<"), SyntaxKind::LeftShiftExpression },
                 { packString(">>"), SyntaxKind::RightShiftExpression },
+                { packString(">>>"), SyntaxKind::UnsignedRightShiftExpression },
                 { packString("&"),  SyntaxKind::BitwiseAndExpression },
                 { packString("|"),  SyntaxKind::BitwiseOrExpression },
                 { packString("^"),  SyntaxKind::ExclusiveOrExpression },
@@ -470,8 +477,6 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
                 { packString(">="), SyntaxKind::GreaterThanOrEqualExpression },
                 { packString("<="), SyntaxKind::LessThanOrEqualExpression },
                 { packString("??"), SyntaxKind::CoalesceExpression }
-
-                // TODO: ">>>" SyntaxKind::UnsignedRightShiftExpression
             };
 
             const auto findOp = opMap.find(packString(op));

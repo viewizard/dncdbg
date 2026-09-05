@@ -17,6 +17,7 @@ Upcoming changes compared to previous version.
 - Added TestBreakpointColumn.
 - Added "Jump to Cursor" (Goto) feature support.
 - Added TestGoto.
+- Added `>>>` unsigned right shift operator support in expression evaluation.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
