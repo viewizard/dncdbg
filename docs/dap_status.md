@@ -494,7 +494,7 @@
 ```diff
 +   name?: string;
 +   path?: string;
--   sourceReference?: number;
++   sourceReference?: number;
 -   presentationHint?: 'normal' | 'emphasize' | 'deemphasize';
 -   origin?: string;
 -   sources?: Source[];

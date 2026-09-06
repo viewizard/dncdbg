@@ -6,6 +6,7 @@
 #include "debugger/frames.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/sourcereference.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -223,8 +224,10 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
         std::string algorithm;
         std::string checksum;
         pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
+        int32_t sourceReference = 0;
+        SourceReference::GetSourceReference(globalFileIndex, sourceReference);
 
-        stackFrame.source = Source(sourceFilePath);
+        stackFrame.source = Source(sourceFilePath, sourceReference);
         if (!algorithm.empty() && !checksum.empty())
         {
             stackFrame.source.checksums.emplace_back(std::move(algorithm), std::move(checksum));
@@ -354,7 +357,10 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
                 SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath, algorithm, checksum)))
             {
-                Source source(sourceFilePath);
+                int32_t sourceReference = 0;
+                SourceReference::GetSourceReference({modAddress, sequencePoint.sourceFileIndex}, sourceReference);
+
+                Source source(sourceFilePath, sourceReference);
                 source.checksums.emplace_back(std::move(algorithm), std::move(checksum));
                 if (cb(FrameType::CLRManagedExceptionUser, nullptr, &sequencePoint, &displayMethodName,
                        &source, exceptionObjectStackFrame.ip) == S_CAN_EXIT)

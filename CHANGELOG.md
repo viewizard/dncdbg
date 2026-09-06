@@ -2,7 +2,7 @@
 Upcoming changes compared to previous version.
 
 #### DAP
-- Added `checksums` support in Source.
+- Added `sourceReference` and `checksums` support in Source.
 - Added `instructionReference`, `offset`, `column` and `endColumn` support in Breakpoint.
 - Added `column` support in SourceBreakpoint.
 - Added `GotoTarget` type.

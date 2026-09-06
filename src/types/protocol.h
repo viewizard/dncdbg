@@ -52,18 +52,19 @@ struct Source
 {
     std::string name;
     std::string path;
-    // sourceReference?: number;
+    int32_t sourceReference{0}; // DAP spec.: The value should be less than or equal to 2147483647 (2^31-1).
     // presentationHint?: 'normal' | 'emphasize' | 'deemphasize';
     // origin?: string;
     // sources?: Source[];
     // adapterData?: any;
     std::vector<Checksum> checksums;
 
-    explicit Source(const std::string &path = {});
+    Source() = default;
+    explicit Source(const std::string &filePath, int32_t srcReference);
 
     [[nodiscard]] bool IsNull() const
     {
-        return name.empty() && path.empty();
+        return name.empty() && path.empty() && sourceReference <= 0;
     }
 };
 

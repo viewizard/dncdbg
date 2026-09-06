@@ -11,9 +11,10 @@
 namespace dncdbg
 {
 
-Source::Source(const std::string &path)
-    : name(GetFileName(path)),
-      path(path)
+Source::Source(const std::string &filePath, int32_t srcReference)
+    : name(GetFileName(filePath)),
+      path(filePath),
+      sourceReference(srcReference)
 {
 }
 

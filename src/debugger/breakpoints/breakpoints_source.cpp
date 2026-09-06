@@ -8,6 +8,7 @@
 #include "debugger/breakpoints/helpers.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/sourcereference.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
@@ -105,12 +106,12 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
 } // unnamed namespace
 
-void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile,
+void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile, int32_t sourceReference,
                                                               const std::string *pAlgorithm, const std::string *pChecksum) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
-    breakpoint.source = Source(sourceFile);
+    breakpoint.source = Source(sourceFile, sourceReference);
     if (pAlgorithm != nullptr && pChecksum != nullptr && !(*pAlgorithm).empty() && !(*pChecksum).empty())
     {
         breakpoint.source.checksums.emplace_back(*pAlgorithm, *pChecksum);
@@ -183,6 +184,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     std::string algorithm;
     std::string checksum;
     m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
+    int32_t sourceReference = 0;
+    SourceReference::GetSourceReference(globalFileIndex, sourceReference);
 
     // Only one source breakpoint is active per line:column pair; iterate the list to find all
     // matching active source breakpoints and add them to hitBreakpointIds.
@@ -202,7 +205,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
             {
                 nativeAddress = currentNativeAddress;
                 Breakpoint breakpoint;
-                b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                b.ToBreakpoint(breakpoint, sourceFilePath, sourceReference, &algorithm, &checksum);
                 breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                 DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
             }
@@ -220,7 +223,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                    b.ToBreakpoint(breakpoint, sourceFilePath, sourceReference, &algorithm, &checksum);
                     breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The condition for a breakpoint failed to evaluate and will be removed. The condition was '"
@@ -250,7 +253,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 if (!output.empty())
                 {
                     Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sourceFilePath, &algorithm, &checksum);
+                    b.ToBreakpoint(breakpoint, sourceFilePath, sourceReference, &algorithm, &checksum);
                     breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
                     std::ostringstream ss;
                     ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
@@ -273,7 +276,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 BuildTextWithEval(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(), pThread, nullptr, b.logMessageParts, message);
                 message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
-                event.source = Source(sourceFilePath);
+                event.source = Source(sourceFilePath, sourceReference);
                 if (!algorithm.empty() && !checksum.empty())
                 {
                     event.source.checksums.emplace_back(algorithm, checksum);
@@ -315,7 +318,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             bp.logMessage = initialBreakpoint.breakpoint.logMessage;
             PDB::GlobalFileIndex resolvedGlobalFileIndex;
             std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
-            Source source(initialPathToSource);
+            Source source(initialPathToSource, initialBreakpoint.sourceReference);
             source.checksums = initialBreakpoint.checksums;
 
             if (FAILED(ResolveSourceBreakpoint(m_sharedDebugInfo.get(), pModule, bp, source,
@@ -329,9 +332,11 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             std::string algorithm;
             std::string checksum;
             m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
+            int32_t sourceReference = 0;
+            SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference);
 
             Breakpoint breakpoint;
-            bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
+            bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
             DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
 
             initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
@@ -544,6 +549,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
             ManagedSourceBreakpointMapping initialBreakpoint;
             initialBreakpoint.breakpoint = sb;
             initialBreakpoint.id = getId();
+            initialBreakpoint.sourceReference = source.sourceReference;
             initialBreakpoint.checksums = source.checksums;
 
             // New breakpoint
@@ -571,13 +577,15 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 std::string algorithm;
                 std::string checksum;
                 m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
+                int32_t sourceReference = 0;
+                SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference);
 
-                bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
+                bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
                 m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
             }
             else
             {
-                bp.ToBreakpoint(breakpoint, source.path);
+                bp.ToBreakpoint(breakpoint, source.path, source.sourceReference);
                 if (!haveProcess)
                 {
                     breakpoint.message = "The breakpoint is pending and will be resolved when debugging starts.";
@@ -633,7 +641,10 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                     std::string algorithm;
                     std::string checksum;
                     m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
-                    bp.ToBreakpoint(breakpoint, resolvedPath, &algorithm, &checksum);
+                    int32_t sourceReference = 0;
+                    SourceReference::GetSourceReference(initialBreakpoint.resolvedGlobalFileIndex, sourceReference);
+
+                    bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
                     if (changedCondition || changedHitCondition || changedLogMessage)
                     {
                         std::string changed;
@@ -679,7 +690,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 bp.condition = initialBreakpoint.breakpoint.condition;
                 bp.hitCondition = initialBreakpoint.breakpoint.hitCondition;
                 bp.logMessage = initialBreakpoint.breakpoint.logMessage;
-                bp.ToBreakpoint(breakpoint, source.path);
+                bp.ToBreakpoint(breakpoint, source.path, source.sourceReference);
                 if (!haveProcess)
                 {
                     breakpoint.message = "The breakpoint is pending and will be resolved when debugging starts.";

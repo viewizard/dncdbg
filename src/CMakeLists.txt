@@ -57,6 +57,7 @@ set(DNCDBG_SOURCES
     debuginfo/debugsources.cpp
     debuginfo/pdbreader.cpp
     debuginfo/sourcefilemap.cpp
+    debuginfo/sourcereference.cpp
     expressionparser/helpers.cpp
     expressionparser/parser.cpp
     metadata/attributes.cpp

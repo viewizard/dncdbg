@@ -111,7 +111,7 @@ class SourceBreakpoints
         ManagedSourceBreakpoint() = default;
         ~ManagedSourceBreakpoint();
 
-        void ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile,
+        void ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile, int32_t sourceReference,
                           const std::string *pAlgorithm = nullptr, const std::string *pChecksum = nullptr) const;
 
         ManagedSourceBreakpoint(ManagedSourceBreakpoint &&) = default;
@@ -132,6 +132,7 @@ class SourceBreakpoints
         SourceBreakpoint breakpoint{0, 0};
         uint32_t id{0};
         PDB::GlobalFileIndex resolvedGlobalFileIndex{};
+        int32_t sourceReference{0};
         std::vector<Checksum> checksums;
         int32_t resolvedLineNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
         int32_t resolvedColumnNum{0}; // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints

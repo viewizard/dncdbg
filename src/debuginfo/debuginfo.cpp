@@ -6,6 +6,7 @@
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/debugsources.h"
 #include "debuginfo/pdbreader.h"
+#include "debuginfo/sourcereference.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
@@ -261,6 +262,8 @@ std::string CanonicalizeFilePath(const std::string &filePath)
 
 void DebugInfo::Cleanup()
 {
+    SourceReference::Cleanup();
+
     const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
     m_debugInfo.clear();
     m_gotoTargetId = 0;
@@ -398,6 +401,8 @@ void DebugInfo::UnloadModuleSymbols(ICorDebugModule *pModule)
     CORDB_ADDRESS baseAddress = 0;
     if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
     {
+        SourceReference::ManagedCallbackUnloadModule(baseAddress);
+
         const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
         m_debugInfo.erase(baseAddress);
     }
@@ -543,6 +548,26 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
                                      int32_t sourceColumn, PDB::GlobalFileIndex *pGlobalFileIndex,
                                      std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
+    if (source.sourceReference > 0)
+    {
+        PDB::GlobalFileIndex globalFileIndex;
+        if (FAILED(SourceReference::GetGlobalIndex(source.sourceReference, globalFileIndex)))
+        {
+            return E_INVALIDARG;
+        }
+
+        if (pGlobalFileIndex != nullptr)
+        {
+            *pGlobalFileIndex = globalFileIndex;
+        }
+
+        return GetPDBInfo(globalFileIndex.modAddress,
+            [&](const PDBInfo &pdbInfo) -> HRESULT
+            {
+                return DebugSources::ResolveBreakpoints(pdbInfo, globalFileIndex.sourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
+            });
+    }
+
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
     std::string fixedFilePath = to_uppercase(source.path);
 #else

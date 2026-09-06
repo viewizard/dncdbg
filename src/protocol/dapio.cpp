@@ -26,6 +26,11 @@ void to_json(json &j, const Source &s)
     j = json{{"name", s.name},
              {"path", s.path}};
 
+    if (s.sourceReference >= 0)
+    {
+        j.emplace("sourceReference", s.sourceReference);
+    }
+
     if (!s.checksums.empty())
     {
         j.emplace("checksums", s.checksums);

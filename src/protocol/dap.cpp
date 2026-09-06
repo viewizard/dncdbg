@@ -320,11 +320,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const auto &sourceJson = arguments.at("source");
                 const std::string sourcePath = sourceJson.value("path", std::string());
                 const std::string sourceName = sourceJson.value("name", std::string());
-                if (sourcePath.empty() && sourceName.empty())
+                const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
+
+                if (sourcePath.empty() && sourceName.empty() && sourceReference <= 0)
                 {
                     return E_INVALIDARG;
                 }
-                Source source(sourcePath.empty() ? sourceName : sourcePath);
+
+                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
                 if (sourceJson.contains("checksums"))
                 {
                     std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
@@ -334,6 +337,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                                        c.value("checksum", std::string()));
                                    });
                 }
+
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
 
@@ -742,11 +746,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const auto &sourceJson = arguments.at("source");
                 const std::string sourcePath = sourceJson.value("path", std::string());
                 const std::string sourceName = sourceJson.value("name", std::string());
-                if (sourcePath.empty() && sourceName.empty())
+                const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
+
+                if (sourcePath.empty() && sourceName.empty() && sourceReference <= 0)
                 {
                     return E_INVALIDARG;
                 }
-                Source source(sourcePath.empty() ? sourceName : sourcePath);
+
+                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
                 if (sourceJson.contains("checksums"))
                 {
                     std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
