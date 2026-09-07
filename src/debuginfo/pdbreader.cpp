@@ -48,7 +48,7 @@ constexpr std::array<uint8_t, 16> guidStateMachineHoistedLocalScopes{
     0xbe, 0x62, 0x68, 0xbc, 0x56, 0x30, 0xdf, 0x71 // Data4 (BE62-68BC5630DF71)
 };
 // {54FD2AC5-E925-401A-9C2A-F94F171072F8}
-constexpr std::array<uint8_t, 16> asyncMethodSteppingInformation{
+constexpr std::array<uint8_t, 16> guidAsyncMethodSteppingInformation{
     0xc5, 0x2a, 0xfd, 0x54,                        // Data1 (0x54FD2AC5)
     0x25, 0xe9,                                    // Data2 (0xE925)
     0x1a, 0x40,                                    // Data3 (0x401A)
@@ -187,12 +187,14 @@ HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBu
 HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath,
                       std::string &algorithm, std::string &checksum)
 {
+    sourceFilePath.clear();
+    algorithm.clear();
+    checksum.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    sourceFilePath.clear();
 
     // Create cursor to the Document table
     mdcursor_t docCursor{};
@@ -246,8 +248,6 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
     // legitimately have no hash. Retrieval is therefore best-effort: on any failure or
     // unknown algorithm, algorithm/checksum are left empty (callers guard on emptiness)
     // rather than aborting the whole call, so the source file path is still returned.
-    algorithm.clear();
-    checksum.clear();
 
     // Get the hash algorithm
     mdguid_t guid{};
@@ -298,6 +298,8 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
 
 HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNameToIndices)
 {
+    sourceFileNameToIndices.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
@@ -310,8 +312,6 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
     {
         return E_FAIL;
     }
-
-    sourceFileNameToIndices.clear();
 
     // Iterate through all documents
     for (uint32_t i = 0; i < docCount; ++i)
@@ -370,6 +370,8 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
 HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethodDef> &constrTokens,
                          std::unordered_map<uint32_t, std::vector<PDB::MethodRange>> &srcMethodRanges)
 {
+    srcMethodRanges.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
@@ -384,7 +386,6 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
     }
 
     // Reserve space for all sources
-    srcMethodRanges.clear();
     srcMethodRanges.reserve(docCount);
 
     // Create cursor to the MethodDebugInformation table
@@ -517,12 +518,12 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
 HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                           std::vector<PDB::LocalConstant> &localConsts)
 {
+    localConsts.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    localConsts.clear();
 
     // Create cursor to the LocalScope table
     mdcursor_t lscopeCursor{};
@@ -618,6 +619,8 @@ HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
 HRESULT GetLocalVariableName(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                              uint32_t localVarIndex, WSTRING &localVarName)
 {
+    localVarName.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
@@ -799,12 +802,12 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
 HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken,
                                    std::vector<PDB::AsyncAwaitInfoBlock> &awaitInfos)
 {
+    awaitInfos.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    awaitInfos.clear();
 
     // Create cursor to the CustomDebugInformation table
     mdcursor_t cdiCursor;
@@ -829,7 +832,7 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
         // Get the Kind column to check if this is async method stepping information
         mdguid_t guid;
         if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
-            std::memcmp(&guid, asyncMethodSteppingInformation.data(), sizeof(mdguid_t)) != 0)
+            std::memcmp(&guid, guidAsyncMethodSteppingInformation.data(), sizeof(mdguid_t)) != 0)
         {
             md_cursor_move(&cdiCursor, 1);
             continue;
@@ -881,12 +884,12 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
 
 HRESULT GetLastIlOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t &lastIlOffset)
 {
+    lastIlOffset = 0;
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    lastIlOffset = 0;
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -961,17 +964,17 @@ HRESULT GetLastIlOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t 
 HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                    PDB::SequencePoint &sequencePoint)
 {
-    if (pdbHandle == nullptr)
-    {
-        return E_INVALIDARG;
-    }
-
     sequencePoint.startLine = 0;
     sequencePoint.startColumn = 0;
     sequencePoint.endLine = 0;
     sequencePoint.endColumn = 0;
     sequencePoint.ilOffset = 0;
     sequencePoint.sourceFileIndex = 0;
+
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -1080,12 +1083,12 @@ HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken
 
 HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset)
 {
+    ilNextOffset = 0;
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    ilNextOffset = 0;
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -1164,13 +1167,13 @@ HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, u
 HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                                  uint32_t &ilStartOffset, uint32_t &ilEndOffset)
 {
+    ilStartOffset = 0;
+    ilEndOffset = 0;
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    ilStartOffset = 0;
-    ilEndOffset = 0;
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
@@ -1257,12 +1260,13 @@ HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, 
 HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
                            uint32_t sourceFileIndex, int32_t sourceLine, int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints)
 {
+    resolvedBreakpoints.clear();
+
     if (pdbHandle == nullptr || methodTokens.empty())
     {
         return E_INVALIDARG;
     }
 
-    resolvedBreakpoints.clear();
     resolvedBreakpoints.reserve(methodTokens.size());
 
     enum class Position : uint8_t
@@ -1489,13 +1493,13 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
 HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t, uint32_t> &moveNextToKickoff,
                                std::unordered_map<uint32_t, uint32_t> &kickoffToMoveNext)
 {
+    moveNextToKickoff.clear();
+    kickoffToMoveNext.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    moveNextToKickoff.clear();
-    kickoffToMoveNext.clear();
 
     // Create cursor to the StateMachineMethod table
     mdcursor_t smmCursor{};
@@ -1536,12 +1540,12 @@ HRESULT GetStateMachineMethods(mdhandle_t pdbHandle, std::unordered_map<uint32_t
 HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t ilOffset,
                              std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports)
 {
+    pdbImports.clear();
+
     if (pdbHandle == nullptr)
     {
         return E_INVALIDARG;
     }
-
-    pdbImports.clear();
 
     // Create cursor to the LocalScope table
     mdcursor_t lscopeCursor{};
@@ -1757,11 +1761,6 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
 HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t line, int32_t column,
                       PDB::SequencePoint &sequencePoint, std::string &output)
 {
-    if (pdbHandle == nullptr)
-    {
-        return E_INVALIDARG;
-    }
-
     sequencePoint.startLine = 0;
     sequencePoint.startColumn = 0;
     sequencePoint.endLine = 0;
@@ -1769,6 +1768,11 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
     sequencePoint.ilOffset = 0;
     sequencePoint.sourceFileIndex = 0;
     output.clear();
+
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
 
     // Create cursor to the MethodDebugInformation table
     mdcursor_t mdiCursor{};
