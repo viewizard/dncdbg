@@ -322,7 +322,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const std::string sourceName = sourceJson.value("name", std::string());
                 const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
 
-                if (sourcePath.empty() && sourceName.empty() && sourceReference <= 0)
+                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
                 {
                     return E_INVALIDARG;
                 }
@@ -748,7 +748,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const std::string sourceName = sourceJson.value("name", std::string());
                 const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
 
-                if (sourcePath.empty() && sourceName.empty() && sourceReference <= 0)
+                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
                 {
                     return E_INVALIDARG;
                 }
@@ -798,6 +798,41 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     }
                     return Status;
                 }
+
+                return S_OK;
+            }},
+        {"source", [&](const json &arguments, json &responseBody)
+            {
+                const auto &sourceJson = arguments.at("source");
+                const std::string sourcePath = sourceJson.value("path", std::string());
+                const std::string sourceName = sourceJson.value("name", std::string());
+                int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
+
+                if (sourceReference == 0)
+                {
+                    sourceReference = std::max(arguments.value("sourceReference", 0), 0);
+                }
+                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
+                {
+                    return E_INVALIDARG;
+                }
+
+                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
+                if (sourceJson.contains("checksums"))
+                {
+                    std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
+                                   std::back_inserter(source.checksums), [](const auto &c)
+                                   {
+                                       return Checksum(c.value("algorithm", std::string()),
+                                                       c.value("checksum", std::string()));
+                                   });
+                }
+
+                HRESULT Status = S_OK;
+                std::string sourceContent;
+                IfFailRet(Status = m_sharedDebugger->GetEmbeddedSource(source, sourceContent));
+
+                responseBody.emplace("content", sourceContent);
 
                 return S_OK;
             }}};

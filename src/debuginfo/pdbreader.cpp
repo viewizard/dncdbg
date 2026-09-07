@@ -1961,9 +1961,9 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
     return S_OK;
 }
 
-HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceText)
+HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceContent)
 {
-    sourceText.clear();
+    sourceContent.clear();
 
     if (pdbHandle == nullptr)
     {
@@ -2038,12 +2038,12 @@ HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::s
         if (uncompressedSize == dataSize)
         {
             // Data is stored uncompressed
-            sourceText.assign(reinterpret_cast<const char *>(dataPtr), dataSize);
+            sourceContent.assign(reinterpret_cast<const char *>(dataPtr), dataSize);
             return S_OK;
         }
 
         // Data is stored compressed (raw deflate)
-        if (!InflateDeflateBuffer(dataPtr, dataSize, sourceText, uncompressedSize))
+        if (!InflateDeflateBuffer(dataPtr, dataSize, sourceContent, uncompressedSize))
         {
             return E_FAIL;
         }

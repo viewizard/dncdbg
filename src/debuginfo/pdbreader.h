@@ -42,7 +42,7 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
                              std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
 HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t line, int32_t column,
                       PDB::SequencePoint &sequencePoint, std::string &output);
-HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceText);
+HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceContent);
 
 } // namespace dncdbg::PDBReader
 

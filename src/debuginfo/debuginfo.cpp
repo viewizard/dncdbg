@@ -544,6 +544,161 @@ HRESULT DebugInfo::GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::Sequence
     return S_OK;
 }
 
+// Must be called with m_debugInfoMutex already locked.
+// Returns nullptr in pPDBInfo if not found.
+void DebugInfo::FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, const PDBInfo *&pPDBInfo,
+                                          uint32_t &sourceFileIndex, PDB::GlobalFileIndex *pGlobalFileIndex)
+{
+    pPDBInfo = nullptr;
+    sourceFileIndex = 0;
+
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+    std::string fixedFilePath = to_uppercase(source.path);
+#else
+    std::string fixedFilePath = source.path;
+#endif
+
+    const std::string pathName = GetFileName(fixedFilePath);
+    std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
+
+    const auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
+    {
+        const auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
+        if (findName == pdbInfo.m_sourceFileNameToIndices.cend())
+        {
+            return;
+        }
+        foundSourceIndices[modAddr].insert_after(foundSourceIndices[modAddr].before_begin(),
+                                                 findName->second.cbegin(), findName->second.cend());
+    };
+
+    if (modAddress != 0)
+    {
+        const auto infoPair = m_debugInfo.find(modAddress);
+        if (infoPair != m_debugInfo.cend())
+        {
+            addSourceIndices(modAddress, infoPair->second);
+        }
+    }
+    else
+    {
+        for (const auto &[modAddr, pdbInfo] : m_debugInfo)
+        {
+            addSourceIndices(modAddr, pdbInfo);
+        }
+    }
+
+    if (foundSourceIndices.empty())
+    {
+        return;
+    }
+
+    fixedFilePath = CanonicalizeFilePath(fixedFilePath);
+
+    std::string currentResult;
+    for (auto &[modAddr, sourceIndices] : foundSourceIndices)
+    {
+        for (const auto &sourceIndex : sourceIndices)
+        {
+            const auto infoPair = m_debugInfo.find(modAddr);
+            if (infoPair == m_debugInfo.cend())
+            {
+                continue;
+            }
+
+            const PDBInfo &pdbInfo = infoPair->second;
+            std::string sourceFilePath;
+            std::string algorithm;
+            std::string checksum;
+            if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath, algorithm, checksum)))
+            {
+                continue;
+            }
+
+            if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
+            {
+                bool hasChecksum = false;
+                for (const auto &entry : source.checksums)
+                {
+                    if (entry.algorithm.empty() || entry.checksum.empty())
+                    {
+                        continue;
+                    }
+
+                    hasChecksum = true;
+
+                    if (entry.algorithm == algorithm && entry.checksum == checksum)
+                    {
+                        if (pGlobalFileIndex != nullptr)
+                        {
+                            pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                            pGlobalFileIndex->modAddress = modAddr;
+                        }
+                        sourceFileIndex = sourceIndex;
+                        pPDBInfo = &pdbInfo;
+                        return;
+                    }
+                }
+
+                if (hasChecksum)
+                {
+                    continue;
+                }
+            }
+
+            if (fixedFilePath == sourceFilePath)
+            {
+                if (pGlobalFileIndex != nullptr)
+                {
+                    pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                    pGlobalFileIndex->modAddress = modAddr;
+                }
+                sourceFileIndex = sourceIndex;
+                pPDBInfo = &pdbInfo;
+                return;
+            }
+
+            if (fixedFilePath.size() > sourceFilePath.size())
+            {
+                continue;
+            }
+
+            // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
+            if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
+                sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
+                                  fixedFilePath.size() - 1) != '\\')
+            {
+                continue;
+            }
+
+            // Note: since assemblies could be built in different OSes, we could have different delimiters in source file paths.
+            const auto BinaryPredicate =
+                [](const char &a, const char &b) -> bool
+                {
+                    if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
+                    {
+                        return true;
+                    }
+                    return a == b;
+                };
+            if (currentResult.empty() ||
+                (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), sourceFilePath.end() -
+                            static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
+                 currentResult.length() > fixedFilePath.length()))
+            {
+                currentResult = fixedFilePath;
+                if (pGlobalFileIndex != nullptr)
+                {
+                    pGlobalFileIndex->sourceFileIndex = sourceIndex;
+                    pGlobalFileIndex->modAddress = modAddr;
+                }
+                sourceFileIndex = sourceIndex;
+                pPDBInfo = &pdbInfo;
+            }
+        }
+    }
+}
+
 HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine,
                                      int32_t sourceColumn, PDB::GlobalFileIndex *pGlobalFileIndex,
                                      std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
@@ -568,160 +723,11 @@ HRESULT DebugInfo::ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &sou
             });
     }
 
-#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    std::string fixedFilePath = to_uppercase(source.path);
-#else
-    std::string fixedFilePath = source.path;
-#endif
-
     const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
-
-    const std::string pathName = GetFileName(fixedFilePath);
-    std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
-
-    const auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
-    {
-            const auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
-            if (findName == pdbInfo.m_sourceFileNameToIndices.cend())
-            {
-                return;
-            }
-            foundSourceIndices[modAddr].insert_after(foundSourceIndices[modAddr].before_begin(),
-                                                     findName->second.cbegin(), findName->second.cend());
-    };
-
-    if (modAddress != 0)
-    {
-        const auto infoPair = m_debugInfo.find(modAddress);
-        if (infoPair != m_debugInfo.cend())
-        {
-            const PDBInfo &pdbInfo = infoPair->second;
-            addSourceIndices(modAddress, pdbInfo);
-        };
-    }
-    else
-    {
-        for (const auto &[modAddr, pdbInfo] : m_debugInfo)
-        {
-            addSourceIndices(modAddr, pdbInfo);
-        }
-    }
-
-    if (foundSourceIndices.empty())
-    {
-        return E_FAIL;
-    }
-
-    fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
     const PDBInfo *pPDBInfo = nullptr;
     uint32_t resolvedSourceFileIndex = 0;
-    const auto findPDBInfoAndIndex = [&]
-    {
-        std::string currentResult;
-        for (auto &[modAddr, sourceIndices] : foundSourceIndices)
-        {
-            for (const auto &sourceIndex : sourceIndices)
-            {
-                const auto infoPair = m_debugInfo.find(modAddr);
-                if (infoPair == m_debugInfo.cend())
-                {
-                    continue;
-                }
-
-                const PDBInfo &pdbInfo = infoPair->second;
-                std::string sourceFilePath;
-                std::string algorithm;
-                std::string checksum;
-                if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath, algorithm, checksum)))
-                {
-                    continue;
-                }
-
-                if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
-                {
-                    bool hasChecksum = false;
-                    for (const auto &entry : source.checksums)
-                    {
-                        if (entry.algorithm.empty() || entry.checksum.empty())
-                        {
-                            continue;
-                        }
-
-                        hasChecksum = true;
-
-                        if (entry.algorithm == algorithm && entry.checksum == checksum)
-                        {
-                            if (pGlobalFileIndex != nullptr)
-                            {
-                                pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                                pGlobalFileIndex->modAddress = modAddr;
-                            }
-                            resolvedSourceFileIndex = sourceIndex;
-                            pPDBInfo = &pdbInfo;
-                            return;
-                        }
-                    }
-
-                    if (hasChecksum)
-                    {
-                        continue;
-                    }
-                }
-
-                if (fixedFilePath == sourceFilePath)
-                {
-                    if (pGlobalFileIndex != nullptr)
-                    {
-                        pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                        pGlobalFileIndex->modAddress = modAddr;
-                    }
-                    resolvedSourceFileIndex = sourceIndex;
-                    pPDBInfo = &pdbInfo;
-                    return;
-                }
-
-                if (fixedFilePath.size() > sourceFilePath.size())
-                {
-                    continue;
-                }
-
-                // Prevent partial path matches, for example: source "folder/source.cs" should not match requested path "der/source.cs".
-                if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
-                    sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
-                                      fixedFilePath.size() - 1) != '\\')
-                {
-                    continue;
-                }
-
-                // Note, since assemblies could be built in different OSes, we could have different delimiters in source files paths.
-                const auto BinaryPredicate =
-                    [](const char &a, const char &b) -> bool
-                    {
-                        if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
-                        {
-                            return true;
-                        }
-                        return a == b;
-                    };
-                if (currentResult.empty() ||
-                    (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), sourceFilePath.end() -
-                                static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
-                     currentResult.length() > fixedFilePath.length()))
-                {
-                    currentResult = fixedFilePath;
-                    if (pGlobalFileIndex != nullptr)
-                    {
-                        pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                        pGlobalFileIndex->modAddress = modAddr;
-                    }
-                    resolvedSourceFileIndex = sourceIndex;
-                    pPDBInfo = &pdbInfo;
-                }
-            }
-        }
-    };
-    findPDBInfoAndIndex();
+    FindPDBInfoAndSourceIndex(source, modAddress, pPDBInfo, resolvedSourceFileIndex, pGlobalFileIndex);
 
     if (pPDBInfo == nullptr)
     {
@@ -866,13 +872,40 @@ HRESULT DebugInfo::GetGotoTarget(const Source &source, int32_t line, int32_t col
     return targets.empty() ? E_FAIL : S_OK;
 }
 
-HRESULT DebugInfo::GetEmbeddedSource(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceText)
+HRESULT DebugInfo::GetEmbeddedSource(const Source &source, std::string &sourceContent)
 {
-    return GetPDBInfo(modAddress,
-        [&](const PDBInfo &pdbInfo) -> HRESULT
+    if (source.sourceReference > 0)
+    {
+        PDB::GlobalFileIndex globalFileIndex;
+        if (FAILED(SourceReference::GetGlobalIndex(source.sourceReference, globalFileIndex)))
         {
-            return PDBReader::GetEmbeddedSource(pdbInfo.m_pdbHandle, sourceFileIndex, sourceText);
-        });
+            return E_INVALIDARG;
+        }
+
+        return GetPDBInfo(globalFileIndex.modAddress,
+            [&](const PDBInfo &pdbInfo) -> HRESULT
+            {
+                return PDBReader::GetEmbeddedSource(pdbInfo.m_pdbHandle, globalFileIndex.sourceFileIndex, sourceContent);
+            });
+    }
+
+    if (source.path.empty())
+    {
+        return E_INVALIDARG;
+    }
+
+    const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
+
+    const PDBInfo *pPDBInfo = nullptr;
+    uint32_t resolvedSourceFileIndex = 0;
+    FindPDBInfoAndSourceIndex(source, 0, pPDBInfo, resolvedSourceFileIndex, nullptr);
+
+    if (pPDBInfo == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    return PDBReader::GetEmbeddedSource(pPDBInfo->m_pdbHandle, resolvedSourceFileIndex, sourceContent);
 }
 
 } // namespace dncdbg

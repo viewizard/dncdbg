@@ -5,13 +5,14 @@ Upcoming changes compared to previous version.
 - Added `sourceReference` and `checksums` support in Source.
 - Added `instructionReference`, `offset`, `column` and `endColumn` support in Breakpoint.
 - Added `column` support in SourceBreakpoint.
-- Added `GotoTarget` type.
-- Added `GotoTargets` Request and Response.
+- Added GotoTarget type.
+- Added GotoTargets Request and Response.
 - Added `goto` reason in Stopped Event.
 - Added `supportsGotoTargetsRequest` support in Capabilities.
-- Added `Goto` Request and Response.
+- Added Goto Request and Response.
 - Added `supportsSingleThreadExecutionRequests` support in Capabilities.
 - Added `singleThread` support in Continue, Next, StepIn and StepOut Requests.
+- Added Source Request and Response.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 

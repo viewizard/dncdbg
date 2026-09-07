@@ -19,7 +19,7 @@
 #### Requests
 
 [Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [GotoRequest](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables)
-[SetVariable Request](#setvariablerequest-setvariable), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+[SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
 
 #### Types
 
@@ -332,6 +332,16 @@
 -   indexedVariables?: number;
 -   memoryReference?: string;
 -   valueLocationReference?: number;
+```
+#### SourceRequest `source`
+```diff
++   source?: Source;
++   sourceReference: number;
+```
+#### SourceResponse
+```diff
++   content: string;
+-   mimeType?: string;
 ```
 #### ThreadsRequest `threads`
 ```diff

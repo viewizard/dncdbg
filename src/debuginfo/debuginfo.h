@@ -80,9 +80,12 @@ class DebugInfo
     HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
                           std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
-    HRESULT GetEmbeddedSource(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceText);
+    HRESULT GetEmbeddedSource(const Source &source, std::string &sourceContent);
 
   private:
+
+    void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, const PDBInfo *&pPDBInfo,
+                                   uint32_t &sourceFileIndex, PDB::GlobalFileIndex *pGlobalFileIndex);
 
     std::mutex m_debugInfoMutex;
     std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
