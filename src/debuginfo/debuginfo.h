@@ -80,6 +80,8 @@ class DebugInfo
     HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
                           std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
+    HRESULT GetEmbeddedSource(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceText);
+
   private:
 
     std::mutex m_debugInfoMutex;

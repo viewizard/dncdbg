@@ -8,11 +8,14 @@
 #include "utils/utftoupper.h"
 #include <dnmd.h>
 #include <dnmd_pdb.h>
+#define MINIZ_NO_ARCHIVE_APIS
+#include <miniz/miniz.h>
 #include <array>
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <unordered_set>
+#include <vector>
 
 namespace dncdbg::PDBReader
 {
@@ -53,6 +56,15 @@ constexpr std::array<uint8_t, 16> guidAsyncMethodSteppingInformation{
     0x25, 0xe9,                                    // Data2 (0xE925)
     0x1a, 0x40,                                    // Data3 (0x401A)
     0x9c, 0x2a, 0xf9, 0x4f, 0x17, 0x10, 0x72, 0xf8 // Data4 (9C2A-F94F171072F8)
+};
+
+// https://github.com/dotnet/roslyn/blob/ca7d6c1a040cda9fecd1ffe3720fb971251ace67/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L22
+// {0E8A571B-6926-466E-B4AD-8AB04611F5FE}
+constexpr std::array<uint8_t, 16> guidEmbeddedSource{
+    0x1b, 0x57, 0x8a, 0x0e,                        // Data1 (0x0E8A571B)
+    0x26, 0x69,                                    // Data2 (0x6926)
+    0x6e, 0x46,                                    // Data3 (0x466E)
+    0xb4, 0xad, 0x8a, 0xb0, 0x46, 0x11, 0xf5, 0xfe // Data4 (B4AD-8AB04611F5FE)
 };
 
 // https://github.com/dotnet/runtime/blob/main/docs/design/specs/PortablePdb-Metadata.md#document-table-0x30
@@ -127,6 +139,47 @@ uint32_t SkipCompressedInteger(const uint8_t *blob, uint32_t offset)
 
     // Invalid encoding (top 3 bits are 111)
     return 0;
+}
+
+// Decompress a raw deflate (no zlib header/footer) buffer into outBuffer.
+// Returns true on success.
+bool InflateDeflateBuffer(const uint8_t *compressedData, uint32_t compressedSize, std::string &outBuffer, uint32_t uncompressedSize)
+{
+    if (uncompressedSize == 0)
+    {
+        outBuffer.clear();
+        return true;
+    }
+
+    // Copy compressed data into a mutable buffer, since miniz's z_stream.next_in
+    // requires a non-const pointer and we must not cast away const.
+    std::vector<uint8_t> compressedBuf(compressedData, compressedData + compressedSize);
+
+    outBuffer.resize(uncompressedSize);
+
+    z_stream stream{};
+    stream.next_in = compressedBuf.data();
+    stream.avail_in = static_cast<unsigned int>(compressedSize);
+    stream.next_out = reinterpret_cast<Bytef *>(outBuffer.data());
+    stream.avail_out = static_cast<unsigned int>(uncompressedSize);
+
+    // -MZ_DEFAULT_WINDOW_BITS (raw deflate/no header or footer)
+    if (inflateInit2(&stream, -MZ_DEFAULT_WINDOW_BITS) != Z_OK)
+    {
+        outBuffer.clear();
+        return false;
+    }
+
+    const int status = inflate(&stream, Z_FINISH);
+    inflateEnd(&stream);
+
+    if (status == Z_STREAM_END && stream.total_out == uncompressedSize)
+    {
+        return true;
+    }
+
+    outBuffer.clear();
+    return false;
 }
 
 // RAII wrapper for properly aligned md_sequence_points_t buffer.
@@ -1906,6 +1959,100 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
     }
 
     return S_OK;
+}
+
+HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceText)
+{
+    sourceText.clear();
+
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Build the Document token for the requested source file index.
+    // Document table token type is 0x30 (mdtid_Document), rows are 1-based.
+    static constexpr uint32_t documentTokenType = 0x30000000;
+    const mdToken documentToken = TokenFromRid(sourceFileIndex + 1, documentTokenType);
+
+    // Create cursor to the CustomDebugInformation table
+    mdcursor_t cdiCursor{};
+    uint32_t cdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
+    {
+        return E_FAIL;
+    }
+
+    // Iterate through all custom debug information entries looking for an
+    // EmbeddedSource record whose Parent is the requested document.
+    for (uint32_t i = 0; i < cdiCount; ++i)
+    {
+        // Get the Parent column to check if this information belongs to our document
+        mdToken cdiParentToken = mdTokenNil;
+        if (!md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &cdiParentToken) ||
+            cdiParentToken != documentToken)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Get the Kind column to check if this is embedded source information
+        mdguid_t guid{};
+        if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
+            std::memcmp(&guid, guidEmbeddedSource.data(), sizeof(mdguid_t)) != 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+        // Get the embedded source blob
+        // Format (Roslyn EmbeddedSource):
+        //   First 4 bytes: uncompressed size (little-endian uint32)
+        //   Remaining bytes: source data
+        //   If uncompressed size equals remaining data length: data is uncompressed
+        //   Otherwise: data is raw deflate-compressed
+        uint8_t const *srcBlob = nullptr;
+        uint32_t srcBlobSize = 0;
+        if (!md_get_column_value_as_blob(cdiCursor, mdtCustomDebugInformation_Value, &srcBlob, &srcBlobSize) ||
+            srcBlob == nullptr || srcBlobSize == 0)
+        {
+            return E_FAIL;
+        }
+
+        // Need at least 4 bytes for the uncompressed size
+        if (srcBlobSize < 4)
+        {
+            return E_FAIL;
+        }
+
+        const uint32_t uncompressedSize = ReadLittleEndianUInt32(srcBlob, 0);
+        const uint32_t dataOffset = 4;
+        const uint32_t dataSize = srcBlobSize - dataOffset;
+        const uint8_t *dataPtr = srcBlob + dataOffset;
+
+        if (dataSize == 0)
+        {
+            // Empty source
+            return S_OK;
+        }
+
+        if (uncompressedSize == dataSize)
+        {
+            // Data is stored uncompressed
+            sourceText.assign(reinterpret_cast<const char *>(dataPtr), dataSize);
+            return S_OK;
+        }
+
+        // Data is stored compressed (raw deflate)
+        if (!InflateDeflateBuffer(dataPtr, dataSize, sourceText, uncompressedSize))
+        {
+            return E_FAIL;
+        }
+
+        return S_OK;
+    }
+
+    // No embedded source found for the requested document
+    return E_FAIL;
 }
 
 } // namespace dncdbg::PDBReader

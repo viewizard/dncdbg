@@ -866,4 +866,13 @@ HRESULT DebugInfo::GetGotoTarget(const Source &source, int32_t line, int32_t col
     return targets.empty() ? E_FAIL : S_OK;
 }
 
+HRESULT DebugInfo::GetEmbeddedSource(CORDB_ADDRESS modAddress, uint32_t sourceFileIndex, std::string &sourceText)
+{
+    return GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            return PDBReader::GetEmbeddedSource(pdbInfo.m_pdbHandle, sourceFileIndex, sourceText);
+        });
+}
+
 } // namespace dncdbg
