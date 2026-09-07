@@ -8,9 +8,10 @@
 #include "debuginfo/pdb.h"
 #include "utils/utf.h"
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace dncdbg::PDBReader
 {
@@ -43,6 +44,7 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
 HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t line, int32_t column,
                       PDB::SequencePoint &sequencePoint, std::string &output);
 HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceContent);
+HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t, std::string>> &sourceFileIndexWithName);
 
 } // namespace dncdbg::PDBReader
 

@@ -358,53 +358,56 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
     const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath, embeddedPDB);
     module.symbolStatus = SUCCEEDED(Status) ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
-    if (module.symbolStatus == SymbolStatus::Loaded)
+    if (module.symbolStatus != SymbolStatus::Loaded)
     {
-        PDB::SourceNameMap sourceFileNameToIndicesMap;
-        if (FAILED(PDBReader::GetAllSourceFiles(pdbHandle, sourceFileNameToIndicesMap)))
-        {
-            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
-                "Could not load source file names related info from PDB file.\n"});
-        }
-
-        PDB::SourceMethodRanges sourceMethodRanges;
-        if (FAILED(DebugSources::FillMethodRanges(pModule, pdbHandle, sourceMethodRanges)))
-        {
-            DAPIO::EmitOutputEvent({OutputCategory::StdErr,
-                "Could not load source lines related info from PDB file. Could produce failures during "
-                "breakpoint's source path resolve in future.\n"});
-        }
-
-        std::unordered_map<uint32_t, uint32_t> moveNextToKickoff;
-        std::unordered_map<uint32_t, uint32_t> kickoffToMoveNext;
-        PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext);
-
-        CORDB_ADDRESS baseAddress = 0;
-        if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
-        {
-            pModule->AddRef();
-            PDBInfo pdbInfo{pdbHandle, std::move(memBuff), std::move(embeddedPDB), pModule,
-                            std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges),
-                            std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
-            const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-            m_debugInfo.insert(std::make_pair(baseAddress, std::move(pdbInfo)));
-        }
-        else
-        {
-            DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
-        }
+        return;
     }
+
+    CORDB_ADDRESS modAddress = 0;
+    if (FAILED(pModule->GetBaseAddress(&modAddress)))
+    {
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
+        return;
+    }
+
+    PDB::SourceNameMap sourceFileNameToIndicesMap;
+    if (FAILED(PDBReader::GetAllSourceFiles(pdbHandle, sourceFileNameToIndicesMap)))
+    {
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+            "Could not load source file names related info from PDB file.\n"});
+    }
+
+    PDB::SourceMethodRanges sourceMethodRanges;
+    if (FAILED(DebugSources::FillMethodRanges(pModule, pdbHandle, sourceMethodRanges)))
+    {
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+            "Could not load source lines related info from PDB file. Could produce failures during "
+            "breakpoint's source path resolve in future.\n"});
+    }
+
+    std::unordered_map<uint32_t, uint32_t> moveNextToKickoff;
+    std::unordered_map<uint32_t, uint32_t> kickoffToMoveNext;
+    PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext);
+
+    SourceReference::LoadModule(pdbHandle, modAddress);
+
+    pModule->AddRef();
+    PDBInfo pdbInfo{pdbHandle, std::move(memBuff), std::move(embeddedPDB), pModule,
+                    std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges),
+                    std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+    m_debugInfo.insert(std::make_pair(modAddress, std::move(pdbInfo)));
 }
 
 void DebugInfo::UnloadModuleSymbols(ICorDebugModule *pModule)
 {
-    CORDB_ADDRESS baseAddress = 0;
-    if (SUCCEEDED(pModule->GetBaseAddress(&baseAddress)))
+    CORDB_ADDRESS modAddress = 0;
+    if (SUCCEEDED(pModule->GetBaseAddress(&modAddress)))
     {
-        SourceReference::ManagedCallbackUnloadModule(baseAddress);
+        SourceReference::ManagedCallbackUnloadModule(modAddress);
 
         const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-        m_debugInfo.erase(baseAddress);
+        m_debugInfo.erase(modAddress);
     }
 }
 

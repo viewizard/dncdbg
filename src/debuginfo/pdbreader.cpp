@@ -2055,4 +2055,115 @@ HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::s
     return E_FAIL;
 }
 
+HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t, std::string>> &sourceFileIndexWithName)
+{
+    sourceFileIndexWithName.clear();
+
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Create cursor to the CustomDebugInformation table
+    mdcursor_t cdiCursor{};
+    uint32_t cdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
+    {
+        return E_FAIL;
+    }
+
+    // Create cursor to the Document table
+    mdcursor_t docCursorBase{};
+    uint32_t docCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_Document, &docCursorBase, &docCount))
+    {
+        return E_FAIL;
+    }
+
+    // Document table token type is 0x30 (mdtid_Document), rows are 1-based
+    static constexpr uint32_t documentTokenType = 0x30000000;
+
+    // Iterate through all custom debug information entries looking for an EmbeddedSource record
+    for (uint32_t i = 0; i < cdiCount; ++i)
+    {
+        // Get the Parent column, which references the document this embedded source belongs to;
+        // skip entries with a parent outside of the Document table
+        mdToken cdiParentToken = mdTokenNil;
+        if (!md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &cdiParentToken) ||
+            TypeFromToken(cdiParentToken) != documentTokenType)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+        const uint32_t docIndex = RidFromToken(cdiParentToken) - 1;
+
+        // Skip if the parent token does not reference a valid document row
+        if (docIndex >= docCount)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Get the Kind column to check if this is embedded source information
+        mdguid_t guid{};
+        if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
+            std::memcmp(&guid, guidEmbeddedSource.data(), sizeof(mdguid_t)) != 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        mdcursor_t docCursor = docCursorBase;
+        if (docIndex != 0)
+        {
+            md_cursor_move(&docCursor, static_cast<int32_t>(docIndex));
+        }
+
+        // Get the Name blob from the Document table
+        uint8_t const *nameBlob = nullptr;
+        uint32_t blobLen = 0;
+        if (!md_get_column_value_as_blob(docCursor, mdtDocument_Name, &nameBlob, &blobLen))
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        if (nameBlob == nullptr || blobLen == 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // First, query the required buffer size
+        size_t nameLen = 0;
+        md_blob_parse_result_t result = md_parse_document_name(pdbHandle, nameBlob, blobLen, nullptr, &nameLen);
+        if (result != mdbpr_InsufficientBuffer || nameLen == 0)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Allocate buffer and parse the document name
+        std::string docFilePath(nameLen, '\0');
+        result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
+        if (result != mdbpr_Success)
+        {
+            md_cursor_move(&cdiCursor, 1);
+            continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!docFilePath.empty() && docFilePath.back() == '\0')
+        {
+            docFilePath.pop_back();
+        }
+
+        sourceFileIndexWithName.emplace_back(docIndex, SourceFileMap::Path(docFilePath));
+
+        md_cursor_move(&cdiCursor, 1);
+    }
+
+    return sourceFileIndexWithName.empty() ? E_FAIL : S_OK;
+}
+
 } // namespace dncdbg::PDBReader

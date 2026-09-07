@@ -185,7 +185,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     std::string checksum;
     m_sharedDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
     int32_t sourceReference = 0;
-    SourceReference::GetSourceReference(globalFileIndex, sourceReference);
+    SourceReference::GetSourceReference(globalFileIndex, sourceReference, sourceFilePath);
 
     // Only one source breakpoint is active per line:column pair; iterate the list to find all
     // matching active source breakpoints and add them to hitBreakpointIds.
@@ -333,7 +333,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             std::string checksum;
             m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
             int32_t sourceReference = 0;
-            SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference);
+            SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference, resolvedPath);
 
             Breakpoint breakpoint;
             bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
@@ -578,7 +578,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 std::string checksum;
                 m_sharedDebugInfo->GetSourceFile(resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
                 int32_t sourceReference = 0;
-                SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference);
+                SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference, resolvedPath);
 
                 bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
                 m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
@@ -642,7 +642,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                     std::string checksum;
                     m_sharedDebugInfo->GetSourceFile(initialBreakpoint.resolvedGlobalFileIndex, resolvedPath, algorithm, checksum);
                     int32_t sourceReference = 0;
-                    SourceReference::GetSourceReference(initialBreakpoint.resolvedGlobalFileIndex, sourceReference);
+                    SourceReference::GetSourceReference(initialBreakpoint.resolvedGlobalFileIndex, sourceReference, resolvedPath);
 
                     bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
                     if (changedCondition || changedHitCondition || changedLogMessage)

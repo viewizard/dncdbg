@@ -57,12 +57,6 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><a href="docs/evaluation_format_specifiers.md"><b>Evaluation format specifiers</b></a></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
       <td align="center">⚠️<sup>6</sup></td>
@@ -88,6 +82,12 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     </tr>
     <tr>
       <td align="left"><b>Embedded PDB</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><b>Embedded sources</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>

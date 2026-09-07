@@ -3,6 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/sourcereference.h"
+#include "debuginfo/pdbreader.h"
+#include <filesystem>
+#include <vector>
 
 namespace dncdbg
 {
@@ -23,7 +26,8 @@ HRESULT SourceReference::GetGlobalIndex(int32_t sourceReference, PDB::GlobalFile
     return S_OK;
 }
 
-HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference)
+HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
+                                            std::string &correctSourceFilePath)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -34,19 +38,41 @@ HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIn
     }
 
     sourceReference = refFind->second;
+    correctSourceFilePath = "Source file extracted from PDB file. Original path: " + correctSourceFilePath;
     return S_OK;
 }
 
-void SourceReference::LoadModule()
+void SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
+    std::vector<std::pair<uint32_t, std::string>> sourceFileIndexWithName;
+    if (FAILED(PDBReader::ListEmbeddedSources(pdbHandle, sourceFileIndexWithName)))
+    {
+        return;
+    }
+
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    // TODO: Implement sourceReference id assignment. Per the DAP spec, when
-    // sourceReference > 0 the source contents must be retrieved through the
-    // `source` request, which is not handled yet.
+    auto &globalIndexMap = GetGlobalIndexMap();
+    auto &sourceReferenceMap = GetSourceReferenceMap();
+
+    for (const auto &[index, filePath] : sourceFileIndexWithName)
+    {
+        std::error_code ec;
+        const auto path = std::filesystem::u8path(filePath);
+
+        // Skip sources that already exist on disk; they do not need a source reference.
+        if (std::filesystem::is_regular_file(path, ec))
+        {
+            continue;
+        }
+
+        m_sourceReferenceCount++;
+        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, index}, m_sourceReferenceCount);
+        sourceReferenceMap.emplace(m_sourceReferenceCount, PDB::GlobalFileIndex{modAddress, index});
+    }
 }
 
-void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS baseAddress)
+void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -56,7 +82,7 @@ void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS baseAddress)
     auto it = globalIndexMap.begin();
     while (it != globalIndexMap.end())
     {
-        if (it->first.modAddress == baseAddress)
+        if (it->first.modAddress == modAddress)
         {
             sourceReferenceMap.erase(it->second);
             it = globalIndexMap.erase(it);

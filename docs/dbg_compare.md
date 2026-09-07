@@ -163,6 +163,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Embedded sources</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><a href="https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map"><b>Source File Map</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>

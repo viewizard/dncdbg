@@ -225,7 +225,7 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
         std::string checksum;
         pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
         int32_t sourceReference = 0;
-        SourceReference::GetSourceReference(globalFileIndex, sourceReference);
+        SourceReference::GetSourceReference(globalFileIndex, sourceReference, sourceFilePath);
 
         stackFrame.source = Source(sourceFilePath, sourceReference);
         if (!algorithm.empty() && !checksum.empty())
@@ -358,7 +358,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath, algorithm, checksum)))
             {
                 int32_t sourceReference = 0;
-                SourceReference::GetSourceReference({modAddress, sequencePoint.sourceFileIndex}, sourceReference);
+                SourceReference::GetSourceReference({modAddress, sequencePoint.sourceFileIndex}, sourceReference, sourceFilePath);
 
                 Source source(sourceFilePath, sourceReference);
                 source.checksums.emplace_back(std::move(algorithm), std::move(checksum));

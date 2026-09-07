@@ -7,6 +7,7 @@
 
 #include "debuginfo/pdb.h"
 #include <mutex>
+#include <string>
 
 namespace dncdbg
 {
@@ -16,10 +17,11 @@ class SourceReference
   public:
 
     static HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex);
-    static HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference);
+    static HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
+                                      std::string &correctSourceFilePath);
 
-    static void LoadModule();
-    static void ManagedCallbackUnloadModule(CORDB_ADDRESS baseAddress);
+    static void LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
+    static void ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress);
     static void Cleanup();
 
   private:
