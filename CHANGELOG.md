@@ -21,10 +21,10 @@ Upcoming changes compared to previous version.
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
 - Added support for source breakpoints on columns.
 - Added TestBreakpointColumn.
-- Added "Jump to Cursor" (Goto) feature support.
+- Added "Jump to Cursor" (Goto / Set Next Statement) feature support.
 - Added TestGoto.
 - Added `>>>` unsigned right shift operator support in expression evaluation.
-- Added single thread execution and stepping support.
+- Added single-thread execution and stepping support.
 - Added TestSingleThreadExec.
 - Added embedded sources support.
 - Added TestEmbeddedSources.
@@ -39,7 +39,7 @@ Upcoming changes compared to previous version.
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
 - Fixed breakpoint on first line of method nested in constructor being moved to constructor's declaration line.
 - Fixed pause selecting a thread without user code as the last stopped thread; now the first thread with a valid user source location is preferred.
-- Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers during running debuggee.
+- Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers while the debuggee is running.
 
 <br>
 <br>
@@ -87,7 +87,7 @@ Upcoming changes compared to previous version.
 - Added generic type argument resolution to display name rendering.
 - Added support for `using` type aliases (AliasType) in expression evaluation.
 - Added support for `using static` type import (ImportType) in expression evaluation.
-- Added pagination for variable children, fetching members in batches of 25 with a `[More]` continuation entry.
+- Added paging for child variables, fetching members in batches of 25 with a `[More]` continuation entry.
 - Added decimal literal support to local constant evaluation.
 
 #### Changed
@@ -223,8 +223,8 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 - Added cppcheck checks.
 - Added StartupCallback error processing code.
 - Added case-insensitive file name collision for all OSes.
-- Added output of method parameters in stack traces.
-- Added output of active CLR internal frames in stack traces.
+- Added display of method parameters in stack traces.
+- Added display of active CLR internal frames in stack traces.
 - Added proper Just My Code-enabled stack traces.
 - Added source and function breakpoints reset during module unload.
 - Added `--loglevel` launch option for setup minimal log level output.
@@ -248,7 +248,7 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 - Removed getvscodecmd tool.
 - Removed MI/GDB and CLI protocols and tests.
 - Removed Tizen OS support (rpm build routines, scripts, dlog logging, etc).
-- Removed interop debugger parts (this part was proof of concept, not really sure when it will be usable in netcoredbg).
+- Removed mixed-mode (interop) debugger parts (this part was proof of concept, not really sure when it will be usable in netcoredbg).
 - Removed linenoise from third_party.
 - Removed GenErrMsg build.
 - Removed Hot Reload feature (since it works only with MI/GDB protocol with MSVS Tizen plugin).
