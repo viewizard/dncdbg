@@ -24,16 +24,16 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="left"><b>License</b></td>
       <td align="center">MIT</td>
       <td align="center">MIT</td>
-      <td align="center">Commercial<sup>1</sup></td>
+      <td align="center">Commercial<sup><a href="docs/dbg_compare.md#note-1">1</a></sup></td>
     </tr>
     <tr>
       <td align="left"><b>Implementation</b></td>
       <td align="center">C++</td>
-      <td align="center">C++ and C#<sup>2</sup></td>
+      <td align="center">C++ and C#<sup><a href="docs/dbg_compare.md#note-2">2</a></sup></td>
       <td align="center">C#</td>
     </tr>
     <tr>
-      <td align="left"><b>Physical memory footprint<sup>3</sup></b></td>
+      <td align="left"><b>Physical memory footprint<sup><a href="docs/dbg_compare.md#note-3">3</a></sup></b></td>
       <td align="center">11.7M</td>
       <td align="center">52.4M</td>
       <td align="center">146.8M</td>
@@ -41,17 +41,17 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>Cross Platform</b></td>
       <td align="center">✅</td>
-      <td align="center">⚠️<sup>4</sup></td>
-      <td align="center">⚠️<sup>5</sup></td>
+      <td align="center">⚠️<sup><a href="docs/dbg_compare.md#note-4">4</a></sup></td>
+      <td align="center">⚠️<sup><a href="docs/dbg_compare.md#note-5">5</a></sup></td>
     </tr>
     <tr>
-      <td align="left"><b>Display method parameters in stack trace</b></td>
+      <td align="left"><b>Display human readable async stack trace</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><b>Display local constants (literals)</b></td>
+      <td align="left"><b>Use <code>ToString()</code> for object variable display</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -59,7 +59,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>DebuggerBrowsable attribute</b></td>
       <td align="center">✅</td>
-      <td align="center">⚠️<sup>6</sup></td>
+      <td align="center">⚠️<sup><a href="docs/dbg_compare.md#note-6">6</a></sup></td>
       <td align="center">✅</td>
     </tr>
     <tr>
@@ -70,6 +70,12 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     </tr>
     <tr>
       <td align="left"><b>DebuggerTypeProxy attribute</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td align="left"><a href="docs/evaluation_format_specifiers.md"><b>Evaluation format specifiers</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
@@ -105,12 +111,6 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><b>Module unload</b></td>
-      <td align="center">✅</td>
-      <td align="center">❌</td>
-      <td align="center">✅</td>
-    </tr>
-    <tr>
       <td align="left"><b>Jump To Cursor (Goto)</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
@@ -131,13 +131,13 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     <tr>
       <td align="left"><b>Interop (Mixed) debug</b></td>
       <td align="center">❌</td>
-      <td align="center">⚠️<sup>7</sup></td>
+      <td align="center">⚠️<sup><a href="docs/dbg_compare.md#note-7">7</a></sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">⚠️<sup>8</sup></td>
+      <td align="center">⚠️<sup><a href="docs/dbg_compare.md#note-8">8</a></sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
@@ -149,15 +149,6 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
 </table>
 
 </div>
-
-<small><sup>1</sup> From the VsDbg console output: "You may only use the Microsoft .NET Core Debugger (vsdbg) with Visual Studio Code, Visual Studio or Visual Studio for Mac software to help you develop and test your applications."</small><br>
-<small><sup>2</sup> Used only for the symbol reader, the C# expression parser, and primitive type evaluation.</small><br>
-<small><sup>3</sup> Measured on macOS 26.6.2 using the `vmmap` utility on a simple application stopped at a breakpoint, with approximately 20 local variables and 10 evaluation requests. The debug session was started inside the VS Code IDE using the DAP protocol; NetCoreDbg was built without the interop and Hot Reload features.</small><br>
-<small><sup>4</sup> Does not support `musl`-based Linux distros.</small><br>
-<small><sup>5</sup> Does not support `musl`-based Linux arm32 distros.</small><br>
-<small><sup>6</sup> Only the `Never` state for properties is supported.</small><br>
-<small><sup>7</sup> Linux and Tizen operating systems only.</small><br>
-<small><sup>8</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen plugin.</small><br>
 
 ## Development Process
 
