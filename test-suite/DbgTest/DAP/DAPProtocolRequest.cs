@@ -500,4 +500,18 @@ public class GotoTargetsArguments
     public int line;
     public int? column;
 }
+
+public class SourceRequest : Request
+{
+    public SourceRequest()
+    {
+        command = "source";
+    }
+    public SourceArguments arguments = new SourceArguments();
+}
+public class SourceArguments
+{
+    public Source source = new Source();
+    public int sourceReference;
+}
 }

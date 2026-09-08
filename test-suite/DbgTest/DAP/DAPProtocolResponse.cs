@@ -250,4 +250,14 @@ public class GotoTargetsResponseBody
 {
     public List<GotoTarget> targets = new();
 }
+
+public class SourceResponse : Response
+{
+    public SourceResponseBody body = new();
+}
+
+public class SourceResponseBody
+{
+    public string content = string.Empty;
+}
 }

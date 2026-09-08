@@ -62,6 +62,7 @@ $ALL_TEST_NAMES = @(
     "TestBreakpointColumn"
     "TestGoto"
     "TestSingleThreadExec"
+    "TestEmbeddedSources"
 )
 
 $TEST_NAMES = $tests

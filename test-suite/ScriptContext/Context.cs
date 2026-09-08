@@ -1387,6 +1387,37 @@ class Context
         Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public int GetSourceReferenceFromTopFrame(string caller_trace)
+    {
+        StackTraceRequest stackTraceRequest = new StackTraceRequest();
+        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.startFrame = 0;
+        stackTraceRequest.arguments.levels = 1;
+        var ret = DAPDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
+        return stackTraceResponse.body.stackFrames[0].source.sourceReference ?? 0;
+    }
+
+    public void CompareSources(string caller_trace, string FileName, int SourceReference, string SourcePath)
+    {
+        SourceRequest sourceRequest = new SourceRequest();
+        sourceRequest.arguments.sourceReference = SourceReference;
+        sourceRequest.arguments.source.sourceReference = SourceReference;
+        sourceRequest.arguments.source.path = SourcePath;
+        var ret = DAPDebugger.Request(sourceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        SourceResponse sourceResponse = JsonConvert.DeserializeObject<SourceResponse>(ret.ResponseStr)!;
+
+        string[] parts = ControlInfo.SourceFilesPath!.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        string filePath = Path.Combine(Path.GetDirectoryName(parts[0])!, FileName);
+        string fileContent = File.ReadAllText(filePath);
+
+        Assert.True(fileContent == sourceResponse.body.content, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
     public string? GetSourceFilesPath()
     {
         return ControlInfo.SourceFilesPath;

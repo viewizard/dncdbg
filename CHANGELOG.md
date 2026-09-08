@@ -25,6 +25,8 @@ Upcoming changes compared to previous version.
 - Added `>>>` unsigned right shift operator support in expression evaluation.
 - Added single thread execution and stepping support.
 - Added TestSingleThreadExec.
+- Added embedded sources support.
+- Added TestEmbeddedSources.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
