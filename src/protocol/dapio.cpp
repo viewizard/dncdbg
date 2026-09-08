@@ -380,6 +380,28 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
     EmitEvent("module", body);
 }
 
+void DAPIO::EmitLoadedSourceEvent(const LoadedSourceEvent &event)
+{
+    json body;
+
+    switch (event.reason)
+    {
+    case LoadedSourceEventReason::New:
+        body.emplace("reason", "new");
+        break;
+    case LoadedSourceEventReason::Changed:
+        body.emplace("reason", "changed");
+        break;
+    case LoadedSourceEventReason::Removed:
+        body.emplace("reason", "removed");
+        break;
+    }
+
+    body.emplace("source", event.source);
+
+    EmitEvent("loadedSource", body);
+}
+
 void DAPIO::EmitOutputEvent(const OutputEvent &event)
 {
     json body;

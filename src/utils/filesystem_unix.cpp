@@ -50,7 +50,7 @@ std::string get_exe_path()
     return {};
 }
 #endif
-} // namespace
+} // unnamed namespace
 
 // Function returns absolute path to currently running executable.
 std::string GetExeAbsPath()

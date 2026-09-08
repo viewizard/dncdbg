@@ -6,8 +6,10 @@
 #define DEBUGINFO_SOURCEREFERENCE_H
 
 #include "debuginfo/pdb.h"
+#include "types/protocol.h"
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace dncdbg
 {
@@ -20,8 +22,8 @@ class SourceReference
     static HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
                                       std::string &correctSourceFilePath);
 
-    static void LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
-    static void ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress);
+    static std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
+    static std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
     static void Cleanup();
 
   private:

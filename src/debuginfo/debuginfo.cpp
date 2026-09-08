@@ -389,26 +389,49 @@ void DebugInfo::TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
     std::unordered_map<uint32_t, uint32_t> kickoffToMoveNext;
     PDBReader::GetStateMachineMethods(pdbHandle, moveNextToKickoff, kickoffToMoveNext);
 
-    SourceReference::LoadModule(pdbHandle, modAddress);
+    std::vector<Source> newSources = SourceReference::LoadModule(pdbHandle, modAddress);
 
     pModule->AddRef();
     PDBInfo pdbInfo{pdbHandle, std::move(memBuff), std::move(embeddedPDB), pModule,
                     std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges),
                     std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
-    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-    m_debugInfo.insert(std::make_pair(modAddress, std::move(pdbInfo)));
+    {
+        const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+        m_debugInfo.insert(std::make_pair(modAddress, std::move(pdbInfo)));
+    }
+
+    // Emit events after all debugger-internal locks are released to avoid holding them during protocol I/O.
+    for (auto &source : newSources)
+    {
+        DAPIO::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::New, std::move(source)));
+    }
 }
 
 void DebugInfo::UnloadModuleSymbols(ICorDebugModule *pModule)
 {
     CORDB_ADDRESS modAddress = 0;
-    if (SUCCEEDED(pModule->GetBaseAddress(&modAddress)))
+    if (FAILED(pModule->GetBaseAddress(&modAddress)))
     {
-        SourceReference::ManagedCallbackUnloadModule(modAddress);
-
-        const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
-        m_debugInfo.erase(modAddress);
+        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
+        return;
     }
+
+    std::vector<Source> removedSources;
+    GetPDBInfo(modAddress,
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            removedSources = SourceReference::UnloadModule(pdbInfo.m_pdbHandle, modAddress);
+            return S_OK;
+        });
+
+    // Emit events after all debugger-internal locks are released to avoid holding them during protocol I/O.
+    for (auto &source : removedSources)
+    {
+        DAPIO::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::Removed, std::move(source)));
+    }
+
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+    m_debugInfo.erase(modAddress);
 }
 
 HRESULT DebugInfo::GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,

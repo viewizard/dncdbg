@@ -10,6 +10,32 @@
 namespace dncdbg
 {
 
+namespace
+{
+
+// Build a Source description for the loadedSource event. Fails when the document name cannot
+// be read from the PDB file; checksum retrieval is best-effort, so empty checksums are skipped.
+HRESULT GetLoadedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, int32_t sourceReference, Source &source)
+{
+    std::string sourceFilePath;
+    std::string algorithm;
+    std::string checksum;
+    if (FAILED(PDBReader::GetSourceFile(pdbHandle, sourceFileIndex, sourceFilePath, algorithm, checksum)))
+    {
+        return E_FAIL;
+    }
+
+    source = Source(sourceFilePath, sourceReference);
+    if (!algorithm.empty() && !checksum.empty())
+    {
+        source.checksums.emplace_back(std::move(algorithm), std::move(checksum));
+    }
+
+    return S_OK;
+}
+
+} // unnamed namespace
+
 int32_t SourceReference::m_sourceReferenceCount = 0;
 
 HRESULT SourceReference::GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex)
@@ -42,14 +68,17 @@ HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIn
     return S_OK;
 }
 
-void SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
+// Register embedded sources of the module and return descriptions for the loadedSource events.
+// The caller should emit the events only after all debugger-internal locks are released.
+std::vector<Source> SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
     std::vector<std::pair<uint32_t, std::string>> sourceFileIndexWithName;
     if (FAILED(PDBReader::ListEmbeddedSources(pdbHandle, sourceFileIndexWithName)))
     {
-        return;
+        return {};
     }
 
+    std::vector<Source> newSources;
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
     auto &globalIndexMap = GetGlobalIndexMap();
@@ -69,11 +98,24 @@ void SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
         m_sourceReferenceCount++;
         globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, index}, m_sourceReferenceCount);
         sourceReferenceMap.emplace(m_sourceReferenceCount, PDB::GlobalFileIndex{modAddress, index});
+
+        Source source;
+        if (FAILED(GetLoadedSource(pdbHandle, index, m_sourceReferenceCount, source)))
+        {
+            continue;
+        }
+
+        newSources.emplace_back(std::move(source));
     }
+
+    return newSources;
 }
 
-void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress)
+// Unregister embedded sources of the module and return descriptions for the loadedSource events.
+// The caller should emit the events only after all debugger-internal locks are released.
+std::vector<Source> SourceReference::UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
+    std::vector<Source> removedSources;
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
     auto &globalIndexMap = GetGlobalIndexMap();
@@ -84,6 +126,13 @@ void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress)
     {
         if (it->first.modAddress == modAddress)
         {
+            // Note, it->first is the global file index and it->second is the source reference.
+            Source source;
+            if (SUCCEEDED(GetLoadedSource(pdbHandle, it->first.sourceFileIndex, it->second, source)))
+            {
+                removedSources.emplace_back(std::move(source));
+            }
+
             sourceReferenceMap.erase(it->second);
             it = globalIndexMap.erase(it);
         }
@@ -92,6 +141,8 @@ void SourceReference::ManagedCallbackUnloadModule(CORDB_ADDRESS modAddress)
             ++it;
         }
     }
+
+    return removedSources;
 }
 
 void SourceReference::Cleanup()

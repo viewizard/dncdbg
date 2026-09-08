@@ -13,6 +13,7 @@ Upcoming changes compared to previous version.
 - Added `supportsSingleThreadExecutionRequests` support in Capabilities.
 - Added `singleThread` support in Continue, Next, StepIn and StepOut Requests.
 - Added Source Request and Response.
+- Added LoadedSource Event.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 

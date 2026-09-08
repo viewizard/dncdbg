@@ -317,6 +317,33 @@ struct ModuleEvent
     ~ModuleEvent() = default;
 };
 
+enum class LoadedSourceEventReason : uint8_t
+{
+    New,
+    Changed,
+    Removed
+};
+
+// https://microsoft.github.io/debug-adapter-protocol/specification#Events_LoadedSource
+struct LoadedSourceEvent
+{
+    LoadedSourceEventReason reason;
+    const Source source;
+
+    LoadedSourceEvent(LoadedSourceEventReason reason,
+                      Source &&source)
+        : reason(reason),
+          source(std::move(source))
+    {
+    }
+
+    LoadedSourceEvent(LoadedSourceEvent &&) = delete;
+    LoadedSourceEvent(const LoadedSourceEvent &) = delete;
+    LoadedSourceEvent &operator=(LoadedSourceEvent &&) = delete;
+    LoadedSourceEvent &operator=(const LoadedSourceEvent &) = delete;
+    ~LoadedSourceEvent() = default;
+};
+
 // https://microsoft.github.io/debug-adapter-protocol/specification#Types_Scope
 struct Scope
 {

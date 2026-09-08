@@ -14,7 +14,7 @@
 
 #### Events
 
-[Stopped Event](#stoppedevent), [Continued Event](#continuedevent), [Exited Event](#exitedevent), [Terminated Event](#terminatedevent), [Thread Event](#threadevent), [Output Event](#outputevent), [Breakpoint Event](#breakpointevent), [Module Event](#moduleevent), [Process Event](#processevent), [Capabilities Event](#capabilitiesevent)
+[Stopped Event](#stoppedevent), [Continued Event](#continuedevent), [Exited Event](#exitedevent), [Terminated Event](#terminatedevent), [Thread Event](#threadevent), [Output Event](#outputevent), [Breakpoint Event](#breakpointevent), [Module Event](#moduleevent), [LoadedSource Event](#loadedsourceevent), [Process Event](#processevent), [Capabilities Event](#capabilitiesevent)
 
 #### Requests
 
@@ -116,6 +116,11 @@
 ```diff
 +   reason: 'new' | 'changed' | 'removed';
 +   module: Module;
+```
+#### LoadedSourceEvent
+```diff
++   reason: 'new' | 'changed' | 'removed';
++   source: Source;
 ```
 #### ProcessEvent
 ```diff

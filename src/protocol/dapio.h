@@ -49,6 +49,7 @@ class DAPIO
     static void EmitContinuedEvent(ThreadId threadId, bool singleThread);
     static void EmitThreadEvent(const ThreadEvent &event);
     static void EmitModuleEvent(const ModuleEvent &event);
+    static void EmitLoadedSourceEvent(const LoadedSourceEvent &event);
     static void EmitOutputEvent(const OutputEvent &event);
     static void EmitBreakpointEvent(const BreakpointEvent &event);
     static void EmitInitializedEvent();
