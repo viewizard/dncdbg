@@ -2008,7 +2008,7 @@ HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::s
         // Format (Roslyn EmbeddedSource):
         //   First 4 bytes: uncompressed size (little-endian uint32)
         //   Remaining bytes: source data
-        //   If uncompressed size equals remaining data length: data is uncompressed
+        //   If the uncompressed size is 0: data is stored uncompressed
         //   Otherwise: data is raw deflate-compressed
         uint8_t const *srcBlob = nullptr;
         uint32_t srcBlobSize = 0;
@@ -2035,7 +2035,7 @@ HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::s
             return S_OK;
         }
 
-        if (uncompressedSize == dataSize)
+        if (uncompressedSize == 0)
         {
             // Data is stored uncompressed
             sourceContent.assign(reinterpret_cast<const char *>(dataPtr), dataSize);
