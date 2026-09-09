@@ -830,9 +830,18 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 HRESULT Status = S_OK;
                 std::string sourceContent;
-                IfFailRet(Status = m_sharedDebugger->GetEmbeddedSource(source, sourceContent));
+                IfFailRet(m_sharedDebugger->GetEmbeddedSource(source, sourceContent));
 
                 responseBody.emplace("content", sourceContent);
+
+                return S_OK;
+            }},
+        {"loadedSources", [&](const json &/*arguments*/, json &responseBody)
+            {
+                std::vector<Source> sources;
+                m_sharedDebugger->GetLoadedSources(sources);
+
+                responseBody.emplace("sources", sources);
 
                 return S_OK;
             }}};

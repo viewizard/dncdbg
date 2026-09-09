@@ -82,6 +82,8 @@ class DebugInfo
 
     HRESULT GetEmbeddedSource(const Source &source, std::string &sourceContent);
 
+    void GetLoadedSources(std::vector<Source> &sources);
+
   private:
 
     void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, const PDBInfo *&pPDBInfo,

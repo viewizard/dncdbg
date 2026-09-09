@@ -1078,4 +1078,9 @@ HRESULT ManagedDebugger::GetEmbeddedSource(const Source &source, std::string &so
     return m_sharedDebugInfo->GetEmbeddedSource(source, sourceContent);
 }
 
+void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources)
+{
+    m_sharedDebugInfo->GetLoadedSources(sources);
+}
+
 } // namespace dncdbg

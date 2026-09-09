@@ -934,4 +934,14 @@ HRESULT DebugInfo::GetEmbeddedSource(const Source &source, std::string &sourceCo
     return PDBReader::GetEmbeddedSource(pPDBInfo->m_pdbHandle, resolvedSourceFileIndex, sourceContent);
 }
 
+void DebugInfo::GetLoadedSources(std::vector<Source> &sources)
+{
+    const std::scoped_lock<std::mutex> lock(m_debugInfoMutex);
+
+    for (const auto &[modAddr, pdbInfo] : m_debugInfo)
+    {
+        SourceReference::AddLoadedSourcesForModule(pdbInfo.m_pdbHandle, modAddr, sources);
+    }
+}
+
 } // namespace dncdbg

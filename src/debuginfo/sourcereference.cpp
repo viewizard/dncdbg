@@ -68,6 +68,22 @@ HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIn
     return S_OK;
 }
 
+void SourceReference::AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress,
+                                                std::vector<Source> &sources)
+{
+    for (const auto &[globalIndex, sourceReference] : GetGlobalIndexMap())
+    {
+        Source source;
+        if (globalIndex.modAddress != modAddress ||
+            FAILED(GetLoadedSource(pdbHandle, globalIndex.sourceFileIndex, sourceReference, source)))
+        {
+            continue;
+        }
+
+        sources.emplace_back(std::move(source));
+    }
+}
+
 // Register embedded sources of the module and return descriptions for the loadedSource events.
 // The caller should emit the events only after all debugger-internal locks are released.
 std::vector<Source> SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
