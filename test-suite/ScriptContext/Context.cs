@@ -1400,6 +1400,28 @@ class Context
         return stackTraceResponse.body.stackFrames[0].source.sourceReference ?? 0;
     }
 
+    public int GetSourceReferenceFromLoadedSources(string caller_trace, string SourceName)
+    {
+        LoadedSourcesRequest loadedSourcesRequest = new LoadedSourcesRequest();
+        var ret = DAPDebugger.Request(loadedSourcesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        LoadedSourcesResponse loadedSourcesResponse = JsonConvert.DeserializeObject<LoadedSourcesResponse>(ret.ResponseStr)!;
+
+        int sourceReference = 0;
+        for (int i = 0; i < loadedSourcesResponse.body.sources.Count; i++)
+        {
+            if (loadedSourcesResponse.body.sources[i].name == SourceName)
+            {
+                sourceReference = loadedSourcesResponse.body.sources[i].sourceReference ?? 0;
+                break;
+            }
+        }
+
+        Assert.True(sourceReference != 0, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        return sourceReference;
+    }
+
     public void CompareSources(string caller_trace, string FileName, int SourceReference, string SourcePath)
     {
         SourceRequest sourceRequest = new SourceRequest();

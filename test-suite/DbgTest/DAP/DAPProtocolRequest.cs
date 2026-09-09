@@ -514,4 +514,12 @@ public class SourceArguments
     public Source source = new Source();
     public int sourceReference;
 }
+
+public class LoadedSourcesRequest : Request
+{
+    public LoadedSourcesRequest()
+    {
+        command = "loadedSources";
+    }
+}
 }

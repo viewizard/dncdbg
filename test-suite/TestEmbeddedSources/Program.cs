@@ -65,9 +65,15 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", CheckSourcePath: false);
 
                 int sourceReference = Context.GetSourceReferenceFromTopFrame(@"__FILE__:__LINE__");
-
                 Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", SourceReference: sourceReference, SourcePath: "");
+
                 Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", SourceReference: 0, SourcePath: "Program2.cs");
+
+                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", SourceName: "Program.cs");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", SourceReference: sourceReference, SourcePath: "");
+
+                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", SourceName: "Program2.cs");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", SourceReference: sourceReference, SourcePath: "");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

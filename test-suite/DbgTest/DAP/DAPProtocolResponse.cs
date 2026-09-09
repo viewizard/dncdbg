@@ -260,4 +260,14 @@ public class SourceResponseBody
 {
     public string content = string.Empty;
 }
+
+public class LoadedSourcesResponse : Response
+{
+    public LoadedSourcesResponseBody body = new();
+}
+
+public class LoadedSourcesResponseBody
+{
+    public List<Source> sources = new();
+}
 }
