@@ -245,6 +245,7 @@ void DAPIO::AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsGotoTargetsRequest", true);
     capabilities.emplace("supportsSingleThreadExecutionRequests", true);
     capabilities.emplace("supportsLoadedSourcesRequest", true);
+    capabilities.emplace("supportsBreakpointLocationsRequest", true);
 }
 
 void DAPIO::SetupProtocolLogging(const std::string &path)

@@ -18,7 +18,7 @@
 
 #### Requests
 
-[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [GotoRequest](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [GotoRequest](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
 
 #### Types
 
@@ -204,6 +204,18 @@
 ```
 #### TerminateResponse
 ```diff
+```
+#### BreakpointLocationsRequest `breakpointLocations`
+```diff
++   source: Source;
++   line: number;
++   column?: number;
++   endLine?: number;
++   endColumn?: number;
+```
+#### BreakpointLocationsResponse
+```diff
++   breakpoints: BreakpointLocation[];
 ```
 #### SetBreakpointsRequest `setBreakpoints`
 ```diff
@@ -459,7 +471,7 @@
 +   supportTerminateDebuggee?: boolean;
 -   supportSuspendDebuggee?: boolean;
 -   supportsDelayedStackTraceLoading?: boolean;
--   supportsLoadedSourcesRequest?: boolean;
++   supportsLoadedSourcesRequest?: boolean;
 +   supportsLogPoints?: boolean;
 -   supportsTerminateThreadsRequest?: boolean;
 +   supportsSetExpression?: boolean;
@@ -469,7 +481,7 @@
 -   supportsWriteMemoryRequest?: boolean;
 -   supportsDisassembleRequest?: boolean;
 +   supportsCancelRequest?: boolean;
--   supportsBreakpointLocationsRequest?: boolean;
++   supportsBreakpointLocationsRequest?: boolean;
 -   supportsClipboardContext?: boolean;
 -   supportsSteppingGranularity?: boolean;
 -   supportsInstructionBreakpoints?: boolean;

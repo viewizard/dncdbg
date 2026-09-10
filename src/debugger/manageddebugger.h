@@ -121,6 +121,8 @@ class ManagedDebugger
     HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output);
     HRESULT GetEmbeddedSource(const Source &source, std::string &sourceContent);
     void GetLoadedSources(std::vector<Source> &sources);
+    HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                                   std::vector<BreakpointLocation> &locations);
 
     void WriteStdin(gsl::span<const char> text);
     bool InitializeRemoteConsoleServer(int port);

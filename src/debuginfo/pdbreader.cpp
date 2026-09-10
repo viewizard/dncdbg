@@ -2186,7 +2186,7 @@ HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodD
 
     // Add a location to the result, resolving duplicates:
     // - identical sequence points (constructors may repeat them for the same source) are added only once;
-    // - sequence points with the same start, but different end are collapsed into the larger one.
+    // - sequence points with the same start but a different end are collapsed into the larger one.
     const auto AddLocation = [&locations](int32_t startLine, int32_t startColumn, int32_t endLine, int32_t endColumn)
     {
         for (auto &location : locations)

@@ -1083,4 +1083,10 @@ void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources)
     m_sharedDebugInfo->GetLoadedSources(sources);
 }
 
+HRESULT ManagedDebugger::GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                                                std::vector<BreakpointLocation> &locations)
+{
+    return m_sharedDebugInfo->GetBreakpointLocations(source, rangeToSearch, locations);
+}
+
 } // namespace dncdbg

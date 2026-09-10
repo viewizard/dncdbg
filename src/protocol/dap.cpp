@@ -193,6 +193,38 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
     return result;
 }
 
+// Parse a DAP Source from JSON. When the Source itself has no `sourceReference`, `fallbackSourceReference`
+// is used instead (the Source Request allows this field at the top level of the arguments).
+// Returns E_INVALIDARG if neither `path`, nor `name`, nor `sourceReference` is provided.
+HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference, Source &source)
+{
+    const std::string sourcePath = sourceJson.value("path", std::string());
+    const std::string sourceName = sourceJson.value("name", std::string());
+    int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
+
+    if (sourceReference == 0)
+    {
+        sourceReference = std::max(fallbackSourceReference, 0);
+    }
+    if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
+    {
+        return E_INVALIDARG;
+    }
+
+    source = Source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
+    if (sourceJson.contains("checksums"))
+    {
+        std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
+                       std::back_inserter(source.checksums), [](const auto &c)
+                       {
+                           return Checksum(c.value("algorithm", std::string()),
+                                           c.value("checksum", std::string()));
+                       });
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
@@ -317,26 +349,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                                                            b.value("logMessage", std::string()));
                                });
 
-                const auto &sourceJson = arguments.at("source");
-                const std::string sourcePath = sourceJson.value("path", std::string());
-                const std::string sourceName = sourceJson.value("name", std::string());
-                const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
-
-                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
-                {
-                    return E_INVALIDARG;
-                }
-
-                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
-                if (sourceJson.contains("checksums"))
-                {
-                    std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
-                                   std::back_inserter(source.checksums), [](const auto &c)
-                                   {
-                                       return Checksum(c.value("algorithm", std::string()),
-                                                       c.value("checksum", std::string()));
-                                   });
-                }
+                Source source;
+                IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(m_sharedDebugger->SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
@@ -743,31 +757,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"gotoTargets", [&](const json &arguments, json &responseBody)
             {
-                const auto &sourceJson = arguments.at("source");
-                const std::string sourcePath = sourceJson.value("path", std::string());
-                const std::string sourceName = sourceJson.value("name", std::string());
-                const int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
+                HRESULT Status = S_OK;
 
-                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
-                {
-                    return E_INVALIDARG;
-                }
-
-                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
-                if (sourceJson.contains("checksums"))
-                {
-                    std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
-                                   std::back_inserter(source.checksums), [](const auto &c)
-                                   {
-                                       return Checksum(c.value("algorithm", std::string()),
-                                                       c.value("checksum", std::string()));
-                                   });
-                }
+                Source source;
+                IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
                 const int32_t line = arguments.at("line");
                 const int32_t column = arguments.value("column", 0);
 
-                HRESULT Status = S_OK;
                 std::vector<GotoTarget> targets;
                 std::string output;
                 if (FAILED(Status = m_sharedDebugger->GetGotoTarget(source, line, column, targets, output)))
@@ -803,32 +800,23 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"source", [&](const json &arguments, json &responseBody)
             {
-                const auto &sourceJson = arguments.at("source");
-                const std::string sourcePath = sourceJson.value("path", std::string());
-                const std::string sourceName = sourceJson.value("name", std::string());
-                int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
-
-                if (sourceReference == 0)
-                {
-                    sourceReference = std::max(arguments.value("sourceReference", 0), 0);
-                }
-                if (sourcePath.empty() && sourceName.empty() && sourceReference == 0)
-                {
-                    return E_INVALIDARG;
-                }
-
-                Source source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
-                if (sourceJson.contains("checksums"))
-                {
-                    std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
-                                   std::back_inserter(source.checksums), [](const auto &c)
-                                   {
-                                       return Checksum(c.value("algorithm", std::string()),
-                                                       c.value("checksum", std::string()));
-                                   });
-                }
-
                 HRESULT Status = S_OK;
+
+                // Note, per DAP spec. `source` is optional, but `sourceReference` is required.
+                // The `sourceReference` at the top level of the arguments is used when
+                // `source` is not provided, or provides no `sourceReference` itself.
+                const int32_t sourceReference = arguments.at("sourceReference");
+
+                Source source;
+                if (arguments.contains("source"))
+                {
+                    IfFailRet(ParseSourceJson(arguments.at("source"), sourceReference, source));
+                }
+                else
+                {
+                    source = Source(std::string(), sourceReference);
+                }
+
                 std::string sourceContent;
                 IfFailRet(m_sharedDebugger->GetEmbeddedSource(source, sourceContent));
 
@@ -842,6 +830,33 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 m_sharedDebugger->GetLoadedSources(sources);
 
                 responseBody.emplace("sources", sources);
+
+                return S_OK;
+            }},
+        {"breakpointLocations", [&](const json &arguments, json &responseBody)
+            {
+                HRESULT Status = S_OK;
+
+                Source source;
+                IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
+
+                BreakpointLocation rangeToSearch;
+                rangeToSearch.line = arguments.at("line");
+                rangeToSearch.column = arguments.value("column", 0);
+                rangeToSearch.endLine = arguments.value("endLine", 0);
+                rangeToSearch.endColumn = arguments.value("endColumn", 0);
+
+                // Note, `column`, `endLine` and `endColumn` are optional; zero means the field is not provided.
+                if (rangeToSearch.line <= 0 || rangeToSearch.column < 0 ||
+                    rangeToSearch.endLine < 0 || rangeToSearch.endColumn < 0)
+                {
+                    return E_INVALIDARG;
+                }
+
+                std::vector<BreakpointLocation> locations;
+                IfFailRet(m_sharedDebugger->GetBreakpointLocations(source, rangeToSearch, locations));
+
+                responseBody.emplace("breakpoints", locations);
 
                 return S_OK;
             }}};
