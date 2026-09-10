@@ -397,4 +397,57 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
     return S_OK;
 }
 
+HRESULT FindMethodsInRange(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, const BreakpointLocation &rangeToSearch,
+                           std::vector<mdMethodDef> &methodTokens)
+{
+    // Returns `methodTokens` with all method tokens covered by `rangeToSearch`
+    // that will be used in GetBreakpointLocations() src/debuginfo/pdbreader.cpp.
+    methodTokens.clear();
+
+    if (rangeToSearch.line <= 0)
+    {
+        return E_INVALIDARG;
+    }
+
+    const auto methodRanges = pdbInfo.m_sourceMethodRanges.find(sourceFileIndex);
+    if (methodRanges == pdbInfo.m_sourceMethodRanges.cend())
+    {
+        return E_FAIL;
+    }
+
+    // Normalize the search range the same way as GetBreakpointLocations() does:
+    // when the end of the range is not provided (zero), the range covers the rest of
+    // the start line (DAP sends a single line for gutter breakpoints).
+    const int32_t rangeStartLine = rangeToSearch.line;
+    const int32_t rangeStartColumn = rangeToSearch.column;
+    const int32_t rangeEndLine = (rangeToSearch.endLine != 0) ? rangeToSearch.endLine : rangeToSearch.line;
+    const int32_t rangeEndColumn =
+        (rangeToSearch.endColumn != 0) ? rangeToSearch.endColumn : std::numeric_limits<int32_t>::max();
+
+    std::set<mdMethodDef> resultTokens;
+    // The method ranges are stored per nested level (see FillMethodRanges()), a method
+    // could be covered by the range on any level, so check all levels.
+    for (const auto &levelMethodRanges : methodRanges->second)
+    {
+        for (const auto &methodRange : levelMethodRanges)
+        {
+            // Skip methods that do not intersect the requested range
+            if ((methodRange.endLine < rangeStartLine ||
+                 (methodRange.endLine == rangeStartLine && methodRange.endColumn < rangeStartColumn)) ||
+                (methodRange.startLine > rangeEndLine ||
+                 (methodRange.startLine == rangeEndLine && methodRange.startColumn > rangeEndColumn)))
+            {
+                continue;
+            }
+
+            resultTokens.emplace(methodRange.methodToken);
+        }
+    }
+
+    methodTokens.reserve(resultTokens.size());
+    methodTokens.assign(resultTokens.cbegin(), resultTokens.cend());
+
+    return S_OK;
+}
+
 } // namespace dncdbg::DebugSources

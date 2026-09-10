@@ -18,9 +18,12 @@
 namespace dncdbg::DebugSources
 {
 
+HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::SourceMethodRanges &sourceMethodRanges);
+
 HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int32_t sourceLine,
                            int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
-HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::SourceMethodRanges &sourceMethodRanges);
+HRESULT FindMethodsInRange(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, const BreakpointLocation &rangeToSearch,
+                           std::vector<mdMethodDef> &methodTokens);
 
 } // namespace dncdbg::DebugSources
 
