@@ -46,6 +46,7 @@ Upcoming changes compared to previous version.
 - Fixed breakpoint on first line of method nested in constructor being moved to constructor's declaration line.
 - Fixed pause selecting a thread without user code as the last stopped thread; now the first thread with a valid user source location is preferred.
 - Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers while the debuggee is running.
+- Fixed "Innermost exception" in exception description to report the last exception in the InnerException chain instead of the direct inner exception.
 
 <br>
 <br>

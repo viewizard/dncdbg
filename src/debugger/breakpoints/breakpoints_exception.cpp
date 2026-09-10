@@ -408,8 +408,15 @@ HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, Excepti
 
     if (exceptionInfo.details.innerException != nullptr)
     {
-        exceptionInfo.description += "\n Inner exceptions found, see $exception in variables window for more details.\n Innermost exception: " +
-                                     exceptionInfo.details.innerException->fullTypeName;
+        exceptionInfo.description += "\n Inner exceptions found, see $exception in variables window for more details.";
+
+        // Walk the InnerException chain down to the innermost exception.
+        const ExceptionDetails *innermost = exceptionInfo.details.innerException.get();
+        while (innermost->innerException != nullptr)
+        {
+            innermost = innermost->innerException.get();
+        }
+        exceptionInfo.description += "\n Innermost exception: " + innermost->fullTypeName;
     }
 
     GetExceptionBreakModeName(findBreakMode->second, exceptionInfo.breakMode);
