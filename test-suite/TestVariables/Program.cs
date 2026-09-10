@@ -640,7 +640,7 @@ class Program
                 Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "litULong", "308");
                 Context.ErrorSetVariable(@"__FILE__:__LINE__", variablesReference, "litULong", "-308");
                 Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "litULong", "308u");
-                Context.ErrorSetVariable(@"__FILE__:__LINE__", variablesReference, "litULong", "308L");
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "litULong", "308L");
                 Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "litULong", "308ul");
                 Context.ErrorSetVariable(@"__FILE__:__LINE__", variablesReference, "litULong", "308f");
                 Context.ErrorSetVariable(@"__FILE__:__LINE__", variablesReference, "litULong", "308d");

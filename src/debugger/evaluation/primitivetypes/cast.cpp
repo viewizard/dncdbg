@@ -141,13 +141,15 @@ HRESULT ForceCastToUint(ICorDebugValue *pInputValue, uint32_t &number)
 // If the compiler determines the type of an integer literal as int and the value
 // represented by the literal is within the range of the destination type, the value
 // can be implicitly converted to sbyte, byte, short, ushort, uint, ulong, nint, or nuint.
-HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue)
+// In addition, a constant expression of type long can be implicitly converted to ulong,
+// provided its value is non-negative (implicit constant expression conversions, ECMA-334).
+HRESULT ImplicitCastLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue)
 {
     HRESULT Status = S_OK;
 
     CorElementType elemSrcType = ELEMENT_TYPE_MAX;
     IfFailRet(pSrcValue->GetType(&elemSrcType));
-    if (elemSrcType != ELEMENT_TYPE_I4)
+    if (elemSrcType != ELEMENT_TYPE_I4 && elemSrcType != ELEMENT_TYPE_I8)
     {
         return E_INVALIDARG;
     }
@@ -160,8 +162,21 @@ HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstVa
     ToRelease<ICorDebugGenericValue> trDstGenValue;
     IfFailRet(pDstValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trDstGenValue)));
 
-    int32_t srcData = 0;
-    IfFailRet(trSrcGenValue->GetValue(&srcData));
+    int64_t srcData = 0;
+    if (elemSrcType == ELEMENT_TYPE_I4)
+    {
+        int32_t srcData32 = 0;
+        IfFailRet(trSrcGenValue->GetValue(&srcData32));
+        srcData = srcData32;
+    }
+    else
+    {
+        IfFailRet(trSrcGenValue->GetValue(&srcData));
+    }
+
+    // A long constant expression can be implicitly converted only to ulong (non-negative
+    // value), float or double; long -> long is an identity conversion.
+    const bool isLongConstant = (elemSrcType == ELEMENT_TYPE_I8);
 
     const auto checkAndWrite = [&](auto typeDummy) -> HRESULT
     {
@@ -174,6 +189,11 @@ HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstVa
         }
         else
         {
+            if (isLongConstant && !std::is_same_v<T, uint64_t> && !std::is_same_v<T, int64_t>)
+            {
+                return E_INVALIDARG;
+            }
+
             if constexpr (std::is_unsigned_v<T>)
             {
                 if (srcData < 0)
@@ -184,8 +204,8 @@ HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstVa
 
             if constexpr (sizeof(T) < sizeof(int32_t))
             {
-                if (srcData > static_cast<int32_t>(std::numeric_limits<T>::max()) ||
-                    srcData < static_cast<int32_t>(std::numeric_limits<T>::min()))
+                if (srcData > static_cast<int64_t>(std::numeric_limits<T>::max()) ||
+                    srcData < static_cast<int64_t>(std::numeric_limits<T>::min()))
                 {
                     return E_INVALIDARG;
                 }

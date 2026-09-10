@@ -37,7 +37,7 @@ HRESULT CalculateBinary(Parser::SyntaxKind kind, ICorDebugThread *pThread, ICorD
                         ICorDebugValue *pInputValue2, ICorDebugValue **ppResultValue, std::string &output);
 
 HRESULT ForceCastToUint(ICorDebugValue *pInputValue, uint32_t &number);
-HRESULT ImplicitCastIntLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue);
+HRESULT ImplicitCastLiteral(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue);
 HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue);
 
 } // namespace dncdbg::PrimitiveTypes

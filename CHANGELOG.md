@@ -42,6 +42,7 @@ Upcoming changes compared to previous version.
 
 #### Fixed
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
+- Fixed SetVariable to accept non-negative `long` constant expressions for `ulong` variables (implicit constant expression conversions, ECMA-334).
 - Fixed breakpoint on first line of method nested in constructor being moved to constructor's declaration line.
 - Fixed pause selecting a thread without user code as the last stopped thread; now the first thread with a valid user source location is preferred.
 - Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers while the debuggee is running.

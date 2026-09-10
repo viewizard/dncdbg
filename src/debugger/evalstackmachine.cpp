@@ -443,8 +443,10 @@ HRESULT ImplicitCast(ICorDebugValue *pSrcValue, ICorDebugValue *pDstValue, bool 
         return E_INVALIDARG;
     }
 
-    return (srcLiteral && elemType1 == ELEMENT_TYPE_I4) ?
-        PrimitiveTypes::ImplicitCastIntLiteral(trRealValue1, trRealValue2) :
+    // Both int (ELEMENT_TYPE_I4) and long (ELEMENT_TYPE_I8) constant expressions follow
+    // the implicit constant expression conversions rules (ECMA-334).
+    return (srcLiteral && (elemType1 == ELEMENT_TYPE_I4 || elemType1 == ELEMENT_TYPE_I8)) ?
+        PrimitiveTypes::ImplicitCastLiteral(trRealValue1, trRealValue2) :
         PrimitiveTypes::ImplicitCast(trRealValue1, trRealValue2);
 }
 
