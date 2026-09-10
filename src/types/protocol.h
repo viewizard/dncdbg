@@ -534,6 +534,15 @@ struct GotoTarget
     std::string instructionPointerReference;
 };
 
+// https://microsoft.github.io/debug-adapter-protocol/specification#Types_BreakpointLocation
+struct BreakpointLocation
+{
+    int32_t line{0};
+    int32_t column{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
+};
+
 } // namespace dncdbg
 
 #endif // TYPES_PROTOCOL_H

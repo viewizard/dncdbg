@@ -105,24 +105,23 @@ void to_json(json &j, const StackFrame &f)
 
 void to_json(json &j, const Thread &t)
 {
-    j = json{{"id", static_cast<int>(t.id)},
+    j = json{{"id",   static_cast<int>(t.id)},
              {"name", t.name}};
-          // {"running", t.running}
 }
 
 void to_json(json &j, const Scope &s)
 {
-    j = json{{"name", s.name},
+    j = json{{"name",               s.name},
              {"variablesReference", s.variablesReference},
-             {"expensive", s.expensive}};
+             {"expensive",          s.expensive}};
 }
 
 void to_json(json &j, const Variable &v)
 {
-    j = json{{"name", v.name},
-             {"value", v.value},
-             {"type", v.type},
-             {"evaluateName", v.evaluateName},
+    j = json{{"name",               v.name},
+             {"value",              v.value},
+             {"type",               v.type},
+             {"evaluateName",       v.evaluateName},
              {"variablesReference", v.variablesReference}};
 
     if (!v.memoryReference.empty())
@@ -133,11 +132,11 @@ void to_json(json &j, const Variable &v)
 
 void to_json(json &j, const Module &m)
 {
-    j = json{{"id", m.id},
-             {"name", m.name},
-             {"path", m.path},
+    j = json{{"id",          m.id},
+             {"name",        m.name},
+             {"path",        m.path},
              {"isOptimized", m.isOptimized},
-             {"isUserCode", m.isUserCode}};
+             {"isUserCode",  m.isUserCode}};
 
     if (!m.symbolFilePath.empty())
     {
@@ -165,9 +164,9 @@ void to_json(json &j, const Module &m)
 
 void to_json(json &j, const GotoTarget &g)
 {
-    j = json{{"id", g.id},
+    j = json{{"id",    g.id},
              {"label", g.label},
-             {"line", g.line}};
+             {"line",  g.line}};
 
     if (g.column != 0)
     {
@@ -187,6 +186,26 @@ void to_json(json &j, const GotoTarget &g)
     if (!g.instructionPointerReference.empty())
     {
         j.emplace("instructionPointerReference", g.instructionPointerReference);
+    }
+}
+
+void to_json(json &j, const BreakpointLocation &b)
+{
+    j = json{{"line", b.line}};
+
+    if (b.column != 0)
+    {
+        j.emplace("column", b.column);
+    }
+
+    if (b.endLine != 0)
+    {
+        j.emplace("endLine", b.endLine);
+    }
+
+    if (b.endColumn != 0)
+    {
+        j.emplace("endColumn", b.endColumn);
     }
 }
 

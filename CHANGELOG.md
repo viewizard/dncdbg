@@ -16,6 +16,7 @@ Upcoming changes compared to previous version.
 - Added LoadedSource Event.
 - Added `supportsLoadedSourcesRequest` support in Capabilities.
 - Added LoadedSources Request and Response.
+- Added BreakpointLocation type.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 

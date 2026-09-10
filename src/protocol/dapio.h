@@ -32,6 +32,7 @@ void to_json(nlohmann::json &j, const Scope &s);
 void to_json(nlohmann::json &j, const Variable &v);
 void to_json(nlohmann::json &j, const Module &m);
 void to_json(nlohmann::json &j, const GotoTarget &g);
+void to_json(nlohmann::json &j, const BreakpointLocation &b);
 
 class DAPIO
 {

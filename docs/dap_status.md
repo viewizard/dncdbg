@@ -22,7 +22,7 @@
 
 #### Types
 
-[Capabilities](#capabilities), [Checksum](#checksum), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [GotoTarget](#gototarget), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
+[Capabilities](#capabilities), [Checksum](#checksum), [ExceptionBreakpointsFilter](#exceptionbreakpointsfilter), [Module](#module), [Thread](#thread), [Source](#source), [StackFrame](#stackframe), [Scope](#scope), [Variable](#variable), [SourceBreakpoint](#sourcebreakpoint), [FunctionBreakpoint](#functionbreakpoint), [Breakpoint](#breakpoint), [BreakpointLocation](#breakpointlocation), [GotoTarget](#gototarget), [ExceptionFilterOptions](#exceptionfilteroptions), [ExceptionOptions](#exceptionoptions), [ExceptionDetails](#exceptiondetails), [ExpressionEvaluationOptions](#expressionevaluationoptions)
 
 ## Base Protocol
 
@@ -592,6 +592,13 @@
 +   instructionReference?: string;
 +   offset?: number;
 -   reason?: 'pending' | 'failed';
+```
+#### BreakpointLocation
+```diff
++   line: number;
++   column?: number;
++   endLine?: number;
++   endColumn?: number;
 ```
 #### GotoTarget
 ```diff
