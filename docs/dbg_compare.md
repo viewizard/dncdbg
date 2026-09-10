@@ -142,7 +142,7 @@
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><b>Source breakpoints on columns</b></td>
+      <td align="left"><b>Column breakpoints</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">❓</td>
