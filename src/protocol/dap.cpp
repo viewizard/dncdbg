@@ -856,6 +856,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 std::vector<BreakpointLocation> locations;
                 IfFailRet(m_sharedDebugger->GetBreakpointLocations(source, rangeToSearch, locations));
 
+                // DAP requires the 'breakpointLocations' response to be a sorted set of possible breakpoint locations.
+                std::sort(locations.begin(), locations.end(), [](const BreakpointLocation &a, const BreakpointLocation &b)
+                {
+                    return a.line < b.line || (a.line == b.line && a.column < b.column);
+                });
+
                 responseBody.emplace("breakpoints", locations);
 
                 return S_OK;
