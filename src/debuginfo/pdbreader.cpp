@@ -13,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -2164,6 +2165,160 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
     }
 
     return sourceFileIndexWithName.empty() ? E_FAIL : S_OK;
+}
+
+HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, uint32_t sourceFileIndex,
+                               const BreakpointLocation &rangeToSearch, std::vector<BreakpointLocation> &locations)
+{
+    locations.clear();
+
+    if (pdbHandle == nullptr || methodTokens.empty() || rangeToSearch.line <= 0)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Normalize the search range: when the end of the range is not provided (zero), the range
+    // covers the rest of the start line (DAP sends a single line for gutter breakpoints).
+    const int32_t rangeStartLine = rangeToSearch.line;
+    const int32_t rangeStartColumn = rangeToSearch.column;
+    const int32_t rangeEndLine = (rangeToSearch.endLine != 0) ? rangeToSearch.endLine : rangeToSearch.line;
+    const int32_t rangeEndColumn = (rangeToSearch.endColumn != 0) ? rangeToSearch.endColumn : std::numeric_limits<int32_t>::max();
+
+    // Add a location to the result, resolving duplicates:
+    // - identical sequence points (constructors may repeat them for the same source) are added only once;
+    // - sequence points with the same start, but different end are collapsed into the larger one.
+    const auto AddLocation = [&locations](int32_t startLine, int32_t startColumn, int32_t endLine, int32_t endColumn)
+    {
+        for (auto &location : locations)
+        {
+            if (location.line != startLine || location.column != startColumn)
+            {
+                continue;
+            }
+
+            // Same start position: keep the larger end
+            if (location.endLine < endLine || (location.endLine == endLine && location.endColumn < endColumn))
+            {
+                location.endLine = endLine;
+                location.endColumn = endColumn;
+            }
+            return;
+        }
+
+        locations.push_back(BreakpointLocation{startLine, startColumn, endLine, endColumn});
+    };
+
+    for (const auto &methodToken : methodTokens)
+    {
+        // Create cursor to the MethodDebugInformation table
+        mdcursor_t mdiCursor{};
+        uint32_t mdiCount = 0;
+        if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
+        {
+            continue;
+        }
+
+        const uint32_t methodIndex = RidFromToken(methodToken) - 1;
+        if (methodIndex >= mdiCount)
+        {
+            continue;
+        }
+
+        // Move cursor for requested method
+        if (methodIndex != 0)
+        {
+            md_cursor_move(&mdiCursor, static_cast<int32_t>(methodIndex));
+        }
+
+        // Get the SequencePoints blob
+        uint8_t const *seqPointsBlob = nullptr;
+        uint32_t blobLen = 0;
+        if (!md_get_column_value_as_blob(mdiCursor, mdtMethodDebugInformation_SequencePoints, &seqPointsBlob, &blobLen))
+        {
+            continue;
+        }
+
+        if (seqPointsBlob == nullptr || blobLen == 0)
+        {
+            continue;
+        }
+
+        // First, query the required buffer size
+        size_t bufferLen = 0;
+        md_blob_parse_result_t result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, nullptr, &bufferLen);
+        if (result != mdbpr_InsufficientBuffer || bufferLen == 0)
+        {
+            continue;
+        }
+
+        // Allocate properly aligned buffer and parse sequence points
+        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
+        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
+        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+        if (result != mdbpr_Success)
+        {
+            continue;
+        }
+
+        // Document token and index in sourceFiles vector returned by GetAllSourceFiles() method
+        mdToken docToken{};
+        uint32_t docIndex = 0;
+
+        if (!md_cursor_to_token(seqPoints->document, &docToken))
+        {
+            // Document might be null for methods without source
+            continue;
+        }
+        docIndex = RidFromToken(docToken) - 1;
+
+        for (uint32_t j = 0; j < seqPoints->record_count; ++j)
+        {
+            const auto &record = seqPoints->records[j];
+
+            if (record.kind == md_sequence_points_t::record_t::mdsp_DocumentRecord)
+            {
+                if (!md_cursor_to_token(record.document.document, &docToken)) // NOLINT(cppcoreguidelines-pro-type-union-access)
+                {
+                    continue;
+                }
+                docIndex = RidFromToken(docToken) - 1;
+
+                continue;
+            }
+
+            if (record.kind != md_sequence_points_t::record_t::mdsp_SequencePointRecord)
+            {
+                continue;
+            }
+
+            // Note: in case of constructors, we must care about source too, since we may have a situation when
+            // a field/property has the same line in another source.
+            if (sourceFileIndex != docIndex)
+            {
+                continue;
+            }
+
+            const auto startLine = static_cast<int32_t>(record.sequence_point.rolling_start_line); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            const auto startColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            const auto endLine = static_cast<int32_t>(record.sequence_point.rolling_start_line + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                      static_cast<int64_t>(record.sequence_point.delta_lines)); // NOLINT(cppcoreguidelines-pro-type-union-access)
+            const auto endColumn = static_cast<int32_t>(record.sequence_point.rolling_start_column + // NOLINT(cppcoreguidelines-pro-type-union-access)
+                                                        record.sequence_point.delta_columns); // NOLINT(cppcoreguidelines-pro-type-union-access)
+
+            // Skip sequence points that do not intersect the requested range
+            if ((endLine < rangeStartLine || (endLine == rangeStartLine && endColumn < rangeStartColumn)) ||
+                (startLine > rangeEndLine || (startLine == rangeEndLine && startColumn > rangeEndColumn)))
+            {
+                continue;
+            }
+
+            AddLocation(startLine, startColumn, endLine, endColumn);
+        }
+    }
+
+    return S_OK;
 }
 
 } // namespace dncdbg::PDBReader
