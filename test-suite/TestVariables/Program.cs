@@ -394,6 +394,20 @@ class Program
         setExprStruct.field_i = 2001;
         setExprStruct.prop_i = 2002;
 
+        float varFloat1 = 9.9999999f;
+        float varFloat2 = 9.9999f;
+        float varFloat3 = 9.9f;
+        float varFloat4 = 1000000.9f;
+        float varFloat5 = 10000000.9f;
+        float varFloat6 = 100000000.9f;
+        float varFloat7 = 1000000000.9f;
+        float varFloat8 = 0.0009f;
+        float varFloat9 = 0.00009f;
+
+        double varDouble1 = 9.9;
+        double varDouble2 = 10000000000000000;
+        double varDouble3 = 100000000000000000;
+
         int dummy1 = 1;                                     Label.Breakpoint("BREAK1");
 
         Label.Checkpoint("setup_var", "test_nullable",
@@ -403,6 +417,20 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
                 int variablesReference = Context.GetVariablesReference(@"__FILE__:__LINE__", frameId, "Locals");
+
+                // Test float and double
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat1", "10");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat2", "9.9999");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat3", "9.9");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat4", "1000000.9");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat5", "10000001");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat6", "100000000");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat7", "1E+09");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat8", "0.0009");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat9", "9E-05");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varDouble1", "9.9");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varDouble2", "10000000000000000");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varDouble3", "1E+17");
 
                 Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "varChar", "testChar");
                 Context.ErrorSetVariable(@"__FILE__:__LINE__", variablesReference, "varChar", "testSByte");
@@ -976,8 +1004,8 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varULong", "8");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "litULong", "308");
 
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat", "9.8999996");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "litFloat", "309.89999");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varFloat", "9.9");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "litFloat", "309.9");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "varDouble", "10.1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "litDouble", "310.1");
