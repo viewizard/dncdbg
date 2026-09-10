@@ -1,12 +1,26 @@
-## Debug Adapter Protocol support status.
+# Debug Adapter Protocol Support Status
 
-#### Key to Notation
+This document shows, field by field, which parts of the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) are supported by DNCDbg.
+
+How to read the blocks below:
+
+- For **requests**, `+` marks fields the debugger accepts and uses, `-` marks fields it ignores.
+- For **responses** and **events**, `+` marks fields the debugger sends to the client.
+- For **types**, `+` marks fields the debugger fills in or reads.
+- Messages and fields not listed at all are not supported (for example: memory, disassembly, data breakpoints, completions, progress reporting).
+- An empty block means the message carries no additional fields.
+- `@@ VS Code IDE additional fields @@` marks fields that go beyond the DAP specification and follow the VS Code C# debugger conventions.
+
+## Notation
+
 ```diff
 + Implemented
 - Not implemented
 ! Partially implemented
 @@ Comments @@
 ```
+
+---
 
 #### Base Protocol
 
