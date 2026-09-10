@@ -84,6 +84,9 @@ class DebugInfo
 
     void GetLoadedSources(std::vector<Source> &sources);
 
+    HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                                   std::vector<BreakpointLocation> &locations);
+
   private:
 
     void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, const PDBInfo *&pPDBInfo,

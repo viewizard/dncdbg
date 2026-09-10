@@ -944,4 +944,48 @@ void DebugInfo::GetLoadedSources(std::vector<Source> &sources)
     }
 }
 
+HRESULT DebugInfo::GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                                          std::vector<BreakpointLocation> &locations)
+{
+    HRESULT Status = S_OK;
+    locations.clear();
+
+    if (source.sourceReference > 0)
+    {
+        PDB::GlobalFileIndex globalFileIndex;
+        if (FAILED(SourceReference::GetGlobalIndex(source.sourceReference, globalFileIndex)))
+        {
+            return E_INVALIDARG;
+        }
+
+        return GetPDBInfo(globalFileIndex.modAddress,
+            [&](const PDBInfo &pdbInfo) -> HRESULT
+            {
+                std::vector<mdMethodDef> methodTokens;
+                IfFailRet(DebugSources::FindMethodsInRange(pdbInfo, globalFileIndex.sourceFileIndex, rangeToSearch,
+                                                           methodTokens));
+
+                return PDBReader::GetBreakpointLocations(pdbInfo.m_pdbHandle, methodTokens,
+                                                         globalFileIndex.sourceFileIndex, rangeToSearch, locations);
+            });
+    }
+
+    const std::scoped_lock<std::mutex> lockDebugInfoInfo(m_debugInfoMutex);
+
+    const PDBInfo *pPDBInfo = nullptr;
+    uint32_t resolvedSourceFileIndex = 0;
+    FindPDBInfoAndSourceIndex(source, 0, pPDBInfo, resolvedSourceFileIndex, nullptr);
+
+    if (pPDBInfo == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    std::vector<mdMethodDef> methodTokens;
+    IfFailRet(DebugSources::FindMethodsInRange(*pPDBInfo, resolvedSourceFileIndex, rangeToSearch, methodTokens));
+
+    return PDBReader::GetBreakpointLocations(pPDBInfo->m_pdbHandle, methodTokens,
+                                             resolvedSourceFileIndex, rangeToSearch, locations);
+}
+
 } // namespace dncdbg
