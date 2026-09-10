@@ -1,38 +1,41 @@
 # Debug Adapter Protocol Support Status
 
-This document shows, field by field, which parts of the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) are supported by DNCDbg.
+This document shows, message by message and field by field, which parts of the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) are supported by DNCDbg.
 
 How to read the blocks below:
 
-- For **requests**, `+` marks fields the debugger accepts and uses, `-` marks fields it ignores.
-- For **responses** and **events**, `+` marks fields the debugger sends to the client.
-- For **types**, `+` marks fields the debugger fills in or reads.
-- Messages and fields not listed at all are not supported (for example: memory, disassembly, data breakpoints, completions, progress reporting).
-- An empty block means the message carries no additional fields.
-- `@@ VS Code IDE additional fields @@` marks fields that go beyond the DAP specification and follow the VS Code C# debugger conventions.
+- Field names, signatures, and their order are identical to the official DAP specification.
+- For **requests**, ✅ marks fields the debugger accepts and uses, ❌ marks fields it ignores.
+- For **responses** and **events**, ✅ marks fields the debugger sends to the client.
+- For **types**, ✅ marks fields the debugger fills in or reads.
+- ❌ marks fields that are not supported.
+- 🧩 marks fields that go beyond the DAP specification and follow the VS Code C# debugger conventions.
+- Messages missing from the detailed sections below are not supported at all; every such message is listed explicitly in the overview.
+- ⚪ marks a message that carries no additional fields.
 
 ## Notation
 
-```diff
-+ Implemented
-- Not implemented
-! Partially implemented
-@@ Comments @@
+```text
+✅  Supported
+❌  Not supported
+🧩  VS Code IDE additional field
+ℹ️  Note
+⚪  No additional fields
 ```
 
----
+## Navigation
 
 #### Base Protocol
 
-[ProtocolMessage](#protocolmessage), [Request](#request), [Event](#event), [Response](#response), [Cancel Request](#cancelrequest-cancel)
+[ProtocolMessage](#protocolmessage), [Request](#request), [Event](#event), [Response](#response), [ErrorResponse](#errorresponse), [Cancel Request](#cancelrequest-cancel)
 
 #### Events
 
-[Stopped Event](#stoppedevent), [Continued Event](#continuedevent), [Exited Event](#exitedevent), [Terminated Event](#terminatedevent), [Thread Event](#threadevent), [Output Event](#outputevent), [Breakpoint Event](#breakpointevent), [Module Event](#moduleevent), [LoadedSource Event](#loadedsourceevent), [Process Event](#processevent), [Capabilities Event](#capabilitiesevent)
+[Initialized Event](#initializedevent-initialized), [Stopped Event](#stoppedevent), [Continued Event](#continuedevent), [Exited Event](#exitedevent), [Terminated Event](#terminatedevent), [Thread Event](#threadevent), [Output Event](#outputevent), [Breakpoint Event](#breakpointevent), [Module Event](#moduleevent), [LoadedSource Event](#loadedsourceevent), [Process Event](#processevent), [Capabilities Event](#capabilitiesevent)
 
 #### Requests
 
-[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [GotoRequest](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [ConfigurationDone Request](#configurationdonerequest-configurationdone), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [Goto Request](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
 
 #### Types
 
@@ -41,628 +44,645 @@ How to read the blocks below:
 ## Base Protocol
 
 #### ProtocolMessage
-```diff
-+  seq: number;
-+  type: 'request' | 'response' | 'event' | string;
+```text
+✅  seq: number;
+✅  type: 'request' | 'response' | 'event' | string;
 ```
 #### Request
-```diff
-+  command: string;
-+  arguments?: any;
+```text
+✅  command: string;
+✅  arguments?: any;
 ```
 #### Event
-```diff
-+  event: string;
-+  body?: any;
+```text
+✅  event: string;
+✅  body?: any;
 ```
 #### Response
-```diff
-+  request_seq: number;
-+  success: boolean;
-+  command: string;
-+  message?: 'cancelled' | 'notStopped' | string;
-+  body?: any;
+```text
+✅  request_seq: number;
+✅  success: boolean;
+✅  command: string;
+✅  message?: 'cancelled' | 'notStopped' | string;
+✅  body?: any;
 ```
 #### ErrorResponse
-```diff
--  error?: Message;
+```text
+❌  error?: Message;
 ```
 #### CancelRequest `cancel`
-```diff
-+   requestId?: number;
--   progressId?: string;
+```text
+✅  requestId?: number;
+❌  progressId?: string;
 ```
 #### CancelResponse
-```diff
+```text
+⚪  no additional fields
+```
+
+## Events
+
+#### InitializedEvent `initialized`
+```text
+⚪  no additional fields
 ```
 #### StoppedEvent
-```diff
-+   reason: 'step' | 'breakpoint' | 'exception' | 'pause'
-+       | 'entry' | 'function breakpoint' | 'goto'
--       | 'data breakpoint' | 'instruction breakpoint'
-+       | string;
--   description?: string;
-+   threadId?: number;
--   preserveFocusHint?: boolean;
-+   text?: string;
-+   allThreadsStopped?: boolean;
-+   hitBreakpointIds?: number[];
+```text
+✅  reason: 'step' | 'breakpoint' | 'exception' | 'pause'
+        | 'entry' | 'function breakpoint' | 'data breakpoint'
+        | 'instruction breakpoint' | 'goto' | string;
+        ℹ️  note: 'data breakpoint' and 'instruction breakpoint' are never sent
+❌  description?: string;
+✅  threadId?: number;
+❌  preserveFocusHint?: boolean;
+✅  text?: string;
+✅  allThreadsStopped?: boolean;
+✅  hitBreakpointIds?: number[];
 ```
 #### ContinuedEvent
-```diff
-+   threadId: number;
-+   allThreadsContinued?: boolean;
+```text
+✅  threadId: number;
+✅  allThreadsContinued?: boolean;
 ```
 #### ExitedEvent
-```diff
-+   exitCode: number;
+```text
+✅  exitCode: number;
 ```
 #### TerminatedEvent
-```diff
--   restart?: any;
+```text
+❌  restart?: any;
 ```
 #### ThreadEvent
-```diff
-+   reason: 'started' | 'exited' | string;
-+   threadId: number;
+```text
+✅  reason: 'started' | 'exited' | string;
+✅  threadId: number;
 ```
 #### OutputEvent
-```diff
-+   category?: 'console' | 'stdout' | 'stderr'
--              | 'important' | 'telemetry'
-+              | string;
-+   output: string;
--   group?: 'start' | 'startCollapsed' | 'end';
--   variablesReference?: number;
-+   source?: Source;
-+   line?: number;
-+   column?: number;
--   data?: any;
--   locationReference?: number;
+```text
+✅  category?: 'console' | 'important' | 'telemetry' | 'stdout' | 'stderr' | string;
+        ℹ️  note: 'important' and 'telemetry' are never sent
+✅  output: string;
+❌  group?: 'start' | 'startCollapsed' | 'end';
+❌  variablesReference?: number;
+✅  source?: Source;
+✅  line?: number;
+✅  column?: number;
+❌  data?: any;
+❌  locationReference?: number;
 ```
 #### BreakpointEvent
-```diff
-+   reason: 'changed' | 'new' | 'removed' | string;
-+   breakpoint: Breakpoint;
+```text
+✅  reason: 'changed' | 'new' | 'removed' | string;
+✅  breakpoint: Breakpoint;
 ```
 #### ModuleEvent
-```diff
-+   reason: 'new' | 'changed' | 'removed';
-+   module: Module;
+```text
+✅  reason: 'new' | 'changed' | 'removed';
+✅  module: Module;
 ```
 #### LoadedSourceEvent
-```diff
-+   reason: 'new' | 'changed' | 'removed';
-+   source: Source;
+```text
+✅  reason: 'new' | 'changed' | 'removed';
+✅  source: Source;
 ```
 #### ProcessEvent
-```diff
-+   name: string;
-+   systemProcessId?: number;
-+   isLocalProcess?: boolean;
-+   startMethod?: 'launch' | 'attach'
--               | 'attachForSuspendedLaunch';
-+   pointerSize?: number;
+```text
+✅  name: string;
+✅  systemProcessId?: number;
+✅  isLocalProcess?: boolean;
+✅  startMethod?: 'launch' | 'attach' | 'attachForSuspendedLaunch';
+        ℹ️  note: 'attachForSuspendedLaunch' is never sent
+✅  pointerSize?: number;
 ```
 #### CapabilitiesEvent
-```diff
-+   capabilities: Capabilities;
+```text
+✅  capabilities: Capabilities;
 ```
 
 ## Requests
 
 #### InitializeRequest `initialize`
-```diff
-+   clientID?: string;
-+   clientName?: string;
-+   adapterID: string;
--   locale?: string;
--   linesStartAt1?: boolean;
--   columnsStartAt1?: boolean;
--   pathFormat?: 'path' | 'uri' | string;
--   supportsVariableType?: boolean;
--   supportsVariablePaging?: boolean;
--   supportsRunInTerminalRequest?: boolean;
--   supportsMemoryReferences?: boolean;
--   supportsProgressReporting?: boolean;
--   supportsInvalidatedEvent?: boolean;
--   supportsMemoryEvent?: boolean;
--   supportsArgsCanBeInterpretedByShell?: boolean;
--   supportsStartDebuggingRequest?: boolean;
--   supportsANSIStyling?: boolean;
+```text
+✅  clientID?: string;
+✅  clientName?: string;
+✅  adapterID: string;
+❌  locale?: string;
+❌  linesStartAt1?: boolean;
+❌  columnsStartAt1?: boolean;
+❌  pathFormat?: 'path' | 'uri' | string;
+❌  supportsVariableType?: boolean;
+❌  supportsVariablePaging?: boolean;
+❌  supportsRunInTerminalRequest?: boolean;
+❌  supportsMemoryReferences?: boolean;
+❌  supportsProgressReporting?: boolean;
+❌  supportsInvalidatedEvent?: boolean;
+❌  supportsMemoryEvent?: boolean;
+❌  supportsArgsCanBeInterpretedByShell?: boolean;
+❌  supportsStartDebuggingRequest?: boolean;
+❌  supportsANSIStyling?: boolean;
 ```
 #### InitializeResponse
-```diff
-+   body?: Capabilities;
+```text
+✅  body?: Capabilities;
 ```
 #### LaunchRequest `launch`
-```diff
--   noDebug?: boolean;
--   __restart?: any;
-@@ VS Code IDE additional fields: @@
-+   cwd?: string;
-+   env?: { [key: string]: string; };
-+   program?: string;
-+   args?: string;
-+   stopAtEntry?: boolean;
-+   justMyCode?: boolean;
-+   enableStepFiltering?: boolean;
-+   expressionEvaluationOptions?: ExpressionEvaluationOptions;
-+   console?: 'internalConsole' | 'remoteConsole' | 'externalTerminal'
-+   suppressJITOptimizations?: boolean;
+```text
+❌  noDebug?: boolean;
+❌  __restart?: any;
+🧩  cwd?: string;
+🧩  env?: { [key: string]: string; };
+🧩  program?: string;
+🧩  args?: string;
+🧩  stopAtEntry?: boolean;
+🧩  justMyCode?: boolean;
+🧩  enableStepFiltering?: boolean;
+🧩  expressionEvaluationOptions?: ExpressionEvaluationOptions;
+🧩  console?: 'internalConsole' | 'remoteConsole' | 'externalTerminal';
+🧩  suppressJITOptimizations?: boolean;
 ```
 #### LaunchResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### AttachRequest `attach`
-```diff
--   __restart?: any;
-@@ additional field: @@
-+   processId: number;
+```text
+❌  __restart?: any;
+✅  processId: number;
 ```
 #### AttachResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### DisconnectRequest `disconnect`
-```diff
--   restart?: boolean;
-+   terminateDebuggee?: boolean;
--   suspendDebuggee?: boolean;
+```text
+❌  restart?: boolean;
+✅  terminateDebuggee?: boolean;
+❌  suspendDebuggee?: boolean;
 ```
 #### DisconnectResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### TerminateRequest `terminate`
-```diff
--   restart?: boolean;
+```text
+❌  restart?: boolean;
 ```
 #### TerminateResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### BreakpointLocationsRequest `breakpointLocations`
-```diff
-+   source: Source;
-+   line: number;
-+   column?: number;
-+   endLine?: number;
-+   endColumn?: number;
+```text
+✅  source: Source;
+✅  line: number;
+✅  column?: number;
+✅  endLine?: number;
+✅  endColumn?: number;
 ```
 #### BreakpointLocationsResponse
-```diff
-+   breakpoints: BreakpointLocation[];
+```text
+✅  breakpoints: BreakpointLocation[];
 ```
 #### SetBreakpointsRequest `setBreakpoints`
-```diff
-+   source: Source;
-+   breakpoints?: SourceBreakpoint[];
--   lines?: number[];
--   sourceModified?: boolean;
+```text
+✅  source: Source;
+✅  breakpoints?: SourceBreakpoint[];
+❌  lines?: number[];
+❌  sourceModified?: boolean;
 ```
 #### SetBreakpointsResponse
-```diff
-+   breakpoints: Breakpoint[];
+```text
+✅  breakpoints: Breakpoint[];
 ```
 #### SetFunctionBreakpointsRequest `setFunctionBreakpoints`
-```diff
-+   breakpoints: FunctionBreakpoint[];
+```text
+✅  breakpoints: FunctionBreakpoint[];
 ```
 #### SetFunctionBreakpointsResponse
-```diff
-+   breakpoints: Breakpoint[];
+```text
+✅  breakpoints: Breakpoint[];
 ```
 #### SetExceptionBreakpointsRequest `setExceptionBreakpoints`
-```diff
-+   filters: string[];
-+   filterOptions?: ExceptionFilterOptions[];
--   exceptionOptions?: ExceptionOptions[];
+```text
+✅  filters: string[];
+✅  filterOptions?: ExceptionFilterOptions[];
+❌  exceptionOptions?: ExceptionOptions[];
 ```
 #### SetExceptionBreakpointsResponse
-```diff
-+   breakpoints?: Breakpoint[];
+```text
+✅  breakpoints?: Breakpoint[];
+```
+#### ConfigurationDoneRequest `configurationDone`
+```text
+⚪  no additional fields
 ```
 #### ContinueRequest `continue`
-```diff
-+   threadId: number;
-+   singleThread?: boolean;
+```text
+✅  threadId: number;
+✅  singleThread?: boolean;
 ```
 #### ContinueResponse
-```diff
-+   allThreadsContinued?: boolean;
-@@ VS Code IDE additional field: @@
-+   threadId: number;
+```text
+✅  allThreadsContinued?: boolean;
+🧩  threadId: number;
 ```
 #### NextRequest `next`
-```diff
-+   threadId: number;
-+   singleThread?: boolean;
--   granularity?: SteppingGranularity;
+```text
+✅  threadId: number;
+✅  singleThread?: boolean;
+❌  granularity?: SteppingGranularity;
 ```
 #### NextResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### StepInRequest `stepIn`
-```diff
-+   threadId: number;
-+   singleThread?: boolean;
--   targetId?: number;
--   granularity?: SteppingGranularity;
+```text
+✅  threadId: number;
+✅  singleThread?: boolean;
+❌  targetId?: number;
+❌  granularity?: SteppingGranularity;
 ```
 #### StepInResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### StepOutRequest `stepOut`
-```diff
-+   threadId: number;
-+   singleThread?: boolean;
--   granularity?: SteppingGranularity;
+```text
+✅  threadId: number;
+✅  singleThread?: boolean;
+❌  granularity?: SteppingGranularity;
 ```
 #### StepOutResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### PauseRequest `pause`
-```diff
-+   threadId: number;
+```text
+✅  threadId: number;
 ```
 #### PauseResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### GotoRequest `goto`
-```diff
-+   threadId: number;
-+   targetId: number;
+```text
+✅  threadId: number;
+✅  targetId: number;
 ```
 #### GotoResponse
-```diff
+```text
+⚪  no additional fields
 ```
 #### StackTraceRequest `stackTrace`
-```diff
-+   threadId: number;
-+   startFrame?: number;
-+   levels?: number;
--   format?: StackFrameFormat;
+```text
+✅  threadId: number;
+✅  startFrame?: number;
+✅  levels?: number;
+❌  format?: StackFrameFormat;
 ```
 #### StackTraceResponse
-```diff
-+   stackFrames: StackFrame[];
-+   totalFrames?: number;
+```text
+✅  stackFrames: StackFrame[];
+✅  totalFrames?: number;
 ```
 #### ScopesRequest `scopes`
-```diff
-+   frameId: number;
+```text
+✅  frameId: number;
 ```
 #### ScopesResponse
-```diff
-+   scopes: Scope[];
+```text
+✅  scopes: Scope[];
 ```
 #### VariablesRequest `variables`
-```diff
-+   variablesReference: number;
--   filter?: 'indexed' | 'named';
--   start?: number;
--   count?: number;
--   format?: ValueFormat;
+```text
+✅  variablesReference: number;
+❌  filter?: 'indexed' | 'named';
+❌  start?: number;
+❌  count?: number;
+❌  format?: ValueFormat;
 ```
 #### VariablesResponse
-```diff
-+   variables: Variable[];
+```text
+✅  variables: Variable[];
 ```
 #### SetVariableRequest `setVariable`
-```diff
-+   variablesReference: number;
-+   name: string;
-+   value: string;
--   format?: ValueFormat;
+```text
+✅  variablesReference: number;
+✅  name: string;
+✅  value: string;
+❌  format?: ValueFormat;
 ```
 #### SetVariableResponse
-```diff
-+   value: string;
--   type?: string;
--   variablesReference?: number;
--   namedVariables?: number;
--   indexedVariables?: number;
--   memoryReference?: string;
--   valueLocationReference?: number;
+```text
+✅  value: string;
+❌  type?: string;
+❌  variablesReference?: number;
+❌  namedVariables?: number;
+❌  indexedVariables?: number;
+❌  memoryReference?: string;
+❌  valueLocationReference?: number;
 ```
 #### SourceRequest `source`
-```diff
-+   source?: Source;
-+   sourceReference: number;
+```text
+✅  source?: Source;
+✅  sourceReference: number;
 ```
 #### SourceResponse
-```diff
-+   content: string;
--   mimeType?: string;
+```text
+✅  content: string;
+❌  mimeType?: string;
 ```
 #### ThreadsRequest `threads`
-```diff
+```text
+⚪  no additional fields
 ```
 #### ThreadsResponse
-```diff
-+   threads: Thread[];
+```text
+✅  threads: Thread[];
 ```
 #### ModulesRequest `modules`
-```diff
-+   startModule?: number;
-+   moduleCount?: number;
+```text
+✅  startModule?: number;
+✅  moduleCount?: number;
 ```
 #### ModulesResponse
-```diff
-+   modules: Module[];
-+   totalModules?: number;
+```text
+✅  modules: Module[];
+✅  totalModules?: number;
 ```
 #### LoadedSourcesRequest `loadedSources`
-```diff
+```text
+⚪  no additional fields
 ```
 #### LoadedSourcesResponse
-```diff
-+   sources: Source[];
+```text
+✅  sources: Source[];
 ```
 #### EvaluateRequest `evaluate`
-```diff
-+   expression: string;
-+   frameId?: number;
--   line?: number;
--   column?: number;
--   source?: Source;
--   context?: 'watch' | 'repl' | 'hover' | 'clipboard' | 'variables' | string;
--   format?: ValueFormat;
+```text
+✅  expression: string;
+✅  frameId?: number;
+❌  line?: number;
+❌  column?: number;
+❌  source?: Source;
+❌  context?: 'watch' | 'repl' | 'hover' | 'clipboard' | 'variables' | string;
+❌  format?: ValueFormat;
 ```
 #### EvaluateResponse
-```diff
-+   result: string;
-+   type?: string;
--   presentationHint?: VariablePresentationHint;
-+   variablesReference: number;
--   namedVariables?: number;
--   indexedVariables?: number;
-+   memoryReference?: string;
--   valueLocationReference?: number;
+```text
+✅  result: string;
+✅  type?: string;
+❌  presentationHint?: VariablePresentationHint;
+✅  variablesReference: number;
+❌  namedVariables?: number;
+❌  indexedVariables?: number;
+✅  memoryReference?: string;
+❌  valueLocationReference?: number;
 ```
 #### SetExpressionRequest `setExpression`
-```diff
-+   expression: string;
-+   value: string;
-+   frameId?: number;
--   format?: ValueFormat;
+```text
+✅  expression: string;
+✅  value: string;
+✅  frameId?: number;
+❌  format?: ValueFormat;
 ```
 #### SetExpressionResponse
-```diff
-+   value: string;
--   type?: string;
--   presentationHint?: VariablePresentationHint;
--   variablesReference?: number;
--   namedVariables?: number;
--   indexedVariables?: number;
--   memoryReference?: string;
--   valueLocationReference?: number;
+```text
+✅  value: string;
+❌  type?: string;
+❌  presentationHint?: VariablePresentationHint;
+❌  variablesReference?: number;
+❌  namedVariables?: number;
+❌  indexedVariables?: number;
+❌  memoryReference?: string;
+❌  valueLocationReference?: number;
 ```
 #### GotoTargetsRequest `gotoTargets`
-```diff
-+   source: Source
-+   line: number;
-+   column?: number;
+```text
+✅  source: Source;
+✅  line: number;
+✅  column?: number;
 ```
 #### GotoTargetsResponse
-```diff
-+   targets: GotoTarget[];
+```text
+✅  targets: GotoTarget[];
 ```
 #### ExceptionInfoRequest `exceptionInfo`
-```diff
-+   threadId: number;
+```text
+✅  threadId: number;
 ```
 #### ExceptionInfoResponse
-```diff
-+   exceptionId: string;
-+   description?: string;
-+   breakMode: ExceptionBreakMode;
-+   details?: ExceptionDetails;
+```text
+✅  exceptionId: string;
+✅  description?: string;
+✅  breakMode: ExceptionBreakMode;
+✅  details?: ExceptionDetails;
 ```
 
 ## Types
 
 #### Capabilities
-```diff
-+   supportsConfigurationDoneRequest?: boolean;
-+   supportsFunctionBreakpoints?: boolean;
-+   supportsConditionalBreakpoints?: boolean;
-+   supportsHitConditionalBreakpoints?: boolean;
--   supportsEvaluateForHovers?: boolean;
-+   exceptionBreakpointFilters?: ExceptionBreakpointsFilter[];
--   supportsStepBack?: boolean;
-+   supportsSetVariable?: boolean;
--   supportsRestartFrame?: boolean;
-+   supportsGotoTargetsRequest?: boolean;
--   supportsStepInTargetsRequest?: boolean;
--   supportsCompletionsRequest?: boolean;
--   completionTriggerCharacters?: string[];
--   supportsModulesRequest?: boolean;
--   additionalModuleColumns?: ColumnDescriptor[];
--   supportedChecksumAlgorithms?: ChecksumAlgorithm[];
--   supportsRestartRequest?: boolean;
-+   supportsExceptionOptions?: boolean;
--   supportsValueFormattingOptions?: boolean;
-+   supportsExceptionInfoRequest?: boolean;
-+   supportTerminateDebuggee?: boolean;
--   supportSuspendDebuggee?: boolean;
--   supportsDelayedStackTraceLoading?: boolean;
-+   supportsLoadedSourcesRequest?: boolean;
-+   supportsLogPoints?: boolean;
--   supportsTerminateThreadsRequest?: boolean;
-+   supportsSetExpression?: boolean;
-+   supportsTerminateRequest?: boolean;
--   supportsDataBreakpoints?: boolean;
--   supportsReadMemoryRequest?: boolean;
--   supportsWriteMemoryRequest?: boolean;
--   supportsDisassembleRequest?: boolean;
-+   supportsCancelRequest?: boolean;
-+   supportsBreakpointLocationsRequest?: boolean;
--   supportsClipboardContext?: boolean;
--   supportsSteppingGranularity?: boolean;
--   supportsInstructionBreakpoints?: boolean;
-+   supportsExceptionFilterOptions?: boolean;
-+   supportsSingleThreadExecutionRequests?: boolean;
--   supportsDataBreakpointBytes?: boolean;
--   breakpointModes?: BreakpointMode[];
--   supportsANSIStyling?: boolean;
+```text
+✅  supportsConfigurationDoneRequest?: boolean;
+✅  supportsFunctionBreakpoints?: boolean;
+✅  supportsConditionalBreakpoints?: boolean;
+✅  supportsHitConditionalBreakpoints?: boolean;
+❌  supportsEvaluateForHovers?: boolean;
+✅  exceptionBreakpointFilters?: ExceptionBreakpointsFilter[];
+❌  supportsStepBack?: boolean;
+✅  supportsSetVariable?: boolean;
+❌  supportsRestartFrame?: boolean;
+✅  supportsGotoTargetsRequest?: boolean;
+❌  supportsStepInTargetsRequest?: boolean;
+❌  supportsCompletionsRequest?: boolean;
+❌  completionTriggerCharacters?: string[];
+❌  supportsModulesRequest?: boolean;
+❌  additionalModuleColumns?: ColumnDescriptor[];
+❌  supportedChecksumAlgorithms?: ChecksumAlgorithm[];
+❌  supportsRestartRequest?: boolean;
+✅  supportsExceptionOptions?: boolean;
+❌  supportsValueFormattingOptions?: boolean;
+✅  supportsExceptionInfoRequest?: boolean;
+✅  supportTerminateDebuggee?: boolean;
+❌  supportSuspendDebuggee?: boolean;
+❌  supportsDelayedStackTraceLoading?: boolean;
+✅  supportsLoadedSourcesRequest?: boolean;
+✅  supportsLogPoints?: boolean;
+❌  supportsTerminateThreadsRequest?: boolean;
+✅  supportsSetExpression?: boolean;
+✅  supportsTerminateRequest?: boolean;
+❌  supportsDataBreakpoints?: boolean;
+❌  supportsReadMemoryRequest?: boolean;
+❌  supportsWriteMemoryRequest?: boolean;
+❌  supportsDisassembleRequest?: boolean;
+✅  supportsCancelRequest?: boolean;
+✅  supportsBreakpointLocationsRequest?: boolean;
+❌  supportsClipboardContext?: boolean;
+❌  supportsSteppingGranularity?: boolean;
+❌  supportsInstructionBreakpoints?: boolean;
+✅  supportsExceptionFilterOptions?: boolean;
+✅  supportsSingleThreadExecutionRequests?: boolean;
+❌  supportsDataBreakpointBytes?: boolean;
+❌  breakpointModes?: BreakpointMode[];
+❌  supportsANSIStyling?: boolean;
 ```
 #### Checksum
-```diff
-+   algorithm: ChecksumAlgorithm;
-+   checksum: string;
+```text
+✅  algorithm: ChecksumAlgorithm;
+✅  checksum: string;
 ```
 #### ExceptionBreakpointsFilter
-```diff
-+   filter: string;
-+   label: string;
--   description?: string;
--   default?: boolean;
--   supportsCondition?: boolean;
--   conditionDescription?: string;
+```text
+✅  filter: string;
+✅  label: string;
+❌  description?: string;
+❌  default?: boolean;
+❌  supportsCondition?: boolean;
+❌  conditionDescription?: string;
 ```
 #### Module
-```diff
-+   id: number | string;
-+   name: string;
-+   path?: string;
-+   isOptimized?: boolean;
-+   isUserCode?: boolean;
--   version?: string;
-+   symbolStatus?: string;
-+   symbolFilePath?: string;
--   dateTimeStamp?: string;
-+   addressRange?: string;
+```text
+✅  id: number | string;
+✅  name: string;
+✅  path?: string;
+✅  isOptimized?: boolean;
+✅  isUserCode?: boolean;
+❌  version?: string;
+✅  symbolStatus?: string;
+✅  symbolFilePath?: string;
+❌  dateTimeStamp?: string;
+✅  addressRange?: string;
 ```
 #### Thread
-```diff
-+   id: number;
-+   name: string;
+```text
+✅  id: number;
+✅  name: string;
 ```
 #### Source
-```diff
-+   name?: string;
-+   path?: string;
-+   sourceReference?: number;
--   presentationHint?: 'normal' | 'emphasize' | 'deemphasize';
--   origin?: string;
--   sources?: Source[];
--   adapterData?: any;
-+   checksums?: Checksum[];
+```text
+✅  name?: string;
+✅  path?: string;
+✅  sourceReference?: number;
+❌  presentationHint?: 'normal' | 'emphasize' | 'deemphasize';
+❌  origin?: string;
+❌  sources?: Source[];
+❌  adapterData?: any;
+✅  checksums?: Checksum[];
 ```
 #### StackFrame
-```diff
-+   id: number;
-+   name: string;
-+   source?: Source;
-+   line: number;
-+   column: number;
-+   endLine?: number;
-+   endColumn?: number;
--   canRestart?: boolean;
-+   instructionPointerReference?: string;
-+   moduleId?: number | string;
-+   presentationHint?: 'normal' | 'label' | 'subtle';
+```text
+✅  id: number;
+✅  name: string;
+✅  source?: Source;
+✅  line: number;
+✅  column: number;
+✅  endLine?: number;
+✅  endColumn?: number;
+❌  canRestart?: boolean;
+✅  instructionPointerReference?: string;
+✅  moduleId?: number | string;
+✅  presentationHint?: 'normal' | 'label' | 'subtle';
 ```
 #### Scope
-```diff
-+   name: string;
--   presentationHint?: 'arguments' | 'locals' | 'registers' | 'returnValue' | string;
-+   variablesReference: number;
--   namedVariables?: number;
--   indexedVariables?: number;
-+   expensive: boolean;
--   source?: Source;
--   line?: number;
--   column?: number;
--   endLine?: number;
--   endColumn?: number;
+```text
+✅  name: string;
+❌  presentationHint?: 'arguments' | 'locals' | 'registers' | 'returnValue' | string;
+✅  variablesReference: number;
+❌  namedVariables?: number;
+❌  indexedVariables?: number;
+✅  expensive: boolean;
+❌  source?: Source;
+❌  line?: number;
+❌  column?: number;
+❌  endLine?: number;
+❌  endColumn?: number;
 ```
 #### Variable
-```diff
-+   name: string;
-+   value: string;
-+   type?: string;
--   presentationHint?: VariablePresentationHint;
-+   evaluateName?: string;
-+   variablesReference: number;
--   namedVariables?: number;
--   indexedVariables?: number;
-+   memoryReference?: string;
--   declarationLocationReference?: number;
--   valueLocationReference?: number;
+```text
+✅  name: string;
+✅  value: string;
+✅  type?: string;
+❌  presentationHint?: VariablePresentationHint;
+✅  evaluateName?: string;
+✅  variablesReference: number;
+❌  namedVariables?: number;
+❌  indexedVariables?: number;
+✅  memoryReference?: string;
+❌  declarationLocationReference?: number;
+❌  valueLocationReference?: number;
 ```
 #### SourceBreakpoint
-```diff
-+   line: number;
-+   column?: number;
-+   condition?: string;
-+   hitCondition?: string;
-+   logMessage?: string;
--   mode?: string;
+```text
+✅  line: number;
+✅  column?: number;
+✅  condition?: string;
+✅  hitCondition?: string;
+✅  logMessage?: string;
+❌  mode?: string;
 ```
 #### FunctionBreakpoint
-```diff
-+   name: string;
-+   condition?: string;
-+   hitCondition?: string;
+```text
+✅  name: string;
+✅  condition?: string;
+✅  hitCondition?: string;
 ```
 #### Breakpoint
-```diff
-+   id?: number;
-+   verified: boolean;
-+   message?: string;
-+   source?: Source;
-+   line?: number;
-+   column?: number;
-+   endLine?: number;
-+   endColumn?: number;
-+   instructionReference?: string;
-+   offset?: number;
--   reason?: 'pending' | 'failed';
+```text
+✅  id?: number;
+✅  verified: boolean;
+✅  message?: string;
+✅  source?: Source;
+✅  line?: number;
+✅  column?: number;
+✅  endLine?: number;
+✅  endColumn?: number;
+✅  instructionReference?: string;
+✅  offset?: number;
+❌  reason?: 'pending' | 'failed';
 ```
 #### BreakpointLocation
-```diff
-+   line: number;
-+   column?: number;
-+   endLine?: number;
-+   endColumn?: number;
+```text
+✅  line: number;
+✅  column?: number;
+✅  endLine?: number;
+✅  endColumn?: number;
 ```
 #### GotoTarget
-```diff
-+   id: number;
-+   label: string;
-+   line: number;
-+   column?: number;
-+   endLine?: number;
-+   endColumn?: number;
-+   instructionPointerReference?: string;
+```text
+✅  id: number;
+✅  label: string;
+✅  line: number;
+✅  column?: number;
+✅  endLine?: number;
+✅  endColumn?: number;
+✅  instructionPointerReference?: string;
 ```
 #### ExceptionFilterOptions
-```diff
-+   filterId: string;
-+   condition?: string;
--   mode?: string;
+```text
+✅  filterId: string;
+✅  condition?: string;
+❌  mode?: string;
 ```
 #### ExceptionOptions
-```diff
--   path?: ExceptionPathSegment[];
-+   breakMode: ExceptionBreakMode;
+```text
+❌  path?: ExceptionPathSegment[];
+✅  breakMode: ExceptionBreakMode;
 ```
 #### ExceptionDetails
-```diff
-+   message?: string;
-+   typeName?: string;
-+   fullTypeName?: string;
-+   evaluateName?: string;
-+   stackTrace?: string;
-+   innerException?: ExceptionDetails[];
-@@ VS Code IDE additional fields: @@
-+   std::string formattedDescription;
-+   std::string source;
+```text
+✅  message?: string;
+✅  typeName?: string;
+✅  fullTypeName?: string;
+✅  evaluateName?: string;
+✅  stackTrace?: string;
+✅  innerException?: ExceptionDetails[];
+🧩  formattedDescription?: string;
+🧩  source?: string;
 ```
 #### ExpressionEvaluationOptions
-```diff
-@@ VS Code IDE additional field: @@
-+   allowImplicitFuncEval?: boolean;
-+   allowToString?: boolean;
-+   showRawValues?: boolean;
+```text
+🧩  allowImplicitFuncEval?: boolean;
+🧩  allowToString?: boolean;
+🧩  showRawValues?: boolean;
 ```
