@@ -208,7 +208,13 @@ function_name() to call the system's implementation
 #ifdef __APPLE__
 
 #undef GetCurrentThread
+// CoreServices.h pulls in CarbonCore headers (e.g. Script.h) that use types
+// deprecated in macOS 13 SDKs; with -Werror those deprecation warnings become
+// errors. Suppress deprecation diagnostics only for this include.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #include <CoreServices/CoreServices.h>
+#pragma clang diagnostic pop
 
 #include <malloc/malloc.h>
 

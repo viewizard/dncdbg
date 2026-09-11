@@ -127,7 +127,11 @@ check_function_exists(directio HAVE_DIRECTIO)
 check_function_exists(semget HAS_SYSV_SEMAPHORES)
 check_function_exists(pthread_mutex_init HAS_PTHREAD_MUTEXES)
 check_function_exists(ttrace HAVE_TTRACE)
-check_function_exists(pipe2 HAVE_PIPE2)
+if(APPLE)
+    set(HAVE_PIPE2 FALSE CACHE INTERNAL "pipe2 is missing on macOS")
+else()
+    check_function_exists(pipe2 HAVE_PIPE2)
+endif()
 check_function_exists(strerrorname_np HAVE_STRERRORNAME_NP)
 
 check_cxx_source_compiles("

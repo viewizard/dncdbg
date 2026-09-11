@@ -204,6 +204,14 @@ if(WIN32)
 else()
     find_package(Iconv REQUIRED)
     if(APPLE)
+        # iconv.h is in the default SDK include path, so the include directory
+        # from the Iconv::Iconv imported target is unnecessary and harmful:
+        # it adds "-isystem <SDK>/usr/include", which is searched before the
+        # C++ standard library headers, breaking libc++ wrapper headers like
+        # <cerrno> ("didn't find libc++'s <errno.h> header" errors) with
+        # non-Apple (e.g. Homebrew) LLVM. Keep the library link (iconv is not
+        # part of libSystem on all macOS versions) but drop the include dir.
+        set_target_properties(Iconv::Iconv PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
         find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
         target_link_libraries(dncdbg PRIVATE
             corguids

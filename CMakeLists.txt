@@ -112,6 +112,17 @@ set(FEATURE_EVENT_TRACE 0)
 #         # On macOS and other systems, pthreads may be built into the system library
 #         set(PTHREAD_LIBRARY c)
 #       endif()
+# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake`, change line `check_function_exists(pipe2 HAVE_PIPE2)`:
+#      if(APPLE)
+#          set(HAVE_PIPE2 FALSE CACHE INTERNAL "pipe2 is missing on macOS")
+#      else()
+#          check_function_exists(pipe2 HAVE_PIPE2)
+#      endif()
+# - correct `third_party/diagnostics/src/shared/pal/src/include/pal/palinternal.h`, change line `#include <CoreServices/CoreServices.h>`
+#        #pragma clang diagnostic push
+#        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#        #include <CoreServices/CoreServices.h>
+#        #pragma clang diagnostic pop
 ###
 
 # include shared compiler configs
