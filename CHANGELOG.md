@@ -36,6 +36,7 @@ Upcoming changes compared to previous version.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
+- Updated diagnostics version to v10.0.745401.
 - Minimized the tree-sitter C# grammar to expression-evaluation constructs, shrinking parser.c and binary/memory usage.
 - Resolve array element access by name directly instead of enumerating all elements.
 - Renamed TestTracePoint to TestLogpoints to match VS Code terminology.
