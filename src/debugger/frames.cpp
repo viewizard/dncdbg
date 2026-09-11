@@ -11,8 +11,6 @@
 #include "metadata/modules.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <algorithm>
-#include <iterator>
 #include <limits>
 #include <list>
 #include <vector>
@@ -33,40 +31,10 @@ enum class FrameType : uint8_t
     CLRManagedExceptionUser
 };
 
-HRESULT GetActiveInternalFrames(const ToRelease<ICorDebugThread3> &trThread3, std::list<ToRelease<ICorDebugInternalFrame2>> &trInternalFrames)
+bool AllowInternalFrame(ICorDebugInternalFrame *pInternalFrame, bool lastFrames)
 {
-    HRESULT Status = S_OK;
-    uint32_t cInternalFrames = 0;
-    IfFailRet(trThread3->GetActiveInternalFrames(0, &cInternalFrames, nullptr));
-
-    uint32_t fetchedFrames = 0;
-    std::vector<ICorDebugInternalFrame2 *> pInternalFrames(cInternalFrames);
-    if (SUCCEEDED(trThread3->GetActiveInternalFrames(cInternalFrames, &fetchedFrames, pInternalFrames.data())) &&
-        fetchedFrames == cInternalFrames)
-    {
-        std::transform(pInternalFrames.cbegin(), pInternalFrames.cend(),
-                       std::back_inserter(trInternalFrames), [](ICorDebugInternalFrame2 *p)
-                       {
-                           return ToRelease<ICorDebugInternalFrame2>(p);
-                       });
-    }
-    else
-    {
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-bool AllowInternalFrame(ICorDebugInternalFrame2 *pInternalFrame2, bool lastFrames)
-{
-    ToRelease<ICorDebugInternalFrame> trInternalFrame;
     CorDebugInternalFrameType corFrameType = STUBFRAME_NONE;
-    if (SUCCEEDED(pInternalFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
-    {
-        trInternalFrame->GetFrameType(&corFrameType);
-    }
-    else
+    if (pInternalFrame == nullptr || FAILED(pInternalFrame->GetFrameType(&corFrameType)))
     {
         return false;
     }
@@ -243,23 +211,42 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
     return S_OK;
 }
 
-CORDB_ADDRESS GetIP(const CONTEXT *pContext)
+// Get the absolute native instruction pointer for the frame.
+// JIT-compiled frames implement both ICorDebugILFrame and ICorDebugNativeFrame; the native frame
+// provides an offset into the function's native code, which can be resolved to an absolute address.
+CORDB_ADDRESS GetFrameNativeIP(ICorDebugFrame *pFrame)
 {
-#ifdef _TARGET_AMD64_
-    return static_cast<CORDB_ADDRESS>(pContext->Rip);
-#elif defined(_TARGET_X86_)
-    return static_cast<CORDB_ADDRESS>(pContext->Eip);
-#elif defined(_TARGET_ARM_)
-    return static_cast<CORDB_ADDRESS>(pContext->Pc);
-#elif defined(_TARGET_ARM64_)
-    return static_cast<CORDB_ADDRESS>(pContext->Pc);
-#elif defined(_TARGET_RISCV64_)
-    return static_cast<CORDB_ADDRESS>(pContext->Pc);
-#elif defined(_TARGET_LOONGARCH64_)
-    return static_cast<CORDB_ADDRESS>(pContext->Pc);
-#else
-#error "Unsupported platform"
-#endif
+    ToRelease<ICorDebugNativeFrame> trNativeFrame;
+    if (FAILED(pFrame->QueryInterface(IID_ICorDebugNativeFrame, reinterpret_cast<void **>(&trNativeFrame))))
+    {
+        return 0;
+    }
+
+    uint32_t nativeOffset = 0;
+    if (FAILED(trNativeFrame->GetIP(&nativeOffset)))
+    {
+        return 0;
+    }
+
+    ToRelease<ICorDebugFunction> trFunction;
+    if (FAILED(pFrame->GetFunction(&trFunction)) || trFunction == nullptr)
+    {
+        return 0;
+    }
+
+    ToRelease<ICorDebugCode> trNativeCode;
+    if (FAILED(trFunction->GetNativeCode(&trNativeCode)) || trNativeCode == nullptr)
+    {
+        return 0;
+    }
+
+    CORDB_ADDRESS nativeBaseAddress = 0;
+    if (FAILED(trNativeCode->GetAddress(&nativeBaseAddress)))
+    {
+        return 0;
+    }
+
+    return nativeBaseAddress + nativeOffset;
 }
 
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
@@ -387,72 +374,99 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         return S_OK;
     }
 
-    ToRelease<ICorDebugThread3> trThread3;
-    IfFailRet(pThread->QueryInterface(IID_ICorDebugThread3, reinterpret_cast<void **>(&trThread3)));
-    ToRelease<ICorDebugStackWalk> trStackWalk;
-    IfFailRet(trThread3->CreateStackWalk(&trStackWalk));
+    // Enumerate all stack chains of the thread, starting at the active (most recent) one.
+    ToRelease<ICorDebugChainEnum> trChainEnum;
+    IfFailRet(pThread->EnumerateChains(&trChainEnum));
 
-    std::list<ToRelease<ICorDebugInternalFrame2>> trInternalFrames;
-    GetActiveInternalFrames(trThread3, trInternalFrames);
+    // ICorDebugChain::EnumerateFrames() reports internal frames inline. Internal frames that are not
+    // followed by any regular frame belong to the root end of the stack trace and are reported
+    // differently (see AllowInternalFrame()). Since the enumerator is forward-only, internal frames
+    // are buffered until the next regular frame is known.
+    std::list<ToRelease<ICorDebugInternalFrame>> trPendingInternalFrames;
+    ToRelease<ICorDebugFrameEnum> trFrameEnum;
 
-    for (Status = S_OK; ; Status = trStackWalk->Next())
+    for (;;)
     {
-        if (Status == CORDBG_S_AT_END_OF_STACK ||
-            FAILED(Status))
+        // Fetch the next regular (non-internal) frame, buffering internal frames into trPendingInternalFrames.
+        ToRelease<ICorDebugFrame> trFrame;
+        bool frameFetched = false;
+        for (;;)
         {
+            if (trFrameEnum == nullptr)
+            {
+                // Move to the next managed chain.
+                ToRelease<ICorDebugChain> trChain;
+                ULONG fetchedChains = 0;
+                if (FAILED(trChainEnum->Next(1, &trChain, &fetchedChains)) || fetchedChains == 0)
+                {
+                    break; // End of stack.
+                }
+                if (trChain == nullptr)
+                {
+                    continue;
+                }
+
+                BOOL isManaged = FALSE;
+                if (FAILED(trChain->IsManaged(&isManaged)) || isManaged == FALSE)
+                {
+                    continue; // Skip unmanaged chains, they are always empty.
+                }
+
+                if (FAILED(trChain->EnumerateFrames(&trFrameEnum)))
+                {
+                    continue; // Skip chains that failed to enumerate frames.
+                }
+                continue; // Proceed to the frame enumeration.
+            }
+
+            ToRelease<ICorDebugFrame> trNextFrame;
+            ULONG fetchedFrames = 0;
+            if (FAILED(trFrameEnum->Next(1, &trNextFrame, &fetchedFrames)))
+            {
+                break; // Stop the walk on enumeration errors.
+            }
+            if (fetchedFrames == 0)
+            {
+                trFrameEnum.Free(); // Current chain exhausted, move to the next chain.
+                continue;
+            }
+            if (trNextFrame == nullptr)
+            {
+                continue; // Skip null frames, if any.
+            }
+
+            ToRelease<ICorDebugInternalFrame> trInternalFrame;
+            if (SUCCEEDED(trNextFrame->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trInternalFrame))))
+            {
+                trPendingInternalFrames.emplace_back(trInternalFrame.Detach());
+                continue;
+            }
+
+            trFrame = trNextFrame.Detach();
+            frameFetched = true;
             break;
         }
 
-        ToRelease<ICorDebugFrame> trFrame;
-        if (FAILED(Status = trStackWalk->GetFrame(&trFrame)))
+        if (!frameFetched)
         {
-            continue;
+            break; // End of stack.
         }
 
-        if (Status == S_FALSE) // S_FALSE - The current frame is a native stack frame.
+        // Internal frames positioned before the current regular frame belong to the middle of the stack trace.
+        for (const auto &trInternalFrame : trPendingInternalFrames)
         {
-            continue;
-        }
-
-        // At this point (Status == S_OK).
-        // According to CoreCLR sources, S_OK can be returned with a null trFrame, which must be skipped.
-        // Related to `FrameType::kExplicitFrame` in runtime (represents a skipped frame function with no frame transition).
-        if (trFrame == nullptr)
-        {
-            continue;
-        }
-
-        if (!trInternalFrames.empty())
-        {
-            BOOL isCloser = TRUE;
-            for (auto it = trInternalFrames.begin(); it != trInternalFrames.end(); )
+            if (AllowInternalFrame(trInternalFrame, false))
             {
-                if (SUCCEEDED((*it)->IsCloserToLeaf(trFrame, &isCloser)) &&
-                    isCloser == TRUE)
+                if (cb(FrameType::CLRInternal, trInternalFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
                 {
-                    ToRelease<ICorDebugFrame> trIntFrame;
-                    if (SUCCEEDED((*it)->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
-                        AllowInternalFrame(*it, false))
-                    {
-                        if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
-                        {
-                            return S_OK;
-                        }
-                    }
-                    it = trInternalFrames.erase(it);
-                }
-                else
-                {
-                    ++it;
+                    return S_OK;
                 }
             }
         }
+        trPendingInternalFrames.clear();
 
-        // If we get a RuntimeUnwindableFrame, then the stackwalker is also stopped at a native
-        // stack frame, but it's a native stack frame which requires special unwinding help from
-        // the runtime. When a debugger gets a RuntimeUnwindableFrame, it should use the runtime
-        // to unwind, but it has to do inspection on its own. It can call
-        // ICorDebugStackWalk::GetContext() to retrieve the context of the native stack frame.
+        // If we get a RuntimeUnwindableFrame, then it's a native stack frame which requires special
+        // unwinding help from the runtime and cannot be inspected as a managed frame.
         ToRelease<ICorDebugRuntimeUnwindableFrame> trRuntimeUnwindableFrame;
         if (SUCCEEDED(trFrame->QueryInterface(IID_ICorDebugRuntimeUnwindableFrame, reinterpret_cast<void **>(&trRuntimeUnwindableFrame))))
         {
@@ -484,12 +498,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
                 continue;
             }
 
-            CONTEXT currentCtx;
-            uint32_t contextSize = 0;
-            static constexpr uint32_t ctxFlags = CONTEXT_CONTROL;
-            IfFailRet(trStackWalk->GetContext(ctxFlags, sizeof(CONTEXT), &contextSize, reinterpret_cast<BYTE*>(&currentCtx)));
-
-            if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr, GetIP(&currentCtx)) == S_CAN_EXIT)
+            if (cb(FrameType::CLRManaged, trFrame, nullptr, nullptr, nullptr, GetFrameNativeIP(trFrame)) == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -514,13 +523,12 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
         }
     }
 
-    for (const auto &trIntFrame2 : trInternalFrames)
+    // Internal frames that were not followed by any regular frame belong to the root end of the stack trace.
+    for (const auto &trInternalFrame : trPendingInternalFrames)
     {
-        ToRelease<ICorDebugFrame> trIntFrame;
-        if (SUCCEEDED(trIntFrame2->QueryInterface(IID_ICorDebugInternalFrame, reinterpret_cast<void **>(&trIntFrame))) &&
-            AllowInternalFrame(trIntFrame2, true))
+        if (AllowInternalFrame(trInternalFrame, true))
         {
-            if (cb(FrameType::CLRInternal, trIntFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
+            if (cb(FrameType::CLRInternal, trInternalFrame, nullptr, nullptr, nullptr, 0) == S_CAN_EXIT)
             {
                 return S_OK;
             }
@@ -605,8 +613,8 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
     std::list<IntWalkFrame> walkFrames;
     static constexpr size_t stackTraceLimit = 250;
 
-    // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
-    // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
+    // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
+    // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *,
             const std::string *, const Source *, CORDB_ADDRESS) -> HRESULT
@@ -721,8 +729,8 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     static constexpr size_t stackTraceLimit = 250;
     bool stackTruncated = false;
 
-    // Store all ICorDebugStackWalk frames output before calling ICorDebug API, since it could corrupt internal states.
-    // For example, on macOS arm64 since .NET 9.0, ICorDebugFunction2::GetJMCStatus call breaks ICorDebugStackWalk.
+    // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
+    // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
     WalkFrames(pThread, pDebugInfo,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *pSequencePoint,
             const std::string *pMethodName, const Source *pSource, CORDB_ADDRESS ip) -> HRESULT

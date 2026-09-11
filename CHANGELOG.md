@@ -49,6 +49,7 @@ Upcoming changes compared to previous version.
 - Fixed pause selecting a thread without user code as the last stopped thread; now the first thread with a valid user source location is preferred.
 - Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers while the debuggee is running.
 - Fixed "Innermost exception" in exception description to report the last exception in the InnerException chain instead of the direct inner exception.
+- Fixed stack trace when stopped in a catch block showing throw-site frames that had already been unwound by the exception in addition to the catch frames.
 
 <br>
 <br>
