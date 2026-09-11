@@ -16,6 +16,8 @@ namespace dncdbg
 {
 
 std::string PrintGUID(const GUID &guid);
+std::string PrintFloat(float value);
+std::string PrintDouble(double value);
 
 } // namespace dncdbg
 
