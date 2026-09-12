@@ -371,6 +371,8 @@ HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
         case StartMethod::Attach:
             terminate = false;
             break;
+        case StartMethod::None: // The debugger was initialized, but no process was launched or attached.
+            return S_OK;
         default:
             assert(false);
             return E_FAIL;
