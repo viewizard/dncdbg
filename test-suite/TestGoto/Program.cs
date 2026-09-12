@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 using DbgTest;
 using DbgTest.DAP;
@@ -60,26 +59,26 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 54, Column: 4, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 1, ExpectedLine: 54, ExpectedColumn: 9);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 4, ExpectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", TargetID: 1, ExpectedLine: 53, ExpectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 54, Column: 21, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 2, ExpectedLine: 54, ExpectedColumn: 20);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 21, ExpectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", TargetID: 2, ExpectedLine: 53, ExpectedColumn: 20);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 54, Column: 25, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 3, ExpectedLine: 54, ExpectedColumn: 25);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 25, ExpectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", TargetID: 3, ExpectedLine: 53, ExpectedColumn: 25);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 54, Column: 30);
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 20);
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 52, Column: 4);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 30);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 52, Column: 20);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 51, Column: 4);
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 27, Column: 5, ExpectedCount: 1);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 26, Column: 5, ExpectedCount: 1);
                 Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 4);
 
                 Context.Continue(@"__FILE__:__LINE__");
@@ -93,10 +92,10 @@ class Program
                 Context Context = (Context)context;
                 Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number with "public int i = 5;" code
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 13, Column: 4, ExpectedCount: 3);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 12, Column: 4, ExpectedCount: 3);
                 Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 5);
                 Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 6);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 7, ExpectedLine: 13, ExpectedColumn: 5);
+                Context.Goto(@"__FILE__:__LINE__", TargetID: 7, ExpectedLine: 12, ExpectedColumn: 5);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
