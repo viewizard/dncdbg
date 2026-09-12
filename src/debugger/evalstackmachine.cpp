@@ -1940,7 +1940,7 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
-    m_evalData.specifier = specifier;
+    m_evalData.specifier = specifier | FormatSpecifier::WalkContainerMembers;
     m_evalData.pForcedThisValue = pForcedThisValue;
     IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
 

@@ -35,6 +35,7 @@ Upcoming changes compared to previous version.
 - Added TestEmbeddedSources.
 - Added TestStackTrace.
 - Added TestBreakpointLocations.
+- Added access to the `HasValue` and `Value` members of nullable values.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

@@ -952,6 +952,9 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts1", "{00:00:42}");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_ts2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1", "42");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1.HasValue", "true");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1.Value", "42");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i2.HasValue", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_b1", "true");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_b2", "null");

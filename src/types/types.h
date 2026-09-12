@@ -210,7 +210,8 @@ enum class FormatSpecifier : uint16_t
     StringWithNoQuotes         = 1U << 5U,
     DisplaysHiddenMembers      = 1U << 6U,
     DisplaysInRawMode          = 1U << 7U,
-    Results                    = 1U << 8U
+    Results                    = 1U << 8U,
+    WalkContainerMembers       = 1U << 9U
 };
 
 inline FormatSpecifier operator | (FormatSpecifier lhs, FormatSpecifier rhs)

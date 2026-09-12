@@ -939,15 +939,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     bool showInRaw = (specifier & FormatSpecifier::DisplaysInRawMode) != FormatSpecifier::None ||
                      (GetEvalFlags() & EVAL_SHOWRAWVALUES) != 0U;
     bool showHidden = (specifier & FormatSpecifier::DisplaysHiddenMembers) != FormatSpecifier::None;
+    bool walkContainer = (specifier & FormatSpecifier::WalkContainerMembers) != FormatSpecifier::None;
 
     struct WalkValue
     {
         ToRelease<ICorDebugValue> trValue;
         bool isTypeProxyValue = false;
+        bool walkContainerMembers = false;
 
-        WalkValue(ICorDebugValue *pValue, bool isTypeProxyValue_)
+        WalkValue(ICorDebugValue *pValue, bool isTypeProxyValue_, bool walkContainerMembers_ = false)
             : trValue(pValue),
-              isTypeProxyValue(isTypeProxyValue_)
+              isTypeProxyValue(isTypeProxyValue_),
+              walkContainerMembers(walkContainerMembers_)
         {
         }
     };
@@ -958,7 +961,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     pInputValue->AddRef();
     trWalkQueue.emplace_back(pInputValue, false);
 
-    const auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue) -> HRESULT
+    const auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue, bool walkContainerMembers) -> HRESULT
     {
         BOOL isNull = FALSE;
         ToRelease<ICorDebugValue> trValue;
@@ -1083,14 +1086,30 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            if (displayTypeName.back() == '?') // System.Nullable<T>
+            if (displayTypeName.back() == '?' && !walkContainerMembers) // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
                 IfFailRet(GetNullableValue(trValue, &trValueValue, hasValue));
 
+                if (walkContainer)
+                {
+                    // Walk the Nullable<T> object itself.
+                    pFrontValue->AddRef();
+                    trWalkQueue.emplace_back(pFrontValue, false, true);
+                }
+
                 if (hasValue)
                 {
+                    CorElementType elemType = ELEMENT_TYPE_MAX;
+                    IfFailRet(trValueValue->GetType(&elemType));
+
+                    // FIXME: for a nullable, value types must be boxed here before the members walk.
+                    if (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE)
+                    {
+                        return S_OK;
+                    }
+
                     trValue.Free();
                     trValue = trValueValue.Detach();
                     ToRelease<ICorDebugValue2> trValue2;
@@ -1376,9 +1395,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     {
         const ToRelease<ICorDebugValue> trFrontValue(trWalkQueue.front().trValue.Detach());
         const bool isTypeProxyValue = trWalkQueue.front().isTypeProxyValue;
+        const bool walkContainerMembers = trWalkQueue.front().walkContainerMembers;
         trWalkQueue.pop_front();
 
-        IfFailRet(walkNext(trFrontValue, isTypeProxyValue));
+        IfFailRet(walkNext(trFrontValue, isTypeProxyValue, walkContainerMembers));
         if (Status == S_CAN_EXIT)
         {
             return S_OK;
