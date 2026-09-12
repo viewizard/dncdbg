@@ -549,6 +549,9 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "array1.Length");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "4", "int", "array2.Length");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "6", "int", "multi_array2.Length");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "array1.Rank");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "1", "int", "array2.Rank");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "multi_array2.Rank");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestArrayArg2(array1, 5)", "error:");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{int[2, 3]}", "int[,]", "multi_array2");
