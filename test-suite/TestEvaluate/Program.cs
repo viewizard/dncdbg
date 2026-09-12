@@ -615,6 +615,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "testString2 + testString1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"\"", "string", "testString1 + testString1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"testtest\"", "string", "testString2 + testString2");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "4", "int", "testString2.Length");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "\"\" + \"test\"");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"test\"", "string", "\"test\" + \"\"");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"\"", "string", "\"\" + \"\"");

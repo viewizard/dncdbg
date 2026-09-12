@@ -36,6 +36,7 @@ Upcoming changes compared to previous version.
 - Added TestStackTrace.
 - Added TestBreakpointLocations.
 - Added access to the `HasValue` and `Value` members of nullable values.
+- Added member access on string values in expression evaluation (e.g. `testString.Length`).
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

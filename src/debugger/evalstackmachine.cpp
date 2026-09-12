@@ -1603,7 +1603,7 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     }
     else if (elemType == ELEMENT_TYPE_STRING)
     {
-        const std::string emptyString;
+        static const std::string emptyString;
         return ed.pEvalExec->CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
     }
     else

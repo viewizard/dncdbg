@@ -1076,10 +1076,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             return E_FAIL; // arrayElementName was provided, but the value is not an array.
         }
 
-        ToRelease<ICorDebugValue2> trValue2;
-        IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
         ToRelease<ICorDebugType> trType;
-        IfFailRet(trValue2->GetExactType(&trType));
+        {
+            ToRelease<ICorDebugValue2> trValue2;
+            IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+            IfFailRet(trValue2->GetExactType(&trType));
+        }
         if (trType == nullptr)
         {
             return E_FAIL;
@@ -1135,9 +1137,20 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(trType->GetType(&elemType));
             if (elemType == ELEMENT_TYPE_STRING)
             {
-                // FIXME: when walkContainer is set, create the `System.String` type and
-                //        continue walking the container members with the proper type.
-                return S_OK;
+                if (walkContainer)
+                {
+                    // In case of a string, the input value is always a reference (ELEMENT_TYPE_CLASS),
+                    // so query the exact type from it to walk the string members.
+                    trValue.Free();
+                    ToRelease<ICorDebugValue2> trValue2;
+                    IfFailRet(pFrontValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                    trType.Free();
+                    IfFailRet(trValue2->GetExactType(&trType));
+                }
+                else
+                {
+                    return S_OK;
+                }
             }
 
             ToRelease<ICorDebugClass> trClass;
