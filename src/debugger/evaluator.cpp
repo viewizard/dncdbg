@@ -991,7 +991,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
         }
 
         ToRelease<ICorDebugArrayValue> trArrayValue;
-        if (SUCCEEDED(trValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue))))
+        if (!walkContainerMembers &&
+            SUCCEEDED(trValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayValue))))
         {
             uint32_t nRank = 0;
             IfFailRet(trArrayValue->GetRank(&nRank));
@@ -1001,6 +1002,35 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (SUCCEEDED(trArrayValue->HasBaseIndicies(&hasBaseIndices)) && (hasBaseIndices == TRUE))
             {
                 IfFailRet(trArrayValue->GetBaseIndicies(nRank, base.data()));
+            }
+
+            if (arrayElementName.empty() && !walkContainer)
+            {
+                uint32_t cElements = 0;
+                IfFailRet(trArrayValue->GetCount(&cElements));
+
+                std::vector<uint32_t> dims(nRank, 0);
+                IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
+
+                std::vector<uint32_t> ind(nRank, 0);
+
+                for (uint32_t i = 0; i < cElements; ++i)
+                {
+                    const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                    {
+                        IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
+                        return S_OK;
+                    };
+
+                    IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr, nullptr));
+                    if (Status == S_CAN_EXIT)
+                    {
+                        return S_CAN_EXIT; // Fast exit from the loop.
+                    }
+                    IncIndices(dims, ind);
+                }
+
+                return S_OK;
             }
 
             if (!arrayElementName.empty())
@@ -1036,30 +1066,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            uint32_t cElements = 0;
-            IfFailRet(trArrayValue->GetCount(&cElements));
-
-            std::vector<uint32_t> dims(nRank, 0);
-            IfFailRet(trArrayValue->GetDimensions(nRank, dims.data()));
-
-            std::vector<uint32_t> ind(nRank, 0);
-
-            for (uint32_t i = 0; i < cElements; ++i)
-            {
-                const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
-                {
-                    IfFailRet(trArrayValue->GetElementAtPosition(i, ppResultValue));
-                    return S_OK;
-                };
-
-                IfFailRet(cb(nullptr, false, "[" + IndicesToStr(ind, base) + "]", getValue, nullptr, nullptr));
-                if (Status == S_CAN_EXIT)
-                {
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-                IncIndices(dims, ind);
-            }
-
+            // FIXME: when walkContainer is set, create the `System.Array` type and add it
+            //        to trWalkQueue to walk the container members.
             return S_OK;
         }
 
@@ -1086,7 +1094,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            if (displayTypeName.back() == '?' && !walkContainerMembers) // System.Nullable<T>
+            if (!walkContainerMembers && displayTypeName.back() == '?') // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -1127,6 +1135,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             IfFailRet(trType->GetType(&elemType));
             if (elemType == ELEMENT_TYPE_STRING)
             {
+                // FIXME: when walkContainer is set, create the `System.String` type and
+                //        continue walking the container members with the proper type.
                 return S_OK;
             }
 
