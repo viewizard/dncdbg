@@ -35,8 +35,9 @@ Upcoming changes compared to previous version.
 - Added TestEmbeddedSources.
 - Added TestStackTrace.
 - Added TestBreakpointLocations.
-- Added access to the `HasValue` and `Value` members of nullable values.
-- Added member access on string values in expression evaluation (e.g. `testString.Length`).
+- Added access to the `HasValue` and `Value` members of nullable values in expression evaluation.
+- Added member access on string and array values in expression evaluation (e.g. `testString.Length`, `testArray.Length`).
+- Added member access on values with DebuggerTypeProxy attribute in expression evaluation.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

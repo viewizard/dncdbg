@@ -1066,9 +1066,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 return S_OK;
             }
 
-            // FIXME: when walkContainer is set, create the `System.Array` type and add it
-            //        to trWalkQueue to walk the container members.
-            return S_OK;
+            if (!walkContainer)
+            {
+                return S_OK;
+            }
         }
 
         if (!arrayElementName.empty())
@@ -1114,12 +1115,6 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     CorElementType elemType = ELEMENT_TYPE_MAX;
                     IfFailRet(trValueValue->GetType(&elemType));
 
-                    // FIXME: for a nullable, value types must be boxed here before the members walk.
-                    if (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE)
-                    {
-                        return S_OK;
-                    }
-
                     trValue.Free();
                     trValue = trValueValue.Detach();
                     ToRelease<ICorDebugValue2> trValue2;
@@ -1152,6 +1147,18 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     return S_OK;
                 }
             }
+            else if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
+            {
+                // Create proper System.Array type in order to walk members.
+                trType.Free();
+                ToRelease<ICorDebugClass2> trClass2;
+                IfFailRet(m_trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+                IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
+            }
+            else if (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE)
+            {
+                return S_OK;
+            }
 
             ToRelease<ICorDebugClass> trClass;
             IfFailRet(trType->GetClass(&trClass));
@@ -1160,15 +1167,17 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
 
-            if (!showInRaw && isNull == FALSE && !isTypeProxyValue &&
-                (elemType == ELEMENT_TYPE_CLASS || elemType == ELEMENT_TYPE_VALUETYPE))
+            if (!showInRaw && isNull == FALSE && !isTypeProxyValue)
             {
                 ToRelease<ICorDebugValue> trTypeProxyValue;
                 if (SUCCEEDED(m_sharedTypeProxy->GetDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType,
                                                                            currentTypeDef, &trTypeProxyValue)))
                 {
                     trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
-                    return S_OK;
+                    if (!walkContainer)
+                    {
+                        return S_OK;
+                    }
                 }
             }
 
@@ -2503,6 +2512,11 @@ HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule, bool priv
         static const WSTRING strTypeDef(W("System.Enum"));
         IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), mdTypeDefNil, &m_systemEnumTypeDef));
         IfFailRet(pModule->GetBaseAddress(&m_systemEnumModAddress));
+
+        mdTypeDef typeDef = mdTypeDefNil;
+        static const WSTRING strTypeDefArray(W("System.Array"));
+        IfFailRet(trMDImport->FindTypeDefByName(strTypeDefArray.c_str(), mdTypeDefNil, &typeDef));
+        IfFailRet(pModule->GetClassFromToken(typeDef, &m_trArrayClass));
     }
 
     return S_OK;

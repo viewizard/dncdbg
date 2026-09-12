@@ -441,6 +441,7 @@ class Program
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_list1, "int", "[2]", "30");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_list1, "int", "[3]", "40");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_list1, "int", "[4]", "50");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "list1.Count");
 
                 int variablesReference_dictionary1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "dictionary1");
                 int variablesReference_dictionary1_0 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_dictionary1, "[0]");
@@ -449,6 +450,7 @@ class Program
                 int variablesReference_dictionary1_1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_dictionary1, "[1]");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_dictionary1_1, "string", "Key", "\"Bob\"");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_dictionary1_1, "int", "Value", "30");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "2", "int", "dictionary1.Count");
 
                 int variablesReference_myTestList1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference_Locals, "myTestList1");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_myTestList1, "int", "[0]", "10");

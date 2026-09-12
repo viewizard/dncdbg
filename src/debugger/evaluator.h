@@ -166,6 +166,8 @@ class Evaluator
     mdTypeDef m_systemEnumTypeDef{mdTypeDefNil};
     CORDB_ADDRESS m_systemEnumModAddress{0};
 
+    ToRelease<ICorDebugClass> m_trArrayClass;
+
     // Extension methods related
 
     struct ModuleExtensionMethods
