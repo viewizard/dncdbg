@@ -34,6 +34,7 @@ Upcoming changes compared to previous version.
 - Added embedded sources support.
 - Added TestEmbeddedSources.
 - Added TestStackTrace.
+- Added TestBreakpointLocations.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

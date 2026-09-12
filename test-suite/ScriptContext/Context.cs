@@ -1421,6 +1421,30 @@ class Context
         Assert.True(fileContent == sourceResponse.body.content, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public void TestBreakpointLocations(string caller_trace, BreakpointLocation[] ExpectedLocations, string FileName, int Line, int Column, int EndLine, int EndColumn)
+    {
+        BreakpointLocationsRequest breakpointLocationsRequest = new BreakpointLocationsRequest();
+        breakpointLocationsRequest.arguments.source.path = FileName;
+        breakpointLocationsRequest.arguments.line = Line;
+        breakpointLocationsRequest.arguments.column = Column;
+        breakpointLocationsRequest.arguments.endLine = EndLine;
+        breakpointLocationsRequest.arguments.endColumn = EndColumn;
+        var ret = DAPDebugger.Request(breakpointLocationsRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        BreakpointLocationsResponse breakpointLocationsResponse = JsonConvert.DeserializeObject<BreakpointLocationsResponse>(ret.ResponseStr)!;
+
+        Assert.True(ExpectedLocations.Length == breakpointLocationsResponse.body.breakpoints.Count, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        for (int i = 0; i < breakpointLocationsResponse.body.breakpoints.Count; i++)
+        {
+            Assert.Equal(ExpectedLocations[i].line, breakpointLocationsResponse.body.breakpoints[i].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(ExpectedLocations[i].column, breakpointLocationsResponse.body.breakpoints[i].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(ExpectedLocations[i].endLine, breakpointLocationsResponse.body.breakpoints[i].endLine, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(ExpectedLocations[i].endColumn, breakpointLocationsResponse.body.breakpoints[i].endColumn, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        }
+    }
+
     public string? GetSourceFilesPath()
     {
         return ControlInfo.SourceFilesPath;

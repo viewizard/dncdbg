@@ -522,4 +522,21 @@ public class LoadedSourcesRequest : Request
         command = "loadedSources";
     }
 }
+
+public class BreakpointLocationsRequest : Request
+{
+    public BreakpointLocationsRequest()
+    {
+        command = "breakpointLocations";
+    }
+    public BreakpointLocationsArguments arguments = new BreakpointLocationsArguments();
+}
+public class BreakpointLocationsArguments
+{
+    public Source source = new Source();
+    public int line;
+    public int? column;
+    public int? endLine;
+    public int? endColumn;
+}
 }

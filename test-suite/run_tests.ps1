@@ -64,6 +64,7 @@ $ALL_TEST_NAMES = @(
     "TestSingleThreadExec"
     "TestEmbeddedSources"
     "TestStackTrace"
+    "TestBreakpointLocations"
 )
 
 $TEST_NAMES = $tests

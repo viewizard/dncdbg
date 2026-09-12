@@ -270,4 +270,30 @@ public class LoadedSourcesResponseBody
 {
     public List<Source> sources = new();
 }
+
+public class BreakpointLocation
+{
+    public int line;
+    public int? column;
+    public int? endLine;
+    public int? endColumn;
+
+    public BreakpointLocation(int line, int? column = null, int? endLine = null, int? endColumn = null)
+    {
+        this.line = line;
+        this.column = column;
+        this.endLine = endLine;
+        this.endColumn = endColumn;
+    }
+}
+
+public class BreakpointLocationsResponse : Response
+{
+    public BreakpointLocationsResponseBody body = new();
+}
+
+public class BreakpointLocationsResponseBody
+{
+    public List<BreakpointLocation> breakpoints = new();
+}
 }
