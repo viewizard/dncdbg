@@ -63,6 +63,7 @@ $ALL_TEST_NAMES = @(
     "TestGoto"
     "TestSingleThreadExec"
     "TestEmbeddedSources"
+    "TestStackTrace"
 )
 
 $TEST_NAMES = $tests

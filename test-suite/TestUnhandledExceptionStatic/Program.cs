@@ -39,8 +39,13 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                string[] stacktrace = { "throwexception", "callabc" };
-                Context.TestExceptionStackTrace(@"__FILE__:__LINE__", "[Exception] TestUnhandledExceptionStatic.Program.Abc(in int i, ref string s, out uint u)", stacktrace, 2);
+                Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "throwexception", "CLR", "unhandled", "System.Exception");
+
+                string[] FrameNames = [ "[Exception] TestUnhandledExceptionStatic.Program.Abc(in int i, ref string s, out uint u)",
+                                        "[Exception] TestUnhandledExceptionStatic.Program.Main(string[] args)" ];
+                string[] FrameLocations = [ "throwexception",
+                                            "callabc" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
             });
 
         Label.Checkpoint("finish", "",

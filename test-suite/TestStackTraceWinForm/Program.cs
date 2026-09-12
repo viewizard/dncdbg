@@ -48,8 +48,9 @@ namespace TestStackTraceWinForm
                 {
                     Context Context = (Context)context;
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp0");
-                    string[] stacktrace = { "bp0" };
-                    Context.TestStackTrace(@"__FILE__:__LINE__", "TestStackTraceWinForm.Form1.Form1_Load(TestStackTraceWinForm.Form1 sender, System.EventArgs e)", stacktrace, 1);
+                    string[] FrameNames = [ "TestStackTraceWinForm.Form1.Form1_Load(TestStackTraceWinForm.Form1 sender, System.EventArgs e)" ];
+                    string[] FrameLocations = [ "bp0" ];
+                    Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
                     Context.TestStackTraceLastFrame(@"__FILE__:__LINE__", "TestStackTraceWinForm.Program.Main()", "last_frame");
                 });
 

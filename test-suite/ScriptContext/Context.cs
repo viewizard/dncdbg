@@ -1076,7 +1076,7 @@ class Context
         Assert.Equal(excMessage, exceptionDetails.message, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void TestStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
+    public void TestStackTrace(string caller_trace, string[] FrameNames, string[] FrameLocations)
     {
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
         stackTraceRequest.arguments.threadId = threadId;
@@ -1087,14 +1087,13 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(top_frame_name, stackTraceResponse.body.stackFrames[0].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        for (int i = 0; i < num; i++)
+        for (int i = 0; i < FrameLocations.Length; i++)
         {
-            Breakpoint bp = ControlInfo.Breakpoints[stacktrace[i]];
+            Breakpoint bp = ControlInfo.Breakpoints[FrameLocations[i]];
             Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
             var lbp = (LineBreakpoint)bp;
 
+            Assert.Equal(FrameNames[i], stackTraceResponse.body.stackFrames[i].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
             Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[i].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
             Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[i].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
             Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[i].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
@@ -1123,24 +1122,6 @@ class Context
         Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[lastIndex].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
         Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[lastIndex].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
         Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[lastIndex].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void TestExceptionStackTrace(string caller_trace, string top_frame_name, string[] stacktrace, int num)
-    {
-        Func<string, bool> filter = (resJSON) =>
-        {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
-            {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
-                return true;
-            }
-            return false;
-        };
-
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        TestStackTrace(caller_trace, top_frame_name, stacktrace, num);
     }
 
     public void WasExceptionBreakpointHitInExternalCode(string caller_trace, string excCategory, string excMode,

@@ -100,23 +100,32 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static1");
-                string[] stacktrace = { "static1", "static2" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.Program.Bcd(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace, 2);
+
+                string[] FrameNames1 = [ "TestMethodParameters.Program.Bcd(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)",
+                                         "TestMethodParameters.Program.Main(string[] args)" ];
+                string[] FrameLocations1 = [ "static1",
+                                             "static2" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames1, FrameLocations1);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static3");
-                string[] stacktrace2 = { "static3" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.Program.StaticFetchDataAsync(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace2, 1);
+                string[] FrameNames2 = [ "TestMethodParameters.Program.StaticFetchDataAsync(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)" ];
+                string[] FrameLocations2 = [ "static3" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames2, FrameLocations2);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static4");
-                string[] stacktrace3 = { "static4", "static5" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<string, int>.Cde<TestMethodParameters.TestGeneric<int, string>>(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace3, 2);
+                string[] FrameNames3 = [ "TestMethodParameters.GenClass<string, int>.Cde<TestMethodParameters.TestGeneric<int, string>>(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)",
+                                         "TestMethodParameters.Program.Main(string[] args)" ];
+                string[] FrameLocations3 = [ "static4",
+                                             "static5" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames3, FrameLocations3);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static6");
-                string[] stacktrace4 = { "static6" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<string, int>.StaticFetchDataAsync<TestMethodParameters.TestGeneric<int, string>>(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)", stacktrace4, 1);
+                string[] FrameNames4 = [ "TestMethodParameters.GenClass<string, int>.StaticFetchDataAsync<TestMethodParameters.TestGeneric<int, string>>(string s2, int i2, TestMethodParameters.TestGeneric<int, string> u2)" ];
+                string[] FrameLocations4 = [ "static6" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames4, FrameLocations4);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -133,23 +142,31 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance1");
-                string[] stacktrace = { "instance1", "instance2" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.TestClass.Abc(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace, 2);
+                string[] FrameNames1 = [ "TestMethodParameters.TestClass.Abc(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)",
+                                         "TestMethodParameters.Program.Main(string[] args)" ];
+                string[] FrameLocations1 = [ "instance1",
+                                             "instance2" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames1, FrameLocations1);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance3");
-                string[] stacktrace2 = { "instance3" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.TestClass.FetchDataAsync(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace2, 1);
+                string[] FrameNames2 = [ "TestMethodParameters.TestClass.FetchDataAsync(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)" ];
+                string[] FrameLocations2 = [ "instance3" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames2, FrameLocations2);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance4");
-                string[] stacktrace3 = { "instance4", "instance5" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<int, string>.Ecd<TestMethodParameters.TestGeneric<int, string>>(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace3, 2);
+                string[] FrameNames3 = [ "TestMethodParameters.GenClass<int, string>.Ecd<TestMethodParameters.TestGeneric<int, string>>(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)",
+                                         "TestMethodParameters.Program.Main(string[] args)" ];
+                string[] FrameLocations3 = [ "instance4",
+                                             "instance5" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames3, FrameLocations3);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance6");
-                string[] stacktrace4 = { "instance6" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters.GenClass<int, string>.FetchDataAsync<TestMethodParameters.TestGeneric<int, string>>(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)", stacktrace4, 1);
+                string[] FrameNames4 = [ "TestMethodParameters.GenClass<int, string>.FetchDataAsync<TestMethodParameters.TestGeneric<int, string>>(int i1, string s1, TestMethodParameters.TestGeneric<int, string> u1)" ];
+                string[] FrameLocations4 = [ "instance6" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames4, FrameLocations4);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

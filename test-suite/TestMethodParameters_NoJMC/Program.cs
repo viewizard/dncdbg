@@ -49,8 +49,11 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static1");
-                string[] stacktrace = { "static1", "static2" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters_NoJMC.Program.Bcd(string s2, int i2, uint u2)", stacktrace, 2);
+                string[] FrameNames = [ "TestMethodParameters_NoJMC.Program.Bcd(string s2, int i2, uint u2)",
+                                        "TestMethodParameters_NoJMC.Program.Main(string[] args)" ];
+                string[] FrameLocations = [ "static1",
+                                            "static2" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -63,8 +66,11 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance1");
-                string[] stacktrace = { "instance1", "instance2" };
-                Context.TestStackTrace(@"__FILE__:__LINE__", "TestMethodParameters_NoJMC.TestClass.Abc(int i1, string s1, uint u1)", stacktrace, 2);
+                string[] FrameNames = [ "TestMethodParameters_NoJMC.TestClass.Abc(int i1, string s1, uint u1)",
+                                        "TestMethodParameters_NoJMC.Program.Main(string[] args)" ];
+                string[] FrameLocations = [ "instance1",
+                                            "instance2" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
