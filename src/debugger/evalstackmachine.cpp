@@ -227,7 +227,7 @@ HRESULT GetArgData(ICorDebugValue *pTypeValue, std::string &metadataTypeName, Co
         IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trType, metadataTypeName));
     }
     return S_OK;
-};
+}
 
 HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue **pResultValue, const EvalData &ed)
 {
@@ -939,14 +939,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     for (uint32_t i = 0; i < argCount; ++i)
     {
         ToRelease<ICorDebugValue> trValueArg;
-        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
-        IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
-
-        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS ||
-            funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
-        {
-            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
-        }
+        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i), &trValueArg, nullptr));
+        IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
     }
 
     std::vector<SigElementType> genericMethodParameters;
@@ -1182,7 +1176,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType, trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
                                         pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
@@ -1233,14 +1227,8 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
     for (uint32_t i = 0; i < argCount; ++i)
     {
         ToRelease<ICorDebugValue> trValueArg;
-        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i).GetPtr(), &trValueArg, nullptr));
-        IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
-
-        if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS ||
-            funcArgs.at(i).elemType == ELEMENT_TYPE_SZARRAY || funcArgs.at(i).elemType == ELEMENT_TYPE_ARRAY)
-        {
-            IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
-        }
+        IfFailRet(DereferenceAndUnboxValue(trArgs.at(i), &trValueArg, nullptr));
+        IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
     }
 
     // Constructors aren't inherited in C# -- unlike InvocationExpression's
@@ -1357,13 +1345,8 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         for (uint32_t i = 0; i < argCount; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
-            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
-
-            if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
-            {
-                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
-            }
+            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i), &trValueArg, nullptr));
+            IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
         }
 
         ToRelease<ICorDebugFunction> trFunc;
@@ -1372,6 +1355,8 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
                 std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
                 const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
+                // TODO: get the proper method name from System.Reflection.DefaultMemberAttribute
+                // (for example, System.String uses "Chars", which means the name should be "get_Chars").
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);
                 if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
@@ -1398,14 +1383,14 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         }
 
         evalStack.front().ResetEntry();
-        std::vector<ICorDebugValue *> trValueArgs;
-        trValueArgs.reserve(argCount + 1);
+        std::vector<ICorDebugValue *> pValueArgs;
+        pValueArgs.reserve(argCount + 1);
 
-        trValueArgs.emplace_back(trObjectValue.GetPtr());
+        pValueArgs.emplace_back(trObjectValue.GetPtr());
 
         for (uint32_t i = 0; i < argCount; i++)
         {
-            trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
+            pValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1413,7 +1398,7 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
                                             argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;
@@ -1481,13 +1466,8 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         for (uint32_t i = 0; i < argCount; ++i)
         {
             ToRelease<ICorDebugValue> trValueArg;
-            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i).GetPtr(), &trValueArg, nullptr));
-            IfFailRet(trValueArg->GetType(&funcArgs.at(i).elemType));
-
-            if (funcArgs.at(i).elemType == ELEMENT_TYPE_VALUETYPE || funcArgs.at(i).elemType == ELEMENT_TYPE_CLASS)
-            {
-                IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trValueArg, funcArgs.at(i).metadataTypeName));
-            }
+            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i), &trValueArg, nullptr));
+            IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
         }
 
         ToRelease<ICorDebugFunction> trFunc;
@@ -1496,6 +1476,8 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
                 std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
                 const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
+                // TODO: get the proper method name from System.Reflection.DefaultMemberAttribute
+                // (for example, System.String uses "Chars", which means the name should be "get_Chars").
                 const std::string name = "get_Item";
                 const std::size_t found = methodName.rfind(name);
                 if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
@@ -1522,14 +1504,14 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         }
 
         evalStack.front().ResetEntry();
-        std::vector<ICorDebugValue *> trValueArgs;
-        trValueArgs.reserve(argCount + 1);
+        std::vector<ICorDebugValue *> pValueArgs;
+        pValueArgs.reserve(argCount + 1);
 
-        trValueArgs.emplace_back(trObjectValue.GetPtr());
+        pValueArgs.emplace_back(trObjectValue.GetPtr());
 
         for (uint32_t i = 0; i < argCount; i++)
         {
-            trValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
+            pValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
         }
 
         ToRelease<ICorDebugValue2> trValue2;
@@ -1537,7 +1519,7 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, trValueArgs.data(),
+        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
                                             argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     return Status;
