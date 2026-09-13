@@ -699,6 +699,17 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
 
         if (value == "null")
         {
+            // Note: System.Nullable<T> can only wrap value types, so the value field cannot be
+            // assigned null; zero its storage to reset it to default(T).
+            ToRelease<ICorDebugValue> trEditableValue;
+            IfFailRet(DereferenceAndUnboxValue(trValueValue, &trEditableValue, nullptr));
+            ToRelease<ICorDebugGenericValue> trGenericValue;
+            IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+            uint32_t cbSize = 0;
+            IfFailRet(trEditableValue->GetSize(&cbSize));
+            std::vector<uint8_t> buffer(cbSize, 0);
+            IfFailRet(trGenericValue->SetValue(buffer.data()));
+
             IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trHasValueValue, "false", output));
         }
         else
@@ -717,6 +728,17 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     // In case this is not a property, just change the value itself.
     if (setterData == nullptr)
     {
+        if (value == "null")
+        {
+            // For reference types, set the reference to null directly instead of evaluating an expression.
+            ToRelease<ICorDebugReferenceValue> trReferenceValue;
+            if (SUCCEEDED(trPrevValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+            {
+                static constexpr CORDB_ADDRESS addr = 0;
+                return trReferenceValue->SetValue(addr);
+            }
+        }
+
         return m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trPrevValue, value, output);
     }
 
@@ -725,7 +747,15 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(trValue->GetType(&elemType));
 
-    if (elemType == ELEMENT_TYPE_STRING)
+    ToRelease<ICorDebugReferenceValue> trReferenceValue;
+    if (value == "null" &&
+        SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+    {
+        // For reference types, set the reference to null directly instead of evaluating an expression.
+        static constexpr CORDB_ADDRESS addr = 0;
+        IfFailRet(trReferenceValue->SetValue(addr));
+    }
+    else if (elemType == ELEMENT_TYPE_STRING)
     {
         // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for a string in trValue in this case
         trValue.Free();

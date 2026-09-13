@@ -127,7 +127,7 @@ class FrameLevel : public CustomScalarType<FrameLevel>
 
     using ScalarType = int;
 
-    static const int MaxFrameLevel = SHRT_MAX;
+    static constexpr int MaxFrameLevel = SHRT_MAX;
 
     FrameLevel() : m_level(-1)
     {

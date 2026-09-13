@@ -38,6 +38,7 @@ Upcoming changes compared to previous version.
 - Added access to the `HasValue` and `Value` members of nullable values in expression evaluation.
 - Added member access on string and array values in expression evaluation (e.g. `testString.Length`, `testArray.Length`).
 - Added member access on values with DebuggerTypeProxy attribute in expression evaluation.
+- Added null assignment support for reference-type variables and properties.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
@@ -55,6 +56,7 @@ Upcoming changes compared to previous version.
 - Fixed crash in `CheckBreakpointHit()` when `setBreakpoints`/`setFunctionBreakpoints` mutates breakpoint containers while the debuggee is running.
 - Fixed "Innermost exception" in exception description to report the last exception in the InnerException chain instead of the direct inner exception.
 - Fixed stack trace when stopped in a catch block showing throw-site frames that had already been unwound by the exception in addition to the catch frames.
+- Fixed assignment for nullable values and ensured Nullable<T> storage is cleared.
 
 <br>
 <br>

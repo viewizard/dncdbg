@@ -935,6 +935,8 @@ class Program
         bool? nullable_b2 = null;
         decimal? nullable_dec1 = 123;
         decimal? nullable_dec2 = null;
+        string? nullable_str1 = "test";
+        TestClass? nullable_class1 = new TestClass();
 
         int dummy2 = 2;                                     Label.Breakpoint("BREAK2");
 
@@ -960,6 +962,26 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_b2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec1", "123");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec2", "null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_str1", "\"test\"");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_class1", "{TestVariables.TestClass}");
+
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "nullable_guid2", "null", true);
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid2", "null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_guid2.value", "{00000000-0000-0000-0000-000000000000}");
+
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "nullable_i1", "null", true);
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1", "null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1.value", "0");
+
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "nullable_dec1", "null", true);
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec1", "null");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_dec1.value", "0");
+
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "nullable_str1", "null", true);
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_str1", "null");
+
+                Context.SetVariable(@"__FILE__:__LINE__", frameId, variablesReference, "nullable_class1", "null", true);
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_class1", "null");
 
                 int variablesReference_ts1 = Context.GetChildVariablesReference(@"__FILE__:__LINE__", variablesReference, "nullable_ts1");
                 Context.EvalVariable(@"__FILE__:__LINE__", variablesReference_ts1, "int", "Milliseconds", "0");
