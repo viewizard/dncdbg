@@ -1333,7 +1333,7 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, enclosingClass, &methodDef, 1, &numMethods)) && numMethods != 0)
     {
         std::string stateMachineClass;
-        if (HasAsyncStateMachineAttribute(trMDImport, methodDef, stateMachineClass) &&
+        if (HasAttribute(trMDImport, methodDef, DebuggerAttribute::GetAsyncStateMachine(), stateMachineClass) &&
             stateMachineClass == metadataTypeName)
         {
             kickoffMethodToken = methodDef;

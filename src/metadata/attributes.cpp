@@ -142,6 +142,50 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WST
         });
 }
 
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName, std::string &attrText)
+{
+    attrText.clear();
+
+    const void *pBlob = nullptr;
+    ULONG cbBlob = 0;
+    // Note, in case the attribute is not found, GetCustomAttributeByName() returns S_FALSE or an error code.
+    if (S_OK != pMDImport->GetCustomAttributeByName(tok, attrName.c_str(), &pBlob, &cbBlob))
+    {
+        return false;
+    }
+
+    const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
+    PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
+
+    // For an attribute with a single string argument, the blob format is:
+    // 2 bytes - blob prolog 0x0001
+    // 1-4 bytes - text string length (compressed unsigned integer)
+    // N bytes - text string data (UTF-8)
+
+    // Ensure there are enough bytes for the blob prolog before accessing it.
+    if (cbBlob < sizeof(uint16_t))
+    {
+        return false;
+    }
+
+    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
+    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
+    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+    {
+        return false;
+    }
+    pbBlob += sizeof(uint16_t);
+
+    std::string_view text;
+    if (!ReadString(&pbBlob, pbBlobEnd, text))
+    {
+        return false;
+    }
+
+    attrText = text;
+    return true;
+}
+
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok)
 {
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
@@ -181,50 +225,6 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
                             static_cast<uint32_t>(pbBlob[5]) << 24U;
 
     return static_cast<DebuggerBrowsableState>(data);
-}
-
-bool HasAsyncStateMachineAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &metadataStateMachineType)
-{
-    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.asyncstatemachineattribute
-    // Indicates whether a method is marked with the async modifier.
-    const void *pBlob = nullptr;
-    ULONG cbBlob = 0;
-    // Note, in case the attribute is not found, GetCustomAttributeByName() returns S_FALSE or an error code.
-    if (S_OK != pMDImport->GetCustomAttributeByName(tok, W("System.Runtime.CompilerServices.AsyncStateMachineAttribute"), &pBlob, &cbBlob))
-    {
-        return false;
-    }
-
-    const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
-    PCCOR_SIGNATURE pbBlobEnd = pbBlob + cbBlob;
-
-    // In case of AsyncStateMachineAttribute, blob format is:
-    // 2 bytes - blob prolog 0x0001
-    // 1-4 bytes - text string length (compressed unsigned integer)
-    // N bytes - text string data (UTF-8)
-
-    // Ensure there are enough bytes for the blob prolog before accessing it.
-    if (cbBlob < sizeof(uint16_t))
-    {
-        return false;
-    }
-
-    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-    {
-        return false;
-    }
-    pbBlob += sizeof(uint16_t);
-
-    std::string_view text;
-    if (!ReadString(&pbBlob, pbBlobEnd, text))
-    {
-        return false;
-    }
-
-    metadataStateMachineType = text;
-    return true;
 }
 
 bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output)

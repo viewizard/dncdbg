@@ -27,16 +27,16 @@ struct DebuggerAttribute
     // automatically steps through, rather than into, designer provided code.
     static const WSTRING &GetNonUserCode()
     {
-        static const WSTRING NonUserCode = W("System.Diagnostics.DebuggerNonUserCodeAttribute");
-        return NonUserCode;
+        static const WSTRING nonUserCode = W("System.Diagnostics.DebuggerNonUserCodeAttribute");
+        return nonUserCode;
     }
     // Check `DebuggerStepThroughAttribute` for method and class.
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerstepthroughattribute
     // Instructs the debugger to step through the code instead of stepping into the code.
     static const WSTRING &GetStepThrough()
     {
-        static const WSTRING StepThrough = W("System.Diagnostics.DebuggerStepThroughAttribute");
-        return StepThrough;
+        static const WSTRING stepThrough = W("System.Diagnostics.DebuggerStepThroughAttribute");
+        return stepThrough;
     }
     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerhiddenattribute
     // ... debugger does not stop in a method marked with this attribute and does not allow a breakpoint to be set in the method.
@@ -45,8 +45,22 @@ struct DebuggerAttribute
     // Apply the attribute directly to the 'Get' and 'Set' procedures as appropriate.
     static const WSTRING &GetHidden()
     {
-        static const WSTRING Hidden = W("System.Diagnostics.DebuggerHiddenAttribute");
-        return Hidden;
+        static const WSTRING hidden = W("System.Diagnostics.DebuggerHiddenAttribute");
+        return hidden;
+    }
+    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.asyncstatemachineattribute
+    // Indicates whether a method is marked with the async modifier.
+    static const WSTRING &GetAsyncStateMachine()
+    {
+        static const WSTRING asyncStateMachine = W("System.Runtime.CompilerServices.AsyncStateMachineAttribute");
+        return asyncStateMachine;
+    }
+    // https://learn.microsoft.com/en-us/dotnet/api/system.reflection.defaultmemberattribute
+    // Defines the member of a type that is the default member.
+    static const WSTRING &GetDefaultMember()
+    {
+        static const WSTRING defaultMember = W("System.Reflection.DefaultMemberAttribute");
+        return defaultMember;
     }
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
     // Specifies the display proxy for a type.
@@ -67,8 +81,8 @@ enum class DebuggerBrowsableState : uint32_t // NOLINT(performance-enum-size)
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName);
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const std::vector<WSTRING> &attrNames);
+bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName, std::string &attrText);
 DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDImport, mdToken tok);
-bool HasAsyncStateMachineAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string &metadataStateMachineType);
 
 // Debugger Attributes only (DebuggerTypeProxyAttribute or DebuggerDisplayAttribute)
 bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_view attrName, std::string &output);
