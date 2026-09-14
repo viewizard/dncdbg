@@ -67,6 +67,8 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg);
 HRESULT ApplyGenericMethodParameters(const std::vector<SigElementType> &genericMethodParameters, SigElementType &methodArg);
 
+HRESULT GetMethodArgCount(PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, uint32_t &count);
+
 } // namespace dncdbg
 
 #endif // METADATA_SIGPARSE_H

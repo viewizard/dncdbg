@@ -57,6 +57,7 @@ Upcoming changes compared to previous version.
 - Fixed stack trace when stopped in a catch block showing throw-site frames that had already been unwound by the exception in addition to the catch frames.
 - Fixed assignment for nullable values and ensured Nullable<T> storage is cleared.
 - Fixed indexer lookup when arguments have array element types.
+- Fixed indexer properties being listed as regular members when walking object members.
 
 <br>
 <br>

@@ -897,7 +897,7 @@ class Context
         Assert.Equal(ExpectedType, evaluateResponse.body.type!, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void GetAndCheckValue(string caller_trace, Int64 frameId, string Expression, string ExpectedResult)
+    public int GetAndCheckValue(string caller_trace, Int64 frameId, string Expression, string ExpectedResult)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
         evaluateRequest.arguments.expression = Expression;
@@ -916,6 +916,8 @@ class Context
         }
 
         Assert.Equal(ExpectedResult, fixedVal, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        return evaluateResponse.body.variablesReference;
     }
 
     public void CheckErrorAtRequest(string caller_trace, Int64 frameId, string Expression, string errMsgStart)

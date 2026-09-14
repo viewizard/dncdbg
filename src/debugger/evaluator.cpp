@@ -1203,8 +1203,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                                                                nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                     {
                         DWORD getterAttr = 0;
+                        PCCOR_SIGNATURE pSig = nullptr;
+                        ULONG cbSig = 0;
                         if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                                              nullptr, nullptr, nullptr, nullptr)))
+                                                              &pSig, &cbSig, nullptr, nullptr)))
                         {
                             return S_OK; // Return success to continue walking.
                         }
@@ -1217,6 +1219,15 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                         bool isStatic = (getterAttr & mdStatic);
                         if (isNull == TRUE && !isStatic)
+                        {
+                            return S_OK; // Return success to continue walking.
+                        }
+
+                        // A little bit hacky, but a fast way to detect an indexer:
+                        // if the property getter requires arguments, this is an indexer for sure.
+                        uint32_t argCount = 0;
+                        if (SUCCEEDED(GetMethodArgCount(pSig, pSig + cbSig, argCount)) &&
+                            argCount > 0)
                         {
                             return S_OK; // Return success to continue walking.
                         }

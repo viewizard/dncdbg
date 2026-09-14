@@ -742,4 +742,37 @@ HRESULT ApplyGenericMethodParameters(const std::vector<SigElementType> &genericM
     return S_OK;
 }
 
+HRESULT GetMethodArgCount(PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, uint32_t &count)
+{
+    HRESULT Status = S_OK;
+    ULONG cParams = 0; // Count of signature parameters.
+    ULONG convFlags = 0;
+
+    count = 0;
+
+    // 1. calling convention for MethodDefSig:
+    // [[HASTHIS] [EXPLICITTHIS]] (DEFAULT|VARARG|GENERIC GenParamCount)
+    IfFailRet(CorSigUncompressCallingConv_EndPtr(pSig, pSigEnd, convFlags));
+
+    // TODO add VARARG methods support.
+    if ((convFlags & SIG_METHOD_VARARG) != 0U)
+    {
+        return E_NOTIMPL;
+    }
+
+    // 2. skip count of generics if any
+    if ((convFlags & SIG_METHOD_GENERIC) != 0U)
+    {
+        ULONG gParams = 0; // Count of signature generics
+        IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, gParams));
+    }
+
+    // 3. count of params
+    IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, cParams));
+
+    count = static_cast<uint32_t>(cParams);
+
+    return S_OK;
+}
+
 } // namespace dncdbg
