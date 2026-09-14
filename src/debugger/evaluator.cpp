@@ -1223,10 +1223,12 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                             return S_OK; // Return success to continue walking.
                         }
 
-                        // A little bit hacky, but a fast way to detect an indexer:
-                        // if the property getter requires arguments, this is an indexer for sure.
+                        // A bit hacky, but a fast way to detect an indexer:
+                        // an instance property getter that takes arguments is an indexer for sure.
+                        // Note, indexers cannot be static in C#, but other .NET languages allow static parameterized properties.
                         uint32_t argCount = 0;
-                        if (SUCCEEDED(GetMethodArgCount(pSig, pSig + cbSig, argCount)) &&
+                        if (!isStatic &&
+                            SUCCEEDED(GetMethodArgCount(pSig, pSig + cbSig, argCount)) &&
                             argCount > 0)
                         {
                             return S_OK; // Return success to continue walking.

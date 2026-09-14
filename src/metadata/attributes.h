@@ -55,13 +55,6 @@ struct DebuggerAttribute
         static const WSTRING asyncStateMachine = W("System.Runtime.CompilerServices.AsyncStateMachineAttribute");
         return asyncStateMachine;
     }
-    // https://learn.microsoft.com/en-us/dotnet/api/system.reflection.defaultmemberattribute
-    // Defines the member of a type that is the default member.
-    static const WSTRING &GetDefaultMember()
-    {
-        static const WSTRING defaultMember = W("System.Reflection.DefaultMemberAttribute");
-        return defaultMember;
-    }
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
     // Specifies the display proxy for a type.
     static constexpr std::string_view TypeProxy = "System.Diagnostics.DebuggerTypeProxyAttribute..ctor";
