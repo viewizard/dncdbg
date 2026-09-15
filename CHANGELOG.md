@@ -58,6 +58,7 @@ Upcoming changes compared to previous version.
 - Fixed assignment for nullable values and ensured Nullable<T> storage is cleared.
 - Fixed indexer lookup when arguments have array element types.
 - Fixed indexer properties being listed as regular members when walking object members.
+- Fixed element access evaluation to resolve indexers by property metadata instead of the `get_Item` name heuristic, enabling indexers with non-standard getter names (e.g. `string[0]` uses `Chars`).
 
 <br>
 <br>

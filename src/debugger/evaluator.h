@@ -89,6 +89,7 @@ class Evaluator
     using ReturnElementType = SigElementType;
     using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &,
                                                       std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
+    using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
 
     Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalExec> &sharedEvalExec);
 
@@ -128,6 +129,8 @@ class Evaluator
     static HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
     static HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
     HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const Evaluator::WalkMethodsCallback &cb);
+
+    static HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb);
 
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, bool privateCoreLib);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);

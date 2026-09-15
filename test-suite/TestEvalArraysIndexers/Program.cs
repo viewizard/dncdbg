@@ -124,6 +124,7 @@ class Program
         List<string> lists = new List<string>();
         List<MyString> listms = new List<MyString>();
         SortedList<string, int> slist = new SortedList<string, int>();
+        string str1 = "test";
 
         MyInt[] myInts = new MyInt[6] { new MyInt(0), new MyInt(1), new MyInt(2), new MyInt(3), new MyInt(4), new MyInt(5) };
         MyString[] myStrings = new MyString[6] { new MyString("zero"),  new MyString("one"),  new MyString("two"),
@@ -464,12 +465,16 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "dictmsmi[\"a string\"]", "error: 0x80070057");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.Collections.Generic.KeyNotFoundException}", "System.Collections.Generic.KeyNotFoundException", "dictmsmi[myStrings[5]]");
 
+                // check string
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "str1[0]", "116"); // t
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "str1[2]", "115"); // s
+
                 // check nullables
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "sinull");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.NullReferenceException}", "System.NullReferenceException", "sinull[0]");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "sinull[0]", "error: 0x80070057");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "sinull?[0]");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "siq");
-                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{System.NullReferenceException}", "System.NullReferenceException", "siq[0]");
+                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "siq[0]", "error: 0x80070057");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "siq?[0]");
 
                 Context.Continue(@"__FILE__:__LINE__");

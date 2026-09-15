@@ -1318,8 +1318,14 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
     IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trObjectValue, &setterData, output));
 
     ToRelease<ICorDebugValue> trRealValue;
+    BOOL isNull = FALSE;
+    IfFailRet(DereferenceAndUnboxValue(trObjectValue, &trRealValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return E_INVALIDARG;
+    }
     CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(GetRealValueWithType(trObjectValue, &trRealValue, &elemType));
+    IfFailRet(trRealValue->GetType(&elemType));
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
@@ -1337,9 +1343,11 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         evalStack.front().realDisplayTypeName.clear();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
+        Status = Evaluator::GetElement(trRealValue, indexes, &evalStack.front().trValue);
     }
-    else
+    else if (elemType == ELEMENT_TYPE_STRING ||
+             elemType == ELEMENT_TYPE_CLASS ||
+             elemType == ELEMENT_TYPE_VALUETYPE)
     {
         std::vector<SigElementType> funcArgs(argCount);
         for (uint32_t i = 0; i < argCount; ++i)
@@ -1349,18 +1357,17 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
             IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
         }
 
+        ToRelease<ICorDebugValue2> trRealValue2;
+        IfFailRet(trRealValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trRealValue2)));
+        ToRelease<ICorDebugType> trRealType;
+        IfFailRet(trRealValue2->GetExactType(&trRealType));
+
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
-            [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+        IfFailRet(Evaluator::WalkIndexers(trRealType,
+            [&](std::vector<SigElementType> &methodArgs,
                 const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
-                // TODO: get the proper method name from System.Reflection.DefaultMemberAttribute
-                // (for example, System.String uses "Chars", which means the name should be "get_Chars").
-                const std::string name = "get_Item";
-                const std::size_t found = methodName.rfind(name);
-                if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
-                    found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
+                if (funcArgs.size() != methodArgs.size())
                 {
                     return S_OK; // Return success to continue walking.
                 }
@@ -1401,6 +1408,11 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
         Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
                                             argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
+    else
+    {
+        return E_INVALIDARG;
+    }
+
     return Status;
 }
 
@@ -1439,8 +1451,14 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
     }
 
     ToRelease<ICorDebugValue> trRealValue;
+    isNull = FALSE;
+    IfFailRet(DereferenceAndUnboxValue(trObjectValue, &trRealValue, &isNull));
+    if (isNull == TRUE)
+    {
+        return E_INVALIDARG;
+    }
     CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(GetRealValueWithType(trObjectValue, &trRealValue, &elemType));
+    IfFailRet(trRealValue->GetType(&elemType));
 
     if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
     {
@@ -1458,9 +1476,11 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         evalStack.front().realDisplayTypeName.clear();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = Evaluator::GetElement(trObjectValue, indexes, &evalStack.front().trValue);
+        Status = Evaluator::GetElement(trRealValue, indexes, &evalStack.front().trValue);
     }
-    else
+    else if (elemType == ELEMENT_TYPE_STRING ||
+             elemType == ELEMENT_TYPE_CLASS ||
+             elemType == ELEMENT_TYPE_VALUETYPE)
     {
         std::vector<SigElementType> funcArgs(argCount);
         for (uint32_t i = 0; i < argCount; ++i)
@@ -1470,18 +1490,17 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
             IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
         }
 
+        ToRelease<ICorDebugValue2> trRealValue2;
+        IfFailRet(trRealValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trRealValue2)));
+        ToRelease<ICorDebugType> trRealType;
+        IfFailRet(trRealValue2->GetExactType(&trRealType));
+
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkMethods(trObjectValue, true,
-            [&](bool, const std::string &methodName, Evaluator::ReturnElementType &retType,
-                std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+        IfFailRet(Evaluator::WalkIndexers(trRealType,
+            [&](std::vector<SigElementType> &methodArgs,
                 const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
             {
-                // TODO: get the proper method name from System.Reflection.DefaultMemberAttribute
-                // (for example, System.String uses "Chars", which means the name should be "get_Chars").
-                const std::string name = "get_Item";
-                const std::size_t found = methodName.rfind(name);
-                if (retType.elemType == ELEMENT_TYPE_VOID || found == std::string::npos ||
-                    found != methodName.length() - name.length() || funcArgs.size() != methodArgs.size())
+                if (funcArgs.size() != methodArgs.size())
                 {
                     return S_OK; // Return success to continue walking.
                 }
@@ -1522,6 +1541,11 @@ HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalSta
         Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
                                             argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
+    else
+    {
+        return E_INVALIDARG;
+    }
+
     return Status;
 }
 
