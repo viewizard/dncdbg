@@ -1180,8 +1180,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
 
                     ULONG nameLen = 0;
                     DWORD fieldAttr = 0;
-                    IfFailRet(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, &fieldAttr,
-                                                        nullptr, nullptr, nullptr, nullptr, nullptr));
+                    if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, &fieldAttr,
+                                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
 
                     if (isTypeProxyValue && !showHidden &&
                         (fieldAttr & fdFieldAccessMask) != fdPublic)
@@ -1194,82 +1197,85 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     ULONG cbSig = 0;
                     UVCP_CONSTANT pRawValue = nullptr;
                     ULONG rawValueLength = 0;
-                    if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr,
-                                                            &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
+                    if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr,
+                                                         &pSig, &cbSig, nullptr, &pRawValue, &rawValueLength)))
                     {
-                        // Remove null terminator that was included in the length
-                        if (!mdName.empty() && mdName.back() == '\0')
-                        {
-                            mdName.pop_back();
-                        }
-
-                        // Prevent access to internal compiler added fields (without visible name).
-                        // Should be accessed by debugger routine only and hidden from user/ide.
-                        // More about compiler generated names in Roslyn sources:
-                        // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
-                        // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
-                        if (!showHidden && IsSynthesizedLocalName(mdName))
-                        {
-                            return S_OK; // Return success to continue walking.
-                        }
-
-                        const bool isStatic = (fieldAttr & fdStatic);
-                        if (isNull == TRUE && !isStatic)
-                        {
-                            return S_OK; // Return success to continue walking.
-                        }
-
-                        const std::string name = to_utf8(mdName.c_str());
-
-                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *pFallbackTypeName) -> HRESULT
-                        {
-                            if (fieldAttr & fdLiteral)
-                            {
-                                std::string realDisplayTypeName;
-                                IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                    rawValueLength, ppResultValue, realDisplayTypeName));
-
-                                if (pFallbackTypeName != nullptr)
-                                {
-                                    *pFallbackTypeName = std::move(realDisplayTypeName);
-                                }
-                            }
-                            else if (fieldAttr & fdStatic)
-                            {
-                                IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
-                            }
-                            else
-                            {
-                                // Re-acquire trValue from pFrontValue, since it could be neutered by eval call in `cb` on previous iteration.
-                                trValue.Free();
-                                IfFailRet(DereferenceAndUnboxValue(pFrontValue, &trValue, &isNull));
-                                ToRelease<ICorDebugObjectValue> trObjValue;
-                                IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
-                            }
-
-                            return S_OK;
-                        };
-
-                        if (browsableState == DebuggerBrowsableState::RootHidden)
-                        {
-                            ToRelease<ICorDebugValue> trResultValue;
-                            if (SUCCEEDED(getValue(&trResultValue, nullptr)))
-                            {
-                                trWalkQueue.emplace_back(trResultValue.Detach(), false);
-                            }
-                            return S_OK; // Return success to continue walking.
-                        }
-
-                        std::string textWithEval;
-                        HasDebuggerAttribute(trMDImport, fieldDef, DebuggerAttribute::Display, textWithEval);
-
-                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
-                        if (Status == S_CAN_EXIT)
-                        {
-                            return S_CAN_EXIT; // Fast exit from the loop.
-                        }
+                        return S_OK; // Return success to continue walking.
                     }
+
+                    // Remove null terminator that was included in the length
+                    if (!mdName.empty() && mdName.back() == '\0')
+                    {
+                        mdName.pop_back();
+                    }
+
+                    // Prevent access to internal compiler added fields (without visible name).
+                    // Should be accessed by debugger routine only and hidden from user/ide.
+                    // More about compiler generated names in Roslyn sources:
+                    // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
+                    // Note, uncontrolled access to internal compiler added field or its properties may break debugger work.
+                    if (!showHidden && IsSynthesizedLocalName(mdName))
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    const bool isStatic = (fieldAttr & fdStatic);
+                    if (isNull == TRUE && !isStatic)
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    const std::string name = to_utf8(mdName.c_str());
+
+                    const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *pFallbackTypeName) -> HRESULT
+                    {
+                        if (fieldAttr & fdLiteral)
+                        {
+                            std::string realDisplayTypeName;
+                            IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                                rawValueLength, ppResultValue, realDisplayTypeName));
+
+                            if (pFallbackTypeName != nullptr)
+                            {
+                                *pFallbackTypeName = std::move(realDisplayTypeName);
+                            }
+                        }
+                        else if (fieldAttr & fdStatic)
+                        {
+                            IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
+                        }
+                        else
+                        {
+                            // Re-acquire trValue from pFrontValue, since it could be neutered by eval call in `cb` on previous iteration.
+                            trValue.Free();
+                            IfFailRet(DereferenceAndUnboxValue(pFrontValue, &trValue, &isNull));
+                            ToRelease<ICorDebugObjectValue> trObjValue;
+                            IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppResultValue));
+                        }
+
+                        return S_OK;
+                    };
+
+                    if (browsableState == DebuggerBrowsableState::RootHidden)
+                    {
+                        ToRelease<ICorDebugValue> trResultValue;
+                        if (SUCCEEDED(getValue(&trResultValue, nullptr)))
+                        {
+                            trWalkQueue.emplace_back(trResultValue.Detach(), false);
+                        }
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    std::string textWithEval;
+                    HasDebuggerAttribute(trMDImport, fieldDef, DebuggerAttribute::Display, textWithEval);
+
+                    IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
+                    if (Status == S_CAN_EXIT)
+                    {
+                        return S_CAN_EXIT; // Fast exit from the loop.
+                    }
+
                     return S_OK; // Return success to continue walking.
                 }));
             if (Status == S_CAN_EXIT)
@@ -1287,102 +1293,108 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                     }
 
                     ULONG propertyNameLen = 0;
-                    IfFailRet(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
-                                                           nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                           nullptr, nullptr, nullptr, nullptr, 0, nullptr));
+                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
+                                                            nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                            nullptr, nullptr, nullptr, nullptr, 0, nullptr)))
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
 
                     mdMethodDef mdGetter = mdMethodDefNil;
                     mdMethodDef mdSetter = mdMethodDefNil;
                     std::vector<WCHAR> propertyName(propertyNameLen, '\0');
-                    if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
-                                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                               nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
+                                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                            nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
                     {
-                        DWORD getterAttr = 0;
-                        PCCOR_SIGNATURE pSig = nullptr;
-                        ULONG cbSig = 0;
-                        if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
-                                                              &pSig, &cbSig, nullptr, nullptr)))
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    DWORD getterAttr = 0;
+                    PCCOR_SIGNATURE pSig = nullptr;
+                    ULONG cbSig = 0;
+                    if (FAILED(trMDImport->GetMethodProps(mdGetter, nullptr, nullptr, 0, nullptr, &getterAttr,
+                                                          &pSig, &cbSig, nullptr, nullptr)))
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    if (isTypeProxyValue && !showHidden &&
+                        (getterAttr & mdMemberAccessMask) != mdPublic)
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    bool isStatic = (getterAttr & mdStatic);
+                    if (isNull == TRUE && !isStatic)
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    // A bit hacky, but a fast way to detect an indexer:
+                    // an instance property getter that takes arguments is an indexer for sure.
+                    // Note, indexers cannot be static in C#, but other .NET languages allow static parameterized properties.
+                    uint32_t argCount = 0;
+                    if (!isStatic &&
+                        SUCCEEDED(GetMethodArgCount(pSig, pSig + cbSig, argCount)) &&
+                        argCount > 0)
+                    {
+                        return S_OK; // Return success to continue walking.
+                    }
+
+                    const std::string name = to_utf8(propertyName.data());
+
+                    const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
+                    {
+                        if (pThread == nullptr)
                         {
-                            return S_OK; // Return success to continue walking.
+                            return E_FAIL;
                         }
 
-                        if (isTypeProxyValue && !showHidden &&
-                            (getterAttr & mdMemberAccessMask) != mdPublic)
+                        ToRelease<ICorDebugFunction> trFunc;
+                        IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
+
+                        return m_sharedEvalExec->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr,
+                                                              isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
+                                                              specifier, ppResultValue);
+                    };
+
+                    if (browsableState == DebuggerBrowsableState::RootHidden)
+                    {
+                        ToRelease<ICorDebugValue> trResultValue;
+                        if (SUCCEEDED(getValue(&trResultValue, nullptr)))
                         {
-                            return S_OK; // Return success to continue walking.
+                            trWalkQueue.emplace_back(trResultValue.Detach(), false);
                         }
+                        return S_OK; // Return success to continue walking.
+                    }
 
-                        bool isStatic = (getterAttr & mdStatic);
-                        if (isNull == TRUE && !isStatic)
+                    std::string textWithEval;
+                    HasDebuggerAttribute(trMDImport, propertyDef, DebuggerAttribute::Display, textWithEval);
+
+                    if (provideSetterData)
+                    {
+                        ToRelease<ICorDebugFunction> trFuncSetter;
+                        if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
                         {
-                            return S_OK; // Return success to continue walking.
+                            trFuncSetter.Free();
                         }
-
-                        // A bit hacky, but a fast way to detect an indexer:
-                        // an instance property getter that takes arguments is an indexer for sure.
-                        // Note, indexers cannot be static in C#, but other .NET languages allow static parameterized properties.
-                        uint32_t argCount = 0;
-                        if (!isStatic &&
-                            SUCCEEDED(GetMethodArgCount(pSig, pSig + cbSig, argCount)) &&
-                            argCount > 0)
+                        Evaluator::SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
+                        IfFailRet(cb(trType, isStatic, name, getValue, &setterData, &textWithEval));
+                        if (Status == S_CAN_EXIT)
                         {
-                            return S_OK; // Return success to continue walking.
-                        }
-
-                        const std::string name = to_utf8(propertyName.data());
-
-                        const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
-                        {
-                            if (pThread == nullptr)
-                            {
-                                return E_FAIL;
-                            }
-
-                            ToRelease<ICorDebugFunction> trFunc;
-                            IfFailRet(trModule->GetFunctionFromToken(mdGetter, &trFunc));
-
-                            return m_sharedEvalExec->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr,
-                                                                  isStatic ? nullptr : &pFrontValue, isStatic ? 0 : 1,
-                                                                  specifier, ppResultValue);
-                        };
-
-                        if (browsableState == DebuggerBrowsableState::RootHidden)
-                        {
-                            ToRelease<ICorDebugValue> trResultValue;
-                            if (SUCCEEDED(getValue(&trResultValue, nullptr)))
-                            {
-                                trWalkQueue.emplace_back(trResultValue.Detach(), false);
-                            }
-                            return S_OK; // Return success to continue walking.
-                        }
-
-                        std::string textWithEval;
-                        HasDebuggerAttribute(trMDImport, propertyDef, DebuggerAttribute::Display, textWithEval);
-
-                        if (provideSetterData)
-                        {
-                            ToRelease<ICorDebugFunction> trFuncSetter;
-                            if (FAILED(trModule->GetFunctionFromToken(mdSetter, &trFuncSetter)))
-                            {
-                                trFuncSetter.Free();
-                            }
-                            Evaluator::SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
-                            IfFailRet(cb(trType, isStatic, name, getValue, &setterData, &textWithEval));
-                            if (Status == S_CAN_EXIT)
-                            {
-                                return S_CAN_EXIT; // Fast exit from the loop.
-                            }
-                        }
-                        else
-                        {
-                            IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
-                            if (Status == S_CAN_EXIT)
-                            {
-                                return S_CAN_EXIT; // Fast exit from the loop.
-                            }
+                            return S_CAN_EXIT; // Fast exit from the loop.
                         }
                     }
+                    else
+                    {
+                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
+                        if (Status == S_CAN_EXIT)
+                        {
+                            return S_CAN_EXIT; // Fast exit from the loop.
+                        }
+                    }
+
                     return S_OK; // Return success to continue walking.
                 });
             // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
