@@ -1294,7 +1294,8 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
                                          static_cast<uint32_t>(pValueArgs.size()), &evalStack.front().trValue);
 }
 
-HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
+HRESULT ElementAccessHelper(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output,
+                            const EvalData &ed, bool preventBindingOnNull)
 {
     const uint32_t argCount = opcode.count;
     HRESULT Status = S_OK;
@@ -1322,8 +1323,15 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
     IfFailRet(DereferenceAndUnboxValue(trObjectValue, &trRealValue, &isNull));
     if (isNull == TRUE)
     {
+        if (preventBindingOnNull)
+        {
+            evalStack.front().preventBinding = true;
+            return S_OK;
+        }
+
         return E_INVALIDARG;
     }
+
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(trRealValue->GetType(&elemType));
 
@@ -1416,137 +1424,14 @@ HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStac
     return Status;
 }
 
+HRESULT ElementAccessExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
+{
+    return ElementAccessHelper(opcode, evalStack, output, ed, false);
+}
+
 HRESULT ElementBindingExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
-    const uint32_t argCount = opcode.count;
-    HRESULT Status = S_OK;
-
-    std::vector<ToRelease<ICorDebugValue>> trIndexValues(argCount);
-
-    uint32_t tmpArgCount = argCount;
-    while (tmpArgCount > 0)
-    {
-        tmpArgCount--;
-        IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trIndexValues.at(tmpArgCount), nullptr, output));
-        evalStack.pop_front();
-    }
-    if (evalStack.front().preventBinding)
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugValue> trObjectValue;
-    std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trObjectValue, &setterData, output));
-
-    ToRelease<ICorDebugReferenceValue> trReferenceValue;
-    IfFailRet(trObjectValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue)));
-    BOOL isNull = FALSE;
-    IfFailRet(trReferenceValue->IsNull(&isNull));
-
-    if (isNull == TRUE)
-    {
-        evalStack.front().preventBinding = true;
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugValue> trRealValue;
-    isNull = FALSE;
-    IfFailRet(DereferenceAndUnboxValue(trObjectValue, &trRealValue, &isNull));
-    if (isNull == TRUE)
-    {
-        return E_INVALIDARG;
-    }
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(trRealValue->GetType(&elemType));
-
-    if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
-    {
-        std::vector<uint32_t> indexes;
-        uint32_t tmpArgCount = argCount;
-        while (tmpArgCount > 0)
-        {
-            tmpArgCount--;
-            uint32_t index = 0;
-            // ICorDebugArrayValue::GetElement expects uint32_t indices
-            IfFailRet(PrimitiveTypes::ForceCastToUint(trIndexValues.at(tmpArgCount), index));
-            indexes.insert(indexes.begin(), index);
-        }
-        evalStack.front().trValue.Free();
-        evalStack.front().realDisplayTypeName.clear();
-        evalStack.front().identifiers.clear();
-        evalStack.front().setterData = std::move(setterData);
-        Status = Evaluator::GetElement(trRealValue, indexes, &evalStack.front().trValue);
-    }
-    else if (elemType == ELEMENT_TYPE_STRING ||
-             elemType == ELEMENT_TYPE_CLASS ||
-             elemType == ELEMENT_TYPE_VALUETYPE)
-    {
-        std::vector<SigElementType> funcArgs(argCount);
-        for (uint32_t i = 0; i < argCount; ++i)
-        {
-            ToRelease<ICorDebugValue> trValueArg;
-            IfFailRet(DereferenceAndUnboxValue(trIndexValues.at(i), &trValueArg, nullptr));
-            IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
-        }
-
-        ToRelease<ICorDebugValue2> trRealValue2;
-        IfFailRet(trRealValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trRealValue2)));
-        ToRelease<ICorDebugType> trRealType;
-        IfFailRet(trRealValue2->GetExactType(&trRealType));
-
-        ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkIndexers(trRealType,
-            [&](std::vector<SigElementType> &methodArgs,
-                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
-            {
-                if (funcArgs.size() != methodArgs.size())
-                {
-                    return S_OK; // Return success to continue walking.
-                }
-
-                for (size_t i = 0; i < funcArgs.size(); ++i)
-                {
-                    // TODO: must care about implicit cast
-                    if (funcArgs.at(i) != methodArgs.at(i))
-                    {
-                        return S_OK; // Return success to continue walking.
-                    }
-                }
-                IfFailRet(getFunction(&trFunc));
-                return S_CAN_EXIT; // Fast exit from loop, since we already found trFunc.
-            }));
-
-        if (trFunc == nullptr)
-        {
-            return E_INVALIDARG;
-        }
-
-        evalStack.front().ResetEntry();
-        std::vector<ICorDebugValue *> pValueArgs;
-        pValueArgs.reserve(argCount + 1);
-
-        pValueArgs.emplace_back(trObjectValue.GetPtr());
-
-        for (uint32_t i = 0; i < argCount; i++)
-        {
-            pValueArgs.emplace_back(trIndexValues.at(i).GetPtr());
-        }
-
-        ToRelease<ICorDebugValue2> trValue2;
-        IfFailRet(trObjectValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-        ToRelease<ICorDebugType> trType;
-        IfFailRet(trValue2->GetExactType(&trType));
-
-        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
-                                            argCount + 1, ed.specifier, &evalStack.front().trValue);
-    }
-    else
-    {
-        return E_INVALIDARG;
-    }
-
-    return Status;
+    return ElementAccessHelper(opcode, evalStack, output, ed, true);
 }
 
 HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
