@@ -46,6 +46,7 @@ Upcoming changes compared to previous version.
 - Minimized the tree-sitter C# grammar to expression-evaluation constructs, shrinking parser.c and binary/memory usage.
 - Renamed TestTracePoint to TestLogpoints to match VS Code terminology.
 - Updated float and double value display to the shortest round-trip representation, matching the C# default floating-point formatting (e.g. `9.9` instead of `9.8999996`, `1E+09` instead of `1e+09`).
+- Updated object display to escape special characters in the overridden `ToString()` output, matching string value escaping.
 
 #### Fixed
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).

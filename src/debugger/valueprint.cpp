@@ -420,7 +420,7 @@ HRESULT PrintArrayValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-void EscapeString(std::string &s, char q = '\"')
+void EscapeString(std::string &s, char q = '"')
 {
     for (std::size_t i = 0; i < s.size(); ++i)
     {
@@ -429,7 +429,7 @@ void EscapeString(std::string &s, char q = '\"')
         switch (c)
         {
         case '\'':
-        case '\"':
+        case '"':
             count = c != q ? 0 : 1;
             s.insert(i, count, '\\');
             break;
@@ -545,7 +545,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
             }
             else
             {
-                ss << '\"' << raw_str << '\"';
+                ss << '"' << raw_str << '"';
             }
             output = ss.str();
             return S_OK;
@@ -702,6 +702,8 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                 if (displayTypeName != "System.Exception" && displayTypeName != "System.Object" && displayTypeName != "System.ValueType" &&
                     SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
+                    // Escape the ToString() result the same way as string values.
+                    EscapeString(valueToString, '"');
                     ss << valueToString;
                 }
                 else

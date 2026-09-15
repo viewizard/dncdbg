@@ -8,6 +8,14 @@ using DbgTest.Script;
 
 namespace TestEvaluate
 {
+public class TestToStringEscapeChars
+{
+    public override string ToString()
+    {
+        return "123\n\"asd\\c";
+    }
+}
+
 public struct test_struct1_t
 {
     public test_struct1_t(int x)
@@ -523,6 +531,7 @@ class Program
         int i2 = 2;
         int i3 = 4;
         int i4 = 1;
+        TestToStringEscapeChars testToString = new TestToStringEscapeChars();
         int break_line1 = 1;                                                                    Label.Breakpoint("BREAK1");
 
         Label.Checkpoint("values_test", "expression_test",
@@ -531,6 +540,8 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
                 Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
+
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "{123\\n\\\"asd\\\\c}", "TestEvaluate.TestToStringEscapeChars", "testToString");
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "12345678901234567890123456", "decimal", "dec");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "0.00000000000000000017", "decimal", "long_zero_dec");
