@@ -29,11 +29,14 @@
 #include "utils/logger.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <map>
 #include <mutex>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 namespace dncdbg
@@ -172,11 +175,88 @@ bool IsDirExists(const char *const path)
            (info.st_mode & S_IFDIR) != 0U;
 }
 
+bool EqualCaseInsensitive(std::string_view lhs, std::string_view rhs)
+{
+    return lhs.size() == rhs.size() &&
+           std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), [](char lhsChar, char rhsChar)
+           {
+               return std::tolower(static_cast<unsigned char>(lhsChar)) ==
+                      std::tolower(static_cast<unsigned char>(rhsChar));
+           });
+}
+
+// Normalize the DOTNET_DiagnosticPorts value to prevent the diagnostic port suspend usage during the debuggee
+// process creation (it provokes a `configurationDone` command time out). The value may hold several port specs
+// separated by ';', each port spec is a comma-separated list "<TARGET>[,<SUSPEND_POLICY>[,<SHARED_MEMORY>]]":
+// "/diag/port.sock,suspend"   -> "/diag/port.sock,nosuspend"
+// "/diag/port.sock"           -> "/diag/port.sock,nosuspend"
+// "/diag/port.sock,nosuspend" -> keep as is
+std::string AdjustDiagnosticPortsValue(const std::string &value)
+{
+    static constexpr char portsSeparator{';'};
+    static constexpr char fieldsSeparator{','};
+    static constexpr std::string_view suspend{"suspend"};
+    static constexpr std::string_view nosuspend{"nosuspend"};
+
+    std::string result;
+    std::istringstream portsStream{value};
+    std::string port;
+    while (std::getline(portsStream, port, portsSeparator))
+    {
+        if (!result.empty())
+        {
+            result.push_back(portsSeparator);
+        }
+
+        bool portSpecFound{false};
+        bool suspendPolicyFound{false};
+        std::istringstream portSpecStream{port};
+        std::string field;
+        while (std::getline(portSpecStream, field, fieldsSeparator))
+        {
+            if (portSpecFound)
+            {
+                result.push_back(fieldsSeparator);
+            }
+            portSpecFound = true;
+
+            if (EqualCaseInsensitive(field, suspend))
+            {
+                field.assign(nosuspend);
+                suspendPolicyFound = true;
+            }
+            else if (EqualCaseInsensitive(field, nosuspend))
+            {
+                suspendPolicyFound = true;
+            }
+            result += field;
+        }
+
+        // The port spec does not define the suspend policy explicitly, add it.
+        if (portSpecFound && !suspendPolicyFound)
+        {
+            result.push_back(fieldsSeparator);
+            result += nosuspend;
+        }
+    }
+
+    return result;
+}
+
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
     // Prevent diagnostic port suspend usage during debuggee process creation, since the diagnostics part suspends
     // the debuggee process at an early launch stage and provokes a `configurationDone` command time out.
-    static const std::string ignoreEnv{"DOTNET_DefaultDiagnosticPortSuspend"};
+    static const std::string diagnosticPortSuspendEnv{"DOTNET_DefaultDiagnosticPortSuspend"};
+    static const std::string diagnosticPortsEnv{"DOTNET_DiagnosticPorts"};
+
+    const auto appendEnvVariable = [&outEnv](const std::string &key, const std::string &value)
+    {
+        outEnv.insert(outEnv.end(), key.cbegin(), key.cend());
+        outEnv.push_back('=');
+        outEnv.insert(outEnv.end(), value.cbegin(), value.cend());
+        outEnv.push_back('\0');
+    };
 
     // We need to append the environment values while keeping the current process environment block.
     // It works equally for all platforms in coreclr CreateProcessW(), but is not critical for Linux.
@@ -186,12 +266,6 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         // Override the system value (PATHs appending needs a complex implementation)
         for (const auto &pair : env)
         {
-            if (pair.first == ignoreEnv)
-            {
-                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
-                continue;
-            }
-
             const auto findEnv = envMap.find(pair.first);
             if (findEnv != envMap.cend())
             {
@@ -204,21 +278,36 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         }
         for (const auto &pair : envMap)
         {
-            if (pair.first == ignoreEnv)
+            if (pair.first == diagnosticPortSuspendEnv)
             {
 #ifdef _WIN32
-                _putenv_s(ignoreEnv.c_str(), "");
+                _putenv_s(diagnosticPortSuspendEnv.c_str(), "");
 #else
-                unsetenv(ignoreEnv.c_str());
+                unsetenv(diagnosticPortSuspendEnv.c_str());
 #endif
-                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
+                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                    "Environment variable " + diagnosticPortSuspendEnv + " skipped."));
                 continue;
             }
 
-            outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
-            outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());
-            outEnv.push_back('\0');
+            if (pair.first == diagnosticPortsEnv)
+            {
+                const std::string adjustedValue{AdjustDiagnosticPortsValue(pair.second)};
+                if (adjustedValue != pair.second)
+                {
+                    DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                        "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'."));
+                }
+#ifdef _WIN32
+                _putenv_s(diagnosticPortsEnv.c_str(), adjustedValue.c_str());
+#else
+                setenv(diagnosticPortsEnv.c_str(), adjustedValue.c_str(), 1);
+#endif
+                appendEnvVariable(pair.first, adjustedValue);
+                continue;
+            }
+
+            appendEnvVariable(pair.first, pair.second);
         }
         outEnv.push_back('\0');
     }
@@ -226,16 +315,26 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     {
         for (const auto &pair : env)
         {
-            if (pair.first == ignoreEnv)
+            if (pair.first == diagnosticPortSuspendEnv)
             {
-                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
+                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                    "Environment variable " + diagnosticPortSuspendEnv + " skipped."));
                 continue;
             }
 
-            outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
-            outEnv.push_back('=');
-            outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());
-            outEnv.push_back('\0');
+            if (pair.first == diagnosticPortsEnv)
+            {
+                const std::string adjustedValue{AdjustDiagnosticPortsValue(pair.second)};
+                if (adjustedValue != pair.second)
+                {
+                    DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                        "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'."));
+                }
+                appendEnvVariable(pair.first, adjustedValue);
+                continue;
+            }
+
+            appendEnvVariable(pair.first, pair.second);
         }
         outEnv.push_back('\0');
     }
