@@ -174,6 +174,10 @@ bool IsDirExists(const char *const path)
 
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
+    // Prevent diagnostic port suspend usage during debuggee process creation, since the diagnostics part suspends
+    // the debuggee process at an early launch stage and provokes a `configurationDone` command time out.
+    static const std::string ignoreEnv{"DOTNET_DefaultDiagnosticPortSuspend"};
+
     // We need to append the environment values while keeping the current process environment block.
     // It works equally for all platforms in coreclr CreateProcessW(), but is not critical for Linux.
     std::map<std::string, std::string> envMap;
@@ -182,6 +186,12 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         // Override the system value (PATHs appending needs a complex implementation)
         for (const auto &pair : env)
         {
+            if (pair.first == ignoreEnv)
+            {
+                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
+                continue;
+            }
+
             const auto findEnv = envMap.find(pair.first);
             if (findEnv != envMap.cend())
             {
@@ -194,6 +204,17 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         }
         for (const auto &pair : envMap)
         {
+            if (pair.first == ignoreEnv)
+            {
+#ifdef _WIN32
+                _putenv_s(ignoreEnv.c_str(), "");
+#else
+                unsetenv(ignoreEnv.c_str());
+#endif
+                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
+                continue;
+            }
+
             outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
             outEnv.push_back('=');
             outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());
@@ -205,6 +226,12 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     {
         for (const auto &pair : env)
         {
+            if (pair.first == ignoreEnv)
+            {
+                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut, "Environment variable " + ignoreEnv + " skipped."));
+                continue;
+            }
+
             outEnv.insert(outEnv.end(), pair.first.cbegin(), pair.first.cend());
             outEnv.push_back('=');
             outEnv.insert(outEnv.end(), pair.second.cbegin(), pair.second.cend());

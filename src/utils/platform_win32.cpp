@@ -33,20 +33,6 @@ char **GetSystemEnvironment()
     return environ;
 }
 
-// Function retrieves the value of an environment variable by name and returns it as UTF-8 string.
-// Returns empty string if the environment variable is not found.
-std::string GetEnvUtf8(const std::string &name)
-{
-    WSTRING wName = to_utf16(name);
-    const WCHAR *wValue = _wgetenv(wName.c_str());
-    if (wValue != nullptr)
-    {
-        return to_utf8(wValue);
-    }
-
-    return {};
-}
-
 } // namespace dncdbg
 
 #endif // _WIN32

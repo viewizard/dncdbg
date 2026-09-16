@@ -18,8 +18,6 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
-#include <windows.h>
-static void setenv(const char *var, const char *val, int) { _putenv_s(var, val); }
 #endif
 
 #ifdef DEBUG_INTERNAL_TESTS

@@ -10,7 +10,6 @@
 #endif
 
 #include "utils/platform.h"
-#include <cstdlib>
 #include <unistd.h>
 
 //extern char **environ; // unistd.h should have this line
@@ -32,19 +31,6 @@ char **GetSystemEnvironment()
 #else
     return environ;
 #endif
-}
-
-// Function retrieves the value of an environment variable by name and returns it as UTF-8 string.
-// Returns empty string if the environment variable is not found.
-std::string GetEnvUtf8(const std::string &name)
-{
-    const char *value = std::getenv(name.c_str());
-    if (value != nullptr)
-    {
-        return {value};
-    }
-
-    return {};
 }
 
 } // namespace dncdbg
