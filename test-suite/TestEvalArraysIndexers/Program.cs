@@ -45,6 +45,29 @@ public class TwoDimInt : SimpleInt
     }
 }
 
+public class Class1
+{
+    int[] ints = new int[5] { 55, 66, 77, 88, 99 };
+
+    public int this[int index]
+    {
+        get => ints[index];
+        set => ints[index] = value;
+    }
+}
+
+public class Class2 : Class1
+{
+    public int get_Item(int index)
+    {
+        return -1;
+    }
+    public int Item(int index)
+    {
+        return -2;
+    }
+}
+
 public class IndexAsString : TwoDimInt
 {
     internal static Dictionary<string, int> digits = new Dictionary<string, int>
@@ -105,6 +128,7 @@ class Program
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
 
@@ -132,6 +156,8 @@ class Program
 
         SimpleInt sinull;
         SimpleInt? siq;
+        Class1 cl1 = new Class1();
+        Class2 cl2 = new Class2();
 
         int i0 = 0;
         int i1 = 1;
@@ -192,7 +218,7 @@ class Program
         indexAsString[0, 0] = 100;
         simpleInt[6] = 66;                                       Label.Breakpoint("BREAK1");
 
-        Label.Checkpoint("arrays_test", "finish",
+        Label.Checkpoint("arrays_test", "hide_indexer_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -476,6 +502,32 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "siq");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "siq[0]", "error: 0x80070057");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "TestEvalArraysIndexers.SimpleInt", "siq?[0]");
+
+                // Check proper indexer.
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "55", "int", "cl1[0]");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "55", "int", "cl2[0]");
+
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        List<int> list1 = new List<int>(5) {10, 20, 30, 40, 50};
+        Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
+
+        int break_line15 = 1;                                    Label.Breakpoint("BREAK2");
+
+        Label.Checkpoint("hide_indexer_test", "finish",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK2");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK2");
+
+                int variablesReferen1 = Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "list1,raw", "Count = 5");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen1, "Item");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen1, "System.Collections.IList.Item");
+
+                int variablesReferen2 = Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "dictionary1,raw", "Count = 2");
+                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen2, "Item");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

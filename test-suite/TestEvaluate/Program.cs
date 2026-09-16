@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Collections.Generic;
 
 using DbgTest;
 using DbgTest.DAP;
@@ -508,7 +507,6 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK12");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK13");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK14");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK15");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BP_LITERAL");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
@@ -1403,7 +1401,7 @@ class Program
 
         int break_line14 = 1;                                                                        Label.Breakpoint("BREAK14");
 
-        Label.Checkpoint("coalesce_test", "hide_indexer_test",
+        Label.Checkpoint("coalesce_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -1472,28 +1470,6 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "B_class??A_class", "error CS0019");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "B_class??str_null", "error CS0019");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "str_null??B_class", "error CS0019");
-
-                Context.Continue(@"__FILE__:__LINE__");
-            });
-
-        List<int> list1 = new List<int>(5) {10, 20, 30, 40, 50};
-         Dictionary<string, int> dictionary1 = new Dictionary<string, int>(){ { "Alice", 25 }, { "Bob", 30 } };
-
-        int break_line15 = 1;                                                                        Label.Breakpoint("BREAK15");
-
-        Label.Checkpoint("hide_indexer_test", "finish",
-            (Object context) =>
-            {
-                Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK15");
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK15");
-
-                int variablesReferen1 = Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "list1,raw", "Count = 5");
-                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen1, "Item");
-                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen1, "System.Collections.IList.Item");
-
-                int variablesReferen2 = Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "dictionary1,raw", "Count = 2");
-                Context.CheckErrorVariable(@"__FILE__:__LINE__", variablesReferen2, "Item");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
