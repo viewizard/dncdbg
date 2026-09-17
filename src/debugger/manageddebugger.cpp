@@ -341,6 +341,22 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
     }
 }
 
+void ResumeRuntime(uint32_t processId)
+{
+    // The runtime may not be ready to accept diagnostics commands yet,
+    // so retry the resume a few times before giving up.
+    static constexpr unsigned long initialSleepTime = 50000UL; // 0.05 sec
+    unsigned long sleepTime = initialSleepTime;
+    static constexpr uint8_t retriesLimit = 5;
+    uint8_t retriesLeft = retriesLimit;
+    while (FAILED(DiagnosticsClient::ResumeRuntime(processId)) && retriesLeft > 0)
+    {
+        USleep(sleepTime);
+        sleepTime *= 2;
+        retriesLeft--;
+    }
+}
+
 } // unnamed namespace
 
 // Caller must hold m_debugProcessRWLock.
@@ -688,6 +704,13 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
         return Status;
     }
 
+#ifdef FEATURE_PAL
+    if (m_startMethod == StartMethod::Attach)
+    {
+        ResumeRuntime(m_processId);
+    }
+#endif // FEATURE_PAL
+
     ToRelease<ICorDebugProcess> trProcess;
     if (FAILED(Status = trDebug->DebugActiveProcess(m_processId, FALSE, &trProcess)))
     {
@@ -930,16 +953,15 @@ HRESULT ManagedDebugger::AttachToProcess()
 
     IfFailRet(CheckNoProcess());
 
-    // The runtime may not be ready to accept diagnostics commands right after
-    // the attach, so retry the resume a few times before giving up.
-    static constexpr unsigned long sleepTime = 500000UL; // 0.5 sec
-    uint8_t retriesLeft = 3;
-    while (FAILED(DiagnosticsClient::ResumeRuntime(m_processId)) && retriesLeft > 0)
-    {
-        USleep(sleepTime);
-        retriesLeft--;
-    }
+#ifdef _WIN32
+    ResumeRuntime(m_processId);
+#endif // _WIN32
 
+    // Unix dynamic linkers (ld.so/dyld) map all DT_NEEDED libraries before main() starts,
+    // so it is safe to inspect the memory maps right away.
+    // The Windows loader registers and commits PE images lazily, after CRT initialization,
+    // and querying memory too early can miss not-yet-initialized or delay-loaded DLLs.
+    // This is why ResumeRuntime() is called here on Windows, but at a later stage on Linux/macOS.
     const std::string clrPath = GetCLRPath(m_dbgshim, m_processId);
     if (clrPath.empty())
     {
