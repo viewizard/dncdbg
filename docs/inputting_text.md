@@ -51,3 +51,20 @@ When using `externalTerminal`, the target process will run inside its own extern
 ***Note:***
  - ***This is a Windows OS only feature implemented inside Windows API (`CreateProcessW` with `CREATE_NEW_CONSOLE` creation flag). This feature is not implemented in dbgshim for other OSes.***
  - ***All stdout and stderr are routed directly to the external terminal; the debugger will not emit stdout and stderr output events from the debuggee process.***
+
+
+<br>
+
+## Alternative way: attach to a suspended process
+
+As an alternative, you can attach the debugger to a suspended process.
+For example, on Linux:
+- Open your favorite terminal.
+- Start your application with the environment variable `DOTNET_DefaultDiagnosticPortSuspend`:
+```
+export DOTNET_DefaultDiagnosticPortSuspend=1
+dotnet /my/app.dll
+```
+- The application will be suspended at an early launch point.
+- Attach the debugger to your application by process ID.
+- The debugger will resume the application and attach to the process immediately.
