@@ -23,6 +23,7 @@
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
+#include "utils/diagnostics_client.h"
 #include "utils/hresult.h"
 #include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
 #include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
@@ -928,6 +929,16 @@ HRESULT ManagedDebugger::AttachToProcess()
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
+
+    // The runtime may not be ready to accept diagnostics commands right after
+    // the attach, so retry the resume a few times before giving up.
+    static constexpr unsigned long sleepTime = 500000UL; // 0.5 sec
+    uint8_t retriesLeft = 3;
+    while (FAILED(DiagnosticsClient::ResumeRuntime(m_processId)) && retriesLeft > 0)
+    {
+        USleep(sleepTime);
+        retriesLeft--;
+    }
 
     const std::string clrPath = GetCLRPath(m_dbgshim, m_processId);
     if (clrPath.empty())
