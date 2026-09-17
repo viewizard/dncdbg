@@ -69,6 +69,10 @@ set(DNCDBG_SOURCES
     protocol/dapio.cpp
     types/protocol.cpp
     types/types.cpp
+    utils/diagnostics_client.cpp
+    utils/diagnostics_ipc.cpp
+    utils/diagnostics_ipc_unix.cpp
+    utils/diagnostics_ipc_win32.cpp
     utils/dynlibs_unix.cpp
     utils/dynlibs_win32.cpp
     utils/filesystem_unix.cpp

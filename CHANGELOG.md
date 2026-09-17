@@ -39,6 +39,7 @@ Upcoming changes compared to previous version.
 - Added member access on string and array values in expression evaluation (e.g. `testString.Length`, `testArray.Length`).
 - Added member access on values with DebuggerTypeProxy attribute in expression evaluation.
 - Added null assignment support for reference-type variables and properties.
+- Added .NET Diagnostic IPC protocol client (ResumeRuntime command) for resuming a runtime suspended on its default diagnostics endpoint.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
