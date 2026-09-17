@@ -65,6 +65,7 @@ $ALL_TEST_NAMES = @(
     "TestEmbeddedSources"
     "TestStackTrace"
     "TestBreakpointLocations"
+    "TestAttachToSuspend"
 )
 
 $TEST_NAMES = $tests

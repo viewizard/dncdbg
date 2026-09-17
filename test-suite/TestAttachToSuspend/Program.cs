@@ -1,0 +1,48 @@
+using System;
+using System.Diagnostics;
+
+using DbgTest;
+using DbgTest.DAP;
+using DbgTest.Script;
+
+namespace TestAttachToSuspend
+{
+class Program
+{
+    static void Main(string[] args)
+    {
+        Label.Checkpoint("init", "attach_test",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.Initialize(@"__FILE__:__LINE__");
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true);
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
+                Context.SetBreakpoints(@"__FILE__:__LINE__");
+                Context.ConfigurationDone(@"__FILE__:__LINE__");
+            });
+
+        // wait some time, control process should attach and setup breakpoints
+        int i = 3000;
+        System.Threading.Thread.Sleep(3000);
+
+        i++;                                                        Label.Breakpoint("bp");
+
+        Label.Checkpoint("attach_test", "finish",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("finish", "",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.DebuggerExit(@"__FILE__:__LINE__");
+            });
+    }
+}
+}

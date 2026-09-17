@@ -105,13 +105,17 @@ class Context
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void StartTargetAndAttach(string caller_trace)
+    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false)
     {
         Process testProcess = new Process();
         testProcess.StartInfo.UseShellExecute = false;
         testProcess.StartInfo.FileName = ControlInfo.CorerunPath;
         testProcess.StartInfo.Arguments = ControlInfo.TargetAssemblyPath;
         testProcess.StartInfo.CreateNoWindow = true;
+        if (StartSuspend)
+        {
+            testProcess.StartInfo.Environment["DOTNET_DefaultDiagnosticPortSuspend"] = "1";
+        }
         Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         AttachRequest attachRequest = new AttachRequest();

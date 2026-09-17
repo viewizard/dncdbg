@@ -41,6 +41,7 @@ Upcoming changes compared to previous version.
 - Added null assignment support for reference-type variables and properties.
 - Added .NET Diagnostic IPC protocol client (ResumeRuntime command) for resuming a runtime suspended on its default diagnostics endpoint.
 - Added resuming a runtime suspended on its default diagnostics endpoint during attach.
+- Added TestAttachToSuspend.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
