@@ -6,10 +6,14 @@ cmake_minimum_required(VERSION 3.15)
 
 cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default.
 if(POLICY CMP0177)
-  cmake_policy(SET CMP0177 NEW) # install() paths are normalized
+    cmake_policy(SET CMP0177 NEW) # install() paths are normalized
 endif(POLICY CMP0177)
 
-project(dncdbg LANGUAGES C CXX OBJCXX)
+project(dncdbg LANGUAGES C CXX)
+
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
 
 # Require Clang compiler on non-Windows platforms
 if(NOT WIN32)
@@ -74,7 +78,7 @@ if(ASAN)
 endif()
 # UBSanitizer
 if(UBSAN)
-  set(CLR_CMAKE_ENABLE_SANITIZERS "undefined")
+    set(CLR_CMAKE_ENABLE_SANITIZERS "undefined")
 endif()
 
 include(cmake/configurepaths.cmake)

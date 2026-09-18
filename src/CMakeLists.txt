@@ -92,7 +92,6 @@ set(DNCDBG_SOURCES
     utils/remote_console_win32.cpp
     utils/remote_console.cpp
     utils/utf.cpp
-    utils/utftoupper_macos.mm
     utils/utftoupper_unix.cpp
     utils/utftoupper_win32.cpp
     utils/waitpid.cpp
@@ -100,6 +99,13 @@ set(DNCDBG_SOURCES
     internaltests.cpp
     main.cpp
 )
+
+if(APPLE)
+    list(APPEND DNCDBG_SOURCES
+        utils/utftoupper_macos.mm
+        utils/downloader_macos.mm
+    )
+endif()
 
 # =============================================================================
 # Static analysis tools
@@ -217,6 +223,7 @@ else()
         # part of libSystem on all macOS versions) but drop the include dir.
         set_target_properties(Iconv::Iconv PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
         find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+        find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
         target_link_libraries(dncdbg PRIVATE
             corguids
             dl
@@ -226,6 +233,7 @@ else()
             Iconv::Iconv
             tree-sitter-csharp
             ${CORE_FOUNDATION_FRAMEWORK}
+            ${FOUNDATION_FRAMEWORK}
         )
     else()
         target_link_libraries(dncdbg PRIVATE
