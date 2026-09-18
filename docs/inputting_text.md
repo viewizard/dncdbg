@@ -55,7 +55,7 @@ When using `externalTerminal`, the target process will run inside its own extern
 
 <br>
 
-## Alternative way: attach to a suspended process
+## Alternative way: attach and debug a suspended process
 
 As an alternative, you can attach the debugger to a suspended process.
 For example, on Linux:

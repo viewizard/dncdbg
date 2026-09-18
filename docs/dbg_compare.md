@@ -202,10 +202,10 @@
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><a href="inputting_text.md#alternative-way-attach-to-a-suspended-process"><b>Attach to a suspended process</b></a></td>
+      <td align="left"><a href="inputting_text.md#alternative-way-attach-and-debug-a-suspended-process"><b>Attach and debug a suspended process</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
-      <td align="center">✅</td>
+      <td align="center">❌</td>
     </tr>
     <tr>
       <td align="left"><b>Module unloads</b></td>
