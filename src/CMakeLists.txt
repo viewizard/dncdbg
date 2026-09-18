@@ -73,6 +73,7 @@ set(DNCDBG_SOURCES
     utils/diagnostics_ipc.cpp
     utils/diagnostics_ipc_unix.cpp
     utils/diagnostics_ipc_win32.cpp
+    utils/downloader_win32.cpp
     utils/dynlibs_unix.cpp
     utils/dynlibs_win32.cpp
     utils/filesystem_unix.cpp
@@ -205,6 +206,7 @@ target_compile_definitions(dncdbg PRIVATE
 if(WIN32)
     target_link_libraries(dncdbg PRIVATE
         corguids
+        wininet
         wsock32
         ws2_32
         dnmd_pdb
