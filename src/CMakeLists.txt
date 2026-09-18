@@ -4,18 +4,18 @@
 
 if(NOT WIN32)
     include_directories(SYSTEM
-        ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc
-        ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/inc/rt
+        ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/pal/inc
+        ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/pal/inc/rt
     )
 endif()
 
 include_directories(SYSTEM
-    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/pal/prebuilt/inc
-    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/inc
-    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/debug/inc
-    ${PROJECT_SOURCE_DIR}/third_party/diagnostics/src/shared/native
-    ${PROJECT_SOURCE_DIR}/third_party/dnmd/src/inc
-    ${PROJECT_SOURCE_DIR}/third_party
+    ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/pal/prebuilt/inc
+    ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/inc
+    ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/debug/inc
+    ${PROJECT_SOURCE_DIR}/third-party/diagnostics/src/shared/native
+    ${PROJECT_SOURCE_DIR}/third-party/dnmd/src/inc
+    ${PROJECT_SOURCE_DIR}/third-party
 )
 
 # =============================================================================
@@ -130,7 +130,7 @@ if(CPPCHECK)
         --suppress=missingIncludeSystem
         --suppress=unusedFunction
         --suppress=unmatchedSuppression
-        --suppress=*:*third_party/*
+        --suppress=*:*third-party/*
     )
 endif()
 

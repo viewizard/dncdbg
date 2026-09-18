@@ -273,7 +273,7 @@ Changes compared to [NetCoreDbg](https://github.com/Samsung/netcoredbg) version 
 - Removed MI/GDB and CLI protocols and tests.
 - Removed Tizen OS support (rpm build routines, scripts, dlog logging, etc).
 - Removed mixed-mode (interop) debugger parts (this part was proof of concept, not really sure when it will be usable in netcoredbg).
-- Removed linenoise from third_party.
+- Removed linenoise from third-party.
 - Removed GenErrMsg build.
 - Removed Hot Reload feature (since it works only with MI/GDB protocol with MSVS Tizen plugin).
 - Removed unused code.

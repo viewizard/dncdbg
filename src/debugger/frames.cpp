@@ -260,7 +260,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
     {
         ToRelease<ICorDebugThread4> trThread4;
         IfFailRet(pThread->QueryInterface(IID_ICorDebugThread4, reinterpret_cast<void **>(&trThread4)));
-        // From third_party/diagnostics/src/shared/inc/cordebug.idl
+        // From third-party/diagnostics/src/shared/inc/cordebug.idl
         // Returns S_OK if ICorDebugThread::GetCurrentException() is non-NULL and the exception
         // it refers to has completed the first pass of exception handling without locating
         // a catch clause.

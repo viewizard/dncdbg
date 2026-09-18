@@ -90,17 +90,17 @@ set(FEATURE_EVENT_TRACE 0)
 #
 # Note, we don't use separate cmake parts, just re-use diagnostics cmake parts with changes:
 #
-# - copy main part of `third_party/diagnostics/CMakeLists.cmake` to this file below,
-#   remove header, `project`, `cmake_minimum_required`, etc. and add `add_subdirectory(third_party/diagnostics)`
-# - copy and correct `third_party/diagnostics/eng/native/configurepaths.cmake` file to `cmake` folder
-# - correct `third_party/diagnostics/src/CMakeLists.txt`, remove lines with `SOS` and `tests`
-# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake`,
+# - copy main part of `third-party/diagnostics/CMakeLists.cmake` to this file below,
+#   remove header, `project`, `cmake_minimum_required`, etc. and add `add_subdirectory(third-party/diagnostics)`
+# - copy and correct `third-party/diagnostics/eng/native/configurepaths.cmake` file to `cmake` folder
+# - correct `third-party/diagnostics/src/CMakeLists.txt`, remove lines with `SOS` and `tests`
+# - correct `third-party/diagnostics/eng/native/configurecompiler.cmake`,
 #   change CMAKE_C_STANDARD and CMAKE_CXX_STANDARD to 17, change CMAKE_OSX_DEPLOYMENT_TARGET to "13.3"
-# - correct `third_party/diagnostics/eng/native/functions.cmake`, change line
+# - correct `third-party/diagnostics/eng/native/functions.cmake`, change line
 #   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
-# - correct `third_party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
+# - correct `third-party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
 #   since we disable `FEATURE_EVENT_TRACE` and diagnostics don't have `eventing_headers` project in sources
-# - add external terminal related code to `third_party/diagnostics/src/dbgshim/dbgshim.cpp`:
+# - add external terminal related code to `third-party/diagnostics/src/dbgshim/dbgshim.cpp`:
 #   #ifdef _WIN32
 #       wchar_t flagBuffer[2] = { 0 };
 #       DWORD copied = GetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", flagBuffer, 2);
@@ -109,20 +109,20 @@ set(FEATURE_EVENT_TRACE 0)
 #           dwCreationFlags |= CREATE_NEW_CONSOLE;
 #       }
 #   #endif // _WIN32
-# - correct `third_party/diagnostics/eng/native/configurecompiler.cmake` disable UBSanitizer options in
+# - correct `third-party/diagnostics/eng/native/configurecompiler.cmake` disable UBSanitizer options in
 #   CLR_CMAKE_BUILD_SANITIZERS: vptr, object-size.
-# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake` add
+# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake` add
 #       else()
 #         # On macOS and other systems, pthreads may be built into the system library
 #         set(PTHREAD_LIBRARY c)
 #       endif()
-# - correct `third_party/diagnostics/src/shared/pal/src/configure.cmake`, change line `check_function_exists(pipe2 HAVE_PIPE2)`:
+# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake`, change line `check_function_exists(pipe2 HAVE_PIPE2)`:
 #      if(APPLE)
 #          set(HAVE_PIPE2 FALSE CACHE INTERNAL "pipe2 is missing on macOS")
 #      else()
 #          check_function_exists(pipe2 HAVE_PIPE2)
 #      endif()
-# - correct `third_party/diagnostics/src/shared/pal/src/include/pal/palinternal.h`, change line `#include <CoreServices/CoreServices.h>`
+# - correct `third-party/diagnostics/src/shared/pal/src/include/pal/palinternal.h`, change line `#include <CoreServices/CoreServices.h>`
 #        #pragma clang diagnostic push
 #        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #        #include <CoreServices/CoreServices.h>
@@ -311,9 +311,9 @@ endif(CLR_CMAKE_HOST_UNIX)
 #-----------------------------------------
 # Native Projects
 #-----------------------------------------
-add_subdirectory(third_party/diagnostics)
-add_subdirectory(third_party/dnmd)
-add_subdirectory(third_party/miniz)
-add_subdirectory(third_party/tree-sitter)
-add_subdirectory(third_party/tree-sitter-c-sharp)
+add_subdirectory(third-party/diagnostics)
+add_subdirectory(third-party/dnmd)
+add_subdirectory(third-party/miniz)
+add_subdirectory(third-party/tree-sitter)
+add_subdirectory(third-party/tree-sitter-c-sharp)
 add_subdirectory(src)
