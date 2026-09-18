@@ -31,7 +31,6 @@
 #include "utils/platform.h"
 #include "utils/utf.h"
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cctype>
 #include <map>
@@ -80,92 +79,6 @@ HRESULT GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
     }
 
     return S_OK;
-}
-
-// From dbgshim.cpp
-bool AreAllHandlesValid(gsl::span<HANDLE> handles)
-{
-    return std::all_of(handles.begin(), handles.end(), [](HANDLE h)
-    {
-        // EnumerateCLRs() could return -1 (INVALID_HANDLE_VALUE) handle; compare as intptr_t to avoid int-to-ptr cast.
-        return reinterpret_cast<intptr_t>(h) != -1;
-    });
-}
-
-HRESULT EnumerateCLRs(dbgshim_t &dbgshim, DWORD pid, HANDLE **ppHandleArray, LPWSTR **ppStringArray,
-                      DWORD *pdwArrayLength, int tryCount)
-{
-    int numTries = 0;
-    HRESULT hr = S_OK;
-
-    while (numTries < tryCount)
-    {
-        hr = dbgshim.GetEnumerateCLRs()(pid, ppHandleArray, ppStringArray, pdwArrayLength);
-
-        // From dbgshim.cpp:
-        // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or
-        // ERROR_PARTIAL_COPY. If we get either of those, we wait 1/10th of a second and try again (that
-        // is the recommendation of the OS API owners).
-        // In dbgshim the following condition is used:
-        //  if ((hr != HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY)) && (hr != HRESULT_FROM_WIN32(ERROR_BAD_LENGTH)))
-        // Since we may be attaching to the process which has not loaded coreclr yet, let's give it some time to load.
-        if (SUCCEEDED(hr))
-        {
-            // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
-            if (*ppHandleArray != nullptr && *pdwArrayLength > 0)
-            {
-
-                // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
-                // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but
-                // before g_hContinueStartupEvent has been initialized.
-                if (AreAllHandlesValid(gsl::span(*ppHandleArray, *pdwArrayLength)))
-                {
-                    return hr;
-                }
-                // Clean up memory allocated in EnumerateCLRs since this path succeeded
-                dbgshim.GetCloseCLREnumeration()(*ppHandleArray, *ppStringArray, *pdwArrayLength);
-
-                *ppHandleArray = nullptr;
-                *ppStringArray = nullptr;
-                *pdwArrayLength = 0;
-            }
-        }
-
-        // No point in retrying in case of invalid arguments or no such process
-        if (hr == E_INVALIDARG || hr == E_FAIL)
-        {
-            return hr;
-        }
-
-        // Sleep and retry enumerating the runtimes
-        static constexpr unsigned long sleepTime = 100000UL;
-        USleep(sleepTime);
-        numTries++;
-    }
-
-    // Indicate a timeout
-    hr = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
-
-    return hr;
-}
-
-std::string GetCLRPath(dbgshim_t &dbgshim, DWORD pid, int timeoutSec = 3)
-{
-    HANDLE *pHandleArray = nullptr;
-    LPWSTR *pStringArray = nullptr;
-    DWORD dwArrayLength = 0;
-    const int tryCount = timeoutSec * 10; // 100ms interval between attempts
-    if (FAILED(EnumerateCLRs(dbgshim, pid, &pHandleArray, &pStringArray, &dwArrayLength, tryCount)) ||
-        dwArrayLength == 0)
-    {
-        return {};
-    }
-
-    std::string result = to_utf8(*pStringArray);
-
-    dbgshim.GetCloseCLREnumeration()(pHandleArray, pStringArray, dwArrayLength);
-
-    return result;
 }
 
 bool IsDirExists(const char *const path)
@@ -676,7 +589,7 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         return;
     }
 
-    self->Startup(pCordb);
+    self->StartupCallbackHR = self->Startup(pCordb);
 
     if (self->m_unregisterToken != nullptr)
     {
@@ -704,13 +617,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
         return Status;
     }
 
-#ifdef FEATURE_PAL
-    if (m_startMethod == StartMethod::Attach)
-    {
-        ResumeRuntime(m_processId);
-    }
-#endif // FEATURE_PAL
-
     ToRelease<ICorDebugProcess> trProcess;
     if (FAILED(Status = trDebug->DebugActiveProcess(m_processId, FALSE, &trProcess)))
     {
@@ -735,6 +641,9 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
+
+    // Reset the startup callback error from a previous launch attempt, if any.
+    StartupCallbackHR = S_OK;
 
     std::ostringstream ss;
     ss << "\"" << fileExec << "\"";
@@ -803,7 +712,7 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
 
     IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
 
-    // Resume the process so that StartupCallback can run
+    // Resume the process so that StartupCallback can run.
     IfFailRet(m_dbgshim.GetResumeProcess()(resumeHandle));
     m_dbgshim.GetCloseResumeHandle()(resumeHandle);
 
@@ -953,32 +862,13 @@ HRESULT ManagedDebugger::AttachToProcess()
 
     IfFailRet(CheckNoProcess());
 
-#ifdef _WIN32
+    // Reset the startup callback error from a previous attach attempt, if any.
+    StartupCallbackHR = S_OK;
+
+    IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
+
+    // Resume the runtime so that StartupCallback can run.
     ResumeRuntime(m_processId);
-#endif // _WIN32
-
-    // Unix dynamic linkers (ld.so/dyld) map all DT_NEEDED libraries before main() starts,
-    // so it is safe to inspect the memory maps right away.
-    // The Windows loader registers and commits PE images lazily, after CRT initialization,
-    // and querying memory too early can miss not-yet-initialized or delay-loaded DLLs.
-    // This is why ResumeRuntime() is called here on Windows, but at a later stage on Linux/macOS.
-    const std::string clrPath = GetCLRPath(m_dbgshim, m_processId);
-    if (clrPath.empty())
-    {
-        return E_INVALIDARG; // Unable to find libcoreclr.so
-    }
-
-    static constexpr uint32_t bufSize = 100;
-    std::array<WCHAR, bufSize> pBuffer{};
-    DWORD dwLength = 0;
-    IfFailRet(m_dbgshim.GetCreateVersionStringFromModule()(
-        m_processId, reinterpret_cast<const WCHAR *>(to_utf16(clrPath).c_str()), pBuffer.data(), bufSize, &dwLength));
-
-    ToRelease<IUnknown> trCordb;
-    IfFailRet(m_dbgshim.GetCreateDebuggingInterfaceFromVersionEx()(CorDebugVersion_4_0, pBuffer.data(), &trCordb));
-
-    m_unregisterToken = nullptr;
-    IfFailRet(Startup(trCordb));
 
     DAPIO::EmitProcessEvent(m_processId, "dotnet", m_startMethod);
 
@@ -986,6 +876,7 @@ HRESULT ManagedDebugger::AttachToProcess()
     if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
                                       [this] { return m_processAttachedState == ProcessAttachedState::Attached; }))
     {
+        IfFailRet(StartupCallbackHR);
         return E_FAIL;
     }
 

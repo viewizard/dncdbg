@@ -42,6 +42,7 @@ Upcoming changes compared to previous version.
 - Added .NET Diagnostic IPC protocol client (ResumeRuntime command) for resuming a runtime suspended on its default diagnostics endpoint.
 - Added resuming a runtime suspended on its default diagnostics endpoint during attach.
 - Added TestAttachToSuspend.
+- Reworked attach to the `RegisterForRuntimeStartup` callback flow, replacing the `EnumerateCLRs`-based runtime discovery.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

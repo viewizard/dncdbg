@@ -34,10 +34,6 @@ class dbgshim_t
     using CloseResumeHandle_t = HRESULT (*)(HANDLE);
     using RegisterForRuntimeStartup_t = HRESULT (*)(DWORD, PSTARTUP_CALLBACK, void *, void **);
     using UnregisterForRuntimeStartup_t = HRESULT (*)(void *);
-    using EnumerateCLRs_t = HRESULT (*)(DWORD, HANDLE **, LPWSTR **, DWORD *);
-    using CloseCLREnumeration_t = HRESULT (*)(HANDLE *, LPWSTR *, DWORD );
-    using CreateVersionStringFromModule_t = HRESULT (*)(DWORD, const WCHAR *, WCHAR *, DWORD, DWORD *);
-    using CreateDebuggingInterfaceFromVersionEx_t = HRESULT (*)(int, const WCHAR *, IUnknown **);
 
     dbgshim_t()
     {
@@ -73,20 +69,12 @@ class dbgshim_t
         CloseResumeHandle = reinterpret_cast<CloseResumeHandle_t>(DLSym(m_module, "CloseResumeHandle"));
         RegisterForRuntimeStartup = reinterpret_cast<RegisterForRuntimeStartup_t>(DLSym(m_module, "RegisterForRuntimeStartup"));
         UnregisterForRuntimeStartup = reinterpret_cast<UnregisterForRuntimeStartup_t>(DLSym(m_module, "UnregisterForRuntimeStartup"));
-        EnumerateCLRs = reinterpret_cast<EnumerateCLRs_t>(DLSym(m_module, "EnumerateCLRs"));
-        CloseCLREnumeration = reinterpret_cast<CloseCLREnumeration_t>(DLSym(m_module, "CloseCLREnumeration"));
-        CreateVersionStringFromModule = reinterpret_cast<CreateVersionStringFromModule_t>(DLSym(m_module, "CreateVersionStringFromModule"));
-        CreateDebuggingInterfaceFromVersionEx = reinterpret_cast<CreateDebuggingInterfaceFromVersionEx_t>(DLSym(m_module, "CreateDebuggingInterfaceFromVersionEx"));
 
         const bool dlsym_ok = CreateProcessForLaunch != nullptr &&
                               ResumeProcess != nullptr &&
                               CloseResumeHandle != nullptr &&
                               RegisterForRuntimeStartup != nullptr &&
-                              UnregisterForRuntimeStartup != nullptr &&
-                              EnumerateCLRs != nullptr &&
-                              CloseCLREnumeration != nullptr &&
-                              CreateVersionStringFromModule != nullptr &&
-                              CreateDebuggingInterfaceFromVersionEx != nullptr;
+                              UnregisterForRuntimeStartup != nullptr;
 
         if (!dlsym_ok)
         {
@@ -124,26 +112,6 @@ class dbgshim_t
         return UnregisterForRuntimeStartup;
     }
 
-    const EnumerateCLRs_t &GetEnumerateCLRs()
-    {
-        return EnumerateCLRs;
-    }
-
-    const CloseCLREnumeration_t &GetCloseCLREnumeration()
-    {
-        return CloseCLREnumeration;
-    }
-
-    const CreateVersionStringFromModule_t &GetCreateVersionStringFromModule()
-    {
-        return CreateVersionStringFromModule;
-    }
-
-    const CreateDebuggingInterfaceFromVersionEx_t &GetCreateDebuggingInterfaceFromVersionEx()
-    {
-        return CreateDebuggingInterfaceFromVersionEx;
-    }
-
     ~dbgshim_t()
     {
         if (m_module != nullptr)
@@ -159,10 +127,6 @@ class dbgshim_t
     CloseResumeHandle_t CloseResumeHandle{nullptr};
     RegisterForRuntimeStartup_t RegisterForRuntimeStartup{nullptr};
     UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup{nullptr};
-    EnumerateCLRs_t EnumerateCLRs{nullptr};
-    CloseCLREnumeration_t CloseCLREnumeration{nullptr};
-    CreateVersionStringFromModule_t CreateVersionStringFromModule{nullptr};
-    CreateDebuggingInterfaceFromVersionEx_t CreateDebuggingInterfaceFromVersionEx{nullptr};
 
     DLHandle m_module{nullptr};
 };

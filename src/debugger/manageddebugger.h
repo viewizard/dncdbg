@@ -21,6 +21,7 @@
 #include "utils/rwlock.h"
 #include "utils/torelease.h"
 #include <gsl/span>
+#include <atomic>
 #include <condition_variable>
 #include <map>
 #include <vector>
@@ -192,7 +193,7 @@ class ManagedDebugger
     void DisableAllBreakpointsAndSteppers();
 
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
-    HRESULT StartupCallbackHR{S_OK};
+    std::atomic<HRESULT> StartupCallbackHR{S_OK}; // Written by the startup callback thread, read by the caller thread.
     HRESULT Startup(IUnknown *punk);
     HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs);
     HRESULT AttachToProcess();
