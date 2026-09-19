@@ -9,6 +9,7 @@
 #include "debuginfo/pdb.h"
 #include "utils/utf.h"
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -46,6 +47,7 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
                       PDB::SequencePoint &sequencePoint, std::string &output);
 HRESULT GetEmbeddedSource(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceContent);
 HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t, std::string>> &sourceFileIndexWithName);
+HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint32_t, std::string, std::string>> &sourceFileIndexWithNameAndURL);
 HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, uint32_t sourceFileIndex,
                                const BreakpointLocation &rangeToSearch, std::vector<BreakpointLocation> &locations);
 

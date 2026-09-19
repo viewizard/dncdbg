@@ -10,6 +10,7 @@
 #include <dnmd_pdb.h>
 #define MINIZ_NO_ARCHIVE_APIS
 #include <miniz/miniz.h>
+#include <json/json.hpp>
 #include <array>
 #include <cstddef>
 #include <cstring>
@@ -84,6 +85,15 @@ constexpr std::array<uint8_t, 16> guidSHA256{
     0xb8, 0x11,                                    // Data2 (0x11B8)
     0x13, 0x42,                                    // Data3 (0x4213)
     0x87, 0x8b, 0x77, 0x0e, 0x85, 0x97, 0xac, 0x16 // Data4 (878B-770E8597AC16)
+};
+
+// https://github.com/dotnet/roslyn/blob/c370e641f52fba0168c19b372d220809f37eec8f/src/Dependencies/CodeAnalysis.Debugging/PortableCustomDebugInfoKinds.cs#L21
+// {CC110556-A091-4D38-9FEC-25AB9A351A6A}
+constexpr std::array<uint8_t, 16> guidSourceLink{
+    0x56, 0x05, 0x11, 0xcc,                        // Data1 (0xCC110556)
+    0x91, 0xa0,                                    // Data2 (0xA091)
+    0x38, 0x4d,                                    // Data3 (0x4D38)
+    0x9f, 0xec, 0x25, 0xab, 0x9a, 0x35, 0x1a, 0x6a // Data4 (9FEC-25AB9A351A6A)
 };
 
 // Constants for parsing StateMachineHoistedLocalScopes blob
@@ -2167,6 +2177,169 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
     }
 
     return sourceFileIndexWithName.empty() ? E_FAIL : S_OK;
+}
+
+HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint32_t, std::string, std::string>> &sourceFileIndexWithNameAndURL)
+{
+    sourceFileIndexWithNameAndURL.clear();
+
+    if (pdbHandle == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    // SourceLink custom debug information is attached to the module row and contains
+    // a JSON object of the form {"documents": {"path-pattern": "url-pattern"}}.
+    mdcursor_t cdiCursor{};
+    uint32_t cdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
+    {
+        return E_FAIL;
+    }
+
+    std::string sourceLinkJson;
+
+    // Module table token type is 0x00 (mdtid_Module); the module is always row 1
+    static constexpr uint32_t moduleTokenType = 0x00000000;
+    static constexpr mdToken moduleToken = TokenFromRid(1U, moduleTokenType);
+    for (uint32_t i = 0; i < cdiCount; ++i)
+    {
+        mdToken parentToken = mdTokenNil;
+        mdguid_t kind{};
+        uint8_t const *value = nullptr;
+        uint32_t valueLength = 0;
+        if (md_get_column_value_as_token(cdiCursor, mdtCustomDebugInformation_Parent, &parentToken) &&
+            parentToken == moduleToken &&
+            md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &kind) &&
+            std::memcmp(&kind, guidSourceLink.data(), sizeof(mdguid_t)) == 0 &&
+            md_get_column_value_as_blob(cdiCursor, mdtCustomDebugInformation_Value, &value, &valueLength) &&
+            value != nullptr && valueLength != 0)
+        {
+            sourceLinkJson.assign(reinterpret_cast<const char *>(value), valueLength);
+            break;
+        }
+
+        md_cursor_move(&cdiCursor, 1);
+    }
+
+    if (sourceLinkJson.empty())
+    {
+        return E_FAIL;
+    }
+
+    // Use ordered_json to preserve the pattern order from the SourceLink JSON.
+    nlohmann::ordered_json documents;
+    try
+    {
+        const nlohmann::ordered_json sourceLink = nlohmann::ordered_json::parse(sourceLinkJson);
+        const auto documentsIt = sourceLink.find("documents");
+        if (documentsIt == sourceLink.cend() || !documentsIt->is_object())
+        {
+            return E_FAIL;
+        }
+        documents = *documentsIt;
+    }
+    catch (const nlohmann::json::exception &)
+    {
+        return E_FAIL;
+    }
+
+    mdcursor_t docCursor{};
+    uint32_t docCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_Document, &docCursor, &docCount))
+    {
+        return E_FAIL;
+    }
+
+    // SourceLink patterns use '*' as a wildcard; the text matched by the '*' in the
+    // path pattern is substituted for the '*' in the URL pattern.
+    const auto MatchPattern = [](const std::string &path, const std::string &pattern, std::string &capture)
+    {
+        const size_t wildcard = pattern.find('*');
+        if (wildcard == std::string::npos)
+        {
+            capture.clear();
+            return path == pattern;
+        }
+
+        const std::string prefix = pattern.substr(0, wildcard);
+        const std::string suffix = pattern.substr(wildcard + 1);
+        if (path.size() < prefix.size() + suffix.size() ||
+            path.compare(0, prefix.size(), prefix) != 0 ||
+            path.compare(path.size() - suffix.size(), suffix.size(), suffix) != 0)
+        {
+            return false;
+        }
+
+        capture = path.substr(prefix.size(), path.size() - prefix.size() - suffix.size());
+        return true;
+    };
+
+    for (uint32_t docIndex = 0; docIndex < docCount; ++docIndex)
+    {
+        // Get the Name blob from the Document table
+        uint8_t const *nameBlob = nullptr;
+        uint32_t blobLength = 0;
+        if (!md_get_column_value_as_blob(docCursor, mdtDocument_Name, &nameBlob, &blobLength) ||
+            nameBlob == nullptr || blobLength == 0)
+        {
+            md_cursor_move(&docCursor, 1);
+            continue;
+        }
+
+        // First, query the required buffer size
+        size_t nameLength = 0;
+        md_blob_parse_result_t parseResult = md_parse_document_name(pdbHandle, nameBlob, blobLength, nullptr, &nameLength);
+        if (parseResult != mdbpr_InsufficientBuffer || nameLength == 0)
+        {
+            md_cursor_move(&docCursor, 1);
+            continue;
+        }
+
+        // Allocate buffer and parse the document name
+        std::string documentPath(nameLength, '\0');
+        parseResult = md_parse_document_name(pdbHandle, nameBlob, blobLength, documentPath.data(), &nameLength);
+        if (parseResult != mdbpr_Success)
+        {
+            md_cursor_move(&docCursor, 1);
+            continue;
+        }
+
+        // Remove null terminator that was included in the length
+        if (!documentPath.empty() && documentPath.back() == '\0')
+        {
+            documentPath.pop_back();
+        }
+
+        // Patterns are tried in order; the first match determines the URL
+        for (const auto &[pathPattern, urlPattern] : documents.items())
+        {
+            if (!urlPattern.is_string())
+            {
+                continue;
+            }
+
+            std::string capture;
+            if (!MatchPattern(documentPath, pathPattern, capture))
+            {
+                continue;
+            }
+
+            std::string url = urlPattern;
+            const size_t urlWildcard = url.find('*');
+            if (urlWildcard != std::string::npos)
+            {
+                url.replace(urlWildcard, 1, capture);
+            }
+
+            sourceFileIndexWithNameAndURL.emplace_back(docIndex, SourceFileMap::Path(documentPath), std::move(url));
+            break;
+        }
+
+        md_cursor_move(&docCursor, 1);
+    }
+
+    return sourceFileIndexWithNameAndURL.empty() ? E_FAIL : S_OK;
 }
 
 HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, uint32_t sourceFileIndex,
