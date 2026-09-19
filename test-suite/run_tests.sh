@@ -59,6 +59,7 @@ ALL_TEST_NAMES=(
     "TestStackTrace"
     "TestBreakpointLocations"
     "TestAttachToSuspend"
+    "TestSourceLink"
 )
 
 TEST_NAMES="$@"
