@@ -818,7 +818,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 std::string sourceContent;
-                IfFailRet(m_sharedDebugger->GetEmbeddedSource(source, sourceContent));
+                if (FAILED(Status = m_sharedDebugger->GetSourceContent(source, sourceContent)))
+                {
+                    if (!sourceContent.empty())
+                    {
+                        responseBody.emplace("message", sourceContent);
+                    }
+                    return Status;
+                }
 
                 responseBody.emplace("content", sourceContent);
 

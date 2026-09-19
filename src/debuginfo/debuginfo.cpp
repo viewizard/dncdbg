@@ -10,6 +10,7 @@
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
+#include "utils/downloader.h"
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/utftoupper.h"
@@ -898,7 +899,7 @@ HRESULT DebugInfo::GetGotoTarget(const Source &source, int32_t line, int32_t col
     return targets.empty() ? E_FAIL : S_OK;
 }
 
-HRESULT DebugInfo::GetEmbeddedSource(const Source &source, std::string &sourceContent)
+HRESULT DebugInfo::GetSourceContent(const Source &source, std::string &sourceContent)
 {
     if (source.sourceReference > 0)
     {
@@ -906,6 +907,12 @@ HRESULT DebugInfo::GetEmbeddedSource(const Source &source, std::string &sourceCo
         if (FAILED(SourceReference::GetGlobalIndex(source.sourceReference, globalFileIndex)))
         {
             return E_INVALIDARG;
+        }
+
+        std::string url;
+        if (SUCCEEDED(SourceReference::GetSourceURL(globalFileIndex, url)))
+        {
+            return DownloadSource(url, sourceContent) ? S_OK : E_FAIL;
         }
 
         return GetPDBInfo(globalFileIndex.modAddress,
@@ -929,6 +936,15 @@ HRESULT DebugInfo::GetEmbeddedSource(const Source &source, std::string &sourceCo
     if (pPDBInfo == nullptr)
     {
         return E_FAIL;
+    }
+
+    CORDB_ADDRESS modAddress = 0;
+    std::string url;
+    if (pPDBInfo->m_trModule != nullptr &&
+        SUCCEEDED(pPDBInfo->m_trModule->GetBaseAddress(&modAddress)) &&
+        SUCCEEDED(SourceReference::GetSourceURL({modAddress, resolvedSourceFileIndex}, url)))
+    {
+        return DownloadSource(url, sourceContent) ? S_OK : E_FAIL;
     }
 
     return PDBReader::GetEmbeddedSource(pPDBInfo->m_pdbHandle, resolvedSourceFileIndex, sourceContent);

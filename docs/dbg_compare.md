@@ -181,6 +181,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><a href="https://github.com/dotnet/sourcelink/blob/main/README.md"><b>Source Link</b></a></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><a href="https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map"><b>Source File Map</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>

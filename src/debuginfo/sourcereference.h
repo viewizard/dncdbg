@@ -21,6 +21,7 @@ class SourceReference
     static HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex);
     static HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
                                       std::string &correctSourceFilePath);
+    static HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url);
     static void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress,
                                           std::vector<Source> &sources);
 
@@ -42,6 +43,12 @@ class SourceReference
     {
         static std::unordered_map<int32_t, PDB::GlobalFileIndex> sourceReferenceMap;
         return sourceReferenceMap;
+    }
+
+    static std::unordered_map<int32_t, std::string> &GetSourceURLMap()
+    {
+        static std::unordered_map<int32_t, std::string> sourceURLMap;
+        return sourceURLMap;
     }
 
     static std::mutex &GetSourceReferenceMutex()

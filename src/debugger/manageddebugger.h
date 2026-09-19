@@ -120,7 +120,7 @@ class ManagedDebugger
     HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column,
                           std::vector<GotoTarget> &targets, std::string &output);
     HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output);
-    HRESULT GetEmbeddedSource(const Source &source, std::string &sourceContent);
+    HRESULT GetSourceContent(const Source &source, std::string &sourceContent);
     void GetLoadedSources(std::vector<Source> &sources);
     HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
                                    std::vector<BreakpointLocation> &locations);

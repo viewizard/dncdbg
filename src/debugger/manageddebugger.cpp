@@ -1125,9 +1125,9 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     return S_OK;
 }
 
-HRESULT ManagedDebugger::GetEmbeddedSource(const Source &source, std::string &sourceContent)
+HRESULT ManagedDebugger::GetSourceContent(const Source &source, std::string &sourceContent)
 {
-    return m_sharedDebugInfo->GetEmbeddedSource(source, sourceContent);
+    return m_sharedDebugInfo->GetSourceContent(source, sourceContent);
 }
 
 void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources)

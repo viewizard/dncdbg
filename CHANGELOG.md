@@ -42,6 +42,7 @@ Upcoming changes compared to previous version.
 - Added .NET Diagnostic IPC protocol client (ResumeRuntime command) for resuming a runtime suspended on its default diagnostics endpoint.
 - Added resuming a runtime suspended on its default diagnostics endpoint during attach.
 - Added TestAttachToSuspend.
+- Added [Source Link](https://github.com/dotnet/sourcelink/blob/main/README.md) support.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

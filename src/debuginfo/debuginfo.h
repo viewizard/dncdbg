@@ -80,7 +80,7 @@ class DebugInfo
     HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
                           std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
-    HRESULT GetEmbeddedSource(const Source &source, std::string &sourceContent);
+    HRESULT GetSourceContent(const Source &source, std::string &sourceContent);
 
     void GetLoadedSources(std::vector<Source> &sources);
 
