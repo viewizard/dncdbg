@@ -409,12 +409,14 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
             docFilePath.pop_back();
         }
 
-        std::string docFileName = GetFileName(docFilePath);
+        // Map the full document path before extracting the file name, so the lookup
+        // key matches the mapped paths returned to the client (see GetSourceFile()).
+        std::string sourceFileName = GetFileName(SourceFileMap::Path(docFilePath));
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        docFileName = to_uppercase(docFileName);
+        sourceFileName = to_uppercase(sourceFileName);
 #endif
 
-        sourceFileNameToIndices[docFileName].push_front(i);
+        sourceFileNameToIndices[sourceFileName].push_front(i);
         md_cursor_move(&docCursor, 1);
     }
 
