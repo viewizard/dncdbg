@@ -73,6 +73,7 @@ set(DNCDBG_SOURCES
     utils/diagnostics_ipc.cpp
     utils/diagnostics_ipc_unix.cpp
     utils/diagnostics_ipc_win32.cpp
+    utils/downloader_unix.cpp
     utils/downloader_win32.cpp
     utils/dynlibs_unix.cpp
     utils/dynlibs_win32.cpp
@@ -238,6 +239,13 @@ else()
             ${FOUNDATION_FRAMEWORK}
         )
     else()
+        # Only the libcurl headers are needed at build time; the library itself
+        # is loaded dynamically at run time (see utils/downloader_unix.cpp).
+        find_path(CURL_INCLUDE_DIR curl/curl.h)
+        if(NOT CURL_INCLUDE_DIR)
+            message(FATAL_ERROR "curl/curl.h not found: install the libcurl development package (e.g. libcurl4-openssl-dev)")
+        endif()
+        target_include_directories(dncdbg SYSTEM PRIVATE ${CURL_INCLUDE_DIR})
         target_link_libraries(dncdbg PRIVATE
             corguids
             dl
