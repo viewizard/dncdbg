@@ -45,7 +45,7 @@ The licenses below apply only to the corresponding third-party components. The p
 - **Project:** [miniz](https://github.com/richgel999/miniz)
 - **Included version:** `3.1.2`
 - **Included in:** [`third-party/miniz`](third-party/miniz/)
-- **License:** MIT-style license
+- **License:** MIT License
 - **Copyright:** 2010–2014 Rich Geldreich and Tenacious Software LLC; 2013–2014 RAD Game Tools and Valve Software
 - **License text:** [`third-party/miniz/LICENSE`](third-party/miniz/LICENSE)
 
