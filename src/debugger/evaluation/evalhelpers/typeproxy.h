@@ -14,14 +14,14 @@
 namespace dncdbg::TypeProxy
 {
 
-// Cleans up the TypeProxy internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
-
 HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
                                   ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue);
 
 // Should be called by ICorDebugManagedCallback.
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+
+// Cleans up the TypeProxy internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::TypeProxy
 

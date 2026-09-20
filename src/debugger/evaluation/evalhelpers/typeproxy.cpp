@@ -85,7 +85,7 @@ void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typ
         const auto nextComma = remainder.find(',');
         const std::string_view assemblyPart = TrimString(remainder.substr(0, nextComma));
 
-        // Per C# spec, the assembly name cannot start with properties like "Version=", "Culture=", etc.
+        // Per the C# spec, the assembly name cannot start with properties like "Version=", "Culture=", etc.
         if (!assemblyPart.empty() &&
             assemblyPart.rfind("Version=", 0) != 0 &&
             assemblyPart.rfind("Culture=", 0) != 0 &&
@@ -134,7 +134,7 @@ uint32_t ParseGenericArity(std::string_view typeName)
     uint32_t count = 0;
     const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
 
-    // If conversion succeeded, return the count; otherwise, return 0.
+    // If the conversion succeeded, return the count; otherwise, return 0.
     if (result.ec == std::errc{})
     {
         return count;
@@ -504,15 +504,6 @@ HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModul
 
 } // unnamed namespace
 
-void Cleanup()
-{
-    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
-
-    GetDebuggerTypeProxyCheckedTypes().clear();
-    GetDebuggerTypeProxyCache().clear();
-    GetDebuggerTypeProxyModuleCache().clear();
-}
-
 HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
                                   ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue)
 {
@@ -559,6 +550,15 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     GetDebuggerTypeProxyModuleCache().erase(modAddress);
 
     return S_OK;
+}
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+
+    GetDebuggerTypeProxyCheckedTypes().clear();
+    GetDebuggerTypeProxyCache().clear();
+    GetDebuggerTypeProxyModuleCache().clear();
 }
 
 } // namespace dncdbg::TypeProxy

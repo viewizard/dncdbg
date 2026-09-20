@@ -19,18 +19,18 @@ namespace dncdbg::EvalWaiter
 
 using WaitEvalResultCallback = std::function<HRESULT(ICorDebugEval *)>;
 
-// Cleans up the EvalWaiter internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
-
-bool IsEvalRunning();
-void CancelEvalRunning();
-
 HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval);
 
 // Should be called by ICorDebugManagedCallback.
 void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval);
 HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread);
 HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule);
+
+// Cleans up the EvalWaiter internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
+
+[[nodiscard]] bool IsEvalRunning();
+void CancelEvalRunning();
 
 } // namespace dncdbg::EvalWaiter
 

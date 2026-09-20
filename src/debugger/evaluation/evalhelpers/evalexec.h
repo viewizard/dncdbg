@@ -21,12 +21,6 @@
 namespace dncdbg::EvalExec
 {
 
-// Cleans up the EvalExec internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
-
-[[nodiscard]] uint32_t GetEvalFlags();
-void SetEvalFlags(uint32_t evalFlags);
-
 HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                      std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes, ICorDebugValue **ppArgsValue,
                      uint32_t argsValueCount, FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
@@ -48,6 +42,12 @@ HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
 HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
 HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
+
+// Cleans up the EvalExec internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
+
+[[nodiscard]] uint32_t GetEvalFlags();
+void SetEvalFlags(uint32_t evalFlags);
 
 } // namespace dncdbg::EvalExec
 

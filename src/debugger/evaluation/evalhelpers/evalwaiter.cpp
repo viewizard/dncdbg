@@ -153,75 +153,12 @@ HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
 
 } // unnamed namespace
 
-void Cleanup()
-{
-    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
-
-    GetEvalCanceled() = false;
-    GetEvalCrossThreadDependency() = false;
-
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
-    GetEvalResult().reset(nullptr);
-}
-
-bool IsEvalRunning()
-{
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
-    return (GetEvalResult() != nullptr);
-}
-
-void CancelEvalRunning()
-{
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
-
-    if (!GetEvalResult())
-    {
-        return;
-    }
-
-    ToRelease<ICorDebugEval2> trEval2;
-    if (SUCCEEDED(GetEvalResult()->pEval->Abort()) ||
-        (SUCCEEDED(GetEvalResult()->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) &&
-         SUCCEEDED(trEval2->RudeAbort())))
-    {
-        GetEvalCanceled() = true;
-    }
-}
-
-void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
-{
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
-    if (pThread == nullptr)
-    {
-        GetEvalResult().reset(nullptr);
-        return;
-    }
-
-    DWORD threadId = 0;
-    pThread->GetID(&threadId);
-
-    std::unique_ptr<evalResultData_t> uniqueEvalResult = std::make_unique<evalResultData_t>();
-    if (pEval != nullptr)
-    {
-        // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
-        (*uniqueEvalResult).Status = pEval->GetResult(&(*uniqueEvalResult).trEval);
-    }
-
-    if (!GetEvalResult() || GetEvalResult()->threadId != threadId)
-    {
-        return;
-    }
-
-    GetEvalResult()->promiseValue.set_value(std::move(uniqueEvalResult));
-    GetEvalResult().reset(nullptr);
-}
-
 HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval)
 {
     // Important! Evaluation should be performed for 1 thread only.
     const std::scoped_lock<std::mutex> lock(GetWaitEvalResultMutex());
 
-    // During evaluation, user code could be executed implicitly, which could provoke callback calls like breakpoints, exceptions, etc.
+    // During evaluation, user code could be executed implicitly, which could trigger callbacks such as breakpoints, exceptions, etc.
     // Make sure all managed callbacks ignore the standard logic during evaluation and don't pause/interrupt managed code execution.
 
     HRESULT Status = S_OK;
@@ -281,7 +218,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
             }
 
             // Note:
-            // MSVS 2017 debugger and newer use config file
+            // MSVS 2017 debugger and newer use the config file
             // C:\Program Files (x86)\Microsoft Visual Studio\YYYY\VERSION\Common7\IDE\Profiles\CSharp.vssettings
             // by default NormalEvalTimeout is 5000 milliseconds
             //
@@ -297,9 +234,9 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
 
                 // Note:
                 // All CoreCLR releases up to at least version 3.1.3 don't have a proper x86 implementation of ICorDebugEval::Abort().
-                // This issue looks like CoreCLR terminates managed process execution instead of aborting the evaluation.
+                // The issue is that CoreCLR terminates managed process execution instead of aborting the evaluation.
 
-                // In this case we have the same behavior as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort the eval at any cost.
+                // In this case we have the same behavior as MS vsdbg and the MSVS C# debugger - run all managed threads and try to abort the eval at any cost.
                 // Ignore errors here, this is our last chance to prevent debugger hangs.
                 trProcess->Stop(0);
                 ChangeThreadsState(THREAD_RUN);
@@ -366,7 +303,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
             ret = GetEvalCanceled() ? COR_E_OPERATIONCANCELED : COR_E_TIMEOUT;
         }
     }
-    // In this case we have the same behavior as MS vsdbg and MSVS C# debugger - in case it was aborted by timeout, show a proper error.
+    // In this case we have the same behavior as MS vsdbg and the MSVS C# debugger - in case it was aborted by timeout, show a proper error.
     else if (evalTimeOut)
     {
         ret = (ret == E_UNEXPECTED) ? E_UNEXPECTED : COR_E_TIMEOUT;
@@ -376,11 +313,39 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
     return ret;
 }
 
+void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    if (pThread == nullptr)
+    {
+        GetEvalResult().reset(nullptr);
+        return;
+    }
+
+    DWORD threadId = 0;
+    pThread->GetID(&threadId);
+
+    std::unique_ptr<evalResultData_t> uniqueEvalResult = std::make_unique<evalResultData_t>();
+    if (pEval != nullptr)
+    {
+        // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
+        (*uniqueEvalResult).Status = pEval->GetResult(&(*uniqueEvalResult).trEval);
+    }
+
+    if (!GetEvalResult() || GetEvalResult()->threadId != threadId)
+    {
+        return;
+    }
+
+    GetEvalResult()->promiseValue.set_value(std::move(uniqueEvalResult));
+    GetEvalResult().reset(nullptr);
+}
+
 HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 {
     // Note:
     // All CoreCLR releases up to at least version 3.1.3 don't have a proper x86 implementation of ICorDebugEval::Abort().
-    // This issue looks like CoreCLR terminates managed process execution instead of aborting the evaluation.
+    // The issue is that CoreCLR terminates managed process execution instead of aborting the evaluation.
 
     // Note, there could be only one eval running, but we need to ignore custom notifications from threads created during eval.
     // In this case we have the same behavior as the MSVS C# debugger (ATM vsdbg doesn't support Debugger.NotifyOfCrossThreadDependency).
@@ -412,8 +377,8 @@ HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-    // in order to make code simple and clear, we don't check enclosing classes with recursion here
-    // since we know behavior for sure, just find "System.Diagnostics.Debugger" first
+    // In order to make the code simple and clear, we don't check enclosing classes with recursion here;
+    // since we know the behavior for sure, just find "System.Diagnostics.Debugger" first.
     mdTypeDef typeDefParent = mdTypeDefNil;
     static const WSTRING strParentTypeDef(W("System.Diagnostics.Debugger"));
     IfFailRet(trMDImport->FindTypeDefByName(strParentTypeDef.c_str(), mdTypeDefNil, &typeDefParent));
@@ -424,6 +389,41 @@ HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 
     GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
     return pModule->GetClassFromToken(typeDef, &GetCrossThreadDependencyNotification());
+}
+
+void Cleanup()
+{
+    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
+
+    GetEvalCanceled() = false;
+    GetEvalCrossThreadDependency() = false;
+
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    GetEvalResult().reset(nullptr);
+}
+
+bool IsEvalRunning()
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    return (GetEvalResult() != nullptr);
+}
+
+void CancelEvalRunning()
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+
+    if (!GetEvalResult())
+    {
+        return;
+    }
+
+    ToRelease<ICorDebugEval2> trEval2;
+    if (SUCCEEDED(GetEvalResult()->pEval->Abort()) ||
+        (SUCCEEDED(GetEvalResult()->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) &&
+         SUCCEEDED(trEval2->RudeAbort())))
+    {
+        GetEvalCanceled() = true;
+    }
 }
 
 } // namespace dncdbg::EvalWaiter

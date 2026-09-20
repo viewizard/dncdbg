@@ -101,7 +101,7 @@ HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTyp
 
     if (ppTypeObjectResult != nullptr)
     {
-        // We don't check handle's status here, since we store only strong handles.
+        // We don't check the handle's status here, since we store only strong handles.
         // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebughandletype-enumeration
         // The handle is strong, which prevents an object from being reclaimed by garbage collection.
         return typeObjectCache.front().m_trTypeObject->QueryInterface(IID_ICorDebugValue, reinterpret_cast<void **>(ppTypeObjectResult));
@@ -137,7 +137,7 @@ HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
 
     CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
     if (FAILED(trHandleValue->GetHandleType(&handleType)) ||
-        // Note, we need only strong or pinned handle here, that will not invalidated on continue-break.
+        // Note, we need only a strong or pinned handle here, which will not be invalidated on continue-break.
         handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
     {
         return E_FAIL;
@@ -145,7 +145,7 @@ HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
 
     if (typeObjectCache.size() == typeObjectCacheSize)
     {
-        // Re-use last list entry.
+        // Re-use the last list entry.
         typeObjectCache.back().m_TypeID = typeID;
         typeObjectCache.back().m_trTypeObject = trHandleValue.Detach();
         static_assert(typeObjectCacheSize >= 2);
@@ -341,7 +341,7 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
             IfFailRet(EvalWaiter::WaitEvalResult(pThread, &trBoxedValue,
                 [&](ICorDebugEval *pEval) -> HRESULT
                 {
-                    // Note, this code execution is protected by EvalWaiter mutex.
+                    // Note, this code execution is protected by the EvalWaiter mutex.
                     ToRelease<ICorDebugEval2> trEval2;
                     IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
                     IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, 0, nullptr));
@@ -479,7 +479,7 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
                 IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppLiteralValue,
                     [&](ICorDebugEval *pEval) -> HRESULT
                     {
-                        // Note, this code execution is protected by EvalWaiter mutex.
+                        // Note, this code execution is protected by the EvalWaiter mutex.
                         ToRelease<ICorDebugEval2> trEval2;
                         IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
                         IfFailRet(trEval2->NewStringWithLength(strValue, strLen));
@@ -518,43 +518,6 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
 }
 
 } // unnamed namespace
-
-void Cleanup()
-{
-    GetTrSuppressFinalizeMutex().lock();
-    if (GetTrSuppressFinalize() != nullptr)
-    {
-        GetTrSuppressFinalize().Free();
-    }
-    GetTrSuppressFinalizeMutex().unlock();
-
-    GetTypeObjectCacheMutex().lock();
-    GetTypeObjectCache().clear();
-    GetTypeObjectCacheMutex().unlock();
-}
-
-uint32_t GetEvalFlags()
-{
-    return GetEvalFlagsState();
-}
-
-void SetEvalFlags(uint32_t evalFlags)
-{
-    GetEvalFlagsState() = evalFlags;
-}
-
-HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)
-{
-    auto value16t = to_utf16(value);
-    return EvalWaiter::WaitEvalResult(pThread, ppNewString,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by EvalWaiter mutex.
-            HRESULT Status = S_OK;
-            IfFailRet(pEval->NewString(value16t.c_str()));
-            return S_OK;
-        });
-}
 
 HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                      std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes, ICorDebugValue **ppArgsValue,
@@ -597,7 +560,7 @@ HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDeb
     return EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution is protected by EvalWaiter mutex.
+            // Note, this code execution is protected by the EvalWaiter mutex.
             HRESULT Status = S_OK;
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
@@ -622,7 +585,7 @@ HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc
     IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution is protected by EvalWaiter mutex.
+            // Note, this code execution is protected by the EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
 
@@ -672,7 +635,7 @@ HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDeb
     Status = EvalWaiter::WaitEvalResult(pThread, &trTypeObject,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution is protected by EvalWaiter mutex.
+            // Note, this code execution is protected by the EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
 #ifdef BIT64
@@ -730,7 +693,7 @@ HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
     IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution is protected by EvalWaiter mutex.
+            // Note, this code execution is protected by the EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
 
@@ -761,7 +724,7 @@ HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
     }
 
     HRESULT Status = S_OK;
-    // Skip calling convention with IMAGE_CEE_CS_CALLCONV_FIELD, since we are sure this is a field.
+    // Skip the calling convention byte (IMAGE_CEE_CS_CALLCONV_FIELD), since we are sure this is a field.
     IfFailRet(CorSigUncompressSkipOneByte_EndPtr(pSig, pSigEnd));
 
     // TODO care about "CustomMod*"
@@ -773,8 +736,8 @@ HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
     {
         // https://learn.microsoft.com/en-us/dotnet/core/unmanaged-api/metadata/interfaces/imetadataimport-getfieldprops-method
         // pcchValue [out] The size in chars of ppValue, or zero if no string exists.
-        // In case of ELEMENT_TYPE_STRING this is WCHAR, convert to length in bytes
-        // since CreateLiteralValueImpl() counts on this.
+        // In case of ELEMENT_TYPE_STRING this is the length in WCHARs, so convert it to a length in bytes
+        // since CreateLiteralValueImpl() relies on this.
         rawValueLength = rawValueLength * sizeof(WCHAR);
     }
 
@@ -788,7 +751,7 @@ HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
     // Only the C# built-in types may be declared as const. Reference type constants other than String can only be initialized
     // with a null value. User-defined types, including classes, structs, and arrays, cannot be const.
 
-    // For local constants, the value is encoded in the signature
+    // For local constants, the value is encoded in the signature.
     // The signature format is: CustomMod* Type Value
 
     if (pThread == nullptr ||
@@ -820,6 +783,19 @@ HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
                                   ppLiteralValue, realDisplayTypeName, true);
 }
 
+HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)
+{
+    auto value16t = to_utf16(value);
+    return EvalWaiter::WaitEvalResult(pThread, ppNewString,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by the EvalWaiter mutex.
+            HRESULT Status = S_OK;
+            IfFailRet(pEval->NewString(value16t.c_str()));
+            return S_OK;
+        });
+}
+
 HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass,
                         void *valueData, ICorDebugValue **ppValue)
 {
@@ -828,7 +804,7 @@ HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClas
     IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppValue,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
-            // Note, this code execution is protected by EvalWaiter mutex.
+            // Note, this code execution is protected by the EvalWaiter mutex.
             ToRelease<ICorDebugEval2> trEval2;
             IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
             IfFailRet(trEval2->NewParameterizedObjectNoConstructor(pValueTypeClass, 0, nullptr));
@@ -846,6 +822,30 @@ HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClas
     ToRelease<ICorDebugGenericValue> trGenericValue;
     IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
     return trGenericValue->SetValue(valueData);
+}
+
+void Cleanup()
+{
+    GetTrSuppressFinalizeMutex().lock();
+    if (GetTrSuppressFinalize() != nullptr)
+    {
+        GetTrSuppressFinalize().Free();
+    }
+    GetTrSuppressFinalizeMutex().unlock();
+
+    GetTypeObjectCacheMutex().lock();
+    GetTypeObjectCache().clear();
+    GetTypeObjectCacheMutex().unlock();
+}
+
+uint32_t GetEvalFlags()
+{
+    return GetEvalFlagsState();
+}
+
+void SetEvalFlags(uint32_t evalFlags)
+{
+    GetEvalFlagsState() = evalFlags;
 }
 
 } // namespace dncdbg::EvalExec
