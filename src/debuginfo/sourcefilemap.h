@@ -8,23 +8,14 @@
 #include <map>
 #include <string>
 
-namespace dncdbg
+namespace dncdbg::SourceFileMap
 {
 
-class SourceFileMap
-{
-  public:
+// Return source path with applied source file path mapping.
+std::string Path(const std::string &path);
 
-    // Return source path with applied source file path mapping.
-    static std::string Path(const std::string &path);
+std::map<std::string, std::string> &GetMap();
 
-    static std::map<std::string, std::string> &GetMap()
-    {
-        static std::map<std::string, std::string> sourceFileMap;
-        return sourceFileMap;
-    }
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::SourceFileMap
 
 #endif // DEBUGINFO_SOURCEFILEMAP_H

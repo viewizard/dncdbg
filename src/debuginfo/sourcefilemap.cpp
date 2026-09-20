@@ -5,10 +5,10 @@
 #include "debuginfo/sourcefilemap.h"
 #include <algorithm>
 
-namespace dncdbg
+namespace dncdbg::SourceFileMap
 {
 
-std::string SourceFileMap::Path(const std::string &path)
+std::string Path(const std::string &path)
 {
     if (GetMap().empty())
     {
@@ -66,4 +66,10 @@ std::string SourceFileMap::Path(const std::string &path)
     return newPrefix + endPath;
 }
 
-} // namespace dncdbg
+std::map<std::string, std::string> &GetMap()
+{
+    static std::map<std::string, std::string> sourceFileMap;
+    return sourceFileMap;
+}
+
+} // namespace dncdbg::SourceFileMap
