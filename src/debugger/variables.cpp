@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/variables.h"
-#include "debugger/evaluation/evalexec.h"
+#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/valueprint.h"
 #include "types/types.h"

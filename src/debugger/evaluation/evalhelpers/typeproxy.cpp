@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
-#include "debugger/evaluation/evalexec.h"
+#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "metadata/attributes.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"

@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/evaluation/evalexec.h"
+#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evalhelpers.h"
 #include "metadata/corhelpers.h"
