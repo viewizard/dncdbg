@@ -173,7 +173,7 @@ bool CallbacksQueue::HasQueuedCallbacks(ICorDebugProcess *pProcess)
 
 HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         pAppDomain->Continue(0);
         return S_OK;
@@ -200,7 +200,7 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
 
 HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         if (pAppDomain == nullptr)
         {
@@ -234,7 +234,7 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
 
 HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         if (pProcess == nullptr)
         {

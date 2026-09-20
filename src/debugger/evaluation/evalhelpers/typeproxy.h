@@ -12,7 +12,6 @@
 #endif
 
 #include "utils/torelease.h"
-#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -21,16 +20,11 @@
 namespace dncdbg
 {
 
-class EvalExec;
-
 class TypeProxy
 {
   public:
 
-    explicit TypeProxy(std::shared_ptr<EvalExec> &sharedEvalExec)
-        : m_sharedEvalExec(sharedEvalExec)
-    {
-    }
+    TypeProxy() = default;
 
     HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
                                       ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue);
@@ -38,8 +32,6 @@ class TypeProxy
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
   private:
-
-    std::shared_ptr<EvalExec> m_sharedEvalExec;
 
     std::mutex m_debuggerTypeProxyMutex;
     std::unordered_map<CORDB_ADDRESS, std::unordered_set<mdTypeDef>> m_debuggerTypeProxyCheckedTypes;

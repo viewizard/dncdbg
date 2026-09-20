@@ -36,7 +36,7 @@ void EvalExec::Cleanup()
 HRESULT EvalExec::CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)
 {
     auto value16t = to_utf16(value);
-    return m_sharedEvalWaiter->WaitEvalResult(pThread, ppNewString,
+    return EvalWaiter::WaitEvalResult(pThread, ppNewString,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -49,7 +49,7 @@ HRESULT EvalExec::CreateString(ICorDebugThread *pThread, const std::string &valu
 HRESULT EvalExec::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                                std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                                ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                               FormatSpecifier specifier, ICorDebugValue **ppEvalResult)
+                               FormatSpecifier specifier, ICorDebugValue **ppEvalResult) const
 {
     assert((ppArgsValue == nullptr && argsValueCount == 0) ||
            (ppArgsValue != nullptr && argsValueCount > 0));
@@ -85,7 +85,7 @@ HRESULT EvalExec::CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFun
         (*pTrMethodGenericTypes).clear();
     }
 
-    return m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
+    return EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -111,7 +111,7 @@ HRESULT EvalExec::CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *p
 
     HRESULT Status = S_OK;
 
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
+    IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -247,7 +247,7 @@ HRESULT EvalExec::CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pTyp
     IfFailRet(pType->GetClass(&trClass));
 
     ToRelease<ICorDebugValue> trTypeObject;
-    Status = m_sharedEvalWaiter->WaitEvalResult(pThread, &trTypeObject,
+    Status = EvalWaiter::WaitEvalResult(pThread, &trTypeObject,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -304,7 +304,7 @@ HRESULT EvalExec::CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementT
 
     HRESULT Status = S_OK;
 
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppEvalResult,
+    IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppEvalResult,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.
@@ -576,7 +576,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             }
 
             ToRelease<ICorDebugValue> trBoxedValue;
-            IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, &trBoxedValue,
+            IfFailRet(EvalWaiter::WaitEvalResult(pThread, &trBoxedValue,
                 [&](ICorDebugEval *pEval) -> HRESULT
                 {
                     // Note, this code execution is protected by EvalWaiter mutex.
@@ -714,7 +714,7 @@ HRESULT EvalExec::CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATU
             {
                 const auto *strValue = reinterpret_cast<const WCHAR *>(pRawValue);
                 const ULONG strLen = rawValueLength / sizeof(WCHAR);
-                IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppLiteralValue,
+                IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppLiteralValue,
                     [&](ICorDebugEval *pEval) -> HRESULT
                     {
                         // Note, this code execution is protected by EvalWaiter mutex.
@@ -760,7 +760,7 @@ HRESULT EvalExec::CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pVal
 {
     HRESULT Status = S_OK;
     // Create value (without calling a constructor)
-    IfFailRet(m_sharedEvalWaiter->WaitEvalResult(pThread, ppValue,
+    IfFailRet(EvalWaiter::WaitEvalResult(pThread, ppValue,
         [&](ICorDebugEval *pEval) -> HRESULT
         {
             // Note, this code execution is protected by EvalWaiter mutex.

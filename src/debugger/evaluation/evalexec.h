@@ -16,7 +16,6 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <list>
-#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -24,41 +23,36 @@
 namespace dncdbg
 {
 
-class EvalWaiter;
-
 class EvalExec
 {
   public:
 
-    explicit EvalExec(std::shared_ptr<EvalWaiter> &sharedEvalWaiter)
-        : m_sharedEvalWaiter(sharedEvalWaiter)
-    {
-    }
+    EvalExec() = default;
 
     HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                          std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
                          ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                         FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
+                         FormatSpecifier specifier, ICorDebugValue **ppEvalResult) const;
 
-    HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
-                            std::vector<ToRelease<ICorDebugType>> &trTypeParams,
-                            ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                            ICorDebugValue **ppEvalResult);
+    static HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
+                                   std::vector<ToRelease<ICorDebugType>> &trTypeParams,
+                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
+                                   ICorDebugValue **ppEvalResult);
 
     HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
 
-    HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
-                        std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
+    static HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
+                               std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
 
-    HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
-                                    ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+    static HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
+                                           ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
-    HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                    ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+    static HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                           ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
-    HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
+    static HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
+    static HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
 
     [[nodiscard]] uint32_t GetEvalFlags() const
     {
@@ -73,7 +67,6 @@ class EvalExec
 
   private:
 
-    std::shared_ptr<EvalWaiter> m_sharedEvalWaiter;
     uint32_t m_evalFlags{defaultEvalFlags};
 
     std::mutex m_trSuppressFinalizeMutex;
@@ -98,10 +91,10 @@ class EvalExec
 
     HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult);
     HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
-    HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                   CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                   ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
-                                   bool valueInlineInSig = false);
+    static HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                          CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
+                                          ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
+                                          bool valueInlineInSig = false);
 };
 
 } // namespace dncdbg

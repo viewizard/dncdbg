@@ -372,7 +372,7 @@ HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         }
     }
     IfFailRet(GetConstructorTypeParams(pThread, pType, enclosingTypesParamCount, trTypeParams));
-    IfFailRet(m_sharedEvalExec->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
+    IfFailRet(EvalExec::CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
@@ -442,7 +442,7 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     lock.unlock();
 
-    IfFailRet(m_sharedEvalExec->CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
+    IfFailRet(EvalExec::CallConstructor(pThread, trConstrFunction, trTypeParams, &pFrontValue, 1, ppTypeProxyValue));
 
     return S_OK;
 }

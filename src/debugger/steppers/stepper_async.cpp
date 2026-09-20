@@ -129,7 +129,7 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
 // [in] pFrame - frame used to get all info needed (function, module, etc);
 // [in] pEvalExec - pointer to managed debugger EvalExec;
 // [out] ppValueAsyncIdRef - result value (reference to object created by builder).
-HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, EvalExec *pEvalExec,
+HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, const EvalExec *pEvalExec,
                             ICorDebugValue **ppValueAsyncIdRef)
 {
     HRESULT Status = S_OK;
@@ -211,7 +211,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, Ev
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame used to get all info needed (function, module, etc);
 // [in] pEvalExec - pointer to managed debugger EvalExec;
-HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, EvalExec *pEvalExec)
+HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, const EvalExec *pEvalExec)
 {
     HRESULT Status = S_OK;
 

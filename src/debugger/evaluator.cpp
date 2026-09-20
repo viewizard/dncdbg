@@ -502,7 +502,7 @@ Evaluator::Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
                      std::shared_ptr<EvalExec> &sharedEvalExec)
     : m_sharedDebugInfo(sharedDebugInfo),
       m_sharedEvalExec(sharedEvalExec),
-      m_sharedTypeProxy(std::make_shared<TypeProxy>(sharedEvalExec))
+      m_sharedTypeProxy(std::make_shared<TypeProxy>())
 {
 }
 
@@ -1235,8 +1235,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         if (fieldAttr & fdLiteral)
                         {
                             std::string realDisplayTypeName;
-                            IfFailRet(m_sharedEvalExec->CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
-                                                                                rawValueLength, ppResultValue, realDisplayTypeName));
+                            IfFailRet(EvalExec::CreateLiteralFieldValue(pThread, pSig, pSig + cbSig, pRawValue,
+                                                                        rawValueLength, ppResultValue, realDisplayTypeName));
 
                             if (pFallbackTypeName != nullptr)
                             {
@@ -1824,7 +1824,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
                     PCCOR_SIGNATURE pSig = constant.signature.data();
                     PCCOR_SIGNATURE pSigEnd = pSig + constant.signature.size();
                     std::string realDisplayTypeName;
-                    IfFailRet(m_sharedEvalExec->CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue, realDisplayTypeName));
+                    IfFailRet(EvalExec::CreateLiteralLocalValue(pThread, pSig, pSigEnd, ppResultValue, realDisplayTypeName));
 
                     if (pFallbackTypeName != nullptr)
                     {

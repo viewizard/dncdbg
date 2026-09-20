@@ -354,8 +354,7 @@ ManagedDebugger::ManagedDebugger()
       m_sharedThreads(std::make_shared<Threads>()),
       m_sharedDebugInfo(std::make_shared<DebugInfo>()),
       m_sharedModules(std::make_shared<Modules>()),
-      m_sharedEvalWaiter(std::make_shared<EvalWaiter>()),
-      m_sharedEvalExec(std::make_shared<EvalExec>(m_sharedEvalWaiter)),
+      m_sharedEvalExec(std::make_shared<EvalExec>()),
       m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo, m_sharedEvalExec)),
       m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator, m_sharedEvalExec)),
       m_sharedVariables(std::make_shared<Variables>(m_sharedEvalExec, m_sharedEvaluator, m_sharedEvalStackMachine)),
@@ -471,7 +470,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    if (m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         // Important! Abort all evals before 'Step' in protocol, during eval we have inconsistent thread state.
         LOGE(log << "Can't 'Step' during running evaluation.");
@@ -512,7 +511,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    if (m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         // Important! Abort all evals before 'Continue' in protocol, during eval we have inconsistent thread state.
         LOGE(log << "Can't 'Continue' during running evaluation.");
@@ -546,7 +545,7 @@ bool ManagedDebugger::IsProcessRunning()
     const ReadLock r_lock(m_debugProcessRWLock);
 
     if (FAILED(CheckDebugProcess()) ||
-        m_sharedEvalWaiter->IsEvalRunning())
+        EvalWaiter::IsEvalRunning())
     {
         return false;
     }
@@ -834,6 +833,7 @@ void ManagedDebugger::Cleanup()
     m_sharedEvalExec->Cleanup();
     m_sharedVariables->Cleanup();
     SystemTypes::Cleanup();
+    EvalWaiter::Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
@@ -961,9 +961,11 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
     return m_sharedVariables->Evaluate(m_trProcess, frameId, expression, variable, output);
 }
 
-void ManagedDebugger::CancelEvalRunning()
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the static EvalWaiter, so it is intentionally kept non-static.
+void ManagedDebugger::CancelEvalRunning() // NOLINT(readability-convert-member-functions-to-static)
 {
-    m_sharedEvalWaiter->CancelEvalRunning();
+    EvalWaiter::CancelEvalRunning();
 }
 
 HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string &value, uint32_t ref,
@@ -1075,7 +1077,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    if (m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         // Important! Abort all evals before 'Goto' in protocol, during eval we have inconsistent thread state.
         LOGE(log << "Can't 'Goto' during running evaluation.");

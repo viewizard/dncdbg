@@ -6,17 +6,194 @@
 #include "debugger/evaluation/evalwaiter.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
+#include <cassert>
+#include <chrono>
+#include <future>
+#include <iomanip>
+#include <memory>
+#include <mutex>
+#include <utility>
 
-namespace dncdbg
+namespace dncdbg::EvalWaiter
 {
 
-void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
+namespace
 {
-    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
+
+struct evalResultData_t
+{
+    ToRelease<ICorDebugValue> trEval;
+    HRESULT Status = E_FAIL;
+};
+
+struct evalResult_t
+{
+    evalResult_t() = delete;
+    evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, const std::promise<std::unique_ptr<evalResultData_t>> &promiseValue_) = delete;
+    evalResult_t(const evalResult_t &B) = delete;
+    evalResult_t &operator=(const evalResult_t &B) = delete;
+    evalResult_t &operator=(evalResult_t &&B) = delete;
+
+    evalResult_t(DWORD threadId_,
+                 ICorDebugEval *pEval_,
+                 std::promise<std::unique_ptr<evalResultData_t>> &&promiseValue_)
+        : threadId(threadId_),
+          pEval(pEval_),
+          promiseValue(std::move(promiseValue_))
+    {
+    }
+    evalResult_t(evalResult_t &&B) noexcept
+        : threadId(B.threadId),
+          pEval(B.pEval),
+          promiseValue(std::move(B.promiseValue))
+    {
+    }
+
+    ~evalResult_t() = default;
+
+    DWORD threadId;
+    ICorDebugEval *pEval;
+    std::promise<std::unique_ptr<evalResultData_t>> promiseValue;
+};
+
+bool &GetEvalCanceled()
+{
+    static bool evalCanceled{false};
+    return evalCanceled;
+}
+
+bool &GetEvalCrossThreadDependency()
+{
+    static bool evalCrossThreadDependency{false};
+    return evalCrossThreadDependency;
+}
+
+ToRelease<ICorDebugClass> &GetCrossThreadDependencyNotification()
+{
+    static ToRelease<ICorDebugClass> trCrossThreadDependencyNotification;
+    return trCrossThreadDependencyNotification;
+}
+
+std::unique_ptr<evalResult_t> &GetEvalResult()
+{
+    static std::unique_ptr<evalResult_t> evalResult;
+    return evalResult;
+}
+
+std::mutex &GetWaitEvalResultMutex()
+{
+    static std::mutex waitEvalResultMutex;
+    return waitEvalResultMutex;
+}
+
+std::mutex &GetEvalResultMutex()
+{
+    static std::mutex evalResultMutex;
+    return evalResultMutex;
+}
+
+ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread)
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+
+    DWORD threadId = 0;
+    if (FAILED(pThread->GetID(&threadId)) || !GetEvalResult())
+    {
+        return nullptr;
+    }
+
+    return GetEvalResult()->threadId == threadId ? GetEvalResult()->pEval : nullptr;
+}
+
+std::future<std::unique_ptr<evalResultData_t>> RunEval(HRESULT &Status,
+                                                       ICorDebugProcess *pProcess,
+                                                       ICorDebugThread *pThread,
+                                                       ICorDebugEval *pEval,
+                                                       const WaitEvalResultCallback &cbSetupEval)
+{
+    std::promise<std::unique_ptr<evalResultData_t>> p;
+    auto f = p.get_future();
+    if (!f.valid())
+    {
+        LOGE(log << "get_future() returns not valid promise object");
+    }
+
+    DWORD threadId = 0;
+    pThread->GetID(&threadId);
+
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    assert(!GetEvalResult()); // We can have only 1 eval, and the previous one must be completed.
+    GetEvalResult() = std::make_unique<evalResult_t>(threadId, pEval, std::move(p));
+
+    // We don't have an easy way to abort the eval setup in case of some error in the debugger API,
+    // so try to set up the eval only if all is OK right before we run the process.
+    if (FAILED(Status = cbSetupEval(pEval)))
+    {
+        LOGE(log << "Setup eval failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+        GetEvalResult().reset(nullptr);
+    }
+    else if (FAILED(Status = pProcess->Continue(0)))
+    {
+        LOGE(log << "Continue() failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+        GetEvalResult().reset(nullptr);
+    }
+
+    return f;
+}
+
+HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugProcess3> trProcess3;
+    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, reinterpret_cast<void **>(&trProcess3)));
+    return trProcess3->SetEnableCustomNotification(GetCrossThreadDependencyNotification(), fEnable);
+}
+
+} // unnamed namespace
+
+void Cleanup()
+{
+    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
+
+    GetEvalCanceled() = false;
+    GetEvalCrossThreadDependency() = false;
+
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    GetEvalResult().reset(nullptr);
+}
+
+bool IsEvalRunning()
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    return (GetEvalResult() != nullptr);
+}
+
+void CancelEvalRunning()
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+
+    if (!GetEvalResult())
+    {
+        return;
+    }
+
+    ToRelease<ICorDebugEval2> trEval2;
+    if (SUCCEEDED(GetEvalResult()->pEval->Abort()) ||
+        (SUCCEEDED(GetEvalResult()->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) &&
+         SUCCEEDED(trEval2->RudeAbort())))
+    {
+        GetEvalCanceled() = true;
+    }
+}
+
+void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
+{
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
     if (pThread == nullptr)
     {
-        m_evalResult.reset(nullptr);
+        GetEvalResult().reset(nullptr);
         return;
     }
 
@@ -30,96 +207,22 @@ void EvalWaiter::NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEv
         (*uniqueEvalResult).Status = pEval->GetResult(&(*uniqueEvalResult).trEval);
     }
 
-    if (!m_evalResult || m_evalResult->threadId != threadId)
+    if (!GetEvalResult() || GetEvalResult()->threadId != threadId)
     {
         return;
     }
 
-    m_evalResult->promiseValue.set_value(std::move(uniqueEvalResult));
-    m_evalResult.reset(nullptr);
+    GetEvalResult()->promiseValue.set_value(std::move(uniqueEvalResult));
+    GetEvalResult().reset(nullptr);
 }
 
-bool EvalWaiter::IsEvalRunning()
+HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval)
 {
-    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-    return (m_evalResult != nullptr);
-}
+    // Important! Evaluation should be performed for 1 thread only.
+    const std::scoped_lock<std::mutex> lock(GetWaitEvalResultMutex());
 
-void EvalWaiter::CancelEvalRunning()
-{
-    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-
-    if (!m_evalResult)
-    {
-        return;
-    }
-
-    ToRelease<ICorDebugEval2> trEval2;
-    if (SUCCEEDED(m_evalResult->pEval->Abort()) ||
-        (SUCCEEDED(m_evalResult->pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2))) &&
-         SUCCEEDED(trEval2->RudeAbort())))
-    {
-        m_evalCanceled = true;
-    }
-}
-
-std::future<std::unique_ptr<EvalWaiter::evalResultData_t>> EvalWaiter::RunEval(HRESULT &Status,
-                                                                               ICorDebugProcess *pProcess,
-                                                                               ICorDebugThread *pThread,
-                                                                               ICorDebugEval *pEval,
-                                                                               const WaitEvalResultCallback &cbSetupEval)
-{
-    std::promise<std::unique_ptr<evalResultData_t>> p;
-    auto f = p.get_future();
-    if (!f.valid())
-    {
-        LOGE(log << "get_future() returns not valid promise object");
-    }
-
-    DWORD threadId = 0;
-    pThread->GetID(&threadId);
-
-    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-    assert(!m_evalResult); // We can have only 1 eval, and previous must be completed.
-    m_evalResult = std::make_unique<evalResult_t>(threadId, pEval, std::move(p));
-
-    // We don't have easy way to abort setup eval in case of some error in debugger API,
-    // try setup eval only if all is OK right before we run process.
-    if (FAILED(Status = cbSetupEval(pEval)))
-    {
-        LOGE(log << "Setup eval failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-        m_evalResult.reset(nullptr);
-    }
-    else if (FAILED(Status = pProcess->Continue(0)))
-    {
-        LOGE(log << "Continue() failed, 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-        m_evalResult.reset(nullptr);
-    }
-
-    return f;
-}
-
-ICorDebugEval *EvalWaiter::FindEvalForThread(ICorDebugThread *pThread)
-{
-    const std::scoped_lock<std::mutex> lock(m_evalResultMutex);
-
-    DWORD threadId = 0;
-    if (FAILED(pThread->GetID(&threadId)) || !m_evalResult)
-    {
-        return nullptr;
-    }
-
-    return m_evalResult->threadId == threadId ? m_evalResult->pEval : nullptr;
-}
-
-HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult,
-                                   const WaitEvalResultCallback &cbSetupEval)
-{
-    // Important! Evaluation should be proceed only for 1 thread.
-    const std::scoped_lock<std::mutex> lock(m_waitEvalResultMutex);
-
-    // During evaluation could be implicitly executing user code, that could provoke callback calls like - breakpoints, exceptions, etc.
-    // Make sure, that all managed callbacks ignore standard logic during evaluation and don't pause/interrupt managed code execution.
+    // During evaluation, user code could be executed implicitly, which could provoke callback calls like breakpoints, exceptions, etc.
+    // Make sure all managed callbacks ignore the standard logic during evaluation and don't pause/interrupt managed code execution.
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess> trProcess;
@@ -131,7 +234,7 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     DWORD evalThreadId = 0;
     IfFailRet(pThread->GetID(&evalThreadId));
 
-    // Note, we need suspend during eval all managed threads, that not used for eval (delegates, reverse pinvokes, managed threads).
+    // Note, we need to suspend all managed threads that are not used for eval during the eval (delegates, reverse pinvokes, managed threads).
     auto ChangeThreadsState = [&](CorDebugThreadState state)
     {
         ToRelease<ICorDebugThreadEnum> trThreadEnum;
@@ -193,11 +296,11 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
                          << "This may have changed the state of the process and any breakpoints and exceptions encountered have been skipped.");
 
                 // Note:
-                // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
-                // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
+                // All CoreCLR releases up to at least version 3.1.3 don't have a proper x86 implementation of ICorDebugEval::Abort().
+                // This issue looks like CoreCLR terminates managed process execution instead of aborting the evaluation.
 
-                // In this case we have same behavior as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort eval by any cost.
-                // Ignore errors here, this our last chance prevent debugger hangs.
+                // In this case we have the same behavior as MS vsdbg and MSVS C# debugger - run all managed threads and try to abort the eval at any cost.
+                // Ignore errors here, this is our last chance to prevent debugger hangs.
                 trProcess->Stop(0);
                 ChangeThreadsState(THREAD_RUN);
 
@@ -218,11 +321,11 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
             timeoutStatus = f.wait_for(std::chrono::milliseconds(abortEvalTimeout));
             if (timeoutStatus == std::future_status::timeout)
             {
-                // Looks like can't be aborted, this is fatal error for debugger (debuggee have inconsistent state now).
+                // Looks like it can't be aborted; this is a fatal error for the debugger (the debuggee has an inconsistent state now).
                 trProcess->Stop(0);
-                m_evalResultMutex.lock();
-                m_evalResult.reset(nullptr);
-                m_evalResultMutex.unlock();
+                GetEvalResultMutex().lock();
+                GetEvalResult().reset(nullptr);
+                GetEvalResultMutex().unlock();
                 LOGE(log << "Fatal error, eval abort failed.");
                 return E_UNEXPECTED;
             }
@@ -246,24 +349,24 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
 
     SetEnableCustomNotification(trProcess, TRUE);
 
-    m_evalCanceled = false;
-    m_evalCrossThreadDependency = false;
+    GetEvalCanceled() = false;
+    GetEvalCrossThreadDependency() = false;
     HRESULT ret = WaitResult();
 
     SetEnableCustomNotification(trProcess, FALSE);
 
     if (ret == CORDBG_S_FUNC_EVAL_ABORTED)
     {
-        if (m_evalCrossThreadDependency)
+        if (GetEvalCrossThreadDependency())
         {
             ret = CORDBG_E_CANT_CALL_ON_THIS_THREAD;
         }
         else
         {
-            ret = m_evalCanceled ? COR_E_OPERATIONCANCELED : COR_E_TIMEOUT;
+            ret = GetEvalCanceled() ? COR_E_OPERATIONCANCELED : COR_E_TIMEOUT;
         }
     }
-    // In this case we have same behavior as MS vsdbg and MSVS C# debugger - in case it was aborted with timeout, show proper error.
+    // In this case we have the same behavior as MS vsdbg and MSVS C# debugger - in case it was aborted by timeout, show a proper error.
     else if (evalTimeOut)
     {
         ret = (ret == E_UNEXPECTED) ? E_UNEXPECTED : COR_E_TIMEOUT;
@@ -273,14 +376,14 @@ HRESULT EvalWaiter::WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **pp
     return ret;
 }
 
-HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
+HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 {
     // Note:
-    // All CoreCLR releases at least till version 3.1.3, don't have proper x86 implementation for ICorDebugEval::Abort().
-    // This issue looks like CoreCLR terminate managed process execution instead of abort evaluation.
+    // All CoreCLR releases up to at least version 3.1.3 don't have a proper x86 implementation of ICorDebugEval::Abort().
+    // This issue looks like CoreCLR terminates managed process execution instead of aborting the evaluation.
 
-    // Note, could by only one eval running, but we need ignore custom notification from threads created during eval.
-    // In this case we have same behavior as MSVS C# debugger (ATM vsdbg don't support Debugger.NotifyOfCrossThreadDependency).
+    // Note, there could be only one eval running, but we need to ignore custom notifications from threads created during eval.
+    // In this case we have the same behavior as the MSVS C# debugger (ATM vsdbg doesn't support Debugger.NotifyOfCrossThreadDependency).
     ICorDebugEval *pEval = FindEvalForThread(pThread);
     if (pEval == nullptr)
     {
@@ -297,11 +400,11 @@ HRESULT EvalWaiter::ManagedCallbackCustomNotification(ICorDebugThread *pThread)
         return Status;
     }
 
-    m_evalCrossThreadDependency = true;
+    GetEvalCrossThreadDependency() = true;
     return S_OK;
 }
 
-HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
+HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
     ToRelease<IUnknown> trUnknown;
@@ -319,16 +422,8 @@ HRESULT EvalWaiter::SetupCrossThreadDependencyNotificationClass(ICorDebugModule 
     static const WSTRING strTypeDef(W("CrossThreadDependencyNotification"));
     IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), typeDefParent, &typeDef));
 
-    m_trCrossThreadDependencyNotification.Free(); // allow re-setup if need
-    return pModule->GetClassFromToken(typeDef, &m_trCrossThreadDependencyNotification);
+    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
+    return pModule->GetClassFromToken(typeDef, &GetCrossThreadDependencyNotification());
 }
 
-HRESULT EvalWaiter::SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugProcess3> trProcess3;
-    IfFailRet(pProcess->QueryInterface(IID_ICorDebugProcess3, reinterpret_cast<void **>(&trProcess3)));
-    return trProcess3->SetEnableCustomNotification(m_trCrossThreadDependencyNotification, fEnable);
-}
-
-} // namespace dncdbg
+} // namespace dncdbg::EvalWaiter

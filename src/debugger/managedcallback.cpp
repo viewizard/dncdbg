@@ -152,13 +152,13 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::EvalComplete(ICorDebugAppDomain */*pAppDomain*/, ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
-    m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
+    EvalWaiter::NotifyEvalComplete(pThread, pEval);
     return S_OK; // Eval-related routine - no callbacks queue related code here.
 }
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::EvalException(ICorDebugAppDomain */*pAppDomain*/, ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
-    m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, pEval);
+    EvalWaiter::NotifyEvalComplete(pThread, pEval);
     return S_OK; // Eval-related routine - no callbacks queue related code here.
 }
 
@@ -192,12 +192,12 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateProcess(ICorDebugProcess *pProc
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebugProcess *pProcess)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         LOGW(log << "The target process exited while evaluating the function.");
     }
 
-    m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(nullptr, nullptr);
+    EvalWaiter::NotifyEvalComplete(nullptr, nullptr);
 
     // Linux: exit() and _exit() argument is int (signed int)
     // Windows: ExitProcess() and TerminateProcess() argument is UINT (unsigned int)
@@ -228,7 +228,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         LOGW(log << "Thread was created by user code during evaluation with implicit user code execution.");
     }
@@ -245,7 +245,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
     const ThreadId threadId(GetThreadId(pThread));
     m_debugger.m_sharedThreads->Remove(threadId);
 
-    m_debugger.m_sharedEvalWaiter->NotifyEvalComplete(pThread, nullptr);
+    EvalWaiter::NotifyEvalComplete(pThread, nullptr);
     if (m_debugger.GetLastStoppedThreadId() == threadId)
     {
         m_debugger.InvalidateLastStoppedThreadId();
@@ -283,7 +283,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     const bool privateCoreLib = (module.name == "System.Private.CoreLib.dll");
     if (privateCoreLib)
     {
-        m_debugger.m_sharedEvalWaiter->SetupCrossThreadDependencyNotificationClass(pModule);
+        EvalWaiter::SetupCrossThreadDependencyNotificationClass(pModule);
         SystemTypes::ManagedCallbackLoadModule(pModule);
     }
 
@@ -326,7 +326,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::DebuggerError(ICorDebugProcess *pProc
 HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                                       LONG /*lLevel*/, WCHAR */*pLogSwitchName*/, WCHAR *pMessage)
 {
-    if (m_debugger.m_sharedEvalWaiter->IsEvalRunning())
+    if (EvalWaiter::IsEvalRunning())
     {
         pAppDomain->Continue(0); // Eval-related routine - ignore callbacks queue, continue process execution.
         return S_OK;
@@ -496,7 +496,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::MDANotification(ICorDebugController *
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::CustomNotification(ICorDebugThread *pThread, ICorDebugAppDomain *pAppDomain)
 {
-    m_debugger.m_sharedEvalWaiter->ManagedCallbackCustomNotification(pThread);
+    EvalWaiter::ManagedCallbackCustomNotification(pThread);
     pAppDomain->Continue(0); // Eval-related routine - ignore callbacks queue, continue process execution.
     return S_OK;
 }
