@@ -9,9 +9,9 @@
 
 #include "debugger/manageddebugger.h"
 #include "debugger/breakpoints/breakpoints.h"
+#include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalexec.h"
-#include "debugger/evaluation/evalwaiter.h"
-#include "debugger/evaluation/systemtypes.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluator.h"

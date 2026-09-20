@@ -9,8 +9,8 @@
 
 #include "debugger/managedcallback.h"
 #include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evaluation/systemtypes.h"
+#include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h" // NOLINT(misc-include-cleaner)

@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalexec.h"
-#include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evalhelpers.h"
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"

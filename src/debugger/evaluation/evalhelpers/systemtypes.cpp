@@ -2,7 +2,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/evaluation/systemtypes.h"
+#include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"

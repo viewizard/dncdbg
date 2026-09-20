@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/evaluation/evalwaiter.h"
+#include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"

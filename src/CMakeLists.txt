@@ -32,14 +32,14 @@ set(DNCDBG_SOURCES
     debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
     debugger/breakpoints/helpers.cpp
+    debugger/evaluation/evalhelpers/evalwaiter.cpp
+    debugger/evaluation/evalhelpers/systemtypes.cpp
     debugger/evaluation/evalhelpers/typeproxy.cpp
     debugger/evaluation/primitivetypes/binaryoperators.cpp
     debugger/evaluation/primitivetypes/cast.cpp
     debugger/evaluation/primitivetypes/types.cpp
     debugger/evaluation/primitivetypes/unaryoperators.cpp
     debugger/evaluation/evalexec.cpp
-    debugger/evaluation/evalwaiter.cpp
-    debugger/evaluation/systemtypes.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp
     debugger/steppers/steppers.cpp
