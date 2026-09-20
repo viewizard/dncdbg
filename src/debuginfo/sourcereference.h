@@ -7,57 +7,21 @@
 
 #include "debuginfo/pdb.h"
 #include "types/protocol.h"
-#include <mutex>
 #include <string>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::SourceReference
 {
 
-class SourceReference
-{
-  public:
+HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex);
+HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference, std::string &correctSourceFilePath);
+HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url);
+void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, std::vector<Source> &sources);
 
-    static HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex);
-    static HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
-                                      std::string &correctSourceFilePath);
-    static HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url);
-    static void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress,
-                                          std::vector<Source> &sources);
+std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
+std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
+void Cleanup();
 
-    static std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
-    static std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
-    static void Cleanup();
-
-  private:
-
-    static int32_t m_sourceReferenceCount;
-
-    static std::unordered_map<PDB::GlobalFileIndex, int32_t, PDB::GlobalFileIndexHash> &GetGlobalIndexMap()
-    {
-        static std::unordered_map<PDB::GlobalFileIndex, int32_t, PDB::GlobalFileIndexHash> globalIndexMap;
-        return globalIndexMap;
-    }
-
-    static std::unordered_map<int32_t, PDB::GlobalFileIndex> &GetSourceReferenceMap()
-    {
-        static std::unordered_map<int32_t, PDB::GlobalFileIndex> sourceReferenceMap;
-        return sourceReferenceMap;
-    }
-
-    static std::unordered_map<int32_t, std::string> &GetSourceURLMap()
-    {
-        static std::unordered_map<int32_t, std::string> sourceURLMap;
-        return sourceURLMap;
-    }
-
-    static std::mutex &GetSourceReferenceMutex()
-    {
-        static std::mutex sourceReferenceMutex;
-        return sourceReferenceMutex;
-    }
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::SourceReference
 
 #endif // DEBUGINFO_SOURCEREFERENCE_H

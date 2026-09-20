@@ -5,14 +5,45 @@
 #include "debuginfo/sourcereference.h"
 #include "debuginfo/pdbreader.h"
 #include <filesystem>
+#include <mutex>
 #include <unordered_set>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::SourceReference
 {
 
 namespace
 {
+
+int32_t &GetSourceReferenceCount()
+{
+    static int32_t sourceReferenceCount = 0;
+    return sourceReferenceCount;
+}
+
+std::unordered_map<PDB::GlobalFileIndex, int32_t, PDB::GlobalFileIndexHash> &GetGlobalIndexMap()
+{
+    static std::unordered_map<PDB::GlobalFileIndex, int32_t, PDB::GlobalFileIndexHash> globalIndexMap;
+    return globalIndexMap;
+}
+
+std::unordered_map<int32_t, PDB::GlobalFileIndex> &GetSourceReferenceMap()
+{
+    static std::unordered_map<int32_t, PDB::GlobalFileIndex> sourceReferenceMap;
+    return sourceReferenceMap;
+}
+
+std::unordered_map<int32_t, std::string> &GetSourceURLMap()
+{
+    static std::unordered_map<int32_t, std::string> sourceURLMap;
+    return sourceURLMap;
+}
+
+std::mutex &GetSourceReferenceMutex()
+{
+    static std::mutex sourceReferenceMutex;
+    return sourceReferenceMutex;
+}
 
 // Build a Source description for the loadedSource event. A non-empty `urlStr` (SourceLink) is
 // used as the source path; otherwise the document name from the PDB file is used. Fails when
@@ -39,9 +70,7 @@ HRESULT GetSource(mdhandle_t pdbHandle, const std::string &urlStr, uint32_t sour
 
 } // unnamed namespace
 
-int32_t SourceReference::m_sourceReferenceCount = 0;
-
-HRESULT SourceReference::GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex)
+HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -55,8 +84,7 @@ HRESULT SourceReference::GetGlobalIndex(int32_t sourceReference, PDB::GlobalFile
     return S_OK;
 }
 
-HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference,
-                                            std::string &correctSourceFilePath)
+HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference, std::string &correctSourceFilePath)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -82,7 +110,7 @@ HRESULT SourceReference::GetSourceReference(const PDB::GlobalFileIndex &globalIn
     return S_OK;
 }
 
-HRESULT SourceReference::GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url)
+HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -103,8 +131,7 @@ HRESULT SourceReference::GetSourceURL(const PDB::GlobalFileIndex &globalIndex, s
     return S_OK;
 }
 
-void SourceReference::AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress,
-                                                std::vector<Source> &sources)
+void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, std::vector<Source> &sources)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
@@ -135,7 +162,7 @@ void SourceReference::AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDR
 
 // Register the embedded and SourceLink sources of the module and return descriptions for the
 // loadedSource events. The caller should emit the events only after all debugger-internal locks are released.
-std::vector<Source> SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
+std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
     std::vector<std::pair<uint32_t, std::string>> sourceFileIndexWithName;
     PDBReader::ListEmbeddedSources(pdbHandle, sourceFileIndexWithName);
@@ -162,17 +189,18 @@ std::vector<Source> SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDR
             return;
         }
 
-        m_sourceReferenceCount++;
-        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, m_sourceReferenceCount);
-        sourceReferenceMap.emplace(m_sourceReferenceCount, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
+        int32_t &sourceReferenceCount = GetSourceReferenceCount();
+        sourceReferenceCount++;
+        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, sourceReferenceCount);
+        sourceReferenceMap.emplace(sourceReferenceCount, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
 
         if (!urlStr.empty())
         {
-            sourceURLMap.emplace(m_sourceReferenceCount, urlStr);
+            sourceURLMap.emplace(sourceReferenceCount, urlStr);
         }
 
         Source source;
-        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, m_sourceReferenceCount, source)))
+        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, sourceReferenceCount, source)))
         {
             return;
         }
@@ -208,7 +236,7 @@ std::vector<Source> SourceReference::LoadModule(mdhandle_t pdbHandle, CORDB_ADDR
 
 // Unregister the embedded and SourceLink sources of the module and return descriptions for the
 // loadedSource events. The caller should emit the events only after all debugger-internal locks are released.
-std::vector<Source> SourceReference::UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
+std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
     std::vector<Source> removedSources;
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
@@ -229,7 +257,7 @@ std::vector<Source> SourceReference::UnloadModule(mdhandle_t pdbHandle, CORDB_AD
                 url = urlFind->second;
             }
 
-            // Note, it->first is the global file index and it->second is the source reference.
+            // Note that it->first is the global file index and it->second is the source reference.
             Source source;
             if (SUCCEEDED(GetSource(pdbHandle, url, it->first.sourceFileIndex, it->second, source)))
             {
@@ -249,14 +277,14 @@ std::vector<Source> SourceReference::UnloadModule(mdhandle_t pdbHandle, CORDB_AD
     return removedSources;
 }
 
-void SourceReference::Cleanup()
+void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    m_sourceReferenceCount = 0;
+    GetSourceReferenceCount() = 0;
     GetGlobalIndexMap().clear();
     GetSourceReferenceMap().clear();
     GetSourceURLMap().clear();
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::SourceReference
