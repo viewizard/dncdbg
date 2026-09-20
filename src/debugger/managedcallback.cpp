@@ -10,6 +10,7 @@
 #include "debugger/managedcallback.h"
 #include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluation/systemtypes.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h" // NOLINT(misc-include-cleaner)
@@ -279,15 +280,14 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 #endif // DEBUG_INTERNAL_TESTS
     }
 
-    // enable Debugger.NotifyOfCrossThreadDependency after System.Private.CoreLib.dll loaded (trigger for 1 time call only)
     const bool privateCoreLib = (module.name == "System.Private.CoreLib.dll");
     if (privateCoreLib)
     {
         m_debugger.m_sharedEvalWaiter->SetupCrossThreadDependencyNotificationClass(pModule);
-        m_debugger.m_sharedEvalStackMachine->FindPredefinedTypes(pModule);
+        SystemTypes::ManagedCallbackLoadModule(pModule);
     }
 
-    m_debugger.m_sharedEvaluator->ManagedCallbackLoadModule(pModule, privateCoreLib);
+    m_debugger.m_sharedEvaluator->ManagedCallbackLoadModule(pModule);
 
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }

@@ -77,13 +77,6 @@ struct EvalData
     ICorDebugThread *pThread{nullptr};
     Evaluator *pEvaluator{nullptr};
     EvalExec *pEvalExec{nullptr};
-    // In case of NumericLiteralExpression with Decimal, NewParameterizedObjectNoConstructor() are used.
-    // Proper ICorDebugClass must be provided for Decimal (will be found during FindPredefinedTypes() call).
-    ToRelease<ICorDebugClass> trDecimalClass;
-    // In case eval return void, we are forced to create System.Void value.
-    ToRelease<ICorDebugClass> trVoidClass;
-    ToRelease<ICorDebugClass> trArrayClass;
-    std::unordered_map<CorElementType, ToRelease<ICorDebugClass>> trElementToValueClassMap;
     FrameLevel frameLevel;
     FormatSpecifier specifier{FormatSpecifier::None};
     ICorDebugValue *pForcedThisValue{nullptr};
@@ -110,10 +103,6 @@ class EvalStackMachine
     // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.
     HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                  const std::string &expression, std::string &output);
-
-    // Find ICorDebugClass objects for all predefined types we need for stack machine during Private.CoreLib load.
-    // See ManagedCallback::LoadModule().
-    HRESULT FindPredefinedTypes(ICorDebugModule *pModule);
 
   private:
 

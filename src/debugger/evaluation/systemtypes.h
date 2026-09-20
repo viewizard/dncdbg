@@ -1,0 +1,73 @@
+// Copyright (c) 2026 Mikhail Kurinnoi
+// Distributed under the MIT License.
+// See the LICENSE file in the project root for more information.
+
+#ifndef DEBUGGER_EVALUATION_SYSTEMTYPES_H
+#define DEBUGGER_EVALUATION_SYSTEMTYPES_H
+
+#include <cor.h>
+#include <cordebug.h>
+#ifdef FEATURE_PAL
+#include <specstrings_undef.h>
+#endif
+
+#include "utils/torelease.h"
+#include <vector>
+
+namespace dncdbg
+{
+
+enum class SystemType : uint8_t
+{
+    Void,
+    Boolean,
+    Char,
+    SByte,
+    Byte,
+    Int16,
+    UInt16,
+    Int32,
+    UInt32,
+    Int64,
+    UInt64,
+    Single,
+    Double,
+    IntPtr,
+    UIntPtr,
+    Decimal,
+    Array,
+    Enum,
+    size
+};
+
+class SystemTypes
+{
+  public:
+
+    // Get the cached ICorDebugClass for a system type, the reference is returned with an incremented
+    // reference count (the caller is responsible to release it).
+    static HRESULT GetClass(SystemType systemType, ICorDebugClass **ppClass);
+    // Same as GetClass(SystemType, ICorDebugClass **), but resolves a built-in element type
+    // (e.g. ELEMENT_TYPE_I4) to the corresponding system type (e.g. SystemType::Int32) first.
+    static HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass);
+    // Find ICorDebugClass objects for all system types we need for the stack machine during
+    // System.Private.CoreLib load. See ManagedCallback::LoadModule().
+    static HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+    // Release all cached classes, see ManagedDebugger::Cleanup().
+    static void Cleanup()
+    {
+        GetSystemTypes().clear();
+    }
+
+  private:
+
+    static std::vector<ToRelease<ICorDebugClass>> &GetSystemTypes()
+    {
+        static std::vector<ToRelease<ICorDebugClass>> systemTypes;
+        return systemTypes;
+    }
+};
+
+} // namespace dncdbg
+
+#endif // DEBUGGER_EVALUATION_SYSTEMTYPES_H

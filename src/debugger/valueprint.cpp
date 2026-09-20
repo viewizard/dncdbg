@@ -692,7 +692,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                     return S_OK;
                 }
 
-                if (pEvaluator->IsEnumeration(trValue))
+                if (Evaluator::IsEnumeration(trValue))
                 {
                     return PrintEnumValue(trValue, genericValue.data(), output);
                 }

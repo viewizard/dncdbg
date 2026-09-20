@@ -7,6 +7,7 @@
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/evaluation/evalexec.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalwaiter.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluation/systemtypes.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
@@ -1133,8 +1134,10 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             {
                 // Create proper System.Array type in order to walk members.
                 trType.Free();
+                ToRelease<ICorDebugClass> trClass;
+                IfFailRet(SystemTypes::GetClass(SystemType::Array, &trClass));
                 ToRelease<ICorDebugClass2> trClass2;
-                IfFailRet(m_trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+                IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
                 IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
             }
             else if (elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE)
@@ -2502,26 +2505,10 @@ HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule, bool privateCoreLib)
+HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
     IfFailRet(FillModuleExtensionMethodsCache(pModule));
-
-    if (privateCoreLib)
-    {
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-        static const WSTRING strTypeDef(W("System.Enum"));
-        IfFailRet(trMDImport->FindTypeDefByName(strTypeDef.c_str(), mdTypeDefNil, &m_systemEnumTypeDef));
-        IfFailRet(pModule->GetBaseAddress(&m_systemEnumModAddress));
-
-        mdTypeDef typeDef = mdTypeDefNil;
-        static const WSTRING strTypeDefArray(W("System.Array"));
-        IfFailRet(trMDImport->FindTypeDefByName(strTypeDefArray.c_str(), mdTypeDefNil, &typeDef));
-        IfFailRet(pModule->GetClassFromToken(typeDef, &m_trArrayClass));
-    }
 
     return S_OK;
 }
@@ -2642,12 +2629,24 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
     }
 }
 
-bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue) const
+bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue)
 {
     BOOL isNull = FALSE;
     ToRelease<ICorDebugValue> trValue;
     if (FAILED(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull)) ||
         isNull == TRUE)
+    {
+        return false;
+    }
+
+    mdTypeDef systemEnumTypeDef = mdTypeDefNil;
+    CORDB_ADDRESS systemEnumModAddress = 0;
+    ToRelease<ICorDebugClass> trEnumClass;
+    ToRelease<ICorDebugModule> trEnumModule;
+    if (FAILED(SystemTypes::GetClass(SystemType::Enum, &trEnumClass)) ||
+        FAILED(trEnumClass->GetModule(&trEnumModule)) ||
+        FAILED(trEnumClass->GetToken(&systemEnumTypeDef)) ||
+        FAILED(trEnumModule->GetBaseAddress(&systemEnumModAddress)))
     {
         return false;
     }
@@ -2666,9 +2665,9 @@ bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue) const
            SUCCEEDED(trBaseType->GetClass(&trBaseClass)) &&
            SUCCEEDED(trBaseClass->GetModule(&trModule)) &&
            SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
-           modAddress == m_systemEnumModAddress &&
+           modAddress == systemEnumModAddress &&
            SUCCEEDED(trBaseClass->GetToken(&typeDef)) &&
-           typeDef == m_systemEnumTypeDef;
+           typeDef == systemEnumTypeDef;
 }
 
 } // namespace dncdbg

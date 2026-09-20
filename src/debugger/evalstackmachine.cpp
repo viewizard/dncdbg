@@ -6,6 +6,7 @@
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluation/primitivetypes/types.h"
 #include "debugger/evaluation/evalexec.h"
+#include "debugger/evaluation/systemtypes.h"
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
@@ -1003,15 +1004,17 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             if (elemType == ELEMENT_TYPE_SZARRAY || elemType == ELEMENT_TYPE_ARRAY)
             {
                 // Create proper System.Array type in order to walk methods.
+                ToRelease<ICorDebugClass> trClass;
+                IfFailRet(SystemTypes::GetClass(SystemType::Array, &trClass));
                 ToRelease<ICorDebugClass2> trClass2;
-                IfFailRet(ed.trArrayClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+                IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
                 IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
             }
             else
             {
                 // Boxing built-in element type into value type in order to call methods.
-                const auto entry = ed.trElementToValueClassMap.find(elemType);
-                if (entry != ed.trElementToValueClassMap.cend())
+                ToRelease<ICorDebugClass> trClass;
+                if (SUCCEEDED(SystemTypes::GetClass(elemType, &trClass)))
                 {
                     uint32_t cbSize = 0;
                     IfFailRet(trValue->GetSize(&cbSize));
@@ -1022,7 +1025,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                     IfFailRet(trGenericValue->GetValue(static_cast<void *>(elemValue.data())));
 
                     trValue.Free();
-                    IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, entry->second, elemValue.data(), &trValue));
+                    IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, trClass, elemValue.data(), &trValue));
                 }
 
                 ToRelease<ICorDebugValue2> trValue2;
@@ -1183,7 +1186,9 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
     {
         // We can't create ELEMENT_TYPE_VOID, so we are forced to use System.Void instead.
-        IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, ed.trVoidClass, nullptr, &evalStack.front().trValue));
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(SystemTypes::GetClass(SystemType::Void, &trClass));
+        IfFailRet(ed.pEvalExec->CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue));
     }
 
     return Status;
@@ -1448,7 +1453,9 @@ HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalSta
     evalStack.front().literal = true;
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return ed.pEvalExec->CreateValueType(ed.pThread, ed.trDecimalClass, data.data(), &evalStack.front().trValue);
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(SystemTypes::GetClass(SystemType::Decimal, &trClass));
+        return ed.pEvalExec->CreateValueType(ed.pThread, trClass, data.data(), &evalStack.front().trValue);
     }
     else
     {
@@ -1490,7 +1497,9 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
 
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
-        return ed.pEvalExec->CreateValueType(ed.pThread, ed.trDecimalClass, nullptr, &evalStack.front().trValue);
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(SystemTypes::GetClass(SystemType::Decimal, &trClass));
+        return ed.pEvalExec->CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue);
     }
     else if (elemType == ELEMENT_TYPE_STRING)
     {
@@ -1873,59 +1882,6 @@ HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLe
     IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, &trValue, nullptr, output));
 
     return ImplicitCast(trValue, pValue, evalStack.front().literal, m_evalData);
-}
-
-HRESULT EvalStackMachine::FindPredefinedTypes(ICorDebugModule *pModule)
-{
-    HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefDecimal(W("System.Decimal"));
-    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefDecimal.c_str(), mdTypeDefNil, &typeDef));
-    IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trDecimalClass));
-
-    typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefVoid(W("System.Void"));
-    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefVoid.c_str(), mdTypeDefNil, &typeDef));
-    IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trVoidClass));
-
-    typeDef = mdTypeDefNil;
-    static const WSTRING strTypeDefArray(W("System.Array"));
-    IfFailRet(trMDImport->FindTypeDefByName(strTypeDefArray.c_str(), mdTypeDefNil, &typeDef));
-    IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trArrayClass));
-
-    static const std::vector<std::pair<CorElementType, const WCHAR *>> corElementToValueNameMap{
-        {ELEMENT_TYPE_BOOLEAN,  W("System.Boolean")},
-        {ELEMENT_TYPE_CHAR,     W("System.Char")},
-        {ELEMENT_TYPE_I1,       W("System.SByte")},
-        {ELEMENT_TYPE_U1,       W("System.Byte")},
-        {ELEMENT_TYPE_I2,       W("System.Int16")},
-        {ELEMENT_TYPE_U2,       W("System.UInt16")},
-        {ELEMENT_TYPE_I4,       W("System.Int32")},
-        {ELEMENT_TYPE_U4,       W("System.UInt32")},
-        {ELEMENT_TYPE_I8,       W("System.Int64")},
-        {ELEMENT_TYPE_U8,       W("System.UInt64")},
-        {ELEMENT_TYPE_R4,       W("System.Single")},
-        {ELEMENT_TYPE_R8,       W("System.Double")},
-        {ELEMENT_TYPE_I,        W("System.IntPtr")},
-        {ELEMENT_TYPE_U,        W("System.UIntPtr")}
-    };
-
-    for (const auto &[elemType, systemTypeName] : corElementToValueNameMap)
-    {
-        typeDef = mdTypeDefNil;
-        IfFailRet(trMDImport->FindTypeDefByName(systemTypeName, mdTypeDefNil, &typeDef));
-
-        assert(m_evalData.trElementToValueClassMap.find(elemType) == m_evalData.trElementToValueClassMap.cend());
-        m_evalData.trElementToValueClassMap.emplace(elemType, nullptr);
-        IfFailRet(pModule->GetClassFromToken(typeDef, &m_evalData.trElementToValueClassMap.at(elemType)));
-    }
-
-    return S_OK;
 }
 
 } // namespace dncdbg

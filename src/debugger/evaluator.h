@@ -132,12 +132,12 @@ class Evaluator
 
     static HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb);
 
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule, bool privateCoreLib);
+    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
     void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
 
-    bool IsEnumeration(ICorDebugValue *pInputValue) const;
+    static bool IsEnumeration(ICorDebugValue *pInputValue);
 
     [[nodiscard]] bool IsJustMyCode() const
     {
@@ -165,11 +165,6 @@ class Evaluator
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};
-
-    mdTypeDef m_systemEnumTypeDef{mdTypeDefNil};
-    CORDB_ADDRESS m_systemEnumModAddress{0};
-
-    ToRelease<ICorDebugClass> m_trArrayClass;
 
     // Extension methods related
 

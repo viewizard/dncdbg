@@ -39,6 +39,7 @@ set(DNCDBG_SOURCES
     debugger/evaluation/primitivetypes/unaryoperators.cpp
     debugger/evaluation/evalexec.cpp
     debugger/evaluation/evalwaiter.cpp
+    debugger/evaluation/systemtypes.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp
     debugger/steppers/steppers.cpp
