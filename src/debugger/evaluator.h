@@ -31,7 +31,6 @@ namespace dncdbg
 class DebugInfo;
 class EvalExec;
 class EvalStackMachine;
-class TypeProxy;
 
 class Evaluator
 {
@@ -161,7 +160,6 @@ class Evaluator
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<EvalExec> m_sharedEvalExec;
-    std::shared_ptr<TypeProxy> m_sharedTypeProxy;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};

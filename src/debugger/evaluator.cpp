@@ -500,8 +500,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
 Evaluator::Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo,
                      std::shared_ptr<EvalExec> &sharedEvalExec)
     : m_sharedDebugInfo(sharedDebugInfo),
-      m_sharedEvalExec(sharedEvalExec),
-      m_sharedTypeProxy(std::make_shared<TypeProxy>())
+      m_sharedEvalExec(sharedEvalExec)
 {
 }
 
@@ -1154,8 +1153,8 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
             if (!showInRaw && isNull == FALSE && !isTypeProxyValue)
             {
                 ToRelease<ICorDebugValue> trTypeProxyValue;
-                if (SUCCEEDED(m_sharedTypeProxy->GetDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType,
-                                                                           currentTypeDef, &trTypeProxyValue)))
+                if (SUCCEEDED(TypeProxy::GetDebuggerTypeProxyValue(pThread, trModule, pFrontValue, trType,
+                                                                   currentTypeDef, &trTypeProxyValue)))
                 {
                     trWalkQueue.emplace_front(trTypeProxyValue.Detach(), true);
                     if (!walkContainer)
@@ -2517,8 +2516,6 @@ HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
-
-    m_sharedTypeProxy->ManagedCallbackUnloadModule(pModule);
 
     {
         const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);

@@ -11,6 +11,7 @@
 #include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
+#include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluator.h" // NOLINT(misc-include-cleaner)
@@ -296,6 +297,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pApp
 {
     m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule);
     m_debugger.m_sharedEvaluator->ManagedCallbackUnloadModule(pModule);
+    TypeProxy::ManagedCallbackUnloadModule(pModule);
 
     Module removedModule;
     if (SUCCEEDED(m_debugger.m_sharedModules->RemoveModule(pModule, removedModule)))

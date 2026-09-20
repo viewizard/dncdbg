@@ -8,14 +8,57 @@
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
+#include "utils/torelease.h"
 #include <algorithm>
 #include <charconv>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-namespace dncdbg
+namespace dncdbg::TypeProxy
 {
 
 namespace
 {
+
+std::mutex &GetDebuggerTypeProxyMutex()
+{
+    static std::mutex debuggerTypeProxyMutex;
+    return debuggerTypeProxyMutex;
+}
+
+using TypeProxyCheckedTypes = std::unordered_map<CORDB_ADDRESS, std::unordered_set<mdTypeDef>>;
+
+TypeProxyCheckedTypes &GetDebuggerTypeProxyCheckedTypes()
+{
+    static TypeProxyCheckedTypes debuggerTypeProxyCheckedTypes;
+    return debuggerTypeProxyCheckedTypes;
+}
+
+struct DebuggerTypeProxyCache
+{
+    CORDB_ADDRESS modAddress{0};
+    mdMethodDef methodDef{mdMethodDefNil};
+    uint32_t enclosingTypesParamCount{0};
+};
+
+using TypeProxyCache = std::unordered_map<CORDB_ADDRESS, std::unordered_map<mdTypeDef, DebuggerTypeProxyCache>>;
+
+TypeProxyCache &GetDebuggerTypeProxyCache()
+{
+    static TypeProxyCache debuggerTypeProxyCache;
+    return debuggerTypeProxyCache;
+}
+
+using TypeProxyModuleCache = std::unordered_map<CORDB_ADDRESS, ToRelease<ICorDebugModule>>;
+
+TypeProxyModuleCache &GetDebuggerTypeProxyModuleCache()
+{
+    static TypeProxyModuleCache debuggerTypeProxyModuleCache;
+    return debuggerTypeProxyModuleCache;
+}
 
 // Helper function to remove leading and trailing whitespace from a std::string_view.
 std::string_view TrimString(std::string_view str)
@@ -278,11 +321,9 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
     return proxyAttrTypeDef != mdTypeDefNil && !proxyTypeName.empty() && trProxyAttrModule != nullptr ? S_OK : E_FAIL;
 }
 
-} // unnamed namespace
-
-HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
-                                             ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
-                                             mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
+HRESULT GetDebuggerTypeProxyValueImpl(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
+                                      ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
+                                      mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue)
 {
     HRESULT Status = S_OK;
 
@@ -379,20 +420,22 @@ HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
     CORDB_ADDRESS proxyTypeModAddress = 0;
     IfFailRet(trProxyTypeModule->GetBaseAddress(&proxyTypeModAddress));
 
-    const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
 
-    m_debuggerTypeProxyCache[modAddress].emplace(currentTypeDef, DebuggerTypeProxyCache{proxyTypeModAddress, constrMethodDef, enclosingTypesParamCount});
+    GetDebuggerTypeProxyCache()[modAddress].emplace(currentTypeDef, DebuggerTypeProxyCache{proxyTypeModAddress, constrMethodDef, enclosingTypesParamCount});
 
-    if (m_debuggerTypeProxyModuleCache.find(proxyTypeModAddress) == m_debuggerTypeProxyModuleCache.cend())
+    TypeProxyModuleCache &debuggerTypeProxyModuleCache = GetDebuggerTypeProxyModuleCache();
+
+    if (debuggerTypeProxyModuleCache.find(proxyTypeModAddress) == debuggerTypeProxyModuleCache.cend())
     {
-        m_debuggerTypeProxyModuleCache.emplace(proxyTypeModAddress, trProxyTypeModule.Detach());
+        debuggerTypeProxyModuleCache.emplace(proxyTypeModAddress, trProxyTypeModule.Detach());
     }
 
     return S_OK;
 }
 
-HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                                   mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue)
+HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
+                                        mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue)
 {
     typeChecked = false;
 
@@ -400,13 +443,15 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    std::unique_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+    std::unique_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
 
-    const auto findCheckedModule = m_debuggerTypeProxyCheckedTypes.find(modAddress);
-    if (findCheckedModule == m_debuggerTypeProxyCheckedTypes.cend())
+    TypeProxyCheckedTypes &debuggerTypeProxyCheckedTypes = GetDebuggerTypeProxyCheckedTypes();
+
+    const auto findCheckedModule = debuggerTypeProxyCheckedTypes.find(modAddress);
+    if (findCheckedModule == debuggerTypeProxyCheckedTypes.cend())
     {
-        m_debuggerTypeProxyCheckedTypes.emplace(modAddress, std::unordered_set<mdTypeDef>{});
-        m_debuggerTypeProxyCheckedTypes.at(modAddress).emplace(currentTypeDef);
+        debuggerTypeProxyCheckedTypes.emplace(modAddress, std::unordered_set<mdTypeDef>{});
+        debuggerTypeProxyCheckedTypes.at(modAddress).emplace(currentTypeDef);
         return E_FAIL;
     }
 
@@ -419,8 +464,10 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
 
     typeChecked = true;
 
-    const auto findCacheByModule = m_debuggerTypeProxyCache.find(modAddress);
-    if (findCacheByModule == m_debuggerTypeProxyCache.cend())
+    TypeProxyCache &debuggerTypeProxyCache = GetDebuggerTypeProxyCache();
+
+    const auto findCacheByModule = debuggerTypeProxyCache.find(modAddress);
+    if (findCacheByModule == debuggerTypeProxyCache.cend())
     {
         return E_FAIL;
     }
@@ -432,7 +479,15 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
     }
 
     const DebuggerTypeProxyCache &proxyCache = findCache->second;
-    ICorDebugModule *pProxyTypeModule = m_debuggerTypeProxyModuleCache.at(proxyCache.modAddress);
+
+    TypeProxyModuleCache &debuggerTypeProxyModuleCache = GetDebuggerTypeProxyModuleCache();
+    const auto findProxyTypeModule = debuggerTypeProxyModuleCache.find(proxyCache.modAddress);
+    if (findProxyTypeModule == debuggerTypeProxyModuleCache.cend())
+    {
+        // The module holding the proxy type has already been unloaded.
+        return E_FAIL;
+    }
+    ICorDebugModule *pProxyTypeModule = findProxyTypeModule->second;
 
     ToRelease<ICorDebugFunction> trConstrFunction;
     IfFailRet(pProxyTypeModule->GetFunctionFromToken(proxyCache.methodDef, &trConstrFunction));
@@ -447,8 +502,19 @@ HRESULT TypeProxy::GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICo
     return S_OK;
 }
 
-HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
-                                             ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue)
+} // unnamed namespace
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+
+    GetDebuggerTypeProxyCheckedTypes().clear();
+    GetDebuggerTypeProxyCache().clear();
+    GetDebuggerTypeProxyModuleCache().clear();
+}
+
+HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
+                                  ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue)
 {
     bool typeChecked = false;
     if (SUCCEEDED(GetCachedDebuggerTypeProxyValue(pThread, pModule, pFrontValue, pType,
@@ -464,37 +530,35 @@ HRESULT TypeProxy::GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebug
         SUCCEEDED(DetectDebuggerTypeProxyAttribute(pType, proxyTypeName, proxyAttrTypeDef, trProxyAttrModule)))
     {
         CORDB_ADDRESS modAddress = 0;
-        if (SUCCEEDED(GetDebuggerTypeProxyValue(pThread, pModule, trProxyAttrModule, pFrontValue, pType, currentTypeDef,
-                                                proxyAttrTypeDef, proxyTypeName, ppTypeProxyValue)))
+        if (SUCCEEDED(GetDebuggerTypeProxyValueImpl(pThread, pModule, trProxyAttrModule, pFrontValue, pType, currentTypeDef,
+                                                    proxyAttrTypeDef, proxyTypeName, ppTypeProxyValue)))
         {
             return S_OK;
         }
         else if (SUCCEEDED(pModule->GetBaseAddress(&modAddress)))
         {
-            const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
-            // Could be an issue with thread state, reset checked status, try next time.
-            m_debuggerTypeProxyCheckedTypes.at(modAddress).erase(currentTypeDef);
+            const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+            // The thread state may be invalid; reset the checked status and try again next time.
+            GetDebuggerTypeProxyCheckedTypes().at(modAddress).erase(currentTypeDef);
         }
     }
 
     return E_FAIL;
 }
 
-HRESULT TypeProxy::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    {
-        const std::scoped_lock<std::mutex> lock(m_debuggerTypeProxyMutex);
+    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
 
-        m_debuggerTypeProxyCheckedTypes.erase(modAddress);
-        m_debuggerTypeProxyCache.erase(modAddress);
-        m_debuggerTypeProxyModuleCache.erase(modAddress);
-    }
+    GetDebuggerTypeProxyCheckedTypes().erase(modAddress);
+    GetDebuggerTypeProxyCache().erase(modAddress);
+    GetDebuggerTypeProxyModuleCache().erase(modAddress);
 
     return S_OK;
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::TypeProxy

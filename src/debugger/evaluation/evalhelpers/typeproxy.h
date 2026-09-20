@@ -11,46 +11,18 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "utils/torelease.h"
-#include <mutex>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-
-namespace dncdbg
+namespace dncdbg::TypeProxy
 {
 
-class TypeProxy
-{
-  public:
+// Cleans up the TypeProxy internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    TypeProxy() = default;
+HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
+                                  ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue);
 
-    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue,
-                                      ICorDebugType *pType, mdTypeDef currentTypeDef, ICorDebugValue **ppTypeProxyValue);
+// Should be called by ICorDebugManagedCallback.
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
-    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
-
-  private:
-
-    std::mutex m_debuggerTypeProxyMutex;
-    std::unordered_map<CORDB_ADDRESS, std::unordered_set<mdTypeDef>> m_debuggerTypeProxyCheckedTypes;
-    struct DebuggerTypeProxyCache
-    {
-        CORDB_ADDRESS modAddress{0};
-        mdMethodDef methodDef{mdMethodDefNil};
-        uint32_t enclosingTypesParamCount{0};
-    };
-    std::unordered_map<CORDB_ADDRESS, std::unordered_map<mdTypeDef, DebuggerTypeProxyCache>> m_debuggerTypeProxyCache;
-    std::unordered_map<CORDB_ADDRESS, ToRelease<ICorDebugModule>> m_debuggerTypeProxyModuleCache;
-
-    HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugModule *pAttrModule,
-                                      ICorDebugValue *pFrontValue, ICorDebugType *pType, mdTypeDef currentTypeDef,
-                                      mdTypeDef proxyAttrTypeDef, const std::string &proxyTypeName, ICorDebugValue **ppTypeProxyValue);
-    HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pModule, ICorDebugValue *pFrontValue, ICorDebugType *pType,
-                                            mdTypeDef currentTypeDef, bool &typeChecked, ICorDebugValue **ppTypeProxyValue);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::TypeProxy
 
 #endif // DEBUGGER_EVALUATION_EVALHELPERS_TYPEPROXY_H

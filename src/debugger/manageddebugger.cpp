@@ -11,6 +11,7 @@
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
+#include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/evaluation/evalexec.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evalstackmachine.h"
@@ -834,6 +835,7 @@ void ManagedDebugger::Cleanup()
     m_sharedVariables->Cleanup();
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
+    TypeProxy::Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
