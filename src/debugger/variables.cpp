@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/variables.h"
-#include "debugger/evaluation/evalexec.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluation/evalexec.h"
 #include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/valueprint.h"
 #include "types/types.h"
@@ -495,7 +495,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
         IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
-        m_sharedEvalExec->CreateTypeObject(pThread, trType, nullptr);
+        EvalExec::CreateTypeObject(pThread, trType, nullptr);
 
         Variable var;
         var.name = "Static members";
@@ -775,14 +775,14 @@ HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToR
     // Call setter.
     if (setterData->trThisValue == nullptr)
     {
-        return m_sharedEvalExec->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                              nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
+        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                      nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
     }
     else
     {
         std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
-        return m_sharedEvalExec->CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                              nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
+        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                      nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
     }
 }
 

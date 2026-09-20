@@ -15,88 +15,40 @@
 #include "types/types.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <list>
-#include <mutex>
 #include <string>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::EvalExec
 {
 
-class EvalExec
-{
-  public:
+// Cleans up the EvalExec internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    EvalExec() = default;
+[[nodiscard]] uint32_t GetEvalFlags();
+void SetEvalFlags(uint32_t evalFlags);
 
-    HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
-                         std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes,
-                         ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                         FormatSpecifier specifier, ICorDebugValue **ppEvalResult) const;
+HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
+                     std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes, ICorDebugValue **ppArgsValue,
+                     uint32_t argsValueCount, FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
 
-    static HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc,
-                                   std::vector<ToRelease<ICorDebugType>> &trTypeParams,
-                                   ICorDebugValue **ppArgsValue, uint32_t argsValueCount,
-                                   ICorDebugValue **ppEvalResult);
+HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc, std::vector<ToRelease<ICorDebugType>> &trTypeParams,
+                        ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult);
 
-    HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
+HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
 
-    static HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
-                               std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
+HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
+                    std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
 
-    static HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
-                                           ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, UVCP_CONSTANT pRawValue,
+                                ULONG rawValueLength, ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
-    static HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                           ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                                ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
 
-    static HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
+HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 
-    static HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
+HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
 
-    [[nodiscard]] uint32_t GetEvalFlags() const
-    {
-        return m_evalFlags;
-    }
-    void SetEvalFlags(uint32_t evalFlags)
-    {
-        m_evalFlags = evalFlags;
-    }
-
-    void Cleanup();
-
-  private:
-
-    uint32_t m_evalFlags{defaultEvalFlags};
-
-    std::mutex m_trSuppressFinalizeMutex;
-    ToRelease<ICorDebugFunction> m_trSuppressFinalize;
-
-    struct type_object_t
-    {
-        COR_TYPEID m_TypeID;
-        ToRelease<ICorDebugHandleValue> m_trTypeObject;
-    };
-
-    std::mutex m_typeObjectCacheMutex;
-    // Because handles affect the performance of the garbage collector, the debugger should limit itself to a relatively
-    // small number of handles (about 256) that are active at a time.
-    // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugheapvalue2-createhandle-method
-    // Note: we also use handles (results of eval) in var refs during break (cleared at 'Continue').
-    // Warning! Since we use `std::prev(m_typeObjectCache.end())` without any check in the code, make sure the cache size is `2` or bigger.
-    static constexpr size_t m_typeObjectCacheSize = 100;
-    // The idea of the cache is not to hold all type objects, but to prevent creating the same type objects numerous times during eval.
-    // On access, elements are moved to the front of the list; new elements are also added to the front. In this way, unused elements are displaced from the cache.
-    std::list<type_object_t> m_typeObjectCache;
-
-    HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult);
-    HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject);
-    static HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                                          CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
-                                          ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
-                                          bool valueInlineInSig = false);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::EvalExec
 
 #endif // DEBUGGER_EVALUATION_EVALEXEC_H

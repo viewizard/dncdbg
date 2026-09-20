@@ -24,8 +24,6 @@
 namespace dncdbg
 {
 
-class EvalExec;
-
 struct EvalStackEntry
 {
     enum class ResetLiteralStatus : uint8_t
@@ -76,7 +74,6 @@ struct EvalData
 {
     ICorDebugThread *pThread{nullptr};
     Evaluator *pEvaluator{nullptr};
-    EvalExec *pEvalExec{nullptr};
     FrameLevel frameLevel;
     FormatSpecifier specifier{FormatSpecifier::None};
     ICorDebugValue *pForcedThisValue{nullptr};
@@ -86,13 +83,10 @@ class EvalStackMachine
 {
   public:
 
-    EvalStackMachine(std::shared_ptr<Evaluator> &sharedEvaluator,
-                     std::shared_ptr<EvalExec> &sharedEvalExec)
-        : m_sharedEvaluator(sharedEvaluator),
-          m_sharedEvalExec(sharedEvalExec)
+    explicit EvalStackMachine(std::shared_ptr<Evaluator> &sharedEvaluator)
+        : m_sharedEvaluator(sharedEvaluator)
     {
         m_evalData.pEvaluator = m_sharedEvaluator.get();
-        m_evalData.pEvalExec = m_sharedEvalExec.get();
     }
 
     // Evaluate expression. Optional, return `editable` state and in case the result is a property - setter-related information.
@@ -107,7 +101,6 @@ class EvalStackMachine
   private:
 
     std::shared_ptr<Evaluator> m_sharedEvaluator;
-    std::shared_ptr<EvalExec> m_sharedEvalExec;
     EvalData m_evalData;
 
     // Run stack machine for particular expression.

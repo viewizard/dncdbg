@@ -29,7 +29,6 @@ namespace dncdbg
 {
 
 class DebugInfo;
-class EvalExec;
 class EvalStackMachine;
 
 class Evaluator
@@ -90,7 +89,7 @@ class Evaluator
                                                       std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
     using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
 
-    Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo, std::shared_ptr<EvalExec> &sharedEvalExec);
+    explicit Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo);
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                SetterData *pInputSetterData, std::vector<std::string> &identifiers,
@@ -121,7 +120,7 @@ class Evaluator
                                   const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
                                   std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData);
 
-    HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
+    HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output) const;
 
     static HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
 
@@ -159,7 +158,6 @@ class Evaluator
   private:
 
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
-    std::shared_ptr<EvalExec> m_sharedEvalExec;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};

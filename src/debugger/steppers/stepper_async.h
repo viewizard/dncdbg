@@ -21,7 +21,6 @@ namespace dncdbg
 {
 
 class AsyncInfo;
-class EvalExec;
 class SimpleStepper;
 
 class AsyncStepper
@@ -29,11 +28,9 @@ class AsyncStepper
   public:
 
     AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper,
-                 std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                 std::shared_ptr<EvalExec> &sharedEvalExec)
+                 std::shared_ptr<DebugInfo> &sharedDebugInfo)
         : m_simpleStepper(simpleStepper),
           m_uniqueAsyncInfo(std::make_unique<AsyncInfo>(sharedDebugInfo)),
-          m_sharedEvalExec(sharedEvalExec),
           m_asyncStep(nullptr)
     {
     }
@@ -56,7 +53,6 @@ class AsyncStepper
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
     std::unique_ptr<AsyncInfo> m_uniqueAsyncInfo;
-    std::shared_ptr<EvalExec> m_sharedEvalExec;
 
     enum class asyncStepStatus : uint8_t
     {

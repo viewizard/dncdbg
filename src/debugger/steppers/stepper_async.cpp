@@ -127,10 +127,8 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
 // that could be used as unique ID for builder (state machine) on yield and resume offset breakpoints.
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame used to get all info needed (function, module, etc);
-// [in] pEvalExec - pointer to managed debugger EvalExec;
 // [out] ppValueAsyncIdRef - result value (reference to object created by builder).
-HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, const EvalExec *pEvalExec,
-                            ICorDebugValue **ppValueAsyncIdRef)
+HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, ICorDebugValue **ppValueAsyncIdRef)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
@@ -201,8 +199,8 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, co
     ToRelease<ICorDebugFunction> trFunc;
     IfFailRet(trModule->GetFunctionFromToken(mdObjectIdForDebuggerGetter, &trFunc));
     // Note, builder (`this` value) could be generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalExec->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr, trValue.GetRef(),
-                                      1, FormatSpecifier::ForceEvaluation, ppValueAsyncIdRef));
+    IfFailRet(EvalExec::CallFunction(pThread, trFunc, trType.GetPtr(), nullptr, trValue.GetRef(),
+                                     1, FormatSpecifier::ForceEvaluation, ppValueAsyncIdRef));
 
     return S_OK;
 }
@@ -210,8 +208,7 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, co
 // Set notification for wait completion - call SetNotificationForWaitCompletion() method for particular builder.
 // [in] pThread - managed thread for evaluation (related to pFrame);
 // [in] pFrame - frame used to get all info needed (function, module, etc);
-// [in] pEvalExec - pointer to managed debugger EvalExec;
-HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue, const EvalExec *pEvalExec)
+HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValue *pBuilderValue)
 {
     HRESULT Status = S_OK;
 
@@ -297,8 +294,8 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
 
     std::array<ICorDebugValue *, 2> argsValue{pBuilderValue, trNewBoolean};
     // Note, builder (`this` value) could be a generic type - Task<TResult>, type must be provided too.
-    IfFailRet(pEvalExec->CallFunction(pThread, trFunc, trType.GetPtr(), nullptr, argsValue.data(),
-                                      2, FormatSpecifier::ForceEvaluation, nullptr));
+    IfFailRet(EvalExec::CallFunction(pThread, trFunc, trType.GetPtr(), nullptr, argsValue.data(),
+                                     2, FormatSpecifier::ForceEvaluation, nullptr));
 
     return S_OK;
 }
@@ -368,7 +365,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
             return m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
         }
 
-        IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue, m_sharedEvalExec.get()));
+        IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue));
 
         if ((m_trStepNotifyFuncBreakpoint == nullptr ||
              m_privateCoreLibModAddress == 0 ||
@@ -582,7 +579,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
         CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
         ToRelease<ICorDebugValue> trValue;
-        if (FAILED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalExec.get(), &trValue)) ||
+        if (FAILED(GetAsyncIdReference(pThread, trFrame, &trValue)) ||
             FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_trHandleValueAsyncId))) ||
             FAILED(m_asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
             // Note, we need only strong or pinned handle here, that will not be invalidated on continue-break.
@@ -609,7 +606,7 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         CORDB_ADDRESS currentAsyncId = 0;
         ToRelease<ICorDebugValue> trValue;
         BOOL isNull = FALSE;
-        if (SUCCEEDED(GetAsyncIdReference(pThread, trFrame, m_sharedEvalExec.get(), &trValueRef)) &&
+        if (SUCCEEDED(GetAsyncIdReference(pThread, trFrame, &trValueRef)) &&
             SUCCEEDED(DereferenceAndUnboxValue(trValueRef, &trValue, &isNull)) && (isNull == FALSE))
         {
             trValue->GetAddress(&currentAsyncId);

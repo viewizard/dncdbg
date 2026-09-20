@@ -27,11 +27,9 @@ class Variables
 {
   public:
 
-    Variables(std::shared_ptr<EvalExec> &sharedEvalExec,
-              std::shared_ptr<Evaluator> &sharedEvaluator,
+    Variables(std::shared_ptr<Evaluator> &sharedEvaluator,
               std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedEvalExec(sharedEvalExec),
-          m_sharedEvaluator(sharedEvaluator),
+        : m_sharedEvaluator(sharedEvaluator),
           m_sharedEvalStackMachine(sharedEvalStackMachine)
     {
     }
@@ -111,7 +109,6 @@ class Variables
 
   private:
 
-    std::shared_ptr<EvalExec> m_sharedEvalExec;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
 

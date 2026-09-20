@@ -355,11 +355,10 @@ ManagedDebugger::ManagedDebugger()
       m_sharedThreads(std::make_shared<Threads>()),
       m_sharedDebugInfo(std::make_shared<DebugInfo>()),
       m_sharedModules(std::make_shared<Modules>()),
-      m_sharedEvalExec(std::make_shared<EvalExec>()),
-      m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo, m_sharedEvalExec)),
-      m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator, m_sharedEvalExec)),
-      m_sharedVariables(std::make_shared<Variables>(m_sharedEvalExec, m_sharedEvaluator, m_sharedEvalStackMachine)),
-      m_uniqueSteppers(std::make_unique<Steppers>(m_sharedDebugInfo, m_sharedEvalExec)),
+      m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo)),
+      m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator)),
+      m_sharedVariables(std::make_shared<Variables>(m_sharedEvaluator, m_sharedEvalStackMachine)),
+      m_uniqueSteppers(std::make_unique<Steppers>(m_sharedDebugInfo)),
       m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedDebugInfo, m_sharedEvaluator, m_sharedEvalStackMachine)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
@@ -831,8 +830,8 @@ HRESULT ManagedDebugger::TerminateProcess()
 void ManagedDebugger::Cleanup()
 {
     m_sharedDebugInfo->Cleanup();
-    m_sharedEvalExec->Cleanup();
     m_sharedVariables->Cleanup();
+    EvalExec::Cleanup();
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
@@ -1006,7 +1005,7 @@ void ManagedDebugger::SetStepFiltering(bool enable)
 
 void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
 {
-    m_sharedEvalExec->SetEvalFlags(evalFlags);
+    EvalExec::SetEvalFlags(evalFlags);
     m_sharedEvaluator->SetEvalFlags(evalFlags);
 }
 

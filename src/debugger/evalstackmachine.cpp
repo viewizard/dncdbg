@@ -259,8 +259,8 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
         return E_FAIL;
     }
 
-    return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
-                                      1, ed.specifier, pResultValue);
+    return EvalExec::CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pValue,
+                                  1, ed.specifier, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorElementType elemRetType,
@@ -294,8 +294,8 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
         return E_FAIL;
     }
 
-    return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
-                                      1, ed.specifier, pResultValue);
+    return EvalExec::CallFunction(ed.pThread, trFunc, nullptr, nullptr, &pTypeValue,
+                                  1, ed.specifier, pResultValue);
 }
 
 HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, ICorDebugValue *pTypeRetValue,
@@ -498,8 +498,8 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
             }
 
             std::array<ICorDebugValue *, 2> argsValue{pType1Value, pType2Value};
-            return ed.pEvalExec->CallFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
-                                              2, ed.specifier, pResultValue);
+            return EvalExec::CallFunction(ed.pThread, trFunc, nullptr, nullptr, argsValue.data(),
+                                          2, ed.specifier, pResultValue);
         };
 
     // Try to execute operator for exact same type as provided values.
@@ -1179,8 +1179,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     evalStack.front().ResetEntry();
-    Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType, trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
-                                        pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
+    Status = EvalExec::CallFunction(ed.pThread, trFunc, trType, trMethodGenericTypes.empty() ? nullptr : &trMethodGenericTypes,
+                                    pValueArgs.data(), static_cast<uint32_t>(pValueArgs.size()), ed.specifier, &evalStack.front().trValue);
 
     // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
     if (Status == CORDBG_S_FUNC_EVAL_HAS_NO_RESULT)
@@ -1418,8 +1418,8 @@ HRESULT ElementAccessHelper(const Parser::Opcode &opcode, std::list<EvalStackEnt
         ToRelease<ICorDebugType> trType;
         IfFailRet(trValue2->GetExactType(&trType));
 
-        Status = ed.pEvalExec->CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
-                                            argCount + 1, ed.specifier, &evalStack.front().trValue);
+        Status = EvalExec::CallFunction(ed.pThread, trFunc, trType.GetPtr(), nullptr, pValueArgs.data(),
+                                        argCount + 1, ed.specifier, &evalStack.front().trValue);
     }
     else
     {
