@@ -14,38 +14,28 @@
 
 #include "debuginfo/pdb.h"
 #include "types/protocol.h"
-#include <array>
 #include <functional>
-#include <list>
-#include <mutex>
 #include <string>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::Modules
 {
 
-class Modules
-{
-  public:
+HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB);
+HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
+std::string GetModuleFilePath(ICorDebugModule *pModule);
+void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);
 
-    static HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB);
-    static HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
-    static std::string GetModuleFilePath(ICorDebugModule *pModule);
-    static void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);
+Module &GetNewModuleRef();
+HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
+void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
-    Module &GetNewModuleRef();
-    HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
-    void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
+HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
+HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule);
 
-    static HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
-    static HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule);
+// Cleans up the Modules internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-  private:
-
-    std::mutex m_moduleMutex;
-    std::list<Module> m_moduleList;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::Modules
 
 #endif // METADATA_MODULES_H

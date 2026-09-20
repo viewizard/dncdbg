@@ -354,7 +354,6 @@ ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
       m_sharedThreads(std::make_shared<Threads>()),
       m_sharedDebugInfo(std::make_shared<DebugInfo>()),
-      m_sharedModules(std::make_shared<Modules>()),
       m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo)),
       m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator)),
       m_sharedVariables(std::make_shared<Variables>(m_sharedEvaluator, m_sharedEvalStackMachine)),
@@ -835,6 +834,7 @@ void ManagedDebugger::Cleanup()
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
+    Modules::Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
@@ -1029,9 +1029,11 @@ bool ManagedDebugger::InitializeRemoteConsoleServer(int port)
         });
 }
 
-void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the Modules namespace, so it is intentionally kept non-static.
+void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules) // NOLINT(readability-convert-member-functions-to-static)
 {
-    m_sharedModules->GetModules(startModule, moduleCount, modules, totalModules);
+    Modules::GetModules(startModule, moduleCount, modules, totalModules);
 }
 
 HRESULT ManagedDebugger::GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets, std::string &output)

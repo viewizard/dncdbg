@@ -260,7 +260,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
-    Module &module = m_debugger.m_sharedModules->GetNewModuleRef();
+    Module &module = Modules::GetNewModuleRef();
     m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
     Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode(), m_debugger.IsSuppressJITOptimizations());
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pApp
     TypeProxy::ManagedCallbackUnloadModule(pModule);
 
     Module removedModule;
-    if (SUCCEEDED(m_debugger.m_sharedModules->RemoveModule(pModule, removedModule)))
+    if (SUCCEEDED(Modules::RemoveModule(pModule, removedModule)))
     {
         DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::Removed, removedModule));
     }

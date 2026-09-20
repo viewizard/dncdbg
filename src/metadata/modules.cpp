@@ -13,6 +13,11 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <cassert>
+#include <cstring>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <mutex>
 #include <sstream>
 
 #define MINIZ_NO_STDIO
@@ -21,7 +26,7 @@
 #define MINIZ_NO_ARCHIVE_APIS
 #include <miniz/miniz.h>
 
-namespace dncdbg
+namespace dncdbg::Modules
 {
 
 namespace
@@ -126,9 +131,21 @@ bool DecompressDeflateBuffer(const unsigned char *compressedData, size_t compres
     return false;
 }
 
+std::mutex &GetModuleMutex()
+{
+    static std::mutex moduleMutex;
+    return moduleMutex;
+}
+
+std::list<Module> &GetModuleList()
+{
+    static std::list<Module> moduleList;
+    return moduleList;
+}
+
 } // unnamed namespace
 
-HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB)
+HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB)
 {
     HRESULT Status = S_OK;
     BOOL isInMemory = FALSE;
@@ -372,7 +389,7 @@ HRESULT Modules::GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId
     return E_FAIL;
 }
 
-HRESULT Modules::GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
+HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
 {
     HRESULT Status = S_OK;
 
@@ -386,7 +403,7 @@ HRESULT Modules::GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
     return S_OK;
 }
 
-std::string Modules::GetModuleFilePath(ICorDebugModule *pModule)
+std::string GetModuleFilePath(ICorDebugModule *pModule)
 {
     uint32_t nameLen = 0;
     if (FAILED(pModule->GetName(0, &nameLen, nullptr)))
@@ -429,9 +446,9 @@ std::string Modules::GetModuleFilePath(ICorDebugModule *pModule)
     return ss.str();
 }
 
-void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations)
+void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations)
 {
-    module.path = Modules::GetModuleFilePath(pModule);
+    module.path = GetModuleFilePath(pModule);
     module.name = GetFileName(module.path);
 
     if (module.symbolStatus == SymbolStatus::Loaded)
@@ -492,7 +509,7 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
         module.isOptimized = (dwFlags & 2UL) == 0;
     }
 
-    if (FAILED(Modules::GetModuleMvid(pModule, module.id)))
+    if (FAILED(GetModuleMvid(pModule, module.id)))
     {
         DAPIO::EmitOutputEvent({OutputCategory::StdErr,
             "Could not calculate module ID for module " + module.name + ".\n"});
@@ -514,28 +531,30 @@ void Modules::LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool 
     }
 }
 
-Module &Modules::GetNewModuleRef()
+Module &GetNewModuleRef()
 {
-    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
+    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
 
-    m_moduleList.emplace_back();
-    return m_moduleList.back();
+    auto &moduleList = GetModuleList();
+    moduleList.emplace_back();
+    return moduleList.back();
 }
 
-HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
+HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule)
 {
     HRESULT Status = S_OK;
     std::string id;
     IfFailRet(GetModuleMvid(pModule, id));
 
-    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
+    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
 
-    for (auto it = m_moduleList.begin(); it != m_moduleList.end();)
+    auto &moduleList = GetModuleList();
+    for (auto it = moduleList.begin(); it != moduleList.end();)
     {
         if (it->id == id)
         {
             removedModule = *it;
-            m_moduleList.erase(it);
+            moduleList.erase(it);
             return S_OK;
         }
         else
@@ -547,22 +566,23 @@ HRESULT Modules::RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     return E_INVALIDARG;
 }
 
-void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
+void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
 {
-    const std::scoped_lock<std::mutex> lock(m_moduleMutex);
+    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
 
-    totalModules = m_moduleList.size();
+    const auto &moduleList = GetModuleList();
+    totalModules = moduleList.size();
 
-    assert(m_moduleList.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    if (startModule >= static_cast<int>(m_moduleList.size()))
+    assert(moduleList.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    if (startModule >= static_cast<int>(moduleList.size()))
     {
         return;
     }
 
-    const auto startIt = std::next(m_moduleList.cbegin(), startModule);
-    auto endIt = m_moduleList.cend();
+    const auto startIt = std::next(moduleList.cbegin(), startModule);
+    auto endIt = moduleList.cend();
     if (moduleCount != 0 &&
-        startModule + moduleCount < static_cast<int>(m_moduleList.size()))
+        startModule + moduleCount < static_cast<int>(moduleList.size()))
     {
         endIt = std::next(startIt, moduleCount);
     }
@@ -573,7 +593,7 @@ void Modules::GetModules(int startModule, int moduleCount, std::vector<Module> &
     }
 }
 
-HRESULT Modules::ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
+HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
 {
     HRESULT Status = S_OK;
 
@@ -616,15 +636,15 @@ HRESULT Modules::ForEachModule(ICorDebugThread *pThread, const std::function<HRE
     return Status;
 }
 
-HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule)
+HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule)
 {
     HRESULT Status = S_OK;
     *ppModule = nullptr;
 
-    IfFailRet(Modules::ForEachModule(pThread,
+    IfFailRet(ForEachModule(pThread,
         [&](ICorDebugModule *pModule) -> HRESULT
         {
-            const std::string path = Modules::GetModuleFilePath(pModule);
+            const std::string path = GetModuleFilePath(pModule);
 
             if (GetFileName(path) == moduleFileName)
             {
@@ -639,4 +659,10 @@ HRESULT Modules::GetModuleWithName(ICorDebugThread *pThread, const std::string &
     return *ppModule != nullptr ? S_OK : E_FAIL;
 }
 
-} // namespace dncdbg
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
+    GetModuleList().clear();
+}
+
+} // namespace dncdbg::Modules
