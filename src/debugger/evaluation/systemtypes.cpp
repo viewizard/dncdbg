@@ -4,9 +4,11 @@
 
 #include "debugger/evaluation/systemtypes.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 #include <cassert>
 #include <unordered_map>
+#include <vector>
 
 namespace dncdbg::SystemTypes
 {
