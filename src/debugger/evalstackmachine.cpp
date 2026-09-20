@@ -1005,7 +1005,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             {
                 // Create proper System.Array type in order to walk methods.
                 ToRelease<ICorDebugClass> trClass;
-                IfFailRet(SystemTypes::GetClass(SystemType::Array, &trClass));
+                IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Array, &trClass));
                 ToRelease<ICorDebugClass2> trClass2;
                 IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
                 IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
@@ -1187,7 +1187,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     {
         // We can't create ELEMENT_TYPE_VOID, so we are forced to use System.Void instead.
         ToRelease<ICorDebugClass> trClass;
-        IfFailRet(SystemTypes::GetClass(SystemType::Void, &trClass));
+        IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Void, &trClass));
         IfFailRet(EvalExec::CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue));
     }
 
@@ -1454,7 +1454,7 @@ HRESULT NumericLiteralExpression(const Parser::Opcode &opcode, std::list<EvalSta
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
         ToRelease<ICorDebugClass> trClass;
-        IfFailRet(SystemTypes::GetClass(SystemType::Decimal, &trClass));
+        IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Decimal, &trClass));
         return EvalExec::CreateValueType(ed.pThread, trClass, data.data(), &evalStack.front().trValue);
     }
     else
@@ -1498,7 +1498,7 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
     if (elemType == ELEMENT_TYPE_VALUETYPE)
     {
         ToRelease<ICorDebugClass> trClass;
-        IfFailRet(SystemTypes::GetClass(SystemType::Decimal, &trClass));
+        IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Decimal, &trClass));
         return EvalExec::CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue);
     }
     else if (elemType == ELEMENT_TYPE_STRING)

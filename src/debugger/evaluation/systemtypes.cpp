@@ -8,10 +8,21 @@
 #include <cassert>
 #include <unordered_map>
 
-namespace dncdbg
+namespace dncdbg::SystemTypes
 {
 
-HRESULT SystemTypes::GetClass(SystemType systemType, ICorDebugClass **ppClass)
+namespace
+{
+
+std::vector<ToRelease<ICorDebugClass>> &GetSystemTypes()
+{
+    static std::vector<ToRelease<ICorDebugClass>> systemTypes;
+    return systemTypes;
+}
+
+} // unnamed namespace
+
+HRESULT GetClass(SystemType systemType, ICorDebugClass **ppClass)
 {
     if (ppClass == nullptr)
     {
@@ -33,7 +44,7 @@ HRESULT SystemTypes::GetClass(SystemType systemType, ICorDebugClass **ppClass)
     return S_OK;
 }
 
-HRESULT SystemTypes::GetClass(CorElementType elemType, ICorDebugClass **ppClass)
+HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass)
 {
     static const std::unordered_map<CorElementType, SystemType> elementToSystemTypesMap{
         {ELEMENT_TYPE_VOID,     SystemType::Void},
@@ -64,7 +75,7 @@ HRESULT SystemTypes::GetClass(CorElementType elemType, ICorDebugClass **ppClass)
     return GetClass(findType->second, ppClass);
 }
 
-HRESULT SystemTypes::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     static const std::unordered_map<SystemType, const WCHAR *> systemTypesNameMap{
         {SystemType::Void,    W("System.Void")},
@@ -118,4 +129,9 @@ HRESULT SystemTypes::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-} // namespace dncdbg
+void Cleanup()
+{
+    GetSystemTypes().clear();
+}
+
+} // namespace dncdbg::SystemTypes

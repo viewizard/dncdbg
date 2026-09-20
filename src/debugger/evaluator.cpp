@@ -1135,7 +1135,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                 // Create proper System.Array type in order to walk members.
                 trType.Free();
                 ToRelease<ICorDebugClass> trClass;
-                IfFailRet(SystemTypes::GetClass(SystemType::Array, &trClass));
+                IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Array, &trClass));
                 ToRelease<ICorDebugClass2> trClass2;
                 IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
                 IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
@@ -2643,7 +2643,7 @@ bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue)
     CORDB_ADDRESS systemEnumModAddress = 0;
     ToRelease<ICorDebugClass> trEnumClass;
     ToRelease<ICorDebugModule> trEnumModule;
-    if (FAILED(SystemTypes::GetClass(SystemType::Enum, &trEnumClass)) ||
+    if (FAILED(SystemTypes::GetClass(SystemTypes::SystemType::Enum, &trEnumClass)) ||
         FAILED(trEnumClass->GetModule(&trEnumModule)) ||
         FAILED(trEnumClass->GetToken(&systemEnumTypeDef)) ||
         FAILED(trEnumModule->GetBaseAddress(&systemEnumModAddress)))

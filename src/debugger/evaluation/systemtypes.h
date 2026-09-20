@@ -14,7 +14,7 @@
 #include "utils/torelease.h"
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::SystemTypes
 {
 
 enum class SystemType : uint8_t
@@ -40,34 +40,18 @@ enum class SystemType : uint8_t
     size
 };
 
-class SystemTypes
-{
-  public:
+// Get the cached ICorDebugClass for a system type. The reference is returned with an incremented
+// reference count (the caller is responsible for releasing it).
+HRESULT GetClass(SystemType systemType, ICorDebugClass **ppClass);
+// Same as GetClass(SystemType, ICorDebugClass **), but resolves a built-in element type
+// (e.g. ELEMENT_TYPE_I4) to the corresponding system type (e.g. SystemType::Int32) first.
+HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass);
+// Find ICorDebugClass objects for all system types needed by the stack machine during
+// System.Private.CoreLib load. See ManagedCallback::LoadModule().
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+// Release all cached classes. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    // Get the cached ICorDebugClass for a system type. The reference is returned with an incremented
-    // reference count (the caller is responsible for releasing it).
-    static HRESULT GetClass(SystemType systemType, ICorDebugClass **ppClass);
-    // Same as GetClass(SystemType, ICorDebugClass **), but resolves a built-in element type
-    // (e.g. ELEMENT_TYPE_I4) to the corresponding system type (e.g. SystemType::Int32) first.
-    static HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass);
-    // Find ICorDebugClass objects for all system types needed by the stack machine during
-    // System.Private.CoreLib load. See ManagedCallback::LoadModule().
-    static HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-    // Release all cached classes. See ManagedDebugger::Cleanup().
-    static void Cleanup()
-    {
-        GetSystemTypes().clear();
-    }
-
-  private:
-
-    static std::vector<ToRelease<ICorDebugClass>> &GetSystemTypes()
-    {
-        static std::vector<ToRelease<ICorDebugClass>> systemTypes;
-        return systemTypes;
-    }
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::SystemTypes
 
 #endif // DEBUGGER_EVALUATION_SYSTEMTYPES_H
