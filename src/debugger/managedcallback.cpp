@@ -235,7 +235,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     }
 
     const ThreadId threadId(GetThreadId(pThread));
-    m_debugger.m_sharedThreads->Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
+    Threads::Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -244,7 +244,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
 HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     const ThreadId threadId(GetThreadId(pThread));
-    m_debugger.m_sharedThreads->Remove(threadId);
+    Threads::Remove(threadId);
 
     EvalWaiter::NotifyEvalComplete(pThread, nullptr);
     if (m_debugger.GetLastStoppedThreadId() == threadId)
@@ -393,7 +393,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ControlCTrap(ICorDebugProcess *pProce
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    m_debugger.m_sharedThreads->ChangeName(m_debugger.m_sharedEvaluator, pThread);
+    Threads::ChangeName(m_debugger.m_sharedEvaluator, pThread);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

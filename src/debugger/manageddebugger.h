@@ -29,7 +29,6 @@
 namespace dncdbg
 {
 
-class Threads;
 class Steppers;
 class Evaluator;
 class EvalStackMachine;
@@ -151,7 +150,6 @@ class ManagedDebugger
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
 
-    std::shared_ptr<Threads> m_sharedThreads;
     std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;

@@ -352,7 +352,6 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedThreads(std::make_shared<Threads>()),
       m_sharedDebugInfo(std::make_shared<DebugInfo>()),
       m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo)),
       m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator)),
@@ -561,9 +560,11 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
     return m_sharedCallbacksQueue->Pause(m_trProcess, lastStoppedThread);
 }
 
-HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the static Threads, so it is intentionally kept non-static.
+HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads) // NOLINT(readability-convert-member-functions-to-static)
 {
-    return m_sharedThreads->GetThreads(threads);
+    return Threads::GetThreads(threads);
 }
 
 void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr)
@@ -835,6 +836,7 @@ void ManagedDebugger::Cleanup()
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
     Modules::Cleanup();
+    Threads::Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 

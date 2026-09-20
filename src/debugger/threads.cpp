@@ -8,9 +8,12 @@
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "utils/hresult.h"
+#include "utils/rwlock.h"
 #include "utils/torelease.h"
 #include <algorithm>
+#include <cassert>
 #include <iterator>
+#include <map>
 
 namespace dncdbg
 {
@@ -69,61 +72,90 @@ ThreadId GetThreadId(ICorDebugThread *pThread)
     return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
 }
 
-void Threads::Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+namespace Threads
 {
-    const WriteLock w_lock(m_userThreadsRWLock);
+
+namespace
+{
+
+RWLock &GetUserThreadsRWLock()
+{
+    static RWLock userThreadsRWLock;
+    return userThreadsRWLock;
+}
+
+std::map<ThreadId, std::string> &GetUserThreads()
+{
+    static std::map<ThreadId, std::string> userThreads;
+    return userThreads;
+}
+
+ThreadId &GetMainThread()
+{
+    static ThreadId mainThread;
+    return mainThread;
+}
+
+} // unnamed namespace
+
+void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+{
+    const WriteLock w_lock(GetUserThreadsRWLock());
 
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
 
     // The first user thread added during startup is the Main thread.
-    if (!processAttached && !MainThread)
+    if (!processAttached && !GetMainThread())
     {
-        MainThread = threadId;
+        GetMainThread() = threadId;
         if (threadName == "<No name>")
         {
-            m_userThreads.emplace(threadId, "Main Thread");
+            GetUserThreads().emplace(threadId, "Main Thread");
             return;
         }
     }
 
-    m_userThreads.emplace(threadId, threadName);
+    GetUserThreads().emplace(threadId, threadName);
 }
 
-void Threads::ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
+void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
 {
     if (pThread == nullptr)
     {
         return;
     }
 
-    const WriteLock w_lock(m_userThreadsRWLock);
+    const WriteLock w_lock(GetUserThreadsRWLock());
 
     const std::string threadName = GetThreadName(sharedEvaluator, pThread);
     const ThreadId threadId(GetThreadId(pThread));
 
-    assert(m_userThreads.find(threadId) != m_userThreads.cend());
-    m_userThreads.at(threadId) = threadName;
+    auto &userThreads = GetUserThreads();
+    assert(userThreads.find(threadId) != userThreads.cend());
+    userThreads.at(threadId) = threadName;
 }
 
-void Threads::Remove(const ThreadId &threadId)
+void Remove(const ThreadId &threadId)
 {
-    const WriteLock w_lock(m_userThreadsRWLock);
+    const WriteLock w_lock(GetUserThreadsRWLock());
 
-    const auto it = m_userThreads.find(threadId);
-    if (it == m_userThreads.cend())
+    auto &userThreads = GetUserThreads();
+    const auto it = userThreads.find(threadId);
+    if (it == userThreads.cend())
     {
         return;
     }
 
-    m_userThreads.erase(it);
+    userThreads.erase(it);
 }
 
-HRESULT Threads::GetThreads(std::vector<Thread> &threads)
+HRESULT GetThreads(std::vector<Thread> &threads)
 {
-    const ReadLock r_lock(m_userThreadsRWLock);
+    const ReadLock r_lock(GetUserThreadsRWLock());
 
-    threads.reserve(m_userThreads.size());
-    std::transform(m_userThreads.cbegin(), m_userThreads.cend(),
+    const auto &userThreads = GetUserThreads();
+    threads.reserve(userThreads.size());
+    std::transform(userThreads.cbegin(), userThreads.cend(),
                    std::back_inserter(threads), [](const auto &userThread)
                    {
                        return Thread(userThread.first, userThread.second);
@@ -132,17 +164,29 @@ HRESULT Threads::GetThreads(std::vector<Thread> &threads)
     return S_OK;
 }
 
-HRESULT Threads::GetThreadIds(std::vector<ThreadId> &threads)
+HRESULT GetThreadIds(std::vector<ThreadId> &threads)
 {
-    const ReadLock r_lock(m_userThreadsRWLock);
+    const ReadLock r_lock(GetUserThreadsRWLock());
 
-    threads.reserve(m_userThreads.size());
-    std::transform(m_userThreads.cbegin(), m_userThreads.cend(),
+    const auto &userThreads = GetUserThreads();
+    threads.reserve(userThreads.size());
+    std::transform(userThreads.cbegin(), userThreads.cend(),
                    std::back_inserter(threads), [](const auto &userThread)
                    {
                        return userThread.first;
                    });
     return S_OK;
 }
+
+// Cleans up the Threads internal state. See ManagedDebugger::Cleanup().
+void Cleanup()
+{
+    const WriteLock w_lock(GetUserThreadsRWLock());
+
+    GetUserThreads().clear();
+    GetMainThread() = ThreadId{};
+}
+
+} // namespace dncdbg::Threads
 
 } // namespace dncdbg

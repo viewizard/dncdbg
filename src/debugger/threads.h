@@ -14,8 +14,7 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include "utils/rwlock.h"
-#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,24 +22,22 @@ namespace dncdbg
 {
 
 class Evaluator;
+
 ThreadId GetThreadId(ICorDebugThread *pThread);
 
-class Threads
+namespace Threads
 {
-  public:
 
-    void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
-    void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread);
-    void Remove(const ThreadId &threadId);
-    HRESULT GetThreads(std::vector<Thread> &threads);
-    HRESULT GetThreadIds(std::vector<ThreadId> &threads);
+void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
+void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread);
+void Remove(const ThreadId &threadId);
+HRESULT GetThreads(std::vector<Thread> &threads);
+HRESULT GetThreadIds(std::vector<ThreadId> &threads);
 
-  private:
+// Cleans up the Threads internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    RWLock m_userThreadsRWLock;
-    std::map<ThreadId, std::string> m_userThreads;
-    ThreadId MainThread;
-};
+} // namespace dncdbg::Threads
 
 } // namespace dncdbg
 
