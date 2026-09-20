@@ -1,4 +1,3 @@
-// Copyright (c) 2021-2025 Samsung Electronics Co., Ltd.
 // Copyright (c) 2026 Mikhail Kurinnoi
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
@@ -21,9 +20,9 @@ HRESULT SystemTypes::GetClass(SystemType systemType, ICorDebugClass **ppClass)
 
     const auto typeIndex = static_cast<size_t>(systemType);
     auto &systemTypes = GetSystemTypes();
-    assert(systemTypes.size() > typeIndex);
 
-    if (systemTypes.at(typeIndex) == nullptr)
+    if (systemTypes.size() <= typeIndex ||
+        systemTypes.at(typeIndex) == nullptr)
     {
         return CORDBG_E_CLASS_NOT_LOADED;
     }

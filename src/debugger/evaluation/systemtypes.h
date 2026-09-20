@@ -44,16 +44,16 @@ class SystemTypes
 {
   public:
 
-    // Get the cached ICorDebugClass for a system type, the reference is returned with an incremented
-    // reference count (the caller is responsible to release it).
+    // Get the cached ICorDebugClass for a system type. The reference is returned with an incremented
+    // reference count (the caller is responsible for releasing it).
     static HRESULT GetClass(SystemType systemType, ICorDebugClass **ppClass);
     // Same as GetClass(SystemType, ICorDebugClass **), but resolves a built-in element type
     // (e.g. ELEMENT_TYPE_I4) to the corresponding system type (e.g. SystemType::Int32) first.
     static HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass);
-    // Find ICorDebugClass objects for all system types we need for the stack machine during
+    // Find ICorDebugClass objects for all system types needed by the stack machine during
     // System.Private.CoreLib load. See ManagedCallback::LoadModule().
     static HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-    // Release all cached classes, see ManagedDebugger::Cleanup().
+    // Release all cached classes. See ManagedDebugger::Cleanup().
     static void Cleanup()
     {
         GetSystemTypes().clear();
