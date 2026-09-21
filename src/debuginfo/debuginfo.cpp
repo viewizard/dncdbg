@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/async_info.h"
 #include "debuginfo/debugsources.h"
 #include "debuginfo/pdbreader.h"
 #include "debuginfo/sourcereference.h"
@@ -444,6 +445,7 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
 void Cleanup()
 {
+    AsyncInfo::Cleanup();
     SourceReference::Cleanup();
 
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());

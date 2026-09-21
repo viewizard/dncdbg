@@ -12,15 +12,14 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/async_info.h"
 #include "types/types.h"
 #include "utils/torelease.h"
+#include <memory>
 #include <mutex>
 
 namespace dncdbg
 {
 
-class AsyncInfo;
 class SimpleStepper;
 
 class AsyncStepper
@@ -29,7 +28,6 @@ class AsyncStepper
 
     explicit AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper)
         : m_simpleStepper(simpleStepper),
-          m_uniqueAsyncInfo(std::make_unique<AsyncInfo>()),
           m_asyncStep(nullptr)
     {
     }
@@ -51,7 +49,6 @@ class AsyncStepper
   private:
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
-    std::unique_ptr<AsyncInfo> m_uniqueAsyncInfo;
 
     enum class asyncStepStatus : uint8_t
     {

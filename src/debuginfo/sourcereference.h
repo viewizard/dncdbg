@@ -20,6 +20,8 @@ void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, s
 
 std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
 std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
+
+// Cleans up the SourceReference internal state. See DebugInfo::Cleanup().
 void Cleanup();
 
 } // namespace dncdbg::SourceReference

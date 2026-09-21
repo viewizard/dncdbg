@@ -6,6 +6,7 @@
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalhelpers/evalexec.h"
+#include "debuginfo/async_info.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/threads.h"
 #include "metadata/helpers.h"
@@ -324,7 +325,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    if (!m_uniqueAsyncInfo->IsMethodHaveAwait(modAddress, methodToken))
+    if (!AsyncInfo::IsMethodHaveAwait(modAddress, methodToken))
     {
         return S_USE_SIMPLE_STEPPER; // setup simple stepper instead
     }
@@ -345,7 +346,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     // switch to step-out, so the whole NotifyDebuggerOfWaitCompletion magic happens.
     uint32_t lastIlOffset = 0;
     if (stepType != StepType::STEP_OUT &&
-        m_uniqueAsyncInfo->FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
+        AsyncInfo::FindLastIlOffsetAwaitInfo(modAddress, methodToken, lastIlOffset) &&
         ipOffset >= lastIlOffset)
     {
         stepType = StepType::STEP_OUT;
@@ -384,7 +385,7 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
 
     PDB::AsyncAwaitInfoBlock awaitInfo;
-    if (m_uniqueAsyncInfo->FindNextAwaitInfo(modAddress, methodToken, ipOffset, awaitInfo))
+    if (AsyncInfo::FindNextAwaitInfo(modAddress, methodToken, ipOffset, awaitInfo))
     {
         // We have step inside async function with await, setup breakpoint at closest await's yieldOffset.
         // Two possible cases here:

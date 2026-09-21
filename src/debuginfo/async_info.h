@@ -13,42 +13,26 @@
 #endif
 
 #include "debuginfo/pdb.h"
-#include <memory>
-#include <mutex>
-#include <vector>
+#include <cstdint>
 
-namespace dncdbg
+namespace dncdbg::AsyncInfo
 {
 
-class AsyncInfo
-{
-  public:
+// Check if the method has an await block; this is how we detect async methods with awaits.
+bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
 
-    AsyncInfo() = default;
+// Find an await block after the IL offset in a particular async method and return the await info, if present.
+// For async stepping, we need await info from the PDB to set up breakpoints in the proper places (yield and resume offsets).
+bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, PDB::AsyncAwaitInfoBlock &awaitInfo);
 
-    bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
-    bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, PDB::AsyncAwaitInfoBlock &awaitInfo);
-    bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset);
+// Find the last IL offset for user code in an async method, if present.
+// For step-in and step-over, we must detect the last user code line in order to "emulate"
+// step-out (NotifyDebuggerOfWaitCompletion magic) instead.
+bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset);
 
-  private:
+// Cleans up the AsyncInfo internal state. See DebugInfo::Cleanup().
+void Cleanup();
 
-    struct AsyncMethodInfo
-    {
-        CORDB_ADDRESS modAddress{0};
-        mdMethodDef methodToken{mdMethodDefNil};
-        HRESULT retCode{S_OK};
-
-        std::vector<PDB::AsyncAwaitInfoBlock> awaits;
-        // Part of NotifyDebuggerOfWaitCompletion magic, see ManagedDebugger::SetupAsyncStep().
-        uint32_t lastIlOffset{0};
-    };
-
-    AsyncMethodInfo asyncMethodSteppingInfo;
-    std::mutex m_asyncMethodSteppingInfoMutex;
-    // Note, result stored into asyncMethodSteppingInfo.
-    HRESULT GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::AsyncInfo
 
 #endif // DEBUGINFO_ASYNC_INFO_H
