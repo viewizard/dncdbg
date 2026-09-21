@@ -138,6 +138,117 @@ HRESULT FindExceptionDispatchInfoThrow(ICorDebugThread *pThread, CORDB_ADDRESS &
     return S_OK;
 }
 
+HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails *pDetails)
+{
+    ToRelease<ICorDebugValue> trInnerExceptionValue;
+    pExceptionValue->AddRef();
+    ToRelease<ICorDebugValue> trExceptionValue(pExceptionValue);
+
+    while (pDetails != nullptr)
+    {
+        if (FAILED(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, pDetails->fullTypeName)))
+        {
+            pDetails->fullTypeName = "<unknown exception>";
+        }
+
+        const auto lastDotPosition = pDetails->fullTypeName.find_last_of('.');
+        if (lastDotPosition < pDetails->fullTypeName.size())
+        {
+            pDetails->typeName = pDetails->fullTypeName.substr(lastDotPosition + 1);
+        }
+        else
+        {
+            pDetails->typeName = pDetails->fullTypeName;
+        }
+
+        pDetails->evaluateName = "$exception";
+
+        HRESULT Status = S_OK;
+        Evaluator::WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
+            [&](ICorDebugType *, bool, const std::string &memberName,
+                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
+            {
+                const auto getMemberWithName =
+                    [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT
+                    {
+                        if (memberName != name)
+                        {
+                            return S_FALSE;
+                        }
+
+                        ToRelease<ICorDebugValue> trResultValue;
+                        IfFailRet(getValue(&trResultValue, nullptr));
+
+                        BOOL isNull = TRUE;
+                        ToRelease<ICorDebugReferenceValue> trReferenceValue;
+                        if (SUCCEEDED(trResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
+                            SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == FALSE)
+                        {
+                            cb(trResultValue);
+                        }
+                        return S_OK;
+                    };
+
+                IfFailRet(getMemberWithName("_message",
+                    [&](ToRelease<ICorDebugValue> &trValue) -> void
+                    {
+                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->message);
+                    }));
+                if (Status == S_OK)
+                {
+                    return S_OK;
+                }
+
+                IfFailRet(getMemberWithName("StackTrace",
+                    [&](ToRelease<ICorDebugValue> &trValue) -> void
+                    {
+                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->stackTrace);
+                    }));
+                if (Status == S_OK)
+                {
+                    return S_OK;
+                }
+
+                IfFailRet(getMemberWithName("Source",
+                    [&](ToRelease<ICorDebugValue> &trValue) -> void
+                    {
+                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->source);
+                    }));
+                if (Status == S_OK)
+                {
+                    return S_OK;
+                }
+
+                IfFailRet(getMemberWithName("InnerException",
+                    [&](ToRelease<ICorDebugValue> &trValue) -> void
+                    {
+                        trInnerExceptionValue = trValue.Detach();
+                    }));
+
+                return S_OK;
+            });
+
+        pDetails->formattedDescription = "**" + pDetails->fullTypeName + "**";
+        if (!pDetails->message.empty())
+        {
+            pDetails->formattedDescription += " '" + pDetails->message + "'";
+        }
+
+        if (trInnerExceptionValue == nullptr)
+        {
+            pDetails = nullptr;
+        }
+        else
+        {
+            pDetails->innerException = std::make_unique<ExceptionDetails>();
+            pDetails = pDetails->innerException.get();
+            trExceptionValue = trInnerExceptionValue.Detach();
+        }
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 void ExceptionBreakpoints::ManagedExceptionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
@@ -249,120 +360,6 @@ bool ExceptionBreakpoints::CoveredByFilter(ExceptionBreakpointFilter filterId, c
     }
 
     return false;
-}
-
-HRESULT ExceptionBreakpoints::GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails *pDetails)
-{
-    ToRelease<ICorDebugValue> trInnerExceptionValue;
-    pExceptionValue->AddRef();
-    ToRelease<ICorDebugValue> trExceptionValue(pExceptionValue);
-
-    while (pDetails != nullptr)
-    {
-        if (FAILED(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, pDetails->fullTypeName)))
-        {
-            pDetails->fullTypeName = "<unknown exception>";
-        }
-
-        const auto lastDotPosition = pDetails->fullTypeName.find_last_of('.');
-        if (lastDotPosition < pDetails->fullTypeName.size())
-        {
-            pDetails->typeName = pDetails->fullTypeName.substr(lastDotPosition + 1);
-        }
-        else
-        {
-            pDetails->typeName = pDetails->fullTypeName;
-        }
-
-        pDetails->evaluateName = "$exception";
-
-        HRESULT Status = S_OK;
-        Evaluator::WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
-            [&](ICorDebugType *, bool, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
-            {
-                const auto getMemberWithName =
-                    [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT
-                    {
-                        if (memberName != name)
-                        {
-                            return S_FALSE;
-                        }
-
-                        ToRelease<ICorDebugValue> trResultValue;
-                        IfFailRet(getValue(&trResultValue, nullptr));
-
-                        BOOL isNull = TRUE;
-                        ToRelease<ICorDebugReferenceValue> trReferenceValue;
-                        if (SUCCEEDED(trResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
-                            SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == FALSE)
-                        {
-                            cb(trResultValue);
-                        }
-                        return S_OK;
-                    };
-
-                IfFailRet(getMemberWithName("_message",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, m_sharedEvalStackMachine.get(),
-                                   trValue, FormatSpecifier::StringWithNoQuotes, pDetails->message);
-                    }));
-                if (Status == S_OK)
-                {
-                    return S_OK;
-                }
-
-                IfFailRet(getMemberWithName("StackTrace",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, m_sharedEvalStackMachine.get(),
-                                   trValue, FormatSpecifier::StringWithNoQuotes, pDetails->stackTrace);
-                    }));
-                if (Status == S_OK)
-                {
-                    return S_OK;
-                }
-
-                IfFailRet(getMemberWithName("Source",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, m_sharedEvalStackMachine.get(),
-                                   trValue, FormatSpecifier::StringWithNoQuotes, pDetails->source);
-                    }));
-                if (Status == S_OK)
-                {
-                    return S_OK;
-                }
-
-                IfFailRet(getMemberWithName("InnerException",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        trInnerExceptionValue = trValue.Detach();
-                    }));
-
-                return S_OK;
-            });
-
-        pDetails->formattedDescription = "**" + pDetails->fullTypeName + "**";
-        if (!pDetails->message.empty())
-        {
-            pDetails->formattedDescription += " '" + pDetails->message + "'";
-        }
-
-        if (trInnerExceptionValue == nullptr)
-        {
-            pDetails = nullptr;
-        }
-        else
-        {
-            pDetails->innerException = std::make_unique<ExceptionDetails>();
-            pDetails = pDetails->innerException.get();
-            trExceptionValue = trInnerExceptionValue.Detach();
-        }
-    };
-
-    return S_OK;
 }
 
 HRESULT ExceptionBreakpoints::GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)

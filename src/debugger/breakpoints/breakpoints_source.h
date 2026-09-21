@@ -41,16 +41,11 @@ struct LineColumnHash
     }
 };
 
-class EvalStackMachine;
-
 class SourceBreakpoints
 {
   public:
 
-    explicit SourceBreakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedEvalStackMachine(sharedEvalStackMachine)
-    {
-    }
+    SourceBreakpoints() = default;
 
     void SetJustMyCode(bool enable)
     {
@@ -116,7 +111,6 @@ class SourceBreakpoints
 
   private:
 
-    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
     struct ManagedSourceBreakpointMapping

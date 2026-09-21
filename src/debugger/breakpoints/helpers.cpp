@@ -84,18 +84,17 @@ HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint
     return S_OK;
 }
 
-HRESULT IsEnableByCondition(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
-                            const std::string &condition, std::string &output)
+HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &condition, std::string &output)
 {
     assert(!condition.empty());
 
     std::string value;
     std::string displayTypeName;
     ToRelease<ICorDebugValue> trResultValue;
-    if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
-                                                     nullptr, &trResultValue, nullptr, output)) ||
+    if (FAILED(EvalStackMachine::EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
+                                                    nullptr, &trResultValue, nullptr, output)) ||
         FAILED(MetadataHelpers::GetFQDisplayTypeName(trResultValue, displayTypeName)) ||
-        FAILED(PrintValue(pThread, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
+        FAILED(PrintValue(pThread, trResultValue, FormatSpecifier::None, value)))
     {
         if (output.empty())
         {

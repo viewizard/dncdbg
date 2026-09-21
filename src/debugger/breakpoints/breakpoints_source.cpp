@@ -213,8 +213,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
             if (!b.condition.empty())
             {
                 std::string output;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvalStackMachine.get(),
-                                                                           pThread, b.condition, output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(pThread, b.condition, output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -243,8 +242,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                 std::string output;
                 std::ostringstream condstream;
                 condstream << b.hitCount << ">" << b.hitCondition;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvalStackMachine.get(),
-                                                                           pThread, condstream.str(), output)) ||
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(pThread, condstream.str(), output)) ||
                     Status == S_FALSE)
                 {
                     continue;
@@ -273,7 +271,7 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
                     CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
                 }
                 std::string message;
-                BuildTextWithEval(m_sharedEvalStackMachine.get(), pThread, nullptr, b.logMessageParts, message);
+                BuildTextWithEval(pThread, nullptr, b.logMessageParts, message);
                 message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath, sourceReference);

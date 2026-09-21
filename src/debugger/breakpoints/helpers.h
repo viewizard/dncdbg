@@ -15,23 +15,15 @@
 #include <string>
 #include <vector>
 
-namespace dncdbg
-{
-
-class EvalStackMachine;
-
-namespace BreakpointHelpers
+namespace dncdbg::BreakpointHelpers
 {
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
-HRESULT IsEnableByCondition(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
-                            const std::string &condition, std::string &output);
+HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
 HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &nativeAddress);
 
-} // namespace BreakpointHelpers
-
-} // namespace dncdbg
+} // namespace dncdbg::BreakpointHelpers
 
 #endif // DEBUGGER_BREAKPOINTS_HELPERS_H

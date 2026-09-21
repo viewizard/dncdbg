@@ -14,94 +14,21 @@
 
 #include "debugger/evaluator.h"
 #include "types/types.h"
-#include "utils/torelease.h"
-#include <list>
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <vector>
 
-namespace dncdbg
+namespace dncdbg::EvalStackMachine
 {
 
-struct EvalStackEntry
-{
-    enum class ResetLiteralStatus : uint8_t
-    {
-        No = 0,
-        Yes = 1
-    };
+// Evaluate an expression. Optionally returns the `editable` state and, if the result is a property, setter-related information.
+HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
+                           ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
+                           std::string &output, bool *pEditable = nullptr, std::unique_ptr<Evaluator::SetterData> *pResultSetterData = nullptr);
 
-    // Unresolved identifiers.
-    // Note, in case we already have some resolved identifiers (trValue), unresolved identifiers must be resolved within trValue.
-    std::vector<std::string> identifiers;
-    // Resolved to value identifiers.
-    ToRelease<ICorDebugValue> trValue;
-    // Real display type name of the resolved value, more precise than what GetFQDisplayTypeName() may provide
-    // (e.g. for literal array types). Empty when the type should be obtained via the regular metadata lookup.
-    std::string realDisplayTypeName;
-    // Generic types cache. Note, finally we need the method's generic types only, i.e. the last element of
-    // identifiers vector. The other type(class)'s generics can easily be got from the corresponding ICorDebugType
-    std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
-    // Prevent future binding in case of conditional access with nulled object (`a?.b`, `a?[1]`, ...).
-    // Note, this state could be related to trValue only (trValue must be checked for null first).
-    bool preventBinding{false};
-    // This is literal entry (value was created from literal).
-    bool literal{false};
-    // This entry is real variable (not literal, not result of expression calculation, not result of function call, ...).
-    bool editable{false};
-    // In case trValue is editable and property, we need extra data in order to set value.
-    // Note, this data directly connected with `trValue` and could be available only in case `editable` is true.
-    std::unique_ptr<Evaluator::SetterData> setterData;
+// Set the value of pValue from an expression, implicitly casting the expression result to the type of pValue if needed.
+HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                             const std::string &expression, std::string &output);
 
-    void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
-    {
-        identifiers.clear();
-        trValue.Free();
-        realDisplayTypeName.clear();
-        trGenericTypeCache.clear();
-        preventBinding = false;
-        if (resetLiteral == ResetLiteralStatus::Yes)
-        {
-            literal = false;
-        }
-        editable = false;
-        setterData.reset();
-    }
-};
-
-struct EvalData
-{
-    ICorDebugThread *pThread{nullptr};
-    FrameLevel frameLevel;
-    FormatSpecifier specifier{FormatSpecifier::None};
-    ICorDebugValue *pForcedThisValue{nullptr};
-};
-
-class EvalStackMachine
-{
-  public:
-
-    EvalStackMachine() = default;
-
-    // Evaluate expression. Optional, return `editable` state and in case the result is a property - setter-related information.
-    HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
-                               ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                               std::string &output, bool *pEditable = nullptr, std::unique_ptr<Evaluator::SetterData> *pResultSetterData = nullptr);
-
-    // Set value in pValue by expression with implicitly cast expression result to pValue type, if need.
-    HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                 const std::string &expression, std::string &output);
-
-  private:
-
-    EvalData m_evalData;
-
-    // Run stack machine for particular expression.
-    HRESULT Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
-                std::list<EvalStackEntry> &evalStack, std::string &output);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::EvalStackMachine
 
 #endif // DEBUGGER_EVALSTACKMACHINE_H

@@ -14,7 +14,6 @@
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evalstackmachine.h"
 #include "debugger/evaluator.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
@@ -355,10 +354,9 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>()),
-      m_sharedVariables(std::make_shared<Variables>(m_sharedEvalStackMachine)),
+      m_sharedVariables(std::make_shared<Variables>()),
       m_uniqueSteppers(std::make_unique<Steppers>()),
-      m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedEvalStackMachine)),
+      m_sharedBreakpoints(std::make_shared<Breakpoints>()),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
@@ -990,7 +988,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->SetExpression(m_trProcess, frameId, expression, value, output);
+    return Variables::SetExpression(m_trProcess, frameId, expression, value, output);
 }
 
 void ManagedDebugger::SetJustMyCode(bool enable)

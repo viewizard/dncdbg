@@ -21,16 +21,74 @@
 #include <charconv>
 #include <functional>
 #include <iterator>
+#include <list>
+#include <memory>
 #include <sstream>
+#include <string>
 #include <string_view>
-#include <vector>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
-namespace dncdbg
+namespace dncdbg::EvalStackMachine
 {
 
 namespace
 {
+
+struct EvalStackEntry
+{
+    enum class ResetLiteralStatus : uint8_t
+    {
+        No = 0,
+        Yes = 1
+    };
+
+    // Unresolved identifiers.
+    // Note, if some identifiers are already resolved (trValue), the remaining ones must be resolved within trValue.
+    std::vector<std::string> identifiers;
+    // Identifiers resolved to a value.
+    ToRelease<ICorDebugValue> trValue;
+    // Real display type name of the resolved value, more precise than what GetFQDisplayTypeName() may provide
+    // (e.g. for literal array types). Empty when the type should be obtained via regular metadata lookup.
+    std::string realDisplayTypeName;
+    // Generic types cache. Note, in the end we need only the method's generic types, i.e. the last element of
+    // the identifiers vector. The generics of the other (class) types can easily be obtained from the corresponding ICorDebugType
+    std::vector<ToRelease<ICorDebugType>> trGenericTypeCache;
+    // Prevent further binding in case of conditional access on a null object (`a?.b`, `a?[1]`, ...).
+    // Note, this state relates to trValue only (trValue must be checked for null first).
+    bool preventBinding{false};
+    // This is a literal entry (the value was created from a literal).
+    bool literal{false};
+    // This entry is a real variable (not a literal, not the result of an expression, not the result of a function call, ...).
+    bool editable{false};
+    // If trValue is an editable property, we need extra data in order to set the value.
+    // Note, this data is directly connected to `trValue` and is available only when `editable` is true.
+    std::unique_ptr<Evaluator::SetterData> setterData;
+
+    void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
+    {
+        identifiers.clear();
+        trValue.Free();
+        realDisplayTypeName.clear();
+        trGenericTypeCache.clear();
+        preventBinding = false;
+        if (resetLiteral == ResetLiteralStatus::Yes)
+        {
+            literal = false;
+        }
+        editable = false;
+        setterData.reset();
+    }
+};
+
+struct EvalData
+{
+    ICorDebugThread *pThread{nullptr};
+    FrameLevel frameLevel;
+    FormatSpecifier specifier{FormatSpecifier::None};
+    ICorDebugValue *pForcedThisValue{nullptr};
+};
 
 void ReplaceAllSubstring(std::string &str, const std::string &from, const std::string &to)
 {
@@ -1721,10 +1779,7 @@ HRESULT ThisExpression(const Parser::Opcode &/*opcode*/, std::list<EvalStackEntr
     return S_OK;
 }
 
-} // unnamed namespace
-
-HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
-                              std::list<EvalStackEntry> &evalStack, std::string &output)
+HRESULT Run(const EvalData &ed, const std::string &expression, std::list<EvalStackEntry> &evalStack, std::string &output)
 {
     static const std::unordered_map<Parser::SyntaxKind, std::function<HRESULT(const Parser::Opcode &, std::list<EvalStackEntry> &, std::string &, const EvalData &)>> CommandImplementation{
         {Parser::SyntaxKind::IdentifierName, IdentifierName},
@@ -1780,9 +1835,6 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     std::list<Parser::Opcode> stackProgram;
     IfFailRet(Parser::GenerateProgram(fixed_expression, stackProgram, output));
 
-    m_evalData.pThread = pThread;
-    m_evalData.frameLevel = frameLevel;
-
     for (const auto &executionStep : stackProgram)
     {
         const auto findStep = CommandImplementation.find(executionStep.kind);
@@ -1793,7 +1845,7 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
             break;
         }
 
-        if (FAILED(Status = findStep->second(executionStep, evalStack, output, m_evalData)))
+        if (FAILED(Status = findStep->second(executionStep, evalStack, output, ed)))
         {
             break;
         }
@@ -1834,21 +1886,26 @@ HRESULT EvalStackMachine::Run(ICorDebugThread *pThread, FrameLevel frameLevel, c
     return Status;
 }
 
-HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
-                                             FormatSpecifier specifier, ICorDebugValue *pForcedThisValue,
-                                             ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName, std::string &output,
-                                             bool *pEditable, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
+} // unnamed namespace
+
+HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
+                           FormatSpecifier specifier, ICorDebugValue *pForcedThisValue,
+                           ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName, std::string &output,
+                           bool *pEditable, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
-    m_evalData.specifier = specifier | FormatSpecifier::WalkContainerMembers;
-    m_evalData.pForcedThisValue = pForcedThisValue;
-    IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
+    EvalData ed;
+    ed.pThread = pThread;
+    ed.frameLevel = frameLevel;
+    ed.specifier = specifier | FormatSpecifier::WalkContainerMembers;
+    ed.pForcedThisValue = pForcedThisValue;
+    IfFailRet(Run(ed, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
 
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, ppResultValue, &setterData, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, ppResultValue, &setterData, output));
     if (pRealDisplayTypeName != nullptr)
     {
         *pRealDisplayTypeName = evalStack.front().realDisplayTypeName;
@@ -1868,21 +1925,24 @@ HRESULT EvalStackMachine::EvaluateExpression(ICorDebugThread *pThread, FrameLeve
     return S_OK;
 }
 
-HRESULT EvalStackMachine::SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                               const std::string &expression, std::string &output)
+HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                             const std::string &expression, std::string &output)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
-    m_evalData.specifier = FormatSpecifier::None;
-    m_evalData.pForcedThisValue = nullptr;
-    IfFailRet(Run(pThread, frameLevel, expression, evalStack, output));
+    EvalData ed;
+    ed.pThread = pThread;
+    ed.frameLevel = frameLevel;
+    ed.specifier = FormatSpecifier::None;
+    ed.pForcedThisValue = nullptr;
+    IfFailRet(Run(ed, expression, evalStack, output));
 
     assert(evalStack.size() == 1);
 
     ToRelease<ICorDebugValue> trValue;
-    IfFailRet(GetFrontStackEntryValue(evalStack, m_evalData, &trValue, nullptr, output));
+    IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue, nullptr, output));
 
-    return ImplicitCast(trValue, pValue, evalStack.front().literal, m_evalData);
+    return ImplicitCast(trValue, pValue, evalStack.front().literal, ed);
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::EvalStackMachine

@@ -9,19 +9,18 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints_source.h"
-#include "debugger/breakpoints/helpers.h"
 #include "utils/hresult.h"
 #include <mutex>
 
 namespace dncdbg
 {
 
-Breakpoints::Breakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+Breakpoints::Breakpoints()
     : m_breakBreakpoint(std::make_shared<BreakBreakpoint>()),
       m_entryBreakpoint(std::make_shared<EntryBreakpoint>()),
-      m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>(sharedEvalStackMachine)),
-      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedEvalStackMachine)),
-      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedEvalStackMachine))
+      m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>()),
+      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>()),
+      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>())
 {
 }
 

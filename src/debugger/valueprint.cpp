@@ -26,8 +26,7 @@ namespace dncdbg
 namespace
 {
 
-HRESULT PrintDebuggerDisplayAttribute(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
-                                      ICorDebugValue *pInputValue, std::string &output)
+HRESULT PrintDebuggerDisplayAttribute(ICorDebugThread *pThread, ICorDebugValue *pInputValue, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -76,7 +75,7 @@ HRESULT PrintDebuggerDisplayAttribute(EvalStackMachine *pEvalStackMachine, ICorD
 
     std::vector<std::pair<std::string, bool>> textWithEvalParts;
     CreateTextWithEvalParts(textWithEval, textWithEvalParts);
-    BuildTextWithEval(pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
+    BuildTextWithEval(pThread, pInputValue, textWithEvalParts, output);
     return S_OK;
 }
 
@@ -508,8 +507,7 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugThread *pThread, EvalStackMachine *pEvalStackMachine,
-                   ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
+HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
     HRESULT Status = S_OK;
 
@@ -688,7 +686,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, EvalStackMachine *pEvalStackMachine
             }
             else
             {
-                if (SUCCEEDED(PrintDebuggerDisplayAttribute(pEvalStackMachine, pThread, trCurrentValue, output)))
+                if (SUCCEEDED(PrintDebuggerDisplayAttribute(pThread, trCurrentValue, output)))
                 {
                     return S_OK;
                 }

@@ -6,7 +6,7 @@
 #include "debugger/variables.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
-#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/helpers.h"
@@ -50,13 +50,12 @@ struct VariableMember
     ~VariableMember() = default;
 };
 
-HRESULT FillValueAndType(ICorDebugThread *pThread, EvalStackMachine *pEvalStackMachine,
-                         FormatSpecifier specifier, const VariableMember &member, Variable &var)
+HRESULT FillValueAndType(ICorDebugThread *pThread, FormatSpecifier specifier, const VariableMember &member, Variable &var)
 {
     if (member.trValue == nullptr)
     {
-        // "SUCCEEDED" result, variable found but error during value receive itself.
-        // For example, in case of eval flags `EVAL_NOFUNCEVAL` and property.
+        // A "SUCCEEDED" result: the variable was found, but there was an error obtaining the value itself.
+        // For example, with the `EVAL_NOFUNCEVAL` eval flag and a property.
         var.value = "<error>";
         return S_FALSE;
     }
@@ -69,11 +68,11 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, EvalStackMachine *pEvalStackM
     {
         std::vector<std::pair<std::string, bool>> textWithEvalParts;
         CreateTextWithEvalParts(member.customDisplayTextWithEval, textWithEvalParts);
-        BuildTextWithEval(pEvalStackMachine, pThread, member.trValue, textWithEvalParts, var.value);
+        BuildTextWithEval(pThread, member.trValue, textWithEvalParts, var.value);
         return S_OK;
     }
 
-    return PrintValue(pThread, pEvalStackMachine, member.trValue, specifier, var.value);
+    return PrintValue(pThread, member.trValue, specifier, var.value);
 }
 
 HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const Variables::VariableReference &ref,
@@ -212,9 +211,187 @@ HRESULT GetMemoryReference(ICorDebugValue *pInputValue, std::string &memoryRefer
     return S_OK;
 }
 
+HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
+                 const Evaluator::GetValueCallback *getValue, const Evaluator::SetterData *setterData,
+                 const std::string &value, std::string &output)
+{
+    if (pThread == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    HRESULT Status = S_OK;
+    std::string displayTypeName;
+    MetadataHelpers::GetFQDisplayTypeName(trPrevValue, displayTypeName);
+    if (displayTypeName.back() == '?') // System.Nullable<T>
+    {
+        ToRelease<ICorDebugValue> trValueValue;
+        ToRelease<ICorDebugValue> trHasValueValue;
+        IfFailRet(GetNullableValue(trPrevValue, &trValueValue, &trHasValueValue));
+
+        if (value == "null")
+        {
+            // Note: System.Nullable<T> can only wrap value types, so the value field cannot be
+            // assigned null; zero its storage to reset it to default(T).
+            ToRelease<ICorDebugValue> trEditableValue;
+            IfFailRet(DereferenceAndUnboxValue(trValueValue, &trEditableValue, nullptr));
+            ToRelease<ICorDebugGenericValue> trGenericValue;
+            IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
+            uint32_t cbSize = 0;
+            IfFailRet(trEditableValue->GetSize(&cbSize));
+            std::vector<uint8_t> buffer(cbSize, 0);
+            IfFailRet(trGenericValue->SetValue(buffer.data()));
+
+            IfFailRet(EvalStackMachine::SetValueByExpression(pThread, frameLevel, trHasValueValue, "false", output));
+        }
+        else
+        {
+            IfFailRet(EvalStackMachine::SetValueByExpression(pThread, frameLevel, trValueValue, value, output));
+            IfFailRet(EvalStackMachine::SetValueByExpression(pThread, frameLevel, trHasValueValue, "true", output));
+        }
+        if (getValue != nullptr)
+        {
+            trPrevValue.Free();
+            IfFailRet((*getValue)(&trPrevValue, nullptr));
+        }
+        return S_OK;
+    }
+
+    // If this is not a property, just change the value itself.
+    if (setterData == nullptr)
+    {
+        if (value == "null")
+        {
+            // For reference types, set the reference to null directly instead of evaluating an expression.
+            ToRelease<ICorDebugReferenceValue> trReferenceValue;
+            if (SUCCEEDED(trPrevValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+            {
+                static constexpr CORDB_ADDRESS addr = 0;
+                return trReferenceValue->SetValue(addr);
+            }
+        }
+
+        return EvalStackMachine::SetValueByExpression(pThread, frameLevel, trPrevValue, value, output);
+    }
+
+    trPrevValue->AddRef();
+    ToRelease<ICorDebugValue> trValue(trPrevValue.GetPtr());
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(trValue->GetType(&elemType));
+
+    ToRelease<ICorDebugReferenceValue> trReferenceValue;
+    if (value == "null" &&
+        SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
+    {
+        // For reference types, set the reference to null directly instead of evaluating an expression.
+        static constexpr CORDB_ADDRESS addr = 0;
+        IfFailRet(trReferenceValue->SetValue(addr));
+    }
+    else if (elemType == ELEMENT_TYPE_STRING)
+    {
+        // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for a string in trValue in this case
+        trValue.Free();
+        IfFailRet(EvalStackMachine::EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None,
+                                                       nullptr, &trValue, nullptr, output));
+
+        IfFailRet(trValue->GetType(&elemType));
+        if (elemType != ELEMENT_TYPE_STRING)
+        {
+            return E_INVALIDARG;
+        }
+    }
+    else // Allow the stack machine to decide what types are supported.
+    {
+        IfFailRet(EvalStackMachine::SetValueByExpression(pThread, frameLevel, trValue.GetPtr(), value, output));
+    }
+
+    // Call setter.
+    if (setterData->trThisValue == nullptr)
+    {
+        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                      nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
+    }
+    else
+    {
+        std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
+        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
+                                      nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
+    }
+}
+
+HRESULT SetStackVariable(const Variables::VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+                         const std::string &value, std::string &output)
+{
+    HRESULT Status = S_OK;
+    IfFailRet(Evaluator::WalkStackVars(pThread, ref.frameId.getLevel(),
+        [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
+        {
+            if (varName != name)
+            {
+                return S_OK; // Return success to continue walking.
+            }
+
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(getValue(&trValue, nullptr));
+            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, nullptr, value, output));
+            IfFailRet(PrintValue(pThread, trValue, FormatSpecifier::None, output));
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
+
+    if (output.empty())
+    {
+        output = "Variable name not found.";
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
+HRESULT SetChild(const Variables::VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+                 const std::string &value, std::string &output)
+{
+    if (ref.IsScope())
+    {
+        return E_INVALIDARG;
+    }
+
+    if (ref.trValue == nullptr)
+    {
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+    IfFailRet(Evaluator::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
+        [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
+            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
+        {
+            if (varName != name)
+            {
+                return S_OK; // Return success to continue walking.
+            }
+
+            if (setterData && !setterData->trSetterFunction)
+            {
+                return E_FAIL;
+            }
+
+            ToRelease<ICorDebugValue> trValue;
+            IfFailRet(getValue(&trValue, nullptr));
+            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, setterData, value, output));
+            IfFailRet(PrintValue(pThread, trValue, ref.specifier, output));
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
+
+    if (output.empty())
+    {
+        output = "Variable name not found.";
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
 } // unnamed namespace
 
-// Caller should guarantee, that pProcess is not null.
+// The caller must guarantee that pProcess is not null.
 HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables)
 {
     const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
@@ -311,7 +488,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
         var.evaluateName = var.name;
 
         HRESULT Status = S_OK;
-        IfFailRet(PrintValue(pThread, m_sharedEvalStackMachine.get(), trExceptionValue, FormatSpecifier::None, var.value));
+        IfFailRet(PrintValue(pThread, trExceptionValue, FormatSpecifier::None, var.value));
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, var.type));
         IfFailRet(GetMemoryReference(trExceptionValue, var.memoryReference));
 
@@ -341,7 +518,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             // If we fail to parse one variable, don't skip parsing the remaining variables.
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
                 FAILED(MetadataHelpers::GetFQDisplayTypeName(trValue, var.type)) ||
-                FAILED(PrintValue(pThread, m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, var.value)) ||
+                FAILED(PrintValue(pThread, trValue, FormatSpecifier::None, var.value)) ||
                 FAILED(GetMemoryReference(trValue, var.memoryReference)) ||
                 FAILED(AddVariableReference(pThread, var, frameId, trValue, ValueKind::Variable, FormatSpecifier::None, 0)))
             {
@@ -478,7 +655,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
             {
                 var.evaluateName = ref.evaluateName + (isIndex ? "" : ".") + var.name;
             }
-            IfFailRet(FillValueAndType(pThread, m_sharedEvalStackMachine.get(), ref.specifier, it, var));
+            IfFailRet(FillValueAndType(pThread, ref.specifier, it, var));
             if (!it.realDisplayTypeName.empty())
             {
                 var.type = std::move(it.realDisplayTypeName);
@@ -528,8 +705,8 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     ToRelease<ICorDebugValue> trResultValue;
     const FrameLevel frameLevel = frameId.getLevel();
     std::string realDisplayTypeName;
-    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameLevel, expression, specifier,
-                                                           nullptr, &trResultValue, &realDisplayTypeName, output));
+    IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameLevel, expression, specifier,
+                                                   nullptr, &trResultValue, &realDisplayTypeName, output));
 
     variable.evaluateName = expression;
     if (realDisplayTypeName.empty())
@@ -540,7 +717,7 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     {
         variable.type = realDisplayTypeName;
     }
-    IfFailRet(PrintValue(trThread, m_sharedEvalStackMachine.get(), trResultValue, specifier, variable.value));
+    IfFailRet(PrintValue(trThread, trResultValue, specifier, variable.value));
     IfFailRet(GetMemoryReference(trResultValue, variable.memoryReference));
 
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier, 0);
@@ -557,7 +734,7 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
         return E_FAIL;
     }
 
-    VariableReference &varRef = it->second;
+    const VariableReference &varRef = it->second;
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> trThread;
@@ -572,76 +749,6 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
         IfFailRet(SetChild(varRef, trThread, name, value, output));
     }
 
-    return S_OK;
-}
-
-HRESULT Variables::SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
-                                    const std::string &value, std::string &output)
-{
-    HRESULT Status = S_OK;
-    IfFailRet(Evaluator::WalkStackVars(pThread, ref.frameId.getLevel(),
-        [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
-        {
-            if (varName != name)
-            {
-                return S_OK; // Return success to continue walking.
-            }
-
-            ToRelease<ICorDebugValue> trValue;
-            IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, nullptr, value, output));
-            IfFailRet(PrintValue(pThread, m_sharedEvalStackMachine.get(), trValue, FormatSpecifier::None, output));
-            return S_CAN_EXIT; // Fast exit from the loop.
-        }));
-
-    if (output.empty())
-    {
-        output = "Variable name not found.";
-        return E_FAIL;
-    }
-    return S_OK;
-}
-
-HRESULT Variables::SetChild(VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
-                            const std::string &value, std::string &output)
-{
-    if (ref.IsScope())
-    {
-        return E_INVALIDARG;
-    }
-
-    if (ref.trValue == nullptr)
-    {
-        return S_OK;
-    }
-
-    HRESULT Status = S_OK;
-    IfFailRet(Evaluator::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
-        [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
-        {
-            if (varName != name)
-            {
-                return S_OK; // Return success to continue walking.
-            }
-
-            if (setterData && !setterData->trSetterFunction)
-            {
-                return E_FAIL;
-            }
-
-            ToRelease<ICorDebugValue> trValue;
-            IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, setterData, value, output));
-            IfFailRet(PrintValue(pThread, m_sharedEvalStackMachine.get(), trValue, ref.specifier, output));
-            return S_CAN_EXIT; // Fast exit from the loop.
-        }));
-
-    if (output.empty())
-    {
-        output = "Variable name not found.";
-        return E_FAIL;
-    }
     return S_OK;
 }
 
@@ -665,8 +772,8 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     ToRelease<ICorDebugValue> trValue;
     bool editable = false;
     std::unique_ptr<Evaluator::SetterData> setterData;
-    IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(trThread, frameId.getLevel(), expression, specifier,
-                                                           nullptr, &trValue, nullptr, output, &editable, &setterData));
+    IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameId.getLevel(), expression, specifier,
+                                                   nullptr, &trValue, nullptr, output, &editable, &setterData));
     if (!editable ||
         (setterData != nullptr && setterData->trSetterFunction == nullptr)) // property that doesn't have a setter
     {
@@ -675,116 +782,8 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     }
 
     IfFailRet(SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
-    IfFailRet(PrintValue(trThread, m_sharedEvalStackMachine.get(), trValue, specifier, output));
+    IfFailRet(PrintValue(trThread, trValue, specifier, output));
     return S_OK;
-}
-
-HRESULT Variables::SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
-                            const Evaluator::GetValueCallback *getValue, Evaluator::SetterData *setterData,
-                            const std::string &value, std::string &output)
-{
-    if (pThread == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    HRESULT Status = S_OK;
-    std::string displayTypeName;
-    MetadataHelpers::GetFQDisplayTypeName(trPrevValue, displayTypeName);
-    if (displayTypeName.back() == '?') // System.Nullable<T>
-    {
-        ToRelease<ICorDebugValue> trValueValue;
-        ToRelease<ICorDebugValue> trHasValueValue;
-        IfFailRet(GetNullableValue(trPrevValue, &trValueValue, &trHasValueValue));
-
-        if (value == "null")
-        {
-            // Note: System.Nullable<T> can only wrap value types, so the value field cannot be
-            // assigned null; zero its storage to reset it to default(T).
-            ToRelease<ICorDebugValue> trEditableValue;
-            IfFailRet(DereferenceAndUnboxValue(trValueValue, &trEditableValue, nullptr));
-            ToRelease<ICorDebugGenericValue> trGenericValue;
-            IfFailRet(trEditableValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            uint32_t cbSize = 0;
-            IfFailRet(trEditableValue->GetSize(&cbSize));
-            std::vector<uint8_t> buffer(cbSize, 0);
-            IfFailRet(trGenericValue->SetValue(buffer.data()));
-
-            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trHasValueValue, "false", output));
-        }
-        else
-        {
-            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trValueValue, value, output));
-            IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trHasValueValue, "true", output));
-        }
-        if (getValue != nullptr)
-        {
-            trPrevValue.Free();
-            IfFailRet((*getValue)(&trPrevValue, nullptr));
-        }
-        return S_OK;
-    }
-
-    // In case this is not a property, just change the value itself.
-    if (setterData == nullptr)
-    {
-        if (value == "null")
-        {
-            // For reference types, set the reference to null directly instead of evaluating an expression.
-            ToRelease<ICorDebugReferenceValue> trReferenceValue;
-            if (SUCCEEDED(trPrevValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
-            {
-                static constexpr CORDB_ADDRESS addr = 0;
-                return trReferenceValue->SetValue(addr);
-            }
-        }
-
-        return m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trPrevValue, value, output);
-    }
-
-    trPrevValue->AddRef();
-    ToRelease<ICorDebugValue> trValue(trPrevValue.GetPtr());
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(trValue->GetType(&elemType));
-
-    ToRelease<ICorDebugReferenceValue> trReferenceValue;
-    if (value == "null" &&
-        SUCCEEDED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))))
-    {
-        // For reference types, set the reference to null directly instead of evaluating an expression.
-        static constexpr CORDB_ADDRESS addr = 0;
-        IfFailRet(trReferenceValue->SetValue(addr));
-    }
-    else if (elemType == ELEMENT_TYPE_STRING)
-    {
-        // FIXME: investigate why we can't use ICorDebugReferenceValue::SetValue() for a string in trValue in this case
-        trValue.Free();
-        IfFailRet(m_sharedEvalStackMachine->EvaluateExpression(pThread, frameLevel, value, FormatSpecifier::None,
-                                                               nullptr, &trValue, nullptr, output));
-
-        IfFailRet(trValue->GetType(&elemType));
-        if (elemType != ELEMENT_TYPE_STRING)
-        {
-            return E_INVALIDARG;
-        }
-    }
-    else // Allow the stack machine to decide what types are supported.
-    {
-        IfFailRet(m_sharedEvalStackMachine->SetValueByExpression(pThread, frameLevel, trValue.GetPtr(), value, output));
-    }
-
-    // Call setter.
-    if (setterData->trThisValue == nullptr)
-    {
-        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                      nullptr, trValue.GetRef(), 1, FormatSpecifier::None, nullptr);
-    }
-    else
-    {
-        std::array<ICorDebugValue *, 2> argsValue{setterData->trThisValue, trValue};
-        return EvalExec::CallFunction(pThread, setterData->trSetterFunction, setterData->trPropertyType.GetPtr(),
-                                      nullptr, argsValue.data(), 2, FormatSpecifier::None, nullptr);
-    }
 }
 
 } // namespace dncdbg

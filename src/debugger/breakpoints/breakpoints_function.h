@@ -27,16 +27,11 @@
 namespace dncdbg
 {
 
-class EvalStackMachine;
-
 class FunctionBreakpoints
 {
   public:
 
-    explicit FunctionBreakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedEvalStackMachine(sharedEvalStackMachine)
-    {
-    }
+    FunctionBreakpoints() = default;
 
     void SetJustMyCode(bool enable)
     {
@@ -68,7 +63,6 @@ class FunctionBreakpoints
 
   private:
 
-    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
     struct ManagedFunctionBreakpoint

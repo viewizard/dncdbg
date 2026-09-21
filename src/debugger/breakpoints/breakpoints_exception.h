@@ -23,15 +23,12 @@
 namespace dncdbg
 {
 
-class EvalStackMachine;
-
 class ExceptionBreakpoints
 {
   public:
 
-    explicit ExceptionBreakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedEvalStackMachine(sharedEvalStackMachine),
-          m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
+    ExceptionBreakpoints()
+        : m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
     {
     }
 
@@ -59,7 +56,6 @@ class ExceptionBreakpoints
 
   private:
 
-    std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 
     CORDB_ADDRESS m_privateCoreLibModAddress{0};
@@ -70,8 +66,6 @@ class ExceptionBreakpoints
     // Note: Exception callbacks are called with different exception callback types,
     // and we need to know the exception type related to the current stop event.
     std::unordered_map<DWORD, ExceptionBreakMode> m_threadsExceptionBreakMode;
-
-    HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pExceptionValue, ExceptionDetails *pDetails);
 
     struct ManagedExceptionBreakpoint
     {
