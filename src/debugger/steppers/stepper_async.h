@@ -27,10 +27,9 @@ class AsyncStepper
 {
   public:
 
-    AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper,
-                 std::shared_ptr<DebugInfo> &sharedDebugInfo)
+    explicit AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper)
         : m_simpleStepper(simpleStepper),
-          m_uniqueAsyncInfo(std::make_unique<AsyncInfo>(sharedDebugInfo)),
+          m_uniqueAsyncInfo(std::make_unique<AsyncInfo>()),
           m_asyncStep(nullptr)
     {
     }

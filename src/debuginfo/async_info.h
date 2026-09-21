@@ -20,24 +20,17 @@
 namespace dncdbg
 {
 
-class DebugInfo;
-
 class AsyncInfo
 {
   public:
 
-    explicit AsyncInfo(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-        : m_sharedDebugInfo(sharedDebugInfo)
-    {
-    }
+    AsyncInfo() = default;
 
     bool IsMethodHaveAwait(CORDB_ADDRESS modAddress, mdMethodDef methodToken);
     bool FindNextAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ipOffset, PDB::AsyncAwaitInfoBlock &awaitInfo);
     bool FindLastIlOffsetAwaitInfo(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t &lastIlOffset);
 
   private:
-
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
 
     struct AsyncMethodInfo
     {

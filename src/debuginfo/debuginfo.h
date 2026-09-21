@@ -19,85 +19,71 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <functional>
-#include <mutex>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::DebugInfo
 {
 
 using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
 
-class DebugInfo
-{
-  public:
+HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine, int32_t sourceColumn,
+                          PDB::GlobalFileIndex *pGlobalFileIndex, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 
-    HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine, int32_t sourceColumn,
-                              PDB::GlobalFileIndex *pGlobalFileIndex, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
+using PDBInfoCallback = std::function<HRESULT(const PDBInfo &)>;
+HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
 
-    using PDBInfoCallback = std::function<HRESULT(const PDBInfo &)>;
-    HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb);
+HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
 
-    HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
+HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
+                                          const ResolveFunctionBreakpointCallback &cb);
 
-    static HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
-                                                     const ResolveFunctionBreakpointCallback &cb);
+HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range);
 
-    HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range);
+void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module);
+void UnloadModuleSymbols(ICorDebugModule *pModule);
 
-    void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module);
-    void UnloadModuleSymbols(ICorDebugModule *pModule);
+// Cleans up the DebugInfo internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    void Cleanup();
+HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                                   uint32_t localIndex, WSTRING &localName);
 
-    HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                       uint32_t localIndex, WSTRING &localName);
+bool IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                           uint32_t hoistedLocalIndex);
 
-    bool IsHoistedLocalInScope(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                               uint32_t hoistedLocalIndex);
+HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                          std::vector<PDB::LocalConstant> &constants);
 
-    HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                              std::vector<PDB::LocalConstant> &constants);
+HRESULT GetNextUserCodeILOffset(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
+HRESULT GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset);
 
-    HRESULT GetNextUserCodeILOffset(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset, uint32_t &ilNextOffset);
-    HRESULT GetNextUserCodeILOffset(ICorDebugFrame *pFrame, uint32_t &ilOffset, uint32_t &ilNextOffset);
+HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
+                                   PDB::SequencePoint &sequencePoint);
+HRESULT GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::SequencePoint &sequencePoint,
+                                PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
 
-    HRESULT GetSequencePointByILOffset(CORDB_ADDRESS modAddress, mdMethodDef methodToken, uint32_t ilOffset,
-                                       PDB::SequencePoint &sequencePoint);
-    HRESULT GetSequencePointByFrame(ICorDebugFrame *pFrame, PDB::SequencePoint &sequencePoint,
-                                    PDB::GlobalFileIndex *pGlobalFileIndex = nullptr);
+HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
+                      std::string &algorithm, std::string &checksum);
 
-    HRESULT GetSourceFile(const PDB::GlobalFileIndex &globalFileIndex, std::string &sourceFilePath,
-                          std::string &algorithm, std::string &checksum);
+bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
+HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,
+                                     mdMethodDef &kickoffMethodToken);
 
-    bool IsStateMachineKickoffMethod(ICorDebugFunction *pFunction);
-    HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken,
-                                         mdMethodDef &kickoffMethodToken);
+HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
+                             std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
 
-    HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
-                                 std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
+HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
+                      std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
-    HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
-                          std::vector<GotoTargetInternal> &intTargets, std::string &output);
+HRESULT GetSourceContent(const Source &source, std::string &sourceContent);
 
-    HRESULT GetSourceContent(const Source &source, std::string &sourceContent);
+void GetLoadedSources(std::vector<Source> &sources);
 
-    void GetLoadedSources(std::vector<Source> &sources);
+HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                               std::vector<BreakpointLocation> &locations);
 
-    HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
-                                   std::vector<BreakpointLocation> &locations);
-
-  private:
-
-    void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, const PDBInfo *&pPDBInfo,
-                                   uint32_t &sourceFileIndex, PDB::GlobalFileIndex *pGlobalFileIndex);
-
-    std::mutex m_debugInfoMutex;
-    std::unordered_map<CORDB_ADDRESS, PDBInfo> m_debugInfo;
-
-    uint32_t m_gotoTargetId = 0;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::DebugInfo
 
 #endif // DEBUGINFO_DEBUGINFO_H

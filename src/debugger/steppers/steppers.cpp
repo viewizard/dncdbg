@@ -6,7 +6,7 @@
 #include "debugger/steppers/steppers.h"
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h"
 #include "metadata/attributes.h"
 #include "utils/hresult.h"
 #include "utils/utf.h"
@@ -15,10 +15,9 @@
 namespace dncdbg
 {
 
-Steppers::Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-    : m_simpleStepper(std::make_shared<SimpleStepper>(sharedDebugInfo)),
-      m_asyncStepper(std::make_shared<AsyncStepper>(m_simpleStepper, sharedDebugInfo)),
-      m_sharedDebugInfo(sharedDebugInfo)
+Steppers::Steppers()
+    : m_simpleStepper(std::make_shared<SimpleStepper>()),
+      m_asyncStepper(std::make_shared<AsyncStepper>(m_simpleStepper))
 {
 }
 
@@ -39,7 +38,7 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return E_FAIL;
     }
 
-    IfFailRet(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, m_StepStartSP));
+    IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, m_StepStartSP));
 
     IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
     if (Status == S_USE_SIMPLE_STEPPER)
@@ -216,7 +215,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     // Same behavior as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
     uint32_t ipOffset = 0;
     uint32_t ilNextUserCodeOffset = 0;
-    if (SUCCEEDED(Status = m_sharedDebugInfo->GetNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset)))
+    if (SUCCEEDED(Status = DebugInfo::GetNextUserCodeILOffset(trFrame, ipOffset, ilNextUserCodeOffset)))
     {
         if (reason == CorDebugStepReason::STEP_NORMAL)
         {
@@ -231,7 +230,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // Step completed on same location in source as it was started, this happens when some user code block has several
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 PDB::SequencePoint sp;
-                IfFailRet(m_sharedDebugInfo->GetSequencePointByFrame(trFrame, sp));
+                IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, sp));
                 if (sp.startLine == m_StepStartSP.startLine &&
                     sp.startColumn == m_StepStartSP.startColumn &&
                     sp.endLine == m_StepStartSP.endLine &&

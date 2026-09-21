@@ -18,12 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace dncdbg
-{
-
-class DebugInfo;
-
-namespace MetadataHelpers
+namespace dncdbg::MetadataHelpers
 {
 
 // Naming conventions for type names:
@@ -52,11 +47,11 @@ HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName)
 HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeName);
 
 // Get the fully-qualified "display" type name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayTypeName);
+HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displayTypeName);
 // Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName);
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &displayName);
 // Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName);
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, std::string &displayName);
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
@@ -97,8 +92,6 @@ HRESULT GetNativeAddress(ICorDebugFunction *pFunction, uint32_t ilOffset, CORDB_
 // The result includes the "0x" prefix followed by 16 hexadecimal digits.
 std::string AddrToString(CORDB_ADDRESS corAddr);
 
-} // namespace MetadataHelpers
-
-} // namespace dncdbg
+} // namespace dncdbg::MetadataHelpers
 
 #endif // METADATA_HELPERS_H

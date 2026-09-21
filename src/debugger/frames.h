@@ -18,11 +18,9 @@
 namespace dncdbg
 {
 
-class DebugInfo;
-
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame);
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, bool justMyCode, ICorDebugFrame **ppFrame);
 HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                       DebugInfo *pDebugInfo, bool justMyCode, std::vector<StackFrame> &stackFrames);
+                       bool justMyCode, std::vector<StackFrame> &stackFrames);
 
 } // namespace dncdbg
 

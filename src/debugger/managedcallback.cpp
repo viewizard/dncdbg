@@ -17,8 +17,8 @@
 #include "debugger/evaluator.h" // NOLINT(misc-include-cleaner)
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
-#include "metadata/modules.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h"
+#include "metadata/modules.h"
 #include "protocol/dapio.h"
 #include "utils/logger.h"
 #include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
@@ -261,7 +261,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     Module &module = Modules::GetNewModuleRef();
-    m_debugger.m_sharedDebugInfo->TryLoadModuleSymbols(pModule, module);
+    DebugInfo::TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
     Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode(), m_debugger.IsSuppressJITOptimizations());
     DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
@@ -305,7 +305,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pApp
         DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::Removed, removedModule));
     }
 
-    m_debugger.m_sharedDebugInfo->UnloadModuleSymbols(pModule);
+    DebugInfo::UnloadModuleSymbols(pModule);
 
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }

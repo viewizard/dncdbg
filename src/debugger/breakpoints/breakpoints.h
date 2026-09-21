@@ -26,7 +26,6 @@ namespace dncdbg
 
 class Evaluator;
 class EvalStackMachine;
-class DebugInfo;
 class BreakBreakpoint;
 class EntryBreakpoint;
 class ExceptionBreakpoints;
@@ -37,8 +36,7 @@ class Breakpoints
 {
   public:
 
-    Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                std::shared_ptr<Evaluator> &sharedEvaluator,
+    Breakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
                 std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine);
 
     void SetJustMyCode(bool enable);

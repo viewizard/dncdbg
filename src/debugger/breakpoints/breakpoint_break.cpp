@@ -5,7 +5,7 @@
 
 #include "debugger/breakpoints/breakpoint_break.h"
 #include "debugger/threads.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 
@@ -121,12 +121,12 @@ HRESULT BreakBreakpoint::ManagedCallbackBreak(ICorDebugThread *pThread, const Th
     }
 
     PDB::SequencePoint lastSP;
-    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
-                                                            m_lastStoppedIlOffset.ilOffset, lastSP));
+    IfFailRet(DebugInfo::GetSequencePointByILOffset(m_lastStoppedIlOffset.modAddress, m_lastStoppedIlOffset.methodToken,
+                                                    m_lastStoppedIlOffset.ilOffset, lastSP));
 
     PDB::SequencePoint curSP;
-    IfFailRet(m_sharedDebugInfo->GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
-                                                            fullyQualifiedIlOffset.ilOffset, curSP));
+    IfFailRet(DebugInfo::GetSequencePointByILOffset(fullyQualifiedIlOffset.modAddress, fullyQualifiedIlOffset.methodToken,
+                                                    fullyQualifiedIlOffset.ilOffset, curSP));
 
     if (lastSP.startLine != curSP.startLine ||
         lastSP.startColumn != curSP.startColumn ||

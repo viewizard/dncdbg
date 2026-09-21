@@ -75,7 +75,7 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalSt
     return PrintValue(pThread, pEvaluator, pEvalStackMachine, member.trValue, specifier, var.value);
 }
 
-HRESULT FetchFieldsAndProperties(Evaluator *pEvaluator, ICorDebugThread *pThread, const Variables::VariableReference &ref,
+HRESULT FetchFieldsAndProperties(const Evaluator *pEvaluator, ICorDebugThread *pThread, const Variables::VariableReference &ref,
                                  std::vector<VariableMember> &members, bool &hasStaticMembers)
 {
     hasStaticMembers = false;

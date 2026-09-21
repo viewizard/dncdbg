@@ -10,21 +10,19 @@
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/helpers.h"
-#include "debuginfo/debuginfo.h"
 #include "utils/hresult.h"
 #include <mutex>
 
 namespace dncdbg
 {
 
-Breakpoints::Breakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                         std::shared_ptr<Evaluator> &sharedEvaluator,
+Breakpoints::Breakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
                          std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-    : m_breakBreakpoint(std::make_shared<BreakBreakpoint>(sharedDebugInfo)),
-      m_entryBreakpoint(std::make_shared<EntryBreakpoint>(sharedDebugInfo)),
+    : m_breakBreakpoint(std::make_shared<BreakBreakpoint>()),
+      m_entryBreakpoint(std::make_shared<EntryBreakpoint>()),
       m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>(sharedEvaluator, sharedEvalStackMachine)),
-      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine)),
-      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedDebugInfo, sharedEvaluator, sharedEvalStackMachine))
+      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedEvaluator, sharedEvalStackMachine)),
+      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedEvaluator, sharedEvalStackMachine))
 {
 }
 

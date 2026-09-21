@@ -36,7 +36,6 @@ class Variables;
 class ManagedCallback;
 class CallbacksQueue;
 class Breakpoints;
-class DebugInfo;
 
 enum class ProcessAttachedState : uint8_t
 {
@@ -150,7 +149,6 @@ class ManagedDebugger
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
 
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     std::shared_ptr<Variables> m_sharedVariables;

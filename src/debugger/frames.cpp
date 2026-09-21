@@ -166,13 +166,12 @@ const char *GetInternalTypeName(CorDebugInternalFrameType frameType)
     }
 }
 
-HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level,
-                         DebugInfo *pDebugInfo, StackFrame &stackFrame)
+HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel level, StackFrame &stackFrame)
 {
     HRESULT Status = S_OK;
 
     std::string displayMethodName;
-    if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(pFrame, pDebugInfo, displayMethodName)))
+    if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(pFrame, displayMethodName)))
     {
         displayMethodName = "[Unnamed managed method in optimized code]";
     }
@@ -186,12 +185,12 @@ HRESULT GetFrameLocation(ICorDebugFrame *pFrame, ThreadId threadId, FrameLevel l
 
     PDB::SequencePoint sp;
     PDB::GlobalFileIndex globalFileIndex;
-    if (SUCCEEDED(pDebugInfo->GetSequencePointByFrame(pFrame, sp, &globalFileIndex)))
+    if (SUCCEEDED(DebugInfo::GetSequencePointByFrame(pFrame, sp, &globalFileIndex)))
     {
         std::string sourceFilePath;
         std::string algorithm;
         std::string checksum;
-        pDebugInfo->GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
+        DebugInfo::GetSourceFile(globalFileIndex, sourceFilePath, algorithm, checksum);
         int32_t sourceReference = 0;
         SourceReference::GetSourceReference(globalFileIndex, sourceReference, sourceFilePath);
 
@@ -252,7 +251,7 @@ CORDB_ADDRESS GetFrameNativeIP(ICorDebugFrame *pFrame)
 using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
                                                  const std::string *, const Source *, CORDB_ADDRESS)>;
 
-HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFramesCallback &cb)
+HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 {
     HRESULT Status = S_OK;
 
@@ -334,15 +333,15 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             }
 
             std::string displayMethodName;
-            if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trModule, exceptionObjectStackFrame.methodDef, pDebugInfo, displayMethodName)))
+            if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trModule, exceptionObjectStackFrame.methodDef, displayMethodName)))
             {
                 displayMethodName = "[Unnamed managed method in optimized code]";
             }
 
             std::string algorithm;
             std::string checksum;
-            if (SUCCEEDED(pDebugInfo->GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
-                SUCCEEDED(pDebugInfo->GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath, algorithm, checksum)))
+            if (SUCCEEDED(DebugInfo::GetSequencePointByILOffset(modAddress, exceptionObjectStackFrame.methodDef, ilOffset, sequencePoint)) &&
+                SUCCEEDED(DebugInfo::GetSourceFile({modAddress, sequencePoint.sourceFileIndex}, sourceFilePath, algorithm, checksum)))
             {
                 int32_t sourceReference = 0;
                 SourceReference::GetSourceReference({modAddress, sequencePoint.sourceFileIndex}, sourceReference, sourceFilePath);
@@ -489,8 +488,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
             // Hide state machine related frames for both JMC and non-JMC cases.
             std::string displayMethodName;
             ToRelease<ICorDebugFunction> trFunction;
-            if ((pDebugInfo != nullptr && SUCCEEDED(trFrame->GetFunction(&trFunction)) && pDebugInfo->IsStateMachineKickoffMethod(trFunction)) ||
-                (pDebugInfo != nullptr && SUCCEEDED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, pDebugInfo, displayMethodName)) &&
+            if ((SUCCEEDED(trFrame->GetFunction(&trFunction)) && DebugInfo::IsStateMachineKickoffMethod(trFunction)) ||
+                (SUCCEEDED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, displayMethodName)) &&
                  // Note: starts_with() is C++20, use rfind() for compatibility
                  (displayMethodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
                   displayMethodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
@@ -540,7 +539,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, DebugInfo *pDebugInfo, const WalkFr
 
 } // unnamed namespace
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebugInfo, bool justMyCode, ICorDebugFrame **ppFrame)
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, bool justMyCode, ICorDebugFrame **ppFrame)
 {
     const auto foreignExceptionFrameDetected = [&]() -> bool
     {
@@ -615,7 +614,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
 
     // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
     // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
-    WalkFrames(pThread, pDebugInfo,
+    WalkFrames(pThread,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *,
             const std::string *, const Source *, CORDB_ADDRESS) -> HRESULT
         {
@@ -683,7 +682,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, DebugInfo *pDebug
 }
 
 HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                       DebugInfo *pDebugInfo, bool justMyCode, std::vector<StackFrame> &stackFrames)
+                       bool justMyCode, std::vector<StackFrame> &stackFrames)
 {
     // CoreCLR native frame, could be part of transition to at least one user's native frame.
     static const std::string FrameCLRNativeText = "[CLR Native Frame]";
@@ -731,7 +730,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
 
     // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
     // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
-    WalkFrames(pThread, pDebugInfo,
+    WalkFrames(pThread,
         [&](FrameType frameType, ICorDebugFrame *pFrame, const PDB::SequencePoint *pSequencePoint,
             const std::string *pMethodName, const Source *pSource, CORDB_ADDRESS ip) -> HRESULT
         {
@@ -834,7 +833,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
         case FrameType::CLRManaged:
         {
             StackFrame stackFrame;
-            GetFrameLocation(frame.trFrame, threadId, FrameLevel{currentFrame}, pDebugInfo, stackFrame);
+            GetFrameLocation(frame.trFrame, threadId, FrameLevel{currentFrame}, stackFrame);
             if (frame.ip != 0)
             {
                 stackFrame.instructionPointerReference = MetadataHelpers::AddrToString(frame.ip);

@@ -28,7 +28,6 @@
 namespace dncdbg
 {
 
-class DebugInfo;
 class EvalStackMachine;
 
 class Evaluator
@@ -89,36 +88,36 @@ class Evaluator
                                                       std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
     using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
 
-    explicit Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo);
+    Evaluator() = default;
 
     HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                SetterData *pInputSetterData, std::vector<std::string> &identifiers,
                                FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                               std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType);
+                               std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType) const;
 
     HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                           mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
+                           mdFieldDef fieldDef, ICorDebugValue **ppResultValue) const;
     HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                        bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
+                        bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb) const;
 
     static HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef, DebugInfo *pDebugInfo,
+                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                             ICorDebugModule *pModule, const Evaluator::WalkStackVarsCallback &cb);
 
-    HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
+    HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb) const;
 
     // Get the fully-qualified "display" type name of the method's declaring type.
-    HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis);
+    HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis) const;
 
     HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
                          const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,
                          ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                         std::unique_ptr<Evaluator::SetterData> *pResultSetterData);
+                         std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const;
 
     HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                   std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                   const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                                  std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData);
+                                  std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const;
 
     HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output) const;
 
@@ -133,7 +132,7 @@ class Evaluator
     HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
     HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
-    void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
+    void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports) const;
 
     static bool IsEnumeration(ICorDebugValue *pInputValue);
 
@@ -156,8 +155,6 @@ class Evaluator
     }
 
   private:
-
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
 
     bool m_justMyCode{true};
     uint32_t m_evalFlags{defaultEvalFlags};

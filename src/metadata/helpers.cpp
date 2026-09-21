@@ -1539,7 +1539,7 @@ HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeNam
     return S_OK;
 }
 
-HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayTypeName)
+HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displayTypeName)
 {
     HRESULT Status = S_OK;
     displayTypeName.clear();
@@ -1552,7 +1552,7 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugIn
     IfFailRet(trFunction->GetToken(&methodToken));
 
     mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
+    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
         FAILED(GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
@@ -1579,7 +1579,7 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, DebugInfo *pDebugIn
     return S_OK;
 }
 
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebugInfo, std::string &displayName)
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &displayName)
 {
     HRESULT Status = S_OK;
 
@@ -1592,7 +1592,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
 
     mdMethodDef methodDef = mdMethodDefNil;
     bool asyncMethod = true;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
+    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
         FAILED(GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
     {
         methodDef = methodToken;
@@ -1650,7 +1650,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
             if (SUCCEEDED(trILFrame->GetArgument(0, &trCurrentThis)))
             {
                 std::unordered_set<WSTRING> usedNames;
-                Evaluator::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, pDebugInfo, trModule,
+                Evaluator::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, trModule,
                     [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
                     {
                         ToRelease<ICorDebugValue> trValue;
@@ -1732,12 +1732,12 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, DebugInfo *pDebug
     return S_OK;
 }
 
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, DebugInfo *pDebugInfo, std::string &displayName)
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, std::string &displayName)
 {
     HRESULT Status = S_OK;
 
     mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(pDebugInfo->GetStateMachineKickoffMethod(pModule, methodToken, methodDef)) &&
+    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(pModule, methodToken, methodDef)) &&
         FAILED(GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
     {
         methodDef = methodToken;

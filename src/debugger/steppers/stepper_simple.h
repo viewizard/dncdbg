@@ -19,16 +19,11 @@
 namespace dncdbg
 {
 
-class DebugInfo;
-
 class SimpleStepper
 {
   public:
 
-    explicit SimpleStepper(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-        : m_sharedDebugInfo(sharedDebugInfo)
-    {
-    }
+    SimpleStepper() = default;
 
     HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
@@ -51,7 +46,6 @@ class SimpleStepper
 
   private:
 
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     bool m_justMyCode{true};
 
     std::mutex m_stepMutex;

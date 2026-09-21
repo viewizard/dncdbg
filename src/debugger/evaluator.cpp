@@ -497,14 +497,9 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
 
 } // unnamed namespace
 
-Evaluator::Evaluator(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-    : m_sharedDebugInfo(sharedDebugInfo)
-{
-}
-
 // Note, could return S_CAN_EXIT for fast exit.
 HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef, DebugInfo *pDebugInfo,
+                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
                                             ICorDebugModule *pModule, const Evaluator::WalkStackVarsCallback &cb)
 {
     HRESULT Status = S_OK;
@@ -559,7 +554,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 ToRelease<ICorDebugValue> trDisplayClassValue;
                 IfFailRet(getValue(&trDisplayClassValue, nullptr));
                 IfFailRet(WalkGeneratedClassFields(pMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                                   pDebugInfo, pModule, cb));
+                                                   pModule, cb));
                 if (Status == S_CAN_EXIT)
                 {
                     return S_CAN_EXIT; // Fast exit from the loop.
@@ -571,7 +566,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
                 // Note: in case we have any issue, ignore this check and show the variable, since this is not a fatal error.
                 int32_t index = 0;
                 if (SUCCEEDED(TryParseSlotIndex(mdName, index)) && index >= 0 &&
-                    !pDebugInfo->IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
+                    !DebugInfo::IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
                 {
                     return S_OK; // Return success to continue walking.
                 }
@@ -861,7 +856,7 @@ HRESULT Evaluator::WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCal
 }
 
 HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                                  mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
+                                  mdFieldDef fieldDef, ICorDebugValue **ppResultValue) const
 {
     if (pThread == nullptr)
     {
@@ -870,7 +865,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
 
     if (trFrame == nullptr)
     {
@@ -952,7 +947,7 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
 }
 
 HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
+                               bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb) const
 {
     // Same behavior as MS vsdbg and MSVS C# debugger have - don't show enumeration members.
     if (IsEnumeration(pInputValue))
@@ -1446,11 +1441,11 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis)
+HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis) const
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1528,11 +1523,11 @@ HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel fra
     return MetadataHelpers::GetFQDisplayNameForToken(userTypeDef, trMDImport, displayTypeName, &args);
 }
 
-HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
+HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb) const
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1617,7 +1612,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             {
                 if (pFallbackTypeName != nullptr)
                 {
-                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), *pFallbackTypeName);
+                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, *pFallbackTypeName);
                 }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };
@@ -1713,7 +1708,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1752,7 +1747,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     for (uint32_t i = 0; i < cLocals; i++)
     {
         WSTRING wLocalName;
-        if (FAILED(m_sharedDebugInfo->GetFrameNamedLocalVariable(trModule, methodDef, currentIlOffset, i, wLocalName)))
+        if (FAILED(DebugInfo::GetFrameNamedLocalVariable(trModule, methodDef, currentIlOffset, i, wLocalName)))
         {
             continue;
         }
@@ -1761,7 +1756,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1778,7 +1773,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
             ToRelease<ICorDebugValue> trDisplayClassValue;
             IfFailRet(getValue(&trDisplayClassValue, nullptr));
             IfFailRet(WalkGeneratedClassFields(trMDImport, trDisplayClassValue, currentIlOffset, usedNames, methodDef,
-                                               m_sharedDebugInfo.get(), trModule, cb));
+                                               trModule, cb));
             if (Status == S_CAN_EXIT)
             {
                 return S_OK;
@@ -1800,7 +1795,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     // Enumerate local constants (literals) from PDB
     {
         std::vector<PDB::LocalConstant> localConstants;
-        if (SUCCEEDED(m_sharedDebugInfo->GetLocalConstants(trModule, methodDef, currentIlOffset, localConstants)))
+        if (SUCCEEDED(DebugInfo::GetLocalConstants(trModule, methodDef, currentIlOffset, localConstants)))
         {
             for (const auto &constant : localConstants)
             {
@@ -1842,7 +1837,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 
     if (generatedCodeKind != GeneratedCodeKind::Normal)
     {
-        IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, m_sharedDebugInfo.get(), trModule, cb));
+        IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, trModule, cb));
         if (Status == S_CAN_EXIT)
         {
             return S_OK;
@@ -1860,7 +1855,7 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
 HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
                                 ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
                                 FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
+                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const
 {
     HRESULT Status = S_OK;
 
@@ -1925,7 +1920,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
                                          std::vector<std::string> &identifiers, FormatSpecifier specifier,
                                          const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                                         std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
+                                         std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const
 {
     HRESULT Status = S_OK;
 
@@ -2038,7 +2033,7 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
 HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                                       SetterData *pInputSetterData, std::vector<std::string> &identifiers,
                                       FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                                      std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType)
+                                      std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType) const
 {
     if (pForcedThisValue != nullptr && identifiers.empty())
     {
@@ -2169,14 +2164,14 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
         }
 
         std::string displayTypeName;
-        MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, m_sharedDebugInfo.get(), displayTypeName);
+        MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
                                             pdbImports, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
@@ -2524,13 +2519,13 @@ HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
+void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports) const
 {
     const auto getImportsAndAliases = [&]() -> HRESULT
     {
         HRESULT Status = S_OK;
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, m_sharedDebugInfo.get(), IsJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
@@ -2562,7 +2557,7 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
-        IfFailRet(m_sharedDebugInfo->GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
+        IfFailRet(DebugInfo::GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
 
         const auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias) -> HRESULT
         {

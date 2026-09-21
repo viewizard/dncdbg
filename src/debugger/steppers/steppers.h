@@ -21,13 +21,12 @@ namespace dncdbg
 
 class SimpleStepper;
 class AsyncStepper;
-class DebugInfo;
 
 class Steppers
 {
   public:
 
-    explicit Steppers(std::shared_ptr<DebugInfo> &sharedDebugInfo);
+    Steppers();
     HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
     // Important! Callbacks related methods must control return for succeeded return code.
@@ -51,7 +50,6 @@ class Steppers
 
     std::shared_ptr<SimpleStepper> m_simpleStepper;
     std::shared_ptr<AsyncStepper> m_asyncStepper;
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     StepType m_initialStepType{StepType::STEP_OVER};
     PDB::SequencePoint m_StepStartSP;
     bool m_justMyCode{true};

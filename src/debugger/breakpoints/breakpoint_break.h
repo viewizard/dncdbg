@@ -19,16 +19,11 @@
 namespace dncdbg
 {
 
-class DebugInfo;
-
 class BreakBreakpoint
 {
   public:
 
-    explicit BreakBreakpoint(std::shared_ptr<DebugInfo> &sharedDebugInfo)
-        : m_sharedDebugInfo(sharedDebugInfo)
-    {
-    }
+    BreakBreakpoint() = default;
 
     void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
 
@@ -44,7 +39,6 @@ class BreakBreakpoint
   private:
 
     std::mutex m_breakMutex;
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
 
     struct FullyQualifiedIlOffset_t
     {

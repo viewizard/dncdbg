@@ -104,14 +104,13 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     return mdMethodDefNil;
 }
 
-// Try to setup proper entry breakpoint method token and IL offset for async Main method.
+// Try to set up proper entry breakpoint method token and IL offset for the async Main method.
 // [in] pModule - module with async Main method;
 // [in] pMDImport - metadata import interface for pModule;
-// [in] pDebugInfo - all loaded modules debug related data;
 // [in] mdMainClass - class token with Main method in module pModule;
 // [out] entryPointToken - corrected method token;
 // [out] entryPointOffset - corrected IL offset on first user code line.
-HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMDImport, DebugInfo *pDebugInfo,
+HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
                                      mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
     // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
@@ -190,9 +189,9 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         return E_FAIL;
     }
 
-    // Note, in case of async `MoveNext` method, user code don't start from 0 IL offset.
+    // Note, in case of an async `MoveNext` method, user code does not start from 0 IL offset.
     uint32_t ilNextOffset = 0;
-    IfFailRet(pDebugInfo->GetNextUserCodeILOffset(pModule, resultToken, 0, ilNextOffset));
+    IfFailRet(DebugInfo::GetNextUserCodeILOffset(pModule, resultToken, 0, ilNextOffset));
 
     entryPointToken = resultToken;
     entryPointOffset = ilNextOffset;
@@ -244,7 +243,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         // this should be a method without user code.
         if (funcName == W("<Main>"))
         {
-            TrySetupAsyncEntryBreakpoint(pModule, trMDImport, m_sharedDebugInfo.get(), mdMainClass, entryPointToken, entryPointOffset);
+            TrySetupAsyncEntryBreakpoint(pModule, trMDImport, mdMainClass, entryPointToken, entryPointOffset);
         }
         return S_OK;
     };

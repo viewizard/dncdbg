@@ -22,7 +22,6 @@
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debuginfo/debuginfo.h"
-#include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
 #include "utils/diagnostics_client.h"
@@ -352,12 +351,11 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedDebugInfo(std::make_shared<DebugInfo>()),
-      m_sharedEvaluator(std::make_shared<Evaluator>(m_sharedDebugInfo)),
+      m_sharedEvaluator(std::make_shared<Evaluator>()),
       m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator)),
       m_sharedVariables(std::make_shared<Variables>(m_sharedEvaluator, m_sharedEvalStackMachine)),
-      m_uniqueSteppers(std::make_unique<Steppers>(m_sharedDebugInfo)),
-      m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedDebugInfo, m_sharedEvaluator, m_sharedEvalStackMachine)),
+      m_uniqueSteppers(std::make_unique<Steppers>()),
+      m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedEvaluator, m_sharedEvalStackMachine)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
@@ -561,7 +559,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
 }
 
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the static Threads, so it is intentionally kept non-static.
+// the call to the Threads namespace functions, so it is intentionally kept non-static.
 HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads) // NOLINT(readability-convert-member-functions-to-static)
 {
     return Threads::GetThreads(threads);
@@ -829,7 +827,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 
 void ManagedDebugger::Cleanup()
 {
-    m_sharedDebugInfo->Cleanup();
+    DebugInfo::Cleanup();
     m_sharedVariables->Cleanup();
     EvalExec::Cleanup();
     SystemTypes::Cleanup();
@@ -930,7 +928,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     ToRelease<ICorDebugThread> trThread;
     if (SUCCEEDED(Status = m_trProcess->GetThread(static_cast<int>(threadId), &trThread)))
     {
-        return GetStackFrames(trThread, threadId, startFrame, maxFrames, m_sharedDebugInfo.get(), IsJustMyCode(), stackFrames);
+        return GetStackFrames(trThread, threadId, startFrame, maxFrames, IsJustMyCode(), stackFrames);
     }
 
     return Status;
@@ -1045,7 +1043,7 @@ HRESULT ManagedDebugger::GetGotoTarget(const Source &source, int32_t line, int32
     m_targets.clear();
     m_intTargets.clear();
 
-    IfFailRet(m_sharedDebugInfo->GetGotoTarget(source, line, column, m_targets, m_intTargets, output));
+    IfFailRet(DebugInfo::GetGotoTarget(source, line, column, m_targets, m_intTargets, output));
 
     targets = m_targets;
 
@@ -1134,20 +1132,26 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     return S_OK;
 }
 
-HRESULT ManagedDebugger::GetSourceContent(const Source &source, std::string &sourceContent)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
+HRESULT ManagedDebugger::GetSourceContent(const Source &source, std::string &sourceContent) // NOLINT(readability-convert-member-functions-to-static)
 {
-    return m_sharedDebugInfo->GetSourceContent(source, sourceContent);
+    return DebugInfo::GetSourceContent(source, sourceContent);
 }
 
-void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
+void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources) // NOLINT(readability-convert-member-functions-to-static)
 {
-    m_sharedDebugInfo->GetLoadedSources(sources);
+    DebugInfo::GetLoadedSources(sources);
 }
 
-HRESULT ManagedDebugger::GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
+// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
+HRESULT ManagedDebugger::GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch, // NOLINT(readability-convert-member-functions-to-static)
                                                 std::vector<BreakpointLocation> &locations)
 {
-    return m_sharedDebugInfo->GetBreakpointLocations(source, rangeToSearch, locations);
+    return DebugInfo::GetBreakpointLocations(source, rangeToSearch, locations);
 }
 
 } // namespace dncdbg

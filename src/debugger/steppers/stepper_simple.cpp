@@ -5,7 +5,7 @@
 
 #include "debugger/steppers/stepper_simple.h"
 #include "debugger/threads.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h"
 #include "utils/hresult.h"
 
 namespace dncdbg
@@ -47,7 +47,7 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     const BOOL bStepIn = (stepType == StepType::STEP_IN) ? TRUE : FALSE;
 
     COR_DEBUG_STEP_RANGE range;
-    if (SUCCEEDED(m_sharedDebugInfo->GetStepRangeFromCurrentIP(pThread, range)))
+    if (SUCCEEDED(DebugInfo::GetStepRangeFromCurrentIP(pThread, range)))
     {
         IfFailRet(trStepper->StepRange(bStepIn, &range, 1));
     }

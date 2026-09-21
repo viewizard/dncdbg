@@ -29,17 +29,14 @@ namespace dncdbg
 
 class Evaluator;
 class EvalStackMachine;
-class DebugInfo;
 
 class FunctionBreakpoints
 {
   public:
 
-    FunctionBreakpoints(std::shared_ptr<DebugInfo> &sharedDebugInfo,
-                        std::shared_ptr<Evaluator> &sharedEvaluator,
+    FunctionBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
                         std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedDebugInfo(sharedDebugInfo),
-          m_sharedEvaluator(sharedEvaluator),
+        : m_sharedEvaluator(sharedEvaluator),
           m_sharedEvalStackMachine(sharedEvalStackMachine)
     {
     }
@@ -74,7 +71,6 @@ class FunctionBreakpoints
 
   private:
 
-    std::shared_ptr<DebugInfo> m_sharedDebugInfo;
     std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
@@ -109,9 +105,9 @@ class FunctionBreakpoints
     std::unordered_map<std::string, ManagedFunctionBreakpoint> m_funcBreakpoints;
 
     using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
-    HRESULT AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved);
-    HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp);
-    HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp);
+    HRESULT AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved) const;
+    HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp) const;
+    HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp) const;
 };
 
 } // namespace dncdbg

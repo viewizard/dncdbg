@@ -6,7 +6,7 @@
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
-#include "debuginfo/debuginfo.h" // NOLINT(misc-include-cleaner)
+#include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
@@ -344,7 +344,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved)
+HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved) const
 {
     HRESULT Status = S_OK;
 
@@ -363,7 +363,7 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
         IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
 
         uint32_t ilOffset = 0;
-        if (FAILED(m_sharedDebugInfo->GetNextUserCodeILOffset(pModule, methodToken, 0, ilOffset)))
+        if (FAILED(DebugInfo::GetNextUserCodeILOffset(pModule, methodToken, 0, ilOffset)))
         {
             return S_OK;
         }
@@ -380,12 +380,12 @@ HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fb
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
+HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp) const
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedDebugInfo->ResolveFunctionBreakpointInAny(fbp.name,
+    IfFailRet(DebugInfo::ResolveFunctionBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
@@ -395,12 +395,12 @@ HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint
     return AddFunctionBreakpoint(fbp, fbpResolved);
 }
 
-HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp)
+HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp) const
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(m_sharedDebugInfo->ResolveFunctionBreakpointInModule(
+    IfFailRet(DebugInfo::ResolveFunctionBreakpointInModule(
         pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
