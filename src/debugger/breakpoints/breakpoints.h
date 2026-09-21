@@ -24,7 +24,6 @@
 namespace dncdbg
 {
 
-class Evaluator;
 class EvalStackMachine;
 class BreakBreakpoint;
 class EntryBreakpoint;
@@ -36,8 +35,7 @@ class Breakpoints
 {
   public:
 
-    Breakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
-                std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine);
+    explicit Breakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine);
 
     void SetJustMyCode(bool enable);
     void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);

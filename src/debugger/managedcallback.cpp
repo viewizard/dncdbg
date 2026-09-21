@@ -239,7 +239,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     }
 
     const ThreadId threadId(GetThreadId(pThread));
-    Threads::Add(m_debugger.m_sharedEvaluator, pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
+    Threads::Add(pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -292,7 +292,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
         SystemTypes::ManagedCallbackLoadModule(pModule);
     }
 
-    m_debugger.m_sharedEvaluator->ManagedCallbackLoadModule(pModule);
+    Evaluator::ManagedCallbackLoadModule(pModule);
 
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule);
-    m_debugger.m_sharedEvaluator->ManagedCallbackUnloadModule(pModule);
+    Evaluator::ManagedCallbackUnloadModule(pModule);
     TypeProxy::ManagedCallbackUnloadModule(pModule);
 
     Module removedModule;
@@ -397,7 +397,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ControlCTrap(ICorDebugProcess *pProce
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::NameChange(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    Threads::ChangeName(m_debugger.m_sharedEvaluator, pThread);
+    Threads::ChangeName(pThread);
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
 

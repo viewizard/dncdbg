@@ -41,17 +41,14 @@ struct LineColumnHash
     }
 };
 
-class Evaluator;
 class EvalStackMachine;
 
 class SourceBreakpoints
 {
   public:
 
-    SourceBreakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
-                      std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
-        : m_sharedEvaluator(sharedEvaluator),
-          m_sharedEvalStackMachine(sharedEvalStackMachine)
+    explicit SourceBreakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+        : m_sharedEvalStackMachine(sharedEvalStackMachine)
     {
     }
 
@@ -119,7 +116,6 @@ class SourceBreakpoints
 
   private:
 
-    std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     bool m_justMyCode{true};
 

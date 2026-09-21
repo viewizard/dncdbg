@@ -30,7 +30,6 @@ namespace dncdbg
 {
 
 class Steppers;
-class Evaluator;
 class EvalStackMachine;
 class Variables;
 class ManagedCallback;
@@ -149,7 +148,6 @@ class ManagedDebugger
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
 
-    std::shared_ptr<Evaluator> m_sharedEvaluator;
     std::shared_ptr<EvalStackMachine> m_sharedEvalStackMachine;
     std::shared_ptr<Variables> m_sharedVariables;
     std::unique_ptr<Steppers> m_uniqueSteppers;

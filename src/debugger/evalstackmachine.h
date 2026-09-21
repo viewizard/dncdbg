@@ -73,7 +73,6 @@ struct EvalStackEntry
 struct EvalData
 {
     ICorDebugThread *pThread{nullptr};
-    Evaluator *pEvaluator{nullptr};
     FrameLevel frameLevel;
     FormatSpecifier specifier{FormatSpecifier::None};
     ICorDebugValue *pForcedThisValue{nullptr};
@@ -83,11 +82,7 @@ class EvalStackMachine
 {
   public:
 
-    explicit EvalStackMachine(std::shared_ptr<Evaluator> &sharedEvaluator)
-        : m_sharedEvaluator(sharedEvaluator)
-    {
-        m_evalData.pEvaluator = m_sharedEvaluator.get();
-    }
+    EvalStackMachine() = default;
 
     // Evaluate expression. Optional, return `editable` state and in case the result is a property - setter-related information.
     HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
@@ -100,7 +95,6 @@ class EvalStackMachine
 
   private:
 
-    std::shared_ptr<Evaluator> m_sharedEvaluator;
     EvalData m_evalData;
 
     // Run stack machine for particular expression.

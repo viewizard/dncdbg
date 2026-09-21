@@ -5,7 +5,6 @@
 
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
-#include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -303,7 +302,7 @@ void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::p
     }
 }
 
-void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
+void BuildTextWithEval(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output)
 {
     // Build the final output text by evaluating expressions.
@@ -327,7 +326,7 @@ void BuildTextWithEval(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachin
             if (SUCCEEDED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, expression,
                                                                 pForcedThisValue == nullptr ? specifier : specifier | FormatSpecifier::DisplaysInRawMode,
                                                                 pForcedThisValue, &trResultValue, nullptr, errorText)) &&
-                SUCCEEDED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, specifier, value)))
+                SUCCEEDED(PrintValue(pThread, pEvalStackMachine, trResultValue, specifier, value)))
             {
                 output += value;
             }

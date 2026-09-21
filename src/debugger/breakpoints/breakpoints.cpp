@@ -16,13 +16,12 @@
 namespace dncdbg
 {
 
-Breakpoints::Breakpoints(std::shared_ptr<Evaluator> &sharedEvaluator,
-                         std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
+Breakpoints::Breakpoints(std::shared_ptr<EvalStackMachine> &sharedEvalStackMachine)
     : m_breakBreakpoint(std::make_shared<BreakBreakpoint>()),
       m_entryBreakpoint(std::make_shared<EntryBreakpoint>()),
-      m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>(sharedEvaluator, sharedEvalStackMachine)),
-      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedEvaluator, sharedEvalStackMachine)),
-      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedEvaluator, sharedEvalStackMachine))
+      m_exceptionBreakpoints(std::make_shared<ExceptionBreakpoints>(sharedEvalStackMachine)),
+      m_funcBreakpoints(std::make_shared<FunctionBreakpoints>(sharedEvalStackMachine)),
+      m_sourceBreakpoints(std::make_shared<SourceBreakpoints>(sharedEvalStackMachine))
 {
 }
 

@@ -21,15 +21,13 @@
 namespace dncdbg
 {
 
-class Evaluator;
-
 ThreadId GetThreadId(ICorDebugThread *pThread);
 
 namespace Threads
 {
 
-void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
-void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread);
+void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
+void ChangeName(ICorDebugThread *pThread);
 void Remove(const ThreadId &threadId);
 HRESULT GetThreads(std::vector<Thread> &threads);
 HRESULT GetThreadIds(std::vector<ThreadId> &threads);

@@ -355,11 +355,10 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedEvaluator(std::make_shared<Evaluator>()),
-      m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>(m_sharedEvaluator)),
-      m_sharedVariables(std::make_shared<Variables>(m_sharedEvaluator, m_sharedEvalStackMachine)),
+      m_sharedEvalStackMachine(std::make_shared<EvalStackMachine>()),
+      m_sharedVariables(std::make_shared<Variables>(m_sharedEvalStackMachine)),
       m_uniqueSteppers(std::make_unique<Steppers>()),
-      m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedEvaluator, m_sharedEvalStackMachine)),
+      m_sharedBreakpoints(std::make_shared<Breakpoints>(m_sharedEvalStackMachine)),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
@@ -837,6 +836,7 @@ void ManagedDebugger::Cleanup()
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
+    Evaluator::Cleanup();
     Modules::Cleanup();
     Threads::Cleanup();
 
@@ -998,7 +998,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
     m_justMyCode = enable;
     m_uniqueSteppers->SetJustMyCode(enable);
     m_sharedBreakpoints->SetJustMyCode(enable);
-    m_sharedEvaluator->SetJustMyCode(enable);
+    Evaluator::SetJustMyCode(enable);
 }
 
 void ManagedDebugger::SetStepFiltering(bool enable)
@@ -1007,10 +1007,12 @@ void ManagedDebugger::SetStepFiltering(bool enable)
     m_uniqueSteppers->SetStepFiltering(enable);
 }
 
-void ManagedDebugger::SetEvalFlags(uint32_t evalFlags)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
+// the calls to the EvalExec and Evaluator namespace functions, so it is intentionally kept non-static.
+void ManagedDebugger::SetEvalFlags(uint32_t evalFlags) // NOLINT(readability-convert-member-functions-to-static)
 {
     EvalExec::SetEvalFlags(evalFlags);
-    m_sharedEvaluator->SetEvalFlags(evalFlags);
+    Evaluator::SetEvalFlags(evalFlags);
 }
 
 void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)

@@ -18,7 +18,6 @@
 namespace dncdbg
 {
 
-class Evaluator;
 class EvalStackMachine;
 
 namespace BreakpointHelpers
@@ -26,7 +25,7 @@ namespace BreakpointHelpers
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
-HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+HRESULT IsEnableByCondition(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
                             const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
 HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &nativeAddress);

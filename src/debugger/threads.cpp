@@ -21,10 +21,8 @@ namespace dncdbg
 namespace
 {
 
-std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
+std::string GetThreadName(ICorDebugThread *pThread)
 {
-    assert(sharedEvaluator);
-
     std::string threadName = "<No name>";
 
     ToRelease<ICorDebugValue> trThreadObject;
@@ -35,7 +33,7 @@ std::string GetThreadName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICo
     }
 
     HRESULT Status = S_OK;
-    sharedEvaluator->WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None,
+    Evaluator::WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None,
         [&](ICorDebugType *, bool, const std::string &memberName,
             const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
         {
@@ -98,11 +96,11 @@ ThreadId &GetMainThread()
 
 } // unnamed namespace
 
-void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
 {
     const WriteLock w_lock(GetUserThreadsRWLock());
 
-    const std::string threadName = GetThreadName(sharedEvaluator, pThread);
+    const std::string threadName = GetThreadName(pThread);
 
     // The first user thread added during startup is the Main thread.
     if (!processAttached && !GetMainThread())
@@ -118,7 +116,7 @@ void Add(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pTh
     GetUserThreads().emplace(threadId, threadName);
 }
 
-void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThread *pThread)
+void ChangeName(ICorDebugThread *pThread)
 {
     if (pThread == nullptr)
     {
@@ -127,7 +125,7 @@ void ChangeName(const std::shared_ptr<Evaluator> &sharedEvaluator, ICorDebugThre
 
     const WriteLock w_lock(GetUserThreadsRWLock());
 
-    const std::string threadName = GetThreadName(sharedEvaluator, pThread);
+    const std::string threadName = GetThreadName(pThread);
     const ThreadId threadId(GetThreadId(pThread));
 
     auto &userThreads = GetUserThreads();

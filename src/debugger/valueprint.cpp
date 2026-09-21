@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/valueprint.h"
+#include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
@@ -25,7 +26,7 @@ namespace dncdbg
 namespace
 {
 
-HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+HRESULT PrintDebuggerDisplayAttribute(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
                                       ICorDebugValue *pInputValue, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -75,7 +76,7 @@ HRESULT PrintDebuggerDisplayAttribute(Evaluator *pEvaluator, EvalStackMachine *p
 
     std::vector<std::pair<std::string, bool>> textWithEvalParts;
     CreateTextWithEvalParts(textWithEval, textWithEvalParts);
-    BuildTextWithEval(pEvaluator, pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
+    BuildTextWithEval(pEvalStackMachine, pThread, pInputValue, textWithEvalParts, output);
     return S_OK;
 }
 
@@ -507,7 +508,7 @@ HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output)
     return S_OK;
 }
 
-HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine,
+HRESULT PrintValue(ICorDebugThread *pThread, EvalStackMachine *pEvalStackMachine,
                    ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -675,7 +676,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                 else
                 {
                     std::string valueToString;
-                    if (SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
+                    if (SUCCEEDED(Evaluator::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                     {
                         ss << '{' << valueToString << '}';
                     }
@@ -687,7 +688,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
             }
             else
             {
-                if (SUCCEEDED(PrintDebuggerDisplayAttribute(pEvaluator, pEvalStackMachine, pThread, trCurrentValue, output)))
+                if (SUCCEEDED(PrintDebuggerDisplayAttribute(pEvalStackMachine, pThread, trCurrentValue, output)))
                 {
                     return S_OK;
                 }
@@ -700,7 +701,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMac
                 ss << '{';
                 std::string valueToString;
                 if (displayTypeName != "System.Exception" && displayTypeName != "System.Object" && displayTypeName != "System.ValueType" &&
-                    SUCCEEDED(pEvaluator->CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
+                    SUCCEEDED(Evaluator::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
                     // Escape the ToString() result the same way as string values.
                     EscapeString(valueToString, '"');

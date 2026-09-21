@@ -4,10 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluator.h"
+#include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
-#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
 #include "debugger/frames.h"
 #include "debugger/valueprint.h"
 #include "debuginfo/debuginfo.h"
@@ -23,11 +23,14 @@
 #include <iterator>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::Evaluator
 {
 
 namespace
@@ -434,7 +437,7 @@ HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typ
 
 HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                               ICorDebugValue *pInputValue, std::unordered_set<WSTRING> &usedNames,
-                                              Evaluator::WalkStackVarsCallback cb)
+                                              WalkStackVarsCallback cb)
 {
     HRESULT Status = S_OK;
     BOOL isNull = FALSE;
@@ -495,12 +498,116 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
     });
 }
 
+bool &GetJustMyCode()
+{
+    static bool justMyCode{true};
+    return justMyCode;
+}
+
+uint32_t &GetEvalFlagsState()
+{
+    static uint32_t evalFlags{defaultEvalFlags};
+    return evalFlags;
+}
+
+struct ModuleExtensionMethods
+{
+    ToRelease<ICorDebugModule> trModule;
+    std::vector<mdMethodDef> methodDefs;
+
+    ModuleExtensionMethods(ICorDebugModule *pModule, std::vector<mdMethodDef> &&methodDefs_)
+        : trModule(pModule),
+          methodDefs(std::move(methodDefs_))
+    {
+    }
+};
+
+std::mutex &GetExtensionMethodsMutex()
+{
+    static std::mutex extensionMethodsMutex;
+    return extensionMethodsMutex;
+}
+
+std::unordered_map<CORDB_ADDRESS, ModuleExtensionMethods> &GetExtensionMethodsCache()
+{
+    static std::unordered_map<CORDB_ADDRESS, ModuleExtensionMethods> extensionMethodsCache;
+    return extensionMethodsCache;
+}
+
+HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
+{
+    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.extensionattribute
+    // Indicates that a method is an extension method, or that a class or assembly contains extension methods.
+    static const WSTRING extensionAttribute(W("System.Runtime.CompilerServices.ExtensionAttribute"));
+    HRESULT Status = S_OK;
+
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&modAddress));
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+    ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
+    mdAssembly assemblyToken = mdAssemblyNil;
+    if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+        SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)) &&
+        !HasAttribute(trMDImport, assemblyToken, extensionAttribute))
+    {
+        return S_OK;
+    }
+
+    std::vector<mdMethodDef> moduleMethodDefs;
+    HCORENUM hTypeEnum = nullptr;
+    mdTypeDef typeDef = mdTypeDefNil;
+    ULONG fetchedTypes = 0;
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes)) && fetchedTypes != 0)
+    {
+        if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
+        {
+            continue;
+        }
+
+        HCORENUM hMethodEnum = nullptr;
+        mdMethodDef methodDef = mdMethodDefNil;
+        ULONG fetchedMethods = 0;
+        while (SUCCEEDED(trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods)) && fetchedMethods != 0)
+        {
+            DWORD methodAttr = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
+                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
+                !HasAttribute(trMDImport, methodDef, extensionAttribute))
+            {
+                continue;
+            }
+
+            moduleMethodDefs.emplace_back(methodDef);
+        }
+        trMDImport->CloseEnum(hMethodEnum);
+    }
+    trMDImport->CloseEnum(hTypeEnum);
+
+    if (!moduleMethodDefs.empty())
+    {
+        moduleMethodDefs.shrink_to_fit();
+
+        const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+
+        pModule->AddRef();
+        GetExtensionMethodsCache().emplace(modAddress, ModuleExtensionMethods(pModule, std::move(moduleMethodDefs)));
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 // Note, could return S_CAN_EXIT for fast exit.
-HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                            std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
-                                            ICorDebugModule *pModule, const Evaluator::WalkStackVarsCallback &cb)
+HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
+                                 std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
+                                 ICorDebugModule *pModule, const WalkStackVarsCallback &cb)
 {
     HRESULT Status = S_OK;
     BOOL isNull = FALSE;
@@ -604,7 +711,7 @@ HRESULT Evaluator::WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebu
         });
 }
 
-HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
+HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
 {
     HRESULT Status = S_OK;
 
@@ -630,7 +737,7 @@ HRESULT Evaluator::GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t>
     return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
 }
 
-HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb)
+HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue2> trValue2;
@@ -642,8 +749,8 @@ HRESULT Evaluator::WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseTyp
     return WalkMethods(trType, walkBaseType, &trResultType, cb);
 }
 
-HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType,
-                               const Evaluator::WalkMethodsCallback &cb)
+HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType,
+                    const WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
     pInputType->AddRef();
@@ -749,7 +856,7 @@ HRESULT Evaluator::WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICo
     return S_OK;
 }
 
-HRESULT Evaluator::WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb)
+HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb)
 {
     HRESULT Status = S_OK;
     pInputType->AddRef();
@@ -855,8 +962,8 @@ HRESULT Evaluator::WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCal
     return S_OK;
 }
 
-HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                                  mdFieldDef fieldDef, ICorDebugValue **ppResultValue) const
+HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
+                       mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
 {
     if (pThread == nullptr)
     {
@@ -946,8 +1053,8 @@ HRESULT Evaluator::GetStaticField(ICorDebugThread *pThread, FrameLevel frameLeve
     return S_OK;
 }
 
-HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                               bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb) const
+HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
+                    bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb)
 {
     // Same behavior as MS vsdbg and MSVS C# debugger have - don't show enumeration members.
     if (IsEnumeration(pInputValue))
@@ -1373,7 +1480,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
                         {
                             trFuncSetter.Free();
                         }
-                        Evaluator::SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
+                        SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
                         IfFailRet(cb(trType, isStatic, name, getValue, &setterData, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
@@ -1441,7 +1548,7 @@ HRESULT Evaluator::WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pTh
     return S_OK;
 }
 
-HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis) const
+HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -1523,7 +1630,7 @@ HRESULT Evaluator::GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel fra
     return MetadataHelpers::GetFQDisplayNameForToken(userTypeDef, trMDImport, displayTypeName, &args);
 }
 
-HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb) const
+HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -1852,10 +1959,10 @@ HRESULT Evaluator::WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel
     return S_OK;
 }
 
-HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                                ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
-                                FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const
+HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                     ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
+                     FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
+                     std::unique_ptr<SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -1879,7 +1986,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
 
         IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
             [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *pSetterData, std::string *) -> HRESULT
+                const GetValueCallback &getValue, SetterData *pSetterData, std::string *) -> HRESULT
             {
                 if ((isStatic && valueKind == ValueKind::Variable) ||
                     (!isStatic && valueKind == ValueKind::Static) ||
@@ -1899,7 +2006,7 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
                 if (pSetterData != nullptr &&
                     pResultSetterData != nullptr)
                 {
-                    *pResultSetterData = std::make_unique<Evaluator::SetterData>(*pSetterData);
+                    *pResultSetterData = std::make_unique<SetterData>(*pSetterData);
                 }
 
                 return S_CAN_EXIT; // Fast exit from the loop.
@@ -1917,10 +2024,10 @@ HRESULT Evaluator::FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel,
     return S_OK;
 }
 
-HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
-                                         std::vector<std::string> &identifiers, FormatSpecifier specifier,
-                                         const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                                         std::string *pRealDisplayTypeName, std::unique_ptr<Evaluator::SetterData> *pResultSetterData) const
+HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
+                              std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                              const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
+                              std::string *pRealDisplayTypeName, std::unique_ptr<SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
 
@@ -1987,7 +2094,7 @@ HRESULT Evaluator::FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel fr
     return E_FAIL;
 }
 
-HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output) const
+HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
     if ((GetEvalFlags() & EVAL_NOTOSTRING) != 0U)
     {
@@ -2002,10 +2109,10 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     IfFailRet(trInputValue2->GetExactType(&trInputType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(trInputType, false, nullptr,
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+    IfFailRet(WalkMethods(trInputType, false, nullptr,
+        [&](bool isStatic, const std::string &methodName, ReturnElementType &,
             std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            const GetFunctionCallback &getFunction) -> HRESULT
         {
             if (isStatic || !methodArgs.empty() || methodName != "ToString")
             {
@@ -2030,10 +2137,10 @@ HRESULT Evaluator::CallOverriddenToString(ICorDebugThread *pThread, ICorDebugVal
     return PrintStringValue(trValue, output);
 }
 
-HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
-                                      SetterData *pInputSetterData, std::vector<std::string> &identifiers,
-                                      FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                                      std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType) const
+HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
+                           SetterData *pInputSetterData, std::vector<std::string> &identifiers,
+                           FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
+                           std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType)
 {
     if (pForcedThisValue != nullptr && identifiers.empty())
     {
@@ -2041,7 +2148,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
         *ppResultValue = pForcedThisValue;
         if (pInputSetterData != nullptr && pResultSetterData != nullptr)
         {
-            *pResultSetterData = std::make_unique<Evaluator::SetterData>(*pInputSetterData);
+            *pResultSetterData = std::make_unique<SetterData>(*pInputSetterData);
         }
         return S_OK;
     }
@@ -2107,7 +2214,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     else
     {
         IfFailRet(WalkStackVars(pThread, frameLevel,
-            [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+            [&](const std::string &name, const GetValueCallback &getValue) -> HRESULT
             {
                 if (name == "this")
                 {
@@ -2231,7 +2338,7 @@ HRESULT Evaluator::ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frame
     return S_OK;
 }
 
-HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const Evaluator::WalkMethodsCallback &cb)
+HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const WalkMethodsCallback &cb)
 {
     HRESULT Status = S_OK;
 
@@ -2351,9 +2458,9 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
         }
     }
 
-    const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
+    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
 
-    for (const auto &[modAddress, extensionMethods] : m_extensionMethodsCache)
+    for (const auto &[modAddress, extensionMethods] : GetExtensionMethodsCache())
     {
         ICorDebugModule *pModule = extensionMethods.trModule.GetPtr();
 
@@ -2428,75 +2535,7 @@ HRESULT Evaluator::WalkExtensionMethods(ICorDebugType *pInputType, CorElementTyp
     return S_OK;
 }
 
-HRESULT Evaluator::FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
-{
-    // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.extensionattribute
-    // Indicates that a method is an extension method, or that a class or assembly contains extension methods.
-    static const WSTRING extensionAttribute(W("System.Runtime.CompilerServices.ExtensionAttribute"));
-    HRESULT Status = S_OK;
-
-    CORDB_ADDRESS modAddress = 0;
-    IfFailRet(pModule->GetBaseAddress(&modAddress));
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
-    mdAssembly assemblyToken = mdAssemblyNil;
-    if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
-        SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)) &&
-        !HasAttribute(trMDImport, assemblyToken, extensionAttribute))
-    {
-        return S_OK;
-    }
-
-    std::vector<mdMethodDef> moduleMethodDefs;
-    HCORENUM hTypeEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
-    ULONG fetchedTypes = 0;
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes)) && fetchedTypes != 0)
-    {
-        if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
-        {
-            continue;
-        }
-
-        HCORENUM hMethodEnum = nullptr;
-        mdMethodDef methodDef = mdMethodDefNil;
-        ULONG fetchedMethods = 0;
-        while (SUCCEEDED(trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods)) && fetchedMethods != 0)
-        {
-            DWORD methodAttr = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
-                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
-                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
-                !HasAttribute(trMDImport, methodDef, extensionAttribute))
-            {
-                continue;
-            }
-
-            moduleMethodDefs.emplace_back(methodDef);
-        }
-        trMDImport->CloseEnum(hMethodEnum);
-    }
-    trMDImport->CloseEnum(hTypeEnum);
-
-    if (!moduleMethodDefs.empty())
-    {
-        moduleMethodDefs.shrink_to_fit();
-
-        const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
-
-        pModule->AddRef();
-        m_extensionMethodsCache.emplace(modAddress, ModuleExtensionMethods(pModule, std::move(moduleMethodDefs)));
-    }
-
-    return S_OK;
-}
-
-HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
     IfFailRet(FillModuleExtensionMethodsCache(pModule));
@@ -2504,22 +2543,32 @@ HRESULT Evaluator::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT Evaluator::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     {
-        const std::scoped_lock<std::mutex> lock(m_extensionMethodsMutex);
+        const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
 
-        m_extensionMethodsCache.erase(modAddress);
+        GetExtensionMethodsCache().erase(modAddress);
     }
 
     return S_OK;
 }
 
-void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports) const
+// Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+    GetExtensionMethodsCache().clear();
+
+    // Don't reset the protocol-provided settings: JustMyCode and EvalFlags.
+    // Only the internal state related to process execution is reset here.
+}
+
+void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
 {
     const auto getImportsAndAliases = [&]() -> HRESULT
     {
@@ -2618,7 +2667,7 @@ void Evaluator::GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameL
     }
 }
 
-bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue)
+bool IsEnumeration(ICorDebugValue *pInputValue)
 {
     BOOL isNull = FALSE;
     ToRelease<ICorDebugValue> trValue;
@@ -2659,4 +2708,24 @@ bool Evaluator::IsEnumeration(ICorDebugValue *pInputValue)
            typeDef == systemEnumTypeDef;
 }
 
-} // namespace dncdbg
+bool IsJustMyCode()
+{
+    return GetJustMyCode();
+}
+
+void SetJustMyCode(bool enable)
+{
+    GetJustMyCode() = enable;
+}
+
+uint32_t GetEvalFlags()
+{
+    return GetEvalFlagsState();
+}
+
+void SetEvalFlags(uint32_t evalFlags)
+{
+    GetEvalFlagsState() = evalFlags;
+}
+
+} // namespace dncdbg::Evaluator

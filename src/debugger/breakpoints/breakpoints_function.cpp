@@ -125,7 +125,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
             if (!fbp.condition.empty())
             {
                 std::string output;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvalStackMachine.get(),
                                                                            pThread, fbp.condition, output)) ||
                     Status == S_FALSE)
                 {
@@ -155,7 +155,7 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
                 std::string output;
                 std::ostringstream condstream;
                 condstream << fbp.hitCount << ">" << fbp.hitCondition;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvaluator.get(), m_sharedEvalStackMachine.get(),
+                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(m_sharedEvalStackMachine.get(),
                                                                            pThread, condstream.str(), output)) ||
                     Status == S_FALSE)
                 {

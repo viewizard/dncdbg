@@ -4,7 +4,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/helpers.h"
-#include "debugger/evaluator.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
@@ -85,7 +84,7 @@ HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint
     return S_OK;
 }
 
-HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
+HRESULT IsEnableByCondition(EvalStackMachine *pEvalStackMachine, ICorDebugThread *pThread,
                             const std::string &condition, std::string &output)
 {
     assert(!condition.empty());
@@ -96,7 +95,7 @@ HRESULT IsEnableByCondition(Evaluator *pEvaluator, EvalStackMachine *pEvalStackM
     if (FAILED(pEvalStackMachine->EvaluateExpression(pThread, FrameLevel{0}, condition, FormatSpecifier::None,
                                                      nullptr, &trResultValue, nullptr, output)) ||
         FAILED(MetadataHelpers::GetFQDisplayTypeName(trResultValue, displayTypeName)) ||
-        FAILED(PrintValue(pThread, pEvaluator, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
+        FAILED(PrintValue(pThread, pEvalStackMachine, trResultValue, FormatSpecifier::None, value)))
     {
         if (output.empty())
         {

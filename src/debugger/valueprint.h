@@ -18,10 +18,9 @@
 namespace dncdbg
 {
 
-class Evaluator;
 class EvalStackMachine;
 
-HRESULT PrintValue(ICorDebugThread *pThread, Evaluator *pEvaluator, EvalStackMachine *pEvalStackMachine,
+HRESULT PrintValue(ICorDebugThread *pThread, EvalStackMachine *pEvalStackMachine,
                    ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
 HRESULT PrintStringValue(ICorDebugValue *pValue, std::string &output);
 
