@@ -26,8 +26,6 @@
 #include "protocol/dapio.h"
 #include "utils/diagnostics_client.h"
 #include "utils/hresult.h"
-#include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
-#include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
 #include "utils/logger.h"
 #include "utils/platform.h"
 #include "utils/utf.h"
@@ -39,6 +37,12 @@
 #include <sstream>
 #include <string_view>
 #include <vector>
+
+#ifdef __linux__
+#include "utils/waitpid.h"
+#elif (defined(__APPLE__) && defined(__MACH__))
+#include "utils/kqueue.h"
+#endif
 
 namespace dncdbg
 {

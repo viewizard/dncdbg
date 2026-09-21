@@ -13,7 +13,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
-#include <sys/types.h> // NOLINT(misc-include-cleaner)
 #include <unistd.h>
 
 namespace dncdbg

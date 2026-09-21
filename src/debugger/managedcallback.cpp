@@ -21,9 +21,13 @@
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
 #include "utils/logger.h"
-#include "utils/kqueue.h" // NOLINT(misc-include-cleaner)
-#include "utils/waitpid.h" // NOLINT(misc-include-cleaner)
 #include "utils/utf.h"
+
+#ifdef __linux__
+#include "utils/waitpid.h"
+#elif (defined(__APPLE__) && defined(__MACH__))
+#include "utils/kqueue.h"
+#endif
 
 namespace dncdbg
 {

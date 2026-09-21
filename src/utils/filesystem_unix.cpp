@@ -11,10 +11,10 @@
 
 #ifdef __linux__
 #include <array>
+#include <climits> // PATH_MAX NOLINT(misc-include-cleaner)
 #endif
 
 #include "utils/filesystem.h"
-#include <climits> // PATH_MAX   NOLINT(misc-include-cleaner)
 #include <cstdlib>
 #include <string>
 #include <unistd.h>
