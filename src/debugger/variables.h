@@ -12,108 +12,28 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/evaluator.h"
 #include "types/protocol.h"
-#include "utils/torelease.h"
-#include <mutex>
-#include <unordered_map>
 
-namespace dncdbg
+namespace dncdbg::Variables
 {
 
-class Variables
-{
-  public:
+// The caller must guarantee that pProcess is not null for every function that takes it.
 
-    Variables() = default;
+HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables);
 
-    HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables);
+HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value, uint32_t ref,
+                    std::string &output);
 
-    HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value, uint32_t ref,
-                        std::string &output);
+HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
+                      const std::string &value, std::string &output);
 
-    static HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
-                                 const std::string &value, std::string &output);
+HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);
 
-    HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes);
+HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
+                 Variable &variable, std::string &output);
 
-    HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
-                     Variable &variable, std::string &output);
+void Cleanup();
 
-    HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &variable);
-
-    void Cleanup()
-    {
-        m_referencesMutex.lock();
-        m_references.clear();
-        m_referencesMutex.unlock();
-    }
-
-    struct VariableReference
-    {
-        uint32_t variablesReference; // key
-
-        std::string evaluateName;
-
-        ValueKind valueKind;
-        ToRelease<ICorDebugValue> trValue;
-        FrameId frameId;
-        FormatSpecifier specifier;
-        uint32_t skipToChildIndex;
-
-        VariableReference(const Variable &variable,
-                          FrameId frameId,
-                          ICorDebugValue *pValue,
-                          ValueKind valueKind,
-                          FormatSpecifier specifier,
-                          uint32_t skipToChildIndex)
-            : variablesReference(variable.variablesReference),
-              evaluateName(variable.evaluateName),
-              valueKind(valueKind),
-              trValue(pValue),
-              frameId(frameId),
-              specifier(specifier),
-              skipToChildIndex(skipToChildIndex)
-        {
-        }
-
-        VariableReference(uint32_t variablesReference,
-                          FrameId frameId)
-            : variablesReference(variablesReference),
-              valueKind(ValueKind::Scope),
-              trValue(nullptr),
-              frameId(frameId),
-              specifier(FormatSpecifier::None),
-              skipToChildIndex(0)
-        {
-        }
-
-        [[nodiscard]] bool IsScope() const
-        {
-            return valueKind == ValueKind::Scope;
-        }
-
-        VariableReference(VariableReference &&) = default;
-        VariableReference(const VariableReference &) = delete;
-        VariableReference &operator=(VariableReference &&) = delete;
-        VariableReference &operator=(const VariableReference &) = delete;
-        ~VariableReference() = default;
-    };
-
-  private:
-
-    std::recursive_mutex m_referencesMutex;
-    std::unordered_map<uint32_t, VariableReference> m_references;
-
-    HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
-                                 ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex);
-
-    HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector<Variable> &variables);
-
-    HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std::vector<Variable> &variables);
-
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::Variables
 
 #endif // DEBUGGER_VARIABLES_H

@@ -7,19 +7,92 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evalstackmachine.h"
+#include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
 #include <array>
+#include <cassert>
+#include <limits>
+#include <mutex>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::Variables
 {
 
 namespace
 {
+
+// State shared by all Variables functions. The references map is keyed by variablesReference (see
+// VariableReference below) and survives across break sessions, so it must be guarded by the mutex
+// and cleared on every continue (see Cleanup()).
+std::recursive_mutex &GetReferencesMutex()
+{
+    static std::recursive_mutex referencesMutex;
+    return referencesMutex;
+}
+
+struct VariableReference
+{
+    uint32_t variablesReference; // the key in the references map
+
+    std::string evaluateName;
+
+    ValueKind valueKind;
+    ToRelease<ICorDebugValue> trValue;
+    FrameId frameId;
+    FormatSpecifier specifier;
+    uint32_t skipToChildIndex;
+
+    VariableReference(const Variable &variable,
+                      FrameId frameId,
+                      ICorDebugValue *pValue,
+                      ValueKind valueKind,
+                      FormatSpecifier specifier,
+                      uint32_t skipToChildIndex)
+        : variablesReference(variable.variablesReference),
+          evaluateName(variable.evaluateName),
+          valueKind(valueKind),
+          trValue(pValue),
+          frameId(frameId),
+          specifier(specifier),
+          skipToChildIndex(skipToChildIndex)
+    {
+    }
+
+    VariableReference(uint32_t variablesReference,
+                      FrameId frameId)
+        : variablesReference(variablesReference),
+          valueKind(ValueKind::Scope),
+          trValue(nullptr),
+          frameId(frameId),
+          specifier(FormatSpecifier::None),
+          skipToChildIndex(0)
+    {
+    }
+
+    [[nodiscard]] bool IsScope() const
+    {
+        return valueKind == ValueKind::Scope;
+    }
+
+    VariableReference(VariableReference &&) = default;
+    VariableReference(const VariableReference &) = delete;
+    VariableReference &operator=(VariableReference &&) = delete;
+    VariableReference &operator=(const VariableReference &) = delete;
+    ~VariableReference() = default;
+};
+
+std::unordered_map<uint32_t, VariableReference> &GetReferences()
+{
+    static std::unordered_map<uint32_t, VariableReference> references;
+    return references;
+}
 
 struct VariableMember
 {
@@ -75,7 +148,7 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, FormatSpecifier specifier, co
     return PrintValue(pThread, member.trValue, specifier, var.value);
 }
 
-HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const Variables::VariableReference &ref,
+HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReference &ref,
                                  std::vector<VariableMember> &members, bool &hasStaticMembers)
 {
     hasStaticMembers = false;
@@ -85,7 +158,7 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const Variables::Vari
     IfFailRet(pThread->GetID(&threadId));
 
     uint32_t count = 0;
-    static constexpr uint32_t maxCount = 25;
+    static constexpr uint32_t maxCount = 25; // members per page before a "[More]" entry is added
 
     IfFailRet(Evaluator::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
@@ -116,8 +189,8 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const Variables::Vari
                 return S_CAN_EXIT;
             }
 
-            // Note, in this case error is not fatal, but if protocol side needs to
-            // cancel command execution, stop walk and return error to caller.
+            // Note, an error here is not fatal, but if the protocol side needs to
+            // cancel command execution, stop the walk and return the error to the caller.
             ToRelease<ICorDebugValue> trResultValue;
             std::string fallbackTypeName;
             if (getValue(&trResultValue, &fallbackTypeName) == COR_E_OPERATIONCANCELED)
@@ -161,10 +234,10 @@ HRESULT CreatePinnedHandle(ICorDebugValue *pValue, ICorDebugHandleValue **ppHand
     IfFailRet(pValue->GetType(&elemType));
 
     // Note, reference objects (class, array, szarray, byref) may be moved or invalidated by the GC/runtime during
-    // evaluations (which happen during break), so pin heap values via a GC handle that survives across continue-break
-    // (same behavior as MS vsdbg).
-    // DereferenceAndUnboxValue produces the inner heap object in trValue, so ICorDebugHeapValue2 must be queried on it
-    // (not on pValue, which may be a byref/ELEMENT_TYPE_BYREF and does not support IID_ICorDebugHeapValue2).
+    // evaluations (which happen during break), so pin heap values via a GC handle that survives across
+    // continue-break cycles (same behavior as MS vsdbg).
+    // DereferenceAndUnboxValue produces the inner heap object in trValue, so ICorDebugHeapValue2 must be queried
+    // on it (not on pValue, which may be a byref/ELEMENT_TYPE_BYREF and does not support IID_ICorDebugHeapValue2).
     if (elemType == ELEMENT_TYPE_CLASS ||
         elemType == ELEMENT_TYPE_ARRAY ||
         elemType == ELEMENT_TYPE_SZARRAY ||
@@ -223,7 +296,7 @@ HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICor
     HRESULT Status = S_OK;
     std::string displayTypeName;
     MetadataHelpers::GetFQDisplayTypeName(trPrevValue, displayTypeName);
-    if (displayTypeName.back() == '?') // System.Nullable<T>
+    if (displayTypeName.back() == '?') // System.Nullable<T> has a name ending with '?'
     {
         ToRelease<ICorDebugValue> trValueValue;
         ToRelease<ICorDebugValue> trHasValueValue;
@@ -231,8 +304,8 @@ HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICor
 
         if (value == "null")
         {
-            // Note: System.Nullable<T> can only wrap value types, so the value field cannot be
-            // assigned null; zero its storage to reset it to default(T).
+            // Note: System.Nullable<T> can only wrap value types, so the value field cannot be assigned
+            // null; zero its storage to reset it to default(T).
             ToRelease<ICorDebugValue> trEditableValue;
             IfFailRet(DereferenceAndUnboxValue(trValueValue, &trEditableValue, nullptr));
             ToRelease<ICorDebugGenericValue> trGenericValue;
@@ -319,7 +392,7 @@ HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICor
     }
 }
 
-HRESULT SetStackVariable(const Variables::VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                          const std::string &value, std::string &output)
 {
     HRESULT Status = S_OK;
@@ -346,7 +419,7 @@ HRESULT SetStackVariable(const Variables::VariableReference &ref, ICorDebugThrea
     return S_OK;
 }
 
-HRESULT SetChild(const Variables::VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
+HRESULT SetChild(const VariableReference &ref, ICorDebugThread *pThread, const std::string &name,
                  const std::string &value, std::string &output)
 {
     if (ref.IsScope())
@@ -389,43 +462,13 @@ HRESULT SetChild(const Variables::VariableReference &ref, ICorDebugThread *pThre
     return S_OK;
 }
 
-} // unnamed namespace
-
-// The caller must guarantee that pProcess is not null.
-HRESULT Variables::GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables)
+HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
+                             ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex)
 {
-    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
 
-    const auto it = m_references.find(variablesReference);
-    if (it == m_references.cend())
-    {
-        return E_FAIL;
-    }
-
-    const VariableReference &ref = it->second;
-
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugThread> trThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &trThread));
-
-    if (ref.IsScope())
-    {
-        IfFailRet(GetStackVariables(ref.frameId, trThread, variables));
-    }
-    else
-    {
-        IfFailRet(GetChildren(ref, trThread, variables));
-    }
-    return S_OK;
-}
-
-HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
-                                        ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex)
-{
-    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
-
-    if (m_references.size() == std::numeric_limits<uint32_t>::max())
+    auto &references = GetReferences();
+    if (references.size() == std::numeric_limits<uint32_t>::max())
     {
         return E_FAIL;
     }
@@ -456,9 +499,9 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
     }
 
 #ifdef BIT64
-    assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+    assert(references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
-    variable.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
+    variable.variablesReference = static_cast<uint32_t>(references.size()) + 1;
 
     ToRelease<ICorDebugHandleValue> trHandleValue;
     if (SUCCEEDED(CreatePinnedHandle(pValue, &trHandleValue)))
@@ -466,20 +509,20 @@ HRESULT Variables::AddVariableReference(ICorDebugThread *pThread, Variable &vari
         // Note, ICorDebugHandleValue derives from ICorDebugValue, so it can be stored in VariableReference.
         VariableReference variableReference(variable, frameId, trHandleValue.Detach(),
                                             valueKind, specifier, skipToChildIndex);
-        m_references.emplace(variable.variablesReference, std::move(variableReference));
+        references.emplace(variable.variablesReference, std::move(variableReference));
     }
     else
     {
         // Fallback for value types, null references or in case pinning failed - store raw pValue.
         pValue->AddRef();
         VariableReference variableReference(variable, frameId, pValue, valueKind, specifier, skipToChildIndex);
-        m_references.emplace(variable.variablesReference, std::move(variableReference));
+        references.emplace(variable.variablesReference, std::move(variableReference));
     }
 
     return S_OK;
 }
 
-HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &var)
+HRESULT GetExceptionVariable(FrameId frameId, ICorDebugThread *pThread, Variable &var)
 {
     ToRelease<ICorDebugValue> trExceptionValue;
     if (SUCCEEDED(pThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
@@ -498,7 +541,7 @@ HRESULT Variables::GetExceptionVariable(FrameId frameId, ICorDebugThread *pThrea
     return E_FAIL;
 }
 
-HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector<Variable> &variables)
+HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector<Variable> &variables)
 {
     Variable var;
     if (SUCCEEDED(GetExceptionVariable(frameId, pThread, var)))
@@ -515,7 +558,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
             ToRelease<ICorDebugValue> trValue;
             HRESULT Status = S_OK;
             std::string fallbackTypeName;
-            // If we fail to parse one variable, don't skip parsing the remaining variables.
+            // If we fail to parse one variable, don't skip the remaining variables.
             if (FAILED(Status = getValue(&trValue, &fallbackTypeName)) ||
                 FAILED(MetadataHelpers::GetFQDisplayTypeName(trValue, var.type)) ||
                 FAILED(PrintValue(pThread, trValue, FormatSpecifier::None, var.value)) ||
@@ -548,59 +591,7 @@ HRESULT Variables::GetStackVariables(FrameId frameId, ICorDebugThread *pThread, 
         });
 }
 
-HRESULT Variables::GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes)
-{
-    const ThreadId threadId = frameId.getThread();
-    if (!threadId)
-    {
-        return E_FAIL;
-    }
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugThread> trThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
-    bool haveVariables = false;
-    uint32_t variablesReference = 0;
-
-    ToRelease<ICorDebugValue> trExceptionValue;
-    if (SUCCEEDED(trThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
-    {
-        haveVariables = true;
-    }
-
-    if (!haveVariables)
-    {
-        IfFailRet(Evaluator::WalkStackVars(trThread, frameId.getLevel(),
-            [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
-            {
-                haveVariables = true;
-                return S_CAN_EXIT;
-            }));
-    }
-
-    if (haveVariables)
-    {
-        const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
-
-        if (m_references.size() == std::numeric_limits<uint32_t>::max())
-        {
-            return E_FAIL;
-        }
-
-#ifdef BIT64
-        assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-        variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
-        VariableReference scopeReference(variablesReference, frameId);
-        m_references.emplace(variablesReference, std::move(scopeReference));
-    }
-
-    scopes.emplace_back(variablesReference, "Locals");
-
-    return S_OK;
-}
-
-HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std::vector<Variable> &variables)
+HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std::vector<Variable> &variables)
 {
     if (ref.IsScope())
     {
@@ -611,6 +602,9 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     {
         return S_OK;
     }
+
+    // Note, the caller (GetVariables()) already holds the references mutex.
+    auto &references = GetReferences();
 
     HRESULT Status = S_OK;
     std::vector<VariableMember> members;
@@ -629,9 +623,9 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
         {
             var.evaluateName = ref.evaluateName;
 #ifdef BIT64
-            assert(m_references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+            assert(references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
-            var.variablesReference = static_cast<uint32_t>(m_references.size()) + 1;
+            var.variablesReference = static_cast<uint32_t>(references.size()) + 1;
 
             ToRelease<ICorDebugHandleValue> trHandleValue;
             if (SUCCEEDED(CreatePinnedHandle(it.trValue, &trHandleValue)))
@@ -639,13 +633,13 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
                 // Note, ICorDebugHandleValue derives from ICorDebugValue, so it can be stored in VariableReference.
                 VariableReference variableReference(var, ref.frameId, trHandleValue.Detach(), ref.valueKind,
                                                     ref.specifier, it.skipToChildIndex);
-                m_references.emplace(var.variablesReference, std::move(variableReference));
+                references.emplace(var.variablesReference, std::move(variableReference));
             }
             else
             {
                 // Fallback for value types, null references or in case pinning failed - store raw it.trValue.
                 VariableReference variableReference(var, ref.frameId, it.trValue.Detach(), ref.valueKind, ref.specifier, it.skipToChildIndex);
-                m_references.emplace(var.variablesReference, std::move(variableReference));
+                references.emplace(var.variablesReference, std::move(variableReference));
             }
         }
         else
@@ -677,7 +671,7 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
 
         Variable var;
         var.name = "Static members";
-        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose type for this fake variable
+        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose the type for this fake variable
         IfFailRet(AddVariableReference(pThread, var, ref.frameId, ref.trValue, ValueKind::Static, ref.specifier, 0));
         variables.push_back(var);
     }
@@ -685,8 +679,93 @@ HRESULT Variables::GetChildren(const VariableReference &ref, ICorDebugThread *pT
     return S_OK;
 }
 
-HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
-                            Variable &variable, std::string &output)
+} // unnamed namespace
+
+// The caller must guarantee that pProcess is not null.
+HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables)
+{
+    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+
+    auto &references = GetReferences();
+    const auto it = references.find(variablesReference);
+    if (it == references.cend())
+    {
+        return E_FAIL;
+    }
+
+    const VariableReference &ref = it->second;
+
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &trThread));
+
+    if (ref.IsScope())
+    {
+        IfFailRet(GetStackVariables(ref.frameId, trThread, variables));
+    }
+    else
+    {
+        IfFailRet(GetChildren(ref, trThread, variables));
+    }
+    return S_OK;
+}
+
+HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes)
+{
+    const ThreadId threadId = frameId.getThread();
+    if (!threadId)
+    {
+        return E_FAIL;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(pProcess->GetThread(static_cast<int>(threadId), &trThread));
+    bool haveVariables = false;
+    uint32_t variablesReference = 0;
+
+    ToRelease<ICorDebugValue> trExceptionValue;
+    if (SUCCEEDED(trThread->GetCurrentException(&trExceptionValue)) && trExceptionValue != nullptr)
+    {
+        haveVariables = true;
+    }
+
+    if (!haveVariables)
+    {
+        IfFailRet(Evaluator::WalkStackVars(trThread, frameId.getLevel(),
+            [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
+            {
+                haveVariables = true;
+                return S_CAN_EXIT;
+            }));
+    }
+
+    if (haveVariables)
+    {
+        const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+
+        auto &references = GetReferences();
+        if (references.size() == std::numeric_limits<uint32_t>::max())
+        {
+            return E_FAIL;
+        }
+
+#ifdef BIT64
+        assert(references.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+        variablesReference = static_cast<uint32_t>(references.size()) + 1;
+        VariableReference scopeReference(variablesReference, frameId);
+        references.emplace(variablesReference, std::move(scopeReference));
+    }
+
+    scopes.emplace_back(variablesReference, "Locals");
+
+    return S_OK;
+}
+
+HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
+                 Variable &variable, std::string &output)
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)
@@ -723,13 +802,14 @@ HRESULT Variables::Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const s
     return AddVariableReference(trThread, variable, frameId, trResultValue, ValueKind::Variable, specifier, 0);
 }
 
-HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
-                               uint32_t ref, std::string &output)
+HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
+                    uint32_t ref, std::string &output)
 {
-    const std::scoped_lock<std::recursive_mutex> lock(m_referencesMutex);
+    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
 
-    const auto it = m_references.find(ref);
-    if (it == m_references.cend())
+    auto &references = GetReferences();
+    const auto it = references.find(ref);
+    if (it == references.cend())
     {
         return E_FAIL;
     }
@@ -752,8 +832,8 @@ HRESULT Variables::SetVariable(ICorDebugProcess *pProcess, const std::string &na
     return S_OK;
 }
 
-HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
-                                 const std::string &value, std::string &output)
+HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
+                      const std::string &value, std::string &output)
 {
     const ThreadId threadId = frameId.getThread();
     if (!threadId)
@@ -786,4 +866,11 @@ HRESULT Variables::SetExpression(ICorDebugProcess *pProcess, FrameId frameId, co
     return S_OK;
 }
 
-} // namespace dncdbg
+void Cleanup()
+{
+    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+
+    GetReferences().clear();
+}
+
+} // namespace dncdbg::Variables

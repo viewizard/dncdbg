@@ -354,7 +354,6 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedVariables(std::make_shared<Variables>()),
       m_uniqueSteppers(std::make_unique<Steppers>()),
       m_sharedBreakpoints(std::make_shared<Breakpoints>()),
       m_sharedCallbacksQueue(nullptr),
@@ -494,7 +493,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
     }
     else
     {
-        m_sharedVariables->Cleanup();
+        Variables::Cleanup();
         FrameId::invalidate();                             // Clear all created during break frames.
         DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
@@ -529,7 +528,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
     }
     else
     {
-        m_sharedVariables->Cleanup();
+        Variables::Cleanup();
         FrameId::invalidate();                             // Clear all created during break frames.
         DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
@@ -829,7 +828,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 void ManagedDebugger::Cleanup()
 {
     DebugInfo::Cleanup();
-    m_sharedVariables->Cleanup();
+    Variables::Cleanup();
     EvalExec::Cleanup();
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
@@ -942,7 +941,7 @@ HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, std::vector<V
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->GetVariables(m_trProcess, variablesReference, variables);
+    return Variables::GetVariables(m_trProcess, variablesReference, variables);
 }
 
 HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
@@ -951,7 +950,7 @@ HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->GetScopes(m_trProcess, frameId, scopes);
+    return Variables::GetScopes(m_trProcess, frameId, scopes);
 }
 
 HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression, Variable &variable,
@@ -961,7 +960,7 @@ HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->Evaluate(m_trProcess, frameId, expression, variable, output);
+    return Variables::Evaluate(m_trProcess, frameId, expression, variable, output);
 }
 
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
@@ -978,7 +977,7 @@ HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string 
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedVariables->SetVariable(m_trProcess, name, value, ref, output);
+    return Variables::SetVariable(m_trProcess, name, value, ref, output);
 }
 
 HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression,
@@ -1128,7 +1127,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
     IfFailRet(trILFrame->SetIP(target.ilOffset));
 
-    m_sharedVariables->Cleanup();
+    Variables::Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
 
     SetLastStoppedThreadId(threadId);
