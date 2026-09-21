@@ -29,7 +29,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread);
 HRESULT ManagedCallbackStepComplete();
 
-HRESULT DisableAllSteppers();
+HRESULT DisableAll();
 
 // Cleans up the AsyncStepper internal state. See Steppers::Cleanup().
 void Cleanup();

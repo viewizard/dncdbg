@@ -32,8 +32,8 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
 HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
 
-HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
-HRESULT DisableAllSteppers(ICorDebugAppDomain *pAppDomain);
+HRESULT DisableAll(ICorDebugProcess *pProcess);
+HRESULT DisableAll(ICorDebugAppDomain *pAppDomain);
 HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess);
 
 void SetJustMyCode(bool enable);

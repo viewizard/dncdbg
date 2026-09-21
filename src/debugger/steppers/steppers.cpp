@@ -58,24 +58,24 @@ bool &GetFilteredPrevStep()
 
 } // unnamed namespace
 
-HRESULT DisableAllSteppers(ICorDebugProcess *pProcess)
+HRESULT DisableAll(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
-    IfFailRet(SimpleStepper::DisableAllSteppers(pProcess));
-    return AsyncStepper::DisableAllSteppers();
+    IfFailRet(SimpleStepper::DisableAll(pProcess));
+    return AsyncStepper::DisableAll();
 }
 
-HRESULT DisableAllSteppers(ICorDebugAppDomain *pAppDomain)
+HRESULT DisableAll(ICorDebugAppDomain *pAppDomain)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugProcess> trProcess;
     IfFailRet(pAppDomain->GetProcess(&trProcess));
-    return DisableAllSteppers(trProcess);
+    return DisableAll(trProcess);
 }
 
 HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess)
 {
-    return SimpleStepper::DisableAllSteppers(pProcess);
+    return SimpleStepper::DisableAll(pProcess);
 }
 
 HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
@@ -86,7 +86,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
 
     ToRelease<ICorDebugProcess> trProcess;
     IfFailRet(pThread->GetProcess(&trProcess));
-    DisableAllSteppers(trProcess);
+    DisableAll(trProcess);
 
     ToRelease<ICorDebugFrame> trFrame;
     IfFailRet(pThread->GetActiveFrame(&trFrame));

@@ -527,7 +527,7 @@ HRESULT ManagedCallbackStepComplete()
     return S_OK;
 }
 
-HRESULT DisableAllSteppers()
+HRESULT DisableAll()
 {
     const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
     GetAsyncStep().reset(nullptr);
@@ -633,7 +633,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         HRESULT Status = S_OK;
         ToRelease<ICorDebugProcess> trProcess;
         IfFailRet(pThread->GetProcess(&trProcess));
-        SimpleStepper::DisableAllSteppers(trProcess);
+        SimpleStepper::DisableAll(trProcess);
 
         asyncStep->m_stepStatus = asyncStepStatus::resumeOffset_breakpoint;
 

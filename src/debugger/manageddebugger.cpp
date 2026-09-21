@@ -321,7 +321,7 @@ void ManagedDebugger::NotifyProcessExited()
 // Caller must hold m_debugProcessRWLock.
 void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
-    Steppers::DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
+    Steppers::DisableAll(m_trProcess); // Async stepper could have breakpoints active, disable them first.
     Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
@@ -485,7 +485,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
     // a step above but the process didn't actually resume.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
     {
-        Steppers::DisableAllSteppers(m_trProcess);
+        Steppers::DisableAll(m_trProcess);
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
     else

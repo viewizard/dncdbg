@@ -135,7 +135,7 @@ HRESULT ManagedCallbackStepComplete()
     return S_OK;
 }
 
-HRESULT DisableAllSteppers(ICorDebugProcess *pProcess)
+HRESULT DisableAll(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
 
