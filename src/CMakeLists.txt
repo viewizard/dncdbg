@@ -53,7 +53,7 @@ set(DNCDBG_SOURCES
     debugger/threads.cpp
     debugger/valueprint.cpp
     debugger/variables.cpp
-    debuginfo/async_info.cpp
+    debuginfo/asyncinfo.cpp
     debuginfo/debuginfo.cpp
     debuginfo/debugsources.cpp
     debuginfo/pdbreader.cpp

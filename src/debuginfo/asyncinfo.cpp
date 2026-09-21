@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debuginfo/async_info.h"
+#include "debuginfo/asyncinfo.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdbreader.h"
 #include "utils/hresult.h"

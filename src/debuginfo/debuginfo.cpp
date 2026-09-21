@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debuginfo.h"
-#include "debuginfo/async_info.h"
+#include "debuginfo/asyncinfo.h"
 #include "debuginfo/debugsources.h"
 #include "debuginfo/pdbreader.h"
 #include "debuginfo/sourcereference.h"

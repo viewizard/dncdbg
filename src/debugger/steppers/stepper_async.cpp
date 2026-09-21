@@ -6,7 +6,7 @@
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h" // NOLINT(misc-include-cleaner)
 #include "debugger/evaluation/evalhelpers/evalexec.h"
-#include "debuginfo/async_info.h"
+#include "debuginfo/asyncinfo.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/threads.h"
 #include "metadata/helpers.h"
