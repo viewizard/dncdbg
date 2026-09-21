@@ -14,142 +14,48 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include "utils/torelease.h"
-#include <memory>
-#include <mutex>
-#include <string>
-#include <unordered_map>
 #include <vector>
 
-namespace dncdbg
+// Facade for the breakpoints functionality. Hides all breakpoint-related implementation
+// details (BreakBreakpoint, EntryBreakpoint, ExceptionBreakpoints, FunctionBreakpoints,
+// SourceBreakpoints, etc.) from the rest of the debugger code.
+
+namespace dncdbg::Breakpoints
 {
 
-class BreakBreakpoint;
-class EntryBreakpoint;
-class ExceptionBreakpoints;
-class FunctionBreakpoints;
-class SourceBreakpoints;
+void SetJustMyCode(bool enable);
+void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
+void SetStopAtEntry(bool enable);
+void Cleanup();
+HRESULT DisableAll(ICorDebugProcess *pProcess);
 
-class Breakpoints
-{
-  public:
+HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                               std::vector<Breakpoint> &breakpoints);
+HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                             std::vector<Breakpoint> &breakpoints);
+HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
 
-    Breakpoints();
-
-    void SetJustMyCode(bool enable);
-    void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
-    void SetStopAtEntry(bool enable);
-    void DeleteAll();
-    static HRESULT DisableAll(ICorDebugProcess *pProcess);
-
-    HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                                   std::vector<Breakpoint> &breakpoints);
-    HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
-                                 std::vector<Breakpoint> &breakpoints);
-    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, std::vector<Breakpoint> &breakpoints);
-
-    HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
+HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
 
 #ifdef DEBUG_INTERNAL_TESTS
-    size_t GetBreakpointsCount();
+size_t GetBreakpointsCount();
 #endif // DEBUG_INTERNAL_TESTS
 
-    // Important! Callback-related methods must control the return of succeeded return codes.
-    // Do not allow debugger API to return succeeded (uncontrolled) return codes.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
-    HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                      std::vector<uint32_t> &hitBreakpointIds, bool &atEntry);
-    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
-    HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
+// Important! Callback-related methods must control the return of succeeded return codes.
+// Do not allow debugger API to return succeeded (uncontrolled) return codes.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
+HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                                  std::vector<uint32_t> &hitBreakpointIds, bool &atEntry);
+HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
-    static HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
-                                             ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint);
-    static HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint);
-
-  private:
-
-    std::shared_ptr<BreakBreakpoint> m_breakBreakpoint;
-    std::shared_ptr<EntryBreakpoint> m_entryBreakpoint;
-    std::shared_ptr<ExceptionBreakpoints> m_exceptionBreakpoints;
-    std::shared_ptr<FunctionBreakpoints> m_funcBreakpoints;
-    std::shared_ptr<SourceBreakpoints> m_sourceBreakpoints;
-
-    std::mutex m_nextBreakpointIdMutex;
-    uint32_t m_nextBreakpointId{1};
-
-    struct BreakpointLocation
-    {
-        CORDB_ADDRESS modAddress{0};
-        uint32_t methodToken{0};
-        uint32_t ilOffset{0};
-
-        BreakpointLocation(CORDB_ADDRESS modAddress_, uint32_t methodToken_, uint32_t ilOffset_)
-            : modAddress(modAddress_),
-              methodToken(methodToken_),
-              ilOffset(ilOffset_)
-        {
-        }
-
-        bool operator==(const BreakpointLocation &other) const
-        {
-            return modAddress == other.modAddress &&
-                   methodToken == other.methodToken &&
-                   ilOffset == other.ilOffset;
-        }
-    };
-
-    struct BreakpointLocationHash
-    {
-        std::size_t operator()(const BreakpointLocation &key) const
-        {
-            const std::size_t h1 = std::hash<CORDB_ADDRESS>{}(key.modAddress);
-            const std::size_t h2 = std::hash<uint32_t>{}(key.methodToken);
-            const std::size_t h3 = std::hash<uint32_t>{}(key.ilOffset);
-            // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
-            return h1 ^ (h2 << 1U) ^ (h3 << 2U);
-        }
-    };
-
-    struct BreakpointData
-    {
-        ToRelease<ICorDebugFunctionBreakpoint> trBreakpoint;
-        size_t refCount{0};
-
-        BreakpointData(ICorDebugFunctionBreakpoint *pBreakpoint, size_t initialCount)
-            : trBreakpoint(pBreakpoint),
-              refCount(initialCount)
-        {
-        }
-
-        BreakpointData(BreakpointData &&) = default;
-        BreakpointData(const BreakpointData &) = delete;
-        BreakpointData &operator=(BreakpointData &&) = default;
-        BreakpointData &operator=(const BreakpointData &) = delete;
-        ~BreakpointData() = default;
-    };
-
-    static std::mutex &GetManagedBreakpointsMutex()
-    {
-        static std::mutex managedBreakpointsMutex;
-        return managedBreakpointsMutex;
-    }
-
-    using mbp_t = std::unordered_map<BreakpointLocation, BreakpointData, BreakpointLocationHash>;
-    static mbp_t &GetManagedBreakpoints()
-    {
-        static mbp_t managedBreakpoints;
-        return managedBreakpoints;
-    }
-
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::Breakpoints
 
 #endif // DEBUGGER_BREAKPOINTS_BREAKPOINTS_H

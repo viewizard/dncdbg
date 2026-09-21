@@ -4,47 +4,184 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoints_function.h"
-#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
+#include <functional>
+#include <list>
+#include <mutex>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
-namespace dncdbg
+namespace dncdbg::FunctionBreakpoints
 {
 
-void FunctionBreakpoints::ManagedFunctionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
+namespace
+{
+
+bool &GetJustMyCode()
+{
+    static bool justMyCode{true};
+    return justMyCode;
+}
+
+struct ManagedFunctionBreakpoint
+{
+    uint32_t id{0};
+    std::string name;
+    std::string params;
+    uint32_t hitCount{0};
+    std::string hitCondition;
+    std::string condition;
+    std::list<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
+
+    [[nodiscard]] bool IsVerified() const
+    {
+        return !trFuncBreakpoints.empty();
+    }
+
+    void Reset()
+    {
+        hitCount = 0;
+        trFuncBreakpoints.clear();
+    }
+
+    ManagedFunctionBreakpoint() = default;
+    ~ManagedFunctionBreakpoint();
+
+    void ToBreakpoint(Breakpoint &breakpoint) const;
+
+    ManagedFunctionBreakpoint(ManagedFunctionBreakpoint &&) = default;
+    ManagedFunctionBreakpoint(const ManagedFunctionBreakpoint &) = delete;
+    ManagedFunctionBreakpoint &operator=(ManagedFunctionBreakpoint &&) = default;
+    ManagedFunctionBreakpoint &operator=(const ManagedFunctionBreakpoint &) = delete;
+};
+
+ManagedFunctionBreakpoint::~ManagedFunctionBreakpoint()
+{
+    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
+    {
+        BreakpointHelpers::DeactivateManagedBreakpoint(trFuncBreakpoint);
+    }
+}
+
+void ManagedFunctionBreakpoint::ToBreakpoint(Breakpoint &breakpoint) const
 {
     breakpoint.id = this->id;
     breakpoint.verified = this->IsVerified();
 }
 
-FunctionBreakpoints::ManagedFunctionBreakpoint::~ManagedFunctionBreakpoint()
+std::mutex &GetBreakpointsMutex()
 {
-    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
+    static std::mutex breakpointsMutex;
+    return breakpointsMutex;
+}
+
+std::unordered_map<std::string, ManagedFunctionBreakpoint> &GetFuncBreakpoints()
+{
+    static std::unordered_map<std::string, ManagedFunctionBreakpoint> funcBreakpoints;
+    return funcBreakpoints;
+}
+
+using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
+HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBreakpoint &fbp)
+{
+    HRESULT Status = S_OK;
+
+    for (const auto &entry : fbpResolved)
     {
-        Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
+        const mdMethodDef &methodToken = entry.second;
+        ICorDebugModule *pModule = entry.first;
+
+        IfFailRet(BreakpointHelpers::SkipBreakpoint(pModule, methodToken, GetJustMyCode()));
+        if (Status == S_SKIP)
+        {
+            return S_OK;
+        }
+
+        ToRelease<ICorDebugFunction> trFunc;
+        IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
+
+        uint32_t ilOffset = 0;
+        if (FAILED(DebugInfo::GetNextUserCodeILOffset(pModule, methodToken, 0, ilOffset)))
+        {
+            return S_OK;
+        }
+
+        CORDB_ADDRESS modAddress = 0;
+        IfFailRet(pModule->GetBaseAddress(&modAddress));
+        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+        IfFailRet(BreakpointHelpers::ActivateManagedBreakpoint(modAddress, methodToken, ilOffset, pModule, &trFuncBreakpoint));
+        CORDB_ADDRESS nativeAddress = 0;
+        BreakpointHelpers::GetBreakpointNativeAddress(trFuncBreakpoint, nativeAddress);
+        fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach(), nativeAddress);
+    }
+
+    return S_OK;
+}
+
+HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
+{
+    HRESULT Status = S_OK;
+    ResolvedFBP fbpResolved;
+
+    IfFailRet(DebugInfo::ResolveFunctionBreakpointInAny(fbp.name,
+        [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
+        {
+            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
+            return S_OK;
+        }));
+
+    return AddFunctionBreakpoint(fbpResolved, fbp);
+}
+
+HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp)
+{
+    HRESULT Status = S_OK;
+    ResolvedFBP fbpResolved;
+
+    IfFailRet(DebugInfo::ResolveFunctionBreakpointInModule(
+        pModule, fbp.name,
+        [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
+        {
+            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
+            return S_OK;
+        }));
+
+    return AddFunctionBreakpoint(fbpResolved, fbp);
+}
+
+} // unnamed namespace
+
+void SetJustMyCode(bool enable)
+{
+    GetJustMyCode() = enable;
+}
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+
+    // Reset only the parts changed by the process.
+    for (auto &functionBreakpoints : GetFuncBreakpoints())
+    {
+        functionBreakpoints.second.Reset();
     }
 }
 
-void FunctionBreakpoints::DeleteAll()
+HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                           std::vector<uint32_t> &hitBreakpointIds)
 {
-    m_breakpointsMutex.lock();
-    m_funcBreakpoints.clear();
-    m_breakpointsMutex.unlock();
-}
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
-HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                                std::vector<uint32_t> &hitBreakpointIds)
-{
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
-
-    if (m_funcBreakpoints.empty())
+    if (GetFuncBreakpoints().empty())
     {
-        return S_FALSE; // Stopped at break, but no breakpoints.
+        return S_FALSE; // Stopped at a break, but no breakpoints.
     }
 
     HRESULT Status = S_OK;
@@ -94,9 +231,9 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
 
     // Note, since IsEnableByCondition() during eval execution could neuter the frame, all frame-related calculations
     // must be done before entering this loop.
-    for (auto &fb : m_funcBreakpoints)
+    for (auto &functionBreakpoints : GetFuncBreakpoints())
     {
-        ManagedFunctionBreakpoint &fbp = fb.second;
+        ManagedFunctionBreakpoint &fbp = functionBreakpoints.second;
 
         if (!fbp.params.empty() && params != fbp.params)
         {
@@ -180,14 +317,14 @@ HRESULT FunctionBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDe
         }
     }
 
-    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
+    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at a break, but the breakpoint was not found.
 }
 
-HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
-    for (auto &functionBreakpoints : m_funcBreakpoints)
+    for (auto &functionBreakpoints : GetFuncBreakpoints())
     {
         ManagedFunctionBreakpoint &fb = functionBreakpoints.second;
 
@@ -204,15 +341,15 @@ HRESULT FunctionBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    for (auto &functionBreakpoints : m_funcBreakpoints)
+    for (auto &functionBreakpoints : GetFuncBreakpoints())
     {
         ManagedFunctionBreakpoint &fb = functionBreakpoints.second;
 
@@ -231,7 +368,7 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
             }
             else
             {
-                Breakpoints::DeactivateManagedBreakpoint(it->first);
+                BreakpointHelpers::DeactivateManagedBreakpoint(it->first);
                 it = fb.trFuncBreakpoints.erase(it);
             }
         }
@@ -251,10 +388,10 @@ HRESULT FunctionBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModul
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                                                    std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     // Remove old breakpoints
     std::unordered_set<std::string> funcBreakpointFuncs;
@@ -263,7 +400,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
         const std::string fullFuncName = fb.func + fb.params;
         funcBreakpointFuncs.insert(fullFuncName);
     }
-    for (auto it = m_funcBreakpoints.begin(); it != m_funcBreakpoints.end();)
+    for (auto it = GetFuncBreakpoints().begin(); it != GetFuncBreakpoints().end();)
     {
         if (funcBreakpointFuncs.find(it->first) == funcBreakpointFuncs.cend())
         {
@@ -272,7 +409,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
             const BreakpointEvent event(BreakpointEventReason::Removed, breakpoint);
             DAPIO::EmitBreakpointEvent(event);
 
-            it = m_funcBreakpoints.erase(it);
+            it = GetFuncBreakpoints().erase(it);
         }
         else
         {
@@ -285,15 +422,15 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
         return S_OK;
     }
 
-    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have the same indexes for the same breakpoints.
 
     for (const auto &fb : functionBreakpoints)
     {
         const std::string fullFuncName = fb.func + fb.params;
         Breakpoint breakpoint;
 
-        const auto b = m_funcBreakpoints.find(fullFuncName);
-        if (b == m_funcBreakpoints.cend())
+        const auto b = GetFuncBreakpoints().find(fullFuncName);
+        if (b == GetFuncBreakpoints().cend())
         {
             // New function breakpoint
             ManagedFunctionBreakpoint fbp;
@@ -309,7 +446,7 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
             }
 
             fbp.ToBreakpoint(breakpoint);
-            m_funcBreakpoints.insert(std::make_pair(fullFuncName, std::move(fbp)));
+            GetFuncBreakpoints().insert(std::make_pair(fullFuncName, std::move(fbp)));
         }
         else
         {
@@ -342,81 +479,14 @@ HRESULT FunctionBreakpoints::SetFunctionBreakpoints(bool haveProcess, const std:
     return S_OK;
 }
 
-HRESULT FunctionBreakpoints::AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved) const
-{
-    HRESULT Status = S_OK;
-
-    for (const auto &entry : fbpResolved)
-    {
-        const mdMethodDef &methodToken = entry.second;
-        ICorDebugModule *pModule = entry.first;
-
-        IfFailRet(BreakpointHelpers::SkipBreakpoint(pModule, methodToken, m_justMyCode));
-        if (Status == S_SKIP)
-        {
-            return S_OK;
-        }
-
-        ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
-
-        uint32_t ilOffset = 0;
-        if (FAILED(DebugInfo::GetNextUserCodeILOffset(pModule, methodToken, 0, ilOffset)))
-        {
-            return S_OK;
-        }
-
-        CORDB_ADDRESS modAddress = 0;
-        IfFailRet(pModule->GetBaseAddress(&modAddress));
-        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, methodToken, ilOffset, pModule, &trFuncBreakpoint));
-        CORDB_ADDRESS nativeAddress = 0;
-        BreakpointHelpers::GetBreakpointNativeAddress(trFuncBreakpoint, nativeAddress);
-        fbp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach(), nativeAddress);
-    }
-
-    return S_OK;
-}
-
-HRESULT FunctionBreakpoints::ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp) const
-{
-    HRESULT Status = S_OK;
-    ResolvedFBP fbpResolved;
-
-    IfFailRet(DebugInfo::ResolveFunctionBreakpointInAny(fbp.name,
-        [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
-        {
-            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
-            return S_OK;
-        }));
-
-    return AddFunctionBreakpoint(fbp, fbpResolved);
-}
-
-HRESULT FunctionBreakpoints::ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp) const
-{
-    HRESULT Status = S_OK;
-    ResolvedFBP fbpResolved;
-
-    IfFailRet(DebugInfo::ResolveFunctionBreakpointInModule(
-        pModule, fbp.name,
-        [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
-        {
-            fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
-            return S_OK;
-        }));
-
-    return AddFunctionBreakpoint(fbp, fbpResolved);
-}
-
 #ifdef DEBUG_INTERNAL_TESTS
-size_t FunctionBreakpoints::GetBreakpointsCount()
+size_t GetBreakpointsCount()
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     size_t count = 0;
 
-    for (const auto &functionBreakpoints : m_funcBreakpoints)
+    for (const auto &functionBreakpoints : GetFuncBreakpoints())
     {
         count += functionBreakpoints.second.trFuncBreakpoints.size();
     }
@@ -425,4 +495,4 @@ size_t FunctionBreakpoints::GetBreakpointsCount()
 }
 #endif // DEBUG_INTERNAL_TESTS
 
-} // namespace dncdbg
+} // namespace dncdbg::FunctionBreakpoints

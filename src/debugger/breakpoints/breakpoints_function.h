@@ -14,92 +14,38 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include "utils/torelease.h"
 #include <functional>
-#include <memory>
-#include <mutex>
-#include <list>
 #include <string>
-#include <unordered_map>
 #include <vector>
-#include <utility>
 
-namespace dncdbg
+namespace dncdbg::FunctionBreakpoints
 {
 
-class FunctionBreakpoints
-{
-  public:
+void SetJustMyCode(bool enable);
+void Cleanup();
+HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
-    FunctionBreakpoints() = default;
-
-    void SetJustMyCode(bool enable)
-    {
-        m_justMyCode = enable;
-    };
-    void DeleteAll();
-    HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                                   std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
-
-    // Important! Must provide succeeded return code:
-    // S_OK - breakpoint hit
-    // S_FALSE - no breakpoint hit
-    HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                               std::vector<uint32_t> &hitBreakpointIds);
+// Important! Must provide succeeded return code:
+// S_OK - breakpoint hit
+// S_FALSE - no breakpoint hit
+HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                           std::vector<uint32_t> &hitBreakpointIds);
 
 #ifdef DEBUG_INTERNAL_TESTS
-    size_t GetBreakpointsCount();
+size_t GetBreakpointsCount();
 #endif // DEBUG_INTERNAL_TESTS
 
-    // Important! Callback-related methods must control the return of succeeded return codes.
-    // Do not allow debugger API to return succeeded (uncontrolled) return codes.
-    // Bad:
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-    HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+// Important! Callback-related methods must control the return of succeeded return codes.
+// Do not allow debugger API to return succeeded (uncontrolled) return codes.
+// Bad:
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
-  private:
-
-    bool m_justMyCode{true};
-
-    struct ManagedFunctionBreakpoint
-    {
-        uint32_t id{0};
-        std::string name;
-        std::string params;
-        uint32_t hitCount{0};
-        std::string hitCondition;
-        std::string condition;
-        std::list<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
-
-        [[nodiscard]] bool IsVerified() const
-        {
-            return !trFuncBreakpoints.empty();
-        }
-
-        ManagedFunctionBreakpoint() = default;
-        ~ManagedFunctionBreakpoint();
-
-        void ToBreakpoint(Breakpoint &breakpoint) const;
-
-        ManagedFunctionBreakpoint(ManagedFunctionBreakpoint &&) = default;
-        ManagedFunctionBreakpoint(const ManagedFunctionBreakpoint &) = delete;
-        ManagedFunctionBreakpoint &operator=(ManagedFunctionBreakpoint &&) = default;
-        ManagedFunctionBreakpoint &operator=(const ManagedFunctionBreakpoint &) = delete;
-    };
-
-    std::mutex m_breakpointsMutex;
-    std::unordered_map<std::string, ManagedFunctionBreakpoint> m_funcBreakpoints;
-
-    using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
-    HRESULT AddFunctionBreakpoint(ManagedFunctionBreakpoint &fbp, ResolvedFBP &fbpResolved) const;
-    HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp) const;
-    HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp) const;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::FunctionBreakpoints
 
 #endif // DEBUGGER_BREAKPOINTS_BREAKPOINTS_FUNCTION_H

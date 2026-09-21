@@ -12,17 +12,30 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "utils/torelease.h"
 #include <string>
 #include <vector>
 
 namespace dncdbg::BreakpointHelpers
 {
 
+// Note, this is the internal implementation of the breakpoints module.
+// Do not use it outside of the breakpoints folder.
+
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
 HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &condition, std::string &output);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
 HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &nativeAddress);
+
+// Shared registry of managed breakpoints (ICorDebugFunctionBreakpoint), keyed by
+// "fully-qualified IL offset" (module address + method token + IL offset).
+// Multiple breakpoints can point to the same location; in this case, the same
+// ICorDebugFunctionBreakpoint object is shared (with reference counting).
+HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
+                                  ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint);
+HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint);
+void Cleanup();
 
 } // namespace dncdbg::BreakpointHelpers
 

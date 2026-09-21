@@ -12,46 +12,26 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "utils/torelease.h"
-#include <memory>
-#include <mutex>
-
-namespace dncdbg
+namespace dncdbg::EntryBreakpoint
 {
 
-class EntryBreakpoint
-{
-  public:
+void SetStopAtEntry(bool enable);
+void Cleanup();
 
-    EntryBreakpoint() = default;
+// Important! Must provide succeeded return code:
+// S_OK - breakpoint hit
+// S_FALSE - no breakpoint hit
+HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint);
 
-    void SetStopAtEntry(bool enable)
-    {
-        m_stopAtEntry = enable;
-    }
-    void Delete();
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 
-    // Important! Must provide succeeded return code:
-    // S_OK - breakpoint hit
-    // S_FALSE - no breakpoint hit
-    HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint);
-
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-
-  private:
-
-    std::mutex m_entryMutex;
-    ToRelease<ICorDebugFunctionBreakpoint> m_trFuncBreakpoint;
-    bool m_stopAtEntry{false};
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::EntryBreakpoint
 
 #endif // DEBUGGER_BREAKPOINTS_BREAKPOINT_ENTRY_H

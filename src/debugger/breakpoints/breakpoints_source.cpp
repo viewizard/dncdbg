@@ -4,28 +4,167 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoints_source.h"
-#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/pdb.h"
 #include "debuginfo/sourcereference.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/torelease.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <list>
+#include <mutex>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
-namespace dncdbg
+namespace dncdbg::SourceBreakpoints
 {
 
 namespace
 {
 
+// Hash functor for std::pair<int32_t, int32_t> (line, column) key used in unordered containers.
+struct LineColumnHash
+{
+    std::size_t operator()(const std::pair<int32_t, int32_t> &key) const
+    {
+        const std::size_t h1 = std::hash<int32_t>{}(key.first);
+        const std::size_t h2 = std::hash<int32_t>{}(key.second);
+        return h1 ^ (h2 << 1U);
+    }
+};
+
+bool &GetJustMyCode()
+{
+    static bool justMyCode{true};
+    return justMyCode;
+}
+
+std::mutex &GetBreakpointsMutex()
+{
+    static std::mutex breakpointsMutex;
+    return breakpointsMutex;
+}
+
+struct ManagedSourceBreakpoint
+{
+    uint32_t id{0};
+    int32_t lineNum{0};
+    int32_t columnNum{0};
+    int32_t endLine{0};
+    int32_t endColumn{0};
+    uint32_t hitCount{0};
+    std::string hitCondition;
+    std::string condition;
+    std::string logMessage;
+    // Parsed logMessage string, each entry is a pair: <text, isExpression>.
+    std::vector<std::pair<std::string, bool>> logMessageParts;
+    // In case of a code line in a constructor, we could resolve multiple methods for the breakpoint.
+    // For example, `MyType obj = new MyType(1);` will be added to all class constructors.
+    std::vector<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
+
+    [[nodiscard]] bool IsVerified() const
+    {
+        return !trFuncBreakpoints.empty();
+    }
+
+    ManagedSourceBreakpoint() = default;
+    ~ManagedSourceBreakpoint();
+
+    void ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile, int32_t sourceReference,
+                      const std::string *pAlgorithm = nullptr, const std::string *pChecksum = nullptr) const;
+
+    ManagedSourceBreakpoint(ManagedSourceBreakpoint &&) = default;
+    ManagedSourceBreakpoint(const ManagedSourceBreakpoint &) = delete;
+    ManagedSourceBreakpoint &operator=(ManagedSourceBreakpoint &&) = default;
+    ManagedSourceBreakpoint &operator=(const ManagedSourceBreakpoint &) = delete;
+};
+
+ManagedSourceBreakpoint::~ManagedSourceBreakpoint()
+{
+    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
+    {
+        BreakpointHelpers::DeactivateManagedBreakpoint(trFuncBreakpoint);
+    }
+}
+
+void ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile, int32_t sourceReference,
+                                           const std::string *pAlgorithm, const std::string *pChecksum) const
+{
+    breakpoint.id = this->id;
+    breakpoint.verified = this->IsVerified();
+    breakpoint.source = Source(sourceFile, sourceReference);
+    if (pAlgorithm != nullptr && pChecksum != nullptr && !(*pAlgorithm).empty() && !(*pChecksum).empty())
+    {
+        breakpoint.source.checksums.emplace_back(*pAlgorithm, *pChecksum);
+    }
+    breakpoint.line = this->lineNum;
+    breakpoint.column = this->columnNum;
+    breakpoint.endLine = this->endLine;
+    breakpoint.endColumn = this->endColumn;
+}
+
+struct ManagedSourceBreakpointMapping
+{
+    SourceBreakpoint breakpoint{0, 0};
+    uint32_t id{0};
+    PDB::GlobalFileIndex resolvedGlobalFileIndex{};
+    int32_t sourceReference{0};
+    std::vector<Checksum> checksums;
+    int32_t resolvedLineNum{0}; // if 0 - no resolved breakpoint available in GetSourceResolvedBreakpoints()
+    int32_t resolvedColumnNum{0}; // if 0 - no resolved breakpoint available in GetSourceResolvedBreakpoints()
+
+    void Reset()
+    {
+        resolvedGlobalFileIndex = PDB::GlobalFileIndex{};
+        resolvedLineNum = 0;
+        resolvedColumnNum = 0;
+    }
+
+    ManagedSourceBreakpointMapping() = default;
+    ManagedSourceBreakpointMapping(ManagedSourceBreakpointMapping &&) = default;
+    ManagedSourceBreakpointMapping(const ManagedSourceBreakpointMapping &) = delete;
+    ManagedSourceBreakpointMapping &operator=(ManagedSourceBreakpointMapping &&) = delete;
+    ManagedSourceBreakpointMapping &operator=(const ManagedSourceBreakpointMapping &) = delete;
+
+    ~ManagedSourceBreakpointMapping() = default;
+};
+
+// Resolved source breakpoints:
+// Mapped for fast search, the mapping data is in the container below:
+// resolved global source path index -> resolved (line, column) pair -> list of all ManagedSourceBreakpoint objects resolved to this line:column.
+std::unordered_map<PDB::GlobalFileIndex, std::unordered_map<std::pair<int32_t, int32_t>,
+                   std::list<ManagedSourceBreakpoint>, LineColumnHash>, PDB::GlobalFileIndexHash> &GetSourceResolvedBreakpoints()
+{
+    static std::unordered_map<PDB::GlobalFileIndex, std::unordered_map<std::pair<int32_t, int32_t>,
+                              std::list<ManagedSourceBreakpoint>, LineColumnHash>, PDB::GlobalFileIndexHash> sourceResolvedBreakpoints;
+    return sourceResolvedBreakpoints;
+}
+
+// Mapping for the input SourceBreakpoint array (input from protocol) to ManagedSourceBreakpoint or unresolved breakpoint.
+// Note, unlike FunctionBreakpoints, for a resolved breakpoint the source path and/or line number could have changed.
+// In this way we can connect new input data with previous data and properly add/remove resolved and unresolved breakpoints.
+// The container has a structure for fast comparison of the current breakpoint data with the new breakpoint data from the protocol:
+// path to source -> list of ManagedSourceBreakpointMapping that includes SourceBreakpoint (from protocol) and resolution-related data.
+std::unordered_map<std::string, std::list<ManagedSourceBreakpointMapping>> &GetSourceBreakpointMapping()
+{
+    static std::unordered_map<std::string, std::list<ManagedSourceBreakpointMapping>> sourceBreakpointMapping;
+    return sourceBreakpointMapping;
+}
+
 // [in] pModule - optional, provide filter by module during resolve
 // [in,out] bp - breakpoint data for resolve
-HRESULT ResolveSourceBreakpoint(ICorDebugModule *pModule, const SourceBreakpoints::ManagedSourceBreakpoint &bp,
+HRESULT ResolveSourceBreakpoint(ICorDebugModule *pModule, const ManagedSourceBreakpoint &bp,
                                 const Source &source, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints,
                                 PDB::GlobalFileIndex &globalFileIndex)
 {
@@ -51,7 +190,7 @@ HRESULT ResolveSourceBreakpoint(ICorDebugModule *pModule, const SourceBreakpoint
     return S_OK;
 }
 
-HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp, const std::string &sourcePath,
+HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string &sourcePath,
                                  bool justMyCode, const std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
     HRESULT Status = S_OK;
@@ -60,8 +199,8 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
     bp.trFuncBreakpoints.reserve(resolvedPoints.size());
     for (const auto &resolvedBP : resolvedPoints)
     {
-        // Note, we might have situation with same source path in different modules.
-        // DAP and internal debugger routine don't support this case.
+        // Note, we might have a situation with the same source path in different modules.
+        // DAP and the internal debugger routine don't support this case.
         IfFailRet(resolvedBP.trModule->GetBaseAddress(&modAddressTrack));
         if ((modAddress != 0U) && (modAddress != modAddressTrack))
         {
@@ -80,8 +219,8 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
         modAddress = modAddressTrack;
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, resolvedBP.methodToken, resolvedBP.ilOffset,
-                                                         resolvedBP.trModule, &trFuncBreakpoint));
+        IfFailRet(BreakpointHelpers::ActivateManagedBreakpoint(modAddress, resolvedBP.methodToken, resolvedBP.ilOffset,
+                                                               resolvedBP.trModule, &trFuncBreakpoint));
         CORDB_ADDRESS nativeAddress = 0;
         BreakpointHelpers::GetBreakpointNativeAddress(trFuncBreakpoint, nativeAddress);
         bp.trFuncBreakpoints.emplace_back(trFuncBreakpoint.Detach(), nativeAddress);
@@ -92,10 +231,10 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
         return E_FAIL;
     }
 
-    // No reason to leave extra space here, since breakpoint could be set up for 1 module only (no more breakpoints will be added).
+    // No reason to leave extra space here, since a breakpoint could be set up for 1 module only (no more breakpoints will be added).
     bp.trFuncBreakpoints.shrink_to_fit();
 
-    // Same for multiple breakpoint resolve for one module.
+    // The same for multiple breakpoint resolution for one module.
     bp.lineNum = resolvedPoints.at(0).startLine;
     bp.columnNum = resolvedPoints.at(0).startColumn;
     bp.endLine = resolvedPoints.at(0).endLine;
@@ -106,42 +245,29 @@ HRESULT ActivateSourceBreakpoint(SourceBreakpoints::ManagedSourceBreakpoint &bp,
 
 } // unnamed namespace
 
-void SourceBreakpoints::ManagedSourceBreakpoint::ToBreakpoint(Breakpoint &breakpoint, const std::string &sourceFile, int32_t sourceReference,
-                                                              const std::string *pAlgorithm, const std::string *pChecksum) const
+void SetJustMyCode(bool enable)
 {
-    breakpoint.id = this->id;
-    breakpoint.verified = this->IsVerified();
-    breakpoint.source = Source(sourceFile, sourceReference);
-    if (pAlgorithm != nullptr && pChecksum != nullptr && !(*pAlgorithm).empty() && !(*pChecksum).empty())
-    {
-        breakpoint.source.checksums.emplace_back(*pAlgorithm, *pChecksum);
-    }
-    breakpoint.line = this->lineNum;
-    breakpoint.column = this->columnNum;
-    breakpoint.endLine = this->endLine;
-    breakpoint.endColumn = this->endColumn;
+    GetJustMyCode() = enable;
 }
 
-SourceBreakpoints::ManagedSourceBreakpoint::~ManagedSourceBreakpoint()
+void Cleanup()
 {
-    for (auto &[trFuncBreakpoint, nativeAddress] : trFuncBreakpoints)
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    GetSourceResolvedBreakpoints().clear();
+    // Reset the resolved breakpoints state.
+    for (auto &sourceBreakpoints : GetSourceBreakpointMapping())
     {
-        Breakpoints::DeactivateManagedBreakpoint(trFuncBreakpoint);
+        for (auto &bp : sourceBreakpoints.second)
+        {
+            bp.Reset();
+        }
     }
 }
 
-void SourceBreakpoints::DeleteAll()
+HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
+                           std::vector<uint32_t> &hitBreakpointIds)
 {
-    m_breakpointsMutex.lock();
-    m_sourceResolvedBreakpoints.clear();
-    m_sourceBreakpointMapping.clear();
-    m_breakpointsMutex.unlock();
-}
-
-HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
-                                              std::vector<uint32_t> &hitBreakpointIds)
-{
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
@@ -158,8 +284,8 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     PDB::GlobalFileIndex globalFileIndex;
     IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, sp, &globalFileIndex));
 
-    const auto breakpoints = m_sourceResolvedBreakpoints.find(globalFileIndex);
-    if (breakpoints == m_sourceResolvedBreakpoints.cend())
+    const auto breakpoints = GetSourceResolvedBreakpoints().find(globalFileIndex);
+    if (breakpoints == GetSourceResolvedBreakpoints().cend())
     {
         return E_FAIL;
     }
@@ -168,13 +294,13 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
     const auto it = breakpointsInSource.find({sp.startLine, sp.startColumn});
     if (it == breakpointsInSource.cend())
     {
-        return S_FALSE; // Stopped at break, but no breakpoints.
+        return S_FALSE; // Stopped at a break, but no breakpoints.
     }
 
     std::list<ManagedSourceBreakpoint> &bList = it->second;
     if (bList.empty())
     {
-        return S_FALSE; // Stopped at break, but no breakpoints.
+        return S_FALSE; // Stopped at a break, but no breakpoints.
     }
 
     mdMethodDef methodToken = mdMethodDefNil;
@@ -289,14 +415,14 @@ HRESULT SourceBreakpoints::CheckBreakpointHit(ICorDebugThread *pThread, ICorDebu
         }
     }
 
-    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at break, but breakpoint not found.
+    return hitBreakpointIds.empty() ? S_FALSE : S_OK; // S_FALSE - stopped at a break, but the breakpoint was not found.
 }
 
-HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
-    for (auto &[initialPathToSource, initialBreakpoints] : m_sourceBreakpointMapping)
+    for (auto &[initialPathToSource, initialBreakpoints] : GetSourceBreakpointMapping())
     {
         for (auto &initialBreakpoint : initialBreakpoints)
         {
@@ -321,7 +447,7 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
             if (FAILED(ResolveSourceBreakpoint(pModule, bp, source,
                                                resolvedPoints, resolvedGlobalFileIndex)) ||
-                FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, m_justMyCode, resolvedPoints)))
+                FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, GetJustMyCode(), resolvedPoints)))
             {
                 continue;
             }
@@ -341,16 +467,16 @@ HRESULT SourceBreakpoints::ManagedCallbackLoadModule(ICorDebugModule *pModule)
             initialBreakpoint.resolvedLineNum = bp.lineNum;
             initialBreakpoint.resolvedColumnNum = bp.columnNum;
 
-            m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
+            GetSourceResolvedBreakpoints()[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
         }
     }
 
     return S_OK;
 }
 
-HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
+HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -358,7 +484,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 
     std::unordered_set<uint32_t> removedIds;
 
-    for (auto fit = m_sourceResolvedBreakpoints.begin(); fit != m_sourceResolvedBreakpoints.end();)
+    for (auto fit = GetSourceResolvedBreakpoints().begin(); fit != GetSourceResolvedBreakpoints().end();)
     {
         std::unordered_map<std::pair<int32_t, int32_t>, std::list<ManagedSourceBreakpoint>, LineColumnHash> &fileResolvedBreakpoints = fit->second;
 
@@ -373,8 +499,8 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
                 assert(!managedSourceBreakpoint.trFuncBreakpoints.empty());
 
                 CORDB_ADDRESS brModAddress = 0;
-                // Check only first element, see ActivateSourceBreakpoint() code,
-                // debugger doesn't support breakpoint with same source name in different modules.
+                // Check only the first element, see ActivateSourceBreakpoint() code:
+                // the debugger doesn't support breakpoints with the same source name in different modules.
                 if (FAILED(BreakpointHelpers::GetFunctionBreakpointModAddress(managedSourceBreakpoint.trFuncBreakpoints.at(0).first, brModAddress)) ||
                     modAddress != brModAddress)
                 {
@@ -399,7 +525,7 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 
         if (fileResolvedBreakpoints.empty())
         {
-            fit = m_sourceResolvedBreakpoints.erase(fit);
+            fit = GetSourceResolvedBreakpoints().erase(fit);
         }
         else
         {
@@ -408,16 +534,13 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     }
 
     // Reset removed resolved breakpoints.
-    for (auto &sourceBreakpoints : m_sourceBreakpointMapping)
+    for (auto &sourceBreakpoints : GetSourceBreakpointMapping())
     {
         for (auto &bp : sourceBreakpoints.second)
         {
             if (removedIds.find(bp.id) != removedIds.cend())
             {
-                bp.resolvedGlobalFileIndex.modAddress = 0;
-                bp.resolvedGlobalFileIndex.sourceFileIndex = 0;
-                bp.resolvedLineNum = 0;
-                bp.resolvedColumnNum = 0;
+                bp.Reset();
 
                 Breakpoint breakpoint;
                 breakpoint.id = bp.id;
@@ -431,21 +554,21 @@ HRESULT SourceBreakpoints::ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
-                                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     const auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
         {
-            if (initialBreakpoint.resolvedLineNum == 0) // if 0 - no resolved breakpoint available in m_sourceResolvedBreakpoints
+            if (initialBreakpoint.resolvedLineNum == 0) // if 0 - no resolved breakpoint available in GetSourceResolvedBreakpoints()
             {
                 return S_OK;
             }
 
-            const auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
-            if (bMap_it == m_sourceResolvedBreakpoints.cend())
+            const auto bMap_it = GetSourceResolvedBreakpoints().find(initialBreakpoint.resolvedGlobalFileIndex);
+            if (bMap_it == GetSourceResolvedBreakpoints().cend())
             {
                 return E_FAIL;
             }
@@ -480,8 +603,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
     HRESULT Status = S_OK;
     if (sourceBreakpoints.empty())
     {
-        const auto it = m_sourceBreakpointMapping.find(source.path);
-        if (it != m_sourceBreakpointMapping.cend())
+        const auto it = GetSourceBreakpointMapping().find(source.path);
+        if (it != GetSourceBreakpointMapping().cend())
         {
             for (auto &initialBreakpoint : it->second)
             {
@@ -493,12 +616,12 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 
                 IfFailRet(RemoveResolvedByInitialBreakpoint(initialBreakpoint));
             }
-            m_sourceBreakpointMapping.erase(it);
+            GetSourceBreakpointMapping().erase(it);
         }
         return S_OK;
     }
 
-    auto &breakpointsInSource = m_sourceBreakpointMapping[source.path];
+    auto &breakpointsInSource = GetSourceBreakpointMapping()[source.path];
     // Note, unlike before column support was added, an IDE may provide multiple breakpoints
     // on one line (with different columns). Key by the (line, column) pair to distinguish them.
     std::unordered_map<std::pair<int32_t, int32_t>, ManagedSourceBreakpointMapping *, LineColumnHash> breakpointsInSourceMap;
@@ -512,8 +635,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
     for (auto it = breakpointsInSource.begin(); it != breakpointsInSource.end();)
     {
         ManagedSourceBreakpointMapping &initialBreakpoint = *it;
-        // Note, we don't remove breakpoint in case `condition`, `hitCondition` or `logMessage` changed,
-        // only change these fields in resolved breakpoint.
+        // Note, we don't remove the breakpoint in case `condition`, `hitCondition` or `logMessage` changed,
+        // we only change these fields in the resolved breakpoint.
         if (funcBreakpointLinesColumns.find({initialBreakpoint.breakpoint.line, initialBreakpoint.breakpoint.column}) == funcBreakpointLinesColumns.cend())
         {
             Breakpoint breakpoint;
@@ -533,7 +656,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
         }
     }
 
-    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have same indexes for same breakpoints.
+    // Note, DAP requires that "sourceBreakpoints" and "functionBreakpoints" must have the same indexes for the same breakpoints.
 
     for (const auto &sb : sourceBreakpoints)
     {
@@ -565,7 +688,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 
             if (haveProcess &&
                 SUCCEEDED(ResolveSourceBreakpoint(nullptr, bp, source, resolvedPoints, resolvedGlobalFileIndex)) &&
-                SUCCEEDED(ActivateSourceBreakpoint(bp, source.path, m_justMyCode, resolvedPoints)))
+                SUCCEEDED(ActivateSourceBreakpoint(bp, source.path, GetJustMyCode(), resolvedPoints)))
             {
                 initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
                 initialBreakpoint.resolvedLineNum = bp.lineNum;
@@ -579,7 +702,7 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
                 SourceReference::GetSourceReference(resolvedGlobalFileIndex, sourceReference, resolvedPath);
 
                 bp.ToBreakpoint(breakpoint, resolvedPath, sourceReference, &algorithm, &checksum);
-                m_sourceResolvedBreakpoints[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
+                GetSourceResolvedBreakpoints()[resolvedGlobalFileIndex][{initialBreakpoint.resolvedLineNum, initialBreakpoint.resolvedColumnNum}].push_back(std::move(bp));
             }
             else
             {
@@ -605,8 +728,8 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 
             if (initialBreakpoint.resolvedLineNum != 0)
             {
-                const auto bMap_it = m_sourceResolvedBreakpoints.find(initialBreakpoint.resolvedGlobalFileIndex);
-                if (bMap_it == m_sourceResolvedBreakpoints.cend())
+                const auto bMap_it = GetSourceResolvedBreakpoints().find(initialBreakpoint.resolvedGlobalFileIndex);
+                if (bMap_it == GetSourceResolvedBreakpoints().cend())
                 {
                     return E_FAIL;
                 }
@@ -707,13 +830,13 @@ HRESULT SourceBreakpoints::SetSourceBreakpoints(bool haveProcess, const Source &
 }
 
 #ifdef DEBUG_INTERNAL_TESTS
-size_t SourceBreakpoints::GetBreakpointsCount()
+size_t GetBreakpointsCount()
 {
-    const std::scoped_lock<std::mutex> lock(m_breakpointsMutex);
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
     size_t count = 0;
 
-    for (const auto &fileResolvedBreakpoints : m_sourceResolvedBreakpoints)
+    for (const auto &fileResolvedBreakpoints : GetSourceResolvedBreakpoints())
     {
         for (const auto &lineResolvedBreakpoints : fileResolvedBreakpoints.second)
         {
@@ -728,4 +851,4 @@ size_t SourceBreakpoints::GetBreakpointsCount()
 }
 #endif // DEBUG_INTERNAL_TESTS
 
-} // namespace dncdbg
+} // namespace dncdbg::SourceBreakpoints

@@ -13,52 +13,22 @@
 #endif
 
 #include "types/types.h"
-#include <memory>
-#include <mutex>
 
-namespace dncdbg
+namespace dncdbg::BreakBreakpoint
 {
 
-class BreakBreakpoint
-{
-  public:
+void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
+void Cleanup();
 
-    BreakBreakpoint() = default;
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
 
-    void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
-
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
-
-  private:
-
-    std::mutex m_breakMutex;
-
-    struct FullyQualifiedIlOffset_t
-    {
-        CORDB_ADDRESS modAddress = 0;
-        mdMethodDef methodToken = mdMethodDefNil;
-        uint32_t ilOffset = 0;
-
-        void Reset()
-        {
-            modAddress = 0;
-            methodToken = 0;
-            ilOffset = 0;
-        }
-    };
-
-    FullyQualifiedIlOffset_t m_lastStoppedIlOffset;
-
-    static HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::BreakBreakpoint
 
 #endif // DEBUGGER_BREAKPOINTS_BREAKPOINT_BREAK_H

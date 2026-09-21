@@ -8,7 +8,7 @@
 #endif
 
 #include "debugger/callbacksqueue.h"
-#include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
+#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/steppers/steppers.h"
 #include "debugger/manageddebugger.h"
@@ -32,7 +32,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
     bool atEntry = false;
     std::vector<uint32_t> hitBreakpointIds;
-    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, atEntry))
+    if (S_IGNORE == Breakpoints::ManagedCallbackBreakpoint(pThread, pBreakpoint, hitBreakpointIds, atEntry))
     {
         // Breakpoints related break (for example, breakpoint's condition failed or stop in non-user code
         // with enabled JMC), don't emit breakpoint stop event and continue execution.
@@ -69,7 +69,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    if (S_IGNORE == Breakpoints::ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
     {
         // Break related (for example, stop at `Debugger.Break()` in non-user code with enabled JMC),
         // don't emit break stop event and continue execution.
@@ -90,7 +90,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
 bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                                               ExceptionCallbackType eventType)
 {
-    if (S_IGNORE == m_debugger.m_sharedBreakpoints->ManagedCallbackException(pThread, eventType))
+    if (S_IGNORE == Breakpoints::ManagedCallbackException(pThread, eventType))
     {
         // Exception related break (for example, catch handler or filtered thrown exception),
         // don't emit stop event and continue execution.

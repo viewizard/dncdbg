@@ -10,9 +10,81 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include <cassert>
+#include <mutex>
+#include <unordered_map>
 
 namespace dncdbg::BreakpointHelpers
 {
+
+namespace
+{
+
+struct BreakpointLocation
+{
+    CORDB_ADDRESS modAddress{0};
+    uint32_t methodToken{0};
+    uint32_t ilOffset{0};
+
+    BreakpointLocation(CORDB_ADDRESS modAddress_, uint32_t methodToken_, uint32_t ilOffset_)
+        : modAddress(modAddress_),
+          methodToken(methodToken_),
+          ilOffset(ilOffset_)
+    {
+    }
+
+    bool operator==(const BreakpointLocation &other) const
+    {
+        return modAddress == other.modAddress &&
+               methodToken == other.methodToken &&
+               ilOffset == other.ilOffset;
+    }
+};
+
+struct BreakpointLocationHash
+{
+    std::size_t operator()(const BreakpointLocation &key) const
+    {
+        const std::size_t h1 = std::hash<CORDB_ADDRESS>{}(key.modAddress);
+        const std::size_t h2 = std::hash<uint32_t>{}(key.methodToken);
+        const std::size_t h3 = std::hash<uint32_t>{}(key.ilOffset);
+        // Combine hashes using XOR and bit shifting (similar to boost::hash_combine)
+        return h1 ^ (h2 << 1U) ^ (h3 << 2U);
+    }
+};
+
+struct BreakpointData
+{
+    ToRelease<ICorDebugFunctionBreakpoint> trBreakpoint;
+    size_t refCount{0};
+
+    BreakpointData(ICorDebugFunctionBreakpoint *pBreakpoint, size_t initialCount)
+        : trBreakpoint(pBreakpoint),
+          refCount(initialCount)
+    {
+    }
+
+    BreakpointData(BreakpointData &&) = default;
+    BreakpointData(const BreakpointData &) = delete;
+    BreakpointData &operator=(BreakpointData &&) = default;
+    BreakpointData &operator=(const BreakpointData &) = delete;
+    ~BreakpointData() = default;
+};
+
+std::mutex &GetManagedBreakpointsMutex()
+{
+    static std::mutex managedBreakpointsMutex;
+    return managedBreakpointsMutex;
+}
+
+using mbp_t = std::unordered_map<BreakpointLocation, BreakpointData, BreakpointLocationHash>;
+mbp_t &GetManagedBreakpoints()
+{
+    static mbp_t managedBreakpoints;
+    return managedBreakpoints;
+}
+
+} // unnamed namespace
 
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2)
 {
@@ -126,8 +198,8 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     ToRelease<ICorDebugFunction2> trFunction2;
     IfFailRet(trFunction->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void **>(&trFunction2)));
     BOOL JMCStatus = FALSE;
-    // In case process was not stopped, GetJMCStatus() could return CORDBG_E_PROCESS_NOT_SYNCHRONIZED or another error code.
-    // It is OK, check it as JMC code (pModule have symbols for sure), we will also check JMC status at breakpoint callback itself.
+    // In case the process was not stopped, GetJMCStatus() could return CORDBG_E_PROCESS_NOT_SYNCHRONIZED or another error code.
+    // It is OK, check it as JMC code (pModule has symbols for sure); we will also check the JMC status at the breakpoint callback itself.
     if (FAILED(trFunction2->GetJMCStatus(&JMCStatus)))
     {
         JMCStatus = TRUE;
@@ -167,6 +239,85 @@ HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, COR
     uint32_t ilOffset = 0;
     IfFailRet(pBreakpoint->GetOffset(&ilOffset));
     return MetadataHelpers::GetNativeAddress(trFunction, ilOffset, nativeAddress);
+}
+
+HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
+                                  ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint)
+{
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+
+    mbp_t &managedBreakpoints = GetManagedBreakpoints();
+
+    const auto find = managedBreakpoints.find({modAddress, methodToken, ilOffset});
+    if (find != managedBreakpoints.cend())
+    {
+        find->second.trBreakpoint->AddRef();
+        find->second.refCount++;
+        *ppFuncBreakpoint = find->second.trBreakpoint;
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunc));
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunc->GetILCode(&trCode));
+    IfFailRet(trCode->CreateBreakpoint(ilOffset, ppFuncBreakpoint));
+    IfFailRet((*ppFuncBreakpoint)->Activate(TRUE));
+
+    (*ppFuncBreakpoint)->AddRef();
+    managedBreakpoints.emplace(BreakpointLocation(modAddress, methodToken, ilOffset), BreakpointData(*ppFuncBreakpoint, 2));
+
+    return S_OK;
+}
+
+HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint)
+{
+    if (trFuncBreakpoint == nullptr)
+    {
+        return S_OK;
+    }
+
+    HRESULT Status = S_OK;
+
+    uint32_t ilOffset = 0;
+    IfFailRet(trFuncBreakpoint->GetOffset(&ilOffset));
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(trFuncBreakpoint->GetFunction(&trFunction));
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFunction->GetToken(&methodToken));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    CORDB_ADDRESS modAddress = 0;
+    IfFailRet(trModule->GetBaseAddress(&modAddress));
+
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+
+    mbp_t &managedBreakpoints = GetManagedBreakpoints();
+
+    const auto find = managedBreakpoints.find({modAddress, methodToken, ilOffset});
+    if (find == managedBreakpoints.cend())
+    {
+        return E_FAIL;
+    }
+
+    trFuncBreakpoint.Free();
+    find->second.refCount--;
+
+    assert(find->second.refCount >= 1);
+
+    if (find->second.refCount == 1)
+    {
+        find->second.trBreakpoint->Activate(FALSE);
+        managedBreakpoints.erase(find);
+    }
+    return S_OK;
+}
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+    GetManagedBreakpoints().clear();
 }
 
 } // namespace dncdbg::BreakpointHelpers

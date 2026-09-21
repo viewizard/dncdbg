@@ -15,79 +15,28 @@
 #include "types/types.h"
 #include "types/protocol.h"
 #include <functional>
-#include <memory>
-#include <mutex>
 #include <string>
-#include <unordered_map>
+#include <vector>
 
-namespace dncdbg
+namespace dncdbg::ExceptionBreakpoints
 {
 
-class ExceptionBreakpoints
-{
-  public:
+void SetJustMyCode(bool enable);
+void Cleanup();
+HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
+                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
+HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
 
-    ExceptionBreakpoints()
-        : m_exceptionBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size))
-    {
-    }
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
+HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
-    void SetJustMyCode(bool enable)
-    {
-        m_justMyCode = enable;
-    };
-    void DeleteAll();
-    HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
-                                    std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
-    HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
-    bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory);
-
-    bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread);
-
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
-    HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
-
-  private:
-
-    bool m_justMyCode{true};
-
-    CORDB_ADDRESS m_privateCoreLibModAddress{0};
-    mdMethodDef m_exceptionDispatchInfoThrowMethodDef{mdMethodDefNil};
-
-    std::mutex m_threadsExceptionMutex;
-    std::unordered_map<DWORD, ExceptionCallbackType> m_threadsExceptionCallbackType;
-    // Note: Exception callbacks are called with different exception callback types,
-    // and we need to know the exception type related to the current stop event.
-    std::unordered_map<DWORD, ExceptionBreakMode> m_threadsExceptionBreakMode;
-
-    struct ManagedExceptionBreakpoint
-    {
-        uint32_t id{0};
-        ExceptionCategory categoryHint{ExceptionCategory::ANY};
-        std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
-        bool negativeCondition{false};
-
-        ManagedExceptionBreakpoint() = default;
-        void ToBreakpoint(Breakpoint &breakpoint) const;
-
-        ManagedExceptionBreakpoint(ManagedExceptionBreakpoint &&) = default;
-        ManagedExceptionBreakpoint(const ManagedExceptionBreakpoint &) = delete;
-        ManagedExceptionBreakpoint &operator=(ManagedExceptionBreakpoint &&) = default;
-        ManagedExceptionBreakpoint &operator=(const ManagedExceptionBreakpoint &) = delete;
-        ~ManagedExceptionBreakpoint() = default;
-    };
-
-    std::mutex m_breakpointsMutex;
-    std::vector<std::unordered_multimap<size_t, ManagedExceptionBreakpoint>> m_exceptionBreakpoints;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::ExceptionBreakpoints
 
 #endif // DEBUGGER_BREAKPOINTS_BREAKPOINTS_EXCEPTION_H

@@ -322,7 +322,6 @@ void ManagedDebugger::NotifyProcessExited()
 void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
     Steppers::DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
-    m_sharedBreakpoints->DeleteAll();
     Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
@@ -338,7 +337,7 @@ void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
 
     const ReadLock r_lock(m_debugProcessRWLock);
 
-    m_sharedBreakpoints->SetLastStoppedIlOffset(m_trProcess, m_lastStoppedThreadId);
+    Breakpoints::SetLastStoppedIlOffset(m_trProcess, m_lastStoppedThreadId);
 }
 
 void ManagedDebugger::InvalidateLastStoppedThreadId()
@@ -354,7 +353,6 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedBreakpoints(std::make_shared<Breakpoints>()),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
@@ -404,7 +402,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
     m_execArgs = execArgs;
     m_cwd = cwd;
     m_env = env;
-    m_sharedBreakpoints->SetStopAtEntry(stopAtEntry);
+    Breakpoints::SetStopAtEntry(stopAtEntry);
     return S_OK;
 }
 
@@ -827,6 +825,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 void ManagedDebugger::Cleanup()
 {
     Steppers::Cleanup();
+    Breakpoints::Cleanup();
     DebugInfo::Cleanup();
     Variables::Cleanup();
     EvalExec::Cleanup();
@@ -895,13 +894,15 @@ HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exce
 
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
-    return m_sharedBreakpoints->GetExceptionInfo(trThread, exceptionInfo);
+    return Breakpoints::GetExceptionInfo(trThread, exceptionInfo);
 }
 
-HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
+// the call to the Breakpoints function, so it is intentionally kept non-static.
+HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, // NOLINT(readability-convert-member-functions-to-static)
                                                  std::vector<Breakpoint> &breakpoints)
 {
-    return m_sharedBreakpoints->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
+    return Breakpoints::SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetSourceBreakpoints(const Source &source,
@@ -909,14 +910,14 @@ HRESULT ManagedDebugger::SetSourceBreakpoints(const Source &source,
                                               std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->SetSourceBreakpoints(haveProcess, source, sourceBreakpoints, breakpoints);
+    return Breakpoints::SetSourceBreakpoints(haveProcess, source, sourceBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                                 std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
-    return m_sharedBreakpoints->SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
+    return Breakpoints::SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
 }
 
 HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
@@ -994,7 +995,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
 {
     m_justMyCode = enable;
     Steppers::SetJustMyCode(enable);
-    m_sharedBreakpoints->SetJustMyCode(enable);
+    Breakpoints::SetJustMyCode(enable);
     Evaluator::SetJustMyCode(enable);
 }
 

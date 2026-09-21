@@ -4,24 +4,43 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoint_entry.h"
-#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/breakpoints/helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 #include <fstream>
+#include <mutex>
 #include <string>
 
 #ifdef _MSC_VER
 #include <palclr.h>
 #endif
 
-namespace dncdbg
+namespace dncdbg::EntryBreakpoint
 {
 
 namespace
 {
+
+std::mutex &GetEntryMutex()
+{
+    static std::mutex entryMutex;
+    return entryMutex;
+}
+
+ToRelease<ICorDebugFunctionBreakpoint> &GetFuncBreakpoint()
+{
+    static ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+    return trFuncBreakpoint;
+}
+
+bool &GetStopAtEntry()
+{
+    static bool stopAtEntry{false};
+    return stopAtEntry;
+}
 
 mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 {
@@ -113,13 +132,13 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
 HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *pMDImport,
                                      mdTypeDef mdMainClass, mdMethodDef &entryPointToken, uint32_t &entryPointOffset)
 {
-    // In case of async method, compiler use `Namespace.ClassName.<Main>()` as entry method, that call
-    // `Namespace.ClassName.Main()`, that create `Namespace.ClassName.<Main>d__0` and start state machine routine.
-    // In this case, "real entry method" with user code from initial `Main()` method will be in:
+    // In case of an async method, the compiler uses `Namespace.ClassName.<Main>()` as the entry method, which calls
+    // `Namespace.ClassName.Main()`, which creates `Namespace.ClassName.<Main>d__0` and starts the state machine routine.
+    // In this case, the "real entry method" with user code from the initial `Main()` method will be in:
     // Namespace.ClassName.<Main>d__0.MoveNext()
-    // Note, number in "<Main>d__0" class name could be different.
-    // Note, `Namespace.ClassName` could be different (see `-main` compiler option).
-    // Note, `Namespace.ClassName.<Main>d__0` type have enclosing class as method `Namespace.ClassName.<Main>()` class.
+    // Note, the number in the "<Main>d__0" class name could be different.
+    // Note, `Namespace.ClassName` could be different (see the `-main` compiler option).
+    // Note, the `Namespace.ClassName.<Main>d__0` type has the same enclosing class as the `Namespace.ClassName.<Main>()` method.
     HRESULT Status = S_OK;
     ULONG numTypedefs = 0;
     HCORENUM hEnum = nullptr;
@@ -200,18 +219,24 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
 
 } // unnamed namespace
 
-HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
+void SetStopAtEntry(bool enable)
 {
-    const std::scoped_lock<std::mutex> lock(m_entryMutex);
+    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+    GetStopAtEntry() = enable;
+}
 
-    if (!m_stopAtEntry || (m_trFuncBreakpoint != nullptr))
+HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
+{
+    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+
+    if (!GetStopAtEntry() || (GetFuncBreakpoint() != nullptr))
     {
         return S_FALSE;
     }
 
     HRESULT Status = S_OK;
     mdMethodDef entryPointToken = GetEntryPointTokenFromFile(Modules::GetModuleFilePath(pModule));
-    // Note, by some reason, in CoreCLR 6.0 System.Private.CoreLib.dll have Token "0" as entry point RVA.
+    // Note, for some reason, in CoreCLR 6.0 System.Private.CoreLib.dll has token "0" as the entry point RVA.
     if (entryPointToken == mdMethodDefNil ||
         TypeFromToken(entryPointToken) != mdtMethodDef)
     {
@@ -239,7 +264,7 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         }
         // The `Main` method is the entry point of a C# application. (Libraries and services do not require a Main method as an entry point.)
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/main-and-command-args/
-        // In case of async method as entry method, GetEntryPointTokenFromFile() should return compiler's generated method `<Main>`, plus,
+        // In case of an async method as the entry method, GetEntryPointTokenFromFile() should return the compiler-generated method `<Main>`, plus,
         // this should be a method without user code.
         if (funcName == W("<Main>"))
         {
@@ -247,24 +272,24 @@ HRESULT EntryBreakpoint::ManagedCallbackLoadModule(ICorDebugModule *pModule)
         }
         return S_OK;
     };
-    // If we can't setup entry point correctly for async method, leave it "as is".
+    // If we can't set up the entry point correctly for an async method, leave it "as is".
     setupAsyncEntryBreakpoint();
 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
     ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-    IfFailRet(Breakpoints::ActivateManagedBreakpoint(modAddress, entryPointToken, entryPointOffset, pModule, &trFuncBreakpoint));
-    m_trFuncBreakpoint = trFuncBreakpoint.Detach();
+    IfFailRet(BreakpointHelpers::ActivateManagedBreakpoint(modAddress, entryPointToken, entryPointOffset, pModule, &trFuncBreakpoint));
+    GetFuncBreakpoint() = trFuncBreakpoint.Detach();
 
     return S_OK;
 }
 
-HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
+HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
-    const std::scoped_lock<std::mutex> lock(m_entryMutex);
+    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
 
-    if (!m_stopAtEntry ||
-        m_trFuncBreakpoint == nullptr)
+    if (!GetStopAtEntry() ||
+        GetFuncBreakpoint() == nullptr)
     {
         return S_FALSE;
     }
@@ -272,23 +297,20 @@ HRESULT EntryBreakpoint::CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
     IfFailRet(pBreakpoint->QueryInterface(IID_ICorDebugFunctionBreakpoint, reinterpret_cast<void **>(&trFunctionBreakpoint)));
-    IfFailRet(BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, m_trFuncBreakpoint));
+    IfFailRet(BreakpointHelpers::IsSameFunctionBreakpoint(trFunctionBreakpoint, GetFuncBreakpoint()));
     if (Status == S_FALSE)
     {
         return S_FALSE;
     }
 
-    Breakpoints::DeactivateManagedBreakpoint(m_trFuncBreakpoint);
+    BreakpointHelpers::DeactivateManagedBreakpoint(GetFuncBreakpoint());
     return S_OK;
 }
 
-void EntryBreakpoint::Delete()
+void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(m_entryMutex);
-    if (m_trFuncBreakpoint != nullptr)
-    {
-        m_trFuncBreakpoint.Free();
-    }
+    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+    GetFuncBreakpoint().Free();
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::EntryBreakpoint

@@ -8,13 +8,12 @@
 #endif
 
 #include "debugger/managedcallback.h"
-#include "debugger/breakpoints/breakpoints.h" // NOLINT(misc-include-cleaner)
+#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evalstackmachine.h" // NOLINT(misc-include-cleaner)
-#include "debugger/evaluator.h" // NOLINT(misc-include-cleaner)
+#include "debugger/evaluator.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
@@ -256,7 +255,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
         m_debugger.InvalidateLastStoppedThreadId();
     }
 
-    m_debugger.m_sharedBreakpoints->ManagedCallbackExitThread(pThread);
+    Breakpoints::ManagedCallbackExitThread(pThread);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
@@ -273,15 +272,15 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
 #ifdef DEBUG_INTERNAL_TESTS
-        const size_t bpCountBeforeLoad = m_debugger.m_sharedBreakpoints->GetBreakpointsCount();
+        const size_t bpCountBeforeLoad = Breakpoints::GetBreakpointsCount();
 #endif // DEBUG_INTERNAL_TESTS
-        m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModule(pModule);
+        Breakpoints::ManagedCallbackLoadModule(pModule);
 #ifdef DEBUG_INTERNAL_TESTS
-        const size_t bpCountAfterLoad = m_debugger.m_sharedBreakpoints->GetBreakpointsCount();
-        m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule);
-        assert(bpCountBeforeLoad == m_debugger.m_sharedBreakpoints->GetBreakpointsCount());
-        m_debugger.m_sharedBreakpoints->ManagedCallbackLoadModule(pModule);
-        assert(bpCountAfterLoad == m_debugger.m_sharedBreakpoints->GetBreakpointsCount());
+        const size_t bpCountAfterLoad = Breakpoints::GetBreakpointsCount();
+        Breakpoints::ManagedCallbackUnloadModule(pModule);
+        assert(bpCountBeforeLoad == Breakpoints::GetBreakpointsCount());
+        Breakpoints::ManagedCallbackLoadModule(pModule);
+        assert(bpCountAfterLoad == Breakpoints::GetBreakpointsCount());
 #endif // DEBUG_INTERNAL_TESTS
     }
 
@@ -299,7 +298,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
-    m_debugger.m_sharedBreakpoints->ManagedCallbackUnloadModule(pModule);
+    Breakpoints::ManagedCallbackUnloadModule(pModule);
     Evaluator::ManagedCallbackUnloadModule(pModule);
     TypeProxy::ManagedCallbackUnloadModule(pModule);
 
