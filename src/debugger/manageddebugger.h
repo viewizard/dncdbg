@@ -29,7 +29,6 @@
 namespace dncdbg
 {
 
-class Steppers;
 class ManagedCallback;
 class CallbacksQueue;
 class Breakpoints;
@@ -146,7 +145,6 @@ class ManagedDebugger
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
 
-    std::unique_ptr<Steppers> m_uniqueSteppers;
     std::shared_ptr<Breakpoints> m_sharedBreakpoints;
     std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;

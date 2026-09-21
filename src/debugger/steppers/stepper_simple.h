@@ -13,45 +13,29 @@
 #endif
 
 #include "types/types.h"
-#include <mutex>
-#include <memory>
 
-namespace dncdbg
+namespace dncdbg::SimpleStepper
 {
 
-class SimpleStepper
-{
-  public:
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
-    SimpleStepper() = default;
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
+HRESULT ManagedCallbackStepComplete();
 
-    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
+HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
 
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
-    HRESULT ManagedCallbackStepComplete();
+void SetJustMyCode(bool enable);
 
-    HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
+// Cleans up the SimpleStepper internal state. See Steppers::Cleanup().
+void Cleanup();
 
-    void SetJustMyCode(bool enable)
-    {
-        m_justMyCode = enable;
-    }
-
-  private:
-
-    bool m_justMyCode{true};
-
-    std::mutex m_stepMutex;
-    int m_enabledSimpleStepId{0};
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::SimpleStepper
 
 #endif // DEBUGGER_STEPPERS_STEPPER_SIMPLE_H

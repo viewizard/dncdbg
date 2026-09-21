@@ -7,25 +7,82 @@
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/pdb.h"
 #include "metadata/attributes.h"
+#include "types/types.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 #include <unordered_set>
+#include <vector>
 
-namespace dncdbg
+namespace dncdbg::Steppers
 {
 
-Steppers::Steppers()
-    : m_simpleStepper(std::make_shared<SimpleStepper>()),
-      m_asyncStepper(std::make_shared<AsyncStepper>(m_simpleStepper))
+namespace
 {
+
+StepType &GetInitialStepType()
+{
+    static StepType initialStepType{StepType::STEP_OVER};
+    return initialStepType;
 }
 
-HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
+PDB::SequencePoint &GetStepStartSP()
+{
+    static PDB::SequencePoint stepStartSP;
+    return stepStartSP;
+}
+
+bool &GetJustMyCode()
+{
+    static bool justMyCode{true};
+    return justMyCode;
+}
+
+// https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
+// The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
+bool &GetStepFiltering()
+{
+    static bool stepFiltering{true};
+    return stepFiltering;
+}
+
+// Previous step-in was made in a method that must not be stepped. We need to store this information in order to step in again as soon as we leave this method.
+// Usually this is code related to step filtering, but in some cases we could also filter compiler-generated code and code covered by the StepThrough attribute.
+bool &GetFilteredPrevStep()
+{
+    static bool filteredPrevStep{false};
+    return filteredPrevStep;
+}
+
+} // unnamed namespace
+
+HRESULT DisableAllSteppers(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
-    m_filteredPrevStep = false;
-    m_initialStepType = stepType;
+    IfFailRet(SimpleStepper::DisableAllSteppers(pProcess));
+    return AsyncStepper::DisableAllSteppers();
+}
+
+HRESULT DisableAllSteppers(ICorDebugAppDomain *pAppDomain)
+{
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pAppDomain->GetProcess(&trProcess));
+    return DisableAllSteppers(trProcess);
+}
+
+HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess)
+{
+    return SimpleStepper::DisableAllSteppers(pProcess);
+}
+
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
+{
+    HRESULT Status = S_OK;
+    GetFilteredPrevStep() = false;
+    GetInitialStepType() = stepType;
 
     ToRelease<ICorDebugProcess> trProcess;
     IfFailRet(pThread->GetProcess(&trProcess));
@@ -38,32 +95,32 @@ HRESULT Steppers::SetupStep(ICorDebugThread *pThread, StepType stepType)
         return E_FAIL;
     }
 
-    IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, m_StepStartSP));
+    IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, GetStepStartSP()));
 
-    IfFailRet(m_asyncStepper->SetupStep(pThread, stepType));
+    IfFailRet(AsyncStepper::SetupStep(pThread, stepType));
     if (Status == S_USE_SIMPLE_STEPPER)
     {
-        return m_simpleStepper->SetupStep(pThread, stepType);
+        return SimpleStepper::SetupStep(pThread, stepType);
     }
 
     return S_OK;
 }
 
-HRESULT Steppers::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
+HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     HRESULT Status = S_OK;
-    // Check async stepping related breakpoints first, since user can't set up breakpoints to await block yield or resume offsets manually,
-    // so, async stepping related breakpoints are not part of any user breakpoints related data (that will be checked in separate thread, see code below).
-    IfFailRet(m_asyncStepper->ManagedCallbackBreakpoint(pThread));
+    // Check async stepping-related breakpoints first: the user can't set up breakpoints at await block yield or resume offsets manually,
+    // so async stepping-related breakpoints are not part of any user breakpoint-related data (that will be checked in a separate thread, see code below).
+    IfFailRet(AsyncStepper::ManagedCallbackBreakpoint(pThread));
     if (Status == S_IGNORE)
     {
         return S_IGNORE;
     }
 
-    return m_simpleStepper->ManagedCallbackBreakpoint(pAppDomain, pThread);
+    return SimpleStepper::ManagedCallbackBreakpoint(pAppDomain, pThread);
 }
 
-HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
+HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
     // From ECMA-335
     static const std::unordered_set<WSTRING> g_operatorMethodNames
@@ -121,6 +178,9 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     };
 
     HRESULT Status = S_OK;
+
+    const StepType &initialStepType = GetInitialStepType();
+    bool &filteredPrevStep = GetFilteredPrevStep();
 
     ToRelease<ICorDebugFrame> trFrame;
     IfFailRet(pThread->GetActiveFrame(&trFrame));
@@ -202,15 +262,15 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
 
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
-    if (m_stepFiltering && methodShouldBeFiltered())
+    if (GetStepFiltering() && methodShouldBeFiltered())
     {
-        IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT));
-        m_filteredPrevStep = true;
+        IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_OUT));
+        filteredPrevStep = true;
         return S_IGNORE;
     }
 
-    const bool filteredPrevStep = m_filteredPrevStep;
-    m_filteredPrevStep = false;
+    const bool prevFilteredPrevStep = filteredPrevStep;
+    filteredPrevStep = false;
 
     // Same behavior as MS vsdbg and MSVS C# debugger have - step only for code with PDB loaded (no matter JMC enabled or not by user).
     uint32_t ipOffset = 0;
@@ -222,7 +282,7 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
             if (ipOffset != ilNextUserCodeOffset)
             {
                 // Step completed on some compiler generated (non-user) code inside user code (for example, `finally` block related code)
-                IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
+                IfFailRet(SimpleStepper::SetupStep(pThread, initialStepType));
                 return S_IGNORE;
             }
             else
@@ -231,13 +291,14 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
                 // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
                 PDB::SequencePoint sp;
                 IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, sp));
-                if (sp.startLine == m_StepStartSP.startLine &&
-                    sp.startColumn == m_StepStartSP.startColumn &&
-                    sp.endLine == m_StepStartSP.endLine &&
-                    sp.endColumn == m_StepStartSP.endColumn &&
-                    sp.sourceFileIndex == m_StepStartSP.sourceFileIndex)
+                const PDB::SequencePoint &stepStartSP = GetStepStartSP();
+                if (sp.startLine == stepStartSP.startLine &&
+                    sp.startColumn == stepStartSP.startColumn &&
+                    sp.endLine == stepStartSP.endLine &&
+                    sp.endColumn == stepStartSP.endColumn &&
+                    sp.sourceFileIndex == stepStartSP.sourceFileIndex)
                 {
-                    IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
+                    IfFailRet(SimpleStepper::SetupStep(pThread, initialStepType));
                     return S_IGNORE;
                 }
             }
@@ -245,21 +306,21 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
         // Current IL offset less than IL offset of next close user code line (for example, step-in into async method)
         else if (reason == CorDebugStepReason::STEP_CALL && ipOffset < ilNextUserCodeOffset)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_OVER));
+            IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_OVER));
             return S_IGNORE;
         }
-        // was return from filtered method
-        else if (reason == CorDebugStepReason::STEP_RETURN && filteredPrevStep)
+        // returned from filtered method
+        else if (reason == CorDebugStepReason::STEP_RETURN && prevFilteredPrevStep)
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
+            IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_IN));
             return S_IGNORE;
         }
     }
     else if (Status == CORDBG_E_CODE_NOT_AVAILABLE) // no user code available after ipOffset
     {
-        IfFailRet(m_simpleStepper->SetupStep(pThread, m_initialStepType));
+        IfFailRet(SimpleStepper::SetupStep(pThread, initialStepType));
         // In case step-in will return from method and no user code was called in user module, step-in again.
-        m_filteredPrevStep = true;
+        filteredPrevStep = true;
         return S_IGNORE;
     }
     else // Note, in case JMC enabled step, ManagedCallbackStepComplete() called only for user module code.
@@ -268,57 +329,50 @@ HRESULT Steppers::ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebug
     }
 
     // Care about attributes for "JMC disabled" case.
-    if (!m_justMyCode)
+    if (!GetJustMyCode())
     {
         static const std::vector<WSTRING> attrNames{DebuggerAttribute::GetHidden(), DebuggerAttribute::GetStepThrough()};
 
         if (HasAttribute(trMDImport, typeDef, DebuggerAttribute::GetStepThrough()) ||
             HasAttribute(trMDImport, methodDef, attrNames))
         {
-            IfFailRet(m_simpleStepper->SetupStep(pThread, StepType::STEP_IN));
+            IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_IN));
             // In case step-in will return from filtered method and no user code was called, step-in again.
-            m_filteredPrevStep = true;
+            filteredPrevStep = true;
 
             return S_IGNORE;
         }
     }
 
     // Note, reset steppers right before return only.
-    m_simpleStepper->ManagedCallbackStepComplete();
-    m_asyncStepper->ManagedCallbackStepComplete();
+    SimpleStepper::ManagedCallbackStepComplete();
+    AsyncStepper::ManagedCallbackStepComplete();
 
     return S_OK;
 }
 
-HRESULT Steppers::DisableAllSteppers(ICorDebugProcess *pProcess)
+void SetJustMyCode(bool enable)
 {
-    HRESULT Status = S_OK;
-    IfFailRet(m_simpleStepper->DisableAllSteppers(pProcess));
-    return m_asyncStepper->DisableAllSteppers();
+    GetJustMyCode() = enable;
+    SimpleStepper::SetJustMyCode(enable);
 }
 
-HRESULT Steppers::DisableAllSteppers(ICorDebugAppDomain *pAppDomain)
+void SetStepFiltering(bool enable)
 {
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugProcess> trProcess;
-    IfFailRet(pAppDomain->GetProcess(&trProcess));
-    return DisableAllSteppers(trProcess);
+    GetStepFiltering() = enable;
 }
 
-HRESULT Steppers::DisableAllSimpleSteppers(ICorDebugProcess *pProcess)
+void Cleanup()
 {
-    return m_simpleStepper->DisableAllSteppers(pProcess);
+    // Don't reset the protocol-provided settings: JustMyCode and StepFiltering.
+    // Only the internal state related to process execution is reset here.
+
+    GetInitialStepType() = StepType::STEP_OVER;
+    GetStepStartSP() = PDB::SequencePoint{};
+    GetFilteredPrevStep() = false;
+
+    SimpleStepper::Cleanup();
+    AsyncStepper::Cleanup();
 }
 
-void Steppers::SetJustMyCode(bool enable)
-{
-    m_justMyCode = enable;
-    m_simpleStepper->SetJustMyCode(enable);
-}
-
-void Steppers::SetStepFiltering(bool enable)
-{
-    m_stepFiltering = enable;
-}
-
-} // namespace dncdbg
+} // namespace dncdbg::Steppers

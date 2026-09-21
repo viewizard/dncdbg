@@ -12,55 +12,36 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/pdb.h"
 #include "types/types.h"
-#include <memory>
 
-namespace dncdbg
+// Facade for the stepping functionality. Hides all stepping-related implementation
+// details (SimpleStepper, AsyncStepper, etc.) from the rest of the debugger code.
+
+namespace dncdbg::Steppers
 {
 
-class SimpleStepper;
-class AsyncStepper;
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
-class Steppers
-{
-  public:
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
+HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
 
-    Steppers();
-    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
+HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
+HRESULT DisableAllSteppers(ICorDebugAppDomain *pAppDomain);
+HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess);
 
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
-    HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
+void SetJustMyCode(bool enable);
+void SetStepFiltering(bool enable);
 
-    HRESULT DisableAllSteppers(ICorDebugProcess *pProcess);
-    HRESULT DisableAllSteppers(ICorDebugAppDomain *pAppDomain);
-    HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess);
+// Cleans up the Steppers internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
-    void SetJustMyCode(bool enable);
-    void SetStepFiltering(bool enable);
-
-  private:
-
-    std::shared_ptr<SimpleStepper> m_simpleStepper;
-    std::shared_ptr<AsyncStepper> m_asyncStepper;
-    StepType m_initialStepType{StepType::STEP_OVER};
-    PDB::SequencePoint m_StepStartSP;
-    bool m_justMyCode{true};
-    // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
-    // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
-    bool m_stepFiltering{true};
-    // Previous step-in was made in method that must not be stepped. We need to store this information in order to step-in again as soon as we leave this method.
-    // Usually this is code related to m_stepFiltering, but in some cases we could also filter compiler generated code and code covered by StepThrough attribute.
-    bool m_filteredPrevStep{false};
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::Steppers
 
 #endif // DEBUGGER_STEPPERS_STEPPERS_H

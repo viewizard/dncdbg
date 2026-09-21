@@ -13,92 +13,27 @@
 #endif
 
 #include "types/types.h"
-#include "utils/torelease.h"
-#include <memory>
-#include <mutex>
 
-namespace dncdbg
+namespace dncdbg::AsyncStepper
 {
 
-class SimpleStepper;
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
 
-class AsyncStepper
-{
-  public:
+// Important! Callbacks related methods must control return for succeeded return code.
+// Do not allow debugger API return succeeded (uncontrolled) return code.
+// Bad :
+//     return pThread->GetID(&threadId);
+// Good:
+//     IfFailRet(pThread->GetID(&threadId));
+//     return S_OK;
+HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread);
+HRESULT ManagedCallbackStepComplete();
 
-    explicit AsyncStepper(std::shared_ptr<SimpleStepper> &simpleStepper)
-        : m_simpleStepper(simpleStepper),
-          m_asyncStep(nullptr)
-    {
-    }
+HRESULT DisableAllSteppers();
 
-    HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType);
+// Cleans up the AsyncStepper internal state. See Steppers::Cleanup().
+void Cleanup();
 
-    // Important! Callbacks related methods must control return for succeeded return code.
-    // Do not allow debugger API return succeeded (uncontrolled) return code.
-    // Bad :
-    //     return pThread->GetID(&threadId);
-    // Good:
-    //     IfFailRet(pThread->GetID(&threadId));
-    //     return S_OK;
-    HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread);
-    HRESULT ManagedCallbackStepComplete();
-
-    HRESULT DisableAllSteppers();
-
-  private:
-
-    std::shared_ptr<SimpleStepper> m_simpleStepper;
-
-    enum class asyncStepStatus : uint8_t
-    {
-        yieldOffset_breakpoint,
-        resumeOffset_breakpoint
-    };
-
-    struct asyncBreakpoint_t
-    {
-        ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        CORDB_ADDRESS modAddress{0};
-        mdMethodDef methodToken{mdMethodDefNil};
-        uint32_t ilOffset{0};
-
-        asyncBreakpoint_t() = default;
-        asyncBreakpoint_t(asyncBreakpoint_t &&) = delete;
-        asyncBreakpoint_t(const asyncBreakpoint_t &) = delete;
-        asyncBreakpoint_t &operator=(asyncBreakpoint_t &&) = delete;
-        asyncBreakpoint_t &operator=(const asyncBreakpoint_t &) = delete;
-
-        ~asyncBreakpoint_t()
-        {
-            if (trFuncBreakpoint != nullptr)
-            {
-                trFuncBreakpoint->Activate(FALSE);
-            }
-        }
-    };
-
-    struct asyncStep_t
-    {
-        ThreadId m_threadId{ThreadId::Invalid};
-        StepType m_initialStepType{StepType::STEP_OVER};
-        uint32_t m_resume_offset{0};
-        asyncStepStatus m_stepStatus{asyncStepStatus::yieldOffset_breakpoint};
-        std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
-        ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
-    };
-
-    std::mutex m_asyncStepMutex;
-    // Pointer to object that provides all active async step related data. Object will be created only in case of active async method stepping.
-    std::unique_ptr<asyncStep_t> m_asyncStep;
-    // System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data.
-    ToRelease<ICorDebugFunctionBreakpoint> m_trStepNotifyFuncBreakpoint;
-    CORDB_ADDRESS m_privateCoreLibModAddress{0};
-    mdMethodDef m_asyncStepNotifyDebuggerMethodDef{mdMethodDefNil};
-
-    HRESULT CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::AsyncStepper
 
 #endif // DEBUGGER_STEPPERS_STEPPER_ASYNC_H

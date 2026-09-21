@@ -321,7 +321,7 @@ void ManagedDebugger::NotifyProcessExited()
 // Caller must hold m_debugProcessRWLock.
 void ManagedDebugger::DisableAllBreakpointsAndSteppers()
 {
-    m_uniqueSteppers->DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
+    Steppers::DisableAllSteppers(m_trProcess); // Async stepper could have breakpoints active, disable them first.
     m_sharedBreakpoints->DeleteAll();
     Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
@@ -354,7 +354,6 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId()
 
 ManagedDebugger::ManagedDebugger()
     : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_uniqueSteppers(std::make_unique<Steppers>()),
       m_sharedBreakpoints(std::make_shared<Breakpoints>()),
       m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
@@ -481,14 +480,14 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
 
     ToRelease<ICorDebugThread> trThread;
     IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
-    IfFailRet(m_uniqueSteppers->SetupStep(trThread, stepType));
+    IfFailRet(Steppers::SetupStep(trThread, stepType));
 
     // Note, the continued event is emitted only on success, so we don't report continuation
     // when the process failed to resume. On failure, disable all steppers, since we set up
     // a step above but the process didn't actually resume.
     if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
     {
-        m_uniqueSteppers->DisableAllSteppers(m_trProcess);
+        Steppers::DisableAllSteppers(m_trProcess);
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
     else
@@ -827,6 +826,7 @@ HRESULT ManagedDebugger::TerminateProcess()
 
 void ManagedDebugger::Cleanup()
 {
+    Steppers::Cleanup();
     DebugInfo::Cleanup();
     Variables::Cleanup();
     EvalExec::Cleanup();
@@ -993,7 +993,7 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
 void ManagedDebugger::SetJustMyCode(bool enable)
 {
     m_justMyCode = enable;
-    m_uniqueSteppers->SetJustMyCode(enable);
+    Steppers::SetJustMyCode(enable);
     m_sharedBreakpoints->SetJustMyCode(enable);
     Evaluator::SetJustMyCode(enable);
 }
@@ -1001,7 +1001,7 @@ void ManagedDebugger::SetJustMyCode(bool enable)
 void ManagedDebugger::SetStepFiltering(bool enable)
 {
     m_stepFiltering = enable;
-    m_uniqueSteppers->SetStepFiltering(enable);
+    Steppers::SetStepFiltering(enable);
 }
 
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards

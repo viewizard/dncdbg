@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/steppers/stepper_async.h"
-#include "debugger/steppers/stepper_simple.h" // NOLINT(misc-include-cleaner)
+#include "debugger/steppers/stepper_simple.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debuginfo/asyncinfo.h"
 #include "debugger/evalhelpers.h"
@@ -12,15 +12,88 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
 #include <cassert>
+#include <memory>
+#include <mutex>
 
-namespace dncdbg
+namespace dncdbg::AsyncStepper
 {
 
 namespace
 {
+
+enum class asyncStepStatus : uint8_t
+{
+    yieldOffset_breakpoint,
+    resumeOffset_breakpoint
+};
+
+struct asyncBreakpoint_t
+{
+    ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
+    CORDB_ADDRESS modAddress{0};
+    mdMethodDef methodToken{mdMethodDefNil};
+    uint32_t ilOffset{0};
+
+    asyncBreakpoint_t() = default;
+    asyncBreakpoint_t(asyncBreakpoint_t &&) = delete;
+    asyncBreakpoint_t(const asyncBreakpoint_t &) = delete;
+    asyncBreakpoint_t &operator=(asyncBreakpoint_t &&) = delete;
+    asyncBreakpoint_t &operator=(const asyncBreakpoint_t &) = delete;
+
+    ~asyncBreakpoint_t()
+    {
+        if (trFuncBreakpoint != nullptr)
+        {
+            trFuncBreakpoint->Activate(FALSE);
+        }
+    }
+};
+
+struct asyncStep_t
+{
+    ThreadId m_threadId{ThreadId::Invalid};
+    StepType m_initialStepType{StepType::STEP_OVER};
+    uint32_t m_resume_offset{0};
+    asyncStepStatus m_stepStatus{asyncStepStatus::yieldOffset_breakpoint};
+    std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
+    ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
+};
+
+std::mutex &GetAsyncStepMutex()
+{
+    static std::mutex asyncStepMutex;
+    return asyncStepMutex;
+}
+
+// Pointer to object that provides all active async step-related data. Object will be created only in case of active async method stepping.
+std::unique_ptr<asyncStep_t> &GetAsyncStep()
+{
+    static std::unique_ptr<asyncStep_t> asyncStep;
+    return asyncStep;
+}
+
+// System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method function breakpoint data.
+ToRelease<ICorDebugFunctionBreakpoint> &GetStepNotifyFuncBreakpoint()
+{
+    static ToRelease<ICorDebugFunctionBreakpoint> trStepNotifyFuncBreakpoint;
+    return trStepNotifyFuncBreakpoint;
+}
+
+CORDB_ADDRESS &GetPrivateCoreLibModAddress()
+{
+    static CORDB_ADDRESS privateCoreLibModAddress{0};
+    return privateCoreLibModAddress;
+}
+
+mdMethodDef &GetAsyncStepNotifyDebuggerMethodDef()
+{
+    static mdMethodDef asyncStepNotifyDebuggerMethodDef{mdMethodDefNil};
+    return asyncStepNotifyDebuggerMethodDef;
+}
 
 // Get the '<>t__builder' field value for the builder from the frame.
 // [in] pFrame - frame used to get all info needed (function, module, etc);
@@ -301,9 +374,34 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     return S_OK;
 }
 
+// Set up a breakpoint in the System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method, which will be
+// called at wait completion if notification was enabled by SetNotificationForWaitCompletion().
+// Note: NotifyDebuggerOfWaitCompletion() will be called only once, since the notification flag
+// will be automatically disabled inside the NotifyDebuggerOfWaitCompletion() method itself.
+HRESULT CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
+{
+    HRESULT Status = S_OK;
+    static const std::string moduleFileName("System.Private.CoreLib.dll");
+    static const WSTRING typeName(W("System.Threading.Tasks.Task"));
+    static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunc));
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunc->GetModule(&trModule));
+    IfFailRet(trModule->GetBaseAddress(&GetPrivateCoreLibModAddress()));
+    IfFailRet(trFunc->GetToken(&GetAsyncStepNotifyDebuggerMethodDef()));
+
+    ToRelease<ICorDebugCode> trCode;
+    IfFailRet(trFunc->GetILCode(&trCode));
+    IfFailRet(trCode->CreateBreakpoint(0, &GetStepNotifyFuncBreakpoint()));
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
-HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status = S_OK;
 
@@ -363,22 +461,26 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trBuilderValue, builderType));
         if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
         {
-            return m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
+            return SimpleStepper::SetupStep(pThread, StepType::STEP_OUT);
         }
 
         IfFailRet(SetNotificationForWaitCompletion(pThread, trBuilderValue));
 
-        if ((m_trStepNotifyFuncBreakpoint == nullptr ||
-             m_privateCoreLibModAddress == 0 ||
-             m_asyncStepNotifyDebuggerMethodDef == mdMethodDefNil) &&
+        ToRelease<ICorDebugFunctionBreakpoint> &trStepNotifyFuncBreakpoint = GetStepNotifyFuncBreakpoint();
+        CORDB_ADDRESS &privateCoreLibModAddress = GetPrivateCoreLibModAddress();
+        mdMethodDef &asyncStepNotifyDebuggerMethodDef = GetAsyncStepNotifyDebuggerMethodDef();
+
+        if ((trStepNotifyFuncBreakpoint == nullptr ||
+             privateCoreLibModAddress == 0 ||
+             asyncStepNotifyDebuggerMethodDef == mdMethodDefNil) &&
             FAILED(Status = CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(pThread)))
         {
-            m_trStepNotifyFuncBreakpoint.Free();
-            m_privateCoreLibModAddress = 0;
-            m_asyncStepNotifyDebuggerMethodDef = mdMethodDefNil;
+            trStepNotifyFuncBreakpoint.Free();
+            privateCoreLibModAddress = 0;
+            asyncStepNotifyDebuggerMethodDef = mdMethodDefNil;
             return Status;
         }
-        IfFailRet(m_trStepNotifyFuncBreakpoint->Activate(TRUE));
+        IfFailRet(trStepNotifyFuncBreakpoint->Activate(TRUE));
 
         // Note, we don't create stepper here, since all we need in case of a breakpoint is to call Continue() from StepCommand().
         return S_OK;
@@ -392,85 +494,54 @@ HRESULT AsyncStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         // 1. Step finished successfully - await code not reached.
         // 2. Breakpoint was reached - step reached await block, so we must switch to async step logic instead.
 
-        const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
+        const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
 
-        m_asyncStep = std::make_unique<asyncStep_t>();
-        m_asyncStep->m_threadId = GetThreadId(pThread);
-        m_asyncStep->m_initialStepType = stepType;
-        m_asyncStep->m_resume_offset = awaitInfo.resumeOffset;
-        m_asyncStep->m_stepStatus = asyncStepStatus::yieldOffset_breakpoint;
+        std::unique_ptr<asyncStep_t> &asyncStep = GetAsyncStep();
+        asyncStep = std::make_unique<asyncStep_t>();
 
-        m_asyncStep->m_Breakpoint = std::make_unique<asyncBreakpoint_t>();
-        m_asyncStep->m_Breakpoint->modAddress = modAddress;
-        m_asyncStep->m_Breakpoint->methodToken = methodToken;
-        m_asyncStep->m_Breakpoint->ilOffset = awaitInfo.yieldOffset;
+        asyncStep->m_threadId = GetThreadId(pThread);
+        asyncStep->m_initialStepType = stepType;
+        asyncStep->m_resume_offset = awaitInfo.resumeOffset;
+        asyncStep->m_stepStatus = asyncStepStatus::yieldOffset_breakpoint;
+
+        asyncStep->m_Breakpoint = std::make_unique<asyncBreakpoint_t>();
+        asyncStep->m_Breakpoint->modAddress = modAddress;
+        asyncStep->m_Breakpoint->methodToken = methodToken;
+        asyncStep->m_Breakpoint->ilOffset = awaitInfo.yieldOffset;
 
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
-        IfFailRet(trCode->CreateBreakpoint(m_asyncStep->m_Breakpoint->ilOffset, &trFuncBreakpoint));
+        IfFailRet(trCode->CreateBreakpoint(asyncStep->m_Breakpoint->ilOffset, &trFuncBreakpoint));
         IfFailRet(trFuncBreakpoint->Activate(TRUE));
-        m_asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
+        asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
     }
 
     return S_USE_SIMPLE_STEPPER; // setup simple stepper instead
 }
 
-HRESULT AsyncStepper::ManagedCallbackStepComplete()
+HRESULT ManagedCallbackStepComplete()
 {
     // In case we have async method and first await breakpoint (yieldOffset) was enabled, but not reached.
-    m_asyncStepMutex.lock();
-    if (m_asyncStep)
-    {
-        m_asyncStep.reset(nullptr);
-    }
-    m_asyncStepMutex.unlock();
+    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+    GetAsyncStep().reset(nullptr);
 
     return S_OK;
 }
 
-HRESULT AsyncStepper::DisableAllSteppers()
+HRESULT DisableAllSteppers()
 {
-    m_asyncStepMutex.lock();
-    if (m_asyncStep)
+    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+    GetAsyncStep().reset(nullptr);
+    if (GetStepNotifyFuncBreakpoint() != nullptr)
     {
-        m_asyncStep.reset(nullptr);
+        GetStepNotifyFuncBreakpoint()->Activate(FALSE);
     }
-    if (m_trStepNotifyFuncBreakpoint != nullptr)
-    {
-        m_trStepNotifyFuncBreakpoint->Activate(FALSE);
-    }
-    m_asyncStepMutex.unlock();
 
     return S_OK;
 }
 
-// Set up a breakpoint in the System.Threading.Tasks.Task.NotifyDebuggerOfWaitCompletion() method, which will be
-// called at wait completion if notification was enabled by SetNotificationForWaitCompletion().
-// Note: NotifyDebuggerOfWaitCompletion() will be called only once, since the notification flag
-// will be automatically disabled inside the NotifyDebuggerOfWaitCompletion() method itself.
-HRESULT AsyncStepper::CreateBreakpointIntoNotifyDebuggerOfWaitCompletion(ICorDebugThread *pThread)
-{
-    HRESULT Status = S_OK;
-    static const std::string moduleFileName("System.Private.CoreLib.dll");
-    static const WSTRING typeName(W("System.Threading.Tasks.Task"));
-    static const WSTRING methodName(W("NotifyDebuggerOfWaitCompletion"));
-    ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(FindFunctionInModule(pThread, moduleFileName, typeName, methodName, &trFunc));
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunc->GetModule(&trModule));
-    IfFailRet(trModule->GetBaseAddress(&m_privateCoreLibModAddress));
-    IfFailRet(trFunc->GetToken(&m_asyncStepNotifyDebuggerMethodDef));
-
-    ToRelease<ICorDebugCode> trCode;
-    IfFailRet(trFunc->GetILCode(&trCode));
-    IfFailRet(trCode->CreateBreakpoint(0, &m_trStepNotifyFuncBreakpoint));
-
-    return S_OK;
-}
-
-// Check if breakpoint is part of async stepping routine and do next action for async stepping if need.
+// Check if breakpoint is part of the async stepping routine and perform the next async stepping action if needed.
 // [in] pThread - object that represents the thread that contains the breakpoint.
-HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
+HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 {
     ToRelease<ICorDebugFrame> trFrame;
     mdMethodDef methodToken = mdMethodDefNil;
@@ -492,39 +563,41 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return E_FAIL;
     }
 
-    const std::scoped_lock<std::mutex> lock_async(m_asyncStepMutex);
+    const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
 
-    if (!m_asyncStep)
+    std::unique_ptr<asyncStep_t> &asyncStep = GetAsyncStep();
+
+    if (!asyncStep)
     {
         // Note special case here, when we step-out from async method with await blocks
         // and NotifyDebuggerOfWaitCompletion magic happens with breakpoint in this method.
         // Note, if we hit NotifyDebuggerOfWaitCompletion breakpoint, it's ours no matter which thread.
 
-        if (modAddress != m_privateCoreLibModAddress ||
-            methodToken != m_asyncStepNotifyDebuggerMethodDef)
+        if (modAddress != GetPrivateCoreLibModAddress() ||
+            methodToken != GetAsyncStepNotifyDebuggerMethodDef())
         {
             return S_OK;
         }
 
-        if (m_trStepNotifyFuncBreakpoint != nullptr)
+        if (GetStepNotifyFuncBreakpoint() != nullptr)
         {
-            m_trStepNotifyFuncBreakpoint->Activate(FALSE);
+            GetStepNotifyFuncBreakpoint()->Activate(FALSE);
         }
         // Note, notification flag will be reset automatically in NotifyDebuggerOfWaitCompletion() method,
         // no need to call SetNotificationForWaitCompletion() with FALSE arg (at least, mono acts in the same way).
 
         // Update stepping request to new thread/frame_count that we are continuing on
         // so continuing with normal step-out works as expected.
-        m_simpleStepper->SetupStep(pThread, StepType::STEP_OUT);
+        SimpleStepper::SetupStep(pThread, StepType::STEP_OUT);
         return S_IGNORE;
     }
 
-    if (modAddress != m_asyncStep->m_Breakpoint->modAddress ||
-        methodToken != m_asyncStep->m_Breakpoint->methodToken)
+    if (modAddress != asyncStep->m_Breakpoint->modAddress ||
+        methodToken != asyncStep->m_Breakpoint->methodToken)
     {
-        // Async step was broken by another breakpoint, remove async step related breakpoint.
+        // Async step was broken by another breakpoint, remove the async step-related breakpoint.
         // Same behavior as MS vsdbg has for stepping interrupted by breakpoint.
-        m_asyncStep.reset(nullptr);
+        asyncStep.reset(nullptr);
         return S_OK;
     }
 
@@ -540,18 +613,18 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return E_FAIL;
     }
 
-    if (ipOffset != m_asyncStep->m_Breakpoint->ilOffset)
+    if (ipOffset != asyncStep->m_Breakpoint->ilOffset)
     {
-        // Async step was broken by another breakpoint, remove async step related breakpoint.
+        // Async step was broken by another breakpoint, remove the async step-related breakpoint.
         // Same behavior as MS vsdbg has for stepping interrupted by breakpoint.
-        m_asyncStep.reset(nullptr);
+        asyncStep.reset(nullptr);
         return S_OK;
     }
 
-    if (m_asyncStep->m_stepStatus == asyncStepStatus::yieldOffset_breakpoint)
+    if (asyncStep->m_stepStatus == asyncStepStatus::yieldOffset_breakpoint)
     {
         // Note, in case of first breakpoint for async step, we must have same thread.
-        if (m_asyncStep->m_threadId != GetThreadId(pThread))
+        if (asyncStep->m_threadId != GetThreadId(pThread))
         {
             // Parallel thread execution, skip it and continue async step routine.
             return S_IGNORE;
@@ -560,33 +633,33 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         HRESULT Status = S_OK;
         ToRelease<ICorDebugProcess> trProcess;
         IfFailRet(pThread->GetProcess(&trProcess));
-        m_simpleStepper->DisableAllSteppers(trProcess);
+        SimpleStepper::DisableAllSteppers(trProcess);
 
-        m_asyncStep->m_stepStatus = asyncStepStatus::resumeOffset_breakpoint;
+        asyncStep->m_stepStatus = asyncStepStatus::resumeOffset_breakpoint;
 
         ToRelease<ICorDebugCode> trCode;
         ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
         if (FAILED(trFunc->GetILCode(&trCode)) ||
-            FAILED(trCode->CreateBreakpoint(m_asyncStep->m_resume_offset, &trFuncBreakpoint)) ||
+            FAILED(trCode->CreateBreakpoint(asyncStep->m_resume_offset, &trFuncBreakpoint)) ||
             FAILED(trFuncBreakpoint->Activate(TRUE)))
         {
             LOGE(log << "Could not setup second breakpoint (resumeOffset) for await block");
             return S_OK;
         }
 
-        m_asyncStep->m_Breakpoint->trFuncBreakpoint->Activate(FALSE);
-        m_asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
-        m_asyncStep->m_Breakpoint->ilOffset = m_asyncStep->m_resume_offset;
+        asyncStep->m_Breakpoint->trFuncBreakpoint->Activate(FALSE);
+        asyncStep->m_Breakpoint->trFuncBreakpoint = trFuncBreakpoint.Detach();
+        asyncStep->m_Breakpoint->ilOffset = asyncStep->m_resume_offset;
 
         CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
         ToRelease<ICorDebugValue> trValue;
         if (FAILED(GetAsyncIdReference(pThread, trFrame, &trValue)) ||
-            FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&m_asyncStep->m_trHandleValueAsyncId))) ||
-            FAILED(m_asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
+            FAILED(trValue->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&asyncStep->m_trHandleValueAsyncId))) ||
+            FAILED(asyncStep->m_trHandleValueAsyncId->GetHandleType(&handleType)) ||
             // Note, we need only strong or pinned handle here, that will not be invalidated on continue-break.
             handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
         {
-            m_asyncStep->m_trHandleValueAsyncId.Free();
+            asyncStep->m_trHandleValueAsyncId.Free();
             LOGE(log << "Could not setup handle with async ID for await block");
         }
     }
@@ -596,10 +669,10 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // 1. We still have initial thread, so, no need to spend time and check asyncId.
         // 2. We have another thread with same asyncId - same execution of async method.
         // 3. We have another thread with different asyncId - parallel execution of async method.
-        if (m_asyncStep->m_threadId == GetThreadId(pThread))
+        if (asyncStep->m_threadId == GetThreadId(pThread))
         {
-            m_simpleStepper->SetupStep(pThread, m_asyncStep->m_initialStepType);
-            m_asyncStep.reset(nullptr);
+            SimpleStepper::SetupStep(pThread, asyncStep->m_initialStepType);
+            asyncStep.reset(nullptr);
             return S_IGNORE;
         }
 
@@ -620,8 +693,8 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         CORDB_ADDRESS prevAsyncId = 0;
         ToRelease<ICorDebugValue> trDereferencedValue;
         ToRelease<ICorDebugValue> trValueAsyncId;
-        if ((m_asyncStep->m_trHandleValueAsyncId != nullptr) && // Note, we could fail with m_trHandleValueAsyncId on previous breakpoint for some reason.
-            SUCCEEDED(m_asyncStep->m_trHandleValueAsyncId->Dereference(&trDereferencedValue)) &&
+        if ((asyncStep->m_trHandleValueAsyncId != nullptr) && // Note, we could fail with m_trHandleValueAsyncId on previous breakpoint for some reason.
+            SUCCEEDED(asyncStep->m_trHandleValueAsyncId->Dereference(&trDereferencedValue)) &&
             SUCCEEDED(DereferenceAndUnboxValue(trDereferencedValue, &trValueAsyncId, &isNull)) && (isNull == FALSE))
         {
             trValueAsyncId->GetAddress(&prevAsyncId);
@@ -635,12 +708,22 @@ HRESULT AsyncStepper::ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // If we can't detect proper thread - continue stepping for this thread.
         if (currentAsyncId == prevAsyncId || currentAsyncId == 0 || prevAsyncId == 0)
         {
-            m_simpleStepper->SetupStep(pThread, m_asyncStep->m_initialStepType);
-            m_asyncStep.reset(nullptr);
+            SimpleStepper::SetupStep(pThread, asyncStep->m_initialStepType);
+            asyncStep.reset(nullptr);
         }
     }
 
     return S_IGNORE;
 }
 
-} // namespace dncdbg
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+
+    GetAsyncStep().reset(nullptr);
+    GetStepNotifyFuncBreakpoint().Free();
+    GetPrivateCoreLibModAddress() = 0;
+    GetAsyncStepNotifyDebuggerMethodDef() = mdMethodDefNil;
+}
+
+} // namespace dncdbg::AsyncStepper

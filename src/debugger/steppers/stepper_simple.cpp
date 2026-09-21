@@ -7,11 +7,36 @@
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
+#include <mutex>
 
-namespace dncdbg
+namespace dncdbg::SimpleStepper
 {
 
-HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
+namespace
+{
+
+bool &GetJustMyCode()
+{
+    static bool justMyCode{true};
+    return justMyCode;
+}
+
+std::mutex &GetStepMutex()
+{
+    static std::mutex stepMutex;
+    return stepMutex;
+}
+
+int &GetEnabledStepId()
+{
+    static int enabledStepId{0};
+    return enabledStepId;
+}
+
+} // unnamed namespace
+
+HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
 {
     HRESULT Status = S_OK;
 
@@ -38,8 +63,8 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
     {
         IfFailRet(trStepper->StepOut());
 
-        const std::scoped_lock<std::mutex> lock(m_stepMutex);
-        m_enabledSimpleStepId = static_cast<int>(threadId);
+        const std::scoped_lock<std::mutex> lock(GetStepMutex());
+        GetEnabledStepId() = static_cast<int>(threadId);
 
         return S_OK;
     }
@@ -56,13 +81,13 @@ HRESULT SimpleStepper::SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(trStepper->Step(bStepIn));
     }
 
-    const std::scoped_lock<std::mutex> lock(m_stepMutex);
-    m_enabledSimpleStepId = static_cast<int>(threadId);
+    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    GetEnabledStepId() = static_cast<int>(threadId);
 
     return S_OK;
 }
 
-HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
+HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     const ThreadId threadId(GetThreadId(pThread));
 
@@ -70,8 +95,8 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
         [&]() -> bool
         {
             {
-                const std::scoped_lock<std::mutex> lock(m_stepMutex);
-                if (m_enabledSimpleStepId != static_cast<int>(threadId))
+                const std::scoped_lock<std::mutex> lock(GetStepMutex());
+                if (GetEnabledStepId() != static_cast<int>(threadId))
                 {
                     return false;
                 }
@@ -101,17 +126,16 @@ HRESULT SimpleStepper::ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain,
     return stepForcedIgnoreBP() ? S_IGNORE : S_OK;
 }
 
-HRESULT SimpleStepper::ManagedCallbackStepComplete()
+HRESULT ManagedCallbackStepComplete()
 {
     // Reset simple step without real stepper release.
-    m_stepMutex.lock();
-    m_enabledSimpleStepId = 0;
-    m_stepMutex.unlock();
+    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    GetEnabledStepId() = 0;
 
     return S_OK;
 }
 
-HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
+HRESULT DisableAllSteppers(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
 
@@ -135,11 +159,24 @@ HRESULT SimpleStepper::DisableAllSteppers(ICorDebugProcess *pProcess)
         }
     }
 
-    m_stepMutex.lock();
-    m_enabledSimpleStepId = 0;
-    m_stepMutex.unlock();
+    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    GetEnabledStepId() = 0;
 
     return S_OK;
 }
 
-} // namespace dncdbg
+void SetJustMyCode(bool enable)
+{
+    GetJustMyCode() = enable;
+}
+
+void Cleanup()
+{
+    // Don't reset the protocol-provided settings: JustMyCode.
+    // Only the internal state related to process execution is reset here.
+
+    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    GetEnabledStepId() = 0;
+}
+
+} // namespace dncdbg::SimpleStepper

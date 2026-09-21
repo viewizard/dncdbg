@@ -23,7 +23,7 @@ namespace dncdbg
 
 bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
-    if (S_IGNORE == m_debugger.m_uniqueSteppers->ManagedCallbackBreakpoint(pAppDomain, pThread))
+    if (S_IGNORE == Steppers::ManagedCallbackBreakpoint(pAppDomain, pThread))
     {
         // Steppers related break (for example, async stepping internal breakpoints),
         // don't emit breakpoint stop event and continue execution.
@@ -40,7 +40,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     }
 
     // At this point we stop at breakpoint, disable all steppers (we could stop at breakpoint during step).
-    m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
+    Steppers::DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
 
@@ -52,7 +52,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
 
 bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
-    if (S_IGNORE == m_debugger.m_uniqueSteppers->ManagedCallbackStepComplete(pThread, reason))
+    if (S_IGNORE == Steppers::ManagedCallbackStepComplete(pThread, reason))
     {
         // Steppers related break (for example, filtering enabled and we need continue step),
         // don't emit stop event and continue execution.
@@ -77,7 +77,7 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     }
 
     // At this point we stop at Break, disable all steppers (we could stop at Break during step).
-    m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
+    Steppers::DisableAllSteppers(pAppDomain);
 
     m_debugger.SetLastStoppedThread(pThread);
     const ThreadId threadId(GetThreadId(pThread));
@@ -98,7 +98,7 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     }
 
     // At this point we stop at exception, disable all steppers (we could stop at exception during step).
-    m_debugger.m_uniqueSteppers->DisableAllSteppers(pAppDomain);
+    Steppers::DisableAllSteppers(pAppDomain);
 
     const ThreadId threadId(GetThreadId(pThread));
     const StoppedEvent event(StoppedEventReason::Exception, threadId);
@@ -342,7 +342,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     m_stopEventInProcess = true;
 
     // Same logic as provided by vsdbg in case of pause during stepping.
-    m_debugger.m_uniqueSteppers->DisableAllSteppers(pProcess);
+    Steppers::DisableAllSteppers(pProcess);
 
     std::vector<Thread> threads;
     m_debugger.GetThreads(threads);
