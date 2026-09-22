@@ -36,6 +36,12 @@ bool &GetSuppressJITOptimizationsState()
     return suppressJITOptimizationsState;
 }
 
+uint32_t &GetEvalFlagsState()
+{
+    static uint32_t evalFlags{EVAL_DEFAULT};
+    return evalFlags;
+}
+
 } // unnamed namespace
 
 bool GetJustMyCode()
@@ -76,6 +82,16 @@ bool GetSuppressJITOptimizations()
 void SetSuppressJITOptimizations(bool state)
 {
     GetSuppressJITOptimizationsState() = state;
+}
+
+uint32_t GetEvalFlags()
+{
+    return GetEvalFlagsState();
+}
+
+void SetEvalFlags(uint32_t evalFlags)
+{
+    GetEvalFlagsState() = evalFlags;
 }
 
 } // namespace dncdbg::Config

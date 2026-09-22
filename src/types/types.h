@@ -190,15 +190,6 @@ class FrameId : public CustomScalarType<FrameId>
     ScalarType m_id;
 };
 
-enum enum_EVALFLAGS : uint32_t // NOLINT(performance-enum-size,cppcoreguidelines-use-enum-class)
-{
-    EVAL_NOFUNCEVAL    = 0x0002,
-    EVAL_NOTOSTRING    = 0x0004,
-    EVAL_SHOWRAWVALUES = 0x0008
-};
-
-constexpr uint32_t defaultEvalFlags = 0;
-
 enum class FormatSpecifier : uint16_t
 {
     None                       = 0,

@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluator.h"
+#include "config/config.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
@@ -497,12 +498,6 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
 
         return S_OK;
     });
-}
-
-uint32_t &GetEvalFlags()
-{
-    static uint32_t evalFlags{defaultEvalFlags};
-    return evalFlags;
 }
 
 struct ModuleExtensionMethods
@@ -1169,7 +1164,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
 
     HRESULT Status = S_OK;
     bool showInRaw = (specifier & FormatSpecifier::DisplaysInRawMode) != FormatSpecifier::None ||
-                     (GetEvalFlags() & EVAL_SHOWRAWVALUES) != 0U;
+                     (Config::GetEvalFlags() & Config::EVAL_SHOWRAWVALUES) != 0U;
     bool showHidden = (specifier & FormatSpecifier::DisplaysHiddenMembers) != FormatSpecifier::None;
     bool walkContainer = (specifier & FormatSpecifier::WalkContainerMembers) != FormatSpecifier::None;
 
@@ -2066,7 +2061,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 
 HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
 {
-    if ((GetEvalFlags() & EVAL_NOTOSTRING) != 0U)
+    if ((Config::GetEvalFlags() & Config::EVAL_NOTOSTRING) != 0U)
     {
         return CORDBG_E_DEBUGGING_DISABLED;
     }
@@ -2673,14 +2668,6 @@ void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
     GetExtensionMethodsCache().clear();
-
-    // Don't reset the protocol-provided settings: EvalFlags.
-    // Only the internal state related to process execution is reset here.
-}
-
-void SetEvalFlags(uint32_t evalFlags)
-{
-    GetEvalFlags() = evalFlags;
 }
 
 } // namespace dncdbg::Evaluator

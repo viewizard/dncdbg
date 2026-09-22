@@ -46,9 +46,6 @@ HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClas
 // Cleans up the EvalExec internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 
-[[nodiscard]] uint32_t GetEvalFlags();
-void SetEvalFlags(uint32_t evalFlags);
-
 } // namespace dncdbg::EvalExec
 
 #endif // DEBUGGER_EVALUATION_EVALEXEC_H

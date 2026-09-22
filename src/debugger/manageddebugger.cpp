@@ -990,14 +990,6 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     return Variables::SetExpression(m_trProcess, frameId, expression, value, output);
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
-// the calls to the EvalExec and Evaluator namespace functions, so it is intentionally kept non-static.
-void ManagedDebugger::SetEvalFlags(uint32_t evalFlags) // NOLINT(readability-convert-member-functions-to-static)
-{
-    EvalExec::SetEvalFlags(evalFlags);
-    Evaluator::SetEvalFlags(evalFlags);
-}
-
 void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
     DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));

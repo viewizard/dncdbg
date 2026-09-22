@@ -457,21 +457,21 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 #endif // _WIN32
                 }
 
-                uint32_t evalFlags = defaultEvalFlags;
+                uint32_t evalFlags = Config::EVAL_DEFAULT;
                 if (arguments.contains("expressionEvaluationOptions"))
                 {
                     // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
                     // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L456
                     const bool allowFuncEval = arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true);
-                    evalFlags |= allowFuncEval ? 0 : EVAL_NOFUNCEVAL;
+                    evalFlags |= allowFuncEval ? 0 : Config::EVAL_NOFUNCEVAL;
                     // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
                     const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
-                    evalFlags |= (allowToString && allowFuncEval) ? 0 : EVAL_NOTOSTRING;
+                    evalFlags |= (allowToString && allowFuncEval) ? 0 : Config::EVAL_NOTOSTRING;
                     // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L469
                     const bool showRawValues = arguments.at("expressionEvaluationOptions").value("showRawValues", false);
-                    evalFlags |= showRawValues ? EVAL_SHOWRAWVALUES : 0;
+                    evalFlags |= showRawValues ? Config::EVAL_SHOWRAWVALUES : 0;
                 }
-                m_sharedDebugger->SetEvalFlags(evalFlags);
+                Config::SetEvalFlags(evalFlags);
 
                 const std::string program = arguments.at("program").get<std::string>();
                 std::vector<std::string> args = arguments.value("args", std::vector<std::string>());

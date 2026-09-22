@@ -115,8 +115,6 @@ bool IsEnumeration(ICorDebugValue *pInputValue);
 // Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 
-void SetEvalFlags(uint32_t evalFlags);
-
 } // namespace dncdbg::Evaluator
 
 #endif // DEBUGGER_EVALUATOR_H

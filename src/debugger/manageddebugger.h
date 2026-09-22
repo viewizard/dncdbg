@@ -56,8 +56,6 @@ class ManagedDebugger
     ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
-    void SetEvalFlags(uint32_t evalFlags);
-
     HRESULT Initialize();
     HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,

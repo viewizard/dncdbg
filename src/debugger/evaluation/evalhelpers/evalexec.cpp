@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalhelpers/evalexec.h"
+#include "config/config.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evalhelpers.h"
 #include "metadata/corhelpers.h"
@@ -63,12 +64,6 @@ std::list<type_object_t> &GetTypeObjectCache()
 {
     static std::list<type_object_t> typeObjectCache;
     return typeObjectCache;
-}
-
-uint32_t &GetEvalFlagsState()
-{
-    static uint32_t evalFlags{defaultEvalFlags};
-    return evalFlags;
 }
 
 HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
@@ -527,7 +522,7 @@ HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDeb
            (ppArgsValue != nullptr && argsValueCount > 0));
 
     if ((specifier & FormatSpecifier::ForceEvaluation) == FormatSpecifier::None &&
-        (GetEvalFlags() & EVAL_NOFUNCEVAL) != 0U)
+        (Config::GetEvalFlags() & Config::EVAL_NOFUNCEVAL) != 0U)
     {
         return CORDBG_E_DEBUGGING_DISABLED;
     }
@@ -832,16 +827,6 @@ void Cleanup()
 
     const std::scoped_lock<std::mutex> typeObjectCacheLock(GetTypeObjectCacheMutex());
     GetTypeObjectCache().clear();
-}
-
-uint32_t GetEvalFlags()
-{
-    return GetEvalFlagsState();
-}
-
-void SetEvalFlags(uint32_t evalFlags)
-{
-    GetEvalFlagsState() = evalFlags;
 }
 
 } // namespace dncdbg::EvalExec
