@@ -7,6 +7,7 @@
 #include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -30,9 +31,14 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
         return S_OK;
     }
 
+    ToRelease<ICorDebugValue2> trValue2;
+    IfFailRet(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+    ToRelease<ICorDebugType> trType;
+    IfFailRet(trValue2->GetExactType(&trType));
     ToRelease<ICorDebugClass> trClass;
+    IfFailRet(trType->GetClass(&trClass));
     mdTypeDef currentTypeDef = mdTypeDefNil;
-    IfFailRet(EvalMetadataHelpers::GetClassAndTypeDefByValue(trValue, &trClass, currentTypeDef));
+    IfFailRet(trClass->GetToken(&currentTypeDef));
 
     return EvalMetadataHelpers::ForEachFields(pMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
@@ -67,8 +73,8 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 return S_OK;
             };
 
-            const EvalMetadataHelpers::GeneratedNameKind generatedNameKind = EvalMetadataHelpers::GetLocalOrFieldNameKind(mdName);
-            if (generatedNameKind == EvalMetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
+            const MetadataHelpers::GeneratedNameKind generatedNameKind = MetadataHelpers::GetLocalOrFieldNameKind(mdName);
+            if (generatedNameKind == MetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
             {
                 ToRelease<ICorDebugValue> trDisplayClassValue;
                 IfFailRet(getValue(&trDisplayClassValue, nullptr));
@@ -79,12 +85,12 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                     return S_CAN_EXIT; // Fast exit from the loop.
                 }
             }
-            else if (generatedNameKind == EvalMetadataHelpers::GeneratedNameKind::HoistedLocalField)
+            else if (generatedNameKind == MetadataHelpers::GeneratedNameKind::HoistedLocalField)
             {
                 // Check that the hoisted local is in scope.
                 // Note: if this check fails for any reason, ignore it and show the variable anyway, since it is not a fatal error.
                 int32_t index = 0;
-                if (SUCCEEDED(EvalMetadataHelpers::TryParseSlotIndex(mdName, index)) && index >= 0 &&
+                if (SUCCEEDED(MetadataHelpers::TryParseSlotIndex(mdName, index)) && index >= 0 &&
                     !DebugInfo::IsHoistedLocalInScope(pModule, methodDef, currentIlOffset, static_cast<uint32_t>(index)))
                 {
                     return S_OK; // Return success to continue walking.
@@ -96,7 +102,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 }
 
                 WSTRING wLocalName;
-                if (FAILED(EvalMetadataHelpers::TryParseGeneratedName(mdName, wLocalName)))
+                if (FAILED(MetadataHelpers::TryParseGeneratedName(mdName, wLocalName)))
                 {
                     return S_OK; // Return success to continue walking.
                 }
@@ -109,7 +115,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
                 usedNames.insert(wLocalName);
             }
             // Ignore any other compiler-generated fields, show only normal fields.
-            else if (!EvalMetadataHelpers::IsSynthesizedLocalName(mdName) &&
+            else if (!MetadataHelpers::IsSynthesizedLocalName(mdName) &&
                      usedNames.find(mdName) == usedNames.cend())
             {
                 IfFailRet(cb(to_utf8(mdName.c_str()), getValue));

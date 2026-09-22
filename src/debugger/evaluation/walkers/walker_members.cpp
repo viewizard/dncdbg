@@ -424,7 +424,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                     // More about compiler-generated names in the Roslyn sources:
                     // https://github.com/dotnet/roslyn/blob/315c2e149ba7889b0937d872274c33fcbfe9af5f/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNames.cs
                     // Note, uncontrolled access to an internal compiler-added field or its properties may break debugger work.
-                    if (!showHidden && EvalMetadataHelpers::IsSynthesizedLocalName(mdName))
+                    if (!showHidden && MetadataHelpers::IsSynthesizedLocalName(mdName))
                     {
                         return S_OK; // Return success to continue walking.
                     }

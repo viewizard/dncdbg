@@ -59,8 +59,8 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
         }
 
         WSTRING wParameterName;
-        if (EvalMetadataHelpers::GetLocalOrFieldNameKind(mdName) != EvalMetadataHelpers::GeneratedNameKind::PrimaryConstructorParameterField ||
-            FAILED(EvalMetadataHelpers::TryParseGeneratedName(mdName, wParameterName)) ||
+        if (MetadataHelpers::GetLocalOrFieldNameKind(mdName) != MetadataHelpers::GeneratedNameKind::PrimaryConstructorParameterField ||
+            FAILED(MetadataHelpers::TryParseGeneratedName(mdName, wParameterName)) ||
             usedNames.find(wParameterName) != usedNames.cend())
         {
             return S_OK; // Return success to continue walking.
@@ -158,7 +158,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         szMethod.pop_back();
     }
 
-    EvalMetadataHelpers::GeneratedCodeKind generatedCodeKind = EvalMetadataHelpers::GeneratedCodeKind::Normal;
+    MetadataHelpers::GeneratedCodeKind generatedCodeKind = MetadataHelpers::GeneratedCodeKind::Normal;
     ToRelease<ICorDebugValue> trCurrentThis; // Current "this". Note, for an async method or lambda this is a special object (not the user's "this").
     ToRelease<ICorDebugValue> trUserThis;
     ToRelease<ICorDebugClass> trUserThisClass;
@@ -170,7 +170,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         IfFailRet(trFunction->GetClass(&trClass));
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(trClass->GetToken(&typeDef));
-        IfFailRet(EvalMetadataHelpers::GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
+        IfFailRet(MetadataHelpers::GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
         Status = trILFrame->GetArgument(0, &trCurrentThis);
         if (Status == CORDBG_E_IL_VAR_NOT_AVAILABLE)
         {
@@ -198,7 +198,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         }
         else
         {
-            if (generatedCodeKind == EvalMetadataHelpers::GeneratedCodeKind::Normal)
+            if (generatedCodeKind == MetadataHelpers::GeneratedCodeKind::Normal)
             {
                 trCurrentThis->AddRef();
                 trUserThis = trCurrentThis.GetPtr();
@@ -334,7 +334,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 
         // Note, this method could have lambdas inside; display class local objects must also be checked,
         // since these objects could hold the current method's local variables too.
-        if (EvalMetadataHelpers::GetLocalOrFieldNameKind(wLocalName) == EvalMetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
+        if (MetadataHelpers::GetLocalOrFieldNameKind(wLocalName) == MetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
         {
             ToRelease<ICorDebugValue> trDisplayClassValue;
             IfFailRet(getValue(&trDisplayClassValue, nullptr));
@@ -371,7 +371,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
                 }
 
                 // Skip compiler-generated constants
-                if (EvalMetadataHelpers::IsSynthesizedLocalName(constant.name))
+                if (MetadataHelpers::IsSynthesizedLocalName(constant.name))
                 {
                     continue;
                 }
@@ -401,7 +401,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         }
     }
 
-    if (generatedCodeKind != EvalMetadataHelpers::GeneratedCodeKind::Normal && trCurrentThis != nullptr)
+    if (generatedCodeKind != MetadataHelpers::GeneratedCodeKind::Normal && trCurrentThis != nullptr)
     {
         IfFailRet(WalkGeneratedClassFields(trMDImport, trCurrentThis, currentIlOffset, usedNames, methodDef, trModule, cb));
         if (Status == S_CAN_EXIT)

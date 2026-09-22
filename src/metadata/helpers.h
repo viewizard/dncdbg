@@ -49,9 +49,12 @@ HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeNam
 // Get the fully-qualified "display" type name of the real (user) code, resolving async state-machine methods back to their kickoff method.
 HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displayTypeName);
 // Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &displayName);
-// Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
 HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, std::string &displayName);
+
+// Get the fully-qualified "display" type and method names for the given method definition.
+// Generic parameters of the method and its declaring type are used as generic argument names.
+HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
+                                    std::string &displayTypeName, std::string &displayMethodName);
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
@@ -91,6 +94,35 @@ HRESULT GetNativeAddress(ICorDebugFunction *pFunction, uint32_t ilOffset, CORDB_
 // Fast conversion of a CORDB_ADDRESS to a std::string for DAP memory address related fields.
 // The result includes the "0x" prefix followed by 16 hexadecimal digits.
 std::string AddrToString(CORDB_ADDRESS corAddr);
+
+// Find the kickoff method for an async state machine `MoveNext` method.
+// If possible, call the faster `DebugInfo::GetStateMachineKickoffMethod()` first.
+HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveNextMethodToken, mdMethodDef &kickoffMethodToken);
+
+enum class GeneratedCodeKind : uint8_t
+{
+    Normal,
+    Async,
+    Lambda
+};
+
+enum class GeneratedNameKind : uint8_t
+{
+    None,
+    ThisProxyField,
+    HoistedLocalField,
+    DisplayClassLocalOrField,
+    PrimaryConstructorParameterField
+};
+
+// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
+HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index);
+// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
+HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName);
+// https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
+bool IsSynthesizedLocalName(const WSTRING &mdName);
+GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName);
+HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result);
 
 } // namespace dncdbg::MetadataHelpers
 

@@ -4,12 +4,17 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalhelpers/metadata.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/frames.h"
+#include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <list>
+#include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace dncdbg::EvalMetadataHelpers
 {
@@ -53,176 +58,6 @@ HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, 
     return Status;
 }
 
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
-HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
-{
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameConstants.cs#L11
-    const WSTRING suffixSeparator(W("__"));
-    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
-    if (suffixSeparatorOffset == WSTRING::npos)
-    {
-        return E_FAIL;
-    }
-
-    static constexpr size_t intMaxSizeInChars = 10;
-    const WSTRING slotIndexString = mdName.substr(suffixSeparatorOffset + suffixSeparator.size());
-    if (slotIndexString.empty() ||
-        // The slot index is a positive 4-byte int, which means the max is 10 characters (2147483647).
-        slotIndexString.size() > intMaxSizeInChars)
-    {
-        return E_FAIL;
-    }
-
-    static constexpr int32_t base = 10;
-    int32_t slotIndex = 0;
-    for (const WCHAR wChar : slotIndexString)
-    {
-        if (wChar < W('0') || wChar > W('9'))
-        {
-            return E_FAIL;
-        }
-
-        slotIndex = (slotIndex * base) + static_cast<int32_t>(wChar - W('0'));
-    }
-
-    if (slotIndex < 1) // The slot index starts from 1.
-    {
-        return E_FAIL;
-    }
-
-    index = slotIndex - 1;
-    return S_OK;
-}
-
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
-HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
-{
-    if (mdName.length() <= 3)
-    {
-        return E_FAIL;
-    }
-
-    const WSTRING::size_type nameStartOffset = mdName.find(W('<'));
-    if (mdName.find(W('<')) == WSTRING::npos)
-    {
-        return E_FAIL;
-    }
-
-    const WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
-    if (closeBracketOffset == WSTRING::npos)
-    {
-        return E_FAIL;
-    }
-
-    wGeneratedName = mdName.substr(nameStartOffset + 1, closeBracketOffset - nameStartOffset - 1);
-    return S_OK;
-}
-
-// https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
-bool IsSynthesizedLocalName(const WSTRING &mdName)
-{
-    return mdName.find(W('<')) == 0 ||
-           mdName.find(W("CS$<")) == 0;
-}
-
-HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
-{
-    HRESULT Status = S_OK;
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
-
-    WSTRING typeName(nameLen, '\0');
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, typeName.data(), nameLen, nullptr, nullptr, nullptr));
-    // Remove null terminator that was included in the length
-    if (!typeName.empty() && typeName.back() == '\0')
-    {
-        typeName.pop_back();
-    }
-
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
-    //  Parse the generated name. Returns true for names of the form
-    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
-    //  generated names, where [middle] and [__[suffix]] are optional,
-    //  and where c is a single character in [1-9a-z]
-    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
-
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
-    //  LambdaMethod = 'b',
-    //  LambdaDisplayClass = 'c',
-    //  StateMachineType = 'd',
-
-    // https://github.com/dotnet/roslyn/blob/21055e1858548dbd8f4c1fd5d25a9c9617873806/src/Compilers/Core/Portable/PublicAPI.Shipped.txt#L252
-    //  const Microsoft.CodeAnalysis.WellKnownMemberNames.MoveNextMethodName = "MoveNext" -> string!
-    //  ... used in SynthesizedStateMachineMoveNextMethod class constructor.
-
-    if (methodName.rfind(W("MoveNext"), 0) != WSTRING::npos && typeName.find(W(">d")) != WSTRING::npos)
-    {
-        result = EvalMetadataHelpers::GeneratedCodeKind::Async;
-    }
-    else if (methodName.find(W(">b")) != WSTRING::npos && typeName.find(W(">c")) != WSTRING::npos)
-    {
-        result = EvalMetadataHelpers::GeneratedCodeKind::Lambda;
-    }
-    else
-    {
-        result = EvalMetadataHelpers::GeneratedCodeKind::Normal;
-    }
-
-    return S_OK;
-}
-
-GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
-{
-    // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
-    //  Parse the generated name. Returns true for names of the form
-    //  [CS$]<[middle]>c[__[suffix]] where [CS$] is included for certain
-    //  generated names, where [middle] and [__[suffix]] are optional,
-    //  and where c is a single character in [1-9a-z]
-    //  (csharp\LanguageAnalysis\LIB\SpecialName.cpp).
-
-    // https://github.com/dotnet/roslyn/blob/f7c7a5972ea0c8c645ddef58ec00a0e03136fd70/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameKind.cs#L13-L20
-    //  ThisProxyField = '4'
-    //  HoistedLocalField = '5'
-    //  DisplayClassLocalOrField = '8'
-    //  PrimaryConstructorParameter = 'P'
-
-    if (localOrFieldName.length() <= 3)
-    {
-        return GeneratedNameKind::None;
-    }
-
-    if (localOrFieldName.find(W(">4")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::ThisProxyField;
-    }
-    else if (localOrFieldName.find(W(">5")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::HoistedLocalField;
-    }
-    else if (localOrFieldName.find(W(">8")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::DisplayClassLocalOrField;
-    }
-    else if (localOrFieldName.find(W(">P")) != WSTRING::npos)
-    {
-        return GeneratedNameKind::PrimaryConstructorParameterField;
-    }
-
-    return GeneratedNameKind::None;
-}
-
-HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppClass, mdTypeDef &typeDef)
-{
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugValue2> trValue2;
-    IfFailRet(pValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-    ToRelease<ICorDebugType> trType;
-    IfFailRet(trValue2->GetExactType(&trType));
-    IfFailRet(trType->GetClass(ppClass));
-    IfFailRet((*ppClass)->GetToken(&typeDef));
-    return S_OK;
-}
-
 HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
 {
@@ -260,19 +95,26 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                     return S_OK;
                 };
 
-                const GeneratedNameKind generatedNameKind = GetLocalOrFieldNameKind(mdName);
-                if (generatedNameKind == GeneratedNameKind::ThisProxyField)
+                const MetadataHelpers::GeneratedNameKind generatedNameKind = MetadataHelpers::GetLocalOrFieldNameKind(mdName);
+                if (generatedNameKind == MetadataHelpers::GeneratedNameKind::ThisProxyField)
                 {
                     IfFailRet(getValue(ppResultValue));
                     return S_CAN_EXIT; // Fast exit from the loop.
                 }
-                else if (generatedNameKind == GeneratedNameKind::DisplayClassLocalOrField)
+                else if (generatedNameKind == MetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
                 {
                     ToRelease<ICorDebugValue> trDisplayClassValue;
                     IfFailRet(getValue(&trDisplayClassValue));
                     ToRelease<ICorDebugClass> trDisplayClass;
+
+                    ToRelease<ICorDebugValue2> trValue2;
+                    IfFailRet(trDisplayClassValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                    ToRelease<ICorDebugType> trType;
+                    IfFailRet(trValue2->GetExactType(&trType));
+                    IfFailRet(trType->GetClass(&trDisplayClass));
                     mdTypeDef displayClassTypeDef = mdTypeDefNil;
-                    IfFailRet(GetClassAndTypeDefByValue(trDisplayClassValue, &trDisplayClass, displayClassTypeDef));
+                    IfFailRet(trDisplayClass->GetToken(&displayClassTypeDef));
+
                     IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
                     if (ppResultValue != nullptr)
                     {
@@ -304,7 +146,7 @@ HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typ
             mdName.pop_back();
         }
 
-        if (!IsSynthesizedLocalName(mdName))
+        if (!MetadataHelpers::IsSynthesizedLocalName(mdName))
         {
             userTypeDef = typeDef;
             break;
@@ -374,9 +216,9 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
         return MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &args);
     }
 
-    EvalMetadataHelpers::GeneratedCodeKind generatedCodeKind = EvalMetadataHelpers::GeneratedCodeKind::Normal;
-    IfFailRet(GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
-    if (generatedCodeKind == EvalMetadataHelpers::GeneratedCodeKind::Normal)
+    MetadataHelpers::GeneratedCodeKind generatedCodeKind = MetadataHelpers::GeneratedCodeKind::Normal;
+    IfFailRet(MetadataHelpers::GetGeneratedCodeKind(trMDImport, szMethod, typeDef, generatedCodeKind));
+    if (generatedCodeKind == MetadataHelpers::GeneratedCodeKind::Normal)
     {
         return MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &args);
     }
@@ -396,6 +238,159 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
     IfFailRet(GetFirstUserCodeEnclosingClass(trMDImport, typeDef, userTypeDef));
 
     return MetadataHelpers::GetFQDisplayNameForToken(userTypeDef, trMDImport, displayTypeName, &args);
+}
+
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &displayName)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugFunction> trFunction;
+    IfFailRet(pFrame->GetFunction(&trFunction));
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(trFunction->GetModule(&trModule));
+    mdMethodDef methodToken = mdMethodDefNil;
+    IfFailRet(trFunction->GetToken(&methodToken));
+
+    mdMethodDef methodDef = mdMethodDefNil;
+    bool asyncMethod = true;
+    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
+        FAILED(MetadataHelpers::GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
+    {
+        methodDef = methodToken;
+        asyncMethod = false;
+    }
+
+    std::ostringstream ss;
+    std::string displayTypeName;
+    std::string displayMethodName;
+    IfFailRet(MetadataHelpers::GetDisplayTypeAndMethodName(pFrame, methodDef, displayTypeName, displayMethodName));
+
+    if (!displayTypeName.empty())
+    {
+        ss << displayTypeName << ".";
+    }
+    ss << displayMethodName << "(";
+
+    const auto addMethodParameters = [&]() -> HRESULT
+    {
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+        ToRelease<ICorDebugILFrame> trILFrame;
+        IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
+
+        DWORD methodAttr = 0;
+        PCCOR_SIGNATURE pSig = nullptr;
+        ULONG cbSig = 0;
+        IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr));
+
+        SigElementType returnElementType;
+        std::vector<SigElementType> argElementTypes;
+        // Ignore failed return code here; we need all we could parse from the sig.
+        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
+
+        ULONG cArguments = 0;
+        std::unordered_map<std::string, ToRelease<ICorDebugValue>> asyncMethodParams;
+        if (!asyncMethod)
+        {
+            ToRelease<ICorDebugValueEnum> trArgumentEnum;
+            IfFailRet(trILFrame->EnumerateArguments(&trArgumentEnum));
+            IfFailRet(trArgumentEnum->GetCount(&cArguments));
+            // Decrement argument count to exclude `this` for instance methods.
+            if ((methodAttr & mdStatic) == 0)
+            {
+                cArguments--;
+            }
+        }
+        else
+        {
+            ToRelease<ICorDebugValue> trCurrentThis;
+            if (SUCCEEDED(trILFrame->GetArgument(0, &trCurrentThis)))
+            {
+                std::unordered_set<WSTRING> usedNames;
+                Walkers::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, trModule,
+                    [&](const std::string &name, const Walkers::GetValueCallback &getValue) -> HRESULT
+                    {
+                        ToRelease<ICorDebugValue> trValue;
+                        if (FAILED(getValue(&trValue, nullptr)))
+                        {
+                            return S_OK;
+                        }
+
+                        asyncMethodParams.emplace(name, trValue.Detach());
+                        cArguments++;
+                        return S_OK;
+                    });
+            }
+        }
+
+        for (ULONG i = 0; i < cArguments; i++)
+        {
+            // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
+            // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
+            // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
+            const ULONG idx = i + 1;
+            mdParamDef paramDef = mdParamDefNil;
+            ULONG paramNameLen = 0;
+            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
+                FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0,
+                                                 &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            std::vector<WCHAR> wParamName(paramNameLen, '\0');
+            if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            if (i != 0)
+            {
+                ss << ", ";
+            }
+
+            if (argElementTypes.size() > i && !argElementTypes.at(i).parameterModifier.empty())
+            {
+                ss << argElementTypes.at(i).parameterModifier << " ";
+            }
+
+            const std::string paramName = to_utf8(wParamName.data());
+            const auto asyncParam = asyncMethodParams.find(paramName);
+
+            std::string displayTypeName;
+            ToRelease<ICorDebugValue> trValue;
+            if ((asyncMethod && asyncParam != asyncMethodParams.cend() &&
+                 SUCCEEDED(MetadataHelpers::GetFQDisplayTypeName(asyncParam->second, displayTypeName))) ||
+                (!asyncMethod &&
+                 SUCCEEDED(Status = trILFrame->GetArgument((methodAttr & mdStatic) == 0 ? i + 1 : i, &trValue)) &&
+                 SUCCEEDED(MetadataHelpers::GetFQDisplayTypeName(trValue, displayTypeName))))
+            {
+                ss << displayTypeName << " ";
+            }
+            else if (argElementTypes.size() > i && !argElementTypes.at(i).metadataTypeName.empty() &&
+                     // TODO: replace with proper type and method generic parameters
+                     argElementTypes.at(i).genericElemType != ELEMENT_TYPE_VAR &&
+                     argElementTypes.at(i).genericElemType != ELEMENT_TYPE_MVAR)
+            {
+                ss << MetadataHelpers::ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
+            }
+            // else
+            //    in case of failure, ignore the parameter type and print only the parameter name
+
+            ss << paramName;
+        }
+        return S_OK;
+    };
+    addMethodParameters();
+
+    ss << ")";
+    displayName = ss.str();
+    return S_OK;
 }
 
 } // namespace dncdbg::EvalMetadataHelpers

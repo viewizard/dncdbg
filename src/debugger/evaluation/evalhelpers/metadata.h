@@ -23,43 +23,11 @@ namespace dncdbg::EvalMetadataHelpers
 using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
 using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
 
-enum class GeneratedCodeKind : uint8_t
-{
-    Normal,
-    Async,
-    Lambda
-};
-
-enum class GeneratedNameKind : uint8_t
-{
-    None,
-    ThisProxyField,
-    HoistedLocalField,
-    DisplayClassLocalOrField,
-    PrimaryConstructorParameterField
-};
-
 // Note, could return S_CAN_EXIT for fast exit.
 HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb);
 
 // Note, could return S_CAN_EXIT for fast exit.
 HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb);
-
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L139-L159
-HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index);
-
-// https://github.com/dotnet/roslyn/blob/3fdd28bc26238f717ec1124efc7e1f9c2158bce2/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L59
-HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName);
-
-// https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
-bool IsSynthesizedLocalName(const WSTRING &mdName);
-
-GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName);
-
-HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef,
-                             GeneratedCodeKind &result);
-
-HRESULT GetClassAndTypeDefByValue(ICorDebugValue *pValue, ICorDebugClass **ppClass, mdTypeDef &typeDef);
 
 HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue);
@@ -69,6 +37,9 @@ HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typ
 // Get the fully-qualified "display" type name of the method's declaring type.
 // Sets "haveThis" to true when the method has a "this" instance available.
 HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis);
+
+// Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
+HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &displayName);
 
 } // namespace dncdbg::EvalMetadataHelpers
 
