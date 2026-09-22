@@ -1415,7 +1415,7 @@ HRESULT ElementAccessHelper(const Parser::Opcode &opcode, std::list<EvalStackEnt
         evalStack.front().realDisplayTypeName.clear();
         evalStack.front().identifiers.clear();
         evalStack.front().setterData = std::move(setterData);
-        Status = Evaluator::GetElement(trRealValue, indexes, &evalStack.front().trValue);
+        Status = GetArrayElement(trRealValue, indexes, &evalStack.front().trValue);
     }
     else if (elemType == ELEMENT_TYPE_STRING ||
              elemType == ELEMENT_TYPE_CLASS ||

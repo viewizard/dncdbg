@@ -8,6 +8,8 @@
 #include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
+#include <cassert>
+#include <limits>
 #include <string_view>
 #include <unordered_map>
 
@@ -412,6 +414,32 @@ bool TypeHasStaticMembers(ICorDebugType *pType)
     trMDImport->CloseEnum(propEnum);
 
     return false;
+}
+
+HRESULT GetArrayElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
+{
+    HRESULT Status = S_OK;
+
+    if (indexes.empty())
+    {
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugArrayValue> trArrayVal;
+    IfFailRet(pInputValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayVal)));
+
+    uint32_t nRank = 0;
+    IfFailRet(trArrayVal->GetRank(&nRank));
+
+    if (indexes.size() != nRank)
+    {
+        return E_FAIL;
+    }
+
+#ifdef BIT64
+    assert(indexes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+    return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
 }
 
 } // namespace dncdbg

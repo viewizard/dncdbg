@@ -85,8 +85,6 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
                            FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
                            std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType);
 
-HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                       mdFieldDef fieldDef, ICorDebugValue **ppResultValue);
 HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                     bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
 
@@ -99,19 +97,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 // Get the fully-qualified "display" type name of the method's declaring type.
 HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis);
 
-HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ValueKind valueKind,
-                     const std::vector<std::string> &identifiers, int nextIdentifier, FormatSpecifier specifier,
-                     ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                     std::unique_ptr<SetterData> *pResultSetterData);
-
-HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
-                              std::vector<std::string> &identifiers, FormatSpecifier specifier,
-                              const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                              std::string *pRealDisplayTypeName, std::unique_ptr<SetterData> *pResultSetterData);
-
 HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
-
-HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
 
 HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
 HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
@@ -129,10 +115,7 @@ bool IsEnumeration(ICorDebugValue *pInputValue);
 // Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 
-[[nodiscard]] bool IsJustMyCode();
 void SetJustMyCode(bool enable);
-
-[[nodiscard]] uint32_t GetEvalFlags();
 void SetEvalFlags(uint32_t evalFlags);
 
 } // namespace dncdbg::Evaluator

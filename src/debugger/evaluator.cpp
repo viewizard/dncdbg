@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -504,7 +505,7 @@ bool &GetJustMyCode()
     return justMyCode;
 }
 
-uint32_t &GetEvalFlagsState()
+uint32_t &GetEvalFlags()
 {
     static uint32_t evalFlags{defaultEvalFlags};
     return evalFlags;
@@ -600,6 +601,233 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     }
 
     return S_OK;
+}
+
+HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
+                       mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
+{
+    if (pThread == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    HRESULT Status = S_OK;
+    ToRelease<ICorDebugFrame> trFrame;
+    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+
+    if (trFrame == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    // Detect whether the class is initialized (its static constructor .cctor has run).
+    // We read the MethodTable initialization flag directly from the debuggee's memory.
+    // COR_TYPEID.token1 is the MethodTable address. MethodTable contains the
+    // m_pAuxiliaryData pointer, and MethodTableAuxiliaryData has m_dwFlags, where
+    // bit 0 (enum_flag_Initialized = 0x0001) indicates whether the class constructor has run.
+    static constexpr DWORD enum_flag_Initialized = 0x0001;
+
+    bool isClassInitialized = true; // Assume initialized by default.
+
+    // Get the MethodTable address via ICorDebugType2::GetTypeID().
+    ToRelease<ICorDebugType2> trType2;
+    COR_TYPEID typeID{0, 0};
+    if (SUCCEEDED(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2))) &&
+        SUCCEEDED(trType2->GetTypeID(&typeID)) && typeID.token1 != 0)
+    {
+        // typeID.token1 is the MethodTable address.
+        const CORDB_ADDRESS methodTableAddr = typeID.token1;
+
+        ToRelease<ICorDebugProcess> trProcess;
+        IfFailRet(pThread->GetProcess(&trProcess));
+        if (trProcess == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        // Read the MethodTable to get the m_pAuxiliaryData pointer.
+        // The offset of m_pAuxiliaryData within MethodTable depends on the pointer size,
+        // so it is computed from the layout below. We rely on m_dwFlags being at offset 0
+        // in MethodTableAuxiliaryData, with the Initialized flag in bit 0.
+
+        // Read enough of the MethodTable to reach m_pAuxiliaryData.
+        // MethodTable layout (from the runtime sources):
+        // - m_dwFlags (DWORD) at offset 0
+        // - m_BaseSize (DWORD) at offset 4
+        // - m_dwFlags2 (DWORD) at offset 8
+        // - m_wNumVirtuals (WORD) at offset 12
+        // - m_wNumInterfaces (WORD) at offset 14
+        // - m_pParentMethodTable (pointer) at offset 16
+        // - m_pModule (pointer) at offset 16 + sizeof(pointer)
+        // - m_pAuxiliaryData (pointer) at offset 16 + 2 * sizeof(pointer)
+        static constexpr size_t auxDataOffset = (sizeof(DWORD) * 3) + (sizeof(WORD) * 2) + (sizeof(void *) * 2);
+        static constexpr size_t readSize = auxDataOffset + sizeof(void *);
+        std::array<BYTE, readSize> buffer{0};
+        SIZE_T bytesRead = 0;
+
+        if (SUCCEEDED(trProcess->ReadMemory(methodTableAddr, readSize, buffer.data(), &bytesRead)) && bytesRead >= readSize)
+        {
+            // Get the auxiliary data pointer.
+            uintptr_t auxDataAddr = 0;
+            std::memcpy(&auxDataAddr, buffer.data() + auxDataOffset, sizeof(uintptr_t));
+            if (auxDataAddr != 0)
+            {
+                // Read m_dwFlags from MethodTableAuxiliaryData (at offset 0).
+                DWORD auxFlags = 0;
+                if (SUCCEEDED(trProcess->ReadMemory(static_cast<CORDB_ADDRESS>(auxDataAddr), sizeof(DWORD),
+                                                    reinterpret_cast<BYTE *>(&auxFlags), &bytesRead)))
+                {
+                    isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
+                }
+            }
+        }
+    }
+
+    // The class should already be initialized at this point. If it is not, force the
+    // static constructor to run to provide a second chance and proper error handling.
+    if (!isClassInitialized)
+    {
+        IfFailRet(EvalExec::CreateTypeObject(pThread, pType, nullptr));
+    }
+
+    IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
+
+    return S_OK;
+}
+
+HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
+                     ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
+                     FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
+                     std::unique_ptr<SetterData> *pResultSetterData)
+{
+    HRESULT Status = S_OK;
+
+    // Note: when (nextIdentifier == identifiers.size()), the result is pValue itself, so we are fine here.
+    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    if (nextIdentifier > static_cast<int>(identifiers.size()))
+    {
+        return E_FAIL;
+    }
+
+    pValue->AddRef();
+    ToRelease<ICorDebugValue> trResultValue(pValue);
+    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
+    {
+        if (identifiers.at(i).empty())
+        {
+            return E_FAIL;
+        }
+
+        const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
+
+        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
+            [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
+                const GetValueCallback &getValue, SetterData *pSetterData, std::string *) -> HRESULT
+            {
+                if ((isStatic && valueKind == ValueKind::Variable) ||
+                    (!isStatic && valueKind == ValueKind::Static) ||
+                    memberName != identifiers.at(i))
+                {
+                    return S_OK;
+                }
+
+                if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
+                {
+                    if (pRealDisplayTypeName != nullptr)
+                    {
+                        pRealDisplayTypeName->clear();
+                    }
+                    return Status;
+                }
+                if (pSetterData != nullptr &&
+                    pResultSetterData != nullptr)
+                {
+                    *pResultSetterData = std::make_unique<SetterData>(*pSetterData);
+                }
+
+                return S_CAN_EXIT; // Fast exit from the loop.
+            }));
+
+        if (trResultValue == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        valueKind = ValueKind::Variable; // We can only follow through instance fields.
+    }
+
+    *ppResult = trResultValue.Detach();
+    return S_OK;
+}
+
+HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
+                              std::vector<std::string> &identifiers, FormatSpecifier specifier,
+                              const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
+                              std::string *pRealDisplayTypeName, std::unique_ptr<SetterData> *pResultSetterData)
+{
+    HRESULT Status = S_OK;
+
+    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
+    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
+    std::vector<std::string> fieldName{identifiers.back()};
+
+    ToRelease<ICorDebugModule> trModule;
+    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
+
+    bool trim = false;
+    while (!classIdentifiers.empty())
+    {
+        if (trim)
+        {
+            classIdentifiers.pop_back();
+        }
+
+        std::vector<std::string> fullpath = classIdentifiers;
+        std::copy(identifiers.cbegin(), identifiers.cbegin() + identifiersNum, std::back_inserter(fullpath));
+
+        int nextClassIdentifier = 0;
+        ToRelease<ICorDebugType> trType;
+        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
+        {
+            break;
+        }
+
+        assert(fullpath.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
+        if (nextClassIdentifier < static_cast<int>(fullpath.size()))
+        {
+            // Look for non-static fields inside a static member.
+            std::vector<std::string> staticName;
+            for (int i = nextClassIdentifier; i < static_cast<int>(fullpath.size()); i++)
+            {
+                staticName.emplace_back(fullpath.at(i));
+            }
+            staticName.emplace_back(fieldName.at(0));
+            ToRelease<ICorDebugValue> trTypeObject;
+            if (TypeHasStaticMembers(trType) &&
+                SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
+                SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
+                                       0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
+            {
+                return S_OK;
+            }
+            trim = true;
+            continue;
+        }
+
+        ToRelease<ICorDebugValue> trTypeObject;
+        if (TypeHasStaticMembers(trType) &&
+            SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
+            SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
+                                   0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
+        {
+            return S_OK;
+        }
+
+        trim = true;
+    }
+
+    return E_FAIL;
 }
 
 } // unnamed namespace
@@ -709,32 +937,6 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
             }
             return S_OK; // Return success to continue walking.
         });
-}
-
-HRESULT GetElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue)
-{
-    HRESULT Status = S_OK;
-
-    if (indexes.empty())
-    {
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugArrayValue> trArrayVal;
-    IfFailRet(pInputValue->QueryInterface(IID_ICorDebugArrayValue, reinterpret_cast<void **>(&trArrayVal)));
-
-    uint32_t nRank = 0;
-    IfFailRet(trArrayVal->GetRank(&nRank));
-
-    if (indexes.size() != nRank)
-    {
-        return E_FAIL;
-    }
-
-#ifdef BIT64
-    assert(indexes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-    return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
 }
 
 HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb)
@@ -958,97 +1160,6 @@ HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb)
             trInputType.Free();
         }
     }
-
-    return S_OK;
-}
-
-HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                       mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
-{
-    if (pThread == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
-
-    if (trFrame == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    // Detect if static field is initialized (static constructor .cctor called).
-    // We read the MethodTable's initialization flag directly from memory.
-    // The COR_TYPEID.token1 is the MethodTable address.
-    // MethodTable has m_pAuxiliaryData pointer, and MethodTableAuxiliaryData
-    // has m_dwFlags where bit 0 (enum_flag_Initialized = 0x0001) indicates
-    // whether the class constructor has run.
-    static constexpr DWORD enum_flag_Initialized = 0x0001;
-
-    bool isClassInitialized = true; // Assume initialized by default
-
-    // Get the MethodTable address via ICorDebugType2::GetTypeID.
-    ToRelease<ICorDebugType2> trType2;
-    COR_TYPEID typeID{0, 0};
-    if (SUCCEEDED(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2))) &&
-        SUCCEEDED(trType2->GetTypeID(&typeID)) && typeID.token1 != 0)
-    {
-        // typeID.token1 is the MethodTable address.
-        const CORDB_ADDRESS methodTableAddr = typeID.token1;
-
-        ToRelease<ICorDebugProcess> trProcess;
-        IfFailRet(pThread->GetProcess(&trProcess));
-        if (trProcess == nullptr)
-        {
-            return E_FAIL;
-        }
-
-        // Read the MethodTable to get m_pAuxiliaryData pointer
-        // The offset of m_pAuxiliaryData in MethodTable varies by platform
-        // We use the fact that m_dwFlags is at offset 0 in MethodTableAuxiliaryData
-        // and the Initialized flag is bit 0
-
-        // Read enough of MethodTable to get to m_pAuxiliaryData
-        // MethodTable layout (from runtime sources):
-        // - m_dwFlags (DWORD) at offset 0
-        // - m_BaseSize (DWORD) at offset 4
-        // - m_dwFlags2 (DWORD) at offset 8
-        // - m_wNumVirtuals (WORD) at offset 12
-        // - m_wNumInterfaces (WORD) at offset 14
-        // - m_pParentMethodTable (pointer) at offset 16
-        // - m_pModule (pointer) at offset 16 + sizeof(pointer)
-        // - m_pAuxiliaryData (pointer) at offset 16 + 2*sizeof(pointer)
-        static constexpr size_t auxDataOffset = (sizeof(DWORD) * 3) + (sizeof(WORD) * 2) + (sizeof(void *) * 2);
-        static constexpr size_t readSize = auxDataOffset + sizeof(void *);
-        std::array<BYTE, readSize> buffer{0};
-        SIZE_T bytesRead = 0;
-
-        if (SUCCEEDED(trProcess->ReadMemory(methodTableAddr, readSize, buffer.data(), &bytesRead)) && bytesRead >= readSize)
-        {
-            // Get the auxiliary data pointer.
-            const CORDB_ADDRESS auxDataAddr = *reinterpret_cast<const CORDB_ADDRESS*>(buffer.data() + auxDataOffset);
-            if (auxDataAddr != 0)
-            {
-                // Read m_dwFlags from MethodTableAuxiliaryData (at offset 0).
-                DWORD auxFlags = 0;
-                if (SUCCEEDED(trProcess->ReadMemory(auxDataAddr, sizeof(DWORD), reinterpret_cast<BYTE*>(&auxFlags), &bytesRead)))
-                {
-                    isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
-                }
-            }
-        }
-    }
-
-    // The class should already be initialized at this point. If not, force the
-    // static constructor execution to provide a second chance and proper error handling.
-    if (!isClassInitialized)
-    {
-        IfFailRet(EvalExec::CreateTypeObject(pThread, pType, nullptr));
-    }
-
-    IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
 
     return S_OK;
 }
@@ -1552,7 +1663,7 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1634,7 +1745,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1815,7 +1926,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1863,7 +1974,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1957,141 +2068,6 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         // Note: WalkPrimaryConstructorParameterFields() could return S_CAN_EXIT.
     }
     return S_OK;
-}
-
-HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                     ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
-                     FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                     std::unique_ptr<SetterData> *pResultSetterData)
-{
-    HRESULT Status = S_OK;
-
-    // Note: in case of (nextIdentifier == identifiers.size()), the result is pValue itself, so we are OK here.
-    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    if (nextIdentifier > static_cast<int>(identifiers.size()))
-    {
-        return E_FAIL;
-    }
-
-    pValue->AddRef();
-    ToRelease<ICorDebugValue> trResultValue(pValue);
-    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
-    {
-        if (identifiers.at(i).empty())
-        {
-            return E_FAIL;
-        }
-
-        const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
-
-        IfFailRet(WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
-            [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
-                const GetValueCallback &getValue, SetterData *pSetterData, std::string *) -> HRESULT
-            {
-                if ((isStatic && valueKind == ValueKind::Variable) ||
-                    (!isStatic && valueKind == ValueKind::Static) ||
-                    memberName != identifiers.at(i))
-                {
-                    return S_OK;
-                }
-
-                if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
-                {
-                    if (pRealDisplayTypeName != nullptr)
-                    {
-                        pRealDisplayTypeName->clear();
-                    }
-                    return Status;
-                }
-                if (pSetterData != nullptr &&
-                    pResultSetterData != nullptr)
-                {
-                    *pResultSetterData = std::make_unique<SetterData>(*pSetterData);
-                }
-
-                return S_CAN_EXIT; // Fast exit from the loop.
-            }));
-
-        if (trResultValue == nullptr)
-        {
-            return E_FAIL;
-        }
-
-        valueKind = ValueKind::Variable; // we can only follow through instance fields
-    }
-
-    *ppResult = trResultValue.Detach();
-    return S_OK;
-}
-
-HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &displayTypeName,
-                              std::vector<std::string> &identifiers, FormatSpecifier specifier,
-                              const PDB::ImportsAndAliases &pdbImports, ICorDebugValue **ppResult,
-                              std::string *pRealDisplayTypeName, std::unique_ptr<SetterData> *pResultSetterData)
-{
-    HRESULT Status = S_OK;
-
-    std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
-    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    const int identifiersNum = static_cast<int>(identifiers.size()) - 1;
-    std::vector<std::string> fieldName{identifiers.back()};
-
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
-
-    bool trim = false;
-    while (!classIdentifiers.empty())
-    {
-        if (trim)
-        {
-            classIdentifiers.pop_back();
-        }
-
-        std::vector<std::string> fullpath = classIdentifiers;
-        std::copy(identifiers.cbegin(), identifiers.cbegin() + identifiersNum, std::back_inserter(fullpath));
-
-        int nextClassIdentifier = 0;
-        ToRelease<ICorDebugType> trType;
-        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
-        {
-            break;
-        }
-
-        assert(fullpath.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-        if (nextClassIdentifier < static_cast<int>(fullpath.size()))
-        {
-            // try to check non-static fields inside a static member
-            std::vector<std::string> staticName;
-            for (int i = nextClassIdentifier; i < static_cast<int>(fullpath.size()); i++)
-            {
-                staticName.emplace_back(fullpath.at(i));
-            }
-            staticName.emplace_back(fieldName.at(0));
-            ToRelease<ICorDebugValue> trTypeObject;
-            if (TypeHasStaticMembers(trType) &&
-                SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
-                SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
-                                       0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
-            {
-                return S_OK;
-            }
-            trim = true;
-            continue;
-        }
-
-        ToRelease<ICorDebugValue> trTypeObject;
-        if (TypeHasStaticMembers(trType) &&
-            SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
-            SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
-                                   0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
-        {
-            return S_OK;
-        }
-
-        trim = true;
-    }
-
-    return E_FAIL;
 }
 
 HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
@@ -2271,7 +2247,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
@@ -2574,7 +2550,7 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
     {
         HRESULT Status = S_OK;
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, IsJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
@@ -2708,24 +2684,14 @@ bool IsEnumeration(ICorDebugValue *pInputValue)
            typeDef == systemEnumTypeDef;
 }
 
-bool IsJustMyCode()
-{
-    return GetJustMyCode();
-}
-
 void SetJustMyCode(bool enable)
 {
     GetJustMyCode() = enable;
 }
 
-uint32_t GetEvalFlags()
-{
-    return GetEvalFlagsState();
-}
-
 void SetEvalFlags(uint32_t evalFlags)
 {
-    GetEvalFlagsState() = evalFlags;
+    GetEvalFlags() = evalFlags;
 }
 
 } // namespace dncdbg::Evaluator
