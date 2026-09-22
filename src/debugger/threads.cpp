@@ -5,7 +5,7 @@
 
 #include "debugger/threads.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "utils/hresult.h"
 #include "utils/rwlock.h"
@@ -33,12 +33,12 @@ std::string GetThreadName(ICorDebugThread *pThread)
     }
 
     HRESULT Status = S_OK;
-    Evaluator::WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None,
+    Walkers::WalkMembers(trThreadObject, pThread, FrameLevel{0}, false, FormatSpecifier::None,
         [&](ICorDebugType *, bool, const std::string &memberName,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
+            const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *) -> HRESULT
         {
-            // Note, only field here (not `Name` property), since we can't guarantee code execution (call property's getter),
-            // this thread can be in not consistent state for evaluation or thread could break in optimized code.
+            // Note, only the field here (not the `Name` property), since we can't guarantee code execution (calling the property's getter):
+            // this thread can be in an inconsistent state for evaluation, or the thread could have broken in optimized code.
             if (memberName != "_name")
             {
                 return S_OK;

@@ -5,9 +5,11 @@
 
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
+#include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
+#include "utils/torelease.h"
 #include <cassert>
 #include <limits>
 #include <string_view>
@@ -440,6 +442,47 @@ HRESULT GetArrayElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &inde
     assert(indexes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
 #endif
     return trArrayVal->GetElement(static_cast<uint32_t>(indexes.size()), indexes.data(), ppResultValue);
+}
+
+bool IsEnumeration(ICorDebugValue *pInputValue)
+{
+    BOOL isNull = FALSE;
+    ToRelease<ICorDebugValue> trValue;
+    if (FAILED(DereferenceAndUnboxValue(pInputValue, &trValue, &isNull)) ||
+        isNull == TRUE)
+    {
+        return false;
+    }
+
+    mdTypeDef systemEnumTypeDef = mdTypeDefNil;
+    CORDB_ADDRESS systemEnumModAddress = 0;
+    ToRelease<ICorDebugClass> trEnumClass;
+    ToRelease<ICorDebugModule> trEnumModule;
+    if (FAILED(SystemTypes::GetClass(SystemTypes::SystemType::Enum, &trEnumClass)) ||
+        FAILED(trEnumClass->GetModule(&trEnumModule)) ||
+        FAILED(trEnumClass->GetToken(&systemEnumTypeDef)) ||
+        FAILED(trEnumModule->GetBaseAddress(&systemEnumModAddress)))
+    {
+        return false;
+    }
+
+    ToRelease<ICorDebugValue2> trValue2;
+    ToRelease<ICorDebugType> trType;
+    ToRelease<ICorDebugType> trBaseType;
+    ToRelease<ICorDebugClass> trBaseClass;
+    ToRelease<ICorDebugModule> trModule;
+    CORDB_ADDRESS modAddress = 0;
+    mdTypeDef typeDef = mdTypeDefNil;
+    return SUCCEEDED(trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2))) &&
+           SUCCEEDED(trValue2->GetExactType(&trType)) &&
+           SUCCEEDED(trType->GetBase(&trBaseType)) &&
+           trBaseType != nullptr &&
+           SUCCEEDED(trBaseType->GetClass(&trBaseClass)) &&
+           SUCCEEDED(trBaseClass->GetModule(&trModule)) &&
+           SUCCEEDED(trModule->GetBaseAddress(&modAddress)) &&
+           modAddress == systemEnumModAddress &&
+           SUCCEEDED(trBaseClass->GetToken(&typeDef)) &&
+           typeDef == systemEnumTypeDef;
 }
 
 } // namespace dncdbg

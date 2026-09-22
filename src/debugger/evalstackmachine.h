@@ -12,7 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/walkers/types.h"
 #include "types/types.h"
 #include <memory>
 #include <string>
@@ -23,7 +23,7 @@ namespace dncdbg::EvalStackMachine
 // Evaluate an expression. Optionally returns the `editable` state and, if the result is a property, setter-related information.
 HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression, FormatSpecifier specifier,
                            ICorDebugValue *pForcedThisValue, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                           std::string &output, bool *pEditable = nullptr, std::unique_ptr<Evaluator::SetterData> *pResultSetterData = nullptr);
+                           std::string &output, bool *pEditable = nullptr, std::unique_ptr<Walkers::SetterData> *pResultSetterData = nullptr);
 
 // Set the value of pValue from an expression, implicitly casting the expression result to the type of pValue if needed.
 HRESULT SetValueByExpression(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,

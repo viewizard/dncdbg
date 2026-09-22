@@ -12,108 +12,27 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "debugger/evaluation/walkers/types.h"
 #include "debuginfo/pdb.h"
-#include "metadata/sigparse.h"
 #include "types/types.h"
-#include "utils/torelease.h"
-#include "utils/utf.h"
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_set>
 
 namespace dncdbg::Evaluator
 {
 
-struct SetterData
-{
-    ToRelease<ICorDebugValue> trThisValue;
-    ToRelease<ICorDebugType> trPropertyType;
-    ToRelease<ICorDebugFunction> trSetterFunction;
-
-    SetterData(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
-    {
-        Set(pValue, pType, pFunction);
-    };
-
-    SetterData(SetterData &setterData)
-    {
-        Set(setterData.trThisValue.GetPtr(), setterData.trPropertyType.GetPtr(), setterData.trSetterFunction.GetPtr());
-    };
-
-    SetterData(SetterData &&) = delete;
-    SetterData(const SetterData &) = delete;
-    SetterData &operator=(SetterData &&) = delete;
-    SetterData &operator=(const SetterData &) = delete;
-    ~SetterData() = default;
-
-    void Set(ICorDebugValue *pValue, ICorDebugType *pType, ICorDebugFunction *pFunction)
-    {
-        if (pValue != nullptr)
-        {
-            pValue->AddRef();
-        }
-        trThisValue = pValue;
-
-        if (pType != nullptr)
-        {
-            pType->AddRef();
-        }
-        trPropertyType = pType;
-
-        if (pFunction != nullptr)
-        {
-            pFunction->AddRef();
-        }
-        trSetterFunction = pFunction;
-    }
-};
-
-using GetValueCallback = std::function<HRESULT(ICorDebugValue **, std::string *)>;
-using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &,
-                                                  SetterData *, std::string *)>;
-using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
-using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
-using ReturnElementType = SigElementType;
-using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &,
-                                                  std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
-using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
-
+// Resolve identifiers against the current frame: stack variables, "this" and its members,
+// pseudo-variables ($exception, $pid, $tid), and statics of nested classes.
+// Optionally returns the `editable` state and, if the result is a property, setter-related information.
 HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
-                           SetterData *pInputSetterData, std::vector<std::string> &identifiers,
+                           Walkers::SetterData *pInputSetterData, std::vector<std::string> &identifiers,
                            FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
-                           std::unique_ptr<SetterData> *pResultSetterData, ICorDebugType **ppResultType);
-
-HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
-                    bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
-
-HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pInputValue, uint32_t currentIlOffset,
-                                 std::unordered_set<WSTRING> &usedNames, mdMethodDef methodDef,
-                                 ICorDebugModule *pModule, const WalkStackVarsCallback &cb);
-
-HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const WalkStackVarsCallback &cb);
-
-// Get the fully-qualified "display" type name of the method's declaring type.
-HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, std::string &displayTypeName, bool &haveThis);
+                           std::unique_ptr<Walkers::SetterData> *pResultSetterData, ICorDebugType **ppResultType);
 
 HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
 
-HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
-HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType, const WalkMethodsCallback &cb);
-HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType, const WalkMethodsCallback &cb);
-
-HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb);
-
-HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
-
 void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
-
-bool IsEnumeration(ICorDebugValue *pInputValue);
-
-// Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
 
 } // namespace dncdbg::Evaluator
 

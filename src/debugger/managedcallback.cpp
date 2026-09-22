@@ -14,7 +14,7 @@
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
@@ -292,7 +292,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
         SystemTypes::ManagedCallbackLoadModule(pModule);
     }
 
-    Evaluator::ManagedCallbackLoadModule(pModule);
+    Walkers::ManagedCallbackLoadModule(pModule);
 
     return m_sharedCallbacksQueue->ContinueAppDomain(pAppDomain);
 }
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     Breakpoints::ManagedCallbackUnloadModule(pModule);
-    Evaluator::ManagedCallbackUnloadModule(pModule);
+    Walkers::ManagedCallbackUnloadModule(pModule);
     TypeProxy::ManagedCallbackUnloadModule(pModule);
 
     Module removedModule;

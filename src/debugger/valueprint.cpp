@@ -691,7 +691,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                     return S_OK;
                 }
 
-                if (Evaluator::IsEnumeration(trValue))
+                if (IsEnumeration(trValue))
                 {
                     return PrintEnumValue(trValue, genericValue.data(), output);
                 }

@@ -6,8 +6,8 @@
 #include "debugger/variables.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/evalstackmachine.h"
-#include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
 #include "types/types.h"
 #include "metadata/helpers.h"
@@ -160,9 +160,9 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReferen
     uint32_t count = 0;
     static constexpr uint32_t maxCount = 25; // members per page before a "[More]" entry is added
 
-    IfFailRet(Evaluator::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
+    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
+            const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
         {
             if (isStatic)
             {
@@ -285,7 +285,7 @@ HRESULT GetMemoryReference(ICorDebugValue *pInputValue, std::string &memoryRefer
 }
 
 HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICorDebugValue> &trPrevValue,
-                 const Evaluator::GetValueCallback *getValue, const Evaluator::SetterData *setterData,
+                 const Walkers::GetValueCallback *getValue, const Walkers::SetterData *setterData,
                  const std::string &value, std::string &output)
 {
     if (pThread == nullptr)
@@ -396,8 +396,8 @@ HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread,
                          const std::string &value, std::string &output)
 {
     HRESULT Status = S_OK;
-    IfFailRet(Evaluator::WalkStackVars(pThread, ref.frameId.getLevel(),
-        [&](const std::string &varName, const Evaluator::GetValueCallback &getValue) -> HRESULT
+    IfFailRet(Walkers::WalkStackVars(pThread, ref.frameId.getLevel(),
+        [&](const std::string &varName, const Walkers::GetValueCallback &getValue) -> HRESULT
         {
             if (varName != name)
             {
@@ -433,9 +433,9 @@ HRESULT SetChild(const VariableReference &ref, ICorDebugThread *pThread, const s
     }
 
     HRESULT Status = S_OK;
-    IfFailRet(Evaluator::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
+    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
         [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
-            const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *setterData, std::string *) -> HRESULT
+            const Walkers::GetValueCallback &getValue, Walkers::SetterData *setterData, std::string *) -> HRESULT
         {
             if (varName != name)
             {
@@ -477,9 +477,9 @@ HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, Frame
     if (pValue != nullptr)
     {
         // Note: FrameLevel{0} is used here, since we only need to check whether the value has children.
-        Evaluator::WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
+        Walkers::WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
             [&](ICorDebugType *, bool isStatic, const std::string &,
-                const Evaluator::GetValueCallback &, Evaluator::SetterData *, std::string *) -> HRESULT
+                const Walkers::GetValueCallback &, Walkers::SetterData *, std::string *) -> HRESULT
             {
                 // Note, for ValueKind::Static (the "Static members" node) only static members are children.
                 // For other kinds both static and instance members count, since static members are packed
@@ -549,8 +549,8 @@ HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector
         variables.push_back(var);
     }
 
-    return Evaluator::WalkStackVars(pThread, frameId.getLevel(),
-        [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+    return Walkers::WalkStackVars(pThread, frameId.getLevel(),
+        [&](const std::string &name, const Walkers::GetValueCallback &getValue) -> HRESULT
         {
             Variable var;
             var.name = name;
@@ -733,8 +733,8 @@ HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope
 
     if (!haveVariables)
     {
-        IfFailRet(Evaluator::WalkStackVars(trThread, frameId.getLevel(),
-            [&](const std::string &/*name*/, const Evaluator::GetValueCallback &) -> HRESULT
+        IfFailRet(Walkers::WalkStackVars(trThread, frameId.getLevel(),
+            [&](const std::string &/*name*/, const Walkers::GetValueCallback &) -> HRESULT
             {
                 haveVariables = true;
                 return S_CAN_EXIT;
@@ -851,7 +851,7 @@ HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::st
 
     ToRelease<ICorDebugValue> trValue;
     bool editable = false;
-    std::unique_ptr<Evaluator::SetterData> setterData;
+    std::unique_ptr<Walkers::SetterData> setterData;
     IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameId.getLevel(), expression, specifier,
                                                    nullptr, &trValue, nullptr, output, &editable, &setterData));
     if (!editable ||

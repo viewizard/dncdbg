@@ -6,7 +6,7 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "config/config.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
@@ -171,9 +171,9 @@ HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pException
         pDetails->evaluateName = "$exception";
 
         HRESULT Status = S_OK;
-        Evaluator::WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
+        Walkers::WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
             [&](ICorDebugType *, bool, const std::string &memberName,
-                const Evaluator::GetValueCallback &getValue, Evaluator::SetterData *, std::string *) -> HRESULT
+                const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *) -> HRESULT
             {
                 const auto getMemberWithName =
                     [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT

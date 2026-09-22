@@ -35,12 +35,19 @@ set(DNCDBG_SOURCES
     debugger/breakpoints/internal_helpers.cpp
     debugger/evaluation/evalhelpers/evalexec.cpp
     debugger/evaluation/evalhelpers/evalwaiter.cpp
+    debugger/evaluation/evalhelpers/metadata.cpp
     debugger/evaluation/evalhelpers/systemtypes.cpp
     debugger/evaluation/evalhelpers/typeproxy.cpp
     debugger/evaluation/primitivetypes/binaryoperators.cpp
     debugger/evaluation/primitivetypes/cast.cpp
     debugger/evaluation/primitivetypes/types.cpp
     debugger/evaluation/primitivetypes/unaryoperators.cpp
+    debugger/evaluation/walkers/walker_extensionmethods.cpp
+    debugger/evaluation/walkers/walker_generatedclassfields.cpp
+    debugger/evaluation/walkers/walker_indexers.cpp
+    debugger/evaluation/walkers/walker_members.cpp
+    debugger/evaluation/walkers/walker_methods.cpp
+    debugger/evaluation/walkers/walker_stackvars.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp
     debugger/steppers/steppers.cpp

@@ -32,6 +32,8 @@ void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValu
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output);
 bool TypeHasStaticMembers(ICorDebugType *pType);
 HRESULT GetArrayElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
+// Check whether the value's base type is System.Enum.
+bool IsEnumeration(ICorDebugValue *pInputValue);
 
 } // namespace dncdbg
 

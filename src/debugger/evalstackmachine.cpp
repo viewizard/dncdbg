@@ -4,10 +4,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalstackmachine.h"
+#include "debugger/evaluator.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
+#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/primitivetypes/types.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "expressionparser/helpers.h"
 #include "expressionparser/parser.h"
@@ -64,7 +67,7 @@ struct EvalStackEntry
     bool editable{false};
     // If trValue is an editable property, we need extra data in order to set the value.
     // Note, this data is directly connected to `trValue` and is available only when `editable` is true.
-    std::unique_ptr<Evaluator::SetterData> setterData;
+    std::unique_ptr<Walkers::SetterData> setterData;
 
     void ResetEntry(ResetLiteralStatus resetLiteral = ResetLiteralStatus::Yes)
     {
@@ -165,10 +168,10 @@ HRESULT CreateNullValue(ICorDebugThread *pThread, ICorDebugValue **ppValue)
 }
 
 HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const EvalData &ed, ICorDebugValue **ppResultValue,
-                                std::unique_ptr<Evaluator::SetterData> *pResultSetterData, std::string &output)
+                                std::unique_ptr<Walkers::SetterData> *pResultSetterData, std::string &output)
 {
     HRESULT Status = S_OK;
-    Evaluator::SetterData *pInputPropertyData = nullptr;
+    Walkers::SetterData *pInputPropertyData = nullptr;
     if (evalStack.front().editable)
     {
         pInputPropertyData = evalStack.front().setterData.get();
@@ -297,10 +300,10 @@ HRESULT CallUnaryOperator(const std::string &opName, ICorDebugValue *pValue, ICo
     IfFailRet(GetArgData(pValue, metadataTypeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(pValue, true,
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+    IfFailRet(Walkers::WalkMethods(pValue, true,
+        [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
             std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            const Walkers::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemType != methodArgs.at(0).elemType || metadataTypeName != methodArgs.at(0).metadataTypeName)
@@ -331,10 +334,10 @@ HRESULT CallCastOperator(const std::string &opName, ICorDebugValue *pValue, CorE
     IfFailRet(GetArgData(pTypeValue, typeName, elemType));
 
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(pValue, true,
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &methodRet,
+    IfFailRet(Walkers::WalkMethods(pValue, true,
+        [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &methodRet,
             std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-            const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+            const Walkers::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (!isStatic || methodArgs.size() != 1 || opName != methodName ||
                 elemRetType != methodRet.elemType || typeRetName != methodRet.metadataTypeName ||
@@ -536,10 +539,10 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
         [&](std::function<HRESULT(std::vector<SigElementType> &)> cb) -> HRESULT
         {
             ToRelease<ICorDebugFunction> trFunc;
-            IfFailRet(Evaluator::WalkMethods(pValue, true,
-                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+            IfFailRet(Walkers::WalkMethods(pValue, true,
+                [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
                     std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                    const Walkers::GetFunctionCallback &getFunction) -> HRESULT
                 {
                     if (!isStatic || methodArgs.size() != 2 || opName != methodName || FAILED(cb(methodArgs)))
                     {
@@ -964,7 +967,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     {
         idsEmpty = true;
         std::string displayTypeName;
-        IfFailRet(Evaluator::GetFQDisplayTypeName(ed.pThread, ed.frameLevel, displayTypeName, isInstance));
+        IfFailRet(EvalMetadataHelpers::GetFQDisplayTypeName(ed.pThread, ed.frameLevel, displayTypeName, isInstance));
         if (isInstance)
         {
             allIdentifiers.back().emplace_back("this");
@@ -1099,10 +1102,10 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
         }
 
         ToRelease<ICorDebugType> trResultType;
-        IfFailRet(Evaluator::WalkMethods(trType, true, &trResultType,
-                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+        IfFailRet(Walkers::WalkMethods(trType, true, &trResultType,
+                [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
                     std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
-                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                    const Walkers::GetFunctionCallback &getFunction) -> HRESULT
             {
                 if ((searchStatic && !isStatic) || (!searchStatic && isStatic && !idsEmpty) ||
                     funcName != methodName || funcArgs.size() != methodArgs.size() ||
@@ -1140,10 +1143,10 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             }
 
             bool hasThisTypeParams = false;
-            IfFailRet(Evaluator::WalkExtensionMethods(trType, elemType,
-                [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+            IfFailRet(Walkers::WalkExtensionMethods(trType, elemType,
+                [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
                     std::vector<SigElementType> &methodArgs, uint32_t methodGenParamCount,
-                    const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                    const Walkers::GetFunctionCallback &getFunction) -> HRESULT
                 {
                     // Extension methods must provide `this` as first argument.
                     assert(!isStatic);
@@ -1295,13 +1298,13 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
         IfFailRet(GetArgData(trValueArg, funcArgs.at(i).metadataTypeName, funcArgs.at(i).elemType));
     }
 
-    // Constructors aren't inherited in C# -- unlike InvocationExpression's
+    // Constructors aren't inherited in C# -- unlike the InvocationExpression
     // method lookup above, this never walks to a base type.
     ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Evaluator::WalkMethods(trType, false, nullptr,
-        [&](bool isStatic, const std::string &methodName, Evaluator::ReturnElementType &,
+    IfFailRet(Walkers::WalkMethods(trType, false, nullptr,
+        [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-           const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+           const Walkers::GetFunctionCallback &getFunction) -> HRESULT
         {
             if (isStatic || methodName != ".ctor" || funcArgs.size() != methodArgs.size())
             {
@@ -1379,7 +1382,7 @@ HRESULT ElementAccessHelper(const Parser::Opcode &opcode, std::list<EvalStackEnt
     }
 
     ToRelease<ICorDebugValue> trObjectValue;
-    std::unique_ptr<Evaluator::SetterData> setterData;
+    std::unique_ptr<Walkers::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trObjectValue, &setterData, output));
 
     ToRelease<ICorDebugValue> trRealValue;
@@ -1435,9 +1438,9 @@ HRESULT ElementAccessHelper(const Parser::Opcode &opcode, std::list<EvalStackEnt
         IfFailRet(trRealValue2->GetExactType(&trRealType));
 
         ToRelease<ICorDebugFunction> trFunc;
-        IfFailRet(Evaluator::WalkIndexers(trRealType,
+        IfFailRet(Walkers::WalkIndexers(trRealType,
             [&](std::vector<SigElementType> &methodArgs,
-                const Evaluator::GetFunctionCallback &getFunction) -> HRESULT
+                const Walkers::GetFunctionCallback &getFunction) -> HRESULT
             {
                 if (funcArgs.size() != methodArgs.size())
                 {
@@ -1587,7 +1590,7 @@ HRESULT MemberBindingExpression(const Parser::Opcode &/*opcode*/, std::list<Eval
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugValue> trValue;
-    std::unique_ptr<Evaluator::SetterData> setterData;
+    std::unique_ptr<Walkers::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(evalStack, ed, &trValue, &setterData, output));
     evalStack.front().trValue = trValue.Detach();
     evalStack.front().realDisplayTypeName.clear();
@@ -1891,7 +1894,7 @@ HRESULT Run(const EvalData &ed, const std::string &expression, std::list<EvalSta
 HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, const std::string &expression,
                            FormatSpecifier specifier, ICorDebugValue *pForcedThisValue,
                            ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName, std::string &output,
-                           bool *pEditable, std::unique_ptr<Evaluator::SetterData> *pResultSetterData)
+                           bool *pEditable, std::unique_ptr<Walkers::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
     std::list<EvalStackEntry> evalStack;
@@ -1904,7 +1907,7 @@ HRESULT EvaluateExpression(ICorDebugThread *pThread, FrameLevel frameLevel, cons
 
     assert(evalStack.size() == 1);
 
-    std::unique_ptr<Evaluator::SetterData> setterData;
+    std::unique_ptr<Walkers::SetterData> setterData;
     IfFailRet(GetFrontStackEntryValue(evalStack, ed, ppResultValue, &setterData, output));
     if (pRealDisplayTypeName != nullptr)
     {

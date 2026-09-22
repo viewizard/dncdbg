@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/helpers.h"
-#include "debugger/evaluator.h" // FIXME: metadata should not depend on debugger
+#include "debugger/evaluation/walkers/walkers.h" // FIXME: metadata should not depend on debugger
 #include "debuginfo/debuginfo.h"
 #include "metadata/attributes.h"
 #include "metadata/modules.h"
@@ -1650,8 +1650,8 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &disp
             if (SUCCEEDED(trILFrame->GetArgument(0, &trCurrentThis)))
             {
                 std::unordered_set<WSTRING> usedNames;
-                Evaluator::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, trModule,
-                    [&](const std::string &name, const Evaluator::GetValueCallback &getValue) -> HRESULT
+                Walkers::WalkGeneratedClassFields(trMDImport, trCurrentThis, 0, usedNames, methodDef, trModule,
+                    [&](const std::string &name, const Walkers::GetValueCallback &getValue) -> HRESULT
                     {
                         ToRelease<ICorDebugValue> trValue;
                         if (FAILED(getValue(&trValue, nullptr)))

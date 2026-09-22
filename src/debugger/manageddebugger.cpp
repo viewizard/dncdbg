@@ -14,7 +14,7 @@
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
 #include "debugger/steppers/steppers.h"
@@ -831,7 +831,7 @@ void ManagedDebugger::Cleanup()
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
-    Evaluator::Cleanup();
+    Walkers::Cleanup();
     Modules::Cleanup();
     Threads::Cleanup();
 
