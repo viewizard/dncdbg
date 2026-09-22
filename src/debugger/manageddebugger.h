@@ -58,15 +58,6 @@ class ManagedDebugger
 
     void SetEvalFlags(uint32_t evalFlags);
 
-    [[nodiscard]] bool IsSuppressJITOptimizations() const
-    {
-        return m_suppressJITOptimizations;
-    }
-    void SetSuppressJITOptimizations(bool enable)
-    {
-        m_suppressJITOptimizations = enable;
-    }
-
     HRESULT Initialize();
     HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
@@ -140,8 +131,6 @@ class ManagedDebugger
     RWLock m_debugProcessRWLock;
     ToRelease<ICorDebug> m_trDebug;
     ToRelease<ICorDebugProcess> m_trProcess;
-
-    bool m_suppressJITOptimizations{false};
 
     void *m_unregisterToken{nullptr};
     DWORD m_processId{0};

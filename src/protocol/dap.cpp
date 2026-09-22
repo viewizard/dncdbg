@@ -393,7 +393,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 Config::SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
                 Config::SetStopAtEntry(arguments.value("stopAtEntry", false)); // MS vsdbg has "stopAtEntry" disabled by default.
-                m_sharedDebugger->SetSuppressJITOptimizations(
+                Config::SetSuppressJITOptimizations(
                     arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
 
                 // https://aka.ms/VSCode-CS-LaunchJson-Console

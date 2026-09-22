@@ -30,6 +30,12 @@ bool &GetStopAtEntryState()
     return stopAtEntryState;
 }
 
+bool &GetSuppressJITOptimizationsState()
+{
+    static bool suppressJITOptimizationsState{false};
+    return suppressJITOptimizationsState;
+}
+
 } // unnamed namespace
 
 bool GetJustMyCode()
@@ -60,6 +66,16 @@ bool GetStopAtEntry()
 void SetStopAtEntry(bool state)
 {
     GetStopAtEntryState() = state;
+}
+
+bool GetSuppressJITOptimizations()
+{
+    return GetSuppressJITOptimizationsState();
+}
+
+void SetSuppressJITOptimizations(bool state)
+{
+    GetSuppressJITOptimizationsState() = state;
 }
 
 } // namespace dncdbg::Config

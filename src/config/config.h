@@ -21,6 +21,10 @@ void SetStepFiltering(bool state);
 bool GetStopAtEntry();
 void SetStopAtEntry(bool state);
 
+// Suppress JIT optimizations debugger option, provided by the DAP protocol ("launch" request).
+bool GetSuppressJITOptimizations();
+void SetSuppressJITOptimizations(bool state);
+
 } // namespace dncdbg::Config
 
 #endif // DEBUGGER_CONFIG_H

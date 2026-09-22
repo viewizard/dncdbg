@@ -447,7 +447,7 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
     return ss.str();
 }
 
-void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool suppressJITOptimizations)
+void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
 {
     module.path = GetModuleFilePath(pModule);
     module.name = GetFileName(module.path);
@@ -492,7 +492,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool suppressJ
             }
         }
     }
-    else if (suppressJITOptimizations)
+    else if (Config::GetSuppressJITOptimizations())
     {
         ToRelease<ICorDebugModule2> trModule2;
         if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
