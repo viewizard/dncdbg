@@ -44,12 +44,6 @@ struct LineColumnHash
     }
 };
 
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
-}
-
 std::mutex &GetBreakpointsMutex()
 {
     static std::mutex breakpointsMutex;
@@ -191,7 +185,7 @@ HRESULT ResolveSourceBreakpoint(ICorDebugModule *pModule, const ManagedSourceBre
 }
 
 HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string &sourcePath,
-                                 bool justMyCode, const std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
+                                 const std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -211,7 +205,7 @@ HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string 
             continue;
         }
 
-        IfFailRet(BreakpointHelpers::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken, justMyCode));
+        IfFailRet(BreakpointHelpers::SkipBreakpoint(resolvedBP.trModule, resolvedBP.methodToken));
         if (Status == S_SKIP)
         {
             continue;
@@ -244,11 +238,6 @@ HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string 
 }
 
 } // unnamed namespace
-
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
-}
 
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                            std::vector<uint32_t> &hitBreakpointIds)
@@ -433,7 +422,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
             if (FAILED(ResolveSourceBreakpoint(pModule, bp, source,
                                                resolvedPoints, resolvedGlobalFileIndex)) ||
-                FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, GetJustMyCode(), resolvedPoints)))
+                FAILED(ActivateSourceBreakpoint(bp, initialPathToSource, resolvedPoints)))
             {
                 continue;
             }
@@ -674,7 +663,7 @@ HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::
 
             if (haveProcess &&
                 SUCCEEDED(ResolveSourceBreakpoint(nullptr, bp, source, resolvedPoints, resolvedGlobalFileIndex)) &&
-                SUCCEEDED(ActivateSourceBreakpoint(bp, source.path, GetJustMyCode(), resolvedPoints)))
+                SUCCEEDED(ActivateSourceBreakpoint(bp, source.path, resolvedPoints)))
             {
                 initialBreakpoint.resolvedGlobalFileIndex = resolvedGlobalFileIndex;
                 initialBreakpoint.resolvedLineNum = bp.lineNum;

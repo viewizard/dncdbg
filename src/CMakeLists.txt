@@ -25,6 +25,7 @@ include_directories(SYSTEM
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(DNCDBG_SOURCES
+    config/config.cpp
     debugger/breakpoints/breakpoint_break.cpp
     debugger/breakpoints/breakpoint_entry.cpp
     debugger/breakpoints/breakpoints_exception.cpp

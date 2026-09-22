@@ -24,12 +24,6 @@ namespace dncdbg::FunctionBreakpoints
 namespace
 {
 
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
-}
-
 struct ManagedFunctionBreakpoint
 {
     uint32_t id{0};
@@ -98,7 +92,7 @@ HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBre
         const mdMethodDef &methodToken = entry.second;
         ICorDebugModule *pModule = entry.first;
 
-        IfFailRet(BreakpointHelpers::SkipBreakpoint(pModule, methodToken, GetJustMyCode()));
+        IfFailRet(BreakpointHelpers::SkipBreakpoint(pModule, methodToken));
         if (Status == S_SKIP)
         {
             return S_OK;
@@ -157,11 +151,6 @@ HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunct
 }
 
 } // unnamed namespace
-
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
-}
 
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                            std::vector<uint32_t> &hitBreakpointIds)

@@ -25,7 +25,7 @@ namespace dncdbg::BreakpointHelpers
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
 HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &condition, std::string &output);
-HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode);
+HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken);
 HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &nativeAddress);
 
 // Shared registry of managed breakpoints (ICorDebugFunctionBreakpoint), keyed by

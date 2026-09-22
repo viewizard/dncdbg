@@ -21,8 +21,6 @@
 namespace dncdbg::ExceptionBreakpoints
 {
 
-void SetJustMyCode(bool enable);
-
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);

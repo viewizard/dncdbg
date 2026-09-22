@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoints_exception.h"
+#include "config/config.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluator.h"
 #include "debugger/valueprint.h"
@@ -255,12 +256,6 @@ HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pException
     return S_OK;
 }
 
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
-}
-
 CORDB_ADDRESS &GetPrivateCoreLibModAddress()
 {
     static CORDB_ADDRESS privateCoreLibModAddress{0};
@@ -387,11 +382,6 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
 }
 
 } // unnamed namespace
-
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
-}
 
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
@@ -669,7 +659,8 @@ HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType
         {
             assert(threadsExceptionCallbackType.find(tid) != threadsExceptionCallbackType.cend());
 
-            if (!GetJustMyCode() || threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::FIRST_CHANCE)
+            if (!Config::GetJustMyCode() ||
+                threadsExceptionCallbackType.at(tid) == ExceptionCallbackType::FIRST_CHANCE)
             {
                 threadsExceptionCallbackType.erase(tid);
                 return S_IGNORE;

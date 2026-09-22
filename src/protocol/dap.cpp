@@ -4,9 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "protocol/dap.h"
-#include "protocol/dapio.h"
+#include "config/config.h"
 #include "debugger/manageddebugger.h"
 #include "debuginfo/sourcefilemap.h"
+#include "protocol/dapio.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include <algorithm>
@@ -388,8 +389,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     SourceFileMap::GetMap().clear();
                 }
 
-                m_sharedDebugger->SetJustMyCode(
-                    arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
+                Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
                 m_sharedDebugger->SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
                 m_sharedDebugger->SetSuppressJITOptimizations(

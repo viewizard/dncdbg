@@ -16,12 +16,6 @@ namespace dncdbg::SimpleStepper
 namespace
 {
 
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
-}
-
 std::mutex &GetStepMutex()
 {
     static std::mutex stepMutex;
@@ -165,16 +159,8 @@ HRESULT DisableAll(ICorDebugProcess *pProcess)
     return S_OK;
 }
 
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
-}
-
 void Cleanup()
 {
-    // Don't reset the protocol-provided settings: JustMyCode.
-    // Only the internal state related to process execution is reset here.
-
     const std::scoped_lock<std::mutex> lock(GetStepMutex());
     GetEnabledStepId() = 0;
 }

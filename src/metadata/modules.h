@@ -24,7 +24,7 @@ namespace dncdbg::Modules
 HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB);
 HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
 std::string GetModuleFilePath(ICorDebugModule *pModule);
-void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations);
+void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool suppressJITOptimizations);
 
 Module &GetNewModuleRef();
 HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);

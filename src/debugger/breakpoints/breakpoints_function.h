@@ -21,8 +21,6 @@
 namespace dncdbg::FunctionBreakpoints
 {
 
-void SetJustMyCode(bool enable);
-
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 

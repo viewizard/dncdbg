@@ -21,8 +21,6 @@
 namespace dncdbg::SourceBreakpoints
 {
 
-void SetJustMyCode(bool enable);
-
 HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                              std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 

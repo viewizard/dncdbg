@@ -40,13 +40,6 @@ uint32_t GetNewBreakpointId()
 
 } // unnamed namespace
 
-void SetJustMyCode(bool enable)
-{
-    FunctionBreakpoints::SetJustMyCode(enable);
-    SourceBreakpoints::SetJustMyCode(enable);
-    ExceptionBreakpoints::SetJustMyCode(enable);
-}
-
 void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId)
 {
     BreakBreakpoint::SetLastStoppedIlOffset(pProcess, lastStoppedThreadId);

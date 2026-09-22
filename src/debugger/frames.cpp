@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/frames.h"
+#include "config/config.h"
 #include "debugger/evalhelpers.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/sourcereference.h"
@@ -539,7 +540,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 
 } // unnamed namespace
 
-HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, bool justMyCode, ICorDebugFrame **ppFrame)
+HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **ppFrame)
 {
     const auto foreignExceptionFrameDetected = [&]() -> bool
     {
@@ -587,6 +588,8 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, bool justMyCode, 
 
         return false;
     };
+
+    const bool justMyCode = Config::GetJustMyCode();
 
     // Try to get 0 (current active) frame in an efficient way, if possible.
     // Note: This optimization is only valid when JMC is disabled, because when JMC is enabled,
@@ -682,7 +685,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, bool justMyCode, 
 }
 
 HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                       bool justMyCode, std::vector<StackFrame> &stackFrames)
+                       std::vector<StackFrame> &stackFrames)
 {
     // CoreCLR native frame, could be part of transition to at least one user's native frame.
     static const std::string FrameCLRNativeText = "[CLR Native Frame]";
@@ -727,6 +730,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     std::list<IntWalkExceptionFrame> walkExceptionFrames;
     static constexpr size_t stackTraceLimit = 250;
     bool stackTruncated = false;
+    const bool justMyCode = Config::GetJustMyCode();
 
     // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
     // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.

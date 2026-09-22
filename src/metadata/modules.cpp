@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/modules.h"
+#include "config/config.h"
 #include "metadata/helpers.h"
 #include "metadata/jmc.h"
 #include "protocol/dapio.h"
@@ -446,7 +447,7 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
     return ss.str();
 }
 
-void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, bool suppressJITOptimizations)
+void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool suppressJITOptimizations)
 {
     module.path = GetModuleFilePath(pModule);
     module.name = GetFileName(module.path);
@@ -460,7 +461,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, 
             trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
 
             HRESULT Status = S_OK;
-            // Note, JMC status should be set for any needJMC value.
+            // Note, JMC status should be set regardless of the JustMyCode setting value.
             if (SUCCEEDED(Status = trModule2->SetJMCStatus(TRUE, 0, nullptr))) // If we can't enable JMC for module, there is no reason to
                                                                                // disable JMC on module's types/methods.
             {
@@ -477,7 +478,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module, bool needJMC, 
                 // * DebuggerHiddenAttribute hides the code from the debugger, even if Just My Code is turned off.
                 // * DebuggerStepThroughAttribute tells the debugger to step through the code it's applied to, rather
                 // than step into the code. The .NET debugger considers all other code to be user code.
-                if (needJMC)
+                if (Config::GetJustMyCode())
                 {
                     DisableJMCByAttributes(pModule);
                 }

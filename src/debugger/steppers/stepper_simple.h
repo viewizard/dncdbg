@@ -31,8 +31,6 @@ HRESULT ManagedCallbackStepComplete();
 
 HRESULT DisableAll(ICorDebugProcess *pProcess);
 
-void SetJustMyCode(bool enable);
-
 // Cleans up the SimpleStepper internal state. See Steppers::Cleanup().
 void Cleanup();
 

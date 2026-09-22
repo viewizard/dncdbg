@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/steppers/steppers.h"
+#include "config/config.h"
 #include "debugger/steppers/stepper_async.h"
 #include "debugger/steppers/stepper_simple.h"
 #include "debuginfo/debuginfo.h"
@@ -32,12 +33,6 @@ PDB::SequencePoint &GetStepStartSP()
 {
     static PDB::SequencePoint stepStartSP;
     return stepStartSP;
-}
-
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
 }
 
 // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
@@ -329,7 +324,7 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
     }
 
     // Care about attributes for "JMC disabled" case.
-    if (!GetJustMyCode())
+    if (!Config::GetJustMyCode())
     {
         static const std::vector<WSTRING> attrNames{DebuggerAttribute::GetHidden(), DebuggerAttribute::GetStepThrough()};
 
@@ -351,12 +346,6 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
     return S_OK;
 }
 
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
-    SimpleStepper::SetJustMyCode(enable);
-}
-
 void SetStepFiltering(bool enable)
 {
     GetStepFiltering() = enable;
@@ -364,7 +353,7 @@ void SetStepFiltering(bool enable)
 
 void Cleanup()
 {
-    // Don't reset the protocol-provided settings: JustMyCode and StepFiltering.
+    // Don't reset the protocol-provided settings: StepFiltering.
     // Only the internal state related to process execution is reset here.
 
     GetInitialStepType() = StepType::STEP_OVER;

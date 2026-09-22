@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/internal_helpers.h"
+#include "config/config.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
@@ -188,7 +189,7 @@ HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &conditi
     return value == "true" ? S_OK : S_FALSE;
 }
 
-HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool justMyCode)
+HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken)
 {
     HRESULT Status = S_OK;
 
@@ -210,7 +211,7 @@ HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken, bool j
     }
 
     // Care about attributes for "JMC disabled" case.
-    if (!justMyCode)
+    if (!Config::GetJustMyCode())
     {
         ToRelease<IUnknown> trUnknown;
         IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));

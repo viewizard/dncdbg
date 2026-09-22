@@ -930,7 +930,7 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     ToRelease<ICorDebugThread> trThread;
     if (SUCCEEDED(Status = m_trProcess->GetThread(static_cast<int>(threadId), &trThread)))
     {
-        return GetStackFrames(trThread, threadId, startFrame, maxFrames, IsJustMyCode(), stackFrames);
+        return GetStackFrames(trThread, threadId, startFrame, maxFrames, stackFrames);
     }
 
     return Status;
@@ -989,14 +989,6 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     IfFailRet(CheckDebugProcess());
 
     return Variables::SetExpression(m_trProcess, frameId, expression, value, output);
-}
-
-void ManagedDebugger::SetJustMyCode(bool enable)
-{
-    m_justMyCode = enable;
-    Steppers::SetJustMyCode(enable);
-    Breakpoints::SetJustMyCode(enable);
-    Evaluator::SetJustMyCode(enable);
 }
 
 void ManagedDebugger::SetStepFiltering(bool enable)

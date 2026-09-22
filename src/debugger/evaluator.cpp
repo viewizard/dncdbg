@@ -499,12 +499,6 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
     });
 }
 
-bool &GetJustMyCode()
-{
-    static bool justMyCode{true};
-    return justMyCode;
-}
-
 uint32_t &GetEvalFlags()
 {
     static uint32_t evalFlags{defaultEvalFlags};
@@ -613,7 +607,7 @@ HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebu
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
 
     if (trFrame == nullptr)
     {
@@ -1663,7 +1657,7 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1745,7 +1739,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+    IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
     if (trFrame == nullptr)
     {
         return E_FAIL;
@@ -1926,7 +1920,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -1974,7 +1968,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
         {
             if (trFrame == nullptr) // Forced to update trFrame/trILFrame.
             {
-                IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+                IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
                 if (trFrame == nullptr)
                 {
                     return E_FAIL;
@@ -2247,7 +2241,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
@@ -2540,7 +2534,7 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
     {
         HRESULT Status = S_OK;
         ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, GetJustMyCode(), &trFrame));
+        IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
         if (trFrame == nullptr)
         {
             return E_FAIL;
@@ -2680,13 +2674,8 @@ void Cleanup()
     const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
     GetExtensionMethodsCache().clear();
 
-    // Don't reset the protocol-provided settings: JustMyCode and EvalFlags.
+    // Don't reset the protocol-provided settings: EvalFlags.
     // Only the internal state related to process execution is reset here.
-}
-
-void SetJustMyCode(bool enable)
-{
-    GetJustMyCode() = enable;
 }
 
 void SetEvalFlags(uint32_t evalFlags)

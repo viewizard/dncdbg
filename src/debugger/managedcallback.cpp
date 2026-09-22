@@ -8,6 +8,7 @@
 #endif
 
 #include "debugger/managedcallback.h"
+#include "config/config.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
@@ -34,9 +35,9 @@ namespace dncdbg
 namespace
 {
 
-ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame, bool justMyCode)
+ExceptionCallbackType CorrectedByJMCCatchHandlerEventType(ICorDebugFrame *pFrame)
 {
-    if (!justMyCode)
+    if (!Config::GetJustMyCode())
     {
         return ExceptionCallbackType::CATCH_HANDLER_FOUND;
     }
@@ -266,7 +267,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     Module &module = Modules::GetNewModuleRef();
     DebugInfo::TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
-    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsJustMyCode(), m_debugger.IsSuppressJITOptimizations());
+    Modules::LoadModuleMetadata(pModule, module, m_debugger.IsSuppressJITOptimizations());
     DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
     if (module.symbolStatus == SymbolStatus::Loaded)
@@ -460,7 +461,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::Exception(ICorDebugAppDomain *pAppDom
             eventType = ExceptionCallbackType::USER_FIRST_CHANCE;
             break;
         case DEBUG_EXCEPTION_CATCH_HANDLER_FOUND:
-            eventType = CorrectedByJMCCatchHandlerEventType(pFrame, m_debugger.IsJustMyCode());
+            eventType = CorrectedByJMCCatchHandlerEventType(pFrame);
             break;
         case DEBUG_EXCEPTION_UNHANDLED:
             eventType = ExceptionCallbackType::UNHANDLED;

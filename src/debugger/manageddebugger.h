@@ -56,11 +56,6 @@ class ManagedDebugger
     ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
-    [[nodiscard]] bool IsJustMyCode() const
-    {
-        return m_justMyCode;
-    }
-    void SetJustMyCode(bool enable);
     [[nodiscard]] bool IsStepFiltering() const
     {
         return m_stepFiltering;
@@ -151,7 +146,6 @@ class ManagedDebugger
     ToRelease<ICorDebug> m_trDebug;
     ToRelease<ICorDebugProcess> m_trProcess;
 
-    bool m_justMyCode{true};
     bool m_stepFiltering{true};
     bool m_suppressJITOptimizations{false};
 
