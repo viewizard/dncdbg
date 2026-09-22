@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATION_EVALEXEC_H
-#define DEBUGGER_EVALUATION_EVALEXEC_H
+#ifndef DEBUGGER_EVALUATION_EVALHELPERS_EVALEXEC_H
+#define DEBUGGER_EVALUATION_EVALHELPERS_EVALEXEC_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -24,6 +24,9 @@ namespace dncdbg::EvalExec
 HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
                      std::vector<ToRelease<ICorDebugType>> *pTrMethodGenericTypes, ICorDebugValue **ppArgsValue,
                      uint32_t argsValueCount, FormatSpecifier specifier, ICorDebugValue **ppEvalResult);
+
+HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue,
+                               FormatSpecifier specifier, std::string &output);
 
 HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc, std::vector<ToRelease<ICorDebugType>> &trTypeParams,
                         ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult);
@@ -48,4 +51,4 @@ void Cleanup();
 
 } // namespace dncdbg::EvalExec
 
-#endif // DEBUGGER_EVALUATION_EVALEXEC_H
+#endif // DEBUGGER_EVALUATION_EVALHELPERS_EVALEXEC_H

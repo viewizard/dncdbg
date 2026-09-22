@@ -2,8 +2,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATION_SYSTEMTYPES_H
-#define DEBUGGER_EVALUATION_SYSTEMTYPES_H
+#ifndef DEBUGGER_EVALUATION_EVALHELPERS_SYSTEMTYPES_H
+#define DEBUGGER_EVALUATION_EVALHELPERS_SYSTEMTYPES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -51,4 +51,4 @@ void Cleanup();
 
 } // namespace dncdbg::SystemTypes
 
-#endif // DEBUGGER_EVALUATION_SYSTEMTYPES_H
+#endif // DEBUGGER_EVALUATION_EVALHELPERS_SYSTEMTYPES_H

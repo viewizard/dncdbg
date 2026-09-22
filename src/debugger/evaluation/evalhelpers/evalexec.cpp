@@ -6,7 +6,9 @@
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "config/config.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/evalhelpers.h"
+#include "debugger/valueprint.h"
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
@@ -567,6 +569,49 @@ HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDeb
                                                          argsValueCount, ppArgsValue));
             return S_OK;
         });
+}
+
+HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
+{
+    if ((Config::GetEvalFlags() & Config::EVAL_NOTOSTRING) != 0U)
+    {
+        return CORDBG_E_DEBUGGING_DISABLED;
+    }
+
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebugValue2> trInputValue2;
+    IfFailRet(pInputValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trInputValue2)));
+    ToRelease<ICorDebugType> trInputType;
+    IfFailRet(trInputValue2->GetExactType(&trInputType));
+
+    ToRelease<ICorDebugFunction> trFunc;
+    IfFailRet(Walkers::WalkMethods(trInputType, false, nullptr,
+        [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
+            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
+            const Walkers::GetFunctionCallback &getFunction) -> HRESULT
+        {
+            if (isStatic || !methodArgs.empty() || methodName != "ToString")
+            {
+                return S_OK; // Return success to continue walking.
+            }
+
+            IfFailRet(getFunction(&trFunc));
+
+            return S_CAN_EXIT; // Fast exit from the loop, since we already found trFunc.
+        }));
+
+    if (trFunc == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    ToRelease<ICorDebugValue> trRefValue;
+    IfFailRet(CallFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
+                           1, specifier, &trRefValue));
+    ToRelease<ICorDebugValue> trValue;
+    IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));
+    return PrintStringValue(trValue, output);
 }
 
 HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc, std::vector<ToRelease<ICorDebugType>> &trTypeParams,

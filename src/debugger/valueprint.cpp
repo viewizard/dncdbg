@@ -5,7 +5,7 @@
 
 #include "debugger/valueprint.h"
 #include "debugger/evalhelpers.h"
-#include "debugger/evaluator.h"
+#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "metadata/attributes.h"
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"
@@ -674,7 +674,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                 else
                 {
                     std::string valueToString;
-                    if (SUCCEEDED(Evaluator::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
+                    if (SUCCEEDED(EvalExec::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                     {
                         ss << '{' << valueToString << '}';
                     }
@@ -699,7 +699,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                 ss << '{';
                 std::string valueToString;
                 if (displayTypeName != "System.Exception" && displayTypeName != "System.Object" && displayTypeName != "System.ValueType" &&
-                    SUCCEEDED(Evaluator::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
+                    SUCCEEDED(EvalExec::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
                     // Escape the ToString() result the same way as string values.
                     EscapeString(valueToString, '"');

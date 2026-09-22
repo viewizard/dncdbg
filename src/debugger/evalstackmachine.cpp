@@ -4,9 +4,10 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evalstackmachine.h"
-#include "debugger/evaluator.h"
 #include "debugger/evalhelpers.h"
+#include "debugger/evaluation/evalhelpers/debuginfo.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
+#include "debugger/evaluation/evalhelpers/evalresolver.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/primitivetypes/types.h"
@@ -182,9 +183,9 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const Eval
     }
 
     ICorDebugValue *pForcedThisValue = evalStack.front().trValue == nullptr ? ed.pForcedThisValue : evalStack.front().trValue;
-    if (SUCCEEDED(Status = Evaluator::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
-                                                         evalStack.front().identifiers, ed.specifier, ppResultValue,
-                                                         &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
+    if (SUCCEEDED(Status = EvalResolver::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
+                                                            evalStack.front().identifiers, ed.specifier, ppResultValue,
+                                                            &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
     {
         return S_OK;
     }
@@ -192,7 +193,7 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const Eval
     if (pForcedThisValue == nullptr && !evalStack.front().identifiers.empty())
     {
         PDB::ImportsAndAliases pdbImports;
-        Evaluator::GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
+        EvalDebugInfoHelpers::GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
 
         const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
         if (importType != pdbImports.cend())
@@ -203,9 +204,9 @@ HRESULT GetFrontStackEntryValue(std::list<EvalStackEntry> &evalStack, const Eval
                 const std::vector<std::string> importTypeIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
                 testIdentifiers.insert(testIdentifiers.begin(), importTypeIdentifiers.cbegin(), importTypeIdentifiers.cend());
 
-                if (SUCCEEDED(Evaluator::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
-                                                            testIdentifiers, ed.specifier, ppResultValue,
-                                                            &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
+                if (SUCCEEDED(EvalResolver::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, pInputPropertyData,
+                                                               testIdentifiers, ed.specifier, ppResultValue,
+                                                               &evalStack.front().realDisplayTypeName, pResultSetterData, nullptr)))
                 {
                     return S_OK;
                 }
@@ -239,9 +240,9 @@ HRESULT GetFrontStackEntryType(std::list<EvalStackEntry> &evalStack, const EvalD
     // ResolveIdentifiers may succeed without producing a type (e.g. when only a
     // value/this is resolved and no type identifier is left), leaving *ppResultType
     // null. Treat that as a failure too, otherwise callers would dereference null.
-    if (SUCCEEDED(Status = Evaluator::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
-                                                         nullptr, evalStack.front().identifiers,
-                                                         ed.specifier, &trValue, nullptr, nullptr, ppResultType)) &&
+    if (SUCCEEDED(Status = EvalResolver::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue,
+                                                            nullptr, evalStack.front().identifiers,
+                                                            ed.specifier, &trValue, nullptr, nullptr, ppResultType)) &&
         *ppResultType != nullptr)
     {
         return S_OK;
@@ -954,7 +955,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     }
 
     PDB::ImportsAndAliases pdbImports;
-    Evaluator::GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
+    EvalDebugInfoHelpers::GetImportsAndAliases(ed.pThread, ed.frameLevel, pdbImports);
 
     bool idsEmpty = false;
     bool isInstance = true;
@@ -1022,8 +1023,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     {
         trValue.Free();
         trType.Free();
-        if (FAILED(Status = Evaluator::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
-                                                          testIdentifiers, ed.specifier, &trValue, nullptr, nullptr, &trType)))
+        if (FAILED(Status = EvalResolver::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
+                                                             testIdentifiers, ed.specifier, &trValue, nullptr, nullptr, &trType)))
         {
             if (pForcedThisValue == nullptr && !testIdentifiers.empty())
             {
@@ -1036,8 +1037,8 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                         const std::vector<std::string> importTypeIdents = MetadataHelpers::SplitFQDisplayTypeName(entry.displayName);
                         testIdents.insert(testIdents.begin(), importTypeIdents.cbegin(), importTypeIdents.cend());
 
-                        if (SUCCEEDED(Evaluator::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
-                                                                    testIdents, ed.specifier, &trValue, nullptr, nullptr, &trType)))
+                        if (SUCCEEDED(EvalResolver::ResolveIdentifiers(ed.pThread, ed.frameLevel, pForcedThisValue, nullptr,
+                                                                       testIdents, ed.specifier, &trValue, nullptr, nullptr, &trType)))
                         {
                             break;
                         }

@@ -33,7 +33,9 @@ set(DNCDBG_SOURCES
     debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
     debugger/breakpoints/internal_helpers.cpp
+    debugger/evaluation/evalhelpers/debuginfo.cpp
     debugger/evaluation/evalhelpers/evalexec.cpp
+    debugger/evaluation/evalhelpers/evalresolver.cpp
     debugger/evaluation/evalhelpers/evalwaiter.cpp
     debugger/evaluation/evalhelpers/metadata.cpp
     debugger/evaluation/evalhelpers/systemtypes.cpp
@@ -54,7 +56,6 @@ set(DNCDBG_SOURCES
     debugger/callbacksqueue.cpp
     debugger/evalhelpers.cpp
     debugger/evalstackmachine.cpp
-    debugger/evaluator.cpp
     debugger/frames.cpp
     debugger/managedcallback.cpp
     debugger/manageddebugger.cpp

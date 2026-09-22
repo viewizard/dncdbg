@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATOR_H
-#define DEBUGGER_EVALUATOR_H
+#ifndef DEBUGGER_EVALUATION_EVALHELPERS_EVALRESOLVER_H
+#define DEBUGGER_EVALUATION_EVALHELPERS_EVALRESOLVER_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -13,13 +13,12 @@
 #endif
 
 #include "debugger/evaluation/walkers/types.h"
-#include "debuginfo/pdb.h"
 #include "types/types.h"
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace dncdbg::Evaluator
+namespace dncdbg::EvalResolver
 {
 
 // Resolve identifiers against the current frame: stack variables, "this" and its members,
@@ -30,10 +29,6 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
                            FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
                            std::unique_ptr<Walkers::SetterData> *pResultSetterData, ICorDebugType **ppResultType);
 
-HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output);
+} // namespace dncdbg::EvalResolver
 
-void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
-
-} // namespace dncdbg::Evaluator
-
-#endif // DEBUGGER_EVALUATOR_H
+#endif // DEBUGGER_EVALUATION_EVALHELPERS_EVALRESOLVER_H

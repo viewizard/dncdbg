@@ -3,27 +3,22 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/evaluator.h"
-#include "config/config.h"
+#include "debugger/evaluation/evalhelpers/evalresolver.h"
 #include "debugger/evalhelpers.h"
+#include "debugger/evaluation/evalhelpers/debuginfo.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
-#include "debugger/valueprint.h"
-#include "debuginfo/debuginfo.h"
+#include "debuginfo/pdb.h"
 #include "metadata/helpers.h"
-#include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>
 #include <limits>
-#include <list>
-#include <memory>
-#include <vector>
 
-namespace dncdbg::Evaluator
+namespace dncdbg::EvalResolver
 {
 
 namespace
@@ -208,49 +203,6 @@ HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, c
 
 } // unnamed namespace
 
-HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputValue, FormatSpecifier specifier, std::string &output)
-{
-    if ((Config::GetEvalFlags() & Config::EVAL_NOTOSTRING) != 0U)
-    {
-        return CORDBG_E_DEBUGGING_DISABLED;
-    }
-
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugValue2> trInputValue2;
-    IfFailRet(pInputValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trInputValue2)));
-    ToRelease<ICorDebugType> trInputType;
-    IfFailRet(trInputValue2->GetExactType(&trInputType));
-
-    ToRelease<ICorDebugFunction> trFunc;
-    IfFailRet(Walkers::WalkMethods(trInputType, false, nullptr,
-        [&](bool isStatic, const std::string &methodName, Walkers::ReturnElementType &,
-            std::vector<SigElementType> &methodArgs, uint32_t /*methodGenParamCount*/,
-            const Walkers::GetFunctionCallback &getFunction) -> HRESULT
-        {
-            if (isStatic || !methodArgs.empty() || methodName != "ToString")
-            {
-                return S_OK; // Return success to continue walking.
-            }
-
-            IfFailRet(getFunction(&trFunc));
-
-            return S_CAN_EXIT; // Fast exit from the loop, since we already found trFunc.
-        }));
-
-    if (trFunc == nullptr)
-    {
-        return E_INVALIDARG;
-    }
-
-    ToRelease<ICorDebugValue> trRefValue;
-    IfFailRet(EvalExec::CallFunction(pThread, trFunc, trInputType.GetPtr(), nullptr, &pInputValue,
-                                     1, specifier, &trRefValue));
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(DereferenceAndUnboxValue(trRefValue, &trValue, nullptr));
-    return PrintStringValue(trValue, output);
-}
-
 HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pForcedThisValue,
                            Walkers::SetterData *pInputSetterData, std::vector<std::string> &identifiers,
                            FormatSpecifier specifier, ICorDebugValue **ppResultValue, std::string *pRealDisplayTypeName,
@@ -380,7 +332,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     }
 
     PDB::ImportsAndAliases pdbImports;
-    GetImportsAndAliases(pThread, frameLevel, pdbImports);
+    EvalDebugInfoHelpers::GetImportsAndAliases(pThread, frameLevel, pdbImports);
 
     if (trResolvedValue == nullptr) // check statics in nested classes
     {
@@ -452,103 +404,4 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     return S_OK;
 }
 
-void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
-{
-    const auto getImportsAndAliases = [&]() -> HRESULT
-    {
-        HRESULT Status = S_OK;
-        ToRelease<ICorDebugFrame> trFrame;
-        IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
-        if (trFrame == nullptr)
-        {
-            return E_FAIL;
-        }
-
-        ToRelease<ICorDebugFunction> trFunction;
-        IfFailRet(trFrame->GetFunction(&trFunction));
-
-        ToRelease<ICorDebugModule> trModule;
-        IfFailRet(trFunction->GetModule(&trModule));
-
-        mdMethodDef methodDef = mdMethodDefNil;
-        IfFailRet(trFunction->GetToken(&methodDef));
-
-        ToRelease<ICorDebugILFrame> trILFrame;
-        IfFailRet(trFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
-
-        uint32_t currentIlOffset = 0;
-        CorDebugMappingResult mappingResult = MAPPING_NO_INFO;
-        IfFailRet(trILFrame->GetIP(&currentIlOffset, &mappingResult));
-        if (mappingResult == MAPPING_UNMAPPED_ADDRESS ||
-            mappingResult == MAPPING_NO_INFO)
-        {
-            return E_FAIL;
-        }
-
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-        IfFailRet(DebugInfo::GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
-
-        const auto applyTokenName = [&trMDImport](std::vector<PDB::Imports> &alias) -> HRESULT
-        {
-            for (auto &entry : alias)
-            {
-                // For TypeSpec tokens, pre-resolve the generic type arguments from the signature
-                // so that GetFQDisplayNameForToken() can substitute them into the display name.
-                std::list<std::string> args;
-                std::list<std::string> *pArgs = nullptr;
-                if (TypeFromToken(entry.token) == mdtTypeSpec)
-                {
-                    PCCOR_SIGNATURE pSig = nullptr;
-                    ULONG cbSig = 0;
-                    SigElementType sigType;
-                    if (FAILED(trMDImport->GetTypeSpecFromToken(entry.token, &pSig, &cbSig)) ||
-                        FAILED(ParseElementType(trMDImport, pSig, pSig + cbSig, 0, sigType, &args, true)))
-                    {
-                        // Skip entries whose TypeSpec signature cannot be parsed.
-                        continue;
-                    }
-                    pArgs = &args;
-                }
-
-                if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, pArgs)))
-                {
-                    // Skip entries whose target type cannot be resolved.
-                    continue;
-                }
-            }
-
-            return S_OK;
-        };
-
-        const auto importType = pdbImports.find(PDB::ImportsKind::ImportType);
-        if (importType != pdbImports.cend())
-        {
-            applyTokenName(importType->second);
-        }
-
-        const auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
-        if (aliasType != pdbImports.cend())
-        {
-            applyTokenName(aliasType->second);
-        }
-
-        return S_OK;
-    };
-
-    pdbImports.clear();
-    getImportsAndAliases();
-
-    // In case of failure (or no debug info for this code), add the default "System" namespace.
-    auto &importNamespace = pdbImports[PDB::ImportsKind::ImportNamespace];
-    if (importNamespace.empty())
-    {
-        importNamespace.emplace_back();
-        importNamespace.back().targetNamespace = "System";
-    }
-}
-
-} // namespace dncdbg::Evaluator
+} // namespace dncdbg::EvalResolver

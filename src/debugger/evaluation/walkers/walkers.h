@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATION_WALKERS_H
-#define DEBUGGER_EVALUATION_WALKERS_H
+#ifndef DEBUGGER_EVALUATION_WALKERS_WALKERS_H
+#define DEBUGGER_EVALUATION_WALKERS_WALKERS_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -45,4 +45,4 @@ void Cleanup();
 
 } // namespace dncdbg::Walkers
 
-#endif // DEBUGGER_EVALUATION_WALKERS_H
+#endif // DEBUGGER_EVALUATION_WALKERS_WALKERS_H

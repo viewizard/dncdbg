@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATION_TYPES_H
-#define DEBUGGER_EVALUATION_TYPES_H
+#ifndef DEBUGGER_EVALUATION_WALKERS_TYPES_H
+#define DEBUGGER_EVALUATION_WALKERS_TYPES_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -77,4 +77,4 @@ using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const G
 
 } // namespace dncdbg::Walkers
 
-#endif // DEBUGGER_EVALUATION_TYPES_H
+#endif // DEBUGGER_EVALUATION_WALKERS_TYPES_H

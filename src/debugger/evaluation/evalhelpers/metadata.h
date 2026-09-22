@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef DEBUGGER_EVALUATION_METADATA_H
-#define DEBUGGER_EVALUATION_METADATA_H
+#ifndef DEBUGGER_EVALUATION_EVALHELPERS_METADATA_H
+#define DEBUGGER_EVALUATION_EVALHELPERS_METADATA_H
 
 #include <cor.h>
 #include <cordebug.h>
@@ -43,4 +43,4 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &disp
 
 } // namespace dncdbg::EvalMetadataHelpers
 
-#endif // DEBUGGER_EVALUATION_METADATA_H
+#endif // DEBUGGER_EVALUATION_EVALHELPERS_METADATA_H
