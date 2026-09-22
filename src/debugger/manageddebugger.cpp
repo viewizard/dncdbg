@@ -395,14 +395,13 @@ HRESULT ManagedDebugger::Attach(DWORD pid)
 }
 
 HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
-                                const std::map<std::string, std::string> &env, const std::string &cwd, bool stopAtEntry)
+                                const std::map<std::string, std::string> &env, const std::string &cwd)
 {
     m_startMethod = StartMethod::Launch;
     m_execPath = fileExec;
     m_execArgs = execArgs;
     m_cwd = cwd;
     m_env = env;
-    Breakpoints::SetStopAtEntry(stopAtEntry);
     return S_OK;
 }
 

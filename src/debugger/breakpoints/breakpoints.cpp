@@ -45,11 +45,6 @@ void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStop
     BreakBreakpoint::SetLastStoppedIlOffset(pProcess, lastStoppedThreadId);
 }
 
-void SetStopAtEntry(bool enable)
-{
-    EntryBreakpoint::SetStopAtEntry(enable);
-}
-
 HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)
 {
     return BreakBreakpoint::ManagedCallbackBreak(pThread, lastStoppedThreadId);

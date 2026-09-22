@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoint_entry.h"
+#include "config/config.h"
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
@@ -34,12 +35,6 @@ ToRelease<ICorDebugFunctionBreakpoint> &GetFuncBreakpoint()
 {
     static ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
     return trFuncBreakpoint;
-}
-
-bool &GetStopAtEntry()
-{
-    static bool stopAtEntry{false};
-    return stopAtEntry;
 }
 
 mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
@@ -219,17 +214,11 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
 
 } // unnamed namespace
 
-void SetStopAtEntry(bool enable)
-{
-    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
-    GetStopAtEntry() = enable;
-}
-
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
     const std::scoped_lock<std::mutex> lock(GetEntryMutex());
 
-    if (!GetStopAtEntry() || (GetFuncBreakpoint() != nullptr))
+    if (!Config::GetStopAtEntry() || (GetFuncBreakpoint() != nullptr))
     {
         return S_FALSE;
     }
@@ -288,7 +277,7 @@ HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
     const std::scoped_lock<std::mutex> lock(GetEntryMutex());
 
-    if (!GetStopAtEntry() ||
+    if (!Config::GetStopAtEntry() ||
         GetFuncBreakpoint() == nullptr)
     {
         return S_FALSE;

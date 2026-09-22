@@ -70,7 +70,7 @@ class ManagedDebugger
     HRESULT Initialize();
     HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
-                   const std::map<std::string, std::string> &env, const std::string &cwd, bool stopAtEntry = false);
+                   const std::map<std::string, std::string> &env, const std::string &cwd);
     HRESULT ConfigurationDone();
 
     HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);

@@ -24,6 +24,12 @@ bool &GetStepFilteringState()
     return stepFilteringState;
 }
 
+bool &GetStopAtEntryState()
+{
+    static bool stopAtEntryState{false};
+    return stopAtEntryState;
+}
+
 } // unnamed namespace
 
 bool GetJustMyCode()
@@ -44,6 +50,16 @@ bool GetStepFiltering()
 void SetStepFiltering(bool state)
 {
     GetStepFilteringState() = state;
+}
+
+bool GetStopAtEntry()
+{
+    return GetStopAtEntryState();
+}
+
+void SetStopAtEntry(bool state)
+{
+    GetStopAtEntryState() = state;
 }
 
 } // namespace dncdbg::Config

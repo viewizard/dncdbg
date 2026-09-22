@@ -15,8 +15,6 @@
 namespace dncdbg::EntryBreakpoint
 {
 
-void SetStopAtEntry(bool enable);
-
 // Important! Must provide succeeded return code:
 // S_OK - breakpoint hit
 // S_FALSE - no breakpoint hit

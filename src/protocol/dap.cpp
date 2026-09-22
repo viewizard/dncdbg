@@ -392,6 +392,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
                 Config::SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
+                Config::SetStopAtEntry(arguments.value("stopAtEntry", false)); // MS vsdbg has "stopAtEntry" disabled by default.
                 m_sharedDebugger->SetSuppressJITOptimizations(
                     arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
 
@@ -472,7 +473,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
                 m_sharedDebugger->SetEvalFlags(evalFlags);
 
-                const bool stopAtEntry = arguments.value("stopAtEntry", false);
                 const std::string program = arguments.at("program").get<std::string>();
                 std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
 
@@ -481,12 +481,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
                 {
                     args.insert(args.begin(), program);
-                    return m_sharedDebugger->Launch("dotnet", args, env, cwd, stopAtEntry);
+                    return m_sharedDebugger->Launch("dotnet", args, env, cwd);
                 }
                 else
                 {
                     // If we're not being asked to launch a dll, assume whatever we're given is an executable
-                    return m_sharedDebugger->Launch(program, args, env, cwd, stopAtEntry);
+                    return m_sharedDebugger->Launch(program, args, env, cwd);
                 }
             }},
         {"threads", [&](const json &/*arguments*/, json &responseBody)
