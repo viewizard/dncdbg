@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/breakpoints/breakpoints_function.h"
-#include "debugger/breakpoints/helpers.h"
+#include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
 #include "protocol/dapio.h"

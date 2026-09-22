@@ -31,7 +31,7 @@ set(DNCDBG_SOURCES
     debugger/breakpoints/breakpoints_function.cpp
     debugger/breakpoints/breakpoints_source.cpp
     debugger/breakpoints/breakpoints.cpp
-    debugger/breakpoints/helpers.cpp
+    debugger/breakpoints/internal_helpers.cpp
     debugger/evaluation/evalhelpers/evalexec.cpp
     debugger/evaluation/evalhelpers/evalwaiter.cpp
     debugger/evaluation/evalhelpers/systemtypes.cpp

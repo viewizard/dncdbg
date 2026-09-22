@@ -3,7 +3,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "debugger/breakpoints/helpers.h"
+#include "debugger/breakpoints/internal_helpers.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/valueprint.h"
 #include "metadata/attributes.h"
