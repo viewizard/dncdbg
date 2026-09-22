@@ -869,7 +869,6 @@ HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::st
 void Cleanup()
 {
     const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
-
     GetReferences().clear();
 }
 

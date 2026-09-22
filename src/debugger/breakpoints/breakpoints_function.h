@@ -22,7 +22,7 @@ namespace dncdbg::FunctionBreakpoints
 {
 
 void SetJustMyCode(bool enable);
-void Cleanup();
+
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
@@ -45,6 +45,9 @@ size_t GetBreakpointsCount();
 //     return S_OK;
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+
+// Cleans up the FunctionBreakpoints internal state. See Breakpoints::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::FunctionBreakpoints
 

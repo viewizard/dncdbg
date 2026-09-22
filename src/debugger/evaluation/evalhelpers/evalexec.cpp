@@ -826,16 +826,12 @@ HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClas
 
 void Cleanup()
 {
-    GetTrSuppressFinalizeMutex().lock();
-    if (GetTrSuppressFinalize() != nullptr)
-    {
-        GetTrSuppressFinalize().Free();
-    }
-    GetTrSuppressFinalizeMutex().unlock();
+    const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
 
-    GetTypeObjectCacheMutex().lock();
+    GetTrSuppressFinalize().Free();
+
+    const std::scoped_lock<std::mutex> typeObjectCacheLock(GetTypeObjectCacheMutex());
     GetTypeObjectCache().clear();
-    GetTypeObjectCacheMutex().unlock();
 }
 
 uint32_t GetEvalFlags()

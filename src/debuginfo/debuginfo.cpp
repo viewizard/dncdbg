@@ -443,16 +443,6 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
 } // unnamed namespace
 
-void Cleanup()
-{
-    AsyncInfo::Cleanup();
-    SourceReference::Cleanup();
-
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
-    GetDebugInfoMap().clear();
-    GetGotoTargetId() = 0;
-}
-
 HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
 {
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
@@ -1032,6 +1022,17 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
 
     return PDBReader::GetBreakpointLocations(pPDBInfo->m_pdbHandle, methodTokens,
                                              resolvedSourceFileIndex, rangeToSearch, locations);
+}
+
+void Cleanup()
+{
+    AsyncInfo::Cleanup();
+    SourceReference::Cleanup();
+
+    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+
+    GetDebugInfoMap().clear();
+    GetGotoTargetId() = 0;
 }
 
 } // namespace dncdbg::DebugInfo

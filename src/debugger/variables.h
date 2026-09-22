@@ -32,6 +32,7 @@ HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope
 HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                  Variable &variable, std::string &output);
 
+// Cleans up the Variables internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 
 } // namespace dncdbg::Variables

@@ -103,12 +103,6 @@ void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStop
     }
 }
 
-void Cleanup()
-{
-    const std::scoped_lock<std::mutex> lock(GetBreakMutex());
-    GetLastStoppedIlOffset().Reset();
-}
-
 HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)
 {
     HRESULT Status = S_OK;
@@ -179,6 +173,12 @@ HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStopp
     }
 
     return S_IGNORE;
+}
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetBreakMutex());
+    GetLastStoppedIlOffset().Reset();
 }
 
 } // namespace dncdbg::BreakBreakpoint

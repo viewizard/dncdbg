@@ -26,7 +26,7 @@ namespace dncdbg::Breakpoints
 void SetJustMyCode(bool enable);
 void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
 void SetStopAtEntry(bool enable);
-void Cleanup();
+
 HRESULT DisableAll(ICorDebugProcess *pProcess);
 
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
@@ -55,6 +55,9 @@ HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
+
+// Cleans up the Breakpoints internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::Breakpoints
 

@@ -44,9 +44,6 @@ HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE
 void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module);
 void UnloadModuleSymbols(ICorDebugModule *pModule);
 
-// Cleans up the DebugInfo internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
-
 HRESULT GetFrameNamedLocalVariable(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                                    uint32_t localIndex, WSTRING &localName);
 
@@ -83,6 +80,9 @@ void GetLoadedSources(std::vector<Source> &sources);
 
 HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
                                std::vector<BreakpointLocation> &locations);
+
+// Cleans up the DebugInfo internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::DebugInfo
 

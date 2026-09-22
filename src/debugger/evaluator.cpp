@@ -2534,16 +2534,6 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-// Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
-void Cleanup()
-{
-    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
-    GetExtensionMethodsCache().clear();
-
-    // Don't reset the protocol-provided settings: JustMyCode and EvalFlags.
-    // Only the internal state related to process execution is reset here.
-}
-
 void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports)
 {
     const auto getImportsAndAliases = [&]() -> HRESULT
@@ -2682,6 +2672,16 @@ bool IsEnumeration(ICorDebugValue *pInputValue)
            modAddress == systemEnumModAddress &&
            SUCCEEDED(trBaseClass->GetToken(&typeDef)) &&
            typeDef == systemEnumTypeDef;
+}
+
+// Cleans up the Evaluator internal state. See ManagedDebugger::Cleanup().
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+    GetExtensionMethodsCache().clear();
+
+    // Don't reset the protocol-provided settings: JustMyCode and EvalFlags.
+    // Only the internal state related to process execution is reset here.
 }
 
 void SetJustMyCode(bool enable)

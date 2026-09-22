@@ -18,7 +18,6 @@ namespace dncdbg::BreakBreakpoint
 {
 
 void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
-void Cleanup();
 
 // Important! Callbacks related methods must control return for succeeded return code.
 // Do not allow debugger API return succeeded (uncontrolled) return code.
@@ -28,6 +27,9 @@ void Cleanup();
 //     IfFailRet(pThread->GetID(&threadId));
 //     return S_OK;
 HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId);
+
+// Cleans up the BreakBreakpoint internal state. See Breakpoints::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::BreakBreakpoint
 

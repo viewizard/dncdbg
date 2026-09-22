@@ -250,20 +250,6 @@ void SetJustMyCode(bool enable)
     GetJustMyCode() = enable;
 }
 
-void Cleanup()
-{
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
-    GetSourceResolvedBreakpoints().clear();
-    // Reset the resolved breakpoints state.
-    for (auto &sourceBreakpoints : GetSourceBreakpointMapping())
-    {
-        for (auto &bp : sourceBreakpoints.second)
-        {
-            bp.Reset();
-        }
-    }
-}
-
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                            std::vector<uint32_t> &hitBreakpointIds)
 {
@@ -850,5 +836,20 @@ size_t GetBreakpointsCount()
     return count;
 }
 #endif // DEBUG_INTERNAL_TESTS
+
+void Cleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+
+    GetSourceResolvedBreakpoints().clear();
+    // Reset the resolved breakpoints state.
+    for (auto &sourceBreakpoints : GetSourceBreakpointMapping())
+    {
+        for (auto &bp : sourceBreakpoints.second)
+        {
+            bp.Reset();
+        }
+    }
+}
 
 } // namespace dncdbg::SourceBreakpoints

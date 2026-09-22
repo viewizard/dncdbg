@@ -26,11 +26,11 @@ void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval);
 HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread);
 HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule);
 
-// Cleans up the EvalWaiter internal state. See ManagedDebugger::Cleanup().
-void Cleanup();
-
 [[nodiscard]] bool IsEvalRunning();
 void CancelEvalRunning();
+
+// Cleans up the EvalWaiter internal state. See ManagedDebugger::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::EvalWaiter
 

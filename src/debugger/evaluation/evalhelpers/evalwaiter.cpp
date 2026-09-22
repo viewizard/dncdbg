@@ -391,17 +391,6 @@ HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
     return pModule->GetClassFromToken(typeDef, &GetCrossThreadDependencyNotification());
 }
 
-void Cleanup()
-{
-    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
-
-    GetEvalCanceled() = false;
-    GetEvalCrossThreadDependency() = false;
-
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
-    GetEvalResult().reset(nullptr);
-}
-
 bool IsEvalRunning()
 {
     const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
@@ -424,6 +413,17 @@ void CancelEvalRunning()
     {
         GetEvalCanceled() = true;
     }
+}
+
+void Cleanup()
+{
+    GetCrossThreadDependencyNotification().Free(); // allow re-setup if needed
+
+    GetEvalCanceled() = false;
+    GetEvalCrossThreadDependency() = false;
+
+    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    GetEvalResult().reset(nullptr);
 }
 
 } // namespace dncdbg::EvalWaiter

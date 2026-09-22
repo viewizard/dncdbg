@@ -35,6 +35,8 @@ HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, COR
 HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
                                   ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint);
 HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFuncBreakpoint);
+
+// Cleans up the BreakpointHelpers internal state. See Breakpoints::Cleanup().
 void Cleanup();
 
 } // namespace dncdbg::BreakpointHelpers

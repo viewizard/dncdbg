@@ -22,7 +22,7 @@ namespace dncdbg::ExceptionBreakpoints
 {
 
 void SetJustMyCode(bool enable);
-void Cleanup();
+
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
@@ -36,6 +36,9 @@ HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
 //     return S_OK;
 HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
 HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
+
+// Cleans up the ExceptionBreakpoints internal state. See Breakpoints::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::ExceptionBreakpoints
 

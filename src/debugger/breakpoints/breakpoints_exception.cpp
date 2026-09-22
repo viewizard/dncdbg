@@ -393,12 +393,6 @@ void SetJustMyCode(bool enable)
     GetJustMyCode() = enable;
 }
 
-void Cleanup()
-{
-    // Do nothing here on purpose:
-    // GetExceptionBreakpoints() stores data provided from the protocol.
-}
-
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                 std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
 {
@@ -755,6 +749,12 @@ HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread)
     GetThreadsExceptionCallbackType().erase(tid);
 
     return S_OK;
+}
+
+void Cleanup()
+{
+    // Do nothing here on purpose:
+    // GetExceptionBreakpoints() stores data provided from the protocol.
 }
 
 } // namespace dncdbg::ExceptionBreakpoints

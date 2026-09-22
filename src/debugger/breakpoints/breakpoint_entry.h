@@ -16,7 +16,6 @@ namespace dncdbg::EntryBreakpoint
 {
 
 void SetStopAtEntry(bool enable);
-void Cleanup();
 
 // Important! Must provide succeeded return code:
 // S_OK - breakpoint hit
@@ -31,6 +30,9 @@ HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint);
 //     IfFailRet(pThread->GetID(&threadId));
 //     return S_OK;
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
+
+// Cleans up the EntryBreakpoint internal state. See Breakpoints::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::EntryBreakpoint
 

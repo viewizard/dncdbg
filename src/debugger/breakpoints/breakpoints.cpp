@@ -62,19 +62,6 @@ HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStopp
     return BreakBreakpoint::ManagedCallbackBreak(pThread, lastStoppedThreadId);
 }
 
-void Cleanup()
-{
-    BreakBreakpoint::Cleanup();
-    EntryBreakpoint::Cleanup();
-    FunctionBreakpoints::Cleanup();
-    SourceBreakpoints::Cleanup();
-    ExceptionBreakpoints::Cleanup();
-    BreakpointHelpers::Cleanup();
-
-    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
-    GetNextBreakpointId() = 1;
-}
-
 HRESULT DisableAll(ICorDebugProcess *pProcess)
 {
     HRESULT Status = S_OK;
@@ -208,5 +195,18 @@ size_t GetBreakpointsCount()
            SourceBreakpoints::GetBreakpointsCount();
 }
 #endif // DEBUG_INTERNAL_TESTS
+
+void Cleanup()
+{
+    BreakBreakpoint::Cleanup();
+    EntryBreakpoint::Cleanup();
+    FunctionBreakpoints::Cleanup();
+    SourceBreakpoints::Cleanup();
+    ExceptionBreakpoints::Cleanup();
+    BreakpointHelpers::Cleanup();
+
+    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
+    GetNextBreakpointId() = 1;
+}
 
 } // namespace dncdbg::Breakpoints

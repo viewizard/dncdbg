@@ -22,7 +22,7 @@ namespace dncdbg::SourceBreakpoints
 {
 
 void SetJustMyCode(bool enable);
-void Cleanup();
+
 HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                              std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
 
@@ -45,6 +45,9 @@ size_t GetBreakpointsCount();
 //     return S_OK;
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
+
+// Cleans up the SourceBreakpoints internal state. See Breakpoints::Cleanup().
+void Cleanup();
 
 } // namespace dncdbg::SourceBreakpoints
 
