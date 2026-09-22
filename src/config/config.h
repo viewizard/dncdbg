@@ -9,9 +9,13 @@
 namespace dncdbg::Config
 {
 
-// Just My Code (JMC) debugger option, provided by the DAP protocol ("initialize" request).
+// Just My Code (JMC) debugger option, provided by the DAP protocol ("launch" request).
 bool GetJustMyCode();
 void SetJustMyCode(bool state);
+
+// Step filtering debugger option, provided by the DAP protocol ("launch" request).
+bool GetStepFiltering();
+void SetStepFiltering(bool state);
 
 } // namespace dncdbg::Config
 

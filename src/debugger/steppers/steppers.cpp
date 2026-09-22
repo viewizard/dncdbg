@@ -35,14 +35,6 @@ PDB::SequencePoint &GetStepStartSP()
     return stepStartSP;
 }
 
-// https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
-// The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
-bool &GetStepFiltering()
-{
-    static bool stepFiltering{true};
-    return stepFiltering;
-}
-
 // Previous step-in was made in a method that must not be stepped. We need to store this information in order to step in again as soon as we leave this method.
 // Usually this is code related to step filtering, but in some cases we could also filter compiler-generated code and code covered by the StepThrough attribute.
 bool &GetFilteredPrevStep()
@@ -257,7 +249,7 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
 
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code
     // The debugger steps over properties and operators in managed code by default. In most cases, this provides a better debugging experience.
-    if (GetStepFiltering() && methodShouldBeFiltered())
+    if (Config::GetStepFiltering() && methodShouldBeFiltered())
     {
         IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_OUT));
         filteredPrevStep = true;
@@ -346,16 +338,8 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
     return S_OK;
 }
 
-void SetStepFiltering(bool enable)
-{
-    GetStepFiltering() = enable;
-}
-
 void Cleanup()
 {
-    // Don't reset the protocol-provided settings: StepFiltering.
-    // Only the internal state related to process execution is reset here.
-
     GetInitialStepType() = StepType::STEP_OVER;
     GetStepStartSP() = PDB::SequencePoint{};
     GetFilteredPrevStep() = false;

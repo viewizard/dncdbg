@@ -36,8 +36,6 @@ HRESULT DisableAll(ICorDebugProcess *pProcess);
 HRESULT DisableAll(ICorDebugAppDomain *pAppDomain);
 HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess);
 
-void SetStepFiltering(bool enable);
-
 // Cleans up the Steppers internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 

@@ -991,12 +991,6 @@ HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expre
     return Variables::SetExpression(m_trProcess, frameId, expression, value, output);
 }
 
-void ManagedDebugger::SetStepFiltering(bool enable)
-{
-    m_stepFiltering = enable;
-    Steppers::SetStepFiltering(enable);
-}
-
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
 // the calls to the EvalExec and Evaluator namespace functions, so it is intentionally kept non-static.
 void ManagedDebugger::SetEvalFlags(uint32_t evalFlags) // NOLINT(readability-convert-member-functions-to-static)

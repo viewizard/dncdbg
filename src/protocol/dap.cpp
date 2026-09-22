@@ -390,7 +390,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
-                m_sharedDebugger->SetStepFiltering(
+                Config::SetStepFiltering(
                     arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
                 m_sharedDebugger->SetSuppressJITOptimizations(
                     arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.

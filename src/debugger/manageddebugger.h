@@ -56,11 +56,6 @@ class ManagedDebugger
     ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
-    [[nodiscard]] bool IsStepFiltering() const
-    {
-        return m_stepFiltering;
-    }
-    void SetStepFiltering(bool enable);
     void SetEvalFlags(uint32_t evalFlags);
 
     [[nodiscard]] bool IsSuppressJITOptimizations() const
@@ -146,7 +141,6 @@ class ManagedDebugger
     ToRelease<ICorDebug> m_trDebug;
     ToRelease<ICorDebugProcess> m_trProcess;
 
-    bool m_stepFiltering{true};
     bool m_suppressJITOptimizations{false};
 
     void *m_unregisterToken{nullptr};
