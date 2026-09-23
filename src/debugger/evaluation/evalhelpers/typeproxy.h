@@ -20,7 +20,7 @@ HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pMo
 // Should be called by ICorDebugManagedCallback.
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
-// Cleans up the TypeProxy internal state. See ManagedDebugger::Cleanup().
+// Cleans up the TypeProxy internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::TypeProxy

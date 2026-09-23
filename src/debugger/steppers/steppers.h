@@ -36,7 +36,7 @@ HRESULT DisableAll(ICorDebugProcess *pProcess);
 HRESULT DisableAll(ICorDebugAppDomain *pAppDomain);
 HRESULT DisableAllSimpleSteppers(ICorDebugProcess *pProcess);
 
-// Cleans up the Steppers internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Steppers internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Steppers

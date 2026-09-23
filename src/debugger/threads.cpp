@@ -221,7 +221,7 @@ HRESULT GetThreads(std::vector<Thread> &threads)
     return S_OK;
 }
 
-// Cleans up the Threads internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Threads internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup()
 {
     {

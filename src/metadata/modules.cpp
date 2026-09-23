@@ -660,7 +660,7 @@ HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFil
     return *ppModule != nullptr ? S_OK : E_FAIL;
 }
 
-// Cleans up the Modules internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Modules internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetModuleMutex());

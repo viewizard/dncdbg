@@ -40,7 +40,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
-// Cleans up the Walkers internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Walkers internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Walkers

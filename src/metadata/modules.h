@@ -33,7 +33,7 @@ void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, 
 HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb);
 HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule);
 
-// Cleans up the Modules internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Modules internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Modules

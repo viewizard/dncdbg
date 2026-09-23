@@ -40,11 +40,11 @@ enum class CallbackQueueCall : uint8_t
     CreateProcess
 };
 
-// Initializes the callback queue and starts the worker thread. Must be called once per ManagedDebugger lifetime.
+// Initializes the callback queue and starts the worker thread. Must be called once per debugger lifetime.
 void Initialize(std::function<void()> notifyProcessCreatedCallback);
 // Clears queued callbacks between debug sessions, keeping the worker available for the next session.
 void Cleanup();
-// Stops the worker thread; must be called before the ManagedDebugger instance is destroyed.
+// Stops the worker thread; must be called before the debugger state is shut down.
 void Shutdown();
 
 // Called from ManagedDebugger by protocol request (Continue/Pause).

@@ -310,7 +310,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 HRESULT Status = S_OK;
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
+                IfFailRet(ManagedDebugger::SetExceptionBreakpoints(exceptionBreakpoints, breakpoints));
 
                 // TODO form responseBody with breakpoints (optional output, MS vsdbg doesn't provide it for VS Code IDE now)
                 // responseBody.emplace("breakpoints", breakpoints);
@@ -319,14 +319,14 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             }},
         {"configurationDone", [&](const json &/*arguments*/, json &/*responseBody*/)
             {
-                return m_sharedDebugger->ConfigurationDone();
+                return ManagedDebugger::ConfigurationDone();
             }},
         {"exceptionInfo", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 ExceptionInfo exceptionInfo;
-                IfFailRet(m_sharedDebugger->GetExceptionInfo(threadId, exceptionInfo));
+                IfFailRet(ManagedDebugger::GetExceptionInfo(threadId, exceptionInfo));
 
                 responseBody.emplace("exceptionId", exceptionInfo.exceptionId);
                 responseBody.emplace("description", exceptionInfo.description);
@@ -353,7 +353,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
+                IfFailRet(ManagedDebugger::SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
 
                 responseBody.emplace("breakpoints", breakpoints);
 
@@ -438,7 +438,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         }
                     }
 
-                    if (!m_sharedDebugger->InitializeRemoteConsoleServer(remoteConsolePort))
+                    if (!ManagedDebugger::InitializeRemoteConsoleServer(remoteConsolePort))
                     {
                         return INET_E_CANNOT_CONNECT;
                     }
@@ -480,19 +480,19 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
                 {
                     args.insert(args.begin(), program);
-                    return m_sharedDebugger->Launch("dotnet", args, env, cwd);
+                    return ManagedDebugger::Launch("dotnet", args, env, cwd);
                 }
                 else
                 {
                     // If we're not being asked to launch a dll, assume whatever we're given is an executable
-                    return m_sharedDebugger->Launch(program, args, env, cwd);
+                    return ManagedDebugger::Launch(program, args, env, cwd);
                 }
             }},
         {"threads", [&](const json &/*arguments*/, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Thread> threads;
-                IfFailRet(m_sharedDebugger->GetThreads(threads));
+                IfFailRet(ManagedDebugger::GetThreads(threads));
 
                 responseBody.emplace("threads", threads);
 
@@ -501,24 +501,24 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"disconnect", [&](const json &arguments, json &/*responseBody*/)
             {
                 const auto terminateArgIter = arguments.find("terminateDebuggee");
-                DisconnectAction action = DisconnectAction::Default;
+                ManagedDebugger::DisconnectAction action = ManagedDebugger::DisconnectAction::Default;
                 if (terminateArgIter == arguments.cend())
                 {
-                    action = DisconnectAction::Default;
+                    action = ManagedDebugger::DisconnectAction::Default;
                 }
                 else
                 {
-                    action = terminateArgIter.value().get<bool>() ? DisconnectAction::Terminate
-                                                                  : DisconnectAction::Detach;
+                    action = terminateArgIter.value().get<bool>() ? ManagedDebugger::DisconnectAction::Terminate
+                                                                  : ManagedDebugger::DisconnectAction::Detach;
                 }
 
-                m_sharedDebugger->Disconnect(action);
+                ManagedDebugger::Disconnect(action);
 
                 return S_OK;
             }},
         {"terminate", [&](const json &/*arguments*/, json &/*responseBody*/)
             {
-                m_sharedDebugger->Disconnect(DisconnectAction::Terminate);
+                ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Terminate);
                 return S_OK;
             }},
         {"stackTrace", [&](const json &arguments, json &responseBody)
@@ -528,8 +528,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
 
                 std::vector<StackFrame> stackFrames;
-                IfFailRet(m_sharedDebugger->GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
-                                                          static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
+                IfFailRet(ManagedDebugger::GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
+                                                         static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
                 responseBody.emplace("stackFrames", stackFrames);
                 responseBody.emplace("totalFrames", stackFrames.size());
@@ -542,7 +542,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 const bool singleThread = arguments.value("singleThread", false);
 
                 HRESULT Status = S_OK;
-                IfFailRet(m_sharedDebugger->Continue(threadId, singleThread));
+                IfFailRet(ManagedDebugger::Continue(threadId, singleThread));
 
                 responseBody.emplace("allThreadsContinued", !singleThread);
                 responseBody.emplace("threadId", static_cast<int>(threadId));
@@ -551,32 +551,32 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"pause", [&](const json &arguments, json &/*responseBody*/)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
-                return m_sharedDebugger->Pause(threadId);
+                return ManagedDebugger::Pause(threadId);
             }},
         {"next", [&](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
-                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_OVER, singleThread);
+                return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                                                    StepType::STEP_OVER, singleThread);
             }},
         {"stepIn", [&](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
-                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_IN, singleThread);
+                return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                                                    StepType::STEP_IN, singleThread);
             }},
         {"stepOut", [&](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
-                return m_sharedDebugger->StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
-                                                     StepType::STEP_OUT, singleThread);
+                return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
+                                                    StepType::STEP_OUT, singleThread);
             }},
         {"scopes", [&](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
                 const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
-                IfFailRet(m_sharedDebugger->GetScopes(frameId, scopes));
+                IfFailRet(ManagedDebugger::GetScopes(frameId, scopes));
 
                 responseBody.emplace("scopes", scopes);
 
@@ -586,7 +586,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 HRESULT Status = S_OK;
                 std::vector<Variable> variables;
-                IfFailRet(m_sharedDebugger->GetVariables(arguments.at("variablesReference"), variables));
+                IfFailRet(ManagedDebugger::GetVariables(arguments.at("variablesReference"), variables));
 
                 responseBody.emplace("variables", variables);
 
@@ -600,7 +600,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         const auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.cend())
                         {
-                            const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = ManagedDebugger::GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -609,10 +609,10 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         }
                     }());
 
-                if (m_internalConsole && m_sharedDebugger->IsProcessRunning())
+                if (m_internalConsole && ManagedDebugger::IsProcessRunning())
                 {
                     expression += '\n'; // User pressed "Enter".
-                    m_sharedDebugger->WriteStdin({expression.data(), expression.size()});
+                    ManagedDebugger::WriteStdin({expression.data(), expression.size()});
                     responseBody.emplace("message", "Text redirected to debuggee stdin.");
                     return S_OK;
                 }
@@ -620,7 +620,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 HRESULT Status = S_OK;
                 Variable variable;
                 std::string output;
-                if (FAILED(Status = m_sharedDebugger->Evaluate(frameId, expression, variable, output)))
+                if (FAILED(Status = ManagedDebugger::Evaluate(frameId, expression, variable, output)))
                 {
                     if (output.empty())
                     {
@@ -654,7 +654,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         const auto frameIdIter = arguments.find("frameId");
                         if (frameIdIter == arguments.cend())
                         {
-                            const ThreadId threadId = m_sharedDebugger->GetLastStoppedThreadId();
+                            const ThreadId threadId = ManagedDebugger::GetLastStoppedThreadId();
                             return FrameId{threadId, FrameLevel{0}};
                         }
                         else
@@ -665,7 +665,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 HRESULT Status = S_OK;
                 std::string output;
-                if (FAILED(Status = m_sharedDebugger->SetExpression(frameId, expression, value, output)))
+                if (FAILED(Status = ManagedDebugger::SetExpression(frameId, expression, value, output)))
                 {
                     if (output.empty())
                     {
@@ -692,7 +692,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     return E_INVALIDARG;
                 }
 
-                return m_sharedDebugger->Attach(processId);
+                return ManagedDebugger::Attach(processId);
             }},
         {"setVariable", [&](const json &arguments, json &responseBody)
             {
@@ -702,7 +702,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 HRESULT Status = S_OK;
                 std::string output;
-                if (FAILED(Status = m_sharedDebugger->SetVariable(name, value, ref, output)))
+                if (FAILED(Status = ManagedDebugger::SetVariable(name, value, ref, output)))
                 {
                     responseBody.emplace("message", output);
                     return Status;
@@ -736,7 +736,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 std::vector<Breakpoint> breakpoints;
-                IfFailRet(m_sharedDebugger->SetFunctionBreakpoints(functionBreakpoints, breakpoints));
+                IfFailRet(ManagedDebugger::SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
                 responseBody.emplace("breakpoints", breakpoints);
 
@@ -746,7 +746,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
             {
                 size_t totalModules = 0;
                 std::vector<Module> modules;
-                m_sharedDebugger->GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
+                ManagedDebugger::GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
                                              modules, totalModules);
 
                 responseBody.emplace("modules", modules);
@@ -766,7 +766,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 std::vector<GotoTarget> targets;
                 std::string output;
-                if (FAILED(Status = m_sharedDebugger->GetGotoTarget(source, line, column, targets, output)))
+                if (FAILED(Status = ManagedDebugger::GetGotoTarget(source, line, column, targets, output)))
                 {
                     if (!output.empty())
                     {
@@ -786,7 +786,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 HRESULT Status = S_OK;
                 std::string output;
-                if (FAILED(Status = m_sharedDebugger->Goto(threadId, targetId, output)))
+                if (FAILED(Status = ManagedDebugger::Goto(threadId, targetId, output)))
                 {
                     if (!output.empty())
                     {
@@ -817,7 +817,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 std::string sourceContent;
-                if (FAILED(Status = m_sharedDebugger->GetSourceContent(source, sourceContent)))
+                if (FAILED(Status = ManagedDebugger::GetSourceContent(source, sourceContent)))
                 {
                     if (!sourceContent.empty())
                     {
@@ -833,7 +833,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
         {"loadedSources", [&](const json &/*arguments*/, json &responseBody)
             {
                 std::vector<Source> sources;
-                m_sharedDebugger->GetLoadedSources(sources);
+                ManagedDebugger::GetLoadedSources(sources);
 
                 responseBody.emplace("sources", sources);
 
@@ -860,7 +860,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
 
                 std::vector<BreakpointLocation> locations;
-                IfFailRet(m_sharedDebugger->GetBreakpointLocations(source, rangeToSearch, locations));
+                IfFailRet(ManagedDebugger::GetBreakpointLocations(source, rangeToSearch, locations));
 
                 // DAP requires the 'breakpointLocations' response to be a sorted set of possible breakpoint locations.
                 std::sort(locations.begin(), locations.end(), [](const BreakpointLocation &a, const BreakpointLocation &b)
@@ -872,12 +872,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }}};
-
-    if (m_sharedDebugger == nullptr)
-    {
-        responseBody.emplace("message", "Debugger is not initialized.");
-        return CORDBG_E_DEBUGGING_DISABLED;
-    }
 
     const auto command_it = commands.find(command);
     if (command_it == commands.cend())
@@ -924,10 +918,7 @@ void DAP::CommandsWorker()
         // Check for dncdbg internal commands.
         if (c.command == "dncdbg_disconnect")
         {
-            if (m_sharedDebugger != nullptr)
-            {
-                m_sharedDebugger->Disconnect();
-            }
+            ManagedDebugger::Disconnect();
             break;
         }
 
@@ -1007,14 +998,14 @@ void DAP::CommandsWorker()
             DAPIO::EmitInitializedEvent();
         }
         // Emit StoppedEvent, since with Goto command IP was changed without real process execution.
-        else if (c.command == "goto" && SUCCEEDED(Status) && m_sharedDebugger != nullptr)
+        else if (c.command == "goto" && SUCCEEDED(Status))
         {
-            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, m_sharedDebugger->GetLastStoppedThreadId()));
+            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, ManagedDebugger::GetLastStoppedThreadId()));
         }
         // Emit StoppedEvent after the response is sent.
-        else if (c.command == "pause" && SUCCEEDED(Status) && m_sharedDebugger != nullptr)
+        else if (c.command == "pause" && SUCCEEDED(Status))
         {
-            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, m_sharedDebugger->GetLastStoppedThreadId()));
+            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, ManagedDebugger::GetLastStoppedThreadId()));
         }
 
         lockCommandsMutex.lock();
@@ -1034,7 +1025,6 @@ std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<D
 
 void DAP::CommandLoop()
 {
-    CreateManagedDebugger();
     std::thread commandsWorker{&DAP::CommandsWorker, this};
 
     m_exit = false;
@@ -1099,10 +1089,7 @@ void DAP::CommandLoop()
             else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().cend())
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
-                if (m_sharedDebugger != nullptr)
-                {
-                    m_sharedDebugger->CancelEvalRunning();
-                }
+                ManagedDebugger::CancelEvalRunning();
 
                 for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
                 {
@@ -1189,19 +1176,6 @@ void DAP::CommandLoop()
     }
 
     commandsWorker.join();
-}
-
-void DAP::CreateManagedDebugger()
-{
-    assert(m_sharedDebugger == nullptr);
-    try
-    {
-        m_sharedDebugger = std::make_shared<ManagedDebugger>();
-    }
-    catch (const std::exception &e)
-    {
-        DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdErr, e.what()));
-    }
 }
 
 } // namespace dncdbg

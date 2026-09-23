@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "buildinfo.h"
+#include "debugger/manageddebugger.h"
 #include "protocol/dap.h"
 #include "protocol/dapio.h"
 #include "utils/logger.h"
@@ -195,8 +196,27 @@ int
         dncdbg::DAPIO::SetupProtocolLogging(protocolLogFilePath);
     }
 
-    dncdbg::DAP protocol;
+    try
+    {
+        dncdbg::ManagedDebugger::Initialize();
 
-    protocol.CommandLoop();
+        dncdbg::DAP protocol;
+        protocol.CommandLoop();
+
+        dncdbg::ManagedDebugger::Shutdown();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Fatal error: " << e.what() << "\n";
+        LOGE(log << "Fatal error: " << e.what());
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cerr << "Fatal error: unknown exception\n";
+        LOGE(log << "Fatal error: unknown exception");
+        return EXIT_FAILURE;
+    }
+
     return EXIT_SUCCESS;
 }

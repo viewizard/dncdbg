@@ -335,7 +335,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     return S_OK;
 }
 
-// Cleans up the Walkers internal state. See ManagedDebugger::Cleanup().
+// Cleans up the Walkers internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());

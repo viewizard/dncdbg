@@ -21,17 +21,28 @@
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/types.h"
 #include "metadata/modules.h"
 #include "protocol/dapio.h"
+#include "utils/dbgshim.h"
 #include "utils/diagnostics_client.h"
 #include "utils/hresult.h"
+#include "utils/ioredirect.h"
 #include "utils/logger.h"
 #include "utils/platform.h"
+#include "utils/remote_console.h"
+#include "utils/rwlock.h"
+#include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
-#include <chrono>
+#include <atomic>
+#include <cassert>
 #include <cctype>
+#include <chrono>
+#include <condition_variable>
+#include <iomanip>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <string_view>
@@ -43,7 +54,7 @@
 #include "utils/kqueue.h"
 #endif
 
-namespace dncdbg
+namespace dncdbg::ManagedDebugger
 {
 
 #ifdef FEATURE_PAL
@@ -59,6 +70,15 @@ namespace
 {
 
 constexpr auto startupWaitTimeout = std::chrono::milliseconds(5000);
+
+void NotifyProcessExited();
+void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
+
+enum class ProcessAttachedState : uint8_t
+{
+    Attached,
+    Unattached
+};
 
 HRESULT GetSystemEnvironmentAsMap(std::map<std::string, std::string> &outMap)
 {
@@ -274,20 +294,142 @@ void ResumeRuntime(uint32_t processId)
     }
 }
 
-} // unnamed namespace
+// ManagedDebugger internal state accessors.
 
-// Caller must hold m_debugProcessRWLock.
-HRESULT ManagedDebugger::CheckDebugProcess()
+std::mutex &GetProcessAttachedMutex()
 {
-    if (m_trProcess == nullptr)
+    // Note, if both the debug process RWLock and this mutex are locked, the RWLock must be locked first.
+    static std::mutex processAttachedMutex;
+    return processAttachedMutex;
+}
+
+std::condition_variable &GetProcessAttachedCV()
+{
+    static std::condition_variable processAttachedCV;
+    return processAttachedCV;
+}
+
+ProcessAttachedState &GetProcessAttachedState()
+{
+    static ProcessAttachedState processAttachedState{ProcessAttachedState::Unattached};
+    return processAttachedState;
+}
+
+StartMethod &GetStartMethod()
+{
+    static StartMethod startMethod{StartMethod::None};
+    return startMethod;
+}
+
+std::string &GetExecPath()
+{
+    static std::string execPath;
+    return execPath;
+}
+
+std::vector<std::string> &GetExecArgs()
+{
+    static std::vector<std::string> execArgs;
+    return execArgs;
+}
+
+std::string &GetCwd()
+{
+    static std::string cwd;
+    return cwd;
+}
+
+std::map<std::string, std::string> &GetEnv()
+{
+    static std::map<std::string, std::string> env;
+    return env;
+}
+
+std::unique_ptr<ManagedCallback> &GetManagedCallback()
+{
+    static std::unique_ptr<ManagedCallback> uniqueManagedCallback = std::make_unique<ManagedCallback>([]
+    {
+        NotifyProcessExited();
+    });
+    return uniqueManagedCallback;
+}
+
+RWLock &GetDebugProcessRWLock()
+{
+    static RWLock debugProcessRWLock;
+    return debugProcessRWLock;
+}
+
+ToRelease<ICorDebug> &GetTrDebug()
+{
+    static ToRelease<ICorDebug> trDebug;
+    return trDebug;
+}
+
+ToRelease<ICorDebugProcess> &GetTrProcess()
+{
+    static ToRelease<ICorDebugProcess> trProcess;
+    return trProcess;
+}
+
+void *&GetUnregisterToken()
+{
+    static void *unregisterToken{nullptr};
+    return unregisterToken;
+}
+
+DWORD &GetProcessId()
+{
+    static DWORD processId{0};
+    return processId;
+}
+
+dbgshim_t &GetDbgshim()
+{
+    static dbgshim_t dbgshim;
+    return dbgshim;
+}
+
+IORedirect &GetIORedirect()
+{
+    static IORedirect ioredirect([](IORedirect::StreamType type, gsl::span<char> text)
+    {
+        InputCallback(type, text);
+    });
+    return ioredirect;
+}
+
+RemoteConsoleServer &GetRemoteConsoleServer()
+{
+    static RemoteConsoleServer remoteConsoleServer;
+    return remoteConsoleServer;
+}
+
+std::vector<GotoTargetInternal> &GetIntTargets()
+{
+    static std::vector<GotoTargetInternal> intTargets;
+    return intTargets;
+}
+
+std::atomic<HRESULT> &GetStartupCallbackHR()
+{
+    static std::atomic<HRESULT> startupCallbackHR{S_OK}; // Written by the startup callback thread, read by the caller thread.
+    return startupCallbackHR;
+}
+
+// Caller must hold the debug process RWLock.
+HRESULT CheckDebugProcess()
+{
+    if (GetTrProcess() == nullptr)
     {
         return E_FAIL;
     }
 
-    // We might have a case when the process has exited/detached, but m_trProcess is still not freed and holds an invalid object.
+    // The process may have exited or detached while the process object is still not freed and holds an
+    // invalid object.
     // Note, we can't hold this lock, since this could deadlock execution at ICorDebugManagedCallback::ExitProcess call.
-    std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
-    if (m_processAttachedState == ProcessAttachedState::Unattached)
+    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
     {
         return E_FAIL;
     }
@@ -296,258 +438,100 @@ HRESULT ManagedDebugger::CheckDebugProcess()
     return S_OK;
 }
 
-bool ManagedDebugger::HaveDebugProcess()
+bool HaveDebugProcess()
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     return SUCCEEDED(CheckDebugProcess());
 }
 
-void ManagedDebugger::NotifyProcessCreated()
+void NotifyProcessCreated()
 {
-    std::unique_lock<std::mutex> lock(m_processAttachedMutex);
-    m_processAttachedState = ProcessAttachedState::Attached;
+    std::unique_lock<std::mutex> lock(GetProcessAttachedMutex());
+    GetProcessAttachedState() = ProcessAttachedState::Attached;
     lock.unlock();
-    m_processAttachedCV.notify_one();
+    GetProcessAttachedCV().notify_one();
 }
 
-void ManagedDebugger::NotifyProcessExited()
+void NotifyProcessExited()
 {
-    std::unique_lock<std::mutex> lock(m_processAttachedMutex);
-    m_processAttachedState = ProcessAttachedState::Unattached;
+    std::unique_lock<std::mutex> lock(GetProcessAttachedMutex());
+    GetProcessAttachedState() = ProcessAttachedState::Unattached;
     lock.unlock();
-    m_processAttachedCV.notify_all();
+    GetProcessAttachedCV().notify_all();
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
-// the call to the Threads function, so it is intentionally kept non-static.
-ThreadId ManagedDebugger::GetLastStoppedThreadId() // NOLINT(readability-convert-member-functions-to-static)
+void InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
-    return Threads::GetLastStoppedThreadId();
+    DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
+    GetRemoteConsoleServer().SendData(text);
 }
 
-ManagedDebugger::ManagedDebugger()
-    : m_uniqueManagedCallback(std::make_unique<ManagedCallback>([this]
-                              {
-                                  NotifyProcessExited();
-                              })),
-      m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
-                   {
-                       InputCallback(type, text);
-                   })
+void Cleanup()
 {
-    CallbacksQueue::Initialize([this]
+    Steppers::Cleanup();
+    Breakpoints::Cleanup();
+    DebugInfo::Cleanup();
+    Variables::Cleanup();
+    EvalExec::Cleanup();
+    SystemTypes::Cleanup();
+    EvalWaiter::Cleanup();
+    TypeProxy::Cleanup();
+    Walkers::Cleanup();
+    Modules::Cleanup();
+    Threads::Cleanup();
+    CallbacksQueue::Cleanup();
+
+    const WriteLock w_lock(GetDebugProcessRWLock());
+
+    assert((GetTrProcess() && GetTrDebug()) ||
+           (!GetTrProcess() && !GetTrDebug()));
+
+    if (GetTrProcess() == nullptr)
     {
-        NotifyProcessCreated();
-    });
-}
-
-ManagedDebugger::~ManagedDebugger()
-{
-    // Note, the callback is owned by the debugger for its whole lifetime,
-    // so ICorDebug must release it before the debugger is destroyed.
-    if (m_uniqueManagedCallback->GetRefCount() > 0)
-    {
-        LOGW(log << "ManagedCallback was not properly released by ICorDebug");
-    }
-    CallbacksQueue::Shutdown();
-}
-
-HRESULT ManagedDebugger::ConfigurationDone()
-{
-    FrameId::invalidate();
-
-    switch (m_startMethod)
-    {
-    case StartMethod::Launch:
-        return RunProcess(m_execPath, m_execArgs);
-    case StartMethod::Attach:
-        return AttachToProcess();
-    default:
-        assert(false);
-        return E_FAIL;
-    }
-}
-
-HRESULT ManagedDebugger::Attach(DWORD pid)
-{
-    m_startMethod = StartMethod::Attach;
-    Threads::SetProcessAttached(true);
-    m_processId = pid;
-    return S_OK;
-}
-
-HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
-                                const std::map<std::string, std::string> &env, const std::string &cwd)
-{
-    m_startMethod = StartMethod::Launch;
-    Threads::SetProcessAttached(false);
-    m_execPath = fileExec;
-    m_execArgs = execArgs;
-    m_cwd = cwd;
-    m_env = env;
-    return S_OK;
-}
-
-HRESULT ManagedDebugger::Disconnect(DisconnectAction action)
-{
-    bool terminate = false;
-    switch (action)
-    {
-    case DisconnectAction::Default:
-        switch (m_startMethod)
-        {
-        case StartMethod::Launch:
-            terminate = true;
-            break;
-        case StartMethod::Attach:
-            terminate = false;
-            break;
-        case StartMethod::None: // The debugger was initialized, but no process was launched or attached.
-            return S_OK;
-        default:
-            assert(false);
-            return E_FAIL;
-        }
-        break;
-    case DisconnectAction::Terminate:
-        terminate = true;
-        break;
-    case DisconnectAction::Detach:
-        if (m_startMethod != StartMethod::Attach)
-        {
-            LOGE(log << "Can't detach debugger from child process.\n");
-            return E_INVALIDARG;
-        }
-        terminate = false;
-        break;
-    default:
-        assert(false);
-        return E_FAIL;
+        return;
     }
 
-    if (!terminate)
-    {
-        const HRESULT Status = DetachFromProcess();
-        if (SUCCEEDED(Status))
-        {
-            DAPIO::EmitTerminatedEvent();
-        }
+    GetTrProcess().Free();
 
+    GetTrDebug()->Terminate();
+    GetTrDebug().Free();
+}
+
+HRESULT Startup(IUnknown *punk)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<ICorDebug> trDebug;
+    IfFailRet(punk->QueryInterface(IID_ICorDebug, reinterpret_cast<void **>(&trDebug)));
+
+    IfFailRet(trDebug->Initialize());
+
+    if (FAILED(Status = trDebug->SetManagedHandler(GetManagedCallback().get())))
+    {
+        trDebug->Terminate();
         return Status;
     }
 
-    return TerminateProcess();
+    ToRelease<ICorDebugProcess> trProcess;
+    if (FAILED(Status = trDebug->DebugActiveProcess(GetProcessId(), FALSE, &trProcess)))
+    {
+        trDebug->Terminate();
+        return Status;
+    }
+
+    WriteLock w_lock(GetDebugProcessRWLock());
+
+    GetTrProcess() = trProcess.Detach();
+    GetTrDebug() = trDebug.Detach();
+
+    w_lock.unlock();
+
+    return S_OK;
 }
 
-HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
+// Should be called by dbgshim RegisterForRuntimeStartup().
+void StartupCallback(IUnknown *pCordb, void * /*parameter*/, HRESULT hr)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status = S_OK;
-    IfFailRet(CheckDebugProcess());
-
-    if (EvalWaiter::IsEvalRunning())
-    {
-        // Important! Abort all evals before 'Step' in protocol, during eval we have inconsistent thread state.
-        LOGE(log << "Can't 'Step' during running evaluation.");
-        return E_UNEXPECTED;
-    }
-
-    if (CallbacksQueue::IsRunning())
-    {
-        LOGW(log << "Can't 'Step', process already running.");
-        return E_FAIL;
-    }
-
-    ToRelease<ICorDebugThread> trThread;
-    IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
-    IfFailRet(Steppers::SetupStep(trThread, stepType));
-
-    // Note, the continued event is emitted only on success, so we don't report continuation
-    // when the process failed to resume. On failure, disable all steppers, since we set up
-    // a step above but the process didn't actually resume.
-    if (FAILED(Status = CallbacksQueue::Continue(m_trProcess, threadId, singleThread)))
-    {
-        Steppers::DisableAll(m_trProcess);
-        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-    }
-    else
-    {
-        Variables::Cleanup();
-        FrameId::invalidate();                             // Clear all created during break frames.
-        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
-    }
-
-    return Status;
-}
-
-HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
-{
-    const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status = S_OK;
-    IfFailRet(CheckDebugProcess());
-
-    if (EvalWaiter::IsEvalRunning())
-    {
-        // Important! Abort all evals before 'Continue' in protocol, during eval we have inconsistent thread state.
-        LOGE(log << "Can't 'Continue' during running evaluation.");
-        return E_UNEXPECTED;
-    }
-
-    if (CallbacksQueue::IsRunning())
-    {
-        LOGI(log << "Can't 'Continue', process already running.");
-        return S_OK; // Send 'OK' response, but don't generate continue event.
-    }
-
-    // Note, the continued event is emitted only on success, so we don't report continuation
-    // when the process failed to resume.
-    if (FAILED(Status = CallbacksQueue::Continue(m_trProcess, threadId, singleThread)))
-    {
-        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-    }
-    else
-    {
-        Variables::Cleanup();
-        FrameId::invalidate();                             // Clear all created during break frames.
-        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
-    }
-
-    return Status;
-}
-
-bool ManagedDebugger::IsProcessRunning()
-{
-    const ReadLock r_lock(m_debugProcessRWLock);
-
-    if (FAILED(CheckDebugProcess()) ||
-        EvalWaiter::IsEvalRunning())
-    {
-        return false;
-    }
-
-    return CallbacksQueue::IsRunning();
-}
-
-HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
-{
-    const ReadLock r_lock(m_debugProcessRWLock);
-    HRESULT Status = S_OK;
-    IfFailRet(CheckDebugProcess());
-
-    return CallbacksQueue::Pause(m_trProcess, lastStoppedThread);
-}
-
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the Threads namespace functions, so it is intentionally kept non-static.
-HRESULT ManagedDebugger::GetThreads(std::vector<Thread> &threads) // NOLINT(readability-convert-member-functions-to-static)
-{
-    return Threads::GetThreads(threads);
-}
-
-void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr)
-{
-    auto *self = static_cast<ManagedDebugger *>(parameter);
-
     if (FAILED(hr))
     {
         std::ostringstream ss;
@@ -562,59 +546,47 @@ void ManagedDebugger::StartupCallback(IUnknown *pCordb, void *parameter, HRESULT
         }
         ss << '\n';
         DAPIO::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
-        self->StartupCallbackHR = hr;
+        GetStartupCallbackHR() = hr;
         return;
     }
 
-    self->StartupCallbackHR = self->Startup(pCordb);
+    GetStartupCallbackHR() = Startup(pCordb);
 
-    if (self->m_unregisterToken != nullptr)
+    if (GetUnregisterToken() != nullptr)
     {
-        self->m_dbgshim.GetUnregisterForRuntimeStartup()(self->m_unregisterToken);
-        self->m_unregisterToken = nullptr;
+        GetDbgshim().GetUnregisterForRuntimeStartup()(GetUnregisterToken());
+        GetUnregisterToken() = nullptr;
     }
 }
 
-HRESULT ManagedDebugger::Startup(IUnknown *punk)
+HRESULT CheckNoProcess()
 {
-    HRESULT Status = S_OK;
+    const ReadLock r_lock(GetDebugProcessRWLock());
 
-    ToRelease<ICorDebug> trDebug;
-    IfFailRet(punk->QueryInterface(IID_ICorDebug, reinterpret_cast<void **>(&trDebug)));
-
-    IfFailRet(trDebug->Initialize());
-
-    if (FAILED(Status = trDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
+    if (GetTrProcess() == nullptr)
     {
-        trDebug->Terminate();
-        return Status;
+        return S_OK;
     }
 
-    ToRelease<ICorDebugProcess> trProcess;
-    if (FAILED(Status = trDebug->DebugActiveProcess(m_processId, FALSE, &trProcess)))
+    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    if (GetProcessAttachedState() == ProcessAttachedState::Attached)
     {
-        trDebug->Terminate();
-        return Status;
+        return E_FAIL; // Already attached
     }
+    lockAttachedMutex.unlock();
 
-    WriteLock w_lock(m_debugProcessRWLock);
-
-    m_trProcess = trProcess.Detach();
-    m_trDebug = trDebug.Detach();
-
-    w_lock.unlock();
-
+    Cleanup();
     return S_OK;
 }
 
-HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
+HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
 {
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
 
     // Reset the startup callback error from a previous launch attempt, if any.
-    StartupCallbackHR = S_OK;
+    GetStartupCallbackHR() = S_OK;
 
     std::ostringstream ss;
     ss << "\"" << fileExec << "\"";
@@ -651,23 +623,23 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     HANDLE resumeHandle = nullptr; // Fake thread handle for the process resume
 
     std::vector<char> outEnv;
-    PrepareSystemEnvironmentArg(m_env, outEnv);
+    PrepareSystemEnvironmentArg(GetEnv(), outEnv);
 
     // cwd in launch.json set working directory for debugger https://code.visualstudio.com/docs/python/debugging#_cwd
-    if (!m_cwd.empty() &&
-        (!IsDirExists(m_cwd.c_str()) || !SetWorkDir(m_cwd)))
+    if (!GetCwd().empty() &&
+        (!IsDirExists(GetCwd().c_str()) || !SetWorkDir(GetCwd())))
     {
-        m_cwd.clear();
+        GetCwd().clear();
     }
 
-    m_ioredirect.Exec([&]
+    GetIORedirect().Exec([&]
         {
-            Status = m_dbgshim.GetCreateProcessForLaunch()(
+            Status = GetDbgshim().GetCreateProcessForLaunch()(
                 const_cast<WCHAR *>(to_utf16(ss.str()).c_str()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : outEnv.data(),
-                m_cwd.empty() ? nullptr : reinterpret_cast<const WCHAR *>(to_utf16(m_cwd).c_str()),
-                &m_processId, &resumeHandle);
+                GetCwd().empty() ? nullptr : reinterpret_cast<const WCHAR *>(to_utf16(GetCwd()).c_str()),
+                &GetProcessId(), &resumeHandle);
         });
 
     if (FAILED(Status))
@@ -676,231 +648,399 @@ HRESULT ManagedDebugger::RunProcess(const std::string &fileExec, const std::vect
     }
 
 #if (defined(__APPLE__) && defined(__MACH__))
-    MacKqueue::SetupTrackingPID(static_cast<pid_t>(m_processId));
+    MacKqueue::SetupTrackingPID(static_cast<pid_t>(GetProcessId()));
 #elif __linux__
-    WaitpidHook::SetupTrackingPID(static_cast<pid_t>(m_processId));
+    WaitpidHook::SetupTrackingPID(static_cast<pid_t>(GetProcessId()));
 #endif
 
-    IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
+    IfFailRet(GetDbgshim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
 
     // Resume the process so that StartupCallback can run.
-    IfFailRet(m_dbgshim.GetResumeProcess()(resumeHandle));
-    m_dbgshim.GetCloseResumeHandle()(resumeHandle);
+    IfFailRet(GetDbgshim().GetResumeProcess()(resumeHandle));
+    GetDbgshim().GetCloseResumeHandle()(resumeHandle);
 
-    std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
-    if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
-                                      [this] { return m_processAttachedState == ProcessAttachedState::Attached; }))
+    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
+                                      [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
-        IfFailRet(StartupCallbackHR);
+        IfFailRet(GetStartupCallbackHR());
         return E_FAIL;
     }
 
-    DAPIO::EmitProcessEvent(m_processId, fileExec, m_startMethod);
+    DAPIO::EmitProcessEvent(GetProcessId(), fileExec, GetStartMethod());
 
     return S_OK;
 }
 
-HRESULT ManagedDebugger::CheckNoProcess()
-{
-    const ReadLock r_lock(m_debugProcessRWLock);
-
-    if (m_trProcess == nullptr)
-    {
-        return S_OK;
-    }
-
-    std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
-    if (m_processAttachedState == ProcessAttachedState::Attached)
-    {
-        return E_FAIL; // Already attached
-    }
-    lockAttachedMutex.unlock();
-
-    Cleanup();
-    return S_OK;
-}
-
-HRESULT ManagedDebugger::DetachFromProcess()
-{
-    do
-    {
-        const ReadLock r_lock(m_debugProcessRWLock);
-        const std::scoped_lock<std::mutex> guardAttachedMutex(m_processAttachedMutex);
-        if (m_processAttachedState == ProcessAttachedState::Unattached)
-        {
-            break;
-        }
-
-        if (m_trProcess == nullptr)
-        {
-            return E_FAIL;
-        }
-
-        BOOL procRunning = FALSE;
-        if (SUCCEEDED(m_trProcess->IsRunning(&procRunning)) && procRunning == TRUE)
-        {
-            m_trProcess->Stop(0);
-        }
-
-        Steppers::DisableAll(m_trProcess); // Disable steppers first: an async stepper could have breakpoints active.
-        Breakpoints::DisableAll(m_trProcess); // Disable breakpoints last, on all domains, even the ones we don't hold.
-
-        HRESULT Status = S_OK;
-        if (FAILED(Status = m_trProcess->Detach()))
-        {
-            LOGE(log << "Process detach failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-        }
-
-        m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    }
-    while (false);
-
-    Cleanup();
-    return S_OK;
-}
-
-HRESULT ManagedDebugger::TerminateProcess()
-{
-    do
-    {
-        const ReadLock r_lock(m_debugProcessRWLock);
-        std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
-        if (m_processAttachedState == ProcessAttachedState::Unattached)
-        {
-            break;
-        }
-
-        if (m_trProcess == nullptr)
-        {
-            return E_FAIL;
-        }
-
-        BOOL procRunning = FALSE;
-        if (SUCCEEDED(m_trProcess->IsRunning(&procRunning)) && procRunning == TRUE)
-        {
-            m_trProcess->Stop(0);
-        }
-
-        Steppers::DisableAll(m_trProcess); // Disable steppers first: an async stepper could have breakpoints active.
-        Breakpoints::DisableAll(m_trProcess); // Disable breakpoints last, on all domains, even the ones we don't hold.
-
-        HRESULT Status = S_OK;
-        if (SUCCEEDED(Status = m_trProcess->Terminate(0)))
-        {
-            m_processAttachedCV.wait(lockAttachedMutex, [this] { return m_processAttachedState == ProcessAttachedState::Unattached; });
-            break;
-        }
-
-        LOGE(log << "Process terminate failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
-        m_processAttachedState = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
-    }
-    while (false);
-
-    Cleanup();
-    return S_OK;
-}
-
-void ManagedDebugger::Cleanup()
-{
-    Steppers::Cleanup();
-    Breakpoints::Cleanup();
-    DebugInfo::Cleanup();
-    Variables::Cleanup();
-    EvalExec::Cleanup();
-    SystemTypes::Cleanup();
-    EvalWaiter::Cleanup();
-    TypeProxy::Cleanup();
-    Walkers::Cleanup();
-    Modules::Cleanup();
-    Threads::Cleanup();
-    CallbacksQueue::Cleanup();
-
-    const WriteLock w_lock(m_debugProcessRWLock);
-
-    assert((m_trProcess && m_trDebug) ||
-           (!m_trProcess && !m_trDebug));
-
-    if (m_trProcess == nullptr)
-    {
-        return;
-    }
-
-    m_trProcess.Free();
-
-    m_trDebug->Terminate();
-    m_trDebug.Free();
-}
-
-HRESULT ManagedDebugger::AttachToProcess()
+HRESULT AttachToProcess()
 {
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
 
     // Reset the startup callback error from a previous attach attempt, if any.
-    StartupCallbackHR = S_OK;
+    GetStartupCallbackHR() = S_OK;
 
-    IfFailRet(m_dbgshim.GetRegisterForRuntimeStartup()(m_processId, ManagedDebugger::StartupCallback, this, &m_unregisterToken));
+    IfFailRet(GetDbgshim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
 
     // Resume the runtime so that StartupCallback can run.
-    ResumeRuntime(m_processId);
+    ResumeRuntime(GetProcessId());
 
-    DAPIO::EmitProcessEvent(m_processId, "dotnet", m_startMethod);
+    DAPIO::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
 
-    std::unique_lock<std::mutex> lockAttachedMutex(m_processAttachedMutex);
-    if (!m_processAttachedCV.wait_for(lockAttachedMutex, startupWaitTimeout,
-                                      [this] { return m_processAttachedState == ProcessAttachedState::Attached; }))
+    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
+                                      [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
-        IfFailRet(StartupCallbackHR);
+        IfFailRet(GetStartupCallbackHR());
         return E_FAIL;
     }
 
     return S_OK;
 }
 
-HRESULT ManagedDebugger::GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo)
+HRESULT DetachFromProcess()
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    do
+    {
+        const ReadLock r_lock(GetDebugProcessRWLock());
+        const std::scoped_lock<std::mutex> guardAttachedMutex(GetProcessAttachedMutex());
+        if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
+        {
+            break;
+        }
+
+        if (GetTrProcess() == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        BOOL procRunning = FALSE;
+        if (SUCCEEDED(GetTrProcess()->IsRunning(&procRunning)) && procRunning == TRUE)
+        {
+            GetTrProcess()->Stop(0);
+        }
+
+        Steppers::DisableAll(GetTrProcess()); // Disable steppers first: an async stepper could have breakpoints active.
+        Breakpoints::DisableAll(GetTrProcess()); // Disable breakpoints last, on all domains, even the ones we don't hold.
+
+        HRESULT Status = S_OK;
+        if (FAILED(Status = GetTrProcess()->Detach()))
+        {
+            LOGE(log << "Process detach failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+        }
+
+        GetProcessAttachedState() = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
+    }
+    while (false);
+
+    Cleanup();
+    return S_OK;
+}
+
+HRESULT TerminateProcess()
+{
+    do
+    {
+        const ReadLock r_lock(GetDebugProcessRWLock());
+        std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+        if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
+        {
+            break;
+        }
+
+        if (GetTrProcess() == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        BOOL procRunning = FALSE;
+        if (SUCCEEDED(GetTrProcess()->IsRunning(&procRunning)) && procRunning == TRUE)
+        {
+            GetTrProcess()->Stop(0);
+        }
+
+        Steppers::DisableAll(GetTrProcess()); // Disable steppers first: an async stepper could have breakpoints active.
+        Breakpoints::DisableAll(GetTrProcess()); // Disable breakpoints last, on all domains, even the ones we don't hold.
+
+        HRESULT Status = S_OK;
+        if (SUCCEEDED(Status = GetTrProcess()->Terminate(0)))
+        {
+            GetProcessAttachedCV().wait(lockAttachedMutex, [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; });
+            break;
+        }
+
+        LOGE(log << "Process terminate failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+        GetProcessAttachedState() = ProcessAttachedState::Unattached; // Since we free process object anyway, reset process attached state.
+    }
+    while (false);
+
+    Cleanup();
+    return S_OK;
+}
+
+} // unnamed namespace
+
+void Initialize()
+{
+    // Force the internal state construction; the dbgshim_t construction may throw.
+    GetDbgshim();
+    GetIORedirect();
+    GetRemoteConsoleServer();
+    GetManagedCallback();
+    CallbacksQueue::Initialize([]
+    {
+        NotifyProcessCreated();
+    });
+}
+
+void Shutdown()
+{
+    // Note, the callback is owned by the debugger for its whole lifetime,
+    // so ICorDebug must release it before the debugger state is destroyed.
+    if (GetManagedCallback()->GetRefCount() > 0)
+    {
+        LOGW(log << "ManagedCallback was not properly released by ICorDebug");
+    }
+    CallbacksQueue::Shutdown();
+}
+
+HRESULT Attach(DWORD pid)
+{
+    GetStartMethod() = StartMethod::Attach;
+    Threads::SetProcessAttached(true);
+    GetProcessId() = pid;
+    return S_OK;
+}
+
+HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
+               const std::map<std::string, std::string> &env, const std::string &cwd)
+{
+    GetStartMethod() = StartMethod::Launch;
+    Threads::SetProcessAttached(false);
+    GetExecPath() = fileExec;
+    GetExecArgs() = execArgs;
+    GetCwd() = cwd;
+    GetEnv() = env;
+    return S_OK;
+}
+
+HRESULT ConfigurationDone()
+{
+    FrameId::invalidate();
+
+    switch (GetStartMethod())
+    {
+    case StartMethod::Launch:
+        return RunProcess(GetExecPath(), GetExecArgs());
+    case StartMethod::Attach:
+        return AttachToProcess();
+    default:
+        assert(false);
+        return E_FAIL;
+    }
+}
+
+HRESULT Disconnect(DisconnectAction action)
+{
+    bool terminate = false;
+    switch (action)
+    {
+    case DisconnectAction::Default:
+        switch (GetStartMethod())
+        {
+        case StartMethod::Launch:
+            terminate = true;
+            break;
+        case StartMethod::Attach:
+            terminate = false;
+            break;
+        case StartMethod::None: // The debugger was initialized, but no process was launched or attached.
+            return S_OK;
+        default:
+            assert(false);
+            return E_FAIL;
+        }
+        break;
+    case DisconnectAction::Terminate:
+        terminate = true;
+        break;
+    case DisconnectAction::Detach:
+        if (GetStartMethod() != StartMethod::Attach)
+        {
+            LOGE(log << "Can't detach debugger from child process.\n");
+            return E_INVALIDARG;
+        }
+        terminate = false;
+        break;
+    default:
+        assert(false);
+        return E_FAIL;
+    }
+
+    if (!terminate)
+    {
+        const HRESULT Status = DetachFromProcess();
+        if (SUCCEEDED(Status))
+        {
+            DAPIO::EmitTerminatedEvent();
+        }
+
+        return Status;
+    }
+
+    return TerminateProcess();
+}
+
+HRESULT StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+    HRESULT Status = S_OK;
+    IfFailRet(CheckDebugProcess());
+
+    if (EvalWaiter::IsEvalRunning())
+    {
+        // Important! Abort all evals before 'Step' in protocol: during an eval, the thread state is inconsistent.
+        LOGE(log << "Can't 'Step' during running evaluation.");
+        return E_UNEXPECTED;
+    }
+
+    if (CallbacksQueue::IsRunning())
+    {
+        LOGW(log << "Can't 'Step', process already running.");
+        return E_FAIL;
+    }
+
+    ToRelease<ICorDebugThread> trThread;
+    IfFailRet(GetTrProcess()->GetThread(static_cast<int>(threadId), &trThread));
+    IfFailRet(Steppers::SetupStep(trThread, stepType));
+
+    // Note, the continued event is emitted only on success, so we don't report continuation
+    // when the process failed to resume. On failure, disable all steppers, since we set up
+    // a step above but the process didn't actually resume.
+    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread)))
+    {
+        Steppers::DisableAll(GetTrProcess());
+        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+    }
+    else
+    {
+        Variables::Cleanup();
+        FrameId::invalidate();                             // Clear all frames created during the break.
+        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
+    }
+
+    return Status;
+}
+
+HRESULT Continue(ThreadId threadId, bool singleThread)
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+    HRESULT Status = S_OK;
+    IfFailRet(CheckDebugProcess());
+
+    if (EvalWaiter::IsEvalRunning())
+    {
+        // Important! Abort all evals before 'Continue' in protocol: during an eval, the thread state is inconsistent.
+        LOGE(log << "Can't 'Continue' during running evaluation.");
+        return E_UNEXPECTED;
+    }
+
+    if (CallbacksQueue::IsRunning())
+    {
+        LOGI(log << "Can't 'Continue', process already running.");
+        return S_OK; // Send an 'OK' response, but don't generate a continued event.
+    }
+
+    // Note, the continued event is emitted only on success, so we don't report continuation
+    // when the process failed to resume.
+    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread)))
+    {
+        LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
+    }
+    else
+    {
+        Variables::Cleanup();
+        FrameId::invalidate();                             // Clear all frames created during the break.
+        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
+    }
+
+    return Status;
+}
+
+bool IsProcessRunning()
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+
+    if (FAILED(CheckDebugProcess()) ||
+        EvalWaiter::IsEvalRunning())
+    {
+        return false;
+    }
+
+    return CallbacksQueue::IsRunning();
+}
+
+HRESULT Pause(ThreadId lastStoppedThread)
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+    HRESULT Status = S_OK;
+    IfFailRet(CheckDebugProcess());
+
+    return CallbacksQueue::Pause(GetTrProcess(), lastStoppedThread);
+}
+
+ThreadId GetLastStoppedThreadId()
+{
+    return Threads::GetLastStoppedThreadId();
+}
+
+HRESULT GetThreads(std::vector<Thread> &threads)
+{
+    return Threads::GetThreads(threads);
+}
+
+HRESULT GetExceptionInfo(ThreadId threadId, ExceptionInfo &exceptionInfo)
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> trThread;
-    IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
+    IfFailRet(GetTrProcess()->GetThread(static_cast<int>(threadId), &trThread));
     return Breakpoints::GetExceptionInfo(trThread, exceptionInfo);
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
-// the call to the Breakpoints function, so it is intentionally kept non-static.
-HRESULT ManagedDebugger::SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints, // NOLINT(readability-convert-member-functions-to-static)
-                                                 std::vector<Breakpoint> &breakpoints)
+HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
+                                std::vector<Breakpoint> &breakpoints)
 {
     return Breakpoints::SetExceptionBreakpoints(exceptionBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::SetSourceBreakpoints(const Source &source,
-                                              const std::vector<SourceBreakpoint> &sourceBreakpoints,
-                                              std::vector<Breakpoint> &breakpoints)
+HRESULT SetSourceBreakpoints(const Source &source,
+                             const std::vector<SourceBreakpoint> &sourceBreakpoints,
+                             std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
     return Breakpoints::SetSourceBreakpoints(haveProcess, source, sourceBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                                                std::vector<Breakpoint> &breakpoints)
+HRESULT SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
+                               std::vector<Breakpoint> &breakpoints)
 {
     const bool haveProcess = HaveDebugProcess();
     return Breakpoints::SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
 }
 
-HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
-                                       std::vector<StackFrame> &stackFrames)
+HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,
+                      std::vector<StackFrame> &stackFrames)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     ToRelease<ICorDebugThread> trThread;
-    if (SUCCEEDED(Status = m_trProcess->GetThread(static_cast<int>(threadId), &trThread)))
+    if (SUCCEEDED(Status = GetTrProcess()->GetThread(static_cast<int>(threadId), &trThread)))
     {
         return GetStackFrames(trThread, threadId, startFrame, maxFrames, stackFrames);
     }
@@ -908,112 +1048,101 @@ HRESULT ManagedDebugger::GetStackTrace(ThreadId threadId, FrameLevel startFrame,
     return Status;
 }
 
-HRESULT ManagedDebugger::GetVariables(uint32_t variablesReference, std::vector<Variable> &variables)
+HRESULT GetVariables(uint32_t variablesReference, std::vector<Variable> &variables)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return Variables::GetVariables(m_trProcess, variablesReference, variables);
+    return Variables::GetVariables(GetTrProcess(), variablesReference, variables);
 }
 
-HRESULT ManagedDebugger::GetScopes(FrameId frameId, std::vector<Scope> &scopes)
+HRESULT GetScopes(FrameId frameId, std::vector<Scope> &scopes)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return Variables::GetScopes(m_trProcess, frameId, scopes);
+    return Variables::GetScopes(GetTrProcess(), frameId, scopes);
 }
 
-HRESULT ManagedDebugger::Evaluate(FrameId frameId, const std::string &expression, Variable &variable,
-                                  std::string &output)
+HRESULT Evaluate(FrameId frameId, const std::string &expression, Variable &variable, std::string &output)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return Variables::Evaluate(m_trProcess, frameId, expression, variable, output);
+    return Variables::Evaluate(GetTrProcess(), frameId, expression, variable, output);
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the static EvalWaiter, so it is intentionally kept non-static.
-void ManagedDebugger::CancelEvalRunning() // NOLINT(readability-convert-member-functions-to-static)
+void CancelEvalRunning()
 {
     EvalWaiter::CancelEvalRunning();
 }
 
-HRESULT ManagedDebugger::SetVariable(const std::string &name, const std::string &value, uint32_t ref,
-                                     std::string &output)
+HRESULT SetVariable(const std::string &name, const std::string &value, uint32_t ref,
+                    std::string &output)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return Variables::SetVariable(m_trProcess, name, value, ref, output);
+    return Variables::SetVariable(GetTrProcess(), name, value, ref, output);
 }
 
-HRESULT ManagedDebugger::SetExpression(FrameId frameId, const std::string &expression,
-                                       const std::string &value, std::string &output)
+HRESULT SetExpression(FrameId frameId, const std::string &expression,
+                      const std::string &value, std::string &output)
 {
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return Variables::SetExpression(m_trProcess, frameId, expression, value, output);
+    return Variables::SetExpression(GetTrProcess(), frameId, expression, value, output);
 }
 
-void ManagedDebugger::InputCallback(IORedirect::StreamType type, gsl::span<char> text)
+void WriteStdin(gsl::span<const char> text)
 {
-    DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
-    m_remoteConsoleServer.SendData(text);
+    GetIORedirect().WriteStdin(text);
 }
 
-void ManagedDebugger::WriteStdin(gsl::span<const char> text)
+bool InitializeRemoteConsoleServer(int port)
 {
-    m_ioredirect.WriteStdin(text);
-}
-
-bool ManagedDebugger::InitializeRemoteConsoleServer(int port)
-{
-    return m_remoteConsoleServer.Initialize(port,
-        [this](gsl::span<char> text)
+    return GetRemoteConsoleServer().Initialize(port,
+        [](gsl::span<char> text)
         {
-            m_ioredirect.WriteStdin(text);
+            GetIORedirect().WriteStdin(text);
         });
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the Modules namespace, so it is intentionally kept non-static.
-void ManagedDebugger::GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules) // NOLINT(readability-convert-member-functions-to-static)
+void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
 {
     Modules::GetModules(startModule, moduleCount, modules, totalModules);
 }
 
-HRESULT ManagedDebugger::GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets, std::string &output)
+HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets, std::string &output)
 {
     HRESULT Status = S_OK;
 
-    m_targets.clear();
-    m_intTargets.clear();
+    std::vector<GotoTarget> publicTargets;
+    GetIntTargets().clear();
 
-    IfFailRet(DebugInfo::GetGotoTarget(source, line, column, m_targets, m_intTargets, output));
+    IfFailRet(DebugInfo::GetGotoTarget(source, line, column, publicTargets, GetIntTargets(), output));
 
-    targets = m_targets;
+    targets = std::move(publicTargets);
 
     return S_OK;
 }
 
-HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string &output)
+HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output)
 {
-    if (m_intTargets.empty())
+    if (GetIntTargets().empty())
     {
         return E_INVALIDARG;
     }
 
     bool targetFound = false;
     uint32_t targetIndex = 0;
-    for (const auto &target : m_intTargets)
+    for (const auto &target : GetIntTargets())
     {
         if (targetId != target.id)
         {
@@ -1030,13 +1159,13 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
         return E_INVALIDARG;
     }
 
-    const ReadLock r_lock(m_debugProcessRWLock);
+    const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
     if (EvalWaiter::IsEvalRunning())
     {
-        // Important! Abort all evals before 'Goto' in protocol, during eval we have inconsistent thread state.
+        // Important! Abort all evals before 'Goto' in protocol: during an eval, the thread state is inconsistent.
         LOGE(log << "Can't 'Goto' during running evaluation.");
         return E_UNEXPECTED;
     }
@@ -1048,7 +1177,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     }
 
     ToRelease<ICorDebugThread> trThread;
-    IfFailRet(m_trProcess->GetThread(static_cast<int>(threadId), &trThread));
+    IfFailRet(GetTrProcess()->GetThread(static_cast<int>(threadId), &trThread));
     ToRelease<ICorDebugFrame> trFrame;
     IfFailRet(trThread->GetActiveFrame(&trFrame));
     if (trFrame == nullptr)
@@ -1065,7 +1194,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    const GotoTargetInternal &target = m_intTargets.at(targetIndex);
+    const GotoTargetInternal &target = GetIntTargets().at(targetIndex);
 
     if (target.modAddress != modAddress ||
         target.methodToken != methodToken)
@@ -1079,33 +1208,27 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     IfFailRet(trILFrame->SetIP(target.ilOffset));
 
     Variables::Cleanup();
-    FrameId::invalidate();               // Clear all created during break frames.
+    FrameId::invalidate();               // Clear all frames created during the break.
 
-    Threads::SetLastStoppedThread(m_trProcess, threadId);
+    Threads::SetLastStoppedThread(GetTrProcess(), threadId);
 
     return S_OK;
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
-HRESULT ManagedDebugger::GetSourceContent(const Source &source, std::string &sourceContent) // NOLINT(readability-convert-member-functions-to-static)
+HRESULT GetSourceContent(const Source &source, std::string &sourceContent)
 {
     return DebugInfo::GetSourceContent(source, sourceContent);
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
-void ManagedDebugger::GetLoadedSources(std::vector<Source> &sources) // NOLINT(readability-convert-member-functions-to-static)
+void GetLoadedSources(std::vector<Source> &sources)
 {
     DebugInfo::GetLoadedSources(sources);
 }
 
-// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
-// the call to the DebugInfo namespace functions, so it is intentionally kept non-static.
-HRESULT ManagedDebugger::GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch, // NOLINT(readability-convert-member-functions-to-static)
-                                                std::vector<BreakpointLocation> &locations)
+HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
+                               std::vector<BreakpointLocation> &locations)
 {
     return DebugInfo::GetBreakpointLocations(source, rangeToSearch, locations);
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::ManagedDebugger

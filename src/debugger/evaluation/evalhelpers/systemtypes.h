@@ -46,7 +46,7 @@ HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass);
 // Find ICorDebugClass objects for all system types needed by the stack machine during
 // System.Private.CoreLib load. See ManagedCallback::LoadModule().
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
-// Release all cached classes. See ManagedDebugger::Cleanup().
+// Release all cached classes. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::SystemTypes

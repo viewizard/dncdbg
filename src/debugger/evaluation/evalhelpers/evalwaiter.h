@@ -29,7 +29,7 @@ HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule);
 [[nodiscard]] bool IsEvalRunning();
 void CancelEvalRunning();
 
-// Cleans up the EvalWaiter internal state. See ManagedDebugger::Cleanup().
+// Cleans up the EvalWaiter internal state. See Cleanup() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::EvalWaiter

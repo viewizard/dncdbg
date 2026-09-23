@@ -20,19 +20,15 @@
 namespace dncdbg
 {
 
-class ManagedDebugger;
-
 class DAP
 {
   public:
 
     DAP()
-        : m_exit(false),
-          m_sharedDebugger(nullptr)
+        : m_exit(false)
     {
     }
 
-    void CreateManagedDebugger();
     void CommandLoop();
 
     HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
@@ -41,10 +37,6 @@ class DAP
   private:
 
     std::atomic<bool> m_exit;
-    std::shared_ptr<ManagedDebugger> m_sharedDebugger;
-
-    std::string m_fileExec;
-    std::vector<std::string> m_execArgs;
 
     bool m_internalConsole{false};
 
