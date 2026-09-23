@@ -9,56 +9,31 @@
 #include "types/types.h"
 #include "types/protocol.h"
 #include <json/json.hpp>
-#include <fstream>
-#include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
-namespace dncdbg
+namespace dncdbg::DAPIO
 {
 
-class DAPIO
-{
-  public:
+void SetupProtocolLogging(const std::string &path);
 
-    static void SetupProtocolLogging(const std::string &path);
+void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod);
+void EmitStoppedEvent(const StoppedEvent &event);
+void EmitExitedEvent(const ExitedEvent &event);
+void EmitTerminatedEvent();
+void EmitContinuedEvent(ThreadId threadId, bool singleThread);
+void EmitThreadEvent(const ThreadEvent &event);
+void EmitModuleEvent(const ModuleEvent &event);
+void EmitLoadedSourceEvent(const LoadedSourceEvent &event);
+void EmitOutputEvent(const OutputEvent &event);
+void EmitBreakpointEvent(const BreakpointEvent &event);
+void EmitInitializedEvent();
+void EmitCapabilitiesEvent();
 
-    static const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters();
-    static void AddCapabilitiesTo(nlohmann::json &capabilities);
+void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
+void Log(std::string_view prefix, const std::string &text);
 
-    static void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod);
-    static void EmitStoppedEvent(const StoppedEvent &event);
-    static void EmitExitedEvent(const ExitedEvent &event);
-    static void EmitTerminatedEvent();
-    static void EmitContinuedEvent(ThreadId threadId, bool singleThread);
-    static void EmitThreadEvent(const ThreadEvent &event);
-    static void EmitModuleEvent(const ModuleEvent &event);
-    static void EmitLoadedSourceEvent(const LoadedSourceEvent &event);
-    static void EmitOutputEvent(const OutputEvent &event);
-    static void EmitBreakpointEvent(const BreakpointEvent &event);
-    static void EmitInitializedEvent();
-    static void EmitCapabilitiesEvent();
-
-    static void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
-    static void Log(std::string_view prefix, const std::string &text);
-
-  private:
-
-    // Prevent undefined behavior with static std::ofstream field usage, since it can throw in constructor.
-    static std::ofstream &GetProtocolLog()
-    {
-        static std::ofstream protocolLog;
-        return protocolLog;
-    }
-
-    static std::mutex m_outMutex;
-    static uint64_t m_seqCounter; // Note, this counter must be covered by m_outMutex.
-
-    static void EmitMessage(nlohmann::json &message, std::string &output);
-    static void EmitEvent(const std::string &name, const nlohmann::json &body);
-    static void LogInternal(std::string_view prefix, const std::string &text);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::DAPIO
 
 #endif // PROTOCOL_DAPIO_H

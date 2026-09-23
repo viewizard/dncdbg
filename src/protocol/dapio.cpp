@@ -5,57 +5,73 @@
 
 #include "protocol/dapio.h"
 #include "protocol/internal_helpers.h"
+#include <fstream>
 #include <iostream>
+#include <mutex>
 
 // for convenience
 using nlohmann::json;
 
-namespace dncdbg
+namespace dncdbg::DAPIO
 {
 
-std::mutex DAPIO::m_outMutex;
-uint64_t DAPIO::m_seqCounter = 1;
-
-const std::unordered_map<std::string, ExceptionBreakpointFilter> &DAPIO::GetExceptionFilters()
+namespace
 {
-    static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
-        {"all", ExceptionBreakpointFilter::THROW},
-        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
-    };
-    return exceptionFilters;
+
+// Use a function-local static to avoid undefined behavior from a static std::ofstream
+// member, whose constructor may throw.
+std::ofstream &GetProtocolLog()
+{
+    static std::ofstream protocolLog;
+    return protocolLog;
 }
 
-void DAPIO::AddCapabilitiesTo(json &capabilities)
+std::mutex &GetOutMutex()
 {
-    capabilities.emplace("supportsConfigurationDoneRequest", true);
-    capabilities.emplace("supportsFunctionBreakpoints", true);
-    capabilities.emplace("supportsConditionalBreakpoints", true);
-    capabilities.emplace("supportTerminateDebuggee", true);
-    capabilities.emplace("supportsSetVariable", true);
-    capabilities.emplace("supportsSetExpression", true);
-    capabilities.emplace("supportsTerminateRequest", true);
-    capabilities.emplace("supportsCancelRequest", true);
-    capabilities.emplace("supportsExceptionInfoRequest", true);
-    capabilities.emplace("supportsExceptionFilterOptions", true);
-    json excFilters = json::array();
-    for (const auto &entry : GetExceptionFilters())
+    static std::mutex outMutex;
+    return outMutex;
+}
+
+// Note: this counter must be protected by GetOutMutex().
+uint64_t &GetSeqCounter()
+{
+    static uint64_t seqCounter = 1;
+    return seqCounter;
+}
+
+// Caller must hold GetOutMutex().
+void EmitMessage(nlohmann::json &message, std::string &output)
+{
+    message.emplace("seq", GetSeqCounter());
+    ++GetSeqCounter();
+    output = message.dump();
+    std::cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
+    std::cout.flush();
+}
+
+void EmitEvent(const std::string &name, const nlohmann::json &body)
+{
+    json message;
+    message.emplace("type", "event");
+    message.emplace("event", name);
+    message.emplace("body", body);
+    EmitMessageWithLog(LOG_EVENT, message);
+}
+
+// Caller must hold GetOutMutex().
+void LogInternal(std::string_view prefix, const std::string &text)
+{
+    if (!GetProtocolLog().is_open())
     {
-        const json filter{{"filter", entry.first},
-                          {"label",entry.first}};
-        excFilters.push_back(filter);
+        return;
     }
-    capabilities.emplace("exceptionBreakpointFilters", excFilters);
-    capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
-    capabilities.emplace("supportsHitConditionalBreakpoints", true);
-    capabilities.emplace("supportsModulesRequest", true);
-    capabilities.emplace("supportsLogPoints", true);
-    capabilities.emplace("supportsGotoTargetsRequest", true);
-    capabilities.emplace("supportsSingleThreadExecutionRequests", true);
-    capabilities.emplace("supportsLoadedSourcesRequest", true);
-    capabilities.emplace("supportsBreakpointLocationsRequest", true);
+
+    GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
 }
 
-void DAPIO::SetupProtocolLogging(const std::string &path)
+} // namespace
+
+void SetupProtocolLogging(const std::string &path)
 {
     if (path.empty())
     {
@@ -65,7 +81,7 @@ void DAPIO::SetupProtocolLogging(const std::string &path)
     GetProtocolLog().open(path);
 }
 
-void DAPIO::EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod)
+void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod)
 {
     json body;
 
@@ -90,7 +106,7 @@ void DAPIO::EmitProcessEvent(DWORD processId, const std::string &name, StartMeth
     EmitEvent("process", body);
 }
 
-void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
+void EmitStoppedEvent(const StoppedEvent &event)
 {
     json body;
 
@@ -139,19 +155,19 @@ void DAPIO::EmitStoppedEvent(const StoppedEvent &event)
     EmitEvent("stopped", body);
 }
 
-void DAPIO::EmitExitedEvent(const ExitedEvent &event)
+void EmitExitedEvent(const ExitedEvent &event)
 {
     json body;
     body.emplace("exitCode", event.exitCode);
     EmitEvent("exited", body);
 }
 
-void DAPIO::EmitTerminatedEvent()
+void EmitTerminatedEvent()
 {
     EmitEvent("terminated", json::object());
 }
 
-void DAPIO::EmitContinuedEvent(ThreadId threadId, bool singleThread)
+void EmitContinuedEvent(ThreadId threadId, bool singleThread)
 {
     json body;
 
@@ -164,7 +180,7 @@ void DAPIO::EmitContinuedEvent(ThreadId threadId, bool singleThread)
     EmitEvent("continued", body);
 }
 
-void DAPIO::EmitThreadEvent(const ThreadEvent &event)
+void EmitThreadEvent(const ThreadEvent &event)
 {
     json body;
 
@@ -186,7 +202,7 @@ void DAPIO::EmitThreadEvent(const ThreadEvent &event)
     EmitEvent("thread", body);
 }
 
-void DAPIO::EmitModuleEvent(const ModuleEvent &event)
+void EmitModuleEvent(const ModuleEvent &event)
 {
     json body;
 
@@ -208,7 +224,7 @@ void DAPIO::EmitModuleEvent(const ModuleEvent &event)
     EmitEvent("module", body);
 }
 
-void DAPIO::EmitLoadedSourceEvent(const LoadedSourceEvent &event)
+void EmitLoadedSourceEvent(const LoadedSourceEvent &event)
 {
     json body;
 
@@ -230,7 +246,7 @@ void DAPIO::EmitLoadedSourceEvent(const LoadedSourceEvent &event)
     EmitEvent("loadedSource", body);
 }
 
-void DAPIO::EmitOutputEvent(const OutputEvent &event)
+void EmitOutputEvent(const OutputEvent &event)
 {
     json body;
 
@@ -259,7 +275,7 @@ void DAPIO::EmitOutputEvent(const OutputEvent &event)
     EmitEvent("output", body);
 }
 
-void DAPIO::EmitBreakpointEvent(const BreakpointEvent &event)
+void EmitBreakpointEvent(const BreakpointEvent &event)
 {
     json body;
 
@@ -281,12 +297,12 @@ void DAPIO::EmitBreakpointEvent(const BreakpointEvent &event)
     EmitEvent("breakpoint", body);
 }
 
-void DAPIO::EmitInitializedEvent()
+void EmitInitializedEvent()
 {
     EmitEvent("initialized", json::object());
 }
 
-void DAPIO::EmitCapabilitiesEvent()
+void EmitCapabilitiesEvent()
 {
     json body = json::object();
     json capabilities = json::object();
@@ -298,48 +314,18 @@ void DAPIO::EmitCapabilitiesEvent()
     EmitEvent("capabilities", body);
 }
 
-// Caller must hold m_outMutex.
-void DAPIO::EmitMessage(nlohmann::json &message, std::string &output)
+void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message)
 {
-    message.emplace("seq", m_seqCounter);
-    ++m_seqCounter;
-    output = message.dump();
-    std::cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
-    std::cout.flush();
-}
-
-void DAPIO::EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message)
-{
-    const std::scoped_lock<std::mutex> lock(m_outMutex);
+    const std::scoped_lock<std::mutex> lock(GetOutMutex());
     std::string output;
     EmitMessage(message, output);
     LogInternal(message_prefix, output);
 }
 
-void DAPIO::EmitEvent(const std::string &name, const nlohmann::json &body)
+void Log(std::string_view prefix, const std::string &text)
 {
-    json message;
-    message.emplace("type", "event");
-    message.emplace("event", name);
-    message.emplace("body", body);
-    EmitMessageWithLog(LOG_EVENT, message);
-}
-
-// Caller must hold m_outMutex.
-void DAPIO::LogInternal(std::string_view prefix, const std::string &text)
-{
-    if (!GetProtocolLog().is_open())
-    {
-        return;
-    }
-
-    GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
-}
-
-void DAPIO::Log(std::string_view prefix, const std::string &text)
-{
-    const std::scoped_lock<std::mutex> lock(m_outMutex);
+    const std::scoped_lock<std::mutex> lock(GetOutMutex());
     LogInternal(prefix, text);
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::DAPIO

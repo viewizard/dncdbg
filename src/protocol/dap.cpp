@@ -239,7 +239,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
 
-                DAPIO::AddCapabilitiesTo(responseBody);
+                AddCapabilitiesTo(responseBody);
 
                 return S_OK;
             }},
@@ -258,8 +258,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 for (const auto &entry : filters)
                 {
-                    const auto findFilter = DAPIO::GetExceptionFilters().find(entry);
-                    if (findFilter == DAPIO::GetExceptionFilters().cend())
+                    const auto findFilter = GetExceptionFilters().find(entry);
+                    if (findFilter == GetExceptionFilters().cend())
                     {
                         return E_INVALIDARG;
                     }
@@ -276,8 +276,8 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         return E_INVALIDARG;
                     }
 
-                    const auto findFilter = DAPIO::GetExceptionFilters().find(findId->second);
-                    if (findFilter == DAPIO::GetExceptionFilters().cend())
+                    const auto findFilter = GetExceptionFilters().find(findId->second);
+                    if (findFilter == GetExceptionFilters().cend())
                     {
                         return E_INVALIDARG;
                     }

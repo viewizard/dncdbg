@@ -205,4 +205,43 @@ void to_json(json &j, const BreakpointLocation &b)
     }
 }
 
+const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters()
+{
+    static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
+        {"all", ExceptionBreakpointFilter::THROW},
+        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
+    };
+    return exceptionFilters;
+}
+
+void AddCapabilitiesTo(json &capabilities)
+{
+    capabilities.emplace("supportsConfigurationDoneRequest", true);
+    capabilities.emplace("supportsFunctionBreakpoints", true);
+    capabilities.emplace("supportsConditionalBreakpoints", true);
+    capabilities.emplace("supportTerminateDebuggee", true);
+    capabilities.emplace("supportsSetVariable", true);
+    capabilities.emplace("supportsSetExpression", true);
+    capabilities.emplace("supportsTerminateRequest", true);
+    capabilities.emplace("supportsCancelRequest", true);
+    capabilities.emplace("supportsExceptionInfoRequest", true);
+    capabilities.emplace("supportsExceptionFilterOptions", true);
+    json excFilters = json::array();
+    for (const auto &entry : GetExceptionFilters())
+    {
+        const json filter{{"filter", entry.first},
+                          {"label", entry.first}};
+        excFilters.push_back(filter);
+    }
+    capabilities.emplace("exceptionBreakpointFilters", excFilters);
+    capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
+    capabilities.emplace("supportsHitConditionalBreakpoints", true);
+    capabilities.emplace("supportsModulesRequest", true);
+    capabilities.emplace("supportsLogPoints", true);
+    capabilities.emplace("supportsGotoTargetsRequest", true);
+    capabilities.emplace("supportsSingleThreadExecutionRequests", true);
+    capabilities.emplace("supportsLoadedSourcesRequest", true);
+    capabilities.emplace("supportsBreakpointLocationsRequest", true);
+}
+
 } // namespace dncdbg

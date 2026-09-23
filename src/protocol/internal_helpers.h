@@ -8,7 +8,9 @@
 
 #include "types/protocol.h"
 #include <json/json.hpp>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace dncdbg
 {
@@ -29,6 +31,9 @@ void to_json(nlohmann::json &j, const Variable &v);
 void to_json(nlohmann::json &j, const Module &m);
 void to_json(nlohmann::json &j, const GotoTarget &g);
 void to_json(nlohmann::json &j, const BreakpointLocation &b);
+
+const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters();
+void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 } // namespace dncdbg
 
