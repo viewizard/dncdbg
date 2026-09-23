@@ -333,16 +333,22 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId() // NOLINT(readability-convert
 }
 
 ManagedDebugger::ManagedDebugger()
-    : m_sharedCallbacksQueue(nullptr),
-      m_uniqueManagedCallback(nullptr),
+    : m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
             {
                 InputCallback(type, text);
             })
 {
+    CallbacksQueue::Initialize([this]
+    {
+        NotifyProcessCreated();
+    });
 }
 
-ManagedDebugger::~ManagedDebugger() = default;
+ManagedDebugger::~ManagedDebugger()
+{
+    CallbacksQueue::Shutdown();
+}
 
 HRESULT ManagedDebugger::Initialize()
 {
@@ -449,7 +455,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
         return E_UNEXPECTED;
     }
 
-    if (m_sharedCallbacksQueue->IsRunning())
+    if (CallbacksQueue::IsRunning())
     {
         LOGW(log << "Can't 'Step', process already running.");
         return E_FAIL;
@@ -462,7 +468,7 @@ HRESULT ManagedDebugger::StepCommand(ThreadId threadId, StepType stepType, bool 
     // Note, the continued event is emitted only on success, so we don't report continuation
     // when the process failed to resume. On failure, disable all steppers, since we set up
     // a step above but the process didn't actually resume.
-    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
+    if (FAILED(Status = CallbacksQueue::Continue(m_trProcess, threadId, singleThread)))
     {
         Steppers::DisableAll(m_trProcess);
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
@@ -490,7 +496,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
         return E_UNEXPECTED;
     }
 
-    if (m_sharedCallbacksQueue->IsRunning())
+    if (CallbacksQueue::IsRunning())
     {
         LOGI(log << "Can't 'Continue', process already running.");
         return S_OK; // Send 'OK' response, but don't generate continue event.
@@ -498,7 +504,7 @@ HRESULT ManagedDebugger::Continue(ThreadId threadId, bool singleThread)
 
     // Note, the continued event is emitted only on success, so we don't report continuation
     // when the process failed to resume.
-    if (FAILED(Status = m_sharedCallbacksQueue->Continue(m_trProcess, threadId, singleThread)))
+    if (FAILED(Status = CallbacksQueue::Continue(m_trProcess, threadId, singleThread)))
     {
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
@@ -522,7 +528,7 @@ bool ManagedDebugger::IsProcessRunning()
         return false;
     }
 
-    return m_sharedCallbacksQueue->IsRunning();
+    return CallbacksQueue::IsRunning();
 }
 
 HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
@@ -531,7 +537,7 @@ HRESULT ManagedDebugger::Pause(ThreadId lastStoppedThread)
     HRESULT Status = S_OK;
     IfFailRet(CheckDebugProcess());
 
-    return m_sharedCallbacksQueue->Pause(m_trProcess, lastStoppedThread);
+    return CallbacksQueue::Pause(m_trProcess, lastStoppedThread);
 }
 
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only delegates
@@ -581,17 +587,11 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     IfFailRet(trDebug->Initialize());
 
-    m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(
-        [this]
-        {
-            NotifyProcessCreated();
-        });
-    m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
+    m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this);
     if (FAILED(Status = trDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
     {
         trDebug->Terminate();
         m_uniqueManagedCallback.reset();
-        m_sharedCallbacksQueue.reset();
         return Status;
     }
 
@@ -600,7 +600,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     {
         trDebug->Terminate();
         m_uniqueManagedCallback.reset();
-        m_sharedCallbacksQueue.reset();
         return Status;
     }
 
@@ -818,11 +817,12 @@ void ManagedDebugger::Cleanup()
     Walkers::Cleanup();
     Modules::Cleanup();
     Threads::Cleanup();
+    CallbacksQueue::Cleanup();
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
-    assert((m_trProcess && m_trDebug && m_uniqueManagedCallback && m_sharedCallbacksQueue) ||
-           (!m_trProcess && !m_trDebug && !m_uniqueManagedCallback && !m_sharedCallbacksQueue));
+    assert((m_trProcess && m_trDebug && m_uniqueManagedCallback) ||
+           (!m_trProcess && !m_trDebug && !m_uniqueManagedCallback));
 
     if (m_trProcess == nullptr)
     {
@@ -839,7 +839,6 @@ void ManagedDebugger::Cleanup()
         LOGW(log << "ManagedCallback was not properly released by ICorDebug");
     }
     m_uniqueManagedCallback.reset(nullptr);
-    m_sharedCallbacksQueue = nullptr;
 }
 
 HRESULT ManagedDebugger::AttachToProcess()
@@ -1052,7 +1051,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
         return E_UNEXPECTED;
     }
 
-    if (m_sharedCallbacksQueue->IsRunning())
+    if (CallbacksQueue::IsRunning())
     {
         LOGI(log << "Can't 'Goto', process already running.");
         return E_FAIL;

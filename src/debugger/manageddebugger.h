@@ -30,7 +30,6 @@ namespace dncdbg
 {
 
 class ManagedCallback;
-class CallbacksQueue;
 
 enum class ProcessAttachedState : uint8_t
 {
@@ -115,7 +114,6 @@ class ManagedDebugger
     std::string m_cwd;
     std::map<std::string, std::string> m_env;
 
-    std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
     std::unique_ptr<ManagedCallback> m_uniqueManagedCallback;
 
     RWLock m_debugProcessRWLock;

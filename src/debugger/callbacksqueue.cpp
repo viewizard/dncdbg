@@ -16,12 +16,91 @@
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/torelease.h"
 #include <algorithm>
+#include <cassert>
+#include <condition_variable>
+#include <list>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
 
-namespace dncdbg
+namespace dncdbg::CallbacksQueue
 {
 
-bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
+namespace
+{
+
+// Note: we have one entry type for both managed and interop callbacks (stop events), since the queue
+// almost always contains a single entry, so there is no reason to complicate the code. Probably in
+// the future the Reason, EventType and ExcModule fields could be reused for interop events too.
+// Each event uses its own constructor; some fields are unused for a given event.
+struct CallbackQueueEntry
+{
+    CallbackQueueCall Call;
+    ToRelease<ICorDebugAppDomain> trAppDomain;
+    ToRelease<ICorDebugThread> trThread;
+    ToRelease<ICorDebugBreakpoint> trBreakpoint;
+    CorDebugStepReason Reason = CorDebugStepReason::STEP_NORMAL; // Initial value in order to suppress static analyzer warnings.
+    ExceptionCallbackType EventType = ExceptionCallbackType::FIRST_CHANCE; // Initial value in order to suppress static analyzer warnings.
+    std::string ExcModule;
+
+    CallbackQueueEntry(CallbackQueueCall call,
+                       ICorDebugAppDomain *pAppDomain,
+                       ICorDebugThread *pThread,
+                       ICorDebugBreakpoint *pBreakpoint,
+                       CorDebugStepReason reason,
+                       ExceptionCallbackType eventType,
+                       std::string excModule = std::string())
+        : Call(call),
+          trAppDomain(pAppDomain),
+          trThread(pThread),
+          trBreakpoint(pBreakpoint),
+          Reason(reason),
+          EventType(eventType),
+          ExcModule(std::move(excModule))
+    {
+    }
+};
+
+std::function<void()> &GetNotifyProcessCreatedCallback()
+{
+    static std::function<void()> notifyProcessCreatedCallback;
+    return notifyProcessCreatedCallback;
+}
+
+std::mutex &GetCallbacksMutex()
+{
+    static std::mutex callbacksMutex;
+    return callbacksMutex;
+}
+
+std::condition_variable &GetCallbacksCV()
+{
+    static std::condition_variable callbacksCV;
+    return callbacksCV;
+}
+
+std::list<CallbackQueueEntry> &GetCallbacksQueue()
+{
+    static std::list<CallbackQueueEntry> callbacksQueue;
+    return callbacksQueue;
+}
+
+bool &GetStopEventInProcess()
+{
+    static bool stopEventInProcess{false};
+    return stopEventInProcess;
+}
+
+std::thread &GetCallbacksWorker()
+{
+    static std::thread callbacksWorker;
+    return callbacksWorker;
+}
+
+bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint)
 {
     if (S_IGNORE == Steppers::ManagedCallbackBreakpoint(pAppDomain, pThread))
     {
@@ -50,7 +129,7 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
+bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason)
 {
     if (S_IGNORE == Steppers::ManagedCallbackStepComplete(pThread, reason))
     {
@@ -67,7 +146,7 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
+bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
     if (S_IGNORE == Breakpoints::ManagedCallbackBreak(pThread, Threads::GetLastStoppedThreadId()))
     {
@@ -87,8 +166,8 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                              ExceptionCallbackType eventType)
+bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                              ExceptionCallbackType eventType)
 {
     if (S_IGNORE == Breakpoints::ManagedCallbackException(pThread, eventType))
     {
@@ -107,70 +186,115 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     return true;
 }
 
-void CallbacksQueue::CallbacksWorker()
+void CallbacksWorker()
 {
-    std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+
+    std::list<CallbackQueueEntry> &callbacksQueue = GetCallbacksQueue();
+    bool &stopEventInProcess = GetStopEventInProcess();
 
     while (true)
     {
-        while (m_callbacksQueue.empty() || m_stopEventInProcess)
+        while (callbacksQueue.empty() || stopEventInProcess)
         {
-            // Note, during m_callbacksCV.wait() (waiting for notify_one call with entry added into queue),
-            // m_callbacksMutex will be unlocked (see std::condition_variable for more info).
-            m_callbacksCV.wait(lock);
+            // Note, during wait() (waiting for notify_one call with an entry added to the queue), the mutex
+            // will be unlocked (see std::condition_variable documentation for more info).
+            GetCallbacksCV().wait(lock);
         }
 
-        auto &c = m_callbacksQueue.front();
+        auto &c = callbacksQueue.front();
 
         switch (c.Call)
         {
         case CallbackQueueCall::Breakpoint:
-            m_stopEventInProcess = CallbacksWorkerBreakpoint(c.trAppDomain, c.trThread, c.trBreakpoint);
+            stopEventInProcess = CallbacksWorkerBreakpoint(c.trAppDomain, c.trThread, c.trBreakpoint);
             break;
         case CallbackQueueCall::StepComplete:
-            m_stopEventInProcess = CallbacksWorkerStepComplete(c.trThread, c.Reason);
+            stopEventInProcess = CallbacksWorkerStepComplete(c.trThread, c.Reason);
             break;
         case CallbackQueueCall::Break:
-            m_stopEventInProcess = CallbacksWorkerBreak(c.trAppDomain, c.trThread);
+            stopEventInProcess = CallbacksWorkerBreak(c.trAppDomain, c.trThread);
             break;
         case CallbackQueueCall::Exception:
-            m_stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType);
+            stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType);
             break;
         case CallbackQueueCall::CreateProcess:
-            // Non-stop event, just notify the debugger and continue execution.
-            if (m_notifyProcessCreatedCallback)
+            if (GetNotifyProcessCreatedCallback())
             {
-                m_notifyProcessCreatedCallback();
+                GetNotifyProcessCreatedCallback()();
             }
-            m_stopEventInProcess = false;
+            stopEventInProcess = false;
             break;
         default:
-            // finish loop
-            // called from destructor only, don't need call pop()
+            // FinishWorker sentinel: stop the worker. Pop the entry so the queue stays empty
+            // for a possible re-initialization.
+            callbacksQueue.pop_front();
             return;
         }
 
         ToRelease<ICorDebugAppDomain> trAppDomain(c.trAppDomain.Detach());
-        m_callbacksQueue.pop_front();
+        callbacksQueue.pop_front();
 
-        // Continue process execution only in case we don't have stop event emitted and queue is empty.
-        // We safe here against fast Continue()/AddCallbackToQueue() call from new callback call, since we don't unlock m_callbacksMutex.
-        // m_callbacksMutex will be unlocked only in m_callbacksCV.wait(), when CallbacksWorker will be ready for notify_one.
-        if (m_callbacksQueue.empty() && !m_stopEventInProcess)
+        // Continue process execution only if no stop event was emitted and the queue is empty.
+        // This is safe against a fast Continue()/AddCallbackToQueue() call from a new callback, since the
+        // mutex is not unlocked here; it is unlocked only in wait(), when the worker is ready for notify_one.
+        if (callbacksQueue.empty() && !stopEventInProcess)
         {
             trAppDomain->Continue(0);
         }
     }
 }
 
-bool CallbacksQueue::HasQueuedCallbacks(ICorDebugProcess *pProcess)
+bool HasQueuedCallbacks(ICorDebugProcess *pProcess)
 {
     BOOL bQueued = FALSE;
     pProcess->HasQueuedCallbacks(nullptr, &bQueued);
     return bQueued == TRUE;
 }
 
-HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback)
+} // namespace
+
+void Initialize(std::function<void()> notifyProcessCreatedCallback)
+{
+    assert(!GetCallbacksWorker().joinable()); // Initialize must not be called while the worker is running.
+    GetNotifyProcessCreatedCallback() = std::move(notifyProcessCreatedCallback);
+    GetCallbacksWorker() = std::thread{CallbacksWorker};
+}
+
+void Cleanup()
+{
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+
+    GetCallbacksQueue().clear();
+    GetStopEventInProcess() = false;
+    GetCallbacksCV().notify_one();
+}
+
+void Shutdown()
+{
+    try
+    {
+        std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+
+        // Clear the queue and call notify_one with a FinishWorker request.
+        GetCallbacksQueue().clear();
+        GetCallbacksQueue().emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
+                                          ExceptionCallbackType::FIRST_CHANCE);
+        GetStopEventInProcess() = false; // force the worker to proceed even while stopped
+        GetCallbacksCV().notify_one();   // notify_one with lock
+        lock.unlock();
+        GetCallbacksWorker().join();
+        GetNotifyProcessCreatedCallback() = {};
+    }
+    catch (...)
+    {
+        // We can't leave this thread running and can't finish it safely.
+        // Terminate the debugger; don't allow a new debug session to start.
+        std::terminate();
+    }
+}
+
+HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback)
 {
     if (EvalWaiter::IsEvalRunning())
     {
@@ -178,12 +302,12 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
     callback();
-    assert(!m_callbacksQueue.empty());
+    assert(!GetCallbacksQueue().empty());
 
-    // Note, we don't check m_callbacksQueue.empty() here, since callback() must add entry to queue.
+    // Note, we don't check whether the queue is empty here, since callback() must add an entry to the queue.
     ToRelease<ICorDebugProcess> trProcess;
     if (SUCCEEDED(pAppDomain->GetProcess(&trProcess)) && HasQueuedCallbacks(trProcess))
     {
@@ -191,13 +315,13 @@ HRESULT CallbacksQueue::AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const
     }
     else
     {
-        m_callbacksCV.notify_one(); // notify_one with lock
+        GetCallbacksCV().notify_one(); // notify_one with lock
     }
 
     return S_OK;
 }
 
-HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
+HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
 {
     if (EvalWaiter::IsEvalRunning())
     {
@@ -210,28 +334,27 @@ HRESULT CallbacksQueue::ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
     ToRelease<ICorDebugProcess> trProcess;
-    if (m_callbacksQueue.empty() ||
+    if (GetCallbacksQueue().empty() ||
         ((pAppDomain != nullptr) && SUCCEEDED(pAppDomain->GetProcess(&trProcess)) && HasQueuedCallbacks(trProcess)))
     {
         if (pAppDomain == nullptr)
         {
             return E_NOTIMPL;
         }
-
         pAppDomain->Continue(0);
     }
     else
     {
-        m_callbacksCV.notify_one(); // notify_one with lock
+        GetCallbacksCV().notify_one(); // notify_one with lock
     }
 
     return S_OK;
 }
 
-HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
+HRESULT ContinueProcess(ICorDebugProcess *pProcess)
 {
     if (EvalWaiter::IsEvalRunning())
     {
@@ -244,9 +367,9 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
-    if (m_callbacksQueue.empty() || ((pProcess != nullptr) && HasQueuedCallbacks(pProcess)))
+    if (GetCallbacksQueue().empty() || ((pProcess != nullptr) && HasQueuedCallbacks(pProcess)))
     {
         if (pProcess == nullptr)
         {
@@ -257,28 +380,29 @@ HRESULT CallbacksQueue::ContinueProcess(ICorDebugProcess *pProcess)
     }
     else
     {
-        m_callbacksCV.notify_one(); // notify_one with lock
+        GetCallbacksCV().notify_one(); // notify_one with lock
     }
 
     return S_OK;
 }
 
-bool CallbacksQueue::IsRunning()
+bool IsRunning()
 {
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
-    return !m_stopEventInProcess;
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    return !GetStopEventInProcess();
 }
 
-HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread)
+HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread)
 {
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
-    assert(m_stopEventInProcess);
-    m_stopEventInProcess = false;
+    bool &stopEventInProcess = GetStopEventInProcess();
+    assert(stopEventInProcess);
+    stopEventInProcess = false;
 
-    if (!m_callbacksQueue.empty())
+    if (!GetCallbacksQueue().empty())
     {
-        m_callbacksCV.notify_one(); // notify_one with lock
+        GetCallbacksCV().notify_one(); // notify_one with lock
         return S_OK;
     }
 
@@ -289,7 +413,7 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, 
     ToRelease<ICorDebugThreadEnum> trThreadEnum;
     if (FAILED(Status = pProcess->EnumerateThreads(&trThreadEnum)))
     {
-        m_stopEventInProcess = true;
+        stopEventInProcess = true;
         return Status;
     }
     ULONG fetched = 0;
@@ -302,7 +426,7 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, 
         if (FAILED(Status = trThread->GetID(&tid)))
         {
             LOGW(log << "ICorDebugThread::GetID() call failed, target threadId=" << iThreadId);
-            m_stopEventInProcess = true;
+            stopEventInProcess = true;
             return Status;
         }
         // Run the target thread; suspend all others only in the single-thread case.
@@ -310,7 +434,7 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, 
         {
             LOGW(log << "ICorDebugThread::SetDebugState() call failed, threadId=" << static_cast<int>(tid)
                      << ", target threadId=" << iThreadId);
-            m_stopEventInProcess = true;
+            stopEventInProcess = true;
             return Status;
         }
         trThread.Free();
@@ -320,7 +444,7 @@ HRESULT CallbacksQueue::Continue(ICorDebugProcess *pProcess, ThreadId threadId, 
 }
 
 // Stop process and set last stopped thread.
-HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread)
+HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread)
 {
     // Must be real thread ID or ThreadId::AllThreads.
     if (!lastStoppedThread)
@@ -328,17 +452,19 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
         return E_INVALIDARG;
     }
 
-    const std::unique_lock<std::mutex> lock(m_callbacksMutex);
+    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
-    if (m_stopEventInProcess)
+    bool &stopEventInProcess = GetStopEventInProcess();
+
+    if (stopEventInProcess)
     {
         return S_OK; // Already stopped.
     }
 
     HRESULT Status = S_OK;
-    // Note, in case Stop() failed, no stop event will be emitted, don't set m_stopEventInProcess to "true" in this case.
+    // Note, if Stop() fails, no stop event will be emitted, so don't set stopEventInProcess to true in this case.
     IfFailRet(pProcess->Stop(0));
-    m_stopEventInProcess = true;
+    stopEventInProcess = true;
 
     // Same logic as provided by vsdbg in case of pause during stepping.
     Steppers::DisableAll(pProcess);
@@ -358,7 +484,6 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
         for (const Thread &thread : threads)
         {
             std::vector<StackFrame> stackFrames;
-
             ToRelease<ICorDebugThread> trThread;
             if (FAILED(pProcess->GetThread(static_cast<int>(thread.id), &trThread)) ||
                 FAILED(GetStackFrames(trThread, thread.id, FrameLevel(0), 0, stackFrames)))
@@ -384,40 +509,16 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     }
 
     // Fatal error during stop (command provides wrong thread id), just fail Pause request and don't stop process.
-    m_stopEventInProcess = false;
+    stopEventInProcess = false;
     IfFailRet(pProcess->Continue(0));
     return E_FAIL;
 }
 
-CallbacksQueue::~CallbacksQueue()
+// Note: caller must hold the callbacks mutex
+void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
+                 ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType)
 {
-    try
-    {
-        std::unique_lock<std::mutex> lock(m_callbacksMutex);
-
-        // Clear queue and do notify_one call with FinishWorker request.
-        m_callbacksQueue.clear();
-        m_callbacksQueue.emplace_front(CallbackQueueCall::FinishWorker, nullptr, nullptr, nullptr, STEP_NORMAL,
-                                       ExceptionCallbackType::FIRST_CHANCE);
-        m_stopEventInProcess = false; // forced to proceed during break too
-        m_callbacksCV.notify_one();   // notify_one with lock
-        lock.unlock();
-        m_callbacksWorker.join();
-    }
-    catch (...)
-    {
-        // We can't allow this thread to stay and can't finish it.
-        // Terminate debugger, don't allow restart debug session.
-        std::terminate();
-    }
+    GetCallbacksQueue().emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType);
 }
 
-// Note: caller must hold m_callbacksMutex.
-void CallbacksQueue::EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
-                                 ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason,
-                                 ExceptionCallbackType EventType)
-{
-    m_callbacksQueue.emplace_back(Call, pAppDomain, pThread, pBreakpoint, Reason, EventType);
-}
-
-} // namespace dncdbg
+} // namespace dncdbg::CallbacksQueue

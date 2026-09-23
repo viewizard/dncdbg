@@ -19,16 +19,13 @@ namespace dncdbg
 {
 
 class ManagedDebugger;
-class CallbacksQueue;
 
 class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugManagedCallback2, public ICorDebugManagedCallback3
 {
   public:
 
-    ManagedCallback(ManagedDebugger &debugger,
-                    std::shared_ptr<CallbacksQueue> &sharedCallbacksQueue)
-        : m_debugger(debugger),
-          m_sharedCallbacksQueue(sharedCallbacksQueue)
+    explicit ManagedCallback(ManagedDebugger &debugger)
+        : m_debugger(debugger)
     {
     }
 
@@ -113,7 +110,6 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
     std::mutex m_refCountMutex;
     ULONG m_refCount{0};
     ManagedDebugger &m_debugger;
-    std::shared_ptr<CallbacksQueue> m_sharedCallbacksQueue;
 };
 
 } // namespace dncdbg
