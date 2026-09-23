@@ -23,7 +23,7 @@
 namespace dncdbg::Breakpoints
 {
 
-void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
+void SetLastStoppedIlOffset(ICorDebugThread *pThread);
 
 HRESULT DisableAll(ICorDebugProcess *pProcess);
 

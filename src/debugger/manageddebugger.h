@@ -110,13 +110,6 @@ class ManagedDebugger
     void NotifyProcessExited();
     HRESULT CheckNoProcess();
 
-    std::mutex m_lastStoppedMutex;
-    ThreadId m_lastStoppedThreadId;
-
-    void SetLastStoppedThread(ICorDebugThread *pThread);
-    void SetLastStoppedThreadId(ThreadId threadId);
-    void InvalidateLastStoppedThreadId();
-
     StartMethod m_startMethod{StartMethod::None};
     std::string m_execPath;
     std::vector<std::string> m_execArgs;

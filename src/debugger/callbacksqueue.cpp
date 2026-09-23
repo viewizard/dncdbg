@@ -42,9 +42,9 @@ bool CallbacksQueue::CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, I
     // At this point we stop at breakpoint, disable all steppers (we could stop at breakpoint during step).
     Steppers::DisableAll(pAppDomain);
 
-    m_debugger.SetLastStoppedThread(pThread);
+    Threads::SetLastStoppedThread(pThread);
 
-    const ThreadId threadId(GetThreadId(pThread));
+    const ThreadId threadId(Threads::GetId(pThread));
     const StoppedEvent event(atEntry ? StoppedEventReason::Entry : StoppedEventReason::Breakpoint, std::move(hitBreakpointIds), threadId);
     DAPIO::EmitStoppedEvent(event);
     return true;
@@ -59,17 +59,17 @@ bool CallbacksQueue::CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDe
         return false;
     }
 
-    const ThreadId threadId(GetThreadId(pThread));
+    const ThreadId threadId(Threads::GetId(pThread));
     const StoppedEvent event(StoppedEventReason::Step, threadId);
 
-    m_debugger.SetLastStoppedThread(pThread);
+    Threads::SetLastStoppedThread(pThread);
     DAPIO::EmitStoppedEvent(event);
     return true;
 }
 
 bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread)
 {
-    if (S_IGNORE == Breakpoints::ManagedCallbackBreak(pThread, m_debugger.GetLastStoppedThreadId()))
+    if (S_IGNORE == Breakpoints::ManagedCallbackBreak(pThread, Threads::GetLastStoppedThreadId()))
     {
         // Break related (for example, stop at `Debugger.Break()` in non-user code with enabled JMC),
         // don't emit break stop event and continue execution.
@@ -79,8 +79,8 @@ bool CallbacksQueue::CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDe
     // At this point we stop at Break, disable all steppers (we could stop at Break during step).
     Steppers::DisableAll(pAppDomain);
 
-    m_debugger.SetLastStoppedThread(pThread);
-    const ThreadId threadId(GetThreadId(pThread));
+    Threads::SetLastStoppedThread(pThread);
+    const ThreadId threadId(Threads::GetId(pThread));
 
     const StoppedEvent event(StoppedEventReason::Pause, threadId);
     DAPIO::EmitStoppedEvent(event);
@@ -100,9 +100,9 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     // At this point we stop at exception, disable all steppers (we could stop at exception during step).
     Steppers::DisableAll(pAppDomain);
 
-    const ThreadId threadId(GetThreadId(pThread));
+    const ThreadId threadId(Threads::GetId(pThread));
     const StoppedEvent event(StoppedEventReason::Exception, threadId);
-    m_debugger.SetLastStoppedThread(pThread);
+    Threads::SetLastStoppedThread(pThread);
     DAPIO::EmitStoppedEvent(event);
     return true;
 }
@@ -345,7 +345,7 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
     Steppers::DisableAll(pProcess);
 
     std::vector<Thread> threads;
-    m_debugger.GetThreads(threads);
+    Threads::GetThreads(threads);
 
     // In case of DAP, command provides "pause" thread id.
     const auto lastStoppedIt = std::find_if(threads.begin(), threads.end(),
@@ -372,13 +372,13 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
                     continue;
                 }
 
-                m_debugger.SetLastStoppedThreadId(thread.id);
+                Threads::SetLastStoppedThread(pProcess, thread.id);
                 return S_OK;
             }
         }
 
         // DAP event must provide a thread (VS Code IDE counts on this), even if this thread doesn't have user code.
-        m_debugger.SetLastStoppedThreadId(lastStoppedThread);
+        Threads::SetLastStoppedThread(pProcess, lastStoppedThread);
         return S_OK;
     }
 

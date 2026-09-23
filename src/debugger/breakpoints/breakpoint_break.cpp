@@ -85,21 +85,15 @@ HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffs
 
 } // unnamed namespace
 
-void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId)
+void SetLastStoppedIlOffset(ICorDebugThread *pThread)
 {
     const std::scoped_lock<std::mutex> lock(GetBreakMutex());
 
     GetLastStoppedIlOffset().Reset();
 
-    if (lastStoppedThreadId == ThreadId::AllThreads)
+    if (pThread != nullptr)
     {
-        return;
-    }
-
-    ToRelease<ICorDebugThread> trThread;
-    if (SUCCEEDED(pProcess->GetThread(static_cast<int>(lastStoppedThreadId), &trThread)))
-    {
-        GetFullyQualifiedIlOffset(trThread, GetLastStoppedIlOffset());
+        GetFullyQualifiedIlOffset(pThread, GetLastStoppedIlOffset());
     }
 }
 
@@ -125,7 +119,7 @@ HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStopp
         }
     }
 
-    const ThreadId threadId(GetThreadId(pThread));
+    const ThreadId threadId(Threads::GetId(pThread));
 
     // Prevent a duplicate stop event if the previous stop event was for the same thread and the same code point.
     // The idea is to store the "fully-qualified IL offset" (data for module + method + IL) on any stop event

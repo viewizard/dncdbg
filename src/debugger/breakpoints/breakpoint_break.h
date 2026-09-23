@@ -17,7 +17,7 @@
 namespace dncdbg::BreakBreakpoint
 {
 
-void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId);
+void SetLastStoppedIlOffset(ICorDebugThread *pThread);
 
 // Important! Callbacks related methods must control return for succeeded return code.
 // Do not allow debugger API return succeeded (uncontrolled) return code.

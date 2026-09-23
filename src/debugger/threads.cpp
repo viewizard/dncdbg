@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/threads.h"
+#include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
@@ -14,8 +15,9 @@
 #include <cassert>
 #include <iterator>
 #include <map>
+#include <string>
 
-namespace dncdbg
+namespace dncdbg::Threads
 {
 
 namespace
@@ -61,21 +63,6 @@ std::string GetThreadName(ICorDebugThread *pThread)
     return threadName;
 }
 
-} // unnamed namespace
-
-ThreadId GetThreadId(ICorDebugThread *pThread)
-{
-    DWORD threadId = 0; // invalid value for Win32
-    const HRESULT res = pThread->GetID(&threadId);
-    return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
-}
-
-namespace Threads
-{
-
-namespace
-{
-
 RWLock &GetUserThreadsRWLock()
 {
     static RWLock userThreadsRWLock;
@@ -94,7 +81,67 @@ ThreadId &GetMainThread()
     return mainThread;
 }
 
+std::mutex &GetLastStoppedThreadMutex()
+{
+    static std::mutex lastStoppedMutex;
+    return lastStoppedMutex;
+}
+
+ThreadId &GetLastStoppedThreadIdState()
+{
+    static ThreadId lastStoppedThreadId{ThreadId::AllThreads};
+    return lastStoppedThreadId;
+}
+
 } // unnamed namespace
+
+ThreadId GetId(ICorDebugThread *pThread)
+{
+    DWORD threadId = 0; // invalid value for Win32
+    const HRESULT res = pThread->GetID(&threadId);
+    return SUCCEEDED(res) && threadId != 0 ? ThreadId{threadId} : ThreadId{};
+}
+
+void SetLastStoppedThread(ICorDebugThread *pThread)
+{
+    Breakpoints::SetLastStoppedIlOffset(pThread);
+
+    const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+
+    if (pThread != nullptr)
+    {
+        GetLastStoppedThreadIdState() = GetId(pThread);
+    }
+    else
+    {
+        GetLastStoppedThreadIdState() = ThreadId::AllThreads;
+    }
+}
+
+void SetLastStoppedThread(ICorDebugProcess *pProcess, ThreadId threadId)
+{
+    // Must be real thread ID or ThreadId::AllThreads.
+    assert(threadId);
+
+    ToRelease<ICorDebugThread> trThread;
+    if (threadId != ThreadId::AllThreads && pProcess != nullptr)
+    {
+        pProcess->GetThread(static_cast<int>(threadId), &trThread);
+    }
+
+    SetLastStoppedThread(trThread);
+}
+
+void InvalidateLastStoppedThread()
+{
+    SetLastStoppedThread(nullptr);
+}
+
+ThreadId GetLastStoppedThreadId()
+{
+    const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+    return GetLastStoppedThreadIdState();
+}
 
 void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
 {
@@ -126,7 +173,7 @@ void ChangeName(ICorDebugThread *pThread)
     const WriteLock w_lock(GetUserThreadsRWLock());
 
     const std::string threadName = GetThreadName(pThread);
-    const ThreadId threadId(GetThreadId(pThread));
+    const ThreadId threadId(Threads::GetId(pThread));
 
     auto &userThreads = GetUserThreads();
     assert(userThreads.find(threadId) != userThreads.cend());
@@ -162,29 +209,20 @@ HRESULT GetThreads(std::vector<Thread> &threads)
     return S_OK;
 }
 
-HRESULT GetThreadIds(std::vector<ThreadId> &threads)
-{
-    const ReadLock r_lock(GetUserThreadsRWLock());
-
-    const auto &userThreads = GetUserThreads();
-    threads.reserve(userThreads.size());
-    std::transform(userThreads.cbegin(), userThreads.cend(),
-                   std::back_inserter(threads), [](const auto &userThread)
-                   {
-                       return userThread.first;
-                   });
-    return S_OK;
-}
-
 // Cleans up the Threads internal state. See ManagedDebugger::Cleanup().
 void Cleanup()
 {
-    const WriteLock w_lock(GetUserThreadsRWLock());
+    {
+        const WriteLock w_lock(GetUserThreadsRWLock());
 
-    GetUserThreads().clear();
-    GetMainThread() = ThreadId{};
+        GetUserThreads().clear();
+        GetMainThread() = ThreadId{};
+    }
+
+    {
+        const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+        GetLastStoppedThreadIdState() = ThreadId::AllThreads;
+    }
 }
 
 } // namespace dncdbg::Threads
-
-} // namespace dncdbg

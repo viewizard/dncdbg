@@ -14,29 +14,26 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include <memory>
-#include <string>
 #include <vector>
 
-namespace dncdbg
+namespace dncdbg::Threads
 {
 
-ThreadId GetThreadId(ICorDebugThread *pThread);
+ThreadId GetId(ICorDebugThread *pThread);
 
-namespace Threads
-{
+void SetLastStoppedThread(ICorDebugThread *pThread);
+void SetLastStoppedThread(ICorDebugProcess *pProcess, ThreadId threadId);
+void InvalidateLastStoppedThread();
+ThreadId GetLastStoppedThreadId();
 
 void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
 void ChangeName(ICorDebugThread *pThread);
 void Remove(const ThreadId &threadId);
 HRESULT GetThreads(std::vector<Thread> &threads);
-HRESULT GetThreadIds(std::vector<ThreadId> &threads);
 
 // Cleans up the Threads internal state. See ManagedDebugger::Cleanup().
 void Cleanup();
 
 } // namespace dncdbg::Threads
-
-} // namespace dncdbg
 
 #endif // DEBUGGER_THREADS_H

@@ -120,10 +120,10 @@ class CallbacksQueue
     std::thread m_callbacksWorker;
 
     void CallbacksWorker();
-    bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint);
-    bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
-    bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
-    bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType);
+    static bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint);
+    static bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
+    static bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
+    static bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType);
     bool CallbacksWorkerCreateProcess();
     static bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
 };

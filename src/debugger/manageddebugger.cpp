@@ -9,11 +9,11 @@
 
 #include "debugger/manageddebugger.h"
 #include "debugger/breakpoints/breakpoints.h"
+#include "debugger/callbacksqueue.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
-#include "debugger/callbacksqueue.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
 #include "debugger/managedcallback.h"
@@ -325,35 +325,15 @@ void ManagedDebugger::DisableAllBreakpointsAndSteppers()
     Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
 }
 
-void ManagedDebugger::SetLastStoppedThread(ICorDebugThread *pThread)
+// Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
+// the call to the Threads function, so it is intentionally kept non-static.
+ThreadId ManagedDebugger::GetLastStoppedThreadId() // NOLINT(readability-convert-member-functions-to-static)
 {
-    SetLastStoppedThreadId(GetThreadId(pThread));
-}
-
-void ManagedDebugger::SetLastStoppedThreadId(ThreadId threadId)
-{
-    const std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
-    m_lastStoppedThreadId = threadId;
-
-    const ReadLock r_lock(m_debugProcessRWLock);
-
-    Breakpoints::SetLastStoppedIlOffset(m_trProcess, m_lastStoppedThreadId);
-}
-
-void ManagedDebugger::InvalidateLastStoppedThreadId()
-{
-    SetLastStoppedThreadId(ThreadId::AllThreads);
-}
-
-ThreadId ManagedDebugger::GetLastStoppedThreadId()
-{
-    const std::scoped_lock<std::mutex> lock(m_lastStoppedMutex);
-    return m_lastStoppedThreadId;
+    return Threads::GetLastStoppedThreadId();
 }
 
 ManagedDebugger::ManagedDebugger()
-    : m_lastStoppedThreadId(ThreadId::AllThreads),
-      m_sharedCallbacksQueue(nullptr),
+    : m_sharedCallbacksQueue(nullptr),
       m_uniqueManagedCallback(nullptr),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
             {
@@ -1108,7 +1088,7 @@ HRESULT ManagedDebugger::Goto(ThreadId threadId, uint32_t targetId, std::string 
     Variables::Cleanup();
     FrameId::invalidate();               // Clear all created during break frames.
 
-    SetLastStoppedThreadId(threadId);
+    Threads::SetLastStoppedThread(m_trProcess, threadId);
 
     return S_OK;
 }

@@ -499,7 +499,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         std::unique_ptr<asyncStep_t> &asyncStep = GetAsyncStep();
         asyncStep = std::make_unique<asyncStep_t>();
 
-        asyncStep->m_threadId = GetThreadId(pThread);
+        asyncStep->m_threadId = Threads::GetId(pThread);
         asyncStep->m_initialStepType = stepType;
         asyncStep->m_resume_offset = awaitInfo.resumeOffset;
         asyncStep->m_stepStatus = asyncStepStatus::yieldOffset_breakpoint;
@@ -624,7 +624,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
     if (asyncStep->m_stepStatus == asyncStepStatus::yieldOffset_breakpoint)
     {
         // Note, in case of first breakpoint for async step, we must have same thread.
-        if (asyncStep->m_threadId != GetThreadId(pThread))
+        if (asyncStep->m_threadId != Threads::GetId(pThread))
         {
             // Parallel thread execution, skip it and continue async step routine.
             return S_IGNORE;
@@ -669,7 +669,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         // 1. We still have initial thread, so, no need to spend time and check asyncId.
         // 2. We have another thread with same asyncId - same execution of async method.
         // 3. We have another thread with different asyncId - parallel execution of async method.
-        if (asyncStep->m_threadId == GetThreadId(pThread))
+        if (asyncStep->m_threadId == Threads::GetId(pThread))
         {
             SimpleStepper::SetupStep(pThread, asyncStep->m_initialStepType);
             asyncStep.reset(nullptr);

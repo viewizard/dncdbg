@@ -40,9 +40,9 @@ uint32_t GetNewBreakpointId()
 
 } // unnamed namespace
 
-void SetLastStoppedIlOffset(ICorDebugProcess *pProcess, const ThreadId &lastStoppedThreadId)
+void SetLastStoppedIlOffset(ICorDebugThread *pThread)
 {
-    BreakBreakpoint::SetLastStoppedIlOffset(pProcess, lastStoppedThreadId);
+    BreakBreakpoint::SetLastStoppedIlOffset(pThread);
 }
 
 HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStoppedThreadId)

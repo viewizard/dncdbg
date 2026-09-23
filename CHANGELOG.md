@@ -54,6 +54,9 @@ Upcoming changes compared to previous version.
 - Updated object display to escape special characters in the overridden `ToString()` output, matching string value escaping.
 - Reworked attach to the `RegisterForRuntimeStartup` callback flow, replacing the `EnumerateCLRs`-based runtime discovery.
 
+#### Removed
+- Removed unused code.
+
 #### Fixed
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
 - Fixed SetVariable to accept non-negative `long` constant expressions for `ulong` variables (implicit constant expression conversions, ECMA-334).
