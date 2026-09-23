@@ -77,6 +77,7 @@ set(DNCDBG_SOURCES
     metadata/sigparse.cpp
     protocol/dap.cpp
     protocol/dapio.cpp
+    protocol/internal_helpers.cpp
     types/protocol.cpp
     types/types.cpp
     utils/diagnostics_client.cpp
