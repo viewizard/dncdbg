@@ -9,16 +9,44 @@
 #include "utils/logger.h"
 #include <dlfcn.h>
 #include <cstdlib>
+#include <mutex>
 #include <sys/wait.h>
 
-namespace dncdbg
+namespace dncdbg::WaitpidHook
 {
 
-WaitpidHook::Signature WaitpidHook::original = nullptr;
-pid_t WaitpidHook::trackPID = notConfigured;
-int WaitpidHook::exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
+namespace
+{
 
-void WaitpidHook::init() noexcept
+using Signature = pid_t (*)(pid_t pid, int *status, int options);
+
+constexpr pid_t notConfigured = -1;
+
+Signature &original()
+{
+    static Signature original = nullptr;
+    return original;
+}
+
+pid_t &trackPID()
+{
+    static pid_t trackPID = notConfigured;
+    return trackPID;
+}
+
+int &exitCode()
+{
+    static int exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
+    return exitCode;
+}
+
+std::recursive_mutex &GetInterlock()
+{
+    static std::recursive_mutex interlock;
+    return interlock;
+}
+
+void init() noexcept
 {
     auto *ret = dlsym(RTLD_NEXT, "waitpid");
     if (ret == nullptr)
@@ -26,40 +54,42 @@ void WaitpidHook::init() noexcept
         LOGE(log << "Could not find original function waitpid");
         abort();
     }
-    original = reinterpret_cast<Signature>(ret);
+    original() = reinterpret_cast<Signature>(ret);
 }
 
-pid_t WaitpidHook::CallOriginal(pid_t pid, int *status, int options)
+pid_t CallOriginal(pid_t pid, int *status, int options)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
-    if (original == nullptr)
+    if (original() == nullptr)
     {
         init();
     }
-    return original(pid, status, options);
+    return original()(pid, status, options);
 }
 
-void WaitpidHook::SetupTrackingPID(pid_t PID)
+void SetExitCode(pid_t PID, int Code)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
-    trackPID = PID;
-    exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
-}
-
-int WaitpidHook::GetExitCode()
-{
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
-    return exitCode;
-}
-
-void WaitpidHook::SetExitCode(pid_t PID, int Code)
-{
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
-    if (trackPID == notConfigured || PID != trackPID)
+    if (trackPID() == notConfigured || PID != trackPID())
     {
         return;
     }
-    exitCode = Code;
+    exitCode() = Code;
+}
+
+} // namespace
+
+void SetupTrackingPID(pid_t PID)
+{
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    trackPID() = PID;
+    exitCode() = 0; // Same behavior as CoreCLR: by default, exit code is 0
+}
+
+int GetExitCode()
+{
+    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    return exitCode();
 }
 
 // Note, we guarantee `waitpid()` hook works only during debuggee process execution;
@@ -91,6 +121,6 @@ extern "C" pid_t wait(int *status) // NOLINT(readability-inconsistent-declaratio
     return waitpid(-1, status, 0);
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::WaitpidHook
 
 #endif // __linux__

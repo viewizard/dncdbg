@@ -12,34 +12,48 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-namespace dncdbg
+namespace dncdbg::MacKqueue
 {
 
-int MacKqueue::kq = -1;
-int MacKqueue::exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
-
-void MacKqueue::SetupTrackingPID(pid_t PID)
+namespace
 {
-    kq = kqueue();
-    exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
-    if (kq == -1)
+
+int &kq()
+{
+    static int kq = -1;
+    return kq;
+}
+
+int &exitCode()
+{
+    static int exitCode = 0; // Same behavior as CoreCLR: by default, exit code is 0
+    return exitCode;
+}
+
+} // namespace
+
+void SetupTrackingPID(pid_t PID)
+{
+    kq() = kqueue();
+    exitCode() = 0; // Same behavior as CoreCLR: by default, exit code is 0
+    if (kq() == -1)
     {
         LOGE(log << "Failed to create kqueue: " << strerror(errno));
         return;
     }
     struct kevent change{};
     EV_SET(&change, PID, EVFILT_PROC, EV_ADD | EV_ENABLE, NOTE_EXIT | NOTE_EXITSTATUS, 0, nullptr);
-    if (kevent(kq, &change, 1, nullptr, 0, nullptr) == -1)
+    if (kevent(kq(), &change, 1, nullptr, 0, nullptr) == -1)
     {
         LOGE(log << "Failed to register kevent for PID " << PID << ": " << strerror(errno));
     }
 }
 
-int MacKqueue::GetExitCode()
+int GetExitCode()
 {
-    if (kq == -1)
+    if (kq() == -1)
     {
-        return exitCode;
+        return exitCode();
     }
 
     // Note: This function is triggered by ManagedCallback::ExitProcess() after the
@@ -52,19 +66,19 @@ int MacKqueue::GetExitCode()
     timeout.tv_nsec = 0;
 
     struct kevent event{};
-    const int nev = kevent(kq, nullptr, 0, &event, 1, &timeout);
+    const int nev = kevent(kq(), nullptr, 0, &event, 1, &timeout);
     if (nev > 0 && event.filter == EVFILT_PROC && ((event.fflags & NOTE_EXIT) != 0U))
     {
         const int status = static_cast<int>(event.data);
 
         if (WIFEXITED(status))
         {
-            exitCode = WEXITSTATUS(status);
+            exitCode() = WEXITSTATUS(status);
         }
         else if (WIFSIGNALED(status))
         {
             LOGW(log << "Process terminated by signal " << WTERMSIG(status) << ". Assuming EXIT_FAILURE.");
-            exitCode = EXIT_FAILURE;
+            exitCode() = EXIT_FAILURE;
         }
     }
     else if (nev == 0)
@@ -76,12 +90,12 @@ int MacKqueue::GetExitCode()
         LOGE(log << "kevent() failed: " << strerror(errno));
     }
 
-    close(kq);
-    kq = -1;
+    close(kq());
+    kq() = -1;
 
-    return exitCode;
+    return exitCode();
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::MacKqueue
 
 #endif // (defined(__APPLE__) && defined(__MACH__))

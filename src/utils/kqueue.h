@@ -9,30 +9,13 @@
 
 #include <sys/types.h>
 
-namespace dncdbg
+namespace dncdbg::MacKqueue
 {
 
-class MacKqueue
-{
-  public:
+void SetupTrackingPID(pid_t PID);
+int GetExitCode();
 
-    MacKqueue() = default;
-    MacKqueue(MacKqueue &&) = delete;
-    MacKqueue(const MacKqueue &) = delete;
-    MacKqueue &operator=(MacKqueue &&) = delete;
-    MacKqueue &operator=(const MacKqueue &) = delete;
-    ~MacKqueue() = default;
-
-    static void SetupTrackingPID(pid_t PID);
-    static int GetExitCode();
-
-  private:
-
-    static int kq;
-    static int exitCode;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::MacKqueue
 
 #endif // (defined(__APPLE__) && defined(__MACH__))
 

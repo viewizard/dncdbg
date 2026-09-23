@@ -8,47 +8,15 @@
 
 #ifdef __linux__
 
-#include <mutex>
-#include <csignal>
+#include <sys/types.h>
 
-namespace dncdbg
+namespace dncdbg::WaitpidHook
 {
 
-class WaitpidHook
-{
-  public:
+void SetupTrackingPID(pid_t PID);
+int GetExitCode();
 
-    WaitpidHook() = default;
-    WaitpidHook(WaitpidHook &&) = delete;
-    WaitpidHook(const WaitpidHook &) = delete;
-    WaitpidHook &operator=(WaitpidHook &&) = delete;
-    WaitpidHook &operator=(const WaitpidHook &) = delete;
-    ~WaitpidHook() = default;
-
-    static pid_t CallOriginal(pid_t pid, int *status, int options);
-    static void SetupTrackingPID(pid_t PID);
-    static int GetExitCode();
-    static void SetExitCode(pid_t PID, int Code);
-
-  private:
-
-    using Signature = pid_t (*)(pid_t pid, int *status, int options);
-
-    static Signature original;
-    static constexpr pid_t notConfigured = -1;
-    static pid_t trackPID;
-    static int exitCode;
-
-    static std::recursive_mutex &GetInterlock()
-    {
-        static std::recursive_mutex interlock;
-        return interlock;
-    }
-
-    static void init() noexcept;
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::WaitpidHook
 
 #endif // __linux__
 
