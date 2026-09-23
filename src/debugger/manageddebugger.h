@@ -100,7 +100,6 @@ class ManagedDebugger
   private:
 
     friend class ManagedCallback;
-    friend class CallbacksQueue;
 
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
     std::condition_variable m_processAttachedCV;

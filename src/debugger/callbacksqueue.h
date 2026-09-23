@@ -25,8 +25,6 @@
 namespace dncdbg
 {
 
-class ManagedDebugger;
-
 // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugcontroller-hasqueuedcallbacks-method
 //
 // Callbacks will be dispatched one at a time, each time ICorDebugController::Continue is called.
@@ -52,8 +50,11 @@ class CallbacksQueue
 {
   public:
 
-    explicit CallbacksQueue(ManagedDebugger &debugger)
-        : m_debugger(debugger),
+    // Callback to notify the debugger that the debuggee process was created (attached/launched).
+    using NotifyProcessCreatedCallback = std::function<void()>;
+
+    explicit CallbacksQueue(NotifyProcessCreatedCallback notifyProcessCreatedCallback)
+        : m_notifyProcessCreatedCallback(std::move(notifyProcessCreatedCallback)),
           m_callbacksWorker{&CallbacksQueue::CallbacksWorker, this}
     {
     }
@@ -78,7 +79,7 @@ class CallbacksQueue
 
   private:
 
-    ManagedDebugger &m_debugger;
+    NotifyProcessCreatedCallback m_notifyProcessCreatedCallback;
 
     // Note: we have one entry type for both (managed and interop) callbacks (stop events),
     //       since almost all the time we have CallbackQueue with 1 entry only, no reason complicate code.
@@ -124,7 +125,6 @@ class CallbacksQueue
     static bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason reason);
     static bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread);
     static bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ExceptionCallbackType eventType);
-    bool CallbacksWorkerCreateProcess();
     static bool HasQueuedCallbacks(ICorDebugProcess *pProcess);
 };
 

@@ -12,7 +12,6 @@
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
 #include "debugger/frames.h"
 #include "debugger/steppers/steppers.h"
-#include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "protocol/dapio.h"
 #include "utils/hresult.h"
@@ -108,12 +107,6 @@ bool CallbacksQueue::CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, IC
     return true;
 }
 
-bool CallbacksQueue::CallbacksWorkerCreateProcess()
-{
-    m_debugger.NotifyProcessCreated();
-    return false;
-}
-
 void CallbacksQueue::CallbacksWorker()
 {
     std::unique_lock<std::mutex> lock(m_callbacksMutex);
@@ -144,7 +137,12 @@ void CallbacksQueue::CallbacksWorker()
             m_stopEventInProcess = CallbacksWorkerException(c.trAppDomain, c.trThread, c.EventType);
             break;
         case CallbackQueueCall::CreateProcess:
-            m_stopEventInProcess = CallbacksWorkerCreateProcess();
+            // Non-stop event, just notify the debugger and continue execution.
+            if (m_notifyProcessCreatedCallback)
+            {
+                m_notifyProcessCreatedCallback();
+            }
+            m_stopEventInProcess = false;
             break;
         default:
             // finish loop

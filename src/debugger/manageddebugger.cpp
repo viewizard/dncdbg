@@ -581,7 +581,11 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     IfFailRet(trDebug->Initialize());
 
-    m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(*this);
+    m_sharedCallbacksQueue = std::make_shared<CallbacksQueue>(
+        [this]
+        {
+            NotifyProcessCreated();
+        });
     m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this, m_sharedCallbacksQueue);
     if (FAILED(Status = trDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
     {
