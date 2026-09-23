@@ -8,7 +8,7 @@
 #include "utils/hresult.h"
 #include <cstdint>
 
-namespace dncdbg
+namespace dncdbg::DiagnosticsClient
 {
 
 // Minimal .NET Diagnostic IPC protocol client (protocol version DOTNET_IPC_V1).
@@ -21,22 +21,18 @@ namespace dncdbg
 // methods are static.
 //
 // Not thread-sensitive: every call is independent.
-class DiagnosticsClient
-{
-  public:
 
-    // Resolves the default diagnostics endpoint for `pid` (Unix domain socket
-    // on Linux/macOS, named pipe on Windows), sends the ResumeRuntime command
-    // (command set 0x04, command id 0x01, empty payload) over a fresh
-    // connection and validates the response. The server also closes its side
-    // after the response, matching the one-command-per-connection model.
-    //
-    // Returns S_OK on success (server response 0xFF/0x00), the server's
-    // HRESULT carried in the payload of an error response (0xFF/0xFF), or a
-    // client-side HRESULT on transport / protocol failures.
-    static HRESULT ResumeRuntime(uint32_t pid);
-};
+// Resolves the default diagnostics endpoint for `pid` (Unix domain socket
+// on Linux/macOS, named pipe on Windows), sends the ResumeRuntime command
+// (command set 0x04, command id 0x01, empty payload) over a fresh
+// connection and validates the response. The server also closes its side
+// after the response, matching the one-command-per-connection model.
+//
+// Returns S_OK on success (server response 0xFF/0x00), the server's
+// HRESULT carried in the payload of an error response (0xFF/0xFF), or a
+// client-side HRESULT on transport / protocol failures.
+HRESULT ResumeRuntime(uint32_t pid);
 
-} // namespace dncdbg
+} // namespace dncdbg::DiagnosticsClient
 
 #endif // UTILS_DIAGNOSTICS_CLIENT_H

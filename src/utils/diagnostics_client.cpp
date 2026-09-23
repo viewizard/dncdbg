@@ -13,7 +13,7 @@
 #include <palrt.h> // S_OK, E_FAIL, FAILED (via pal.h chain)
 #endif
 
-namespace dncdbg
+namespace dncdbg::DiagnosticsClient
 {
 
 // ResumeRuntime exchange (protocol version DOTNET_IPC_V1):
@@ -24,7 +24,7 @@ namespace dncdbg
 //   a little-endian int32_t HRESULT;
 // - the server closes the connection after the response either way, so this
 //   method performs a complete one-command-per-connection round trip.
-HRESULT DiagnosticsClient::ResumeRuntime(uint32_t pid)
+HRESULT ResumeRuntime(uint32_t pid)
 {
     // Internal transport machinery lives in DiagnosticsIpc (see utils/diagnostics_ipc.h).
     using namespace DiagnosticsIpc;
@@ -105,4 +105,4 @@ HRESULT DiagnosticsClient::ResumeRuntime(uint32_t pid)
     return DS_IPC_E_BAD_ENCODING;
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::DiagnosticsClient
