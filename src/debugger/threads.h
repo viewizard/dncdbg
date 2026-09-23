@@ -26,7 +26,8 @@ void SetLastStoppedThread(ICorDebugProcess *pProcess, ThreadId threadId);
 void InvalidateLastStoppedThread();
 ThreadId GetLastStoppedThreadId();
 
-void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached);
+void Add(ICorDebugThread *pThread, const ThreadId &threadId);
+void SetProcessAttached(bool state);
 void ChangeName(ICorDebugThread *pThread);
 void Remove(const ThreadId &threadId);
 HRESULT GetThreads(std::vector<Thread> &threads);

@@ -24,6 +24,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace dncdbg
@@ -55,7 +56,6 @@ class ManagedDebugger
     ManagedDebugger &operator=(const ManagedDebugger &) = delete;
     ~ManagedDebugger();
 
-    HRESULT Initialize();
     HRESULT Attach(DWORD pid);
     HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
                    const std::map<std::string, std::string> &env, const std::string &cwd);
@@ -98,8 +98,6 @@ class ManagedDebugger
 
   private:
 
-    friend class ManagedCallback;
-
     std::mutex m_processAttachedMutex; // Note, in case m_debugProcessRWLock+m_processAttachedMutex, m_debugProcessRWLock must be locked first.
     std::condition_variable m_processAttachedCV;
     ProcessAttachedState m_processAttachedState{ProcessAttachedState::Unattached};
@@ -135,7 +133,6 @@ class ManagedDebugger
     void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
 
     void Cleanup();
-    void DisableAllBreakpointsAndSteppers();
 
     static void StartupCallback(IUnknown *pCordb, void *parameter, HRESULT hr);
     std::atomic<HRESULT> StartupCallbackHR{S_OK}; // Written by the startup callback thread, read by the caller thread.

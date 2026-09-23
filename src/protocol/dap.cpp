@@ -234,7 +234,6 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
     static std::unordered_map<std::string, CommandCallback> commands{
         {"initialize", [&](const json &/*arguments*/, json &responseBody)
             {
-                m_sharedDebugger->Initialize();
                 // clientID, clientName, adapterID - not in use now
 
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.

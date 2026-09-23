@@ -16,7 +16,6 @@
 #include "debugger/callbacksqueue.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
-#include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
@@ -228,7 +227,10 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
 #endif
 
     DAPIO::EmitExitedEvent(ExitedEvent(exitCode));
-    m_debugger.NotifyProcessExited();
+    if (m_notifyProcessExitedCallback)
+    {
+        m_notifyProcessExitedCallback();
+    }
     DAPIO::EmitTerminatedEvent();
     return S_OK;
 }
@@ -241,7 +243,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     }
 
     const ThreadId threadId(Threads::GetId(pThread));
-    Threads::Add(pThread, threadId, m_debugger.m_startMethod == StartMethod::Attach);
+    Threads::Add(pThread, threadId);
 
     DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return CallbacksQueue::ContinueAppDomain(pAppDomain);

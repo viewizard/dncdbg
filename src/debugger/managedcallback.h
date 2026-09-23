@@ -12,20 +12,18 @@
 #include <specstrings_undef.h>
 #endif
 
+#include <functional>
 #include <mutex>
-#include <memory>
 
 namespace dncdbg
 {
-
-class ManagedDebugger;
 
 class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugManagedCallback2, public ICorDebugManagedCallback3
 {
   public:
 
-    explicit ManagedCallback(ManagedDebugger &debugger)
-        : m_debugger(debugger)
+    explicit ManagedCallback(std::function<void()> notifyProcessExitedCallback)
+        : m_notifyProcessExitedCallback(std::move(notifyProcessExitedCallback))
     {
     }
 
@@ -109,7 +107,7 @@ class ManagedCallback final : public ICorDebugManagedCallback, public ICorDebugM
 
     std::mutex m_refCountMutex;
     ULONG m_refCount{0};
-    ManagedDebugger &m_debugger;
+    std::function<void()> m_notifyProcessExitedCallback;
 };
 
 } // namespace dncdbg

@@ -318,13 +318,6 @@ void ManagedDebugger::NotifyProcessExited()
     m_processAttachedCV.notify_all();
 }
 
-// Caller must hold m_debugProcessRWLock.
-void ManagedDebugger::DisableAllBreakpointsAndSteppers()
-{
-    Steppers::DisableAll(m_trProcess); // Async stepper could have breakpoints active, disable them first.
-    Breakpoints::DisableAll(m_trProcess); // Last one, disable all breakpoints on all domains, even if we don't hold them.
-}
-
 // Note, this method is part of the ManagedDebugger public API (see dap.cpp); it only forwards
 // the call to the Threads function, so it is intentionally kept non-static.
 ThreadId ManagedDebugger::GetLastStoppedThreadId() // NOLINT(readability-convert-member-functions-to-static)
@@ -333,11 +326,14 @@ ThreadId ManagedDebugger::GetLastStoppedThreadId() // NOLINT(readability-convert
 }
 
 ManagedDebugger::ManagedDebugger()
-    : m_uniqueManagedCallback(nullptr),
+    : m_uniqueManagedCallback(std::make_unique<ManagedCallback>([this]
+                              {
+                                  NotifyProcessExited();
+                              })),
       m_ioredirect([this](IORedirect::StreamType type, gsl::span<char> text)
-            {
-                InputCallback(type, text);
-            })
+                   {
+                       InputCallback(type, text);
+                   })
 {
     CallbacksQueue::Initialize([this]
     {
@@ -347,14 +343,13 @@ ManagedDebugger::ManagedDebugger()
 
 ManagedDebugger::~ManagedDebugger()
 {
+    // Note, the callback is owned by the debugger for its whole lifetime,
+    // so ICorDebug must release it before the debugger is destroyed.
+    if (m_uniqueManagedCallback->GetRefCount() > 0)
+    {
+        LOGW(log << "ManagedCallback was not properly released by ICorDebug");
+    }
     CallbacksQueue::Shutdown();
-}
-
-HRESULT ManagedDebugger::Initialize()
-{
-    // TODO: Report capabilities and check client support
-    m_startMethod = StartMethod::None;
-    return S_OK;
 }
 
 HRESULT ManagedDebugger::ConfigurationDone()
@@ -376,6 +371,7 @@ HRESULT ManagedDebugger::ConfigurationDone()
 HRESULT ManagedDebugger::Attach(DWORD pid)
 {
     m_startMethod = StartMethod::Attach;
+    Threads::SetProcessAttached(true);
     m_processId = pid;
     return S_OK;
 }
@@ -384,6 +380,7 @@ HRESULT ManagedDebugger::Launch(const std::string &fileExec, const std::vector<s
                                 const std::map<std::string, std::string> &env, const std::string &cwd)
 {
     m_startMethod = StartMethod::Launch;
+    Threads::SetProcessAttached(false);
     m_execPath = fileExec;
     m_execArgs = execArgs;
     m_cwd = cwd;
@@ -587,11 +584,9 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
 
     IfFailRet(trDebug->Initialize());
 
-    m_uniqueManagedCallback = std::make_unique<ManagedCallback>(*this);
     if (FAILED(Status = trDebug->SetManagedHandler(m_uniqueManagedCallback.get())))
     {
         trDebug->Terminate();
-        m_uniqueManagedCallback.reset();
         return Status;
     }
 
@@ -599,7 +594,6 @@ HRESULT ManagedDebugger::Startup(IUnknown *punk)
     if (FAILED(Status = trDebug->DebugActiveProcess(m_processId, FALSE, &trProcess)))
     {
         trDebug->Terminate();
-        m_uniqueManagedCallback.reset();
         return Status;
     }
 
@@ -748,7 +742,8 @@ HRESULT ManagedDebugger::DetachFromProcess()
             m_trProcess->Stop(0);
         }
 
-        DisableAllBreakpointsAndSteppers();
+        Steppers::DisableAll(m_trProcess); // Disable steppers first: an async stepper could have breakpoints active.
+        Breakpoints::DisableAll(m_trProcess); // Disable breakpoints last, on all domains, even the ones we don't hold.
 
         HRESULT Status = S_OK;
         if (FAILED(Status = m_trProcess->Detach()))
@@ -786,7 +781,8 @@ HRESULT ManagedDebugger::TerminateProcess()
             m_trProcess->Stop(0);
         }
 
-        DisableAllBreakpointsAndSteppers();
+        Steppers::DisableAll(m_trProcess); // Disable steppers first: an async stepper could have breakpoints active.
+        Breakpoints::DisableAll(m_trProcess); // Disable breakpoints last, on all domains, even the ones we don't hold.
 
         HRESULT Status = S_OK;
         if (SUCCEEDED(Status = m_trProcess->Terminate(0)))
@@ -821,8 +817,8 @@ void ManagedDebugger::Cleanup()
 
     const WriteLock w_lock(m_debugProcessRWLock);
 
-    assert((m_trProcess && m_trDebug && m_uniqueManagedCallback) ||
-           (!m_trProcess && !m_trDebug && !m_uniqueManagedCallback));
+    assert((m_trProcess && m_trDebug) ||
+           (!m_trProcess && !m_trDebug));
 
     if (m_trProcess == nullptr)
     {
@@ -833,12 +829,6 @@ void ManagedDebugger::Cleanup()
 
     m_trDebug->Terminate();
     m_trDebug.Free();
-
-    if (m_uniqueManagedCallback->GetRefCount() > 0)
-    {
-        LOGW(log << "ManagedCallback was not properly released by ICorDebug");
-    }
-    m_uniqueManagedCallback.reset(nullptr);
 }
 
 HRESULT ManagedDebugger::AttachToProcess()

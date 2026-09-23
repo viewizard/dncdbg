@@ -93,6 +93,12 @@ ThreadId &GetLastStoppedThreadIdState()
     return lastStoppedThreadId;
 }
 
+bool &GetProcessAttached()
+{
+    static bool processAttached{false};
+    return processAttached;
+}
+
 } // unnamed namespace
 
 ThreadId GetId(ICorDebugThread *pThread)
@@ -143,14 +149,14 @@ ThreadId GetLastStoppedThreadId()
     return GetLastStoppedThreadIdState();
 }
 
-void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttached)
+void Add(ICorDebugThread *pThread, const ThreadId &threadId)
 {
     const WriteLock w_lock(GetUserThreadsRWLock());
 
     const std::string threadName = GetThreadName(pThread);
 
     // The first user thread added during startup is the Main thread.
-    if (!processAttached && !GetMainThread())
+    if (!GetProcessAttached() && !GetMainThread())
     {
         GetMainThread() = threadId;
         if (threadName == "<No name>")
@@ -161,6 +167,12 @@ void Add(ICorDebugThread *pThread, const ThreadId &threadId, bool processAttache
     }
 
     GetUserThreads().emplace(threadId, threadName);
+}
+
+void SetProcessAttached(bool state)
+{
+    const WriteLock w_lock(GetUserThreadsRWLock());
+    GetProcessAttached() = state;
 }
 
 void ChangeName(ICorDebugThread *pThread)
@@ -217,6 +229,7 @@ void Cleanup()
 
         GetUserThreads().clear();
         GetMainThread() = ThreadId{};
+        // Note, GetProcessAttached() is not reset here: it is set by ManagedDebugger::Attach()/Launch() for each debug session.
     }
 
     {
