@@ -15,6 +15,7 @@
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evaluation/walkers/walkers.h"
+#include "debugger/frames.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
@@ -343,15 +344,15 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
     DWORD threadId = 0;
     pThread->GetID(&threadId);
     std::vector<StackFrame> stackFrames;
-    if ((threadId != 0U) &&
-        SUCCEEDED(m_debugger.GetStackTrace(ThreadId(threadId), FrameLevel(0), 0, stackFrames)))
+    if (threadId != 0U &&
+        SUCCEEDED(GetStackFrames(pThread, ThreadId(threadId), FrameLevel(0), 0, stackFrames)))
     {
         // Find first frame with source file data (code with PDB/user code).
         const auto it = std::find_if(stackFrames.cbegin(), stackFrames.cend(),
-                               [](const StackFrame &stackFrame)
-                               {
-                                   return !stackFrame.source.IsNull();
-                               });
+                                     [](const StackFrame &stackFrame)
+                                     {
+                                         return !stackFrame.source.IsNull();
+                                     });
         if (it != stackFrames.cend())
         {
             event.source = it->source;

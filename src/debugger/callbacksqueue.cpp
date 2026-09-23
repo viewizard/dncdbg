@@ -10,6 +10,7 @@
 #include "debugger/callbacksqueue.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/frames.h"
 #include "debugger/steppers/steppers.h"
 #include "debugger/manageddebugger.h"
 #include "debugger/threads.h"
@@ -360,7 +361,9 @@ HRESULT CallbacksQueue::Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedTh
         {
             std::vector<StackFrame> stackFrames;
 
-            if (FAILED(m_debugger.GetStackTrace(thread.id, FrameLevel(0), 0, stackFrames)))
+            ToRelease<ICorDebugThread> trThread;
+            if (FAILED(pProcess->GetThread(static_cast<int>(thread.id), &trThread)) ||
+                FAILED(GetStackFrames(trThread, thread.id, FrameLevel(0), 0, stackFrames)))
             {
                 continue;
             }
