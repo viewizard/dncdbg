@@ -16,13 +16,13 @@
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
+#include "debugger/goto.h"
 #include "debugger/managedcallback.h"
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/sourcefilemap.h"
-#include "debuginfo/types.h"
 #include "metadata/modules.h"
 #include "protocol/dap_events.h"
 #include "utils/dbgshim.h"
@@ -406,9 +406,9 @@ RemoteConsoleServer &GetRemoteConsoleServer()
     return remoteConsoleServer;
 }
 
-std::vector<GotoTargetInternal> &GetIntTargets()
+std::vector<Goto::TargetInternal> &GetIntTargets()
 {
-    static std::vector<GotoTargetInternal> intTargets;
+    static std::vector<Goto::TargetInternal> intTargets;
     return intTargets;
 }
 
@@ -481,6 +481,7 @@ void Cleanup()
     Modules::Cleanup();
     Threads::Cleanup();
     CallbacksQueue::Cleanup();
+    Goto::Cleanup();
 
     const WriteLock w_lock(GetDebugProcessRWLock());
 
@@ -1127,7 +1128,7 @@ HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::v
     std::vector<GotoTarget> publicTargets;
     GetIntTargets().clear();
 
-    IfFailRet(DebugInfo::GetGotoTarget(source, line, column, publicTargets, GetIntTargets(), output));
+    IfFailRet(Goto::GetTarget(source, line, column, publicTargets, GetIntTargets(), output));
 
     targets = std::move(publicTargets);
 
@@ -1195,7 +1196,7 @@ HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output)
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    const GotoTargetInternal &target = GetIntTargets().at(targetIndex);
+    const Goto::TargetInternal &target = GetIntTargets().at(targetIndex);
 
     if (target.modAddress != modAddress ||
         target.methodToken != methodToken)

@@ -24,6 +24,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <vector>
 
 #ifdef __linux__
 #include "utils/waitpid.h"

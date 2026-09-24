@@ -12,7 +12,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/pdb.h"
 #include "types/protocol.h"
 #include <functional>
 #include <string>
@@ -21,7 +20,6 @@
 namespace dncdbg::Modules
 {
 
-HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB);
 HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
 std::string GetModuleFilePath(ICorDebugModule *pModule);
 void LoadModuleMetadata(ICorDebugModule *pModule, Module &module);

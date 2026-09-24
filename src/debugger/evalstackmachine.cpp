@@ -1012,7 +1012,7 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
     std::transform(genericMethodFQDisplayTypeNames.cbegin(), genericMethodFQDisplayTypeNames.cend(), std::back_inserter(genericMethodParameters),
                    [&ed, &pdbImports](const auto &displayTypeName)
                    {
-                       return MetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
+                       return EvalMetadataHelpers::GetSigElementTypeByDisplayTypeName(ed.pThread, displayTypeName, pdbImports);
                    });
 
     const auto expectedMethodGenParamCount = static_cast<uint32_t>(evalStack.front().trGenericTypeCache.size());

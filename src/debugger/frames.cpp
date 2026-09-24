@@ -335,7 +335,7 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
             }
 
             std::string displayMethodName;
-            if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(trModule, exceptionObjectStackFrame.methodDef, displayMethodName)))
+            if (FAILED(EvalMetadataHelpers::GetFQDisplayRealCodeMethodName(trModule, exceptionObjectStackFrame.methodDef, displayMethodName)))
             {
                 displayMethodName = "[Unnamed managed method in optimized code]";
             }

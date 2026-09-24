@@ -178,7 +178,7 @@ HRESULT WalkStackVars(ICorDebugThread *pThread, FrameLevel frameLevel, const Wal
             {
                 if (pFallbackTypeName != nullptr)
                 {
-                    MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, *pFallbackTypeName);
+                    EvalMetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, *pFallbackTypeName);
                 }
                 return CORDBG_E_IL_VAR_NOT_AVAILABLE;
             };

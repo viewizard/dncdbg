@@ -4,17 +4,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "metadata/helpers.h"
-#include "debuginfo/debuginfo.h"
 #include "metadata/attributes.h"
-#include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <charconv>
 #include <limits>
-#include <map>
-#include <set>
 #include <sstream>
 #include <string_view>
 #include <unordered_map>
@@ -599,398 +595,6 @@ std::string RenameToCSharp(const std::string &typeName)
     return renamed != system2cs.cend() ? renamed->second : typeName;
 }
 
-std::vector<std::string> GatherGenericFQDisplayParameters(const std::vector<std::string> &identifiers, int indexEnd)
-{
-    std::vector<std::string> result;
-    for (int i = 0; i < indexEnd; i++)
-    {
-        std::string metadataTypeName;
-        const std::vector<std::string> genericFQDisplayTypeNames = MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataTypeName);
-        result.insert(result.end(), genericFQDisplayTypeNames.cbegin(), genericFQDisplayTypeNames.cend());
-    }
-    return result;
-}
-
-mdTypeDef GetTypeTokenForName(IMetaDataImport *pMDImport, mdTypeDef tkEnclosingClass, const std::string &name)
-{
-    mdTypeDef typeToken = mdTypeDefNil;
-    pMDImport->FindTypeDefByName(to_utf16(name).c_str(), tkEnclosingClass, &typeToken);
-    return typeToken;
-}
-
-HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string> &identifiers,
-                         int &nextIdentifier, mdTypeDef &typeToken)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    std::string currentTypeName;
-
-    // Search for type in module
-    assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
-    {
-        std::string metadataName;
-        MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(i), metadataName);
-        currentTypeName += (currentTypeName.empty() ? "" : ".") + metadataName;
-
-        typeToken = GetTypeTokenForName(trMDImport, mdTypeDefNil, currentTypeName);
-        if (typeToken != mdTypeDefNil)
-        {
-            nextIdentifier = i + 1;
-            break;
-        }
-    }
-
-    if (typeToken == mdTypeDefNil) // type not found, continue search in next module
-    {
-        return E_FAIL;
-    }
-
-    // Resolve nested class
-    for (int j = nextIdentifier; j < static_cast<int>(identifiers.size()); j++)
-    {
-        std::string metadataName;
-        MetadataHelpers::ConvertDisplayToMetadataName(identifiers.at(j), metadataName);
-        const mdTypeDef classToken = GetTypeTokenForName(trMDImport, typeToken, metadataName);
-        if (classToken == mdTypeDefNil)
-        {
-            break;
-        }
-        typeToken = classToken;
-        nextIdentifier = j + 1;
-    }
-
-    return S_OK;
-}
-
-// Replace the first identifier with the target namespace of a matching
-// `using <alias> = <namespace>;` alias (ImportsKind::AliasNamespace), if any.
-// Only applies when no identifiers have been consumed yet (nextIdentifier == 0),
-// since the alias can only substitute the leading namespace component.
-void ApplyNamespaceAlias(std::vector<std::string> &identifiers, int nextIdentifier, const PDB::ImportsAndAliases &pdbImports)
-{
-    if (nextIdentifier != 0)
-    {
-        return;
-    }
-
-    const auto aliasNamespace = pdbImports.find(PDB::ImportsKind::AliasNamespace);
-    if (aliasNamespace == pdbImports.cend())
-    {
-        return;
-    }
-
-    for (const auto &entry : aliasNamespace->second)
-    {
-        if (entry.alias == identifiers.at(0))
-        {
-            identifiers.at(0) = entry.targetNamespace;
-            break;
-        }
-    }
-}
-
-// Replace the first identifier with the target type of a matching
-// `using <alias> = <type>;` alias (ImportsKind::AliasType), if any.
-// Only applies when no identifiers have been consumed yet (nextIdentifier == 0),
-// since the alias can only substitute the leading type component.
-void ApplyTypeAlias(std::vector<std::string> &identifiers, int nextIdentifier, const PDB::ImportsAndAliases &pdbImports)
-{
-    if (nextIdentifier != 0)
-    {
-        return;
-    }
-
-    const auto aliasType = pdbImports.find(PDB::ImportsKind::AliasType);
-    if (aliasType == pdbImports.cend())
-    {
-        return;
-    }
-
-    for (const auto &entry : aliasType->second)
-    {
-        if (entry.alias != identifiers.at(0))
-        {
-            continue;
-        }
-
-        // Skip entries whose target type display name could not be resolved.
-        if (entry.displayName.empty())
-        {
-            continue;
-        }
-
-        const std::vector<std::string> typeIdentifiers = SplitFQDisplayTypeName(entry.displayName);
-
-        identifiers.erase(identifiers.begin());
-        identifiers.insert(identifiers.begin(), typeIdentifiers.cbegin(), typeIdentifiers.cend());
-        break;
-    }
-}
-
-// Search all modules for a type token matching `identifiers`. If the type is not
-// found, retry the search with each imported namespace prefixed onto the first
-// identifier (e.g. resolving `Console` into `System.Console` via `using System;`).
-// On success, outputs the found module, type token, and number of consumed
-// identifiers. Returns E_FAIL when the type cannot be resolved.
-HRESULT FindTypeTokenInAllModules(ICorDebugThread *pThread, std::vector<std::string> &identifiers,
-                                  const PDB::ImportsAndAliases &pdbImports, ToRelease<ICorDebugModule> &trTypeModule,
-                                  int &nextIdentifier, mdTypeDef &typeToken)
-{
-    HRESULT Status = S_OK;
-
-    ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
-    ApplyTypeAlias(identifiers, nextIdentifier, pdbImports);
-
-    IfFailRet(Modules::ForEachModule(pThread,
-        [&](ICorDebugModule *pModule) -> HRESULT
-        {
-            int tmpNextIdentifier = nextIdentifier;
-            if (SUCCEEDED(FindTypeInModule(pModule, identifiers, tmpNextIdentifier, typeToken)))
-            {
-                pModule->AddRef();
-                trTypeModule = pModule;
-                nextIdentifier = tmpNextIdentifier;
-                assert(typeToken != mdTypeDefNil);
-                return S_CAN_EXIT; // Fast exit from the loop.
-            }
-
-            return S_OK; // Return success to continue walking.
-        }));
-
-    if (typeToken != mdTypeDefNil)
-    {
-        return S_OK;
-    }
-
-    if (nextIdentifier != 0)
-    {
-        return E_FAIL;
-    }
-
-    const auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
-    if (importNamespace == pdbImports.cend())
-    {
-        return E_FAIL;
-    }
-
-    for (const auto &importName : importNamespace->second)
-    {
-        std::vector<std::string> testIdentifiers = identifiers;
-        testIdentifiers.at(0) = importName.targetNamespace + "." + testIdentifiers.at(0);
-
-        IfFailRet(Modules::ForEachModule(pThread,
-            [&](ICorDebugModule *pModule) -> HRESULT
-            {
-                nextIdentifier = 0;
-                if (SUCCEEDED(FindTypeInModule(pModule, testIdentifiers, nextIdentifier, typeToken)))
-                {
-                    pModule->AddRef();
-                    trTypeModule = pModule;
-                    assert(typeToken != mdTypeDefNil);
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-
-                return S_OK; // Return success to continue walking.
-            }));
-
-        if (typeToken != mdTypeDefNil)
-        {
-            break;
-        }
-    }
-
-    return typeToken != mdTypeDefNil ? S_OK : E_FAIL;
-}
-
-// Helper function to create a parameterized type from a class token.
-HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToken,
-                                std::vector<ToRelease<ICorDebugType>> &trTypes,
-                                ICorDebugType **ppType)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pTypeModule->GetClassFromToken(typeToken, &trClass));
-
-    ToRelease<ICorDebugClass2> trClass2;
-    IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    DWORD flags = 0;
-    ULONG nameLen = 0;
-    mdToken tkExtends = mdTokenNil;
-    IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
-
-    std::string displayTypeName;
-    IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(tkExtends, trMDImport, displayTypeName, nullptr));
-
-    const bool isValueType = displayTypeName == "System.ValueType" || displayTypeName == "System.Enum";
-    const CorElementType elemType = isValueType ? ELEMENT_TYPE_VALUETYPE : ELEMENT_TYPE_CLASS;
-
-#ifdef BIT64
-    assert(trTypes.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-    ToRelease<ICorDebugType> trType;
-    IfFailRet(trClass2->GetParameterizedType(elemType, static_cast<uint32_t>(trTypes.size()),
-                                             reinterpret_cast<ICorDebugType **>(trTypes.data()), &trType));
-
-    *ppType = trType.Detach();
-    return S_OK;
-}
-
-HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugThread *pThread,
-                              const PDB::ImportsAndAliases &pdbImports,
-                              std::vector<ToRelease<ICorDebugType>> &trTypes)
-{
-    HRESULT Status = S_OK;
-
-    // Map to store resolved types by type name.
-    std::map<std::string, ToRelease<ICorDebugType>> resolvedTypes;
-
-    // Work stack entry (LIFO). Since a generic type cannot be created before all its
-    // generic arguments are created, each type name is processed in two steps:
-    // 1. `expanded == false` - all not-yet-resolved generic arguments of this type are pushed
-    //    on top of this entry, so they will be processed (created) first;
-    // 2. `expanded == true`  - all generic arguments are resolved, the type can be created.
-    struct WorkEntry
-    {
-        std::string typeName;
-        bool expanded{false};
-    };
-    std::vector<WorkEntry> workStack;
-
-    // Type names that are expanded, but not resolved yet (waiting for their generic arguments).
-    // Used to detect circular type dependencies instead of relying on an iterations limit.
-    std::set<std::string> inProgress;
-
-    // Note, the work stack is LIFO, push in reverse order to process `params` in original order.
-    for (auto it = params.rbegin(); it != params.rend(); ++it)
-    {
-        workStack.push_back({*it, false});
-    }
-
-    // Note, each type name can be expanded only once (it is protected by `inProgress` and
-    // `resolvedTypes` checks) and each generic argument is pushed only for an expanded type name,
-    // so the total count of iterations is bounded by the generic arguments count and nesting depth.
-    while (!workStack.empty())
-    {
-        WorkEntry entry = std::move(workStack.back());
-        workStack.pop_back();
-
-        // Skip if already resolved (the same type name can be used as a generic argument
-        // in several places, for example Dictionary<List<int>, List<int>>).
-        if (resolvedTypes.find(entry.typeName) != resolvedTypes.cend())
-        {
-            continue;
-        }
-
-        std::vector<int> ranks;
-        std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(entry.typeName, &ranks);
-        if (classIdentifiers.empty())
-        {
-            return E_FAIL;
-        }
-
-        int nextClassIdentifier = 0;
-        ToRelease<ICorDebugModule> trTypeModule;
-        mdTypeDef typeToken = mdTypeDefNil;
-        IfFailRet(FindTypeTokenInAllModules(pThread, classIdentifiers, pdbImports, trTypeModule, nextClassIdentifier, typeToken));
-
-        const std::vector<std::string> nestedParams = GatherGenericFQDisplayParameters(classIdentifiers, nextClassIdentifier);
-
-        if (!entry.expanded)
-        {
-            // Collect generic arguments that must be resolved before this type can be created.
-            std::vector<std::string> unresolved;
-            for (const auto &np : nestedParams)
-            {
-                if (resolvedTypes.find(np) != resolvedTypes.cend())
-                {
-                    continue;
-                }
-                if (inProgress.find(np) != inProgress.cend())
-                {
-                    return E_FAIL; // Circular type dependency.
-                }
-                unresolved.emplace_back(np);
-            }
-
-            if (!unresolved.empty())
-            {
-                inProgress.emplace(entry.typeName);
-                entry.expanded = true;
-                // Push this type name first, so it will be processed after all its generic
-                // arguments that are pushed on top of it (the work stack is LIFO).
-                workStack.push_back(std::move(entry));
-                for (auto it = unresolved.rbegin(); it != unresolved.rend(); ++it)
-                {
-                    workStack.push_back({std::move(*it), false});
-                }
-                continue;
-            }
-        }
-
-        // Collect resolved nested types.
-        std::vector<ToRelease<ICorDebugType>> trNestedTypes;
-        for (const auto &np : nestedParams)
-        {
-            const auto findType = resolvedTypes.find(np);
-            if (findType == resolvedTypes.cend())
-            {
-                return E_FAIL;
-            }
-            ICorDebugType *pType = findType->second.GetPtr();
-            pType->AddRef();
-            trNestedTypes.emplace_back(pType);
-        }
-
-        // Create the type.
-        ToRelease<ICorDebugType> trType;
-        IfFailRet(CreateParameterizedType(trTypeModule, typeToken, trNestedTypes, &trType));
-
-        // Handle array types.
-        if (!ranks.empty())
-        {
-            ToRelease<ICorDebugAppDomain> trAppDomain;
-            ToRelease<ICorDebugAppDomain2> trAppDomain2;
-            IfFailRet(pThread->GetAppDomain(&trAppDomain));
-            IfFailRet(trAppDomain->QueryInterface(IID_ICorDebugAppDomain2, reinterpret_cast<void **>(&trAppDomain2)));
-
-            for (auto irank = ranks.rbegin(); irank != ranks.rend(); ++irank)
-            {
-                const ToRelease<ICorDebugType> trElementType = ToRelease<ICorDebugType>(trType.Detach());
-                IfFailRet(trAppDomain2->GetArrayOrPointerType(*irank > 1 ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY,
-                                                              *irank, trElementType, &trType));
-            }
-        }
-
-        inProgress.erase(entry.typeName);
-        resolvedTypes.emplace(std::move(entry.typeName), std::move(trType));
-    }
-
-    // Copy resolved types to output in original order.
-    for (const auto &param : params)
-    {
-        const auto it = resolvedTypes.find(param);
-        if (it != resolvedTypes.cend())
-        {
-            trTypes.push_back(std::move(it->second));
-        }
-    }
-
-    return S_OK;
-}
-
 HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName)
 {
     HRESULT Status = S_OK;
@@ -1046,6 +650,74 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
     return S_OK;
 }
 
+HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::string &constrName)
+{
+    HRESULT Status = S_OK;
+    ULONG nameLen = 0;
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
+
+    std::vector<WCHAR> name(nameLen, '\0');
+    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), nameLen, nullptr, nullptr, nullptr));
+
+    const std::string typeName = to_utf8(name.data());
+    std::string_view str = typeName;
+
+    const auto last_dot_pos = str.rfind('.');
+    if (last_dot_pos != std::string_view::npos)
+    {
+        str = str.substr(last_dot_pos + 1);
+    }
+
+    const auto backtick_pos = str.rfind('`');
+    if (backtick_pos != std::string_view::npos)
+    {
+        str = str.substr(0, backtick_pos);
+    }
+
+    if (str.empty())
+    {
+        return E_FAIL;
+    }
+
+    constrName = std::string(str);
+    return S_OK;
+}
+
+} // unnamed namespace
+
+// Collect the names of generic parameters declared on the given type or method token.
+// The returned vector is ordered by the generic parameter ordinal (number), so the
+// element at index N corresponds to the N-th generic parameter (VAR/MVAR number N).
+// On failure or when the token has no generic parameters, an empty vector is returned.
+std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
+{
+    std::vector<std::string> names;
+
+    HCORENUM hEnum = nullptr;
+    mdGenericParam genParam = mdGenericParamNil;
+    ULONG fetched = 0;
+    while (SUCCEEDED(pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
+    {
+        ULONG genNameLen = 0;
+        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+        {
+            continue;
+        }
+
+        std::vector<WCHAR> szGenName(genNameLen, '\0');
+        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                    szGenName.data(), genNameLen, nullptr)))
+        {
+            continue;
+        }
+
+        names.emplace_back(to_utf8(szGenName.data()));
+    }
+    pMDImport2->CloseEnum(hEnum);
+
+    return names;
+}
+
 // Get fully-qualified display name for typedef token.
 HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
                                    std::string &displayTypeName, std::list<std::string> *pArgs)
@@ -1097,133 +769,6 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
 
     return S_OK;
 }
-
-// Collect the names of generic parameters declared on the given type or method token.
-// The returned vector is ordered by the generic parameter ordinal (number), so the
-// element at index N corresponds to the N-th generic parameter (VAR/MVAR number N).
-// On failure or when the token has no generic parameters, an empty vector is returned.
-std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
-{
-    std::vector<std::string> names;
-
-    HCORENUM hEnum = nullptr;
-    mdGenericParam genParam = mdGenericParamNil;
-    ULONG fetched = 0;
-    while (SUCCEEDED(pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
-    {
-        ULONG genNameLen = 0;
-        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
-        {
-            continue;
-        }
-
-        std::vector<WCHAR> szGenName(genNameLen, '\0');
-        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                    szGenName.data(), genNameLen, nullptr)))
-        {
-            continue;
-        }
-
-        names.emplace_back(to_utf8(szGenName.data()));
-    }
-    pMDImport2->CloseEnum(hEnum);
-
-    return names;
-}
-
-HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::string &constrName)
-{
-    HRESULT Status = S_OK;
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
-
-    std::vector<WCHAR> name(nameLen, '\0');
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), nameLen, nullptr, nullptr, nullptr));
-
-    const std::string typeName = to_utf8(name.data());
-    std::string_view str = typeName;
-
-    const auto last_dot_pos = str.rfind('.');
-    if (last_dot_pos != std::string_view::npos)
-    {
-        str = str.substr(last_dot_pos + 1);
-    }
-
-    const auto backtick_pos = str.rfind('`');
-    if (backtick_pos != std::string_view::npos)
-    {
-        str = str.substr(0, backtick_pos);
-    }
-
-    if (str.empty())
-    {
-        return E_FAIL;
-    }
-
-    constrName = std::string(str);
-    return S_OK;
-}
-
-HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodDef,
-                                    std::string &displayTypeName, std::string &displayMethodName)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-    ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
-
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-    std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    std::string funcName = to_utf8(szFunctionName.data());
-
-    std::list<std::string> args;
-    const auto fillArgs = [&](mdToken token) -> void
-    {
-        const std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
-        args.assign(names.cbegin(), names.cend());
-    };
-
-    if (funcName == ".ctor" || funcName == ".cctor")
-    {
-        GetConstructorName(trMDImport, typeDef, funcName);
-    }
-
-    fillArgs(methodDef);
-    if (!args.empty())
-    {
-        std::ostringstream ss;
-        ss << funcName << '`' << args.size();
-        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
-    }
-    else
-    {
-        displayMethodName = funcName;
-    }
-
-    if (typeDef != mdTypeDefNil)
-    {
-        fillArgs(typeDef);
-        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
-        {
-            displayTypeName = "";
-        }
-    }
-
-    return S_OK;
-}
-
-} // unnamed namespace
 
 HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
                                     std::string &displayTypeName, std::string &displayMethodName)
@@ -1287,6 +832,65 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     }
 
     displayMethodName = ConsumeGenericArgs(funcName, &args);
+
+    return S_OK;
+}
+
+HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodDef,
+                                    std::string &displayTypeName, std::string &displayMethodName)
+{
+    HRESULT Status = S_OK;
+
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    ToRelease<IMetaDataImport2> trMDImport2;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+
+    ULONG nameLen = 0;
+    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    mdTypeDef typeDef = mdTypeDefNil;
+    std::vector<WCHAR> szFunctionName(nameLen, '\0');
+    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
+                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+
+    std::string funcName = to_utf8(szFunctionName.data());
+
+    std::list<std::string> args;
+    const auto fillArgs = [&](mdToken token) -> void
+    {
+        const std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
+        args.assign(names.cbegin(), names.cend());
+    };
+
+    if (funcName == ".ctor" || funcName == ".cctor")
+    {
+        GetConstructorName(trMDImport, typeDef, funcName);
+    }
+
+    fillArgs(methodDef);
+    if (!args.empty())
+    {
+        std::ostringstream ss;
+        ss << funcName << '`' << args.size();
+        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
+    }
+    else
+    {
+        displayMethodName = funcName;
+    }
+
+    if (typeDef != mdTypeDefNil)
+    {
+        fillArgs(typeDef);
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
+        {
+            displayTypeName = "";
+        }
+    }
 
     return S_OK;
 }
@@ -1480,157 +1084,6 @@ HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeNam
         displayTypeName = "<unknown>";
     }
 
-    return S_OK;
-}
-
-HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displayTypeName)
-{
-    HRESULT Status = S_OK;
-    displayTypeName.clear();
-
-    ToRelease<ICorDebugFunction> trFunction;
-    IfFailRet(pFrame->GetFunction(&trFunction));
-    ToRelease<ICorDebugModule> trModule;
-    IfFailRet(trFunction->GetModule(&trModule));
-    mdMethodDef methodToken = mdMethodDefNil;
-    IfFailRet(trFunction->GetToken(&methodToken));
-
-    mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(trModule, methodToken, methodDef)) &&
-        FAILED(GetStateMachineKickoffMethod(trModule, methodToken, methodDef)))
-    {
-        methodDef = methodToken;
-    }
-
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    mdTypeDef typeDef = mdTypeDefNil;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, nullptr, 0, nullptr,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    if (typeDef == mdTypeDefNil)
-    {
-        return E_FAIL;
-    }
-
-    std::list<std::string> args;
-    GetGenericArgs(pFrame, args);
-    IfFailRet(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args));
-
-    return S_OK;
-}
-
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, std::string &displayName)
-{
-    HRESULT Status = S_OK;
-
-    mdMethodDef methodDef = mdMethodDefNil;
-    if (FAILED(DebugInfo::GetStateMachineKickoffMethod(pModule, methodToken, methodDef)) &&
-        FAILED(GetStateMachineKickoffMethod(pModule, methodToken, methodDef)))
-    {
-        methodDef = methodToken;
-    }
-
-    std::ostringstream ss;
-    std::string displayTypeName;
-    std::string displayMethodName;
-    IfFailRet(GetDisplayTypeAndMethodName(pModule, methodDef, displayTypeName, displayMethodName));
-    if (!displayTypeName.empty())
-    {
-        ss << displayTypeName << ".";
-    }
-    ss << displayMethodName << "(";
-
-    const auto addMethodParameters = [&]() -> HRESULT
-    {
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-        ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-        ToRelease<IMetaDataImport2> trMDImport2;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
-
-        mdTypeDef typeDef = mdTypeDefNil;
-        PCCOR_SIGNATURE pSig = nullptr;
-        ULONG cbSig = 0;
-        IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, nullptr, 0, nullptr,
-                                             nullptr, &pSig, &cbSig, nullptr, nullptr));
-
-        SigElementType returnElementType;
-        std::vector<SigElementType> argElementTypes;
-        // Ignore failed return code here; we need all we could parse from the sig.
-        ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType, argElementTypes, true);
-
-        const std::vector<std::string> typeParameterNames = GetGenericParamNames(trMDImport2, typeDef);
-        const std::vector<std::string> methodParameterNames = GetGenericParamNames(trMDImport2, methodDef);
-
-        // Without an ICorDebugFrame we cannot resolve the concrete generic argument
-        // types, so fill `metadataTypeName` with the generic parameter declaration
-        // names (e.g. "T", "TKey") instead of the actual type names.
-        for (auto &methodArg : argElementTypes)
-        {
-            if (methodArg.genericElemType == ELEMENT_TYPE_VAR &&
-                methodArg.varNum < typeParameterNames.size())
-            {
-                methodArg.metadataTypeName = typeParameterNames.at(methodArg.varNum);
-            }
-            else if (methodArg.genericElemType == ELEMENT_TYPE_MVAR &&
-                     methodArg.varNum < methodParameterNames.size())
-            {
-                methodArg.metadataTypeName = methodParameterNames.at(methodArg.varNum);
-            }
-        }
-
-        const auto cArguments = static_cast<ULONG>(argElementTypes.size());
-        for (ULONG i = 0; i < cArguments; i++)
-        {
-            // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/metadata/imetadataimport-getparamformethodindex-method
-            // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
-            const ULONG idx = i + 1;
-            mdParamDef paramDef = mdParamDefNil;
-            ULONG paramNameLen = 0;
-            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-                FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0,
-                                                 &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            std::vector<WCHAR> wParamName(paramNameLen, '\0');
-            if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            if (i != 0)
-            {
-                ss << ", ";
-            }
-
-            if (!argElementTypes.at(i).parameterModifier.empty())
-            {
-                ss << argElementTypes.at(i).parameterModifier << " ";
-            }
-
-            if (!argElementTypes.at(i).metadataTypeName.empty())
-            {
-                ss << ConvertMetadataToDisplayName(argElementTypes.at(i).metadataTypeName, nullptr) << " ";
-            }
-            // else
-            //    in case of failure, ignore the parameter type and print only the parameter name
-
-            ss << to_utf8(wParamName.data());
-        }
-        return S_OK;
-    };
-    addMethodParameters();
-
-    ss << ")";
-    displayName = ss.str();
     return S_OK;
 }
 
@@ -1881,147 +1334,6 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
     }
 
     return identifiers;
-}
-
-HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType)
-{
-    HRESULT Status = S_OK;
-
-    if (pModule != nullptr)
-    {
-        pModule->AddRef();
-    }
-    ToRelease<ICorDebugModule> trTypeModule(pModule);
-
-    mdTypeDef typeToken = mdTypeDefNil;
-
-    if (trTypeModule == nullptr)
-    {
-        IfFailRet(FindTypeTokenInAllModules(pThread, identifiers, pdbImports, trTypeModule, nextIdentifier, typeToken));
-    }
-    else
-    {
-        ApplyNamespaceAlias(identifiers, nextIdentifier, pdbImports);
-        ApplyTypeAlias(identifiers, nextIdentifier, pdbImports);
-
-        int tmpNextIdentifier = nextIdentifier;
-        if (SUCCEEDED(FindTypeInModule(trTypeModule, identifiers, tmpNextIdentifier, typeToken)))
-        {
-            nextIdentifier = tmpNextIdentifier;
-            assert(typeToken != mdTypeDefNil);
-        }
-        else if (nextIdentifier == 0)
-        {
-            const auto importNamespace = pdbImports.find(PDB::ImportsKind::ImportNamespace);
-            if (importNamespace == pdbImports.cend())
-            {
-                return E_FAIL;
-            }
-
-            for (const auto &importName : importNamespace->second)
-            {
-                std::vector<std::string> testIdentifiers = identifiers;
-                testIdentifiers.at(0) = importName.targetNamespace + "." + testIdentifiers.at(0);
-
-                nextIdentifier = 0;
-                if (SUCCEEDED(FindTypeInModule(trTypeModule, testIdentifiers, nextIdentifier, typeToken)))
-                {
-                    assert(typeToken != mdTypeDefNil);
-                    break;
-                }
-            }
-
-            if (typeToken == mdTypeDefNil)
-            {
-                return E_FAIL;
-            }
-        }
-    }
-
-    if (typeToken == mdTypeDefNil)
-    {
-        return E_FAIL;
-    }
-
-    if (ppType != nullptr)
-    {
-        const std::vector<std::string> params = GatherGenericFQDisplayParameters(identifiers, nextIdentifier);
-        std::vector<ToRelease<ICorDebugType>> trTypes;
-        IfFailRet(ResolveTypeParameters(params, pThread, pdbImports, trTypes));
-
-        ToRelease<ICorDebugType> trType;
-        IfFailRet(CreateParameterizedType(trTypeModule, typeToken, trTypes, &trType));
-
-        *ppType = trType.Detach();
-    }
-
-    return S_OK;
-}
-
-HRESULT FindTypeModule(std::vector<std::string> &identifiers, ICorDebugThread *pThread,
-                       const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule)
-{
-    HRESULT Status = S_OK;
-
-    ToRelease<ICorDebugModule> trTypeModule;
-    mdTypeDef typeToken = mdTypeDefNil;
-    int nextIdentifier = 0;
-    IfFailRet(FindTypeTokenInAllModules(pThread, identifiers, pdbImports, trTypeModule, nextIdentifier, typeToken));
-
-    if (ppModule != nullptr)
-    {
-        *ppModule = trTypeModule.Detach();
-    }
-
-    return S_OK;
-}
-
-SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName,
-                                                  const PDB::ImportsAndAliases &pdbImports)
-{
-    static const std::unordered_map<std::string, SigElementType> stypes{
-        {"void",    {ELEMENT_TYPE_VOID,    ""}},
-        {"bool",    {ELEMENT_TYPE_BOOLEAN, ""}},
-        {"byte",    {ELEMENT_TYPE_U1,      ""}},
-        {"sbyte",   {ELEMENT_TYPE_I1,      ""}},
-        {"char",    {ELEMENT_TYPE_CHAR,    ""}},
-        {"double",  {ELEMENT_TYPE_R8,      ""}},
-        {"float",   {ELEMENT_TYPE_R4,      ""}},
-        {"int",     {ELEMENT_TYPE_I4,      ""}},
-        {"uint",    {ELEMENT_TYPE_U4,      ""}},
-        {"long",    {ELEMENT_TYPE_I8,      ""}},
-        {"ulong",   {ELEMENT_TYPE_U8,      ""}},
-        {"object",  {ELEMENT_TYPE_OBJECT,  ""}},
-        {"short",   {ELEMENT_TYPE_I2,      ""}},
-        {"ushort",  {ELEMENT_TYPE_U2,      ""}},
-        {"string",  {ELEMENT_TYPE_STRING,  ""}},
-        {"nint",    {ELEMENT_TYPE_I,       ""}},
-        {"nuint",   {ELEMENT_TYPE_U,       ""}}
-    };
-
-    const auto found = stypes.find(displayTypeName);
-    if (found != stypes.cend())
-    {
-        return found->second;
-    }
-
-    const std::string parseDisplayTypeName = displayTypeName == "decimal" ? "System.Decimal" : displayTypeName;
-    std::vector<std::string> identifiers = SplitFQDisplayTypeName(parseDisplayTypeName);
-
-    SigElementType sigElemType;
-    int nextIdentifier = 0;
-    ToRelease<ICorDebugType> trType;
-    if (SUCCEEDED(FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType)) &&
-        SUCCEEDED(trType->GetType(&sigElemType.elemType)) &&
-        SUCCEEDED(GetFQMDTypeNameByICorType(trType, sigElemType.metadataTypeName)))
-    {
-        return sigElemType;
-    }
-
-    sigElemType.elemType = ELEMENT_TYPE_CLASS;
-    sigElemType.metadataTypeName = displayTypeName;
-    return sigElemType;
 }
 
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters)

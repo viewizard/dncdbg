@@ -12,8 +12,8 @@
 #include <specstrings_undef.h>
 #endif
 
-#include "debuginfo/pdb.h"
 #include "metadata/sigparse.h"
+#include "utils/utf.h"
 #include <list>
 #include <string>
 #include <vector>
@@ -38,6 +38,9 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
                                  std::list<std::string> *pArgs);
+// Get fully-qualified display name for typedef token.
+HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
+                                   std::string &displayTypeName, std::list<std::string> *pArgs);
 
 // Get fully-qualified "display" type name.
 HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayElemType, std::string &displayArrayType);
@@ -46,14 +49,11 @@ HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName)
 // Get fully-qualified "display" type name.
 HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeName);
 
-// Get the fully-qualified "display" type name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displayTypeName);
-// Get the fully-qualified "display" method name of the real (user) code, resolving async state-machine methods back to their kickoff method.
-HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef methodToken, std::string &displayName);
-
 // Get the fully-qualified "display" type and method names for the given method definition.
 // Generic parameters of the method and its declaring type are used as generic argument names.
 HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDef,
+                                    std::string &displayTypeName, std::string &displayMethodName);
+HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef methodDef,
                                     std::string &displayTypeName, std::string &displayMethodName);
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
@@ -67,21 +67,16 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
 // (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
 
-// Note: `identifiers` contain "display" names and are converted into "metadata" names for lookup inside method logic.
-HRESULT FindType(std::vector<std::string> &identifiers, int &nextIdentifier, ICorDebugThread *pThread,
-                 ICorDebugModule *pModule, const PDB::ImportsAndAliases &pdbImports, ICorDebugType **ppType);
-HRESULT FindTypeModule(std::vector<std::string> &identifiers, ICorDebugThread *pThread,
-                       const PDB::ImportsAndAliases &pdbImports, ICorDebugModule **ppModule);
-
-// Note: this is a heavy function, since it is forced to search for the type in all modules to detect the proper CorElementType
-// and the proper "metadata" type name. It provides a result equivalent to a ParseElementType() call with the `addElementTypeName = false` parameter.
-SigElementType GetSigElementTypeByDisplayTypeName(ICorDebugThread *pThread, const std::string &displayTypeName,
-                                                  const PDB::ImportsAndAliases &pdbImports);
-
 // Get generic type parameters as an array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);
 // Get the generic type arguments of the current frame as a list of fully-qualified "display" type names.
 HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
+
+// Collect the names of generic parameters declared on the given type or method token.
+// The returned vector is ordered by the generic parameter ordinal (number), so the
+// element at index N corresponds to the N-th generic parameter (VAR/MVAR number N).
+// On failure or when the token has no generic parameters, an empty vector is returned.
+std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token);
 
 // Returns the C# keyword/name for a built-in CorElementType (e.g. "void", "int", "string", "object").
 // Returns E_FAIL for element types that are not built-in primitives or keywords.

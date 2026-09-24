@@ -13,7 +13,6 @@
 #endif
 
 #include "debuginfo/pdb.h"
-#include "debuginfo/types.h"
 #include "types/types.h"
 #include "types/protocol.h"
 #include "utils/torelease.h"
@@ -70,9 +69,6 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
 
 HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
                              std::unordered_map<PDB::ImportsKind, std::vector<PDB::Imports>> &pdbImports);
-
-HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
-                      std::vector<GotoTargetInternal> &intTargets, std::string &output);
 
 HRESULT GetSourceContent(const Source &source, std::string &sourceContent);
 

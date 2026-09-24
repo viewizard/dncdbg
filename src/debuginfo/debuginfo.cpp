@@ -23,11 +23,116 @@
 #include <mutex>
 #include <vector>
 
+#define MINIZ_NO_STDIO
+#define MINIZ_NO_TIME
+#define MINIZ_NO_DEFLATE_APIS
+#define MINIZ_NO_ARCHIVE_APIS
+#include <miniz/miniz.h>
+
 namespace dncdbg::DebugInfo
 {
 
 namespace
 {
+
+constexpr uint8_t g_stamp_size = 4;
+constexpr uint8_t g_guid_size = 16;
+constexpr uint16_t g_dos_e_magic = 0x5A4D;
+constexpr uint32_t g_ntsig_magic = 0x00004550;
+constexpr uint16_t g_opt_header32_magic = 0x10B;
+constexpr uint16_t g_opt_header64_magic = 0x20B;
+constexpr uint16_t g_max_path_size = 4096;
+constexpr uint32_t g_rsds_magic = 0x53445352;
+constexpr uint8_t g_debug_type_codeview = 2;
+constexpr uint8_t g_section_name_size = 8;
+constexpr uint8_t g_max_sections_count = 96;
+constexpr uint8_t g_ignored_size = 58;
+constexpr uint8_t g_debug_type_embedded_pdb = 17;
+constexpr uint32_t g_mpdb_magic = 0x4244504D;
+
+#pragma pack(push, 1)
+struct MemoryDosHeader
+{
+    uint16_t e_magic;
+    uint8_t ignored[g_ignored_size]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t e_lfanew;
+};
+
+struct MemoryDataDirectory
+{
+    uint32_t virtual_address;
+    uint32_t size;
+};
+
+struct MemoryRsdsHeader
+{
+    uint32_t signature;          // Magic "RSDS" (0x53445352)
+    uint8_t  guid[g_guid_size];  // The target PDB GUID  // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t age;                // The target PDB Age (for Portable PDB, it is always 1)
+    // Followed immediately by a null-terminated UTF-8 string containing the PDB Path
+};
+
+struct MemorySectionHeader
+{
+    char name[g_section_name_size]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t virtual_size;
+    uint32_t virtual_address;       // RVA of section
+    uint32_t size_of_raw_data;
+    uint32_t pointer_to_raw_data;   // File offset of section
+    uint32_t pointer_to_relocations;
+    uint32_t pointer_to_linenumbers;
+    uint16_t number_of_relocations;
+    uint16_t number_of_linenumbers;
+    uint32_t characteristics;
+};
+
+struct MemoryDebugDirectory
+{
+    uint32_t characteristics;
+    uint32_t time_date_stamp;
+    uint16_t major_version;
+    uint16_t minor_version;
+    uint32_t type;               // 2 = CODEVIEW (RSDS)
+    uint32_t size_of_data;       // Size of the entire CodeView block
+    uint32_t address_of_raw_data;// RVA of the CodeView data in memory (loaded layout)
+    uint32_t pointer_to_raw_data;// File offset of the CodeView data (file layout)
+};
+
+struct MemoryMpdbHeader
+{
+    uint32_t signature;
+    uint32_t uncompressed_size;
+};
+#pragma pack(pop)
+
+bool DecompressDeflateBuffer(const unsigned char *compressedData, size_t compressedSize, std::vector<uint8_t> &outBuffer, size_t uncompressedSize)
+{
+    outBuffer.resize(uncompressedSize);
+
+    z_stream stream{};
+    stream.next_in = compressedData;
+    stream.avail_in = static_cast<unsigned int>(compressedSize);
+    stream.next_out = outBuffer.data();
+    stream.avail_out = static_cast<unsigned int>(uncompressedSize);
+
+    // -MZ_DEFAULT_WINDOW_BITS (raw deflate/no header or footer)
+    if (inflateInit2(&stream, -MZ_DEFAULT_WINDOW_BITS) != Z_OK)
+    {
+        outBuffer.clear();
+        return false;
+    }
+
+    const int status = inflate(&stream, Z_FINISH);
+    inflateEnd(&stream);
+
+    if (status == Z_STREAM_END && stream.total_out == uncompressedSize)
+    {
+        return true;
+    }
+
+    outBuffer.clear();
+    return false;
+}
 
 std::mutex &GetDebugInfoMutex()
 {
@@ -41,12 +146,6 @@ DebugInfoMap &GetDebugInfoMap()
 {
     static DebugInfoMap debugInfoMap;
     return debugInfoMap;
-}
-
-uint32_t &GetGotoTargetId()
-{
-    static uint32_t gotoTargetId = 0;
-    return gotoTargetId;
 }
 
 bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
@@ -213,11 +312,255 @@ HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcN
     return ForEachMethod(pModule, functor);
 }
 
+HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB)
+{
+    HRESULT Status = S_OK;
+    BOOL isInMemory = FALSE;
+    IfFailRet(pModule->IsInMemory(&isInMemory));
+
+    CORDB_ADDRESS moduleBaseAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&moduleBaseAddress));
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pModule->GetProcess(&trProcess));
+
+    auto readProcessMemory = [&](CORDB_ADDRESS addr, void *buffer, uint32_t size) -> HRESULT
+    {
+        SIZE_T bytesRead = 0;
+        IfFailRet(trProcess->ReadMemory(addr, size, static_cast<uint8_t *>(buffer), &bytesRead));
+        return (bytesRead == size) ? S_OK : E_FAIL;
+    };
+
+    // Read and validate DOS header
+    MemoryDosHeader dos{};
+    if (FAILED(readProcessMemory(moduleBaseAddress, &dos, sizeof(dos))) || dos.e_magic != g_dos_e_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Read and validate NT signature
+    const CORDB_ADDRESS ntHeaderAddr = moduleBaseAddress + dos.e_lfanew;
+    uint32_t ntSig = 0;
+    if (FAILED(readProcessMemory(ntHeaderAddr, &ntSig, sizeof(ntSig))) || ntSig != g_ntsig_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Read optional header magic to determine PE32 vs PE32+
+    const CORDB_ADDRESS optionalHeaderAddr = ntHeaderAddr + 4 + 20;
+    uint16_t magic = 0;
+    IfFailRet(readProcessMemory(optionalHeaderAddr, &magic, sizeof(magic)));
+
+    if (magic != g_opt_header32_magic && magic != g_opt_header64_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Data Directory index 6 (IMAGE_DIRECTORY_ENTRY_DEBUG) offset differs between PE32 and PE32+
+    const uint32_t debugDirEntryOffset = (magic == g_opt_header32_magic) ? 144 : 160;
+    const CORDB_ADDRESS debugDirEntryAddr = optionalHeaderAddr + debugDirEntryOffset;
+
+    // Read debug directory data directory entry
+    MemoryDataDirectory debugDataDir{};
+    IfFailRet(readProcessMemory(debugDirEntryAddr, &debugDataDir, sizeof(debugDataDir)));
+
+    if (debugDataDir.virtual_address == 0 || debugDataDir.size == 0)
+    {
+        return E_FAIL;
+    }
+
+    static constexpr uint32_t entriesCountLimit = 50;
+    const uint32_t entriesCount = debugDataDir.size / sizeof(MemoryDebugDirectory);
+    if (entriesCount == 0 || entriesCount > entriesCountLimit)
+    {
+        return E_FAIL;
+    }
+    std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
+
+    auto decompressEmbeddedPdb = [&](CORDB_ADDRESS rawDataAddr, uint32_t sizeOfData) -> bool
+    {
+        MemoryMpdbHeader mpdb{};
+        if (FAILED(readProcessMemory(rawDataAddr, &mpdb, sizeof(mpdb))) || mpdb.signature != g_mpdb_magic)
+        {
+            return false;
+        }
+
+        const uint32_t compressedSize = sizeOfData - sizeof(MemoryMpdbHeader);
+        std::vector<unsigned char> compressedBuffer(compressedSize);
+        if (FAILED(readProcessMemory(rawDataAddr + sizeof(MemoryMpdbHeader), compressedBuffer.data(), compressedSize)))
+        {
+            return false;
+        }
+
+        return DecompressDeflateBuffer(compressedBuffer.data(), compressedSize, embeddedPDB, mpdb.uncompressed_size);
+    };
+
+    // Helper: Process debug directories and extract PDB info
+    auto processDebugDirectories = [&](const std::vector<MemoryDebugDirectory> &dirs,
+                                       const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRawAddr) -> bool
+    {
+        bool foundCodeView = false;
+        bool foundEmbedded = false;
+
+        for (const auto &dir : dirs)
+        {
+            if (dir.type == g_debug_type_embedded_pdb && dir.size_of_data > sizeof(MemoryMpdbHeader))
+            {
+                const CORDB_ADDRESS mpdbAddr = getRawAddr(dir);
+                if (mpdbAddr != 0 && decompressEmbeddedPdb(mpdbAddr, dir.size_of_data))
+                {
+                    foundEmbedded = true;
+                }
+
+                continue;
+            }
+
+            if (dir.type != g_debug_type_codeview || dir.size_of_data < sizeof(MemoryRsdsHeader))
+            {
+                continue;
+            }
+
+            const CORDB_ADDRESS rsdsAddr = getRawAddr(dir);
+            if (rsdsAddr == 0)
+            {
+                continue;
+            }
+
+            MemoryRsdsHeader rsds{};
+            if (FAILED(readProcessMemory(rsdsAddr, &rsds, sizeof(rsds))) || rsds.signature != g_rsds_magic || rsds.age != 1)
+            {
+                continue;
+            }
+
+            std::memcpy(pdbId.data(), static_cast<void *>(rsds.guid), g_guid_size);
+            static_assert(sizeof(dir.time_date_stamp) == g_stamp_size);
+            std::memcpy(pdbId.data() + g_guid_size, &dir.time_date_stamp, g_stamp_size);
+
+            const uint32_t pathLength = dir.size_of_data - sizeof(MemoryRsdsHeader);
+            if (pathLength == 0 || pathLength >= g_max_path_size)
+            {
+                continue;
+            }
+
+            std::vector<char> pathBuffer(pathLength + 1, '\0');
+            if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), pathBuffer.data(), pathLength)))
+            {
+                pathPdb = std::string(pathBuffer.data());
+                foundCodeView = true;
+            }
+        }
+        return foundCodeView || foundEmbedded;
+    };
+
+    // Loaded layout (ReadyToRun DLLs): RVA directly maps to VA
+    const auto loadedLayout = [&]() -> HRESULT
+    {
+        if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
+                                        debugDirs.data(), debugDataDir.size)))
+        {
+            const auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+            {
+                return moduleBaseAddress + dir.address_of_raw_data;
+            };
+
+            if (processDebugDirectories(debugDirs, getRsdsAddrLoaded))
+            {
+                return S_OK;
+            }
+        }
+
+        return E_FAIL;
+    };
+
+    // File layout (JIT-compiled DLL): Convert RVA to file offset
+    const auto fileLayout = [&]() -> HRESULT
+    {
+        // Read FILE_HEADER to get section count and optional header size
+        const CORDB_ADDRESS fileHeaderAddr = ntHeaderAddr + 4;
+        uint16_t numberOfSections = 0;
+        uint16_t sizeOfOptionalHeader = 0;
+        IfFailRet(readProcessMemory(fileHeaderAddr + 2, &numberOfSections, sizeof(numberOfSections)));
+        IfFailRet(readProcessMemory(fileHeaderAddr + 16, &sizeOfOptionalHeader, sizeof(sizeOfOptionalHeader)));
+
+        if (numberOfSections == 0 || numberOfSections > g_max_sections_count)
+        {
+            return E_FAIL;
+        }
+
+        // Read section headers for RVA to file offset conversion
+        const CORDB_ADDRESS sectionHeadersAddr = optionalHeaderAddr + sizeOfOptionalHeader;
+        std::vector<MemorySectionHeader> sections(numberOfSections);
+        if (FAILED(readProcessMemory(sectionHeadersAddr, sections.data(),
+                                     static_cast<uint32_t>(numberOfSections * sizeof(MemorySectionHeader)))))
+        {
+            return E_FAIL;
+        }
+
+        // Helper: Convert RVA to file offset using section table
+        const auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
+        {
+            for (const auto &section : sections)
+            {
+                if (rva >= section.virtual_address &&
+                    rva < section.virtual_address + section.size_of_raw_data)
+                {
+                    return section.pointer_to_raw_data + (rva - section.virtual_address);
+                }
+            }
+            return 0;
+        };
+
+        // Convert debug directory RVA to file offset
+        const uint32_t debugDirFileOffset = rvaToFileOffset(debugDataDir.virtual_address);
+        if (debugDirFileOffset == 0)
+        {
+            return E_FAIL;
+        }
+
+        // Read debug directory entries from file offset
+        if (FAILED(readProcessMemory(moduleBaseAddress + debugDirFileOffset,
+                                     debugDirs.data(), debugDataDir.size)))
+        {
+            return E_FAIL;
+        }
+
+        const auto getRsdsAddrFile = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
+        {
+            return (dir.pointer_to_raw_data != 0) ? moduleBaseAddress + dir.pointer_to_raw_data : 0;
+        };
+
+        if (processDebugDirectories(debugDirs, getRsdsAddrFile))
+        {
+            return S_OK;
+        }
+
+        return E_FAIL;
+    };
+
+    if (isInMemory == TRUE)
+    {
+        if (SUCCEEDED(loadedLayout()) ||
+            SUCCEEDED(fileLayout())) // Fallback to file layout.
+        {
+            return S_OK;
+        }
+    }
+    else
+    {
+        if (SUCCEEDED(fileLayout()) ||
+            SUCCEEDED(loadedLayout())) // Fallback to loaded layout.
+        {
+            return S_OK;
+        }
+    }
+
+    return E_FAIL;
+}
+
 HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath, std::vector<uint8_t> &embeddedPDB)
 {
     HRESULT Status = S_OK;
     PDB::Identity pdbId;
-    IfFailRet(Modules::GetModulePdbInfo(pModule, pdbId, pdbFilePath, embeddedPDB));
+    IfFailRet(GetModulePdbInfo(pModule, pdbId, pdbFilePath, embeddedPDB));
 
     if (!embeddedPDB.empty())
     {
@@ -855,70 +1198,6 @@ HRESULT GetImportsAndAliases(ICorDebugModule *pModule, mdMethodDef methodToken, 
         });
 }
 
-HRESULT GetGotoTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
-                      std::vector<GotoTargetInternal> &intTargets, std::string &output)
-{
-    HRESULT Status = S_OK;
-
-    // Reuse breakpoint related logic in order to find MethodToken and Module.
-    std::vector<PDB::ResolvedBreakpoint> resolvedPoints;
-    IfFailRet(ResolveBreakpoint(0, source, line, column, nullptr, resolvedPoints));
-
-    uint32_t &gotoTargetId = GetGotoTargetId();
-
-    for (const auto &bp : resolvedPoints)
-    {
-        CORDB_ADDRESS modAddress = 0;
-        IfFailRet(bp.trModule->GetBaseAddress(&modAddress));
-
-        PDB::SequencePoint sequencePoint;
-        if (FAILED(GetPDBInfo(modAddress,
-            [&](const PDBInfo &pdbInfo) -> HRESULT
-            {
-                IfFailRet(PDBReader::GetGotoTarget(pdbInfo.m_pdbHandle, bp.methodToken, line, column,
-                                                   sequencePoint, output));
-                return S_OK;
-            })))
-        {
-            continue;
-        }
-
-        gotoTargetId++;
-
-        targets.emplace_back();
-        auto &target = targets.back();
-        target.id = gotoTargetId;
-        target.line = sequencePoint.startLine;
-        target.column = sequencePoint.startColumn;
-        target.endLine = sequencePoint.endLine;
-        target.endColumn = sequencePoint.endColumn;
-
-        if (FAILED(MetadataHelpers::GetFQDisplayRealCodeMethodName(bp.trModule, bp.methodToken, target.label)))
-        {
-            target.label = std::to_string(gotoTargetId);
-        }
-
-        ToRelease<ICorDebugFunction> trFunction;
-        IfFailRet(bp.trModule->GetFunctionFromToken(bp.methodToken, &trFunction));
-
-        CORDB_ADDRESS nativeAddress = 0;
-        MetadataHelpers::GetNativeAddress(trFunction, sequencePoint.ilOffset, nativeAddress);
-        if (nativeAddress != 0)
-        {
-            target.instructionPointerReference = MetadataHelpers::AddrToString(nativeAddress);
-        }
-
-        intTargets.emplace_back();
-        auto &intTarget = intTargets.back();
-        intTarget.id = gotoTargetId;
-        intTarget.modAddress = modAddress;
-        intTarget.methodToken = bp.methodToken;
-        intTarget.ilOffset = sequencePoint.ilOffset;
-    }
-
-    return targets.empty() ? E_FAIL : S_OK;
-}
-
 HRESULT GetSourceContent(const Source &source, std::string &sourceContent)
 {
     if (source.sourceReference > 0)
@@ -1032,7 +1311,6 @@ void Cleanup()
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
 
     GetDebugInfoMap().clear();
-    GetGotoTargetId() = 0;
 }
 
 } // namespace dncdbg::DebugInfo

@@ -7,6 +7,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/debuginfo.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
+#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
 #include "debuginfo/pdb.h"
@@ -33,7 +34,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
     std::vector<std::string> classIdentifiers = MetadataHelpers::SplitFQDisplayTypeName(displayTypeName);
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
+    IfFailRet(EvalMetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -48,7 +49,7 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
+        if (FAILED(EvalMetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
         {
             break;
         }
@@ -144,7 +145,7 @@ HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, c
     std::vector<std::string> fieldName{identifiers.back()};
 
     ToRelease<ICorDebugModule> trModule;
-    IfFailRet(MetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
+    IfFailRet(EvalMetadataHelpers::FindTypeModule(classIdentifiers, pThread, pdbImports, &trModule));
 
     bool trim = false;
     while (!classIdentifiers.empty())
@@ -159,7 +160,7 @@ HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, c
 
         int nextClassIdentifier = 0;
         ToRelease<ICorDebugType> trType;
-        if (FAILED(MetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
+        if (FAILED(EvalMetadataHelpers::FindType(fullpath, nextClassIdentifier, pThread, trModule, pdbImports, &trType)))
         {
             break;
         }
@@ -344,7 +345,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
         }
 
         std::string displayTypeName;
-        MetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, displayTypeName);
+        EvalMetadataHelpers::GetFQDisplayRealCodeTypeName(trFrame, displayTypeName);
 
         if (SUCCEEDED(FollowNestedFindValue(pThread, frameLevel, displayTypeName, identifiers, specifier,
                                             pdbImports, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
@@ -375,7 +376,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     else
     {
         ToRelease<ICorDebugType> trType;
-        IfFailRet(MetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
+        IfFailRet(EvalMetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
 
         // Identifiers resolved into a type, not a value. If the type could be the result, provide the type directly as the result.
         // This way the caller will know that there is no object instance here (it should operate with static members/methods only).
