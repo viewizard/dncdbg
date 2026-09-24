@@ -23,7 +23,7 @@
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/types.h"
 #include "metadata/modules.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/dbgshim.h"
 #include "utils/diagnostics_client.h"
 #include "utils/hresult.h"
@@ -223,7 +223,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
 #else
                 unsetenv(diagnosticPortSuspendEnv.c_str());
 #endif
-                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
                     "Environment variable " + diagnosticPortSuspendEnv + " skipped."));
                 continue;
             }
@@ -233,7 +233,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
                 const std::string adjustedValue{AdjustDiagnosticPortsValue(pair.second)};
                 if (adjustedValue != pair.second)
                 {
-                    DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                    DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
                         "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'."));
                 }
 #ifdef _WIN32
@@ -255,7 +255,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
         {
             if (pair.first == diagnosticPortSuspendEnv)
             {
-                DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
                     "Environment variable " + diagnosticPortSuspendEnv + " skipped."));
                 continue;
             }
@@ -265,7 +265,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
                 const std::string adjustedValue{AdjustDiagnosticPortsValue(pair.second)};
                 if (adjustedValue != pair.second)
                 {
-                    DAPIO::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
+                    DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
                         "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'."));
                 }
                 appendEnvVariable(pair.first, adjustedValue);
@@ -462,7 +462,7 @@ void NotifyProcessExited()
 
 void InputCallback(IORedirect::StreamType type, gsl::span<char> text)
 {
-    DAPIO::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
+    DAP::EmitOutputEvent(OutputEvent(type == IORedirect::StreamType::Stderr ? OutputCategory::StdErr : OutputCategory::StdOut, {text.data(), text.size()}));
     GetRemoteConsoleServer().SendData(text);
 }
 
@@ -545,7 +545,7 @@ void StartupCallback(IUnknown *pCordb, void * /*parameter*/, HRESULT hr)
             ss << " mscordbi or mscordaccore libs are not the same version as the target CoreCLR.";
         }
         ss << '\n';
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
+        DAP::EmitOutputEvent({OutputCategory::StdErr, ss.str()});
         GetStartupCallbackHR() = hr;
         return;
     }
@@ -667,7 +667,7 @@ HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &
         return E_FAIL;
     }
 
-    DAPIO::EmitProcessEvent(GetProcessId(), fileExec, GetStartMethod());
+    DAP::EmitProcessEvent(GetProcessId(), fileExec, GetStartMethod());
 
     return S_OK;
 }
@@ -686,7 +686,7 @@ HRESULT AttachToProcess()
     // Resume the runtime so that StartupCallback can run.
     ResumeRuntime(GetProcessId());
 
-    DAPIO::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
+    DAP::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
     if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
@@ -883,7 +883,7 @@ HRESULT Disconnect(DisconnectAction action)
         const HRESULT Status = DetachFromProcess();
         if (SUCCEEDED(Status))
         {
-            DAPIO::EmitTerminatedEvent();
+            DAP::EmitTerminatedEvent();
         }
 
         return Status;
@@ -927,7 +927,7 @@ HRESULT StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
     {
         Variables::Cleanup();
         FrameId::invalidate();                             // Clear all frames created during the break.
-        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
+        DAP::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
     return Status;
@@ -962,7 +962,7 @@ HRESULT Continue(ThreadId threadId, bool singleThread)
     {
         Variables::Cleanup();
         FrameId::invalidate();                             // Clear all frames created during the break.
-        DAPIO::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
+        DAP::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
     return Status;

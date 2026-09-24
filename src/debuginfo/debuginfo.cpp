@@ -10,7 +10,7 @@
 #include "debuginfo/sourcereference.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/downloader.h"
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
@@ -540,21 +540,21 @@ void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
     CORDB_ADDRESS modAddress = 0;
     if (FAILED(pModule->GetBaseAddress(&modAddress)))
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
+        DAP::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
         return;
     }
 
     PDB::SourceNameMap sourceFileNameToIndicesMap;
     if (FAILED(PDBReader::GetAllSourceFiles(pdbHandle, sourceFileNameToIndicesMap)))
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+        DAP::EmitOutputEvent({OutputCategory::StdErr,
             "Could not load source file names related info from PDB file.\n"});
     }
 
     PDB::SourceMethodRanges sourceMethodRanges;
     if (FAILED(DebugSources::FillMethodRanges(pModule, pdbHandle, sourceMethodRanges)))
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+        DAP::EmitOutputEvent({OutputCategory::StdErr,
             "Could not load source lines related info from PDB file. Could produce failures during "
             "breakpoint's source path resolve in future.\n"});
     }
@@ -577,7 +577,7 @@ void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
     // Emit events after all debugger-internal locks are released to avoid holding them during protocol I/O.
     for (auto &source : newSources)
     {
-        DAPIO::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::New, std::move(source)));
+        DAP::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::New, std::move(source)));
     }
 }
 
@@ -586,7 +586,7 @@ void UnloadModuleSymbols(ICorDebugModule *pModule)
     CORDB_ADDRESS modAddress = 0;
     if (FAILED(pModule->GetBaseAddress(&modAddress)))
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
+        DAP::EmitOutputEvent({OutputCategory::StdErr, "Could not find module base address.\n"});
         return;
     }
 
@@ -601,7 +601,7 @@ void UnloadModuleSymbols(ICorDebugModule *pModule)
     // Emit events after all debugger-internal locks are released to avoid holding them during protocol I/O.
     for (auto &source : removedSources)
     {
-        DAPIO::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::Removed, std::move(source)));
+        DAP::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::Removed, std::move(source)));
     }
 
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());

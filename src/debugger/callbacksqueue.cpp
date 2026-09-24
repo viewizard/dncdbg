@@ -13,7 +13,7 @@
 #include "debugger/frames.h"
 #include "debugger/steppers/steppers.h"
 #include "debugger/threads.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
@@ -125,7 +125,7 @@ bool CallbacksWorkerBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThread *
 
     const ThreadId threadId(Threads::GetId(pThread));
     const StoppedEvent event(atEntry ? StoppedEventReason::Entry : StoppedEventReason::Breakpoint, std::move(hitBreakpointIds), threadId);
-    DAPIO::EmitStoppedEvent(event);
+    DAP::EmitStoppedEvent(event);
     return true;
 }
 
@@ -142,7 +142,7 @@ bool CallbacksWorkerStepComplete(ICorDebugThread *pThread, CorDebugStepReason re
     const StoppedEvent event(StoppedEventReason::Step, threadId);
 
     Threads::SetLastStoppedThread(pThread);
-    DAPIO::EmitStoppedEvent(event);
+    DAP::EmitStoppedEvent(event);
     return true;
 }
 
@@ -162,7 +162,7 @@ bool CallbacksWorkerBreak(ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThre
     const ThreadId threadId(Threads::GetId(pThread));
 
     const StoppedEvent event(StoppedEventReason::Pause, threadId);
-    DAPIO::EmitStoppedEvent(event);
+    DAP::EmitStoppedEvent(event);
     return true;
 }
 
@@ -182,7 +182,7 @@ bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *p
     const ThreadId threadId(Threads::GetId(pThread));
     const StoppedEvent event(StoppedEventReason::Exception, threadId);
     Threads::SetLastStoppedThread(pThread);
-    DAPIO::EmitStoppedEvent(event);
+    DAP::EmitStoppedEvent(event);
     return true;
 }
 

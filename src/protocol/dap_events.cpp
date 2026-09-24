@@ -3,83 +3,14 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
-#include <fstream>
-#include <iostream>
-#include <mutex>
 
 // for convenience
 using nlohmann::json;
 
-namespace dncdbg::DAPIO
+namespace dncdbg::DAP
 {
-
-namespace
-{
-
-// Use a function-local static to avoid undefined behavior from a static std::ofstream
-// member, whose constructor may throw.
-std::ofstream &GetProtocolLog()
-{
-    static std::ofstream protocolLog;
-    return protocolLog;
-}
-
-std::mutex &GetOutMutex()
-{
-    static std::mutex outMutex;
-    return outMutex;
-}
-
-// Note: this counter must be protected by GetOutMutex().
-uint64_t &GetSeqCounter()
-{
-    static uint64_t seqCounter = 1;
-    return seqCounter;
-}
-
-// Caller must hold GetOutMutex().
-void EmitMessage(nlohmann::json &message, std::string &output)
-{
-    message.emplace("seq", GetSeqCounter());
-    ++GetSeqCounter();
-    output = message.dump();
-    std::cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
-    std::cout.flush();
-}
-
-void EmitEvent(const std::string &name, const nlohmann::json &body)
-{
-    json message;
-    message.emplace("type", "event");
-    message.emplace("event", name);
-    message.emplace("body", body);
-    EmitMessageWithLog(LOG_EVENT, message);
-}
-
-// Caller must hold GetOutMutex().
-void LogInternal(std::string_view prefix, const std::string &text)
-{
-    if (!GetProtocolLog().is_open())
-    {
-        return;
-    }
-
-    GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
-}
-
-} // namespace
-
-void SetupProtocolLogging(const std::string &path)
-{
-    if (path.empty())
-    {
-        return;
-    }
-
-    GetProtocolLog().open(path);
-}
 
 void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod)
 {
@@ -314,18 +245,4 @@ void EmitCapabilitiesEvent()
     EmitEvent("capabilities", body);
 }
 
-void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message)
-{
-    const std::scoped_lock<std::mutex> lock(GetOutMutex());
-    std::string output;
-    EmitMessage(message, output);
-    LogInternal(message_prefix, output);
-}
-
-void Log(std::string_view prefix, const std::string &text)
-{
-    const std::scoped_lock<std::mutex> lock(GetOutMutex());
-    LogInternal(prefix, text);
-}
-
-} // namespace dncdbg::DAPIO
+} // namespace dncdbg::DAP

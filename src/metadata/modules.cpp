@@ -7,7 +7,7 @@
 #include "config/config.h"
 #include "metadata/helpers.h"
 #include "metadata/jmc.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/print.h"
@@ -485,7 +485,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
             }
             else if (Status == CORDBG_E_CANT_SET_TO_JMC)
             {
-                DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+                DAP::EmitOutputEvent({OutputCategory::StdErr,
                     "You are debugging a Release build of " + module.name + ". Disabling JIT "
                     "optimizations failed, in some cases (e.g. attach) this results in a "
                     "degraded debugging experience (e.g. breakpoints will not be hit).\n"});
@@ -512,7 +512,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
 
     if (FAILED(GetModuleMvid(pModule, module.id)))
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr,
+        DAP::EmitOutputEvent({OutputCategory::StdErr,
             "Could not calculate module ID for module " + module.name + ".\n"});
     }
 
@@ -528,7 +528,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
     }
     else
     {
-        DAPIO::EmitOutputEvent({OutputCategory::StdErr, "Could not calculate module address range.\n"});
+        DAP::EmitOutputEvent({OutputCategory::StdErr, "Could not calculate module address range.\n"});
     }
 }
 

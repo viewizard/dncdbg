@@ -76,7 +76,7 @@ set(DNCDBG_SOURCES
     metadata/modules.cpp
     metadata/sigparse.cpp
     protocol/dap.cpp
-    protocol/dapio.cpp
+    protocol/dap_events.cpp
     protocol/internal_helpers.cpp
     types/protocol.cpp
     types/types.cpp

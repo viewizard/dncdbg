@@ -6,7 +6,6 @@
 #include "buildinfo.h"
 #include "debugger/manageddebugger.h"
 #include "protocol/dap.h"
-#include "protocol/dapio.h"
 #include "utils/logger.h"
 
 #include <algorithm>
@@ -193,7 +192,7 @@ int
 
     if (!protocolLogFilePath.empty())
     {
-        dncdbg::DAPIO::SetupProtocolLogging(protocolLogFilePath);
+        dncdbg::DAP::SetupProtocolLogging(protocolLogFilePath);
     }
 
     try

@@ -7,7 +7,7 @@
 #include "config/config.h"
 #include "debugger/manageddebugger.h"
 #include "debuginfo/sourcefilemap.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
 #include "types/protocol.h"
 #include "types/types.h"
@@ -1045,7 +1045,7 @@ void CommandsWorker()
             c.response.emplace("success", false);
         }
 
-        DAPIO::EmitMessageWithLog(LOG_RESPONSE, c.response);
+        DAP::EmitMessageWithLog(LOG_RESPONSE, c.response);
 
         // Post command action.
         if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().cend())
@@ -1065,17 +1065,17 @@ void CommandsWorker()
         // https://microsoft.github.io/debug-adapter-protocol/specification#arrow_left-initialized-event
         else if (c.command == "initialize" && SUCCEEDED(Status))
         {
-            DAPIO::EmitInitializedEvent();
+            DAP::EmitInitializedEvent();
         }
         // Emit StoppedEvent, since with Goto command IP was changed without real process execution.
         else if (c.command == "goto" && SUCCEEDED(Status))
         {
-            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, ManagedDebugger::GetLastStoppedThreadId()));
+            DAP::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Goto, ManagedDebugger::GetLastStoppedThreadId()));
         }
         // Emit StoppedEvent after the response is sent.
         else if (c.command == "pause" && SUCCEEDED(Status))
         {
-            DAPIO::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, ManagedDebugger::GetLastStoppedThreadId()));
+            DAP::EmitStoppedEvent(StoppedEvent(StoppedEventReason::Pause, ManagedDebugger::GetLastStoppedThreadId()));
         }
 
         lockCommandsMutex.lock();
@@ -1089,7 +1089,7 @@ std::list<CommandQueueEntry>::iterator CancelCommand(const std::list<CommandQueu
 {
     iter->response.emplace("success", false);
     iter->response.emplace("message", std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled."));
-    DAPIO::EmitMessageWithLog(LOG_RESPONSE, iter->response);
+    DAP::EmitMessageWithLog(LOG_RESPONSE, iter->response);
     return GetCommandsQueue().erase(iter);
 }
 
@@ -1122,7 +1122,7 @@ void CommandLoop()
             break;
         }
 
-        DAPIO::Log(LOG_COMMAND, requestText);
+        DAP::Log(LOG_COMMAND, requestText);
 
         struct bad_format : public std::invalid_argument
         {
@@ -1162,7 +1162,7 @@ void CommandLoop()
             // Pre command action.
             if (queueEntry.command == "initialize")
             {
-                DAPIO::EmitCapabilitiesEvent();
+                DAP::EmitCapabilitiesEvent();
             }
             else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().cend())
             {
@@ -1188,7 +1188,7 @@ void CommandLoop()
                 {
                     queueEntry.response.emplace("success", false);
                     queueEntry.response.emplace("message", "CancelRequest don't have requestId.");
-                    DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+                    DAP::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
                     continue;
                 }
 
@@ -1219,7 +1219,7 @@ void CommandLoop()
                     queueEntry.response.emplace("message", "CancelRequest is not supported for requestId.");
                 }
 
-                DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+                DAP::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
                 continue;
             }
 
@@ -1250,10 +1250,15 @@ void CommandLoop()
             queueEntry.response.emplace("message", std::string("can't parse: ") + ex.what());
         }
 
-        DAPIO::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
+        DAP::EmitMessageWithLog(LOG_RESPONSE, queueEntry.response);
     }
 
     commandsWorker.join();
+}
+
+void SetupProtocolLogging(const std::string &path)
+{
+    SetupProtocolLoggingInternal(path);
 }
 
 } // namespace dncdbg::DAP

@@ -3,20 +3,15 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef PROTOCOL_DAPIO_H
-#define PROTOCOL_DAPIO_H
+#ifndef PROTOCOL_DAP_EVENTS_H
+#define PROTOCOL_DAP_EVENTS_H
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include <json/json.hpp>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 
-namespace dncdbg::DAPIO
+namespace dncdbg::DAP
 {
-
-void SetupProtocolLogging(const std::string &path);
 
 void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod);
 void EmitStoppedEvent(const StoppedEvent &event);
@@ -31,9 +26,6 @@ void EmitBreakpointEvent(const BreakpointEvent &event);
 void EmitInitializedEvent();
 void EmitCapabilitiesEvent();
 
-void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
-void Log(std::string_view prefix, const std::string &text);
+} // namespace dncdbg::DAP
 
-} // namespace dncdbg::DAPIO
-
-#endif // PROTOCOL_DAPIO_H
+#endif // PROTOCOL_DAP_EVENTS_H

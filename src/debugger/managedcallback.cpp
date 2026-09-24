@@ -19,7 +19,7 @@
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -226,12 +226,12 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
     }
 #endif
 
-    DAPIO::EmitExitedEvent(ExitedEvent(exitCode));
+    DAP::EmitExitedEvent(ExitedEvent(exitCode));
     if (m_notifyProcessExitedCallback)
     {
         m_notifyProcessExitedCallback();
     }
-    DAPIO::EmitTerminatedEvent();
+    DAP::EmitTerminatedEvent();
     return S_OK;
 }
 
@@ -245,7 +245,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::CreateThread(ICorDebugAppDomain *pApp
     const ThreadId threadId(Threads::GetId(pThread));
     Threads::Add(pThread, threadId);
 
-    DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
+    DAP::EmitThreadEvent(ThreadEvent(ThreadEventReason::Started, threadId));
     return CallbacksQueue::ContinueAppDomain(pAppDomain);
 }
 
@@ -262,7 +262,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 
     Breakpoints::ManagedCallbackExitThread(pThread);
 
-    DAPIO::EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
+    DAP::EmitThreadEvent(ThreadEvent(ThreadEventReason::Exited, threadId));
     return CallbacksQueue::ContinueAppDomain(pAppDomain);
 }
 
@@ -272,7 +272,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDo
     DebugInfo::TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
     Modules::LoadModuleMetadata(pModule, module);
-    DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
+    DAP::EmitModuleEvent(ModuleEvent(ModuleEventReason::New, module));
 
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
@@ -310,7 +310,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::UnloadModule(ICorDebugAppDomain *pApp
     Module removedModule;
     if (SUCCEEDED(Modules::RemoveModule(pModule, removedModule)))
     {
-        DAPIO::EmitModuleEvent(ModuleEvent(ModuleEventReason::Removed, removedModule));
+        DAP::EmitModuleEvent(ModuleEvent(ModuleEventReason::Removed, removedModule));
     }
 
     DebugInfo::UnloadModuleSymbols(pModule);
@@ -364,7 +364,7 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::LogMessage(ICorDebugAppDomain *pAppDo
         }
     }
 
-    DAPIO::EmitOutputEvent(event);
+    DAP::EmitOutputEvent(event);
     return CallbacksQueue::ContinueAppDomain(pAppDomain);
 }
 

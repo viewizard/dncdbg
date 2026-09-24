@@ -7,7 +7,7 @@
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
 #include "metadata/helpers.h"
-#include "protocol/dapio.h"
+#include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <functional>
@@ -234,7 +234,7 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                 Breakpoint breakpoint;
                 fbp.ToBreakpoint(breakpoint);
                 breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
-                DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
+                DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
             }
 
             if (!fbp.condition.empty())
@@ -256,8 +256,8 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                     << fbp.condition << "'. The error returned was '" << output << "'. - "
                     << fbp.name << "(" << fbp.params << ")\n";
                     breakpoint.message = ss.str();
-                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
-                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
+                    DAP::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     fbp.condition.clear();
                 }
             }
@@ -285,8 +285,8 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                     << fbp.hitCondition << "'. The error returned was '" << output << "'. - "
                     << fbp.name << "(" << fbp.params << ")\n";
                     breakpoint.message = ss.str();
-                    DAPIO::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
-                    DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
+                    DAP::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
+                    DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
                     fbp.hitCondition.clear();
                 }
             }
@@ -313,7 +313,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
         Breakpoint breakpoint;
         fb.ToBreakpoint(breakpoint);
-        DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
+        DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
     }
 
     return S_OK;
@@ -359,7 +359,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
             breakpoint.id = fb.id;
             breakpoint.verified = false;
             breakpoint.message = "Breakpoint reset at module unload.";
-            DAPIO::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
+            DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
         }
     }
 
@@ -385,7 +385,7 @@ HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreak
             Breakpoint breakpoint;
             it->second.ToBreakpoint(breakpoint);
             const BreakpointEvent event(BreakpointEventReason::Removed, breakpoint);
-            DAPIO::EmitBreakpointEvent(event);
+            DAP::EmitBreakpointEvent(event);
 
             it = GetFuncBreakpoints().erase(it);
         }
@@ -446,7 +446,7 @@ HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreak
                     breakpoint.message = "Breakpoint hitCondition changed.";
                 }
                 const BreakpointEvent event(BreakpointEventReason::Changed, breakpoint);
-                DAPIO::EmitBreakpointEvent(event);
+                DAP::EmitBreakpointEvent(event);
                 breakpoint.message.clear();
             }
         }

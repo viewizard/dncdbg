@@ -6,12 +6,16 @@
 #ifndef PROTOCOL_DAP_H
 #define PROTOCOL_DAP_H
 
+#include <string>
+
 namespace dncdbg::DAP
 {
 
 // Implements the DAP protocol command loop: reads requests from the input stream, dispatches them for execution,
 // and emits responses. Returns after the "disconnect" command or when the input stream is closed.
 void CommandLoop();
+
+void SetupProtocolLogging(const std::string &path);
 
 } // namespace dncdbg::DAP
 
