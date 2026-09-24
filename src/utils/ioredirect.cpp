@@ -6,13 +6,13 @@
 #include "utils/ioredirect.h"
 #include "utils/logger.h"
 #include <array>
-#include <cassert>
 #include <cerrno>
 
 namespace dncdbg
 {
 
-// Constructor: create all three pipe pairs and store the output callback.
+// Constructor: store the output callback. Pipes are created for each redirection
+// session started by Exec().
 IORedirect::IORedirect(OutputCallback callback)
     : m_callback(std::move(callback)),
       m_stdinRead(invalidPipe()),
@@ -22,40 +22,19 @@ IORedirect::IORedirect(OutputCallback callback)
       m_stderrRead(invalidPipe()),
       m_stderrWrite(invalidPipe())
 {
-    // Create stdin pipe (debugger writes -> child reads).
-    if (!CreatePipe(m_stdinRead, m_stdinWrite))
-    {
-        LOGE(log << "IORedirect: failed to create stdin pipe");
-        return;
-    }
-
-    // Create stdout pipe (child writes -> debugger reads).
-    if (!CreatePipe(m_stdoutRead, m_stdoutWrite))
-    {
-        LOGE(log << "IORedirect: failed to create stdout pipe");
-        return;
-    }
-
-    // Create stderr pipe (child writes -> debugger reads).
-    if (!CreatePipe(m_stderrRead, m_stderrWrite))
-    {
-        LOGE(log << "IORedirect: failed to create stderr pipe");
-        return;
-    }
-
-    // Mark debugger-side pipe ends as non-inheritable (child should not inherit these).
-    SetInheritable(m_stdinWrite, false);
-    SetInheritable(m_stdoutRead, false);
-    SetInheritable(m_stderrRead, false);
-
-    // Mark child-side pipe ends as inheritable (child process needs these).
-    SetInheritable(m_stdinRead, true);
-    SetInheritable(m_stdoutWrite, true);
-    SetInheritable(m_stderrWrite, true);
 }
 
 // Destructor: stop worker threads and close all remaining pipe handles.
 IORedirect::~IORedirect()
+{
+    Reset();
+
+    LOGD(log << "IORedirect: destroyed");
+}
+
+// Stop worker threads and close all pipe handles, preparing the object for a new
+// redirection session. Safe to call even if no session was started before.
+void IORedirect::Reset()
 {
     // Signal worker threads to stop.
     m_stopWorkers.store(true);
@@ -74,20 +53,63 @@ IORedirect::~IORedirect()
         m_stderrThread.join();
     }
 
-    // Close any remaining pipe handles.
-    ClosePipe(m_stdinRead);
-    ClosePipe(m_stdinWrite);
+    // Close any remaining pipe handles from the previous session.
+    {
+        const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+        ClosePipe(m_stdinRead);
+        ClosePipe(m_stdinWrite);
+    }
     ClosePipe(m_stdoutWrite);
     ClosePipe(m_stderrWrite);
 
-    LOGD(log << "IORedirect: destroyed");
+    // Worker threads are stopped; new ones may be started by the next session.
+    m_stopWorkers.store(false);
 }
 
 // Execute a function with stdin/stdout/stderr redirected to the internal pipes.
+// Each call starts a new redirection session: the previous session (if any) is
+// finished first, and a fresh set of pipes is created.
 void IORedirect::Exec(const std::function<void()> &func)
 {
-    assert(!m_execCalled && "Exec() can only be called once");
-    m_execCalled = true;
+    // Finish the previous session, if any.
+    Reset();
+
+    // Create stdin pipe (debugger writes -> child reads).
+    if (!CreatePipe(m_stdinRead, m_stdinWrite))
+    {
+        LOGE(log << "IORedirect: failed to create stdin pipe");
+        return;
+    }
+
+    // Create stdout pipe (child writes -> debugger reads).
+    if (!CreatePipe(m_stdoutRead, m_stdoutWrite))
+    {
+        LOGE(log << "IORedirect: failed to create stdout pipe");
+        ClosePipe(m_stdinRead);
+        ClosePipe(m_stdinWrite);
+        return;
+    }
+
+    // Create stderr pipe (child writes -> debugger reads).
+    if (!CreatePipe(m_stderrRead, m_stderrWrite))
+    {
+        LOGE(log << "IORedirect: failed to create stderr pipe");
+        ClosePipe(m_stdinRead);
+        ClosePipe(m_stdinWrite);
+        ClosePipe(m_stdoutRead);
+        ClosePipe(m_stdoutWrite);
+        return;
+    }
+
+    // Mark debugger-side pipe ends as non-inheritable (child should not inherit these).
+    SetInheritable(m_stdinWrite, false);
+    SetInheritable(m_stdoutRead, false);
+    SetInheritable(m_stderrRead, false);
+
+    // Mark child-side pipe ends as inheritable (child process needs these).
+    SetInheritable(m_stdinRead, true);
+    SetInheritable(m_stdoutWrite, true);
+    SetInheritable(m_stderrWrite, true);
 
     // Redirect standard file descriptors to the child-side pipe ends.
     SavedStdFiles saved = RedirectStdFiles(m_stdinRead, m_stdoutWrite, m_stderrWrite);

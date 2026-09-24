@@ -3,8 +3,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS_IOSYSTEM_H
-#define UTILS_IOSYSTEM_H
+#ifndef UTILS_IOREDIRECT_H
+#define UTILS_IOREDIRECT_H
 
 #include <gsl/span>
 #include <atomic>
@@ -29,10 +29,13 @@ namespace dncdbg
 //   1. Construct IORedirect with an OutputCallback.
 //   2. Call Exec() with a lambda that creates the child process.
 //      Inside the lambda, stdin/stdout/stderr are redirected to the pipes.
+//      Exec() may be called multiple times: each call finishes the previous
+//      session (if any) and starts a new one with a fresh set of pipes.
 //   3. The OutputCallback is called from worker threads when the child writes
 //      to stdout or stderr.
 //   4. Call WriteStdin() to send data to the child's stdin.
-//   5. Destruction stops worker threads and closes all pipes.
+//   5. The next Exec() call or destruction stops worker threads and closes
+//      all pipes.
 //
 class IORedirect
 {
@@ -53,7 +56,8 @@ class IORedirect
 
     // Construct IORedirect with the given output callback.
     // The callback will be invoked from worker threads when the child process
-    // writes to stdout or stderr. Creates all necessary pipes internally.
+    // writes to stdout or stderr. Pipes are created for each redirection
+    // session started by Exec().
     explicit IORedirect(OutputCallback callback);
 
     // Non-copyable, non-movable.
@@ -75,7 +79,9 @@ class IORedirect
     // After the callback returns, the child-side pipe ends are closed,
     // and worker threads begin reading from the child's stdout and stderr.
     //
-    // This method can only be called once.
+    // Each call starts a new redirection session: the previous session (if any)
+    // is finished first (worker threads are stopped, old pipes are closed), and
+    // a fresh set of pipes is created.
     void Exec(const std::function<void()> &func);
 
     // Write data to the child process's stdin pipe.
@@ -96,9 +102,6 @@ class IORedirect
     // Output callback invoked when data arrives on stdout or stderr.
     OutputCallback m_callback;
 
-    // Flag to track whether Exec() has been called.
-    bool m_execCalled{false};
-
     // Flag to signal worker threads to stop.
     std::atomic<bool> m_stopWorkers{false};
 
@@ -111,6 +114,10 @@ class IORedirect
 
     // Worker thread function that reads from a pipe and calls the output callback.
     void ReaderWorker(StreamType type);
+
+    // Stop worker threads and close all pipe handles, preparing the object for a
+    // new redirection session. Safe to call even if no session was started before.
+    void Reset();
 
     // Platform-specific pipe handle type and invalid value.
 #ifdef _WIN32
@@ -142,7 +149,7 @@ class IORedirect
     PipeHandle m_stderrRead;  // Debugger-side read end.
     PipeHandle m_stderrWrite; // Child-side write end (given to child process).
 
-    // Platform-specific helper methods (implemented in iosystem_unix.cpp / iosystem_win32.cpp).
+    // Platform-specific helper methods (implemented in ioredirect_unix.cpp / ioredirect_win32.cpp).
 
     // Create an unnamed pipe. Returns true on success.
     // readEnd and writeEnd receive the two pipe endpoints.
@@ -191,4 +198,4 @@ class IORedirect
 
 } // namespace dncdbg
 
-#endif // UTILS_IOSYSTEM_H
+#endif // UTILS_IOREDIRECT_H
