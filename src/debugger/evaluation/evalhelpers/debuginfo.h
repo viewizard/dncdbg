@@ -13,20 +13,11 @@
 
 #include "debuginfo/pdb.h"
 #include "types/types.h"
-#include <functional>
-#include <string>
 
 namespace dncdbg::EvalDebugInfoHelpers
 {
 
-using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
-
 void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::ImportsAndAliases &pdbImports);
-
-HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb);
-
-HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
-                                          const ResolveFunctionBreakpointCallback &cb);
 
 } // namespace dncdbg::EvalDebugInfoHelpers
 

@@ -6,11 +6,11 @@
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
-#include "debugger/evaluation/evalhelpers/debuginfo.h"
 #include "metadata/helpers.h"
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include "utils/utf.h"
 #include <functional>
 #include <list>
 #include <mutex>
@@ -84,6 +84,8 @@ std::unordered_map<std::string, ManagedFunctionBreakpoint> &GetFuncBreakpoints()
 }
 
 using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
+using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
+
 HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBreakpoint &fbp)
 {
     HRESULT Status = S_OK;
@@ -120,12 +122,184 @@ HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBre
     return S_OK;
 }
 
-HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
+HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
+{
+    HRESULT Status = S_OK;
+    ToRelease<IUnknown> trUnknown;
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+    ToRelease<IMetaDataImport> trMDImport;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    ToRelease<IMetaDataImport2> trMDImport2;
+    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+
+    ULONG fetched = 0;
+    HCORENUM fTypeEnum = nullptr;
+    mdTypeDef typeDef = mdTypeDefNil;
+
+    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &typeDef, 1, &fetched)) && fetched != 0)
+    {
+        std::string displayTypeName;
+        IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, nullptr));
+
+        HCORENUM fFuncEnum = nullptr;
+        mdMethodDef methodDef = mdMethodDefNil;
+        fetched = 0;
+
+        while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, typeDef, &methodDef, 1, &fetched)) && fetched != 0)
+        {
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            std::vector<WCHAR> szFuncName(nameLen, '\0');
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFuncName.data(), nameLen, nullptr,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                continue;
+            }
+
+            // Get the generic type parameters of the method.
+            HCORENUM fGenEnum = nullptr;
+            mdGenericParam genParam = mdGenericParamNil;
+            fetched = 0;
+            std::string genParams;
+
+            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, methodDef, &genParam, 1, &fetched)) && fetched != 0)
+            {
+                ULONG genNameLen = 0;
+                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                {
+                    continue;
+                }
+
+                std::vector<WCHAR> szGenName(genNameLen, '\0');
+                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                             szGenName.data(), genNameLen, nullptr)))
+                {
+                    continue;
+                }
+
+                // Append a comma after each element; the trailing comma is stripped later.
+                genParams += to_utf8(szGenName.data()) + ",";
+            }
+
+            trMDImport2->CloseEnum(fGenEnum);
+
+            std::string fullName = to_utf8(szFuncName.data());
+            if (!genParams.empty())
+            {
+                // Remove the trailing comma; it is no longer needed.
+                genParams.pop_back();
+                fullName += "<" + genParams + ">";
+            }
+
+            fullName.insert(0, displayTypeName + '.');
+            if (!functor(fullName, methodDef))
+            {
+                trMDImport->CloseEnum(fFuncEnum);
+                trMDImport->CloseEnum(fTypeEnum);
+                return E_FAIL;
+            }
+        }
+
+        trMDImport->CloseEnum(fFuncEnum);
+    }
+    trMDImport->CloseEnum(fTypeEnum);
+
+    return S_OK;
+}
+
+std::vector<std::string> SplitOnTokens(const std::string &str, const char delim)
+{
+    std::vector<std::string> res;
+    size_t prev = 0;
+
+    while (true)
+    {
+        const size_t pos = str.find(delim, prev);
+        if (pos == std::string::npos)
+        {
+            res.emplace_back(str, prev);
+            break;
+        }
+
+        res.emplace_back(str, prev, pos - prev);
+        prev = pos + 1;
+    }
+
+    return res;
+}
+
+bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
+{
+    // Function names are matched component by component: the requested target function name must match
+    // the trailing components of the actual function name, either fully or partially. For example:
+    //
+    // "MethodA" matches
+    // Program.ClassA.MethodA
+    // Program.ClassB.MethodA
+    // Program.ClassA.InnerClass.MethodA
+    //
+    // "ClassA.MethodB" matches
+    // Program.ClassA.MethodB
+    // Program.ClassB.ClassA.MethodB
+
+    auto fullIt = fullName.rbegin();
+    for (auto it = targetName.rbegin(); it != targetName.rend(); ++it)
+    {
+        if (fullIt == fullName.rend() || *it != *fullIt)
+        {
+            return false;
+        }
+
+        ++fullIt;
+    }
+
+    return true;
+}
+
+HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFunctionBreakpointCallback &cb)
+{
+    std::vector<std::string> splitName = SplitOnTokens(funcName, '.');
+
+    const auto functor = [&](const std::string &fullName, mdMethodDef &methodDef) -> bool
+        {
+            const std::vector<std::string> splitFullName = SplitOnTokens(fullName, '.');
+
+            // The target function has been found.
+            if (IsTargetFunction(splitFullName, splitName))
+            {
+                if (FAILED(cb(pModule, methodDef)))
+                {
+                    return false; // Abort the operation.
+                }
+            }
+
+            return true; // Continue with the remaining functions.
+        };
+
+    return ForEachMethod(pModule, functor);
+}
+
+HRESULT ResolveFunctionBreakpointInAny(const std::string &funcName, const ResolveFunctionBreakpointCallback &cb)
+{
+    return DebugInfo::GetEachPDBInfo(
+        [&](const PDBInfo &pdbInfo) -> HRESULT
+        {
+            ResolveMethodInModule(pdbInfo.m_trModule, funcName, cb);
+            return S_OK;
+        });
+}
+
+HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp)
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(EvalDebugInfoHelpers::ResolveFunctionBreakpointInAny(fbp.name,
+    IfFailRet(ResolveMethodInModule(pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
@@ -135,13 +309,12 @@ HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
     return AddFunctionBreakpoint(fbpResolved, fbp);
 }
 
-HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunctionBreakpoint &fbp)
+HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
 {
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(EvalDebugInfoHelpers::ResolveFunctionBreakpointInModule(
-        pModule, fbp.name,
+    IfFailRet(ResolveFunctionBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
