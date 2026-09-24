@@ -9,6 +9,7 @@
 #include "debuginfo/sourcefilemap.h"
 #include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
+#include "protocol/to_json.h" // NOLINT(misc-include-cleaner)
 #include "types/protocol.h"
 #include "types/types.h"
 #include "utils/hresult.h"
@@ -28,7 +29,6 @@
 #include <map>
 #include <mutex>
 #include <sstream>
-#include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>

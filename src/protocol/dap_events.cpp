@@ -5,6 +5,7 @@
 
 #include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
+#include "protocol/to_json.h" // NOLINT(misc-include-cleaner)
 
 // for convenience
 using nlohmann::json;

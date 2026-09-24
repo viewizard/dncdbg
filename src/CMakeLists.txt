@@ -78,6 +78,7 @@ set(DNCDBG_SOURCES
     protocol/dap.cpp
     protocol/dap_events.cpp
     protocol/internal_helpers.cpp
+    protocol/to_json.cpp
     types/protocol.cpp
     types/types.cpp
     utils/diagnostics_client.cpp
