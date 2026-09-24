@@ -8,6 +8,7 @@
 #include "utils/utftoupper.h"
 #include <json/json.hpp>
 #include <cassert>
+#include <map>
 #include <string>
 
 void RunInternalTests() // NOLINT(misc-use-internal-linkage)
@@ -22,20 +23,25 @@ void RunInternalTests() // NOLINT(misc-use-internal-linkage)
 
     // SourceFileMap
     {
-        dncdbg::SourceFileMap::GetMap().emplace(R"(C:\Dir1)", "/dir1");
-        dncdbg::SourceFileMap::GetMap().emplace("/dir2", R"(C:\Dir2)");
-        dncdbg::SourceFileMap::GetMap().emplace(R"(C:\Test)", "/testdir");
-        dncdbg::SourceFileMap::GetMap().emplace(R"(C:\Test\Sub)", "/testdir/sub");
-        dncdbg::SourceFileMap::GetMap().emplace("/testdir", R"(C:\Test\Sub)");
-        dncdbg::SourceFileMap::GetMap().emplace(R"(C:\Test2\Sub2)", "/test\\dir/sub");
-        dncdbg::SourceFileMap::GetMap().emplace(R"(C:\test1\test3\Project.cs)", "/test1/test2/file.cs");
+        std::map<std::string, std::string> sourceFileMap;
+        sourceFileMap.emplace(R"(C:\Dir1)", "/dir1");
+        sourceFileMap.emplace("/dir2", R"(C:\Dir2)");
+        sourceFileMap.emplace(R"(C:\Test)", "/testdir");
+        sourceFileMap.emplace(R"(C:\Test\Sub)", "/testdir/sub");
+        sourceFileMap.emplace("/testdir", R"(C:\Test\Sub)");
+        sourceFileMap.emplace(R"(C:\Test2\Sub2)", "/test\\dir/sub");
+        sourceFileMap.emplace(R"(C:\test1\test3\Project.cs)", "/test1/test2/file.cs");
+        dncdbg::SourceFileMap::SetSourceFileMap(std::move(sourceFileMap));
+
         assert(std::string{"/dir1/Project.cs"} == dncdbg::SourceFileMap::Path(R"(C:\Dir1\Project.cs)"));
         assert(std::string{R"(C:\Dir2\Project.cs)"} == dncdbg::SourceFileMap::Path("/dir2/Project.cs"));
         assert(std::string{"/testdir/sub/Project.cs"} == dncdbg::SourceFileMap::Path(R"(C:\Test\Sub\Project.cs)"));
         assert(std::string{R"(C:\Test\Sub\Project.cs)"} == dncdbg::SourceFileMap::Path("/testdir/Project.cs"));
         assert(std::string{"/test\\dir/sub/Project.cs"} == dncdbg::SourceFileMap::Path(R"(C:\Test2\Sub2\Project.cs)"));
         assert(std::string{"/test1/test2/file.cs"} == dncdbg::SourceFileMap::Path(R"(C:\test1\test3\Project.cs)"));
-        dncdbg::SourceFileMap::GetMap().clear();
+
+        std::map<std::string, std::string> sourceFileMapEmpty;
+        dncdbg::SourceFileMap::SetSourceFileMap(std::move(sourceFileMapEmpty));
     }
 
     // Test UTF-8 to uppercase

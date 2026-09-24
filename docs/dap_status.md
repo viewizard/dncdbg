@@ -191,6 +191,7 @@ How to read the blocks below:
 ❌  __restart?: any;
 🧩  cwd?: string;
 🧩  env?: { [key: string]: string; };
+🧩  sourceFileMap?: { [key: string]: string; };
 🧩  program?: string;
 🧩  args?: string;
 🧩  stopAtEntry?: boolean;

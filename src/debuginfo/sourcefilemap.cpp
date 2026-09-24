@@ -8,6 +8,17 @@
 namespace dncdbg::SourceFileMap
 {
 
+namespace
+{
+
+std::map<std::string, std::string> &GetMap()
+{
+    static std::map<std::string, std::string> sourceFileMap;
+    return sourceFileMap;
+}
+
+} // namespace
+
 std::string Path(const std::string &path)
 {
     if (GetMap().empty())
@@ -66,10 +77,9 @@ std::string Path(const std::string &path)
     return newPrefix + endPath;
 }
 
-std::map<std::string, std::string> &GetMap()
+void SetSourceFileMap(std::map<std::string, std::string> &&map)
 {
-    static std::map<std::string, std::string> sourceFileMap;
-    return sourceFileMap;
+    GetMap() = std::move(map);
 }
 
 } // namespace dncdbg::SourceFileMap

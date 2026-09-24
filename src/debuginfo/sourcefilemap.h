@@ -14,7 +14,8 @@ namespace dncdbg::SourceFileMap
 // Return source path with applied source file path mapping.
 std::string Path(const std::string &path);
 
-std::map<std::string, std::string> &GetMap();
+// Replace the source file path mapping with the given one.
+void SetSourceFileMap(std::map<std::string, std::string> &&map);
 
 } // namespace dncdbg::SourceFileMap
 

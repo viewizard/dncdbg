@@ -21,6 +21,7 @@
 #include "debugger/threads.h"
 #include "debugger/variables.h"
 #include "debuginfo/debuginfo.h"
+#include "debuginfo/sourcefilemap.h"
 #include "debuginfo/types.h"
 #include "metadata/modules.h"
 #include "protocol/dap_events.h"
@@ -1229,6 +1230,11 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
                                std::vector<BreakpointLocation> &locations)
 {
     return DebugInfo::GetBreakpointLocations(source, rangeToSearch, locations);
+}
+
+void SetSourceFileMap(std::map<std::string, std::string> &&map)
+{
+    SourceFileMap::SetSourceFileMap(std::move(map));
 }
 
 } // namespace dncdbg::ManagedDebugger

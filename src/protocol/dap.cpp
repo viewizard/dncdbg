@@ -6,7 +6,6 @@
 #include "protocol/dap.h"
 #include "config/config.h"
 #include "debugger/manageddebugger.h"
-#include "debuginfo/sourcefilemap.h"
 #include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
 #include "protocol/to_json.h" // NOLINT(misc-include-cleaner)
@@ -425,27 +424,34 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const std::string cwd(cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{});
 
                 std::map<std::string, std::string> env;
-                try
+                const auto findEnv = arguments.find("env");
+                if (findEnv != arguments.cend())
                 {
-                    env = arguments.at("env").get<std::map<std::string, std::string>>();
-                }
-                catch (std::exception &ex)
-                {
-                    LOGI(log << "env exception '" << ex.what() << "'");
-                    // If we catch inconsistent state on the interrupted reading
-                    env.clear();
+                    try
+                    {
+                        env = findEnv->get<std::map<std::string, std::string>>();
+                    }
+                    catch (const std::exception &ex)
+                    {
+                        LOGI(log << "env exception '" << ex.what() << "'");
+                        // Keep the empty map if the reading was interrupted and left an inconsistent state.
+                        env.clear();
+                    }
                 }
 
-                try
+                const auto findSourceFileMap = arguments.find("sourceFileMap");
+                if (findSourceFileMap != arguments.cend())
                 {
-                    // https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map
-                    SourceFileMap::GetMap() = arguments.at("sourceFileMap").get<std::map<std::string, std::string>>();
-                }
-                catch (std::exception &ex)
-                {
-                    LOGI(log << "sourceFileMap exception '" << ex.what() << "'");
-                    // If we catch inconsistent state on the interrupted reading
-                    SourceFileMap::GetMap().clear();
+                    try
+                    {
+                        // https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map
+                        std::map<std::string, std::string> map = findSourceFileMap->get<std::map<std::string, std::string>>();
+                        ManagedDebugger::SetSourceFileMap(std::move(map));
+                    }
+                    catch (const std::exception &ex)
+                    {
+                        LOGI(log << "sourceFileMap exception '" << ex.what() << "'");
+                    }
                 }
 
                 Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
