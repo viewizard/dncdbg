@@ -23,6 +23,7 @@
 #include "utils/logger.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <algorithm>
 
 #ifdef __linux__
 #include "utils/waitpid.h"
