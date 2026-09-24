@@ -193,8 +193,7 @@ void Cleanup()
     ExceptionBreakpoints::Cleanup();
     BreakpointHelpers::Cleanup();
 
-    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
-    GetNextBreakpointId() = 1;
+    // Don't reset GetNextBreakpointId since breakpoint IDs must remain unique across debug sessions.
 }
 
 } // namespace dncdbg::Breakpoints

@@ -473,6 +473,7 @@ void Cleanup()
     Breakpoints::Cleanup();
     DebugInfo::Cleanup();
     Variables::Cleanup();
+    FrameId::Cleanup();
     EvalExec::Cleanup();
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
@@ -521,12 +522,10 @@ HRESULT Startup(IUnknown *punk)
         return Status;
     }
 
-    WriteLock w_lock(GetDebugProcessRWLock());
+    const WriteLock w_lock(GetDebugProcessRWLock());
 
     GetTrProcess() = trProcess.Detach();
     GetTrDebug() = trDebug.Detach();
-
-    w_lock.unlock();
 
     return S_OK;
 }
@@ -577,15 +576,12 @@ HRESULT CheckNoProcess()
     }
     lockAttachedMutex.unlock();
 
-    Cleanup();
     return S_OK;
 }
 
 HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
 {
     HRESULT Status = S_OK;
-
-    IfFailRet(CheckNoProcess());
 
     // Reset the startup callback error from a previous launch attempt, if any.
     GetStartupCallbackHR() = S_OK;
@@ -663,7 +659,7 @@ HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
     if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
-                                      [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
+                                         [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());
         return E_FAIL;
@@ -678,8 +674,6 @@ HRESULT AttachToProcess()
 {
     HRESULT Status = S_OK;
 
-    IfFailRet(CheckNoProcess());
-
     // Reset the startup callback error from a previous attach attempt, if any.
     GetStartupCallbackHR() = S_OK;
 
@@ -692,7 +686,7 @@ HRESULT AttachToProcess()
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
     if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
-                                      [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
+                                         [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());
         return E_FAIL;
@@ -809,6 +803,10 @@ void Shutdown()
 
 HRESULT Attach(DWORD pid)
 {
+    HRESULT Status = S_OK;
+
+    IfFailRet(CheckNoProcess());
+
     GetStartMethod() = StartMethod::Attach;
     Threads::SetProcessAttached(true);
     GetProcessId() = pid;
@@ -818,6 +816,10 @@ HRESULT Attach(DWORD pid)
 HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
                const std::map<std::string, std::string> &env, const std::string &cwd)
 {
+    HRESULT Status = S_OK;
+
+    IfFailRet(CheckNoProcess());
+
     GetStartMethod() = StartMethod::Launch;
     Threads::SetProcessAttached(false);
     GetExecPath() = fileExec;
@@ -829,6 +831,11 @@ HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &exec
 
 HRESULT ConfigurationDone()
 {
+    HRESULT Status = S_OK;
+
+    IfFailRet(CheckNoProcess());
+    Cleanup();
+
     switch (GetStartMethod())
     {
     case StartMethod::Launch:

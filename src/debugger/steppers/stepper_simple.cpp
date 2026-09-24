@@ -22,10 +22,10 @@ std::mutex &GetStepMutex()
     return stepMutex;
 }
 
-int &GetEnabledStepId()
+int &GetEnabledStepThreadId()
 {
-    static int enabledStepId{0};
-    return enabledStepId;
+    static int enabledStepThreadId{0};
+    return enabledStepThreadId;
 }
 
 } // unnamed namespace
@@ -58,7 +58,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(trStepper->StepOut());
 
         const std::scoped_lock<std::mutex> lock(GetStepMutex());
-        GetEnabledStepId() = static_cast<int>(threadId);
+        GetEnabledStepThreadId() = static_cast<int>(threadId);
 
         return S_OK;
     }
@@ -76,7 +76,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
     }
 
     const std::scoped_lock<std::mutex> lock(GetStepMutex());
-    GetEnabledStepId() = static_cast<int>(threadId);
+    GetEnabledStepThreadId() = static_cast<int>(threadId);
 
     return S_OK;
 }
@@ -90,7 +90,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThrea
         {
             {
                 const std::scoped_lock<std::mutex> lock(GetStepMutex());
-                if (GetEnabledStepId() != static_cast<int>(threadId))
+                if (GetEnabledStepThreadId() != static_cast<int>(threadId))
                 {
                     return false;
                 }
@@ -124,7 +124,7 @@ HRESULT ManagedCallbackStepComplete()
 {
     // Reset simple step without real stepper release.
     const std::scoped_lock<std::mutex> lock(GetStepMutex());
-    GetEnabledStepId() = 0;
+    GetEnabledStepThreadId() = 0;
 
     return S_OK;
 }
@@ -154,7 +154,7 @@ HRESULT DisableAll(ICorDebugProcess *pProcess)
     }
 
     const std::scoped_lock<std::mutex> lock(GetStepMutex());
-    GetEnabledStepId() = 0;
+    GetEnabledStepThreadId() = 0;
 
     return S_OK;
 }
@@ -162,7 +162,7 @@ HRESULT DisableAll(ICorDebugProcess *pProcess)
 void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetStepMutex());
-    GetEnabledStepId() = 0;
+    GetEnabledStepThreadId() = 0;
 }
 
 } // namespace dncdbg::SimpleStepper

@@ -89,7 +89,7 @@ HRESULT GetTarget(const Source &source, int32_t line, int32_t column, std::vecto
 
 void Cleanup()
 {
-    GetGotoTargetId() = 0;
+    // Don't reset GetGotoTargetId since goto target IDs must remain unique across debug sessions.
 }
 
 } // namespace dncdbg::Goto

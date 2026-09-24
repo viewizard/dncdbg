@@ -15,10 +15,10 @@ namespace dncdbg::SourceReference
 namespace
 {
 
-int32_t &GetSourceReferenceCount()
+int32_t &GetSourceReferenceId()
 {
-    static int32_t sourceReferenceCount = 0;
-    return sourceReferenceCount;
+    static int32_t sourceReferenceId = 0;
+    return sourceReferenceId;
 }
 
 std::unordered_map<PDB::GlobalFileIndex, int32_t, PDB::GlobalFileIndexHash> &GetGlobalIndexMap()
@@ -189,18 +189,18 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
             return;
         }
 
-        int32_t &sourceReferenceCount = GetSourceReferenceCount();
-        sourceReferenceCount++;
-        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, sourceReferenceCount);
-        sourceReferenceMap.emplace(sourceReferenceCount, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
+        int32_t &sourceReferenceId = GetSourceReferenceId();
+        sourceReferenceId++;
+        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, sourceReferenceId);
+        sourceReferenceMap.emplace(sourceReferenceId, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
 
         if (!urlStr.empty())
         {
-            sourceURLMap.emplace(sourceReferenceCount, urlStr);
+            sourceURLMap.emplace(sourceReferenceId, urlStr);
         }
 
         Source source;
-        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, sourceReferenceCount, source)))
+        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, sourceReferenceId, source)))
         {
             return;
         }
@@ -281,7 +281,7 @@ void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    GetSourceReferenceCount() = 0;
+    // Don't reset GetSourceReferenceId since source references must remain unique across debug sessions.
     GetGlobalIndexMap().clear();
     GetSourceReferenceMap().clear();
     GetSourceURLMap().clear();

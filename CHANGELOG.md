@@ -70,6 +70,7 @@ Upcoming changes compared to previous version.
 - Fixed indexer properties being listed as regular members when walking object members.
 - Fixed element access evaluation to resolve indexers by property metadata instead of the `get_Item` name heuristic, enabling indexers with non-standard getter names (e.g. `string[0]` uses `Chars`).
 - Fixed Launch Request handling of optional `env` and `sourceFileMap` options: switched from `at()` to `find()`.
+- Fixed cleanup ordering between process exit and terminate.
 
 <br>
 <br>
