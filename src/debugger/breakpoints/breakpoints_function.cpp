@@ -6,6 +6,7 @@
 #include "debugger/breakpoints/breakpoints_function.h"
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
+#include "debugger/evaluation/evalhelpers/debuginfo.h"
 #include "metadata/helpers.h"
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
@@ -124,7 +125,7 @@ HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(DebugInfo::ResolveFunctionBreakpointInAny(fbp.name,
+    IfFailRet(EvalDebugInfoHelpers::ResolveFunctionBreakpointInAny(fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {
             fbpResolved.emplace_back(std::make_pair(pModule, methodToken));
@@ -139,7 +140,7 @@ HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, ManagedFunct
     HRESULT Status = S_OK;
     ResolvedFBP fbpResolved;
 
-    IfFailRet(DebugInfo::ResolveFunctionBreakpointInModule(
+    IfFailRet(EvalDebugInfoHelpers::ResolveFunctionBreakpointInModule(
         pModule, fbp.name,
         [&](ICorDebugModule *pModule, mdMethodDef &methodToken) -> HRESULT
         {

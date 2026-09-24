@@ -8,8 +8,6 @@
 #include "debuginfo/debugsources.h"
 #include "debuginfo/pdbreader.h"
 #include "debuginfo/sourcereference.h"
-#include "metadata/helpers.h"
-#include "metadata/modules.h"
 #include "protocol/dap_events.h"
 #include "utils/downloader.h"
 #include "utils/filesystem.h"
@@ -146,170 +144,6 @@ DebugInfoMap &GetDebugInfoMap()
 {
     static DebugInfoMap debugInfoMap;
     return debugInfoMap;
-}
-
-bool IsTargetFunction(const std::vector<std::string> &fullName, const std::vector<std::string> &targetName)
-{
-    // Function should be matched by substring, i.e. received target function name should fully or partly equal with the
-    // real function name. For example:
-    //
-    // "MethodA" matches
-    // Program.ClassA.MethodA
-    // Program.ClassB.MethodA
-    // Program.ClassA.InnerClass.MethodA
-    //
-    // "ClassA.MethodB" matches
-    // Program.ClassA.MethodB
-    // Program.ClassB.ClassA.MethodB
-
-    auto fullIt = fullName.rbegin();
-    for (auto it = targetName.rbegin(); it != targetName.rend(); it++)
-    {
-        if (fullIt == fullName.rend() || *it != *fullIt)
-        {
-            return false;
-        }
-
-        fullIt++;
-    }
-
-    return true;
-}
-
-HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
-{
-    HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
-    ULONG fetched = 0;
-    HCORENUM fTypeEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
-
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &typeDef, 1, &fetched)) && fetched != 0)
-    {
-        std::string displayTypeName;
-        IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, nullptr));
-
-        HCORENUM fFuncEnum = nullptr;
-        mdMethodDef mdMethod = mdMethodDefNil;
-        fetched = 0;
-
-        while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, typeDef, &mdMethod, 1, &fetched)) && fetched != 0)
-        {
-            ULONG nameLen = 0;
-            if (FAILED(trMDImport->GetMethodProps(mdMethod, nullptr, nullptr, 0, &nameLen,
-                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            std::vector<WCHAR> szFuncName(nameLen, '\0');
-            if (FAILED(trMDImport->GetMethodProps(mdMethod, nullptr, szFuncName.data(), nameLen, nullptr,
-                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            // Get generic types
-            ToRelease<IMetaDataImport2> trMDImport2;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
-
-            HCORENUM fGenEnum = nullptr;
-            mdGenericParam genParam = mdGenericParamNil;
-            fetched = 0;
-            std::string genParams;
-
-            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, mdMethod, &genParam, 1, &fetched)) && fetched == 1)
-            {
-                ULONG genNameLen = 0;
-                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
-                {
-                    continue;
-                }
-
-                mdMethodDef memMethodDef = mdMethodDefNil;
-                std::vector<WCHAR> szGenName(genNameLen, '\0');
-                if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, &memMethodDef, nullptr,
-                                                             szGenName.data(), genNameLen, nullptr)))
-                {
-                    continue;
-                }
-
-                // Add comma for each element. The last one will be stripped later.
-                genParams += to_utf8(szGenName.data()) + ",";
-            }
-
-            trMDImport2->CloseEnum(fGenEnum);
-
-            std::string fullName = to_utf8(szFuncName.data());
-            if (!genParams.empty())
-            {
-                // Last symbol is comma and it is useless, so remove
-                genParams.pop_back();
-                fullName += "<" + genParams + ">";
-            }
-
-            fullName.insert(0, displayTypeName + '.');
-            if (!functor(fullName, mdMethod))
-            {
-                trMDImport->CloseEnum(fFuncEnum);
-                trMDImport->CloseEnum(fTypeEnum);
-                return E_FAIL;
-            }
-        }
-
-        trMDImport->CloseEnum(fFuncEnum);
-    }
-    trMDImport->CloseEnum(fTypeEnum);
-
-    return S_OK;
-}
-
-std::vector<std::string> split_on_tokens(const std::string &str, const char delim)
-{
-    std::vector<std::string> res;
-    size_t prev = 0;
-
-    while (true)
-    {
-        const size_t pos = str.find(delim, prev);
-        if (pos == std::string::npos)
-        {
-            res.emplace_back(str, prev);
-            break;
-        }
-
-        res.emplace_back(str, prev, pos - prev);
-        prev = pos + 1;
-    }
-
-    return res;
-}
-
-HRESULT ResolveMethodInModule(ICorDebugModule *pModule, const std::string &funcName, const ResolveFunctionBreakpointCallback &cb)
-{
-    std::vector<std::string> splitName = split_on_tokens(funcName, '.');
-
-    const auto functor = [&](const std::string &fullName, mdMethodDef &mdMethod) -> bool
-        {
-            const std::vector<std::string> splitFullName = split_on_tokens(fullName, '.');
-
-            // If we've found the target function
-            if (IsTargetFunction(splitFullName, splitName))
-            {
-                if (FAILED(cb(pModule, mdMethod)))
-                {
-                    return false; // abort operation
-                }
-            }
-
-            return true; // continue for other functions with matching name
-        };
-
-    return ForEachMethod(pModule, functor);
 }
 
 HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::string &pathPdb, std::vector<uint8_t> &embeddedPDB)
@@ -556,7 +390,8 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
     return E_FAIL;
 }
 
-HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff, std::string &pdbFilePath, std::vector<uint8_t> &embeddedPDB)
+HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &memBuff,
+                const std::string &moduleFilePath, std::string &pdbFilePath, std::vector<uint8_t> &embeddedPDB)
 {
     HRESULT Status = S_OK;
     PDB::Identity pdbId;
@@ -573,7 +408,7 @@ HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &m
     }
 
     const std::string pdbFileName = GetFileName(pdbFilePath);
-    const std::string modulePath = GetParentPath(Modules::GetModuleFilePath(pModule));
+    const std::string modulePath = GetParentPath(moduleFilePath);
     pdbFilePath = modulePath + pdbFileName;
 
     if (SUCCEEDED(PDBReader::OpenPDB(pdbFilePath, pdbId, memBuff, pdbHandle)))
@@ -793,22 +628,18 @@ HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
     return (infoPair == GetDebugInfoMap().cend()) ? E_FAIL : cb(infoPair->second);
 }
 
-HRESULT ResolveFunctionBreakpointInAny(const std::string &funcname, const ResolveFunctionBreakpointCallback &cb)
+HRESULT GetEachPDBInfo(const PDBInfoCallback &cb)
 {
+    HRESULT Status = S_OK;
+
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
 
-    for (const auto &[modAddr, pdbInfo] : GetDebugInfoMap())
+    for (const auto &entry : GetDebugInfoMap())
     {
-        ResolveMethodInModule(pdbInfo.m_trModule, funcname, cb);
+        IfFailRet(cb(entry.second));
     }
 
     return S_OK;
-}
-
-HRESULT ResolveFunctionBreakpointInModule(ICorDebugModule *pModule, const std::string &funcname,
-                                          const ResolveFunctionBreakpointCallback &cb)
-{
-    return ResolveMethodInModule(pModule, funcname, cb);
 }
 
 HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range)
@@ -872,7 +703,7 @@ void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
     mdhandle_t pdbHandle = nullptr;
     MemoryBuffer memBuff;
     std::vector<uint8_t> embeddedPDB;
-    const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.symbolFilePath, embeddedPDB);
+    const HRESULT Status = LoadPDB(pModule, pdbHandle, memBuff, module.path, module.symbolFilePath, embeddedPDB);
     module.symbolStatus = SUCCEEDED(Status) ? SymbolStatus::Loaded : SymbolStatus::NotFound;
 
     if (module.symbolStatus != SymbolStatus::Loaded)

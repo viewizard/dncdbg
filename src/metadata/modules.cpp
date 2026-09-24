@@ -100,9 +100,6 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
 
 void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
 {
-    module.path = GetModuleFilePath(pModule);
-    module.name = GetFileName(module.path);
-
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
         ToRelease<ICorDebugModule2> trModule2;

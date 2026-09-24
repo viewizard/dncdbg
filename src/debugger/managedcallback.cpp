@@ -20,6 +20,7 @@
 #include "debuginfo/debuginfo.h"
 #include "metadata/modules.h"
 #include "protocol/dap_events.h"
+#include "utils/filesystem.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -271,6 +272,9 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitThread(ICorDebugAppDomain *pAppDo
 HRESULT STDMETHODCALLTYPE ManagedCallback::LoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
     Module &module = Modules::GetNewModuleRef();
+    module.path = Modules::GetModuleFilePath(pModule);
+    module.name = GetFileName(module.path);
+
     DebugInfo::TryLoadModuleSymbols(pModule, module);
     // Note, LoadModuleMetadata() must be called after debug info (symbols) load.
     Modules::LoadModuleMetadata(pModule, module);
