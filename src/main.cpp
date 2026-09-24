@@ -200,8 +200,7 @@ int
     {
         dncdbg::ManagedDebugger::Initialize();
 
-        dncdbg::DAP protocol;
-        protocol.CommandLoop();
+        dncdbg::DAP::CommandLoop();
 
         dncdbg::ManagedDebugger::Shutdown();
     }

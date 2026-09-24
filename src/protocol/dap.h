@@ -6,56 +6,13 @@
 #ifndef PROTOCOL_DAP_H
 #define PROTOCOL_DAP_H
 
-#include "types/types.h"
-#include "types/protocol.h"
-#include <json/json.hpp>
-#include <atomic>
-#include <condition_variable>
-#include <fstream>
-#include <list>
-#include <mutex>
-#include <string>
-#include <string_view>
-
-namespace dncdbg
+namespace dncdbg::DAP
 {
 
-class DAP
-{
-  public:
+// Implements the DAP protocol command loop: reads requests from the input stream, dispatches them for execution,
+// and emits responses. Returns after the "disconnect" command or when the input stream is closed.
+void CommandLoop();
 
-    DAP()
-        : m_exit(false)
-    {
-    }
-
-    void CommandLoop();
-
-    HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
-    HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &body);
-
-  private:
-
-    std::atomic<bool> m_exit;
-
-    bool m_internalConsole{false};
-
-    struct CommandQueueEntry
-    {
-        std::string command;
-        nlohmann::json arguments;
-        nlohmann::json response;
-    };
-
-    std::mutex m_commandsMutex;
-    std::condition_variable m_commandsCV;
-    std::condition_variable m_commandSyncCV;
-    std::list<CommandQueueEntry> m_commandsQueue;
-
-    void CommandsWorker();
-    std::list<CommandQueueEntry>::iterator CancelCommand(const std::list<CommandQueueEntry>::iterator &iter);
-};
-
-} // namespace dncdbg
+} // namespace dncdbg::DAP
 
 #endif // PROTOCOL_DAP_H

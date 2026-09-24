@@ -9,32 +9,43 @@
 #include "debuginfo/sourcefilemap.h"
 #include "protocol/dapio.h"
 #include "protocol/internal_helpers.h"
+#include "types/protocol.h"
+#include "types/types.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include <json/json.hpp>
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <exception>
+#include <functional>
 #include <future>
 #include <iterator>
 #include <iomanip>
 #include <iostream>
+#include <list>
 #include <map>
+#include <mutex>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 // for convenience
 using nlohmann::json;
 
-namespace dncdbg
+namespace dncdbg::DAP
 {
 
 namespace
 {
 
-// Make sure we continue add new commands into queue only after current command execution is finished.
-// Note, configurationDone: prevent deadlock in _dup() call during std::getline() from stdin in main thread.
+// Make sure we continue adding new commands to the queue only after the current command execution is finished.
+// Note: configurationDone prevents a deadlock in the _dup() call during std::getline() from stdin in the main thread.
 const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
 {
     static const std::unordered_set<std::string> syncCommandExecutionSet{
@@ -227,13 +238,61 @@ HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference,
     return S_OK;
 }
 
-} // unnamed namespace
+// Internal state of the DAP protocol layer (formerly the DAP class members).
+std::atomic<bool> &GetExit()
+{
+    static std::atomic<bool> exit{false};
+    return exit;
+}
 
-HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
+bool &GetInternalConsole()
+{
+    static bool internalConsole{false};
+    return internalConsole;
+}
+
+struct CommandQueueEntry
+{
+    std::string command;
+    nlohmann::json arguments;
+    nlohmann::json response;
+};
+
+std::mutex &GetCommandsMutex()
+{
+    static std::mutex commandsMutex;
+    return commandsMutex;
+}
+
+std::condition_variable &GetCommandsCV()
+{
+    static std::condition_variable commandsCV;
+    return commandsCV;
+}
+
+std::condition_variable &GetCommandSyncCV()
+{
+    static std::condition_variable commandSyncCV;
+    return commandSyncCV;
+}
+
+bool &GetCommandSyncFlag()
+{
+    static bool commandSyncFlag{false};
+    return commandSyncFlag;
+}
+
+std::list<CommandQueueEntry> &GetCommandsQueue()
+{
+    static std::list<CommandQueueEntry> commandsQueue;
+    return commandsQueue;
+}
+
+HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
     static std::unordered_map<std::string, CommandCallback> commands{
-        {"initialize", [&](const json &/*arguments*/, json &responseBody)
+        {"initialize", [](const json &/*arguments*/, json &responseBody)
             {
                 // clientID, clientName, adapterID - not in use now
 
@@ -243,7 +302,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"setExceptionBreakpoints", [&](const json &arguments, json &/*responseBody*/)
+        {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
             {
                 const std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
                 std::vector<std::map<std::string, std::string>> filterOptions =
@@ -318,11 +377,11 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"configurationDone", [&](const json &/*arguments*/, json &/*responseBody*/)
+        {"configurationDone", [](const json &/*arguments*/, json &/*responseBody*/)
             {
                 return ManagedDebugger::ConfigurationDone();
             }},
-        {"exceptionInfo", [&](const json &arguments, json &responseBody)
+        {"exceptionInfo", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
@@ -335,7 +394,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("details", FormJsonForExceptionDetails(exceptionInfo.details));
                 return S_OK;
             }},
-        {"setBreakpoints", [&](const json &arguments, json &responseBody)
+        {"setBreakpoints", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -360,7 +419,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"launch", [&](const json &arguments, json &/*responseBody*/)
+        {"launch", [](const json &arguments, json &/*responseBody*/)
             {
                 const auto cwdIt = arguments.find("cwd");
                 const std::string cwd(cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{});
@@ -414,7 +473,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 if (console == "internalConsole")
                 {
-                    m_internalConsole = true;
+                    GetInternalConsole() = true;
                 }
                 else if (console == "remoteConsole")
                 {
@@ -489,7 +548,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                     return ManagedDebugger::Launch(program, args, env, cwd);
                 }
             }},
-        {"threads", [&](const json &/*arguments*/, json &responseBody)
+        {"threads", [](const json &/*arguments*/, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Thread> threads;
@@ -499,7 +558,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"disconnect", [&](const json &arguments, json &/*responseBody*/)
+        {"disconnect", [](const json &arguments, json &/*responseBody*/)
             {
                 const auto terminateArgIter = arguments.find("terminateDebuggee");
                 ManagedDebugger::DisconnectAction action = ManagedDebugger::DisconnectAction::Default;
@@ -517,12 +576,12 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"terminate", [&](const json &/*arguments*/, json &/*responseBody*/)
+        {"terminate", [](const json &/*arguments*/, json &/*responseBody*/)
             {
                 ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Terminate);
                 return S_OK;
             }},
-        {"stackTrace", [&](const json &arguments, json &responseBody)
+        {"stackTrace", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -537,7 +596,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"continue", [&](const json &arguments, json &responseBody)
+        {"continue", [](const json &arguments, json &responseBody)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 const bool singleThread = arguments.value("singleThread", false);
@@ -549,30 +608,30 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("threadId", static_cast<int>(threadId));
                 return S_OK;
             }},
-        {"pause", [&](const json &arguments, json &/*responseBody*/)
+        {"pause", [](const json &arguments, json &/*responseBody*/)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 return ManagedDebugger::Pause(threadId);
             }},
-        {"next", [&](const json &arguments, json &/*responseBody*/)
+        {"next", [](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
                 return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                     StepType::STEP_OVER, singleThread);
             }},
-        {"stepIn", [&](const json &arguments, json &/*responseBody*/)
+        {"stepIn", [](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
                 return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                     StepType::STEP_IN, singleThread);
             }},
-        {"stepOut", [&](const json &arguments, json &/*responseBody*/)
+        {"stepOut", [](const json &arguments, json &/*responseBody*/)
             {
                 const bool singleThread = arguments.value("singleThread", false);
                 return ManagedDebugger::StepCommand(ThreadId{static_cast<int>(arguments.at("threadId"))},
                                                     StepType::STEP_OUT, singleThread);
             }},
-        {"scopes", [&](const json &arguments, json &responseBody)
+        {"scopes", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Scope> scopes;
@@ -583,7 +642,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"variables", [&](const json &arguments, json &responseBody)
+        {"variables", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
                 std::vector<Variable> variables;
@@ -593,7 +652,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"evaluate", [&](const json &arguments, json &responseBody)
+        {"evaluate", [](const json &arguments, json &responseBody)
             {
                 std::string expression = arguments.at("expression");
                 const FrameId frameId([&]
@@ -610,7 +669,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                         }
                     }());
 
-                if (m_internalConsole && ManagedDebugger::IsProcessRunning())
+                if (GetInternalConsole() && ManagedDebugger::IsProcessRunning())
                 {
                     expression += '\n'; // User pressed "Enter".
                     ManagedDebugger::WriteStdin({expression.data(), expression.size()});
@@ -646,7 +705,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 }
                 return S_OK;
             }},
-        {"setExpression", [&](const json &arguments, json &responseBody)
+        {"setExpression", [](const json &arguments, json &responseBody)
             {
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
@@ -685,7 +744,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
                 responseBody.emplace("value", output);
                 return S_OK;
             }},
-        {"attach", [&](const json &arguments, json &/*responseBody*/)
+        {"attach", [](const json &arguments, json &/*responseBody*/)
             {
                 const DWORD processId = arguments.value("processId", 0);
                 if (processId == 0)
@@ -695,7 +754,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return ManagedDebugger::Attach(processId);
             }},
-        {"setVariable", [&](const json &arguments, json &responseBody)
+        {"setVariable", [](const json &arguments, json &responseBody)
             {
                 const std::string name = arguments.at("name");
                 const std::string value = arguments.at("value");
@@ -713,7 +772,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"setFunctionBreakpoints", [&](const json &arguments, json &responseBody)
+        {"setFunctionBreakpoints", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -743,7 +802,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return Status;
             }},
-        {"modules", [&](const json &arguments, json &responseBody)
+        {"modules", [](const json &arguments, json &responseBody)
             {
                 size_t totalModules = 0;
                 std::vector<Module> modules;
@@ -755,7 +814,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"gotoTargets", [&](const json &arguments, json &responseBody)
+        {"gotoTargets", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -780,7 +839,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"goto", [&](const json &arguments, json &responseBody)
+        {"goto", [](const json &arguments, json &responseBody)
             {
                 const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
                 const uint32_t targetId = arguments.at("targetId");
@@ -798,7 +857,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"source", [&](const json &arguments, json &responseBody)
+        {"source", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -831,7 +890,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"loadedSources", [&](const json &/*arguments*/, json &responseBody)
+        {"loadedSources", [](const json &/*arguments*/, json &responseBody)
             {
                 std::vector<Source> sources;
                 ManagedDebugger::GetLoadedSources(sources);
@@ -840,7 +899,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
 
                 return S_OK;
             }},
-        {"breakpointLocations", [&](const json &arguments, json &responseBody)
+        {"breakpointLocations", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
 
@@ -884,7 +943,7 @@ HRESULT DAP::HandleCommand(const std::string &command, const nlohmann::json &arg
     return command_it->second(arguments, responseBody);
 }
 
-HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
+HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
     try
     {
@@ -899,21 +958,27 @@ HRESULT DAP::HandleCommandJSON(const std::string &command, const nlohmann::json 
     return E_FAIL;
 }
 
-void DAP::CommandsWorker()
+void CommandsWorker()
 {
-    std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
+    std::mutex &commandsMutex = GetCommandsMutex();
+    std::condition_variable &commandsCV = GetCommandsCV();
+    std::condition_variable &commandSyncCV = GetCommandSyncCV();
+    bool &commandSyncFlag = GetCommandSyncFlag();
+    std::list<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
+
+    std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
 
     while (true)
     {
-        while (m_commandsQueue.empty())
+        while (commandsQueue.empty())
         {
-            // Note, during m_commandsCV.wait() (waiting for notify_one call with entry added into queue),
-            // m_commandsMutex will be unlocked (see std::condition_variable for more info).
-            m_commandsCV.wait(lockCommandsMutex);
+            // Note, during commandsCV.wait() (waiting for a notify_one call with an entry added to the queue),
+            // commandsMutex will be unlocked (see std::condition_variable for more info).
+            commandsCV.wait(lockCommandsMutex);
         }
 
-        CommandQueueEntry c = std::move(m_commandsQueue.front());
-        m_commandsQueue.pop_front();
+        CommandQueueEntry c = std::move(commandsQueue.front());
+        commandsQueue.pop_front();
         lockCommandsMutex.unlock();
 
         // Check for dncdbg internal commands.
@@ -929,19 +994,19 @@ void DAP::CommandsWorker()
                 return HandleCommandJSON(c.command, c.arguments, responseBody);
             });
         HRESULT Status = S_OK;
-        // Note, CommandsWorker() loop should never hangs, but even in case some command execution is timed out,
-        // this could be not critical issue. Let IDE decide.
+        // Note, the CommandsWorker() loop should never hang, but even if some command execution times out,
+        // this may not be a critical issue. Let the IDE decide.
 
-        // MSVS debugger use config file, for Visual Studio 2022 Community Edition located at
+        // The MSVS debugger uses a config file; for Visual Studio 2022 Community Edition it is located at
         // C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Profiles\CSharp.vssettings
-        // Visual Studio has timeout setup for each type of requests, for example:
+        // Visual Studio has a timeout setting for each type of request, for example:
         // LocalsTimeout = 1000
         // LongEvalTimeout = 10000
         // NormalEvalTimeout = 5000
         // QuickwatchTimeout = 15000
         // SetValueTimeout = 10000
         // ...
-        // we use max default timeout (15000), one timeout for all requests.
+        // we use the maximum default timeout (15000 ms), one timeout for all requests.
 
         // TODO add timeout configuration feature
         const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
@@ -985,7 +1050,11 @@ void DAP::CommandsWorker()
         // Post command action.
         if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().cend())
         {
-            m_commandSyncCV.notify_one();
+            {
+                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+                commandSyncFlag = false;
+            }
+            commandSyncCV.notify_one();
         }
 
         if (c.command == "disconnect")
@@ -1012,25 +1081,33 @@ void DAP::CommandsWorker()
         lockCommandsMutex.lock();
     }
 
-    m_exit = true;
+    GetExit() = true;
 }
 
-// Caller must hold m_commandsMutex.
-std::list<DAP::CommandQueueEntry>::iterator DAP::CancelCommand(const std::list<DAP::CommandQueueEntry>::iterator &iter)
+// Caller must hold the commands mutex.
+std::list<CommandQueueEntry>::iterator CancelCommand(const std::list<CommandQueueEntry>::iterator &iter)
 {
     iter->response.emplace("success", false);
     iter->response.emplace("message", std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled."));
     DAPIO::EmitMessageWithLog(LOG_RESPONSE, iter->response);
-    return m_commandsQueue.erase(iter);
+    return GetCommandsQueue().erase(iter);
 }
 
-void DAP::CommandLoop()
+} // unnamed namespace
+
+void CommandLoop()
 {
-    std::thread commandsWorker{&DAP::CommandsWorker, this};
+    std::mutex &commandsMutex = GetCommandsMutex();
+    std::condition_variable &commandsCV = GetCommandsCV();
+    std::condition_variable &commandSyncCV = GetCommandSyncCV();
+    std::list<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
+    bool &commandSyncFlag = GetCommandSyncFlag();
 
-    m_exit = false;
+    GetExit() = false;
 
-    while (!m_exit)
+    std::thread commandsWorker{CommandsWorker};
+
+    while (!GetExit())
     {
         const std::string requestText = ReadData(std::cin);
         if (requestText.empty())
@@ -1038,10 +1115,10 @@ void DAP::CommandLoop()
             // Input read failed for some reason, initiate forced disconnect.
             CommandQueueEntry queueEntry;
             queueEntry.command = "dncdbg_disconnect";
-            const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
-            m_commandsQueue.clear();
-            m_commandsQueue.emplace_back(std::move(queueEntry));
-            m_commandsCV.notify_one(); // notify_one with lock
+            const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+            commandsQueue.clear();
+            commandsQueue.emplace_back(std::move(queueEntry));
+            commandsCV.notify_one(); // notify_one with lock
             break;
         }
 
@@ -1089,10 +1166,10 @@ void DAP::CommandLoop()
             }
             else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().cend())
             {
-                const std::scoped_lock<std::mutex> guardCommandsMutex(m_commandsMutex);
+                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
                 ManagedDebugger::CancelEvalRunning();
 
-                for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end();)
+                for (auto iter = commandsQueue.begin(); iter != commandsQueue.end();)
                 {
                     if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().cend())
                     {
@@ -1116,9 +1193,9 @@ void DAP::CommandLoop()
                 }
 
                 const auto requestId = queueEntry.arguments.at("requestId");
-                std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
+                std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
                 queueEntry.response.emplace("success", false);
-                for (auto iter = m_commandsQueue.begin(); iter != m_commandsQueue.end(); ++iter)
+                for (auto iter = commandsQueue.begin(); iter != commandsQueue.end(); ++iter)
                 {
                     if (requestId != iter->response.at("request_seq"))
                     {
@@ -1146,14 +1223,14 @@ void DAP::CommandLoop()
                 continue;
             }
 
-            std::unique_lock<std::mutex> lockCommandsMutex(m_commandsMutex);
-            const bool isCommandNeedSync = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().cend();
-            m_commandsQueue.emplace_back(std::move(queueEntry));
-            m_commandsCV.notify_one(); // notify_one with lock
+            std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
+            commandSyncFlag = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().cend();
+            commandsQueue.emplace_back(std::move(queueEntry));
+            commandsCV.notify_one(); // notify_one with lock
 
-            if (isCommandNeedSync)
+            if (commandSyncFlag)
             {
-                m_commandSyncCV.wait(lockCommandsMutex);
+                commandSyncCV.wait(lockCommandsMutex, [&commandSyncFlag] { return !commandSyncFlag; });
             }
 
             continue;
@@ -1179,4 +1256,4 @@ void DAP::CommandLoop()
     commandsWorker.join();
 }
 
-} // namespace dncdbg
+} // namespace dncdbg::DAP
