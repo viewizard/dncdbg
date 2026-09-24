@@ -829,8 +829,6 @@ HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &exec
 
 HRESULT ConfigurationDone()
 {
-    FrameId::invalidate();
-
     switch (GetStartMethod())
     {
     case StartMethod::Launch:
@@ -928,7 +926,7 @@ HRESULT StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
     else
     {
         Variables::Cleanup();
-        FrameId::invalidate();                             // Clear all frames created during the break.
+        FrameId::Cleanup();                              // Clear all frames created during the break.
         DAP::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
@@ -963,7 +961,7 @@ HRESULT Continue(ThreadId threadId, bool singleThread)
     else
     {
         Variables::Cleanup();
-        FrameId::invalidate();                             // Clear all frames created during the break.
+        FrameId::Cleanup();                              // Clear all frames created during the break.
         DAP::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
     }
 
@@ -1210,7 +1208,7 @@ HRESULT Goto(ThreadId threadId, uint32_t targetId, std::string &output)
     IfFailRet(trILFrame->SetIP(target.ilOffset));
 
     Variables::Cleanup();
-    FrameId::invalidate();               // Clear all frames created during the break.
+    FrameId::Cleanup(); // Clear all frames created during the break.
 
     Threads::SetLastStoppedThread(GetTrProcess(), threadId);
 

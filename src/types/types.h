@@ -21,11 +21,11 @@
 namespace dncdbg
 {
 
-// This is helper class, which simplifies creation of custom scalar types
-// (ones, which provide stron typing and disallow mixing with any other scalar types).
-// Basically these types support equality compare operators and operator<
+// This is a helper class that simplifies the creation of custom scalar types
+// (ones that provide strong typing and disallow mixing with any other scalar types).
+// Basically, these types support equality comparison operators and operator<
 // (to allow using such types with STL containers).
-//
+
 template <typename T> struct CustomScalarType
 {
     friend bool operator==(T a, T b)
@@ -180,10 +180,10 @@ class FrameId : public CustomScalarType<FrameId>
         return m_id != -1;
     }
 
-    [[nodiscard]] ThreadId getThread() const noexcept;
-    [[nodiscard]] FrameLevel getLevel() const noexcept;
+    [[nodiscard]] ThreadId GetThread() const noexcept;
+    [[nodiscard]] FrameLevel GetLevel() const noexcept;
 
-    static void invalidate();
+    static void Cleanup();
 
   private:
 

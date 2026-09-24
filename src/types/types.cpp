@@ -7,11 +7,22 @@
 #include <algorithm>
 #include <cstddef> // ptrdiff_t
 #include <mutex>
+#include <tuple>
 #include <vector>
 
 // Important! All "types" code must not depends from other debugger's code.
 
 namespace dncdbg
+{
+
+// ThreadId == 0 is invalid for Win32 API and PAL library.
+const ThreadId ThreadId::Invalid{InvalidValue};
+
+const ThreadId ThreadId::AllThreads{AllThreadsValue};
+
+// This namespace holds the list of frames accessible by index value;
+// this list expires every time the program continues execution.
+namespace KnownFrames
 {
 
 namespace
@@ -178,81 +189,69 @@ class IndexedStorage
     }
 };
 
-// This is helper class which simplifies implementation of singleton classes.
-//
-// Usage example:
-//   1) define distinct type of singleton: using YourSingleton = Singleton<YourType>;
-//   2) to access your singleton use expression: YourSingleton::instance().operations...
-//
-template <typename T> struct Singleton
+struct State
 {
-    static T &instance()
-    {
-        static T val;
-        return val;
-    }
-};
-
-} // unnamed namespace
-
-// ThreadId == 0 is invalid for Win32 API and PAL library.
-const ThreadId ThreadId::Invalid{InvalidValue};
-
-const ThreadId ThreadId::AllThreads{AllThreadsValue};
-
-namespace
-{
-
-struct FramesList
-{
-    using ListType = IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel>>;
-
-    struct ScopeGuard
-    {
-        explicit ScopeGuard(FramesList &f)
-            : frames_list(f)
-        {
-            frames_list.mutex.lock();
-        }
-
-        ~ScopeGuard()
-        {
-            frames_list.mutex.unlock();
-        }
-
-        ListType *operator->() const
-        {
-            return &frames_list.list;
-        }
-
-        ScopeGuard(ScopeGuard &&) = delete;
-        ScopeGuard(const ScopeGuard &) = delete;
-        ScopeGuard &operator=(ScopeGuard &&) = delete;
-        ScopeGuard &operator=(const ScopeGuard &) = delete;
-
-      private:
-
-        FramesList &frames_list; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-    };
-
-    ScopeGuard get()
-    {
-        return ScopeGuard(*this);
-    }
-
-  private:
     std::mutex mutex;
-    ListType list;
+    IndexedStorage<unsigned, std::tuple<ThreadId, FrameLevel>> list;
 };
 
-// This singleton holds list of frames accessible by index value,
-// this list expires every time when program continues execution.
-using KnownFrames = Singleton<FramesList>;
+State &GetState()
+{
+    static State state;
+    return state;
+}
+
+// This function creates a new element for the supplied thread and frame level,
+// and returns the key value assigned to it.
+unsigned Emplace(ThreadId thread, FrameLevel level)
+{
+    State &state = GetState();
+    const std::scoped_lock lock(state.mutex);
+    return state.list.emplace(thread, level).first->first;
+}
+
+// This function returns the thread id for the supplied `key',
+// or a default-constructed value if no element corresponds to the `key'.
+ThreadId GetThread(unsigned key)
+{
+    State &state = GetState();
+    const std::scoped_lock lock(state.mutex);
+    const auto it = state.list.find(key);
+    if (it == state.list.end())
+    {
+        return {};
+    }
+    return std::get<0>(it->second);
+}
+
+// This function returns the frame level for the supplied `key',
+// or a default-constructed value if no element corresponds to the `key'.
+FrameLevel GetLevel(unsigned key)
+{
+    State &state = GetState();
+    const std::scoped_lock lock(state.mutex);
+    const auto it = state.list.find(key);
+    if (it == state.list.end())
+    {
+        return {};
+    }
+    return std::get<1>(it->second);
+}
+
+// Erase all contents.
+void Cleanup()
+{
+    State &state = GetState();
+    const std::scoped_lock lock(state.mutex);
+    state.list.clear();
+}
 
 } // unnamed namespace
+
+} // namespace KnownFrames
 
 FrameId::FrameId(ThreadId thread, FrameLevel level)
-    : m_id(static_cast<ScalarType>(KnownFrames::instance().get()->emplace(thread, level).first->first))
+    : m_id(static_cast<ScalarType>(KnownFrames::Emplace(thread, level)))
 {
 }
 
@@ -260,37 +259,27 @@ FrameId::FrameId(int n) : m_id(n)
 {
 }
 
-ThreadId FrameId::getThread() const noexcept
+ThreadId FrameId::GetThread() const noexcept
 {
-    if (*this)
+    if (m_id != -1)
     {
-        const auto list = KnownFrames::instance().get();
-        const auto it = list->find(m_id);
-        if (it != list->end())
-        {
-            return std::get<0>(it->second);
-        }
+        return KnownFrames::GetThread(static_cast<unsigned>(m_id));
     }
     return {};
 }
 
-FrameLevel FrameId::getLevel() const noexcept
+FrameLevel FrameId::GetLevel() const noexcept
 {
-    if (*this)
+    if (m_id != -1)
     {
-        const auto list = KnownFrames::instance().get();
-        const auto it = list->find(m_id);
-        if (it != list->end())
-        {
-            return std::get<1>(it->second);
-        }
+        return KnownFrames::GetLevel(static_cast<unsigned>(m_id));
     }
     return {};
 }
 
-void FrameId::invalidate()
+void FrameId::Cleanup()
 {
-    KnownFrames::instance().get()->clear();
+    KnownFrames::Cleanup();
 }
 
 } // namespace dncdbg

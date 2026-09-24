@@ -160,7 +160,7 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReferen
     uint32_t count = 0;
     static constexpr uint32_t maxCount = 25; // members per page before a "[More]" entry is added
 
-    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), false, ref.specifier,
+    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.GetLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
             const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *customDisplayTextWithEval) -> HRESULT
         {
@@ -396,7 +396,7 @@ HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread,
                          const std::string &value, std::string &output)
 {
     HRESULT Status = S_OK;
-    IfFailRet(Walkers::WalkStackVars(pThread, ref.frameId.getLevel(),
+    IfFailRet(Walkers::WalkStackVars(pThread, ref.frameId.GetLevel(),
         [&](const std::string &varName, const Walkers::GetValueCallback &getValue) -> HRESULT
         {
             if (varName != name)
@@ -406,7 +406,7 @@ HRESULT SetStackVariable(const VariableReference &ref, ICorDebugThread *pThread,
 
             ToRelease<ICorDebugValue> trValue;
             IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, nullptr, value, output));
+            IfFailRet(SetValue(pThread, ref.frameId.GetLevel(), trValue, &getValue, nullptr, value, output));
             IfFailRet(PrintValue(pThread, trValue, FormatSpecifier::None, output));
             return S_CAN_EXIT; // Fast exit from the loop.
         }));
@@ -433,7 +433,7 @@ HRESULT SetChild(const VariableReference &ref, ICorDebugThread *pThread, const s
     }
 
     HRESULT Status = S_OK;
-    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.getLevel(), true, ref.specifier,
+    IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.GetLevel(), true, ref.specifier,
         [&](ICorDebugType *, bool /*isStatic*/, const std::string &varName,
             const Walkers::GetValueCallback &getValue, Walkers::SetterData *setterData, std::string *) -> HRESULT
         {
@@ -449,7 +449,7 @@ HRESULT SetChild(const VariableReference &ref, ICorDebugThread *pThread, const s
 
             ToRelease<ICorDebugValue> trValue;
             IfFailRet(getValue(&trValue, nullptr));
-            IfFailRet(SetValue(pThread, ref.frameId.getLevel(), trValue, &getValue, setterData, value, output));
+            IfFailRet(SetValue(pThread, ref.frameId.GetLevel(), trValue, &getValue, setterData, value, output));
             IfFailRet(PrintValue(pThread, trValue, ref.specifier, output));
             return S_CAN_EXIT; // Fast exit from the loop.
         }));
@@ -549,7 +549,7 @@ HRESULT GetStackVariables(FrameId frameId, ICorDebugThread *pThread, std::vector
         variables.push_back(var);
     }
 
-    return Walkers::WalkStackVars(pThread, frameId.getLevel(),
+    return Walkers::WalkStackVars(pThread, frameId.GetLevel(),
         [&](const std::string &name, const Walkers::GetValueCallback &getValue) -> HRESULT
         {
             Variable var;
@@ -698,7 +698,7 @@ HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, st
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> trThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.getThread()), &trThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(ref.frameId.GetThread()), &trThread));
 
     if (ref.IsScope())
     {
@@ -713,7 +713,7 @@ HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, st
 
 HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope> &scopes)
 {
-    const ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.GetThread();
     if (!threadId)
     {
         return E_FAIL;
@@ -733,7 +733,7 @@ HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope
 
     if (!haveVariables)
     {
-        IfFailRet(Walkers::WalkStackVars(trThread, frameId.getLevel(),
+        IfFailRet(Walkers::WalkStackVars(trThread, frameId.GetLevel(),
             [&](const std::string &/*name*/, const Walkers::GetValueCallback &) -> HRESULT
             {
                 haveVariables = true;
@@ -767,7 +767,7 @@ HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope
 HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                  Variable &variable, std::string &output)
 {
-    const ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.GetThread();
     if (!threadId)
     {
         return E_FAIL;
@@ -782,7 +782,7 @@ HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string 
     ParseFormatSpecifier(expressionWithFormat, expression, specifier);
 
     ToRelease<ICorDebugValue> trResultValue;
-    const FrameLevel frameLevel = frameId.getLevel();
+    const FrameLevel frameLevel = frameId.GetLevel();
     std::string realDisplayTypeName;
     IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameLevel, expression, specifier,
                                                    nullptr, &trResultValue, &realDisplayTypeName, output));
@@ -818,7 +818,7 @@ HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const s
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebugThread> trThread;
-    IfFailRet(pProcess->GetThread(static_cast<int>(varRef.frameId.getThread()), &trThread));
+    IfFailRet(pProcess->GetThread(static_cast<int>(varRef.frameId.GetThread()), &trThread));
 
     if (varRef.IsScope())
     {
@@ -835,7 +835,7 @@ HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const s
 HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::string &expressionWithFormat,
                       const std::string &value, std::string &output)
 {
-    const ThreadId threadId = frameId.getThread();
+    const ThreadId threadId = frameId.GetThread();
     if (!threadId)
     {
         return E_FAIL;
@@ -852,7 +852,7 @@ HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::st
     ToRelease<ICorDebugValue> trValue;
     bool editable = false;
     std::unique_ptr<Walkers::SetterData> setterData;
-    IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameId.getLevel(), expression, specifier,
+    IfFailRet(EvalStackMachine::EvaluateExpression(trThread, frameId.GetLevel(), expression, specifier,
                                                    nullptr, &trValue, nullptr, output, &editable, &setterData));
     if (!editable ||
         (setterData != nullptr && setterData->trSetterFunction == nullptr)) // property that doesn't have a setter
@@ -861,7 +861,7 @@ HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::st
         return E_INVALIDARG;
     }
 
-    IfFailRet(SetValue(trThread, frameId.getLevel(), trValue, nullptr, setterData.get(), value, output));
+    IfFailRet(SetValue(trThread, frameId.GetLevel(), trValue, nullptr, setterData.get(), value, output));
     IfFailRet(PrintValue(trThread, trValue, specifier, output));
     return S_OK;
 }
