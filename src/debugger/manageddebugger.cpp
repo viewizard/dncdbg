@@ -439,12 +439,6 @@ HRESULT CheckDebugProcess()
     return S_OK;
 }
 
-bool HaveDebugProcess()
-{
-    const ReadLock r_lock(GetDebugProcessRWLock());
-    return SUCCEEDED(CheckDebugProcess());
-}
-
 void NotifyProcessCreated()
 {
     std::unique_lock<std::mutex> lock(GetProcessAttachedMutex());
@@ -979,6 +973,12 @@ HRESULT Continue(ThreadId threadId, bool singleThread)
     }
 
     return Status;
+}
+
+bool HaveDebugProcess()
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+    return SUCCEEDED(CheckDebugProcess());
 }
 
 bool IsProcessRunning()

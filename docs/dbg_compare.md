@@ -214,6 +214,12 @@
       <td align="center">❌</td>
     </tr>
     <tr>
+      <td align="left"><b>Restart debug session</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">❌</td>
+    </tr>
+    <tr>
       <td align="left"><b>Module unloads</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>

@@ -19,6 +19,8 @@ Upcoming changes compared to previous version.
 - Added BreakpointLocation type.
 - Added `supportsBreakpointLocationsRequest` support in Capabilities.
 - Added BreakpointLocations Request and Response.
+- Added `supportsRestartRequest` support in Capabilities.
+- Added Restart Request and Response.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 
@@ -44,6 +46,7 @@ Upcoming changes compared to previous version.
 - Added TestAttachToSuspend.
 - Added [Source Link](https://github.com/dotnet/sourcelink/blob/main/README.md) support.
 - Added TestSourceLink.
+- Added support for restarting the debug session.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

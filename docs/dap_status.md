@@ -35,7 +35,7 @@ How to read the blocks below:
 
 #### Requests
 
-[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [ConfigurationDone Request](#configurationdonerequest-configurationdone), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [Goto Request](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+[Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Restart Request](#restartrequest-restart), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [ConfigurationDone Request](#configurationdonerequest-configurationdone), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [Goto Request](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
 
 #### Types
 
@@ -211,6 +211,14 @@ How to read the blocks below:
 ✅  processId: number;
 ```
 #### AttachResponse
+```text
+⚪  no additional fields
+```
+#### RestartRequest `restart`
+```text
+❌  arguments?: LaunchRequestArguments | AttachRequestArguments;
+```
+#### RestartResponse
 ```text
 ⚪  no additional fields
 ```
@@ -501,7 +509,7 @@ How to read the blocks below:
 ❌  supportsModulesRequest?: boolean;
 ❌  additionalModuleColumns?: ColumnDescriptor[];
 ❌  supportedChecksumAlgorithms?: ChecksumAlgorithm[];
-❌  supportsRestartRequest?: boolean;
+✅  supportsRestartRequest?: boolean;
 ✅  supportsExceptionOptions?: boolean;
 ❌  supportsValueFormattingOptions?: boolean;
 ✅  supportsExceptionInfoRequest?: boolean;

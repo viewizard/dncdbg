@@ -49,6 +49,7 @@ HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);
 
 ThreadId GetLastStoppedThreadId();
 HRESULT Continue(ThreadId threadId, bool singleThread);
+bool HaveDebugProcess();
 bool IsProcessRunning();
 HRESULT Pause(ThreadId lastStoppedThread);
 HRESULT GetThreads(std::vector<Thread> &threads);

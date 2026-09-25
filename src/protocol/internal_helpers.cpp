@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "protocol/internal_helpers.h"
+#include "config/config.h"
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -98,6 +99,11 @@ void AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsSingleThreadExecutionRequests", true);
     capabilities.emplace("supportsLoadedSourcesRequest", true);
     capabilities.emplace("supportsBreakpointLocationsRequest", true);
+    // Note: The VS Code IDE doesn't support restarting a debug session, only restarting the entire debugger.
+    if (!Config::IsRunningViaVsDbgUI())
+    {
+        capabilities.emplace("supportsRestartRequest", true);
+    }
 }
 
 void SetupProtocolLoggingInternal(const std::string &path)

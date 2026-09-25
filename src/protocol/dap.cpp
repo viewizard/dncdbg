@@ -50,7 +50,8 @@ const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
     static const std::unordered_set<std::string> syncCommandExecutionSet{
         "configurationDone",
         "disconnect",
-        "terminate"
+        "terminate",
+        "restart"
     };
     return syncCommandExecutionSet;
 }
@@ -61,6 +62,7 @@ const std::unordered_set<std::string> &GetCancelCommandQueueSet()
     static const std::unordered_set<std::string> cancelCommandQueueSet{
         "disconnect",
         "terminate",
+        "restart",
         "continue",
         "next",
         "stepIn",
@@ -81,9 +83,10 @@ const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
         "setBreakpoints",
         "configurationDone",
         "launch",
+        "attach",
         "disconnect",
         "terminate",
-        "attach"
+        "restart"
     };
     return debuggerSetupCommandSet;
 }
@@ -937,6 +940,19 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 responseBody.emplace("breakpoints", locations);
 
                 return S_OK;
+            }},
+        {"restart", [](const json &/*arguments*/, json &/*responseBody*/)
+            {
+                HRESULT Status = S_OK;
+
+                if (ManagedDebugger::HaveDebugProcess())
+                {
+                    IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Default));
+                }
+
+                // TODO: add `arguments` support.
+
+                return ManagedDebugger::ConfigurationDone();
             }}};
 
     const auto command_it = commands.find(command);
