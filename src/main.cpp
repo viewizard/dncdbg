@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "buildinfo.h"
+#include "config/config.h"
 #include "debugger/manageddebugger.h"
 #include "protocol/dap.h"
 #include "utils/logger.h"
@@ -127,8 +128,9 @@ int
                 print_version();
                 exit(EXIT_SUCCESS);
             }},
-            {"--interpreter=vscode" , [&] {
-                // VS Code IDE sends this option silently to debugger, just ignore it
+            {"--interpreter=vscode", [&] {
+                // Running under the VS Code IDE, which adds this option silently
+                dncdbg::Config::SetRunningViaVsDbgUI(true);
             }}};
 
         const std::vector<std::pair<std::string, std::function<void(const std::string &arg)>>> partialArguments{

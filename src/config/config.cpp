@@ -10,6 +10,12 @@ namespace dncdbg::Config
 namespace
 {
 
+bool &GetRunningViaVsDbgUIState()
+{
+    static bool runningViaVsDbgUIState{false};
+    return runningViaVsDbgUIState;
+}
+
 bool &GetJustMyCodeState()
 {
     static bool justMyCodeState{true};
@@ -43,6 +49,16 @@ uint32_t &GetEvalFlagsState()
 }
 
 } // unnamed namespace
+
+bool IsRunningViaVsDbgUI()
+{
+    return GetRunningViaVsDbgUIState();
+}
+
+void SetRunningViaVsDbgUI(bool state)
+{
+    GetRunningViaVsDbgUIState() = state;
+}
 
 bool GetJustMyCode()
 {

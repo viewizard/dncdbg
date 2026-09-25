@@ -11,6 +11,10 @@
 namespace dncdbg::Config
 {
 
+// The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
+bool IsRunningViaVsDbgUI();
+void SetRunningViaVsDbgUI(bool state);
+
 // Just My Code (JMC) debugger option, provided by the DAP protocol ("launch" request).
 bool GetJustMyCode();
 void SetJustMyCode(bool state);
