@@ -762,6 +762,12 @@ HRESULT TerminateProcess()
         HRESULT Status = S_OK;
         if (SUCCEEDED(Status = GetTrProcess()->Terminate(0)))
         {
+            // https://learn.microsoft.com/en-us/dotnet/core/unmanaged-api/debugging/icordebug/icordebugcontroller-terminate-method
+            // If the process is stopped when Terminate is called, the process should be continued by using the
+            // ICorDebugController::Continue method so that the debugger receives confirmation of the termination
+            // through the ICorDebugManagedCallback::ExitProcess or ICorDebugManagedCallback::ExitAppDomain callback.
+            GetTrProcess()->Continue(0);
+
             GetProcessAttachedCV().wait(lockAttachedMutex, [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; });
             break;
         }
