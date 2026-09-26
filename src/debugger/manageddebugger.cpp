@@ -494,12 +494,12 @@ void Cleanup()
     GetTrDebug().Free();
 }
 
-HRESULT Startup(IUnknown *punk)
+HRESULT Startup(IUnknown *pUnknown)
 {
     HRESULT Status = S_OK;
 
     ToRelease<ICorDebug> trDebug;
-    IfFailRet(punk->QueryInterface(IID_ICorDebug, reinterpret_cast<void **>(&trDebug)));
+    IfFailRet(pUnknown->QueryInterface(IID_ICorDebug, reinterpret_cast<void **>(&trDebug)));
 
     IfFailRet(trDebug->Initialize());
 
@@ -524,8 +524,8 @@ HRESULT Startup(IUnknown *punk)
     return S_OK;
 }
 
-// Should be called by dbgshim RegisterForRuntimeStartup().
-void StartupCallback(IUnknown *pCordb, void * /*parameter*/, HRESULT hr)
+// Called by dbgshim RegisterForRuntimeStartup().
+void StartupCallback(IUnknown *pUnknown, void */*parameter*/, HRESULT hr)
 {
     if (FAILED(hr))
     {
@@ -545,7 +545,7 @@ void StartupCallback(IUnknown *pCordb, void * /*parameter*/, HRESULT hr)
         return;
     }
 
-    GetStartupCallbackHR() = Startup(pCordb);
+    GetStartupCallbackHR() = Startup(pUnknown);
 
     if (GetUnregisterToken() != nullptr)
     {
