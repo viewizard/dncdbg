@@ -69,6 +69,7 @@ $ALL_TEST_NAMES = @(
     "TestSourceLink"
     "TestRestartLaunch"
     "TestLaunchSequence"
+    "TestAttachSequence"
 )
 
 $TEST_NAMES = $tests

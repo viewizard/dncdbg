@@ -51,6 +51,7 @@ Upcoming changes compared to previous version.
 - Added support for restarting the debug session.
 - Added TestRestartLaunch.
 - Added TestLaunchSequence.
+- Added TestAttachSequence.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
