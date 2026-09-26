@@ -1127,6 +1127,11 @@ bool InitializeRemoteConsoleServer(int port)
         });
 }
 
+bool CloseRemoteConsoleServer()
+{
+    return GetRemoteConsoleServer().Close();
+}
+
 void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
 {
     Modules::GetModules(startModule, moduleCount, modules, totalModules);

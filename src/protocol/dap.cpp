@@ -290,6 +290,13 @@ std::list<CommandQueueEntry> &GetCommandsQueue()
     return commandsQueue;
 }
 
+int &GetPreviousRemoteConsoleServerPort()
+{
+    // -1 means "no server has been initialized yet"; valid ports start at 1.
+    static int previousRemoteConsoleServerPort{-1};
+    return previousRemoteConsoleServerPort;
+}
+
 void ParseAndApplyDebugSessionOptions(const json &arguments)
 {
     Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
@@ -330,7 +337,7 @@ void ParseAndApplyDebugSessionOptions(const json &arguments)
     ManagedDebugger::SetSourceFileMap(std::move(map));
 }
 
-HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, std::string> &env)
+HRESULT ParseAndApplyLaunchOptions(const json &arguments)
 {
     const auto findProgram = arguments.find("program");
     if (findProgram == arguments.cend())
@@ -343,6 +350,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
     const auto cwdIt = arguments.find("cwd");
     const std::string cwd = cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{};
 
+    std::map<std::string, std::string> env;
     const auto findEnv = arguments.find("env");
     if (findEnv != arguments.cend())
     {
@@ -358,6 +366,86 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
         }
     }
 
+    // https://aka.ms/VSCode-CS-LaunchJson-Console
+    std::string console;
+    const auto findConsole = env.find("DNCDBG_CONSOLE");
+    if (findConsole != env.cend())
+    {
+        console = findConsole->second;
+    }
+    else // Fall back to the `console` field.
+    {
+        const auto consoleIter = arguments.find("console");
+        if (consoleIter != arguments.cend())
+        {
+            console = consoleIter.value();
+        }
+    }
+
+    GetInternalConsole() = false;
+#ifdef _WIN32
+    SetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", L"0");
+#endif
+    if (console != "remoteConsole")
+    {
+        ManagedDebugger::CloseRemoteConsoleServer();
+        GetPreviousRemoteConsoleServerPort() = -1;
+    }
+
+    if (console == "internalConsole")
+    {
+        GetInternalConsole() = true;
+    }
+    else if (console == "remoteConsole")
+    {
+        constexpr int defaultPort = 22534;
+        int remoteConsolePort = defaultPort;
+        const auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
+        if (findConsolePort != env.cend())
+        {
+            try
+            {
+                remoteConsolePort = std::stoi(findConsolePort->second);
+            }
+            catch (const std::invalid_argument &ex)
+            {
+                LOGE(log << "DNCDBG_REMOTECONSOLEPORT is not a number: " << ex.what());
+                return E_INVALIDARG;
+            }
+            catch (const std::out_of_range &ex)
+            {
+                LOGE(log << "DNCDBG_REMOTECONSOLEPORT value is out of int range: " << ex.what());
+                return E_INVALIDARG;
+            }
+        }
+
+        // Reinitialize the server only when the port changes, so a restart with
+        // the same settings keeps the existing remote console connection alive.
+        if (GetPreviousRemoteConsoleServerPort() != remoteConsolePort)
+        {
+            ManagedDebugger::CloseRemoteConsoleServer();
+
+            if (!ManagedDebugger::InitializeRemoteConsoleServer(remoteConsolePort))
+            {
+                return INET_E_CANNOT_CONNECT;
+            }
+
+            GetPreviousRemoteConsoleServerPort() = remoteConsolePort;
+        }
+    }
+    else if (console == "externalTerminal")
+    {
+#ifdef _WIN32
+        if (SetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", L"1") == FALSE)
+        {
+            LOGE(log << "Failed to set the DNCDBG_CREATE_NEW_CONSOLE environment variable, error: " << GetLastError());
+            return E_FAIL;
+        }
+#else
+        LOGW(log << "externalTerminal console mode is not supported on this platform");
+#endif // _WIN32
+    }
+
     const std::string dllSuffix = ".dll";
     if (program.size() >= dllSuffix.size() &&
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
@@ -365,11 +453,9 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
         args.insert(args.begin(), program);
         return ManagedDebugger::Launch("dotnet", args, env, cwd);
     }
-    else
-    {
-        // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
-        return ManagedDebugger::Launch(program, args, env, cwd);
-    }
+
+    // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
+    return ManagedDebugger::Launch(program, args, env, cwd);
 }
 
 HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
@@ -383,7 +469,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
 
                 AddCapabilitiesTo(responseBody);
-
                 return S_OK;
             }},
         {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
@@ -500,78 +585,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
 
                 responseBody.emplace("breakpoints", breakpoints);
-
                 return S_OK;
             }},
         {"launch", [](const json &arguments, json &/*responseBody*/)
             {
                 HRESULT Status = S_OK;
-                std::map<std::string, std::string> env;
-                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
+                IfFailRet(ParseAndApplyLaunchOptions(arguments));
 
                 ParseAndApplyDebugSessionOptions(arguments);
-
-                // https://aka.ms/VSCode-CS-LaunchJson-Console
-                std::string console;
-                const auto findConsole = env.find("DNCDBG_CONSOLE");
-                if (findConsole != env.cend())
-                {
-                    console = findConsole->second;
-                }
-                else // fallback to `console` field
-                {
-                    const auto consoleIter = arguments.find("console");
-                    if (consoleIter != arguments.cend())
-                    {
-                        console = consoleIter.value();
-                    }
-                }
-
-                if (console == "internalConsole")
-                {
-                    GetInternalConsole() = true;
-                }
-                else if (console == "remoteConsole")
-                {
-                    constexpr int defaultPort = 22534;
-                    int remoteConsolePort = defaultPort;
-                    const auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
-                    if (findConsolePort != env.cend())
-                    {
-                        try
-                        {
-                            remoteConsolePort = std::stoi(findConsolePort->second);
-                        }
-                        catch (const std::invalid_argument &ex)
-                        {
-                            LOGE(log << "DNCDBG_REMOTECONSOLEPORT not a number: " << ex.what());
-                            return E_INVALIDARG;
-                        }
-                        catch (const std::out_of_range &ex)
-                        {
-                            LOGE(log << "DNCDBG_REMOTECONSOLEPORT number out of int range: " << ex.what());
-                            return E_INVALIDARG;
-                        }
-                    }
-
-                    if (!ManagedDebugger::InitializeRemoteConsoleServer(remoteConsolePort))
-                    {
-                        return INET_E_CANNOT_CONNECT;
-                    }
-                }
-                else if (console == "externalTerminal")
-                {
-#ifdef _WIN32
-                    if (SetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", L"1") == FALSE)
-                    {
-                        LOGE(log << "Failed to set DNCDBG_CREATE_NEW_CONSOLE environment variable, error: " << GetLastError());
-                        return E_FAIL;
-                    }
-#else
-                    LOGW(log << "externalTerminal console mode is not supported on this platform");
-#endif // _WIN32
-                }
-
                 return S_OK;
             }},
         {"threads", [](const json &/*arguments*/, json &responseBody)
@@ -581,7 +602,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::GetThreads(threads));
 
                 responseBody.emplace("threads", threads);
-
                 return S_OK;
             }},
         {"disconnect", [](const json &arguments, json &/*responseBody*/)
@@ -599,7 +619,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
 
                 ManagedDebugger::Disconnect(action);
-
                 return S_OK;
             }},
         {"terminate", [](const json &/*arguments*/, json &/*responseBody*/)
@@ -619,7 +638,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 responseBody.emplace("stackFrames", stackFrames);
                 responseBody.emplace("totalFrames", stackFrames.size());
-
                 return S_OK;
             }},
         {"continue", [](const json &arguments, json &responseBody)
@@ -665,7 +683,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::GetScopes(frameId, scopes));
 
                 responseBody.emplace("scopes", scopes);
-
                 return S_OK;
             }},
         {"variables", [](const json &arguments, json &responseBody)
@@ -675,7 +692,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::GetVariables(arguments.at("variablesReference"), variables));
 
                 responseBody.emplace("variables", variables);
-
                 return S_OK;
             }},
         {"evaluate", [](const json &arguments, json &responseBody)
@@ -718,7 +734,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     {
                         responseBody.emplace("message", output);
                     }
-
                     return Status;
                 }
 
@@ -763,7 +778,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     {
                         responseBody.emplace("message", output);
                     }
-
                     return Status;
                 }
                 // TODO: add `memoryReference`
@@ -799,7 +813,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
                 // TODO: add `type` and `memoryReference`
                 responseBody.emplace("value", output);
-
                 return S_OK;
             }},
         {"setFunctionBreakpoints", [](const json &arguments, json &responseBody)
@@ -829,7 +842,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
                 responseBody.emplace("breakpoints", breakpoints);
-
                 return Status;
             }},
         {"modules", [](const json &arguments, json &responseBody)
@@ -841,7 +853,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 responseBody.emplace("modules", modules);
                 responseBody.emplace("totalModules", totalModules);
-
                 return S_OK;
             }},
         {"gotoTargets", [](const json &arguments, json &responseBody)
@@ -866,7 +877,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
 
                 responseBody.emplace("targets", targets);
-
                 return S_OK;
             }},
         {"goto", [](const json &arguments, json &responseBody)
@@ -884,7 +894,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     return Status;
                 }
-
                 return S_OK;
             }},
         {"source", [](const json &arguments, json &responseBody)
@@ -917,7 +926,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
 
                 responseBody.emplace("content", sourceContent);
-
                 return S_OK;
             }},
         {"loadedSources", [](const json &/*arguments*/, json &responseBody)
@@ -926,7 +934,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 ManagedDebugger::GetLoadedSources(sources);
 
                 responseBody.emplace("sources", sources);
-
                 return S_OK;
             }},
         {"breakpointLocations", [](const json &arguments, json &responseBody)
@@ -959,7 +966,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 });
 
                 responseBody.emplace("breakpoints", locations);
-
                 return S_OK;
             }},
         {"restart", [](const json &arguments, json &/*responseBody*/)
@@ -985,8 +991,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     else
                     {
-                        std::map<std::string, std::string> env;
-                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments, env));
+                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments));
                     }
 
                     ParseAndApplyDebugSessionOptions(restartArguments);

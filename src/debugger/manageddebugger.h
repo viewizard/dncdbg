@@ -81,6 +81,7 @@ void SetSourceFileMap(std::map<std::string, std::string> &&map);
 
 void WriteStdin(gsl::span<const char> text);
 bool InitializeRemoteConsoleServer(int port);
+bool CloseRemoteConsoleServer();
 
 } // namespace dncdbg::ManagedDebugger
 
