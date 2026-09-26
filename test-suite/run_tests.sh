@@ -61,6 +61,7 @@ ALL_TEST_NAMES=(
     "TestAttachToSuspend"
     "TestSourceLink"
     "TestRestartLaunch"
+    "TestLaunchSequence"
 )
 
 TEST_NAMES="$@"
