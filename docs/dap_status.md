@@ -9,7 +9,7 @@ How to read the blocks below:
 - For **responses** and **events**, ✅ marks fields the debugger sends to the client.
 - For **types**, ✅ marks fields the debugger fills in or reads.
 - ❌ marks fields that are not supported.
-- 🧩 marks fields that go beyond the DAP specification and follow the VS Code C# debugger conventions.
+- 🧩 marks fields that go beyond the DAP specification (for example, following the VS Code C# debugger conventions).
 - Messages missing from the detailed sections below are not supported at all; every such message is listed explicitly in the overview.
 - ⚪ marks a message that carries no additional fields.
 
@@ -209,6 +209,12 @@ How to read the blocks below:
 ```text
 ❌  __restart?: any;
 ✅  processId: number;
+🧩  sourceFileMap?: { [key: string]: string; };
+🧩  stopAtEntry?: boolean;
+🧩  justMyCode?: boolean;
+🧩  enableStepFiltering?: boolean;
+🧩  expressionEvaluationOptions?: ExpressionEvaluationOptions;
+🧩  suppressJITOptimizations?: boolean;
 ```
 #### AttachResponse
 ```text

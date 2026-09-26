@@ -290,6 +290,88 @@ std::list<CommandQueueEntry> &GetCommandsQueue()
     return commandsQueue;
 }
 
+void ParseAndApplyDebugSessionOptions(const json &arguments)
+{
+    Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
+    Config::SetStepFiltering(arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
+    Config::SetStopAtEntry(arguments.value("stopAtEntry", false)); // MS vsdbg has "stopAtEntry" disabled by default.
+    Config::SetSuppressJITOptimizations(arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
+
+    uint32_t evalFlags = Config::EVAL_DEFAULT;
+    if (arguments.contains("expressionEvaluationOptions"))
+    {
+        // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
+        // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L456
+        const bool allowFuncEval = arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true);
+        evalFlags |= allowFuncEval ? 0 : Config::EVAL_NOFUNCEVAL;
+        // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
+        const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
+        evalFlags |= (allowToString && allowFuncEval) ? 0 : Config::EVAL_NOTOSTRING;
+        // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L469
+        const bool showRawValues = arguments.at("expressionEvaluationOptions").value("showRawValues", false);
+        evalFlags |= showRawValues ? Config::EVAL_SHOWRAWVALUES : 0;
+    }
+    Config::SetEvalFlags(evalFlags);
+
+    const auto findSourceFileMap = arguments.find("sourceFileMap");
+    std::map<std::string, std::string> map;
+    if (findSourceFileMap != arguments.cend())
+    {
+        try
+        {
+            // https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map
+            map = findSourceFileMap->get<std::map<std::string, std::string>>();
+        }
+        catch (const std::exception &ex)
+        {
+            LOGI(log << "sourceFileMap exception '" << ex.what() << "'");
+        }
+    }
+    ManagedDebugger::SetSourceFileMap(std::move(map));
+}
+
+HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, std::string> &env)
+{
+    const auto findProgram = arguments.find("program");
+    if (findProgram == arguments.cend())
+    {
+        return E_INVALIDARG;
+    }
+    const std::string program = findProgram->get<std::string>();
+    std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
+
+    const auto cwdIt = arguments.find("cwd");
+    const std::string cwd = cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{};
+
+    const auto findEnv = arguments.find("env");
+    if (findEnv != arguments.cend())
+    {
+        try
+        {
+            env = findEnv->get<std::map<std::string, std::string>>();
+        }
+        catch (const std::exception &ex)
+        {
+            LOGI(log << "env exception '" << ex.what() << "'");
+            // The read may have been interrupted mid-way and left the map in an inconsistent state; clear it to be safe.
+            env.clear();
+        }
+    }
+
+    const std::string dllSuffix = ".dll";
+    if (program.size() >= dllSuffix.size() &&
+        program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
+    {
+        args.insert(args.begin(), program);
+        return ManagedDebugger::Launch("dotnet", args, env, cwd);
+    }
+    else
+    {
+        // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
+        return ManagedDebugger::Launch(program, args, env, cwd);
+    }
+}
+
 HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
@@ -423,46 +505,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"launch", [](const json &arguments, json &/*responseBody*/)
             {
-                const auto cwdIt = arguments.find("cwd");
-                const std::string cwd(cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{});
-
+                HRESULT Status = S_OK;
                 std::map<std::string, std::string> env;
-                const auto findEnv = arguments.find("env");
-                if (findEnv != arguments.cend())
-                {
-                    try
-                    {
-                        env = findEnv->get<std::map<std::string, std::string>>();
-                    }
-                    catch (const std::exception &ex)
-                    {
-                        LOGI(log << "env exception '" << ex.what() << "'");
-                        // Keep the empty map if the reading was interrupted and left an inconsistent state.
-                        env.clear();
-                    }
-                }
+                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
 
-                const auto findSourceFileMap = arguments.find("sourceFileMap");
-                if (findSourceFileMap != arguments.cend())
-                {
-                    try
-                    {
-                        // https://code.visualstudio.com/docs/csharp/debugger-settings#_source-file-map
-                        std::map<std::string, std::string> map = findSourceFileMap->get<std::map<std::string, std::string>>();
-                        ManagedDebugger::SetSourceFileMap(std::move(map));
-                    }
-                    catch (const std::exception &ex)
-                    {
-                        LOGI(log << "sourceFileMap exception '" << ex.what() << "'");
-                    }
-                }
-
-                Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
-                Config::SetStepFiltering(
-                    arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
-                Config::SetStopAtEntry(arguments.value("stopAtEntry", false)); // MS vsdbg has "stopAtEntry" disabled by default.
-                Config::SetSuppressJITOptimizations(
-                    arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
+                ParseAndApplyDebugSessionOptions(arguments);
 
                 // https://aka.ms/VSCode-CS-LaunchJson-Console
                 std::string console;
@@ -525,37 +572,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 #endif // _WIN32
                 }
 
-                uint32_t evalFlags = Config::EVAL_DEFAULT;
-                if (arguments.contains("expressionEvaluationOptions"))
-                {
-                    // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
-                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L456
-                    const bool allowFuncEval = arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true);
-                    evalFlags |= allowFuncEval ? 0 : Config::EVAL_NOFUNCEVAL;
-                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
-                    const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
-                    evalFlags |= (allowToString && allowFuncEval) ? 0 : Config::EVAL_NOTOSTRING;
-                    // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L469
-                    const bool showRawValues = arguments.at("expressionEvaluationOptions").value("showRawValues", false);
-                    evalFlags |= showRawValues ? Config::EVAL_SHOWRAWVALUES : 0;
-                }
-                Config::SetEvalFlags(evalFlags);
-
-                const std::string program = arguments.at("program").get<std::string>();
-                std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
-
-                const std::string dllSuffix = ".dll";
-                if (program.size() >= dllSuffix.size() &&
-                    program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
-                {
-                    args.insert(args.begin(), program);
-                    return ManagedDebugger::Launch("dotnet", args, env, cwd);
-                }
-                else
-                {
-                    // If we're not being asked to launch a dll, assume whatever we're given is an executable
-                    return ManagedDebugger::Launch(program, args, env, cwd);
-                }
+                return S_OK;
             }},
         {"threads", [](const json &/*arguments*/, json &responseBody)
             {
@@ -755,13 +772,17 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"attach", [](const json &arguments, json &/*responseBody*/)
             {
+                HRESULT Status = S_OK;
                 const DWORD processId = arguments.value("processId", 0);
                 if (processId == 0)
                 {
                     return E_INVALIDARG;
                 }
 
-                return ManagedDebugger::Attach(processId);
+                IfFailRet(ManagedDebugger::Attach(processId));
+
+                ParseAndApplyDebugSessionOptions(arguments);
+                return S_OK;
             }},
         {"setVariable", [](const json &arguments, json &responseBody)
             {

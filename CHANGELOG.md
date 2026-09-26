@@ -21,6 +21,7 @@ Upcoming changes compared to previous version.
 - Added BreakpointLocations Request and Response.
 - Added `supportsRestartRequest` support in Capabilities.
 - Added Restart Request and Response.
+- Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Requests.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 
