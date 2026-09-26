@@ -129,6 +129,12 @@ class Context
         Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
+    public void Restart(string caller_trace)
+    {
+        RestartRequest restartRequest = new RestartRequest();
+        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
     public void WasEntryPointHit(string caller_trace)
     {
         Func<string, bool> filter = (resJSON) =>

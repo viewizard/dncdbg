@@ -60,6 +60,7 @@ ALL_TEST_NAMES=(
     "TestBreakpointLocations"
     "TestAttachToSuspend"
     "TestSourceLink"
+    "TestRestartLaunch"
 )
 
 TEST_NAMES="$@"

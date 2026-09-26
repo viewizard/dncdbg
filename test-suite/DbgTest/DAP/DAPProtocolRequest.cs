@@ -539,4 +539,16 @@ public class BreakpointLocationsArguments
     public int? endLine;
     public int? endColumn;
 }
+
+public class RestartRequest : Request
+{
+    public RestartRequest()
+    {
+        command = "restart";
+    }
+    public RestartArguments arguments = new RestartArguments();
+}
+public class RestartArguments
+{
+}
 }
