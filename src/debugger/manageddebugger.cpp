@@ -573,7 +573,7 @@ HRESULT CheckNoProcess()
     return S_OK;
 }
 
-HRESULT RunProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
+HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string> &execArgs)
 {
     HRESULT Status = S_OK;
 
@@ -839,7 +839,7 @@ HRESULT ConfigurationDone()
     switch (GetStartMethod())
     {
     case StartMethod::Launch:
-        return RunProcess(GetExecPath(), GetExecArgs());
+        return LaunchProcess(GetExecPath(), GetExecArgs());
     case StartMethod::Attach:
         return AttachToProcess();
     default:
