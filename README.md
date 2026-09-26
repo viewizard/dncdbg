@@ -34,7 +34,7 @@ See the current [Debug Adapter Protocol support status](docs/dap_status.md).
     </tr>
     <tr>
       <td align="left"><b>Physical memory footprint<sup><a href="docs/dbg_compare.md#note-3">3</a></sup></b></td>
-      <td align="center">11.7M</td>
+      <td align="center"><b>11.7M</b></td>
       <td align="center">52.4M</td>
       <td align="center">146.8M</td>
     </tr>
