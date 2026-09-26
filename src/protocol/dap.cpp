@@ -43,12 +43,84 @@ namespace dncdbg::DAP
 namespace
 {
 
+// Internal state of the DAP protocol layer.
+std::atomic<bool> &GetExit()
+{
+    static std::atomic<bool> exit{false};
+    return exit;
+}
+
+bool &GetInternalConsole()
+{
+    static bool internalConsole{false};
+    return internalConsole;
+}
+
+struct CommandQueueEntry
+{
+    std::string command;
+    nlohmann::json arguments;
+    nlohmann::json response;
+};
+
+std::mutex &GetCommandsMutex()
+{
+    static std::mutex commandsMutex;
+    return commandsMutex;
+}
+
+std::condition_variable &GetCommandsCV()
+{
+    static std::condition_variable commandsCV;
+    return commandsCV;
+}
+
+std::condition_variable &GetCommandSyncCV()
+{
+    static std::condition_variable commandSyncCV;
+    return commandSyncCV;
+}
+
+bool &GetCommandSyncFlag()
+{
+    static bool commandSyncFlag{false};
+    return commandSyncFlag;
+}
+
+std::list<CommandQueueEntry> &GetCommandsQueue()
+{
+    static std::list<CommandQueueEntry> commandsQueue;
+    return commandsQueue;
+}
+
+// -1 means "no server has been initialized yet"; valid ports start at 1.
+constexpr int gPortNotInitialized = -1;
+int &GetPreviousRemoteConsoleServerPort()
+{
+    static int previousRemoteConsoleServerPort{gPortNotInitialized};
+    return previousRemoteConsoleServerPort;
+}
+
+bool &GetConfigurationDone()
+{
+    static bool configurationDone{false};
+    return configurationDone;
+}
+
+bool &GetProcessSetupComplete()
+{
+    static bool processSetupComplete{false};
+    return processSetupComplete;
+}
+
 // Make sure we continue adding new commands to the queue only after the current command execution is finished.
-// Note: configurationDone prevents a deadlock in the _dup() call during std::getline() from stdin in the main thread.
+// Note: configurationDone, launch and attach prevent a deadlock in the _dup() call during std::getline() from stdin in the main thread.
 const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
 {
     static const std::unordered_set<std::string> syncCommandExecutionSet{
         "configurationDone",
+        "launch",
+        "attach",
         "disconnect",
         "terminate",
         "restart"
@@ -240,63 +312,6 @@ HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference,
     return S_OK;
 }
 
-// Internal state of the DAP protocol layer (formerly the DAP class members).
-std::atomic<bool> &GetExit()
-{
-    static std::atomic<bool> exit{false};
-    return exit;
-}
-
-bool &GetInternalConsole()
-{
-    static bool internalConsole{false};
-    return internalConsole;
-}
-
-struct CommandQueueEntry
-{
-    std::string command;
-    nlohmann::json arguments;
-    nlohmann::json response;
-};
-
-std::mutex &GetCommandsMutex()
-{
-    static std::mutex commandsMutex;
-    return commandsMutex;
-}
-
-std::condition_variable &GetCommandsCV()
-{
-    static std::condition_variable commandsCV;
-    return commandsCV;
-}
-
-std::condition_variable &GetCommandSyncCV()
-{
-    static std::condition_variable commandSyncCV;
-    return commandSyncCV;
-}
-
-bool &GetCommandSyncFlag()
-{
-    static bool commandSyncFlag{false};
-    return commandSyncFlag;
-}
-
-std::list<CommandQueueEntry> &GetCommandsQueue()
-{
-    static std::list<CommandQueueEntry> commandsQueue;
-    return commandsQueue;
-}
-
-int &GetPreviousRemoteConsoleServerPort()
-{
-    // -1 means "no server has been initialized yet"; valid ports start at 1.
-    static int previousRemoteConsoleServerPort{-1};
-    return previousRemoteConsoleServerPort;
-}
-
 void ParseAndApplyDebugSessionOptions(const json &arguments)
 {
     Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
@@ -389,7 +404,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments)
     if (console != "remoteConsole")
     {
         ManagedDebugger::CloseRemoteConsoleServer();
-        GetPreviousRemoteConsoleServerPort() = -1;
+        GetPreviousRemoteConsoleServerPort() = gPortNotInitialized;
     }
 
     if (console == "internalConsole")
@@ -469,6 +484,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
 
                 AddCapabilitiesTo(responseBody);
+
+                // Note: the `initialize` command starts the sequence of configuration requests.
+                GetConfigurationDone() = false;
+                GetProcessSetupComplete() = false;
                 return S_OK;
             }},
         {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
@@ -548,7 +567,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"configurationDone", [](const json &/*arguments*/, json &/*responseBody*/)
             {
-                return ManagedDebugger::ConfigurationDone();
+                GetConfigurationDone() = true;
+                // The client sends the `configurationDone` request to indicate the end of the configuration.
+                // If process setup is complete, start the debug session.
+                if (GetProcessSetupComplete())
+                {
+                    return ManagedDebugger::StartDebugSession();
+                }
+                return S_OK;
             }},
         {"exceptionInfo", [](const json &arguments, json &responseBody)
             {
@@ -591,8 +617,16 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             {
                 HRESULT Status = S_OK;
                 IfFailRet(ParseAndApplyLaunchOptions(arguments));
-
                 ParseAndApplyDebugSessionOptions(arguments);
+
+                GetProcessSetupComplete() = true;
+                // If the client has already sent the `configurationDone` request, start the debug session.
+                // Note: the debugger must not launch the debuggee process before the client completes
+                // the sequence of configuration requests.
+                if (GetConfigurationDone())
+                {
+                    return ManagedDebugger::StartDebugSession();
+                }
                 return S_OK;
             }},
         {"threads", [](const json &/*arguments*/, json &responseBody)
@@ -794,8 +828,16 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
 
                 IfFailRet(ManagedDebugger::Attach(processId));
-
                 ParseAndApplyDebugSessionOptions(arguments);
+
+                GetProcessSetupComplete() = true;
+                // If the client has already sent the `configurationDone` request, start the debug session.
+                // Note: the debugger must not attach to the debuggee process before the client completes
+                // the sequence of configuration requests.
+                if (GetConfigurationDone())
+                {
+                    return ManagedDebugger::StartDebugSession();
+                }
                 return S_OK;
             }},
         {"setVariable", [](const json &arguments, json &responseBody)
@@ -997,7 +1039,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     ParseAndApplyDebugSessionOptions(restartArguments);
                 }
 
-                return ManagedDebugger::ConfigurationDone();
+                return ManagedDebugger::StartDebugSession();
             }}};
 
     const auto command_it = commands.find(command);

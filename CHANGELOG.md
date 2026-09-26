@@ -22,6 +22,7 @@ Upcoming changes compared to previous version.
 - Added `supportsRestartRequest` support in Capabilities.
 - Added Restart Request and Response.
 - Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Requests.
+- Added support for `attach` and `launch` requests sent after the `initialize`-`configurationDone` request sequence.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 

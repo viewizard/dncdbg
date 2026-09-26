@@ -829,7 +829,7 @@ HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &exec
     return S_OK;
 }
 
-HRESULT ConfigurationDone()
+HRESULT StartDebugSession()
 {
     HRESULT Status = S_OK;
 
