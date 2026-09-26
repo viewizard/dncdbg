@@ -962,7 +962,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 return S_OK;
             }},
-        {"restart", [](const json &/*arguments*/, json &/*responseBody*/)
+        {"restart", [](const json &arguments, json &/*responseBody*/)
             {
                 HRESULT Status = S_OK;
 
@@ -971,7 +971,26 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Default));
                 }
 
-                // TODO: add `arguments` support.
+                // Note, the optional `arguments` field carries the (possibly updated) original launch or attach
+                // arguments, so the restart target may differ from the one used initially.
+                const auto restartArgumentsIt = arguments.find("arguments");
+                if (restartArgumentsIt != arguments.cend())
+                {
+                    const json &restartArguments = restartArgumentsIt.value();
+
+                    const DWORD processId = restartArguments.value("processId", 0);
+                    if (processId != 0)
+                    {
+                        IfFailRet(ManagedDebugger::Attach(processId));
+                    }
+                    else
+                    {
+                        std::map<std::string, std::string> env;
+                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments, env));
+                    }
+
+                    ParseAndApplyDebugSessionOptions(restartArguments);
+                }
 
                 return ManagedDebugger::ConfigurationDone();
             }}};

@@ -74,6 +74,7 @@ class Context
         if (expressionEvaluationOptions != null)
         {
             launchRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
+            expressionEvaluationOptions = null;
         }
 
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
@@ -132,6 +133,44 @@ class Context
     public void Restart(string caller_trace)
     {
         RestartRequest restartRequest = new RestartRequest();
+        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void RestartWithLaunchArguments(bool? JMC, bool? StepFiltering, string caller_trace)
+    {
+        RestartWithLaunchArgumentsRequest restartRequest = new RestartWithLaunchArgumentsRequest();
+
+        restartRequest.arguments.arguments.name = ".NET Core Launch (console) with pipeline";
+        restartRequest.arguments.arguments.type = "coreclr";
+        restartRequest.arguments.arguments.program = ControlInfo.TargetAssemblyPath!;
+        restartRequest.arguments.arguments.cwd = "";
+        restartRequest.arguments.arguments.stopAtEntry = true;
+
+        if (argsList.Count != 0)
+        {
+            restartRequest.arguments.arguments.args = argsList;
+        }
+
+        if (JMC.HasValue)
+        {
+            restartRequest.arguments.arguments.justMyCode = JMC.Value;
+        }
+        if (StepFiltering.HasValue)
+        {
+            restartRequest.arguments.arguments.enableStepFiltering = StepFiltering.Value;
+        }
+
+        if (sourceFileMap.Count != 0)
+        {
+            restartRequest.arguments.arguments.sourceFileMap = sourceFileMap;
+        }
+
+        if (expressionEvaluationOptions != null)
+        {
+            restartRequest.arguments.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
+            expressionEvaluationOptions = null;
+        }
+
         Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 

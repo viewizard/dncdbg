@@ -222,7 +222,7 @@ How to read the blocks below:
 ```
 #### RestartRequest `restart`
 ```text
-❌  arguments?: LaunchRequestArguments | AttachRequestArguments;
+✅  arguments?: LaunchRequestArguments | AttachRequestArguments;
 ```
 #### RestartResponse
 ```text

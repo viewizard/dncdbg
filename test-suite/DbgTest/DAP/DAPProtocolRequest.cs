@@ -546,9 +546,18 @@ public class RestartRequest : Request
     {
         command = "restart";
     }
-    public RestartArguments arguments = new RestartArguments();
 }
-public class RestartArguments
+
+public class RestartWithLaunchArgumentsRequest : Request
 {
+    public RestartWithLaunchArgumentsRequest()
+    {
+        command = "restart";
+    }
+    public RestartWithLaunchArguments arguments = new RestartWithLaunchArguments();
+}
+public class RestartWithLaunchArguments
+{
+    public LaunchRequestArguments arguments = new LaunchRequestArguments();
 }
 }
