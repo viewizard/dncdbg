@@ -7,9 +7,16 @@
 #define DEBUGGER_CONFIG_H
 
 #include <cstdint>
+#include <cstddef>
+#include <map>
+#include <string>
 
 namespace dncdbg::Config
 {
+
+void Initialize();
+void Initialize(const std::map<std::string, std::string> &env);
+size_t GetStackTraceLimit();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

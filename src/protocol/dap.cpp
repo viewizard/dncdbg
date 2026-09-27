@@ -380,6 +380,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments)
             env.clear();
         }
     }
+    Config::Initialize(env);
 
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     std::string console;

@@ -3,12 +3,40 @@
 // See the LICENSE file in the project root for more information.
 
 #include "config/config.h"
+#include "utils/logger.h"
+#include <charconv>
+#include <cstdlib>
+#include <string_view>
 
 namespace dncdbg::Config
 {
 
 namespace
 {
+
+constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
+constexpr size_t defaultStackTraceLimit = 250;
+
+size_t &GetStackTraceLimitState()
+{
+    static size_t stackTraceLimitState{defaultStackTraceLimit};
+    return stackTraceLimitState;
+}
+
+void SetStackTraceLimitState(std::string_view envVal)
+{
+    size_t newLimit = 0;
+    const auto result = std::from_chars(envVal.data(), envVal.data() + envVal.size(), newLimit);
+    if (result.ec == std::errc{})
+    {
+        GetStackTraceLimitState() = newLimit;
+    }
+    else
+    {
+        LOGE(log << "Failed to parse environment variable " << stackTraceLimitName << " as a number, using the default value.");
+        GetStackTraceLimitState() = defaultStackTraceLimit;
+    }
+}
 
 bool &GetRunningViaVsDbgUIState()
 {
@@ -49,6 +77,37 @@ uint32_t &GetEvalFlagsState()
 }
 
 } // unnamed namespace
+
+void Initialize()
+{
+    const char *envVal = std::getenv(stackTraceLimitName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
+    if (envVal != nullptr)
+    {
+        SetStackTraceLimitState(envVal);
+    }
+}
+
+void Initialize(const std::map<std::string, std::string> &env)
+{
+    // Reset to the process environment value, then apply overrides from the request options.
+    // Without the reset, a value from a previous session would persist when this session does not set the variable.
+    GetStackTraceLimitState() = defaultStackTraceLimit;
+    Initialize();
+
+    for (const auto &[envName, envVal] : env)
+    {
+        if (envName == stackTraceLimitName)
+        {
+            SetStackTraceLimitState(envVal);
+            break;
+        }
+    }
+}
+
+size_t GetStackTraceLimit()
+{
+    return GetStackTraceLimitState();
+}
 
 bool IsRunningViaVsDbgUI()
 {

@@ -175,6 +175,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 - [VS Code IDE, Windows OS.](docs/usage_vscode_windows.md)
 - [VS Code IDE, Linux and macOS.](docs/usage_vscode_unix.md)
+- [Debugger configuration environment variables.](docs/config_env.md)
 - [Debugger pseudo-variables.](docs/pseudo_variables.md)
 - [Inputting text into the target process.](docs/inputting_text.md)
 - [Evaluation format specifiers.](docs/evaluation_format_specifiers.md)

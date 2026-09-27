@@ -199,6 +199,8 @@ int
 
     try
     {
+        dncdbg::Config::Initialize();
+
         dncdbg::ManagedDebugger::Initialize();
 
         dncdbg::DAP::CommandLoop();

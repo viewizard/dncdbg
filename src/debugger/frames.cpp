@@ -56,9 +56,9 @@ bool AllowInternalFrame(ICorDebugInternalFrame *pInternalFrame, bool lastFrames)
     case STUBFRAME_SECURITY:
     case STUBFRAME_JIT_COMPILATION:
         return true;
-    case STUBFRAME_EXCEPTION: // no reason to add `[Exception]` frame on the top of stacktrace
-    case STUBFRAME_M2U: // hide managed to native transitions in the middle of stacktrace
-    case STUBFRAME_U2M: // hide native to managed transitions in the middle of stacktrace
+    case STUBFRAME_EXCEPTION: // no reason to add `[Exception]` frame on the top of stack trace
+    case STUBFRAME_M2U: // hide managed to native transitions in the middle of stack trace
+    case STUBFRAME_U2M: // hide native to managed transitions in the middle of stack trace
     case STUBFRAME_NONE:
         return false;
     default:
@@ -614,7 +614,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
     };
 
     std::list<IntWalkFrame> walkFrames;
-    static constexpr size_t stackTraceLimit = 250;
+    const size_t stackTraceLimit = Config::GetStackTraceLimit();
 
     // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
     // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
@@ -729,7 +729,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
 
     std::list<IntWalkFrame> walkFrames;
     std::list<IntWalkExceptionFrame> walkExceptionFrames;
-    static constexpr size_t stackTraceLimit = 250;
+    const size_t stackTraceLimit = Config::GetStackTraceLimit();
     bool stackTruncated = false;
     const bool justMyCode = Config::GetJustMyCode();
 
