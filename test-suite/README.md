@@ -18,6 +18,8 @@
     $ powershell.exe -executionpolicy bypass -File run_tests.ps1 <test-name> [<test-name>]
 ```
 
+The target framework can be overridden with the `DNCDBG_TARGET_FRAMEWORK` environment variable (for example, `net8.0`); by default, the tests target `net10.0`.
+
 # How to add a new test
 
 - move to the test-suite directory;
@@ -30,15 +32,19 @@
 - add a reference to the DbgTest library and `Context.cs` file to the `ItemGroup` section by editing the `NewTest.csproj` file, for example:
 ```
 <Project Sdk="Microsoft.NET.Sdk">
+
   <ItemGroup>
     <ProjectReference Include="..\DbgTest\DbgTest.csproj" />
     <Compile Include="..\ScriptContext\Context.cs" />
   </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework Condition="'$(DNCDBG_TARGET_FRAMEWORK)' != ''">$(DNCDBG_TARGET_FRAMEWORK)</TargetFramework>
+    <TargetFramework Condition="'$(DNCDBG_TARGET_FRAMEWORK)' == ''">net10.0</TargetFramework>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
 </Project>
 ```
 

@@ -115,6 +115,9 @@ foreach ($TEST_NAME in $TEST_NAMES) {
     }
 
     $FRAMEWORK = "net10.0"
+    if (-not [String]::IsNullOrEmpty($DNCDBG_TARGET_FRAMEWORK)) {
+        $FRAMEWORK = $DNCDBG_TARGET_FRAMEWORK
+    }
     if ($TEST_NAME -eq "TestStackTraceWinForm") {
         $FRAMEWORK += "-windows"
     }

@@ -103,11 +103,16 @@ for TEST_NAME in $TEST_NAMES; do
         SOURCE_FILES="${SOURCE_FILES}${file};"
     done
 
+    FRAMEWORK="net10.0"
+    if [[ -n $DNCDBG_TARGET_FRAMEWORK ]]; then
+        FRAMEWORK="$DNCDBG_TARGET_FRAMEWORK"
+    fi
+
     dotnet run --project Runner -- \
         --local $DNCDBG \
         --test $TEST_NAME \
         --sources "$SOURCE_FILES" \
-        --assembly $TEST_NAME/bin/$BUILD_TYPE/net10.0/$TEST_NAME.dll
+        --assembly $TEST_NAME/bin/$BUILD_TYPE/$FRAMEWORK/$TEST_NAME.dll
 
     if [ "$?" -ne "0" ]; then
         test_fail=$(($test_fail + 1))
