@@ -16,7 +16,11 @@ namespace dncdbg::Config
 
 void Initialize();
 void Initialize(const std::map<std::string, std::string> &env);
+
+// Maximum number of frames in a stack trace, provided by the DNCDBG_STACKTRACE_LIMIT environment variable.
 size_t GetStackTraceLimit();
+// DAP request execution timeout in milliseconds, provided by the DNCDBG_DAP_REQUEST_TIMEOUT environment variable.
+size_t GetDapRequestTimeout();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

@@ -6,6 +6,7 @@
 #include "utils/logger.h"
 #include <charconv>
 #include <cstdlib>
+#include <optional>
 #include <string_view>
 
 namespace dncdbg::Config
@@ -16,6 +17,20 @@ namespace
 
 constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
 constexpr size_t defaultStackTraceLimit = 250;
+constexpr std::string_view dapRequestTimeoutName = "DNCDBG_DAP_REQUEST_TIMEOUT";
+constexpr size_t defaultDapRequestTimeout = 15000;
+
+// Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
+std::optional<size_t> ParseEnvNumber(std::string_view envVal)
+{
+    size_t value = 0;
+    const auto result = std::from_chars(envVal.data(), envVal.data() + envVal.size(), value);
+    if (result.ec != std::errc{})
+    {
+        return std::nullopt;
+    }
+    return value;
+}
 
 size_t &GetStackTraceLimitState()
 {
@@ -25,16 +40,33 @@ size_t &GetStackTraceLimitState()
 
 void SetStackTraceLimitState(std::string_view envVal)
 {
-    size_t newLimit = 0;
-    const auto result = std::from_chars(envVal.data(), envVal.data() + envVal.size(), newLimit);
-    if (result.ec == std::errc{})
+    if (const auto newLimit = ParseEnvNumber(envVal); newLimit.has_value())
     {
-        GetStackTraceLimitState() = newLimit;
+        GetStackTraceLimitState() = *newLimit;
     }
     else
     {
         LOGE(log << "Failed to parse environment variable " << stackTraceLimitName << " as a number, using the default value.");
         GetStackTraceLimitState() = defaultStackTraceLimit;
+    }
+}
+
+size_t &GetDapRequestTimeoutState()
+{
+    static size_t dapRequestTimeoutState{defaultDapRequestTimeout};
+    return dapRequestTimeoutState;
+}
+
+void SetDapRequestTimeoutState(std::string_view envVal)
+{
+    if (const auto newTimeout = ParseEnvNumber(envVal); newTimeout.has_value())
+    {
+        GetDapRequestTimeoutState() = *newTimeout;
+    }
+    else
+    {
+        LOGE(log << "Failed to parse environment variable " << dapRequestTimeoutName << " as a number, using the default value.");
+        GetDapRequestTimeoutState() = defaultDapRequestTimeout;
     }
 }
 
@@ -85,6 +117,11 @@ void Initialize()
     {
         SetStackTraceLimitState(envVal);
     }
+    envVal = std::getenv(dapRequestTimeoutName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
+    if (envVal != nullptr)
+    {
+        SetDapRequestTimeoutState(envVal);
+    }
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
@@ -92,6 +129,7 @@ void Initialize(const std::map<std::string, std::string> &env)
     // Reset to the process environment value, then apply overrides from the request options.
     // Without the reset, a value from a previous session would persist when this session does not set the variable.
     GetStackTraceLimitState() = defaultStackTraceLimit;
+    GetDapRequestTimeoutState() = defaultDapRequestTimeout;
     Initialize();
 
     for (const auto &[envName, envVal] : env)
@@ -99,7 +137,10 @@ void Initialize(const std::map<std::string, std::string> &env)
         if (envName == stackTraceLimitName)
         {
             SetStackTraceLimitState(envVal);
-            break;
+        }
+        else if (envName == dapRequestTimeoutName)
+        {
+            SetDapRequestTimeoutState(envVal);
         }
     }
 }
@@ -107,6 +148,11 @@ void Initialize(const std::map<std::string, std::string> &env)
 size_t GetStackTraceLimit()
 {
     return GetStackTraceLimitState();
+}
+
+size_t GetDapRequestTimeout()
+{
+    return GetDapRequestTimeoutState();
 }
 
 bool IsRunningViaVsDbgUI()

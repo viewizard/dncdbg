@@ -52,7 +52,7 @@ Upcoming changes compared to previous version.
 - Added TestRestartLaunch.
 - Added TestLaunchSequence.
 - Added TestAttachSequence.
-- Added debugger configuration environment variable `DNCDBG_STACKTRACE_LIMIT`.
+- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT` and `DNCDBG_DAP_REQUEST_TIMEOUT`.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

@@ -1106,20 +1106,7 @@ void CommandsWorker()
         HRESULT Status = S_OK;
         // Note, the CommandsWorker() loop should never hang, but even if some command execution times out,
         // this may not be a critical issue. Let the IDE decide.
-
-        // The MSVS debugger uses a config file; for Visual Studio 2022 Community Edition it is located at
-        // C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Profiles\CSharp.vssettings
-        // Visual Studio has a timeout setting for each type of request, for example:
-        // LocalsTimeout = 1000
-        // LongEvalTimeout = 10000
-        // NormalEvalTimeout = 5000
-        // QuickwatchTimeout = 15000
-        // SetValueTimeout = 10000
-        // ...
-        // we use the maximum default timeout (15000 ms), one timeout for all requests.
-
-        // TODO add timeout configuration feature
-        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(15000));
+        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(Config::GetDapRequestTimeout()));
         if (timeoutStatus == std::future_status::timeout)
         {
             responseBody.emplace("message", "Command execution timed out.");
