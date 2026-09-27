@@ -312,8 +312,30 @@ HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference,
     return S_OK;
 }
 
-void ParseAndApplyDebugSessionOptions(const json &arguments)
+// Extract the optional `env` option (the debug session environment variables) from the request arguments.
+// Returns an empty map if the option is absent or malformed.
+std::map<std::string, std::string> GetDebugSessionEnvironment(const json &arguments)
 {
+    std::map<std::string, std::string> env;
+    const auto findEnv = arguments.find("env");
+    if (findEnv != arguments.cend())
+    {
+        try
+        {
+            env = findEnv->get<std::map<std::string, std::string>>();
+        }
+        catch (const std::exception &ex)
+        {
+            LOGI(log << "env exception '" << ex.what() << "'");
+        }
+    }
+
+    return env;
+}
+
+void ParseAndApplyDebugSessionOptions(const json &arguments, const std::map<std::string, std::string> &env)
+{
+    Config::Initialize(env);
     Config::SetJustMyCode(arguments.value("justMyCode", true)); // MS vsdbg has "justMyCode" enabled by default.
     Config::SetStepFiltering(arguments.value("enableStepFiltering", true)); // MS vsdbg has "enableStepFiltering" enabled by default.
     Config::SetStopAtEntry(arguments.value("stopAtEntry", false)); // MS vsdbg has "stopAtEntry" disabled by default.
@@ -352,7 +374,7 @@ void ParseAndApplyDebugSessionOptions(const json &arguments)
     ManagedDebugger::SetSourceFileMap(std::move(map));
 }
 
-HRESULT ParseAndApplyLaunchOptions(const json &arguments)
+HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::string, std::string> &env)
 {
     const auto findProgram = arguments.find("program");
     if (findProgram == arguments.cend())
@@ -364,23 +386,6 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments)
 
     const auto cwdIt = arguments.find("cwd");
     const std::string cwd = cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{};
-
-    std::map<std::string, std::string> env;
-    const auto findEnv = arguments.find("env");
-    if (findEnv != arguments.cend())
-    {
-        try
-        {
-            env = findEnv->get<std::map<std::string, std::string>>();
-        }
-        catch (const std::exception &ex)
-        {
-            LOGI(log << "env exception '" << ex.what() << "'");
-            // The read may have been interrupted mid-way and left the map in an inconsistent state; clear it to be safe.
-            env.clear();
-        }
-    }
-    Config::Initialize(env);
 
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     std::string console;
@@ -617,8 +622,9 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
         {"launch", [](const json &arguments, json &/*responseBody*/)
             {
                 HRESULT Status = S_OK;
-                IfFailRet(ParseAndApplyLaunchOptions(arguments));
-                ParseAndApplyDebugSessionOptions(arguments);
+                const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
+                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
+                ParseAndApplyDebugSessionOptions(arguments, env);
 
                 GetProcessSetupComplete() = true;
                 // If the client has already sent the `configurationDone` request, start the debug session.
@@ -829,7 +835,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 }
 
                 IfFailRet(ManagedDebugger::Attach(processId));
-                ParseAndApplyDebugSessionOptions(arguments);
+                const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
+                ParseAndApplyDebugSessionOptions(arguments, env);
 
                 GetProcessSetupComplete() = true;
                 // If the client has already sent the `configurationDone` request, start the debug session.
@@ -1026,6 +1033,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 if (restartArgumentsIt != arguments.cend())
                 {
                     const json &restartArguments = restartArgumentsIt.value();
+                    const std::map<std::string, std::string> env = GetDebugSessionEnvironment(restartArguments);
 
                     const DWORD processId = restartArguments.value("processId", 0);
                     if (processId != 0)
@@ -1034,10 +1042,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     else
                     {
-                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments));
+                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments, env));
                     }
 
-                    ParseAndApplyDebugSessionOptions(restartArguments);
+                    ParseAndApplyDebugSessionOptions(restartArguments, env);
                 }
 
                 return ManagedDebugger::StartDebugSession();

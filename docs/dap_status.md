@@ -209,6 +209,8 @@ How to read the blocks below:
 ```text
 ❌  __restart?: any;
 ✅  processId: number;
+🧩  env?: { [key: string]: string; };
+        ℹ️  note: in attach, 'env' is used for the debug session configuration only
 🧩  sourceFileMap?: { [key: string]: string; };
 🧩  stopAtEntry?: boolean;
 🧩  justMyCode?: boolean;
