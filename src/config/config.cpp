@@ -32,42 +32,37 @@ std::optional<size_t> ParseEnvNumber(std::string_view envVal)
     return value;
 }
 
-size_t &GetStackTraceLimitState()
+// Holds a configurable value along with the baseline taken from the process environment,
+// so that each session can reset the value before applying request-specific overrides.
+struct SessionValue
 {
-    static size_t stackTraceLimitState{defaultStackTraceLimit};
+    size_t current;
+    size_t initial;
+
+    void SetFromEnv(std::string_view envVal, std::string_view envName, size_t defaultValue)
+    {
+        if (const auto parsed = ParseEnvNumber(envVal); parsed.has_value())
+        {
+            current = *parsed;
+        }
+        else
+        {
+            LOGE(log << "Failed to parse environment variable " << envName << " as a number, using the default value.");
+            current = defaultValue;
+        }
+    }
+};
+
+SessionValue &GetStackTraceLimitState()
+{
+    static SessionValue stackTraceLimitState{defaultStackTraceLimit, defaultStackTraceLimit};
     return stackTraceLimitState;
 }
 
-void SetStackTraceLimitState(std::string_view envVal)
+SessionValue &GetDapRequestTimeoutState()
 {
-    if (const auto newLimit = ParseEnvNumber(envVal); newLimit.has_value())
-    {
-        GetStackTraceLimitState() = *newLimit;
-    }
-    else
-    {
-        LOGE(log << "Failed to parse environment variable " << stackTraceLimitName << " as a number, using the default value.");
-        GetStackTraceLimitState() = defaultStackTraceLimit;
-    }
-}
-
-size_t &GetDapRequestTimeoutState()
-{
-    static size_t dapRequestTimeoutState{defaultDapRequestTimeout};
+    static SessionValue dapRequestTimeoutState{defaultDapRequestTimeout, defaultDapRequestTimeout};
     return dapRequestTimeoutState;
-}
-
-void SetDapRequestTimeoutState(std::string_view envVal)
-{
-    if (const auto newTimeout = ParseEnvNumber(envVal); newTimeout.has_value())
-    {
-        GetDapRequestTimeoutState() = *newTimeout;
-    }
-    else
-    {
-        LOGE(log << "Failed to parse environment variable " << dapRequestTimeoutName << " as a number, using the default value.");
-        GetDapRequestTimeoutState() = defaultDapRequestTimeout;
-    }
 }
 
 bool &GetRunningViaVsDbgUIState()
@@ -112,47 +107,47 @@ uint32_t &GetEvalFlagsState()
 
 void Initialize()
 {
-    const char *envVal = std::getenv(stackTraceLimitName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
-    if (envVal != nullptr)
+    if (const char *envVal = std::getenv(stackTraceLimitName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        SetStackTraceLimitState(envVal);
+        GetStackTraceLimitState().SetFromEnv(envVal, stackTraceLimitName, defaultStackTraceLimit);
     }
-    envVal = std::getenv(dapRequestTimeoutName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
-    if (envVal != nullptr)
+    GetStackTraceLimitState().initial = GetStackTraceLimitState().current;
+
+    if (const char *envVal = std::getenv(dapRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        SetDapRequestTimeoutState(envVal);
+        GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
     }
+    GetDapRequestTimeoutState().initial = GetDapRequestTimeoutState().current;
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
 {
     // Reset to the process environment value, then apply overrides from the request options.
     // Without the reset, a value from a previous session would persist when this session does not set the variable.
-    GetStackTraceLimitState() = defaultStackTraceLimit;
-    GetDapRequestTimeoutState() = defaultDapRequestTimeout;
-    Initialize();
+    GetStackTraceLimitState().current = GetStackTraceLimitState().initial;
+    GetDapRequestTimeoutState().current = GetDapRequestTimeoutState().initial;
 
     for (const auto &[envName, envVal] : env)
     {
         if (envName == stackTraceLimitName)
         {
-            SetStackTraceLimitState(envVal);
+            GetStackTraceLimitState().SetFromEnv(envVal, stackTraceLimitName, defaultStackTraceLimit);
         }
         else if (envName == dapRequestTimeoutName)
         {
-            SetDapRequestTimeoutState(envVal);
+            GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
         }
     }
 }
 
 size_t GetStackTraceLimit()
 {
-    return GetStackTraceLimitState();
+    return GetStackTraceLimitState().current;
 }
 
 size_t GetDapRequestTimeout()
 {
-    return GetDapRequestTimeoutState();
+    return GetDapRequestTimeoutState().current;
 }
 
 bool IsRunningViaVsDbgUI()
