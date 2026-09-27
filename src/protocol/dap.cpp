@@ -573,13 +573,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"configurationDone", [](const json &/*arguments*/, json &/*responseBody*/)
             {
-                GetConfigurationDone() = true;
                 // The client sends the `configurationDone` request to indicate the end of the configuration.
                 // If process setup is complete, start the debug session.
                 if (GetProcessSetupComplete())
                 {
-                    return ManagedDebugger::StartDebugSession();
+                    HRESULT Status = S_OK;
+                    IfFailRet(ManagedDebugger::StartDebugSession());
                 }
+                GetConfigurationDone() = true;
                 return S_OK;
             }},
         {"exceptionInfo", [](const json &arguments, json &responseBody)
@@ -619,21 +620,27 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 responseBody.emplace("breakpoints", breakpoints);
                 return S_OK;
             }},
-        {"launch", [](const json &arguments, json &/*responseBody*/)
+        {"launch", [](const json &arguments, json &responseBody)
             {
+                if (GetProcessSetupComplete() && GetConfigurationDone())
+                {
+                    responseBody.emplace("message", "Can't be used as part of the restart sequence. Use the 'restart' request instead.");
+                    return E_UNEXPECTED;
+                }
+
                 HRESULT Status = S_OK;
                 const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
                 IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
                 ParseAndApplyDebugSessionOptions(arguments, env);
 
-                GetProcessSetupComplete() = true;
                 // If the client has already sent the `configurationDone` request, start the debug session.
                 // Note: the debugger must not launch the debuggee process before the client completes
                 // the sequence of configuration requests.
                 if (GetConfigurationDone())
                 {
-                    return ManagedDebugger::StartDebugSession();
+                    IfFailRet(ManagedDebugger::StartDebugSession());
                 }
+                GetProcessSetupComplete() = true;
                 return S_OK;
             }},
         {"threads", [](const json &/*arguments*/, json &responseBody)
@@ -825,8 +832,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 responseBody.emplace("value", output);
                 return S_OK;
             }},
-        {"attach", [](const json &arguments, json &/*responseBody*/)
+        {"attach", [](const json &arguments, json &responseBody)
             {
+                if (GetProcessSetupComplete() && GetConfigurationDone())
+                {
+                    responseBody.emplace("message", "Can't be used as part of the restart sequence. Use the 'restart' request instead.");
+                    return E_UNEXPECTED;
+                }
+
                 HRESULT Status = S_OK;
                 const DWORD processId = arguments.value("processId", 0);
                 if (processId == 0)
@@ -838,14 +851,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
                 ParseAndApplyDebugSessionOptions(arguments, env);
 
-                GetProcessSetupComplete() = true;
                 // If the client has already sent the `configurationDone` request, start the debug session.
                 // Note: the debugger must not attach to the debuggee process before the client completes
                 // the sequence of configuration requests.
                 if (GetConfigurationDone())
                 {
-                    return ManagedDebugger::StartDebugSession();
+                    IfFailRet(ManagedDebugger::StartDebugSession());
                 }
+                GetProcessSetupComplete() = true;
                 return S_OK;
             }},
         {"setVariable", [](const json &arguments, json &responseBody)
@@ -1018,8 +1031,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 responseBody.emplace("breakpoints", locations);
                 return S_OK;
             }},
-        {"restart", [](const json &arguments, json &/*responseBody*/)
+        {"restart", [](const json &arguments, json &responseBody)
             {
+                if (!GetProcessSetupComplete() || !GetConfigurationDone())
+                {
+                    responseBody.emplace("message", "Can't be used as part of the initialize sequence. Use the 'attach' or 'launch' request instead.");
+                    return E_UNEXPECTED;
+                }
+
                 HRESULT Status = S_OK;
 
                 if (ManagedDebugger::HaveDebugProcess())
