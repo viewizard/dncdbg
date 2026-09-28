@@ -93,6 +93,15 @@ std::list<CommandQueueEntry> &GetCommandsQueue()
     return commandsQueue;
 }
 
+// Pending `launch`/`attach` commands received before `configurationDone`.
+// They are held here until `configurationDone` is processed, then moved into
+// the commandsQueue so the real attach/launch result is returned at the proper time.
+std::list<CommandQueueEntry> &GetPendingLaunchAttachQueue()
+{
+    static std::list<CommandQueueEntry> pendingLaunchAttachQueue;
+    return pendingLaunchAttachQueue;
+}
+
 // -1 means "no server has been initialized yet"; valid ports start at 1.
 constexpr int gPortNotInitialized = -1;
 int &GetPreviousRemoteConsoleServerPort()
@@ -494,6 +503,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // Note: the `initialize` command starts the sequence of configuration requests.
                 GetConfigurationDone() = false;
                 GetProcessSetupComplete() = false;
+                // Drop any `launch`/`attach` commands pending from a previous (re)start sequence.
+                {
+                    const std::scoped_lock<std::mutex> guardCommandsMutex(GetCommandsMutex());
+                    GetPendingLaunchAttachQueue().clear();
+                }
                 return S_OK;
             }},
         {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
@@ -573,13 +587,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"configurationDone", [](const json &/*arguments*/, json &/*responseBody*/)
             {
-                // The client sends the `configurationDone` request to indicate the end of the configuration.
-                // If process setup is complete, start the debug session.
-                if (GetProcessSetupComplete())
-                {
-                    HRESULT Status = S_OK;
-                    IfFailRet(ManagedDebugger::StartDebugSession());
-                }
+                assert(!GetProcessSetupComplete());
                 GetConfigurationDone() = true;
                 return S_OK;
             }},
@@ -628,18 +636,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_UNEXPECTED;
                 }
 
+                assert(GetConfigurationDone());
+
                 HRESULT Status = S_OK;
                 const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
                 IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
                 ParseAndApplyDebugSessionOptions(arguments, env);
 
-                // If the client has already sent the `configurationDone` request, start the debug session.
-                // Note: the debugger must not launch the debuggee process before the client completes
-                // the sequence of configuration requests.
-                if (GetConfigurationDone())
-                {
-                    IfFailRet(ManagedDebugger::StartDebugSession());
-                }
+                IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
                 return S_OK;
             }},
@@ -840,6 +844,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_UNEXPECTED;
                 }
 
+                assert(GetConfigurationDone());
+
                 HRESULT Status = S_OK;
                 const DWORD processId = arguments.value("processId", 0);
                 if (processId == 0)
@@ -851,13 +857,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
                 ParseAndApplyDebugSessionOptions(arguments, env);
 
-                // If the client has already sent the `configurationDone` request, start the debug session.
-                // Note: the debugger must not attach to the debuggee process before the client completes
-                // the sequence of configuration requests.
-                if (GetConfigurationDone())
-                {
-                    IfFailRet(ManagedDebugger::StartDebugSession());
-                }
+                IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
                 return S_OK;
             }},
@@ -1347,6 +1347,30 @@ void CommandLoop()
                 continue;
             }
 
+            // https://microsoft.github.io/debug-adapter-protocol/overview.html
+            //
+            // Initialization happens first, and the debug adapter must respond to the `initialize` request
+            // with any capabilities before any further communication can take place. At any point after the
+            // client receives the capabilities, it sends a `launch` or `attach` request.
+            // ...
+            // After the response to `configurationDone` is sent, the debug adapter may respond to the `launch`
+            // or `attach` request, and then the debug session has started.
+
+            // DNCDbg DAP initialization sequence:
+            // after the `initialize` command, `attach` and `launch` must be added to the commandsQueue
+            // only after `configurationDone`. If `attach` or `launch` is sent before `configurationDone`,
+            // they must remain pending until `configurationDone` arrives. This is the only way to handle
+            // `attach` and `launch` at the proper time and return the real attach/launch result.
+            const bool isLaunchOrAttach = (queueEntry.command == "launch" || queueEntry.command == "attach");
+            if (isLaunchOrAttach && !GetConfigurationDone())
+            {
+                // Hold the command until `configurationDone` is processed. It will be flushed
+                // into the commandsQueue by the `configurationDone` handling further below.
+                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+                GetPendingLaunchAttachQueue().emplace_back(std::move(queueEntry));
+                continue;
+            }
+
             std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
             commandSyncFlag = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().cend();
             commandsQueue.emplace_back(std::move(queueEntry));
@@ -1355,6 +1379,27 @@ void CommandLoop()
             if (commandSyncFlag)
             {
                 commandSyncCV.wait(lockCommandsMutex, [&commandSyncFlag] { return !commandSyncFlag; });
+            }
+
+            // After `configurationDone` is processed, flush pending `launch`/`attach`
+            // commands one by one. Each is a sync command, so we wait for it to finish
+            // before submitting the next one. This preserves the deadlock protection of
+            // the sync execution mechanism (see the GetSyncCommandExecutionSet comment)
+            // and guarantees that the real attach/launch result is returned at the proper time.
+            if (GetConfigurationDone())
+            {
+                std::list<CommandQueueEntry> &pendingLaunchAttachQueue = GetPendingLaunchAttachQueue();
+                while (!pendingLaunchAttachQueue.empty())
+                {
+                    CommandQueueEntry pending = std::move(pendingLaunchAttachQueue.front());
+                    pendingLaunchAttachQueue.pop_front();
+
+                    commandSyncFlag = true;
+                    commandsQueue.emplace_back(std::move(pending));
+                    commandsCV.notify_one(); // notify_one with lock
+
+                    commandSyncCV.wait(lockCommandsMutex, [&commandSyncFlag] { return !commandSyncFlag; });
+                }
             }
 
             continue;
