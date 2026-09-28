@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "config/config.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
@@ -217,15 +218,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
                 return E_FAIL;
             }
 
-            // Note:
-            // MSVS 2017 debugger and newer use the config file
-            // C:\Program Files (x86)\Microsoft Visual Studio\YYYY\VERSION\Common7\IDE\Profiles\CSharp.vssettings
-            // by default NormalEvalTimeout is 5000 milliseconds
-            //
-            // TODO add timeout configuration feature (care about VS Code, MSVS with Tizen plugin, standalone usage)
-
-            static constexpr uint32_t normalEvalTimeout = 5000; // TODO config
-            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(normalEvalTimeout));
+            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetNormalEvalTimeout()));
             if (timeoutStatus == std::future_status::timeout)
             {
                 LOGW(log << "Evaluation timed out.");
@@ -253,9 +246,9 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
                 evalTimeOut = true;
                 trProcess->Continue(0);
             }
-            // Wait for 5 more seconds, give `Abort()` a chance.
-            static constexpr uint32_t abortEvalTimeout = 5000; // TODO config
-            timeoutStatus = f.wait_for(std::chrono::milliseconds(abortEvalTimeout));
+
+            // Wait for the abort timeout, giving `Abort()` a chance.
+            timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetAbortEvalTimeout()));
             if (timeoutStatus == std::future_status::timeout)
             {
                 // Looks like it can't be aborted; this is a fatal error for the debugger (the debuggee has an inconsistent state now).

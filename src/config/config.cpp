@@ -19,6 +19,10 @@ constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
 constexpr size_t defaultStackTraceLimit = 250;
 constexpr std::string_view dapRequestTimeoutName = "DNCDBG_DAP_REQUEST_TIMEOUT";
 constexpr size_t defaultDapRequestTimeout = 15000;
+constexpr std::string_view normalEvalTimeoutName = "DNCDBG_NORMAL_EVAL_TIMEOUT";
+constexpr size_t defaultNormalEvalTimeout = 5000;
+constexpr std::string_view abortEvalTimeoutName = "DNCDBG_ABORT_EVAL_TIMEOUT";
+constexpr size_t defaultAbortEvalTimeout = 5000;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
 std::optional<size_t> ParseEnvNumber(std::string_view envVal)
@@ -63,6 +67,18 @@ SessionValue &GetDapRequestTimeoutState()
 {
     static SessionValue dapRequestTimeoutState{defaultDapRequestTimeout, defaultDapRequestTimeout};
     return dapRequestTimeoutState;
+}
+
+SessionValue &GetNormalEvalTimeoutState()
+{
+    static SessionValue normalEvalTimeoutState{defaultNormalEvalTimeout, defaultNormalEvalTimeout};
+    return normalEvalTimeoutState;
+}
+
+SessionValue &GetAbortEvalTimeoutState()
+{
+    static SessionValue abortEvalTimeoutState{defaultAbortEvalTimeout, defaultAbortEvalTimeout};
+    return abortEvalTimeoutState;
 }
 
 bool &GetRunningViaVsDbgUIState()
@@ -118,6 +134,18 @@ void Initialize()
         GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
     }
     GetDapRequestTimeoutState().initial = GetDapRequestTimeoutState().current;
+
+    if (const char *envVal = std::getenv(normalEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+    {
+        GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeout);
+    }
+    GetNormalEvalTimeoutState().initial = GetNormalEvalTimeoutState().current;
+
+    if (const char *envVal = std::getenv(abortEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+    {
+        GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
+    }
+    GetAbortEvalTimeoutState().initial = GetAbortEvalTimeoutState().current;
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
@@ -126,6 +154,8 @@ void Initialize(const std::map<std::string, std::string> &env)
     // Without the reset, a value from a previous session would persist when this session does not set the variable.
     GetStackTraceLimitState().current = GetStackTraceLimitState().initial;
     GetDapRequestTimeoutState().current = GetDapRequestTimeoutState().initial;
+    GetNormalEvalTimeoutState().current = GetNormalEvalTimeoutState().initial;
+    GetAbortEvalTimeoutState().current = GetAbortEvalTimeoutState().initial;
 
     for (const auto &[envName, envVal] : env)
     {
@@ -136,6 +166,14 @@ void Initialize(const std::map<std::string, std::string> &env)
         else if (envName == dapRequestTimeoutName)
         {
             GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
+        }
+        else if (envName == normalEvalTimeoutName)
+        {
+            GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeout);
+        }
+        else if (envName == abortEvalTimeoutName)
+        {
+            GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
         }
     }
 }
@@ -148,6 +186,16 @@ size_t GetStackTraceLimit()
 size_t GetDapRequestTimeout()
 {
     return GetDapRequestTimeoutState().current;
+}
+
+size_t GetNormalEvalTimeout()
+{
+    return GetNormalEvalTimeoutState().current;
+}
+
+size_t GetAbortEvalTimeout()
+{
+    return GetAbortEvalTimeoutState().current;
 }
 
 bool IsRunningViaVsDbgUI()

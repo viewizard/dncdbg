@@ -21,6 +21,10 @@ void Initialize(const std::map<std::string, std::string> &env);
 size_t GetStackTraceLimit();
 // DAP request execution timeout in milliseconds, provided by the DNCDBG_DAP_REQUEST_TIMEOUT environment variable.
 size_t GetDapRequestTimeout();
+// Normal evaluation timeout in milliseconds, provided by the DNCDBG_NORMAL_EVAL_TIMEOUT environment variable.
+size_t GetNormalEvalTimeout();
+// Abort evaluation timeout in milliseconds, provided by the DNCDBG_ABORT_EVAL_TIMEOUT environment variable.
+size_t GetAbortEvalTimeout();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

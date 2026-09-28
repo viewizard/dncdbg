@@ -5,3 +5,7 @@ These environment variables can be set in the DNCDbg process environment before 
 **DNCDBG_STACKTRACE_LIMIT** : maximum number of frames in a stack trace; defaults to 250
 
 **DNCDBG_DAP_REQUEST_TIMEOUT** : timeout for executing a single DAP request, in milliseconds; defaults to 15000 ms (15 seconds)
+
+**DNCDBG_NORMAL_EVAL_TIMEOUT** : timeout for executing an evaluation, in milliseconds; defaults to 5000 ms (5 seconds)
+
+**DNCDBG_ABORT_EVAL_TIMEOUT** : timeout for aborting an evaluation that exceeds the evaluation timeout, in milliseconds; defaults to 5000 ms (5 seconds)
