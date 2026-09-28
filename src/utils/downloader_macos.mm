@@ -61,7 +61,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
             return false;
         }
 
-        const NSTimeInterval requestTimeoutSeconds = static_cast<NSTimeInterval>(Config::GetHttpRequestTimeout());
+        const auto requestTimeoutSeconds = static_cast<NSTimeInterval>(Config::GetHttpRequestTimeout());
         NSURLSessionConfiguration *const configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         configuration.timeoutIntervalForRequest = requestTimeoutSeconds;
         configuration.timeoutIntervalForResource = requestTimeoutSeconds;
