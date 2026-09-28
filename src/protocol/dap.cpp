@@ -95,7 +95,7 @@ std::list<CommandQueueEntry> &GetCommandsQueue()
 
 // Pending `launch`/`attach` commands received before `configurationDone`.
 // They are held here until `configurationDone` is processed, then moved into
-// the commandsQueue so the real attach/launch result is returned at the proper time.
+// the commandsQueue so the real attach/launch status is returned at the proper time.
 std::list<CommandQueueEntry> &GetPendingLaunchAttachQueue()
 {
     static std::list<CommandQueueEntry> pendingLaunchAttachQueue;
@@ -108,6 +108,15 @@ int &GetPreviousRemoteConsoleServerPort()
 {
     static int previousRemoteConsoleServerPort{gPortNotInitialized};
     return previousRemoteConsoleServerPort;
+}
+
+// Set to true by the `initialize` command and reset to false once `launch` or `attach` completes,
+// marking the end of the initialization sequence. Used to gate the pending `launch`/`attach` queue:
+// only commands received after `initialize` (but before `configurationDone`) are held pending.
+bool &GetInitialized()
+{
+    static bool initialized{false};
+    return initialized;
 }
 
 bool &GetConfigurationDone()
@@ -494,6 +503,13 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
     static std::unordered_map<std::string, CommandCallback> commands{
         {"initialize", [](const json &/*arguments*/, json &responseBody)
             {
+                // Reject a repeated `initialize` sent in the middle of the initialization sequence (DAP protocol violation).
+                if (GetInitialized() && !GetConfigurationDone())
+                {
+                    responseBody.emplace("message", "The initialization sequence is already in progress.");
+                    return E_UNEXPECTED;
+                }
+
                 // clientID, clientName, adapterID - not in use now
 
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
@@ -501,13 +517,9 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 AddCapabilitiesTo(responseBody);
 
                 // Note: the `initialize` command starts the sequence of configuration requests.
+                GetInitialized() = true;
                 GetConfigurationDone() = false;
                 GetProcessSetupComplete() = false;
-                // Drop any `launch`/`attach` commands pending from a previous (re)start sequence.
-                {
-                    const std::scoped_lock<std::mutex> guardCommandsMutex(GetCommandsMutex());
-                    GetPendingLaunchAttachQueue().clear();
-                }
                 return S_OK;
             }},
         {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
@@ -636,6 +648,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_UNEXPECTED;
                 }
 
+                // Reject `launch` sent before `initialize` (DAP protocol violation).
+                if (!GetInitialized())
+                {
+                    responseBody.emplace("message", "The 'initialize' request must be sent first.");
+                    return E_UNEXPECTED;
+                }
+
+                // The pending-queue logic in CommandLoop guarantees `configurationDone` has been processed at this point.
                 assert(GetConfigurationDone());
 
                 HRESULT Status = S_OK;
@@ -645,6 +665,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
+                // `launch` is the final step of the initialization sequence.
+                GetInitialized() = false;
                 return S_OK;
             }},
         {"threads", [](const json &/*arguments*/, json &responseBody)
@@ -844,6 +866,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_UNEXPECTED;
                 }
 
+                // Reject `attach` sent before `initialize` (DAP protocol violation).
+                if (!GetInitialized())
+                {
+                    responseBody.emplace("message", "The 'initialize' request must be sent first.");
+                    return E_UNEXPECTED;
+                }
+
+                // The pending-queue logic in CommandLoop guarantees `configurationDone` has been processed at this point.
                 assert(GetConfigurationDone());
 
                 HRESULT Status = S_OK;
@@ -859,6 +889,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
+                // `attach` is the final step of the initialization sequence.
+                GetInitialized() = false;
                 return S_OK;
             }},
         {"setVariable", [](const json &arguments, json &responseBody)
@@ -1357,12 +1389,13 @@ void CommandLoop()
             // or `attach` request, and then the debug session has started.
 
             // DNCDbg DAP initialization sequence:
-            // after the `initialize` command, `attach` and `launch` must be added to the commandsQueue
-            // only after `configurationDone`. If `attach` or `launch` is sent before `configurationDone`,
-            // they must remain pending until `configurationDone` arrives. This is the only way to handle
-            // `attach` and `launch` at the proper time and return the real attach/launch result.
+            // `launch` and `attach` must be added to the commandsQueue only after `configurationDone`.
+            // If they arrive after `initialize` but before `configurationDone`, hold them pending until
+            // `configurationDone` is processed. This ensures the real attach/launch status is returned
+            // at the proper time. Commands sent before `initialize` are a protocol violation and are
+            // not held here; they fall through to the handler, which rejects them.
             const bool isLaunchOrAttach = (queueEntry.command == "launch" || queueEntry.command == "attach");
-            if (isLaunchOrAttach && !GetConfigurationDone())
+            if (isLaunchOrAttach && GetInitialized() && !GetConfigurationDone())
             {
                 // Hold the command until `configurationDone` is processed. It will be flushed
                 // into the commandsQueue by the `configurationDone` handling further below.
@@ -1385,7 +1418,7 @@ void CommandLoop()
             // commands one by one. Each is a sync command, so we wait for it to finish
             // before submitting the next one. This preserves the deadlock protection of
             // the sync execution mechanism (see the GetSyncCommandExecutionSet comment)
-            // and guarantees that the real attach/launch result is returned at the proper time.
+            // and guarantees that the real attach/launch status is returned at the proper time.
             if (GetConfigurationDone())
             {
                 std::list<CommandQueueEntry> &pendingLaunchAttachQueue = GetPendingLaunchAttachQueue();
