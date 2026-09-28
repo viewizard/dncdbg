@@ -25,7 +25,7 @@ Upcoming changes compared to previous version.
 - Added support for `attach` and `launch` requests sent after the `initialize`-`configurationDone` request sequence.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
-- Fixed initialization response sequence: `attach` and `launch` responses are now sent only after the `configurationDone` response, with the proper attach/launch status, even when these requests were sent before the `configurationDone` request.
+- Fixed initialization response sequence: `attach` and `launch` responses are now sent only after the `configurationDone` response, with the proper attach/launch status, even when these requests were sent before the `configurationDone` request (for more info see: [Launch Sequencing](https://microsoft.github.io/debug-adapter-protocol/overview.html)).
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
