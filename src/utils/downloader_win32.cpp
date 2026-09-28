@@ -5,9 +5,11 @@
 #ifdef _WIN32
 
 #include "utils/downloader.h"
+#include "config/config.h"
 #include "utils/utf.h"
 #include <windows.h>
 #include <wininet.h>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -19,7 +21,6 @@ namespace dncdbg
 namespace
 {
 
-constexpr DWORD requestTimeoutMs = 60 * 1000;
 constexpr DWORD httpStatusOk = 200;
 constexpr DWORD httpStatusMultipleChoices = 300;
 
@@ -116,7 +117,12 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
         return false;
     }
 
-    DWORD timeoutMs = requestTimeoutMs;
+    // WinINet timeout options are DWORD milliseconds; clamp the configured value
+    // so that a large environment setting cannot overflow the type.
+    const size_t timeoutSeconds = Config::GetHttpRequestTimeout();
+    DWORD timeoutMs = timeoutSeconds >= std::numeric_limits<DWORD>::max() / 1000
+        ? std::numeric_limits<DWORD>::max()
+        : static_cast<DWORD>(timeoutSeconds * 1000);
     InternetSetOptionW(internet.get(), INTERNET_OPTION_CONNECT_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
     InternetSetOptionW(internet.get(), INTERNET_OPTION_SEND_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
     InternetSetOptionW(internet.get(), INTERNET_OPTION_RECEIVE_TIMEOUT, &timeoutMs, sizeof(timeoutMs));

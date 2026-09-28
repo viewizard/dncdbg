@@ -5,6 +5,7 @@
 #if (defined(__APPLE__) && defined(__MACH__))
 
 #include "utils/downloader.h"
+#include "config/config.h"
 #import <Foundation/Foundation.h>
 #include <dispatch/dispatch.h>
 #include <utility>
@@ -15,7 +16,6 @@ namespace dncdbg
 namespace
 {
 
-constexpr NSTimeInterval requestTimeoutSeconds = 60.0;
 constexpr NSInteger httpStatusOk = 200;
 constexpr NSInteger httpStatusMultipleChoices = 300;
 
@@ -61,6 +61,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
             return false;
         }
 
+        const NSTimeInterval requestTimeoutSeconds = static_cast<NSTimeInterval>(Config::GetHttpRequestTimeout());
         NSURLSessionConfiguration *const configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         configuration.timeoutIntervalForRequest = requestTimeoutSeconds;
         configuration.timeoutIntervalForResource = requestTimeoutSeconds;

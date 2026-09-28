@@ -5,6 +5,7 @@
 #if defined(FEATURE_PAL) && !defined(__APPLE__)
 
 #include "utils/downloader.h"
+#include "config/config.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -20,7 +21,6 @@ namespace dncdbg
 namespace
 {
 
-constexpr long requestTimeoutSeconds = 60L;
 constexpr long httpStatusOk = 200;
 constexpr long httpStatusMultipleChoices = 300;
 // Restrict both direct requests and redirect targets to HTTP and HTTPS.
@@ -247,6 +247,8 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
     {
         return api.easySetopt(curl, option, value) == CURLE_OK;
     };
+
+    const long requestTimeoutSeconds = static_cast<long>(Config::GetHttpRequestTimeout());
 
     // CURLOPT_NOSIGNAL disables the signal-based name resolution timeouts,
     // which are unsafe in multithreaded applications.

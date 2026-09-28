@@ -23,6 +23,8 @@ constexpr std::string_view normalEvalTimeoutName = "DNCDBG_NORMAL_EVAL_TIMEOUT";
 constexpr size_t defaultNormalEvalTimeout = 5000;
 constexpr std::string_view abortEvalTimeoutName = "DNCDBG_ABORT_EVAL_TIMEOUT";
 constexpr size_t defaultAbortEvalTimeout = 5000;
+constexpr std::string_view httpRequestTimeoutName = "DNCDBG_HTTP_REQUEST_TIMEOUT";
+constexpr size_t defaultHttpRequestTimeout = 60;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
 std::optional<size_t> ParseEnvNumber(std::string_view envVal)
@@ -79,6 +81,12 @@ SessionValue &GetAbortEvalTimeoutState()
 {
     static SessionValue abortEvalTimeoutState{defaultAbortEvalTimeout, defaultAbortEvalTimeout};
     return abortEvalTimeoutState;
+}
+
+SessionValue &GetHttpRequestTimeoutState()
+{
+    static SessionValue httpRequestTimeoutState{defaultHttpRequestTimeout, defaultHttpRequestTimeout};
+    return httpRequestTimeoutState;
 }
 
 bool &GetRunningViaVsDbgUIState()
@@ -146,6 +154,12 @@ void Initialize()
         GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
     }
     GetAbortEvalTimeoutState().initial = GetAbortEvalTimeoutState().current;
+
+    if (const char *envVal = std::getenv(httpRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+    {
+        GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
+    }
+    GetHttpRequestTimeoutState().initial = GetHttpRequestTimeoutState().current;
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
@@ -156,6 +170,7 @@ void Initialize(const std::map<std::string, std::string> &env)
     GetDapRequestTimeoutState().current = GetDapRequestTimeoutState().initial;
     GetNormalEvalTimeoutState().current = GetNormalEvalTimeoutState().initial;
     GetAbortEvalTimeoutState().current = GetAbortEvalTimeoutState().initial;
+    GetHttpRequestTimeoutState().current = GetHttpRequestTimeoutState().initial;
 
     for (const auto &[envName, envVal] : env)
     {
@@ -174,6 +189,10 @@ void Initialize(const std::map<std::string, std::string> &env)
         else if (envName == abortEvalTimeoutName)
         {
             GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
+        }
+        else if (envName == httpRequestTimeoutName)
+        {
+            GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
         }
     }
 }
@@ -196,6 +215,11 @@ size_t GetNormalEvalTimeout()
 size_t GetAbortEvalTimeout()
 {
     return GetAbortEvalTimeoutState().current;
+}
+
+size_t GetHttpRequestTimeout()
+{
+    return GetHttpRequestTimeoutState().current;
 }
 
 bool IsRunningViaVsDbgUI()
