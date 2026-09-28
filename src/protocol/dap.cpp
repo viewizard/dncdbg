@@ -123,7 +123,7 @@ bool &GetProcessSetupComplete()
 }
 
 // Make sure we continue adding new commands to the queue only after the current command execution is finished.
-// Note: configurationDone, launch and attach prevent a deadlock in the _dup() call during std::getline() from stdin in the main thread.
+// Note: restart, launch and attach prevent a deadlock in the _dup() call during std::getline() from stdin in the main thread.
 const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
 {
     static const std::unordered_set<std::string> syncCommandExecutionSet{
