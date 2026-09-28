@@ -143,7 +143,6 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: true, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_test_0");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_test_1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_test_2");
@@ -164,6 +163,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_test_17");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__", JMC: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

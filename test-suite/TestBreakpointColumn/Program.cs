@@ -16,7 +16,6 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
 
                 Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp1", Column: 2);
                 Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp2", Column: 22);
@@ -31,6 +30,8 @@ class Program
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
 
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
+
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
             });

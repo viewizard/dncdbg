@@ -47,7 +47,6 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
 
                 // set up breakpoints before process start
                 // this way we check the breakpoint resolution routine during module load
@@ -64,6 +63,7 @@ class Program
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
 
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
 

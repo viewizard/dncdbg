@@ -15,10 +15,10 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true);
                 Context.AddFunctionBreakpoint("Main");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true);
             });
 
         Label.Checkpoint("attach_test", "finish",

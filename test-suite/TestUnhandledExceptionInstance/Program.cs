@@ -26,8 +26,8 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: true, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__", JMC: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

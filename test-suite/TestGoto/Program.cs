@@ -37,12 +37,12 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number with "public int i = 5;" code
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

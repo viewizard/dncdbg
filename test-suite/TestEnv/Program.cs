@@ -18,10 +18,12 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.LaunchWithEnv(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.AddEnvMapEntry("ASPNETCORE_ENVIRONMENT", "Development");
+                Context.AddEnvMapEntry("ASPNETCORE_URLS", "https://localhost:25001");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

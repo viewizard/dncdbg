@@ -115,13 +115,13 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: true, StepFiltering: true, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "inside_func1_1"); // check, that step-in and breakpoint at same line will generate only one event - step
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "inside_func2_1"); // check, that step-over and breakpoint inside method will generate breakpoint and reset step
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "test_break_property_getter_1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "test_break_property_setter_1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__", JMC: true, StepFiltering: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.StepOver(@"__FILE__:__LINE__");

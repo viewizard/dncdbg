@@ -17,7 +17,6 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
@@ -27,6 +26,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_cond_fail_3", "method_with_exc()"); // test condition: exception during evaluation
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

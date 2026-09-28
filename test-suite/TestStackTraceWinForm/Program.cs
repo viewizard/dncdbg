@@ -32,10 +32,10 @@ namespace TestStackTraceWinForm
                 {
                     Context Context = (Context)context;
                     Context.Initialize(@"__FILE__:__LINE__");
-                    Context.Launch(JMC: false, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                     Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
                     Context.SetBreakpoints(@"__FILE__:__LINE__");
                     Context.ConfigurationDone(@"__FILE__:__LINE__");
+                    Context.Launch(@"__FILE__:__LINE__", JMC: false);
 
                     Context.WasEntryPointHit(@"__FILE__:__LINE__");
                     Context.Continue(@"__FILE__:__LINE__");

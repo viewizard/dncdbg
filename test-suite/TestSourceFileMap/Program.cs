@@ -29,7 +29,6 @@ class Program
                     Context.AddSourceFileMapEntry(path, "C:\\test\\folder");
                 }
 
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 if (isWindows)
                 {
                     Context.AddBreakpointAndAddID(@"__FILE__:__LINE__", "bp1", "/test/folder/Program.cs");
@@ -40,6 +39,7 @@ class Program
                 }
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

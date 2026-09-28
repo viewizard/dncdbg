@@ -61,7 +61,7 @@ public class DAPDebugger
         return null;
     }
 
-    public DAPResult Request(Request command, int timeout = -1)
+    public DAPResult Request(Request command, bool AsyncExecution = false, int Timeout = -1)
     {
         command.seq = RequestSeq++;
         string stringJSON = JsonConvert.SerializeObject(
@@ -74,9 +74,14 @@ public class DAPDebugger
             throw new DebuggerNotResponses();
         }
 
+        if (AsyncExecution)
+        {
+            return new DAPResult(true, "success");
+        }
+
         while (true)
         {
-            string[] response = DebuggerClient.Receive(timeout) ?? throw new DebuggerNotResponses();
+            string[] response = DebuggerClient.Receive(Timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
 
             if (IsResponseContainProperty(line, "type", "response"))
@@ -113,6 +118,19 @@ public class DAPDebugger
         {
             string[] response = DebuggerClient.Receive(timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
+
+            // Response for async requests
+            if (IsResponseContainProperty(line, "type", "response"))
+            {
+                Logger.LogLine("<- (R) " + line);
+
+                if (!(bool)GetResponsePropertyValue(line, "success")!)
+                {
+                    throw new FailResponse();
+                }
+
+                continue;
+            }
 
             Logger.LogLine("<- (E) " + line);
             EventQueue.Enqueue(line);

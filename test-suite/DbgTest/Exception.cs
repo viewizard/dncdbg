@@ -11,6 +11,10 @@ public class DebuggerNotResponses : System.Exception
 public class WrongResponseSequence : System.Exception
 {
 }
+
+public class FailResponse : System.Exception
+{
+}
 }
 
 namespace DbgTest

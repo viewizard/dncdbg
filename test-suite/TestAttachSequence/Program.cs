@@ -18,10 +18,9 @@ class Program
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
+                // test `attach` after `initialize` and before `configurationDone`
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: false, AsyncExecution: true);
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-
-                // test `attach` after `initialize`-`configurationDone` sequence
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__");
             });
 
         // wait some time, control process should attach and setup breakpoints

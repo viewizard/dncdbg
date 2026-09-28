@@ -17,13 +17,13 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.Launch(JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, @"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "break_test2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "break_test3");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "break_test4");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "break_test5");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

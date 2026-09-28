@@ -31,7 +31,7 @@ class Context
         Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void Launch(bool? JMC, bool? StepFiltering, bool RemoteConsole, int RemoteConsolePort, string caller_trace)
+    public void Launch(string caller_trace, bool? JMC = null, bool? StepFiltering = null, bool RemoteConsole = false, int RemoteConsolePort = 0, bool AsyncExecution = false)
     {
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
@@ -71,6 +71,11 @@ class Context
             launchRequest.arguments.sourceFileMap = sourceFileMap;
         }
 
+        if (env.Count != 0)
+        {
+            launchRequest.arguments.env = env;
+        }
+
         if (expressionEvaluationOptions != null)
         {
             launchRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
@@ -79,34 +84,16 @@ class Context
 
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
         launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
+
+        if (AsyncExecution)
+        {
+            DAPDebugger.Request(launchRequest, AsyncExecution);
+            return;
+        }
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void LaunchWithEnv(string caller_trace)
-    {
-        LaunchRequest launchRequest = new LaunchRequest();
-        launchRequest.arguments.name = ".NET Core Launch (web)";
-        launchRequest.arguments.type = "coreclr";
-        launchRequest.arguments.preLaunchTask = "build";
-
-        string AbsolutePathToAssembly = Path.GetFullPath(ControlInfo.TargetAssemblyPath!);
-        launchRequest.arguments.program = Path.GetFileName(AbsolutePathToAssembly);
-        string targetAssemblyPath = Path.GetFileName(AbsolutePathToAssembly);
-        int subLength = AbsolutePathToAssembly.Length - targetAssemblyPath.Length;
-        string dllPath = AbsolutePathToAssembly.Substring(0, subLength);
-        launchRequest.arguments.cwd = dllPath;
-
-        launchRequest.arguments.env = new Dictionary<string, string>();
-        launchRequest.arguments.env.Add("ASPNETCORE_ENVIRONMENT", "Development");
-        launchRequest.arguments.env.Add("ASPNETCORE_URLS", "https://localhost:25001");
-        launchRequest.arguments.console = "internalConsole";
-        launchRequest.arguments.stopAtEntry = true;
-        launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
-        launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
-        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false)
+    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false, bool AsyncExecution = false)
     {
         Process testProcess = new Process();
         testProcess.StartInfo.UseShellExecute = false;
@@ -121,6 +108,12 @@ class Context
 
         AttachRequest attachRequest = new AttachRequest();
         attachRequest.arguments.processId = testProcess.Id;
+
+        if (AsyncExecution)
+        {
+            DAPDebugger.Request(attachRequest, AsyncExecution);
+            return;
+        }
         Assert.True(DAPDebugger.Request(attachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
@@ -1511,6 +1504,11 @@ class Context
         argsList.Add(NewArg);
     }
 
+    public void AddEnvMapEntry(string envName, string envValue)
+    {
+        env.Add(envName, envValue);
+    }
+
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
         ControlInfo = controlInfo;
@@ -1537,6 +1535,7 @@ class Context
 
     public RemoteConsole? RemoteConsole = null;
     Dictionary<string, string> sourceFileMap = new Dictionary<string, string>();
+    Dictionary<string, string> env = new Dictionary<string, string>();
     List<string> argsList = new List<string>();
     public ExpressionEvaluationOptions? expressionEvaluationOptions = null;
 }
