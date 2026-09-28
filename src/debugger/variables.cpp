@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/variables.h"
+#include "config/config.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/walkers/walkers.h"
@@ -13,6 +14,7 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <limits>
@@ -158,7 +160,8 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReferen
     IfFailRet(pThread->GetID(&threadId));
 
     uint32_t count = 0;
-    static constexpr uint32_t maxCount = 25; // members per page before a "[More]" entry is added
+    // Members per page before a "[More]" entry is added; a zero limit would produce endless "[More]" entries.
+    const size_t maxCount = std::clamp<size_t>(Config::GetMembersPerPageLimit(), 1, std::numeric_limits<uint32_t>::max());
 
     IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.GetLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,
@@ -185,7 +188,8 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReferen
             if (count > ref.skipToChildIndex + maxCount)
             {
                 ref.trValue->AddRef();
-                members.emplace_back("[More]", std::string{}, std::string{}, ref.trValue, std::string{}, ref.skipToChildIndex + maxCount, true);
+                members.emplace_back("[More]", std::string{}, std::string{}, ref.trValue, std::string{},
+                                     static_cast<uint32_t>(ref.skipToChildIndex + maxCount), true);
                 return S_CAN_EXIT;
             }
 

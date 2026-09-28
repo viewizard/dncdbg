@@ -11,3 +11,5 @@ These environment variables can be set in the DNCDbg process environment before 
 **DNCDBG_ABORT_EVAL_TIMEOUT** : timeout for aborting an evaluation that exceeds the evaluation timeout, in milliseconds; defaults to 5000 ms (5 seconds)
 
 **DNCDBG_HTTP_REQUEST_TIMEOUT** : timeout for executing an HTTP/HTTPS request, in seconds; defaults to 60 seconds
+
+**DNCDBG_MEMBERS_PER_PAGE_LIMIT** : maximum number of members per page before a "[More]" entry is added; defaults to 25

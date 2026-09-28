@@ -25,6 +25,8 @@ constexpr std::string_view abortEvalTimeoutName = "DNCDBG_ABORT_EVAL_TIMEOUT";
 constexpr size_t defaultAbortEvalTimeout = 5000;
 constexpr std::string_view httpRequestTimeoutName = "DNCDBG_HTTP_REQUEST_TIMEOUT";
 constexpr size_t defaultHttpRequestTimeout = 60;
+constexpr std::string_view membersPerPageLimitName = "DNCDBG_MEMBERS_PER_PAGE_LIMIT";
+constexpr size_t defaultMembersPerPageLimit = 25;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
 std::optional<size_t> ParseEnvNumber(std::string_view envVal)
@@ -87,6 +89,12 @@ SessionValue &GetHttpRequestTimeoutState()
 {
     static SessionValue httpRequestTimeoutState{defaultHttpRequestTimeout, defaultHttpRequestTimeout};
     return httpRequestTimeoutState;
+}
+
+SessionValue &GetMembersPerPageLimitState()
+{
+    static SessionValue membersPerPageLimitState{defaultMembersPerPageLimit, defaultMembersPerPageLimit};
+    return membersPerPageLimitState;
 }
 
 bool &GetRunningViaVsDbgUIState()
@@ -160,6 +168,12 @@ void Initialize()
         GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
     }
     GetHttpRequestTimeoutState().initial = GetHttpRequestTimeoutState().current;
+
+    if (const char *envVal = std::getenv(membersPerPageLimitName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+    {
+        GetMembersPerPageLimitState().SetFromEnv(envVal, membersPerPageLimitName, defaultMembersPerPageLimit);
+    }
+    GetMembersPerPageLimitState().initial = GetMembersPerPageLimitState().current;
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
@@ -171,6 +185,7 @@ void Initialize(const std::map<std::string, std::string> &env)
     GetNormalEvalTimeoutState().current = GetNormalEvalTimeoutState().initial;
     GetAbortEvalTimeoutState().current = GetAbortEvalTimeoutState().initial;
     GetHttpRequestTimeoutState().current = GetHttpRequestTimeoutState().initial;
+    GetMembersPerPageLimitState().current = GetMembersPerPageLimitState().initial;
 
     for (const auto &[envName, envVal] : env)
     {
@@ -193,6 +208,10 @@ void Initialize(const std::map<std::string, std::string> &env)
         else if (envName == httpRequestTimeoutName)
         {
             GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
+        }
+        else if (envName == membersPerPageLimitName)
+        {
+            GetMembersPerPageLimitState().SetFromEnv(envVal, membersPerPageLimitName, defaultMembersPerPageLimit);
         }
     }
 }
@@ -220,6 +239,11 @@ size_t GetAbortEvalTimeout()
 size_t GetHttpRequestTimeout()
 {
     return GetHttpRequestTimeoutState().current;
+}
+
+size_t GetMembersPerPageLimit()
+{
+    return GetMembersPerPageLimitState().current;
 }
 
 bool IsRunningViaVsDbgUI()

@@ -27,6 +27,8 @@ size_t GetNormalEvalTimeout();
 size_t GetAbortEvalTimeout();
 // HTTP/HTTPS request timeout in seconds, provided by the DNCDBG_HTTP_REQUEST_TIMEOUT environment variable.
 size_t GetHttpRequestTimeout();
+// Maximum number of members per page before a "[More]" entry is added, provided by the DNCDBG_MEMBERS_PER_PAGE_LIMIT environment variable.
+size_t GetMembersPerPageLimit();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

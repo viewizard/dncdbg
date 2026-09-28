@@ -52,7 +52,7 @@ Upcoming changes compared to previous version.
 - Added TestRestartLaunch.
 - Added TestLaunchSequence.
 - Added TestAttachSequence.
-- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, and `DNCDBG_HTTP_REQUEST_TIMEOUT`.
+- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, and `DNCDBG_MEMBERS_PER_PAGE_LIMIT`.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
