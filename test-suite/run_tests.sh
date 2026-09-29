@@ -63,6 +63,7 @@ ALL_TEST_NAMES=(
     "TestRestartLaunch"
     "TestLaunchSequence"
     "TestAttachSequence"
+    "TestMultipleLaunch"
 )
 
 TEST_NAMES="$@"

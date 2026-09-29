@@ -99,7 +99,6 @@ class Program
                 Context.WasExit(0, @"__FILE__:__LINE__");
             });
 
-
         // last checkpoint must provide "finish" as id or empty string ("") as next checkpoint id
         Label.Checkpoint("finish", "",
             (Object context) =>

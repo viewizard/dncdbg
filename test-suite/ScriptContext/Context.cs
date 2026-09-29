@@ -17,6 +17,27 @@ class Context
 {
     public void Initialize(string caller_trace)
     {
+        threadId = -1;
+        BreakpointSourceName = string.Empty;
+        BreakpointList.Clear();
+        BreakpointLines.Clear();
+        FunctionBreakpointList.Clear();
+
+        ExceptionFilterAll = false;
+        ExceptionFilterUserUnhandled = false;
+        ExceptionFilterAllOptions = null;
+        ExceptionFilterUserUnhandledOptions = null;
+
+        CurrentBpId = 0;
+        SrcBreakpoints.Clear();
+        SrcBreakpointIds.Clear();
+
+        RemoteConsole = null;
+        sourceFileMap.Clear();
+        env.Clear();
+        argsList.Clear();
+        expressionEvaluationOptions = null;
+
         InitializeRequest initializeRequest = new InitializeRequest();
         initializeRequest.arguments.clientID = "vscode";
         initializeRequest.arguments.clientName = "Visual Studio Code";
