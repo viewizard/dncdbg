@@ -30,7 +30,9 @@ struct TargetInternal
 HRESULT GetTarget(const Source &source, int32_t line, int32_t column, std::vector<GotoTarget> &targets,
                   std::vector<TargetInternal> &intTargets, std::string &output);
 
-// Cleans up the Goto internal state. See Cleanup() in manageddebugger.cpp.
+// Initializes the Goto internal state. See InitializeDebugSession() in manageddebugger.cpp.
+void Initialize();
+// Cleans up the Goto internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Goto

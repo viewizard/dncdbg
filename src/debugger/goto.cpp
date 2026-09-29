@@ -87,9 +87,15 @@ HRESULT GetTarget(const Source &source, int32_t line, int32_t column, std::vecto
     return targets.empty() ? E_FAIL : S_OK;
 }
 
+void Initialize()
+{
+    GetGotoTargetId() = 0;
+}
+
 void Cleanup()
 {
-    // Don't reset GetGotoTargetId since goto target IDs must remain unique across debug sessions.
+    // Don't reset GetGotoTargetId here: goto target IDs must remain unique across `restart`;
+    // Initialize() resets the counter when a new debug session starts.
 }
 
 } // namespace dncdbg::Goto

@@ -184,6 +184,23 @@ size_t GetBreakpointsCount()
 }
 #endif // DEBUG_INTERNAL_TESTS
 
+void Initialize()
+{
+    // Clear the protocol-provided breakpoints first, while the shared managed breakpoint
+    // registry (BreakpointHelpers) is still intact, so that the resolved breakpoints
+    // release their references properly.
+    FunctionBreakpoints::Initialize();
+    SourceBreakpoints::Initialize();
+    ExceptionBreakpoints::Initialize();
+
+    BreakBreakpoint::Cleanup();
+    EntryBreakpoint::Cleanup();
+    BreakpointHelpers::Cleanup();
+
+    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
+    GetNextBreakpointId() = 1;
+}
+
 void Cleanup()
 {
     BreakBreakpoint::Cleanup();
@@ -193,7 +210,8 @@ void Cleanup()
     ExceptionBreakpoints::Cleanup();
     BreakpointHelpers::Cleanup();
 
-    // Don't reset GetNextBreakpointId since breakpoint IDs must remain unique across debug sessions.
+    // Don't reset GetNextBreakpointId here: breakpoint IDs must remain unique across `restart`;
+    // Initialize() resets the counter when a new debug session starts.
 }
 
 } // namespace dncdbg::Breakpoints

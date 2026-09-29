@@ -32,7 +32,7 @@ void ChangeName(ICorDebugThread *pThread);
 void Remove(const ThreadId &threadId);
 HRESULT GetThreads(std::vector<Thread> &threads);
 
-// Cleans up the Threads internal state. See Cleanup() in manageddebugger.cpp.
+// Cleans up the Threads internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Threads

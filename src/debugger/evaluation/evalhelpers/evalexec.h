@@ -46,7 +46,7 @@ HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDeb
 
 HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClass, void *valueData, ICorDebugValue **ppValue);
 
-// Cleans up the EvalExec internal state. See Cleanup() in manageddebugger.cpp.
+// Cleans up the EvalExec internal state. See Cleanup() in evaluation.cpp.
 void Cleanup();
 
 } // namespace dncdbg::EvalExec

@@ -21,6 +21,8 @@ void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, s
 std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
 std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress);
 
+// Initializes the SourceReference internal state. See DebugInfo::Initialize().
+void Initialize();
 // Cleans up the SourceReference internal state. See DebugInfo::Cleanup().
 void Cleanup();
 

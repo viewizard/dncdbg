@@ -826,6 +826,14 @@ size_t GetBreakpointsCount()
 }
 #endif // DEBUG_INTERNAL_TESTS
 
+void Initialize()
+{
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+
+    GetSourceResolvedBreakpoints().clear();
+    GetSourceBreakpointMapping().clear();
+}
+
 void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());

@@ -54,7 +54,9 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
-// Cleans up the Breakpoints internal state. See Cleanup() in manageddebugger.cpp.
+// Initializes the Breakpoints internal state. See InitializeDebugSession() in manageddebugger.cpp.
+void Initialize();
+// Cleans up the Breakpoints internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::Breakpoints

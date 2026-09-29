@@ -44,6 +44,8 @@ size_t GetBreakpointsCount();
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
+// Initializes the FunctionBreakpoints internal state. See Breakpoints::Initialize().
+void Initialize();
 // Cleans up the FunctionBreakpoints internal state. See Breakpoints::Cleanup().
 void Cleanup();
 

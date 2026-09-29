@@ -43,6 +43,10 @@ void Shutdown();
 HRESULT Attach(DWORD pid);
 HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
                const std::map<std::string, std::string> &env, const std::string &cwd);
+// Initializes the debug session internal state. Must be called before each new debug session.
+void InitializeDebugSession();
+// Cleans up the debug session internal state. Must be called when the debug session ends.
+void CleanupDebugSession();
 HRESULT StartDebugSession();
 
 HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);

@@ -10,11 +10,8 @@
 #include "debugger/manageddebugger.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/callbacksqueue.h"
-#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
-#include "debugger/evaluation/evalhelpers/systemtypes.h"
-#include "debugger/evaluation/evalhelpers/typeproxy.h"
-#include "debugger/evaluation/walkers/walkers.h"
+#include "debugger/evaluation/evaluation.h"
 #include "debugger/frames.h"
 #include "debugger/goto.h"
 #include "debugger/managedcallback.h"
@@ -461,39 +458,6 @@ void InputCallback(IORedirect::StreamType type, gsl::span<char> text)
     GetRemoteConsoleServer().SendData(text);
 }
 
-void Cleanup()
-{
-    Steppers::Cleanup();
-    Breakpoints::Cleanup();
-    DebugInfo::Cleanup();
-    Variables::Cleanup();
-    FrameId::Cleanup();
-    EvalExec::Cleanup();
-    SystemTypes::Cleanup();
-    EvalWaiter::Cleanup();
-    TypeProxy::Cleanup();
-    Walkers::Cleanup();
-    Modules::Cleanup();
-    Threads::Cleanup();
-    CallbacksQueue::Cleanup();
-    Goto::Cleanup();
-
-    const WriteLock w_lock(GetDebugProcessRWLock());
-
-    assert((GetTrProcess() && GetTrDebug()) ||
-           (!GetTrProcess() && !GetTrDebug()));
-
-    if (GetTrProcess() == nullptr)
-    {
-        return;
-    }
-
-    GetTrProcess().Free();
-
-    GetTrDebug()->Terminate();
-    GetTrDebug().Free();
-}
-
 HRESULT Startup(IUnknown *pUnknown)
 {
     HRESULT Status = S_OK;
@@ -724,7 +688,7 @@ HRESULT DetachFromProcess()
     }
     while (false);
 
-    Cleanup();
+    CleanupDebugSession();
     return S_OK;
 }
 
@@ -771,8 +735,26 @@ HRESULT TerminateProcess()
     }
     while (false);
 
-    Cleanup();
+    CleanupDebugSession();
     return S_OK;
+}
+
+void ReleaseICorDebug()
+{
+    const WriteLock w_lock(GetDebugProcessRWLock());
+
+    assert((GetTrProcess() && GetTrDebug()) ||
+           (!GetTrProcess() && !GetTrDebug()));
+
+    if (GetTrProcess() == nullptr)
+    {
+        return;
+    }
+
+    GetTrProcess().Free();
+
+    GetTrDebug()->Terminate();
+    GetTrDebug().Free();
 }
 
 } // unnamed namespace
@@ -829,12 +811,45 @@ HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &exec
     return S_OK;
 }
 
+void InitializeDebugSession()
+{
+    Breakpoints::Initialize();
+    DebugInfo::Initialize();
+    Goto::Initialize();
+
+    Steppers::Cleanup();
+    Variables::Cleanup();
+    FrameId::Cleanup();
+    Evaluation::Cleanup();
+    Modules::Cleanup();
+    Threads::Cleanup();
+    CallbacksQueue::Cleanup();
+
+    ReleaseICorDebug();
+}
+
+void CleanupDebugSession()
+{
+    Breakpoints::Cleanup();
+    DebugInfo::Cleanup();
+    Goto::Cleanup();
+
+    Steppers::Cleanup();
+    Variables::Cleanup();
+    FrameId::Cleanup();
+    Evaluation::Cleanup();
+    Modules::Cleanup();
+    Threads::Cleanup();
+    CallbacksQueue::Cleanup();
+
+    ReleaseICorDebug();
+}
+
 HRESULT StartDebugSession()
 {
     HRESULT Status = S_OK;
 
     IfFailRet(CheckNoProcess());
-    Cleanup();
 
     switch (GetStartMethod())
     {

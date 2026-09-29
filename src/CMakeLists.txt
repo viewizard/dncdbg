@@ -50,6 +50,7 @@ set(DNCDBG_SOURCES
     debugger/evaluation/walkers/walker_members.cpp
     debugger/evaluation/walkers/walker_methods.cpp
     debugger/evaluation/walkers/walker_stackvars.cpp
+    debugger/evaluation/evaluation.cpp
     debugger/steppers/stepper_async.cpp
     debugger/steppers/stepper_simple.cpp
     debugger/steppers/steppers.cpp

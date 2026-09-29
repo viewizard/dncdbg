@@ -277,6 +277,16 @@ std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
     return removedSources;
 }
 
+void Initialize()
+{
+    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+
+    GetSourceReferenceId() = 0;
+    GetGlobalIndexMap().clear();
+    GetSourceReferenceMap().clear();
+    GetSourceURLMap().clear();
+}
+
 void Cleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());

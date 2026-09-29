@@ -509,11 +509,18 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     responseBody.emplace("message", "The initialization sequence is already in progress.");
                     return E_UNEXPECTED;
                 }
+                // Reject `initialize` sent during an active debug session.
+                if (ManagedDebugger::HaveDebugProcess())
+                {
+                    responseBody.emplace("message", "Can't start a new debug session while another debug session is active.");
+                    return E_UNEXPECTED;
+                }
 
                 // clientID, clientName, adapterID - not in use now
 
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
 
+                ManagedDebugger::InitializeDebugSession();
                 AddCapabilitiesTo(responseBody);
 
                 // Note: the `initialize` command starts the sequence of configuration requests.
@@ -1076,6 +1083,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 if (ManagedDebugger::HaveDebugProcess())
                 {
                     IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Default));
+                }
+                else
+                {
+                    ManagedDebugger::CleanupDebugSession();
                 }
 
                 // Note, the optional `arguments` field carries the (possibly updated) original launch or attach

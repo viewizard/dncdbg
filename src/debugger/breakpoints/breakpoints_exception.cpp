@@ -742,10 +742,35 @@ HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread)
     return S_OK;
 }
 
+void Initialize()
+{
+    {
+        const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+
+        GetThreadsExceptionBreakMode().clear();
+        GetThreadsExceptionCallbackType().clear();
+        GetPrivateCoreLibModAddress() = 0;
+        GetExceptionDispatchInfoThrowMethodDef() = mdMethodDefNil;
+    }
+
+    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+
+    for (auto &entry : GetExceptionBreakpoints())
+    {
+        entry.clear();
+    }
+}
+
 void Cleanup()
 {
-    // Do nothing here on purpose:
-    // GetExceptionBreakpoints() stores data provided from the protocol.
+    // Don't clear GetExceptionBreakpoints() here: it stores data provided from the protocol,
+    // which must survive `restart`. Reset only the per-thread exception state, which is
+    // runtime data of the stopped process.
+    const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+    GetThreadsExceptionBreakMode().clear();
+    GetThreadsExceptionCallbackType().clear();
+    GetPrivateCoreLibModAddress() = 0;
+    GetExceptionDispatchInfoThrowMethodDef() = mdMethodDefNil;
 }
 
 } // namespace dncdbg::ExceptionBreakpoints

@@ -77,6 +77,10 @@ std::string Path(const std::string &path)
     return newPrefix + endPath;
 }
 
+// Note: this module intentionally has no Cleanup(): the map is protocol configuration
+// provided by the `initialize` request (not re-sent on `restart`), so it must survive
+// a debug session restart. SetSourceFileMap() always replaces the whole map, so the
+// state can't go stale between sessions.
 void SetSourceFileMap(std::map<std::string, std::string> &&map)
 {
     GetMap() = std::move(map);

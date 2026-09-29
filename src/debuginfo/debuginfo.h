@@ -71,7 +71,9 @@ void GetLoadedSources(std::vector<Source> &sources);
 HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
                                std::vector<BreakpointLocation> &locations);
 
-// Cleans up the DebugInfo internal state. See Cleanup() in manageddebugger.cpp.
+// Initializes the DebugInfo internal state. See InitializeDebugSession() in manageddebugger.cpp.
+void Initialize();
+// Cleans up the DebugInfo internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup();
 
 } // namespace dncdbg::DebugInfo

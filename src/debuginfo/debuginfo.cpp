@@ -1134,6 +1134,16 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
                                              resolvedSourceFileIndex, rangeToSearch, locations);
 }
 
+void Initialize()
+{
+    AsyncInfo::Cleanup();
+    SourceReference::Initialize();
+
+    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+
+    GetDebugInfoMap().clear();
+}
+
 void Cleanup()
 {
     AsyncInfo::Cleanup();

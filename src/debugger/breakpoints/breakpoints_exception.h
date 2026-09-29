@@ -35,6 +35,8 @@ HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
 HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType eventType);
 HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread);
 
+// Initializes the ExceptionBreakpoints internal state. See Breakpoints::Initialize().
+void Initialize();
 // Cleans up the ExceptionBreakpoints internal state. See Breakpoints::Cleanup().
 void Cleanup();
 
