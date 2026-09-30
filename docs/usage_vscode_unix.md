@@ -4,7 +4,7 @@
 2. Switch to `Run and Debug` panel
 3. Click on `Generate C# Assets for Build and Debug` button
 4. Open the created file inside your project `.vscode/launch.json`
-5. Add `.NET Core Launch with DNCDbg` configuration:
+5. Add `.NET Core Launch with DNCDbg` configuration, for example:
 
 ```json
         {
@@ -16,19 +16,21 @@
                 // "ENV_NAME" : "value"
             },
             "sourceFileMap": {
-                // map any path returned by the debugger that begins with "C:\\test1\\test3\\Project.cs" to "/test1/test2/Project.cs".
-                "C:\\test1\\test3\\Project.cs": "/test1/test2/Project.cs",
-                // map any path returned by the debugger that begins with "C:\\Dir1" to "/dir1".
-                "C:\\Dir1": "/dir1"
+                // Maps any path returned by the debugger
+                // that begins with "C:\\test1\\test3\\Project.cs" to "/test1/test2/Project.cs":
+                // "C:\\test1\\test3\\Project.cs": "/test1/test2/Project.cs",
+                // Maps any path returned by the debugger that begins with "C:\\Dir1" to "/dir1":
+                // "C:\\Dir1": "/dir1"
             },
-            "program": "${workspaceFolder}/bin/Debug/net10.0/vscode_test.dll",
+            "program": "${workspaceFolder}/bin/Debug/net10.0/your_app.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
             "stopAtEntry": false,
             "justMyCode" : true,
             "enableStepFiltering": true,
-            // Note: dncdbg has different behaviour compared to VS Code vsdbg, in case dll has debug symbols debugger suppresses JIT optimization.
+            // Note: dncdbg behaves differently from VS Code's VsDbg:
+            // if the DLL has debug symbols, the debugger suppresses JIT optimizations.
             "suppressJITOptimizations": false,
             "expressionEvaluationOptions": {
                 "allowImplicitFuncEval": true,
