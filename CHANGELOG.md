@@ -51,9 +51,8 @@ Upcoming changes compared to previous version.
 - Added [Source Link](https://github.com/dotnet/sourcelink/blob/main/README.md) support.
 - Added TestSourceLink.
 - Added support for restarting the debug session.
-- Added TestRestartLaunch.
-- Added TestLaunchSequence.
-- Added TestAttachSequence.
+- Added TestRestartLaunch and TestRestartAttach.
+- Added TestLaunchSequence and TestAttachSequence.
 - Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, and `DNCDBG_MEMBERS_PER_PAGE_LIMIT`.
 - Added TestMultipleLaunch.
 

@@ -83,6 +83,13 @@ public class AttachRequest : Request
 public class AttachRequestArguments
 {
     public int processId;
+
+    public Dictionary<string, string> env = [];
+    public Dictionary<string, string> sourceFileMap = [];
+    public bool stopAtEntry;
+    public bool? justMyCode;
+    public bool? enableStepFiltering;
+    public ExpressionEvaluationOptions? expressionEvaluationOptions;
 }
 
 public class ConfigurationDoneRequest : Request
@@ -559,5 +566,31 @@ public class RestartWithLaunchArgumentsRequest : Request
 public class RestartWithLaunchArguments
 {
     public LaunchRequestArguments arguments = new LaunchRequestArguments();
+}
+
+public class RestartWithAttachArgumentsRequest : Request
+{
+    public RestartWithAttachArgumentsRequest()
+    {
+        command = "restart";
+    }
+    public RestartWithAttachhArguments arguments = new RestartWithAttachhArguments();
+}
+public class RestartWithAttachhArguments
+{
+    public AttachRequestArguments arguments = new AttachRequestArguments();
+}
+
+public class DetachRequest : Request
+{
+    public DetachRequest()
+    {
+        command = "detach";
+    }
+    public DetachArguments arguments = new();
+}
+
+public class DetachArguments
+{
 }
 }

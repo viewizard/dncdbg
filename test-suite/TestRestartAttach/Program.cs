@@ -4,7 +4,7 @@ using DbgTest;
 using DbgTest.DAP;
 using DbgTest.Script;
 
-namespace TestRestartLaunch
+namespace TestRestartAttach
 {
 
 class Program
@@ -30,11 +30,13 @@ class Program
                 Context.expressionEvaluationOptions = new ExpressionEvaluationOptions();
                 Context.expressionEvaluationOptions.allowImplicitFuncEval = false;
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK2");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK3");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.AddFunctionBreakpoint("TestFunc");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__");
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true, StopAtEntry: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -43,41 +45,26 @@ class Program
 
         TestFunc();
         ;                                                                 Label.Breakpoint("BREAK1");
+        System.Threading.Thread.Sleep(2000);
+        TestFunc();
+        ;                                                                 Label.Breakpoint("BREAK2");
+        System.Threading.Thread.Sleep(2000);
+        TestFunc();
+        ;                                                                 Label.Breakpoint("BREAK3");
 
-        Label.Checkpoint("restart_on_breakpoint_test", "restart_after_exit_test",
+        Label.Checkpoint("restart_on_breakpoint_test", "restart_with_argumets_test",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.Restart(@"__FILE__:__LINE__");
-                Context.WasEntryPointHit(@"__FILE__:__LINE__");
-                Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "FUNC_BREAK1");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK2");
 
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK2");
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestEval()", "Implicit function evaluation is turned off by the user.");
 
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
-            });
-
-        Label.Checkpoint("restart_after_exit_test", "restart_with_argumets_test",
-            (Object context) =>
-            {
-                Context Context = (Context)context;
-                Context.Restart(@"__FILE__:__LINE__");
-                Context.WasEntryPointHit(@"__FILE__:__LINE__");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "FUNC_BREAK1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
-
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
-                Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "TestEval()", "Implicit function evaluation is turned off by the user.");
-
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.Detach(@"__FILE__:__LINE__");
             });
 
 
@@ -85,14 +72,12 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.RestartWithLaunchArguments(@"__FILE__:__LINE__");
-                Context.WasEntryPointHit(@"__FILE__:__LINE__");
-                Context.Continue(@"__FILE__:__LINE__");
+                Context.RestartWithAttachArguments(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "FUNC_BREAK1");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK3");
 
-                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK1");
+                Int64 frameId = Context.DetectFrameId(@"__FILE__:__LINE__", "BREAK3");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "TestEval()");
 
                 Context.Continue(@"__FILE__:__LINE__");

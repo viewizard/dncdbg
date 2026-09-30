@@ -19,7 +19,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 // test `attach` after `initialize` and before `configurationDone`
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: false, AsyncExecution: true);
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: false, StopAtEntry: false, AsyncExecution: true);
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
             });
 

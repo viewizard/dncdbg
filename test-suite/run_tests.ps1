@@ -68,6 +68,7 @@ $ALL_TEST_NAMES = @(
     "TestAttachToSuspend"
     "TestSourceLink"
     "TestRestartLaunch"
+    "TestRestartAttach"
     "TestLaunchSequence"
     "TestAttachSequence"
     "TestMultipleLaunch"

@@ -17,6 +17,7 @@ class Context
 {
     public void Initialize(string caller_trace)
     {
+        processId = -1;
         threadId = -1;
         BreakpointSourceName = string.Empty;
         BreakpointList.Clear();
@@ -114,7 +115,7 @@ class Context
         Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false, bool AsyncExecution = false)
+    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false, bool StopAtEntry = false, bool AsyncExecution = false)
     {
         Process testProcess = new Process();
         testProcess.StartInfo.UseShellExecute = false;
@@ -128,7 +129,21 @@ class Context
         Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + caller_trace);
 
         AttachRequest attachRequest = new AttachRequest();
+        processId = testProcess.Id;
         attachRequest.arguments.processId = testProcess.Id;
+
+        attachRequest.arguments.stopAtEntry = StopAtEntry;
+
+        if (sourceFileMap.Count != 0)
+        {
+            attachRequest.arguments.sourceFileMap = sourceFileMap;
+        }
+
+        if (expressionEvaluationOptions != null)
+        {
+            attachRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
+            expressionEvaluationOptions = null;
+        }
 
         if (AsyncExecution)
         {
@@ -150,7 +165,7 @@ class Context
         Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void RestartWithLaunchArguments(bool? JMC, bool? StepFiltering, string caller_trace)
+    public void RestartWithLaunchArguments(string caller_trace, bool? JMC = null, bool? StepFiltering = null)
     {
         RestartWithLaunchArgumentsRequest restartRequest = new RestartWithLaunchArgumentsRequest();
 
@@ -164,6 +179,39 @@ class Context
         {
             restartRequest.arguments.arguments.args = argsList;
         }
+
+        if (JMC.HasValue)
+        {
+            restartRequest.arguments.arguments.justMyCode = JMC.Value;
+        }
+        if (StepFiltering.HasValue)
+        {
+            restartRequest.arguments.arguments.enableStepFiltering = StepFiltering.Value;
+        }
+
+        if (sourceFileMap.Count != 0)
+        {
+            restartRequest.arguments.arguments.sourceFileMap = sourceFileMap;
+        }
+
+        if (expressionEvaluationOptions != null)
+        {
+            restartRequest.arguments.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
+            expressionEvaluationOptions = null;
+        }
+
+        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void RestartWithAttachArguments(string caller_trace, bool? JMC = null, bool? StepFiltering= null)
+    {
+        RestartWithAttachArgumentsRequest restartRequest = new RestartWithAttachArgumentsRequest();
+        if (processId == -1)
+        {
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        }
+        restartRequest.arguments.arguments.processId = processId;
+        restartRequest.arguments.arguments.stopAtEntry = true;
 
         if (JMC.HasValue)
         {
@@ -262,6 +310,13 @@ class Context
         terminateRequest.arguments = new TerminateArguments();
         terminateRequest.arguments.restart = false;
         Assert.True(DAPDebugger.Request(terminateRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+    }
+
+    public void Detach(string caller_trace)
+    {
+        DetachRequest detachRequest = new DetachRequest();
+        detachRequest.arguments = new DetachArguments();
+        Assert.True(DAPDebugger.Request(detachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void DebuggerExit(string caller_trace)
@@ -1538,6 +1593,7 @@ class Context
 
     ControlInfo ControlInfo;
     DAPDebugger DAPDebugger;
+    int processId = -1;
     int threadId = -1;
     string BreakpointSourceName = string.Empty;
     List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
