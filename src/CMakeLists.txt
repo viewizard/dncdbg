@@ -83,10 +83,10 @@ set(DNCDBG_SOURCES
     protocol/to_json.cpp
     types/protocol.cpp
     types/types.cpp
-    utils/diagnostics_client.cpp
-    utils/diagnostics_ipc.cpp
-    utils/diagnostics_ipc_unix.cpp
-    utils/diagnostics_ipc_win32.cpp
+    utils/diagnostic_client.cpp
+    utils/diagnostic_ipc.cpp
+    utils/diagnostic_ipc_unix.cpp
+    utils/diagnostic_ipc_win32.cpp
     utils/downloader_unix.cpp
     utils/downloader_win32.cpp
     utils/dynlibs_unix.cpp

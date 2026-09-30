@@ -23,7 +23,7 @@
 #include "metadata/modules.h"
 #include "protocol/dap_events.h"
 #include "utils/dbgshim.h"
-#include "utils/diagnostics_client.h"
+#include "utils/diagnostic_client.h"
 #include "utils/hresult.h"
 #include "utils/ioredirect.h"
 #include "utils/logger.h"
@@ -181,8 +181,8 @@ std::string AdjustDiagnosticPortsValue(const std::string &value)
 
 void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, std::vector<char> &outEnv)
 {
-    // Prevent diagnostic port suspend usage during debuggee process creation, since the diagnostics part suspends
-    // the debuggee process at an early launch stage and provokes a `configurationDone` command time out.
+    // Prevent diagnostic port suspend usage during debuggee process creation, since the diagnostic part suspends
+    // the debuggee process at an early launch stage and causes a `configurationDone` command timeout.
     static const std::string diagnosticPortSuspendEnv{"DOTNET_DefaultDiagnosticPortSuspend"};
     static const std::string diagnosticPortsEnv{"DOTNET_DiagnosticPorts"};
 
@@ -278,13 +278,13 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
 
 void ResumeRuntime(uint32_t processId)
 {
-    // The runtime may not be ready to accept diagnostics commands yet,
+    // The runtime may not be ready to accept diagnostic commands yet,
     // so retry the resume a few times before giving up.
     static constexpr unsigned long initialSleepTime = 50000UL; // 0.05 sec
     unsigned long sleepTime = initialSleepTime;
     static constexpr uint8_t retriesLimit = 5;
     uint8_t retriesLeft = retriesLimit;
-    while (FAILED(DiagnosticsClient::ResumeRuntime(processId)) && retriesLeft > 0)
+    while (FAILED(DiagnosticClient::ResumeRuntime(processId)) && retriesLeft > 0)
     {
         USleep(sleepTime);
         sleepTime *= 2;

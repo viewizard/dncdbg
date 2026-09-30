@@ -2,8 +2,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "utils/diagnostics_client.h"
-#include "utils/diagnostics_ipc.h"
+#include "utils/diagnostic_client.h"
+#include "utils/diagnostic_ipc.h"
 #include "utils/logger.h"
 #include <array>
 #include <iomanip>
@@ -13,7 +13,7 @@
 #include <palrt.h> // S_OK, E_FAIL, FAILED (via pal.h chain)
 #endif
 
-namespace dncdbg::DiagnosticsClient
+namespace dncdbg::DiagnosticClient
 {
 
 // ResumeRuntime exchange (protocol version DOTNET_IPC_V1):
@@ -26,14 +26,14 @@ namespace dncdbg::DiagnosticsClient
 //   method performs a complete one-command-per-connection round trip.
 HRESULT ResumeRuntime(uint32_t pid)
 {
-    // Internal transport machinery lives in DiagnosticsIpc (see utils/diagnostics_ipc.h).
-    using namespace DiagnosticsIpc;
+    // Internal transport machinery lives in DiagnosticIpc (see utils/diagnostic_ipc.h).
+    using namespace DiagnosticIpc;
 
     HRESULT Status = S_OK;
 
     std::string endpoint;
     IfFailRet(IpcEndpointResolve(pid, endpoint));
-    LOGD(log << "DiagnosticsIpc: resolved endpoint for PID " << pid << ": " << endpoint);
+    LOGD(log << "DiagnosticIpc: resolved endpoint for PID " << pid << ": " << endpoint);
 
     IpcHandle handle = kInvalidIpcHandle;
     IfFailRet(IpcStreamOpen(endpoint, handle));
@@ -45,7 +45,7 @@ HRESULT ResumeRuntime(uint32_t pid)
     std::array<uint8_t, kHeaderSize> requestBytes{};
     SerializeHeader(request, requestBytes);
 
-    LOGD(log << "DiagnosticsIpc: sending ResumeRuntime request to '" << endpoint << "'");
+    LOGD(log << "DiagnosticIpc: sending ResumeRuntime request to '" << endpoint << "'");
     IfFailRet(IpcStreamWriteAll(handle, requestBytes.data(), requestBytes.size()));
 
     // Response: read exactly 20 header bytes first, then the payload, if any.
@@ -54,7 +54,7 @@ HRESULT ResumeRuntime(uint32_t pid)
     Status = IpcStreamReadAll(handle, responseBytes.data(), responseBytes.size());
     if (FAILED(Status))
     {
-        LOGE(log << "DiagnosticsIpc: failed to read response header from '" << endpoint << "'");
+        LOGE(log << "DiagnosticIpc: failed to read response header from '" << endpoint << "'");
         return DS_IPC_E_BAD_ENCODING;
     }
 
@@ -63,7 +63,7 @@ HRESULT ResumeRuntime(uint32_t pid)
     Status = DecodeResponseHeader(responseBytes, response, payloadSize);
     if (FAILED(Status))
     {
-        LOGE(log << "DiagnosticsIpc: response header validation failed from '" << endpoint << "'");
+        LOGE(log << "DiagnosticIpc: response header validation failed from '" << endpoint << "'");
         return Status;
     }
 
@@ -73,14 +73,14 @@ HRESULT ResumeRuntime(uint32_t pid)
         Status = IpcStreamReadAll(handle, payload.data(), payload.size());
         if (FAILED(Status))
         {
-            LOGE(log << "DiagnosticsIpc: failed to read response payload from '" << endpoint << "'");
+            LOGE(log << "DiagnosticIpc: failed to read response payload from '" << endpoint << "'");
             return DS_IPC_E_BAD_ENCODING;
         }
     }
 
     if (response.command_set == kCommandSetServer && response.command_id == kServerResponseIdOk)
     {
-        LOGD(log << "DiagnosticsIpc: ResumeRuntime succeeded for PID " << pid);
+        LOGD(log << "DiagnosticIpc: ResumeRuntime succeeded for PID " << pid);
         return S_OK;
     }
 
@@ -88,21 +88,21 @@ HRESULT ResumeRuntime(uint32_t pid)
     {
         if (payload.size() < sizeof(int32_t))
         {
-            LOGE(log << "DiagnosticsIpc: error response payload is too small: " << payload.size());
+            LOGE(log << "DiagnosticIpc: error response payload is too small: " << payload.size());
             return DS_IPC_E_BAD_ENCODING;
         }
 
         // Return the server HRESULT verbatim.
         const auto serverStatus = static_cast<HRESULT>(DecodeInt32LE(payload.data()));
-        LOGE(log << "DiagnosticsIpc: ResumeRuntime failed for PID " << pid << ", server HRESULT: 0x"
+        LOGE(log << "DiagnosticIpc: ResumeRuntime failed for PID " << pid << ", server HRESULT: 0x"
                  << std::setw(hexErrWidth) << std::setfill('0') << std::hex << serverStatus);
         return serverStatus;
     }
 
-    LOGE(log << "DiagnosticsIpc: unexpected response, command set: 0x"
+    LOGE(log << "DiagnosticIpc: unexpected response, command set: 0x"
              << static_cast<unsigned int>(response.command_set) << ", command id: 0x"
              << static_cast<unsigned int>(response.command_id));
     return DS_IPC_E_BAD_ENCODING;
 }
 
-} // namespace dncdbg::DiagnosticsClient
+} // namespace dncdbg::DiagnosticClient

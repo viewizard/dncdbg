@@ -4,20 +4,20 @@
 
 #ifdef _WIN32
 
-#include "utils/diagnostics_ipc.h"
+#include "utils/diagnostic_ipc.h"
 #include "utils/logger.h"
 #include <windows.h>
 #include <array>
 #include <cstdio>
 #include <string>
 
-namespace dncdbg::DiagnosticsIpc
+namespace dncdbg::DiagnosticIpc
 {
 
 namespace
 {
 
-// The runtime creates its default diagnostics endpoint as a named pipe with a
+// The runtime creates its default diagnostic endpoint as a named pipe with a
 // deterministic name "\\.\pipe\dotnet-diagnostic-{PID}", so no scanning is
 // needed on Windows.
 constexpr const char *kPipeNameFormat = "\\\\.\\pipe\\dotnet-diagnostic-%u";
@@ -35,7 +35,7 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
     const int written = std::snprintf(name.data(), name.size(), kPipeNameFormat, static_cast<unsigned int>(pid));
     if (written <= 0 || static_cast<size_t>(written) >= name.size())
     {
-        LOGE(log << "DiagnosticsIpc: failed to format pipe name for PID " << pid);
+        LOGE(log << "DiagnosticIpc: failed to format pipe name for PID " << pid);
         return E_FAIL;
     }
 
@@ -45,7 +45,7 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
 
 // Connects to the byte-mode named pipe `endpoint` (the server side is created
 // with PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, a synchronous client handle
-// is valid against such instance). Behavior mirrors the C# NamedPipeClientStream:
+// is valid against such an instance). Behavior mirrors the C# NamedPipeClientStream:
 // - ERROR_FILE_NOT_FOUND is returned immediately, without retry;
 // - ERROR_PIPE_BUSY drives a WaitNamedPipeA wait and a CreateFileA re-attempt,
 //   both sharing a single kConnectTimeoutMs deadline.
@@ -74,13 +74,13 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         const DWORD error = GetLastError();
         if (error == ERROR_FILE_NOT_FOUND)
         {
-            LOGD(log << "DiagnosticsIpc: pipe does not exist: " << endpoint);
+            LOGD(log << "DiagnosticIpc: pipe does not exist: " << endpoint);
             return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
         }
 
         if (error != ERROR_PIPE_BUSY)
         {
-            LOGE(log << "DiagnosticsIpc: CreateFileA failed for '" << endpoint << "', error=" << error);
+            LOGE(log << "DiagnosticIpc: CreateFileA failed for '" << endpoint << "', error=" << error);
             return E_FAIL;
         }
 
@@ -89,14 +89,14 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         const ULONGLONG now = GetTickCount64();
         if (now >= deadline)
         {
-            LOGE(log << "DiagnosticsIpc: connect timed out for '" << endpoint << "'");
+            LOGE(log << "DiagnosticIpc: connect timed out for '" << endpoint << "'");
             return HRESULT_FROM_WIN32(ERROR_PIPE_BUSY);
         }
 
         const DWORD remaining = static_cast<DWORD>(deadline - now);
         if (!WaitNamedPipeA(endpoint.c_str(), remaining))
         {
-            LOGE(log << "DiagnosticsIpc: WaitNamedPipeA failed for '" << endpoint << "', error=" << GetLastError());
+            LOGE(log << "DiagnosticIpc: WaitNamedPipeA failed for '" << endpoint << "', error=" << GetLastError());
             return HRESULT_FROM_WIN32(ERROR_PIPE_BUSY);
         }
     }
@@ -130,13 +130,13 @@ HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length)
         DWORD bytesRead = 0;
         if (!ReadFile(handle, buffer + total, chunk, &bytesRead, nullptr))
         {
-            LOGE(log << "DiagnosticsIpc: ReadFile failed, error=" << GetLastError());
+            LOGE(log << "DiagnosticIpc: ReadFile failed, error=" << GetLastError());
             return E_FAIL;
         }
 
         if (bytesRead == 0)
         {
-            LOGE(log << "DiagnosticsIpc: unexpected EOF while reading, got " << total << " of " << length);
+            LOGE(log << "DiagnosticIpc: unexpected EOF while reading, got " << total << " of " << length);
             return E_FAIL;
         }
 
@@ -163,7 +163,7 @@ HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length
         DWORD bytesWritten = 0;
         if (!WriteFile(handle, buffer + total, chunk, &bytesWritten, nullptr))
         {
-            LOGE(log << "DiagnosticsIpc: WriteFile failed, error=" << GetLastError());
+            LOGE(log << "DiagnosticIpc: WriteFile failed, error=" << GetLastError());
             return E_FAIL;
         }
 
@@ -173,6 +173,6 @@ HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length
     return S_OK;
 }
 
-} // namespace dncdbg::DiagnosticsIpc
+} // namespace dncdbg::DiagnosticIpc
 
 #endif // _WIN32

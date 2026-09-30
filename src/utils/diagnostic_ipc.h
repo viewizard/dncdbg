@@ -2,8 +2,8 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#ifndef UTILS_DIAGNOSTICS_IPC_H
-#define UTILS_DIAGNOSTICS_IPC_H
+#ifndef UTILS_DIAGNOSTIC_IPC_H
+#define UTILS_DIAGNOSTIC_IPC_H
 
 #include "utils/hresult.h"
 #include <array>
@@ -11,13 +11,13 @@
 #include <cstdint>
 #include <string>
 
-namespace dncdbg::DiagnosticsIpc
+namespace dncdbg::DiagnosticIpc
 {
 
 // Internal machinery of the .NET Diagnostic IPC protocol client (protocol
 // version DOTNET_IPC_V1): wire types, framing constants and the platform
-// transport layer. The public entry point is DiagnosticsClient (see
-// utils/diagnostics_client.h).
+// transport layer. The public entry point is DiagnosticClient (see
+// utils/diagnostic_client.h).
 
 // Opaque transport handle. Defined here so the header stays platform-neutral.
 #ifdef _WIN32
@@ -63,7 +63,7 @@ constexpr HRESULT DS_IPC_E_ENVVAR_NOT_FOUND = static_cast<HRESULT>(0x800000CB);
 
 // Wire header: 20 bytes on the wire, all integers little-endian.
 // Serialize manually field-by-field with explicit little-endian encoding (see
-// diagnostics_ipc.cpp); do NOT memcpy the struct (padding / endianness pitfalls).
+// diagnostic_ipc.cpp); do NOT memcpy the struct (padding / endianness pitfalls).
 struct IpcHeader
 {
     std::array<uint8_t, kMagicSize> magic; // ASCII "DOTNET_IPC_V1" + '\0'
@@ -74,9 +74,9 @@ struct IpcHeader
 };
 static_assert(sizeof(IpcHeader) == kHeaderSize, "IpcHeader must be 20 bytes");
 
-// Platform layer. Implemented in diagnostics_ipc_win32.cpp / diagnostics_ipc_unix.cpp.
+// Platform layer. Implemented in diagnostic_ipc_win32.cpp / diagnostic_ipc_unix.cpp.
 
-// Resolves the default diagnostics endpoint for `pid` into `outEndpoint`
+// Resolves the default diagnostic endpoint for `pid` into `outEndpoint`
 // (pipe name on Windows, absolute socket path on Unix). Returns
 // HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) when no endpoint exists for `pid`.
 HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint);
@@ -122,7 +122,7 @@ class IpcStreamGuard
 };
 
 // Shared header (de)serialization and response validation helpers.
-// Implemented in diagnostics_ipc.cpp.
+// Implemented in diagnostic_ipc.cpp.
 
 // Fills `outHeader` for a payload-less command request: wire magic, total size
 // = kHeaderSize, `commandSet` / `commandId`, reserved = 0.
@@ -138,9 +138,9 @@ void SerializeHeader(const IpcHeader &header, std::array<uint8_t, kHeaderSize> &
 HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcHeader &outHeader, size_t &outPayloadSize);
 
 // Decodes a little-endian int32_t value (server HRESULT in an error response
-// payload). HRESULT is a 4 bytes signed type in .NET, count on this.
+// payload). HRESULT is a 4-byte signed type in .NET; count on that.
 int32_t DecodeInt32LE(const uint8_t *data);
 
-} // namespace dncdbg::DiagnosticsIpc
+} // namespace dncdbg::DiagnosticIpc
 
-#endif // UTILS_DIAGNOSTICS_IPC_H
+#endif // UTILS_DIAGNOSTIC_IPC_H

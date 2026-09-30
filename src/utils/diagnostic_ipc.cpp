@@ -2,7 +2,7 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 
-#include "utils/diagnostics_ipc.h"
+#include "utils/diagnostic_ipc.h"
 #include <algorithm>
 #include <cstring>
 
@@ -10,7 +10,7 @@
 #include <palrt.h> // S_OK, E_FAIL, FAILED, HRESULT_FROM_WIN32 (via pal.h chain)
 #endif
 
-namespace dncdbg::DiagnosticsIpc
+namespace dncdbg::DiagnosticIpc
 {
 
 namespace
@@ -30,7 +30,7 @@ constexpr size_t kOffsetReserved = kOffsetCommandId + sizeof(uint8_t);   // uint
 
 static_assert(kOffsetReserved + sizeof(uint16_t) == kHeaderSize, "Unexpected wire header layout");
 
-// Bit shifts for the individual bytes of little-endian 16 / 32 bit fields.
+// Bit shifts for the individual bytes of little-endian 16- and 32-bit fields.
 constexpr uint32_t kByteShiftLow = 8U;
 constexpr uint32_t kByteShiftMid = 16U;
 constexpr uint32_t kByteShiftHigh = 24U;
@@ -103,7 +103,7 @@ HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcH
 }
 
 // Decodes a little-endian int32_t value (server HRESULT in an error response
-// payload). HRESULT is a 4 bytes signed type in .NET, count on this.
+// payload). HRESULT is a 4-byte signed type in .NET; count on that.
 int32_t DecodeInt32LE(const uint8_t *data)
 {
     const uint32_t value = static_cast<uint32_t>(data[0]) |
@@ -114,4 +114,4 @@ int32_t DecodeInt32LE(const uint8_t *data)
     return static_cast<int32_t>(value);
 }
 
-} // namespace dncdbg::DiagnosticsIpc
+} // namespace dncdbg::DiagnosticIpc

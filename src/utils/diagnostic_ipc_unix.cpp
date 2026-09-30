@@ -4,7 +4,7 @@
 
 #ifdef FEATURE_PAL
 
-#include "utils/diagnostics_ipc.h"
+#include "utils/diagnostic_ipc.h"
 #include "utils/logger.h"
 #include <dirent.h>
 #include <fcntl.h>
@@ -21,13 +21,13 @@
 #include <string>
 #include <string_view>
 
-namespace dncdbg::DiagnosticsIpc
+namespace dncdbg::DiagnosticIpc
 {
 
 namespace
 {
 
-// The runtime creates its default diagnostics endpoint as a Unix domain socket
+// The runtime creates its default diagnostic endpoint as a Unix domain socket
 // named "dotnet-diagnostic-{PID}-{disambiguation_key}-socket" in the temp
 // directory. These are the constant parts of that name.
 constexpr std::string_view kSocketPrefix = "dotnet-diagnostic-";
@@ -40,7 +40,7 @@ constexpr size_t kSunPathMax = sizeof(sockaddr_un::sun_path);
 // Decimal base for socket name parsing.
 constexpr uint64_t kDecimalBase = 10U;
 
-// Milliseconds / nanoseconds per second and per millisecond for clock math.
+// Clock math conversion factors: milliseconds per second, nanoseconds per millisecond.
 constexpr uint64_t kMsPerSec = 1000ULL;
 constexpr uint64_t kNsPerMs = 1000000ULL;
 
@@ -53,8 +53,8 @@ constexpr unsigned int kPollErrorMask = static_cast<unsigned int>(POLLERR) |
 // Parses "dotnet-diagnostic-{pid}-{key}-socket" and reports whether the entry
 // matches `targetPid`. Pointer-based manual parsing is used instead of sscanf
 // to avoid locale / signedness pitfalls; `key` is the runtime's
-// disambiguation key (process start time based), which this client does not
-// need to interpret.
+// disambiguation key (based on the process start time), which this client
+// does not need to interpret.
 bool ParseSocketName(const char *name, uint32_t targetPid)
 {
     const size_t nameLen = std::strlen(name);
@@ -111,7 +111,7 @@ std::string ResolveTempDir()
     return kDefaultTempDir;
 }
 
-// Returns monotonic clock value in milliseconds.
+// Returns the monotonic clock value in milliseconds.
 uint64_t NowMs()
 {
     struct timespec ts{};
@@ -174,9 +174,9 @@ int PollReady(int fd, short events, unsigned timeoutMs)
 
 // Endpoint discovery: scan the temp directory for
 // "dotnet-diagnostic-{pid}-{key}-socket" entries matching `pid` and return the
-// absolute path of the match. readdir order is not specified, so the match
-// which is the first in lexical order is used; multiple matches (should not
-// happen for one live PID) produce a warning. The path length is checked
+// absolute path of the match. readdir order is not specified, so the first
+// match in lexical order is used; multiple matches (should not happen for
+// one live PID) produce a warning. The path length is checked
 // against the sockaddr_un::sun_path limit and the entry must be a socket.
 HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
 {
@@ -187,7 +187,7 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
     DIR *dir = opendir(tempDir.c_str());
     if (dir == nullptr)
     {
-        LOGE(log << "DiagnosticsIpc: failed to open temp directory '" << tempDir << "', errno=" << errno);
+        LOGE(log << "DiagnosticIpc: failed to open temp directory '" << tempDir << "', errno=" << errno);
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
@@ -227,26 +227,26 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
 
     if (match.empty())
     {
-        LOGD(log << "DiagnosticsIpc: no diagnostics socket found for PID " << pid << " in '" << tempDir << "'");
+        LOGD(log << "DiagnosticIpc: no diagnostic socket found for PID " << pid << " in '" << tempDir << "'");
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
     if (multiple)
     {
-        LOGW(log << "DiagnosticsIpc: multiple diagnostics sockets found for PID " << pid
+        LOGW(log << "DiagnosticIpc: multiple diagnostic sockets found for PID " << pid
                  << ", using the first in lexical order: " << match);
     }
 
     if (match.size() >= kSunPathMax)
     {
-        LOGE(log << "DiagnosticsIpc: socket path is too long (" << match.size() << "): " << match);
+        LOGE(log << "DiagnosticIpc: socket path is too long (" << match.size() << "): " << match);
         return E_FAIL;
     }
 
     struct stat sb{};
     if (stat(match.c_str(), &sb) != 0 || !S_ISSOCK(sb.st_mode))
     {
-        LOGD(log << "DiagnosticsIpc: diagnostics endpoint is not a socket file: " << match);
+        LOGD(log << "DiagnosticIpc: diagnostic endpoint is not a socket file: " << match);
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
@@ -265,7 +265,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
     const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        LOGE(log << "DiagnosticsIpc: socket() failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: socket() failed, errno=" << errno);
         return E_FAIL;
     }
 
@@ -279,7 +279,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
     const int flags = ::fcntl(fd, F_GETFL, 0); // NOLINT(cppcoreguidelines-pro-type-vararg)
     if (flags < 0)
     {
-        LOGE(log << "DiagnosticsIpc: fcntl(F_GETFL) failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: fcntl(F_GETFL) failed, errno=" << errno);
         static_cast<void>(::close(fd));
         return E_FAIL;
     }
@@ -289,7 +289,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
     // file status flags are an int bit mask by POSIX API definition.
     if (::fcntl(fd, F_SETFL, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(O_NONBLOCK))) < 0) // NOLINT(cppcoreguidelines-pro-type-vararg,bugprone-signed-bitwise)
     {
-        LOGE(log << "DiagnosticsIpc: fcntl(O_NONBLOCK) failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: fcntl(O_NONBLOCK) failed, errno=" << errno);
         static_cast<void>(::close(fd));
         return E_FAIL;
     }
@@ -298,8 +298,8 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
     if (connectResult < 0 && errno != EINPROGRESS && errno != EINTR)
     {
         // Note: EINTR on a non-blocking socket means the connection attempt
-        // continues in the background, handle it like EINPROGRESS below.
-        LOGD(log << "DiagnosticsIpc: connect() failed to '" << endpoint << "', errno=" << errno);
+        // continues in the background; handle it like EINPROGRESS below.
+        LOGD(log << "DiagnosticIpc: connect() failed to '" << endpoint << "', errno=" << errno);
         static_cast<void>(::fcntl(fd, F_SETFL, flags)); // NOLINT(cppcoreguidelines-pro-type-vararg) restore blocking mode
         static_cast<void>(::close(fd));
         return E_FAIL;
@@ -311,7 +311,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         const int pollResult = PollReady(fd, POLLOUT, kConnectTimeoutMs);
         if (pollResult <= 0)
         {
-            LOGD(log << "DiagnosticsIpc: connect() "
+            LOGD(log << "DiagnosticIpc: connect() "
                      << (pollResult == 0 ? "timed out" : "failed") << " to '" << endpoint << "'");
             static_cast<void>(::fcntl(fd, F_SETFL, flags)); // NOLINT(cppcoreguidelines-pro-type-vararg) restore blocking mode
             static_cast<void>(::close(fd));
@@ -322,7 +322,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         socklen_t soErrorLen = sizeof(soError);
         if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &soError, &soErrorLen) < 0 || soError != 0)
         {
-            LOGD(log << "DiagnosticsIpc: connect() failed to '" << endpoint << "', SO_ERROR="
+            LOGD(log << "DiagnosticIpc: connect() failed to '" << endpoint << "', SO_ERROR="
                      << (soErrorLen == sizeof(soError) ? soError : errno));
             static_cast<void>(::fcntl(fd, F_SETFL, flags)); // NOLINT(cppcoreguidelines-pro-type-vararg) restore blocking mode
             static_cast<void>(::close(fd));
@@ -333,7 +333,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
     // Restore blocking mode before any further I/O.
     if (::fcntl(fd, F_SETFL, flags) < 0) // NOLINT(cppcoreguidelines-pro-type-vararg)
     {
-        LOGE(log << "DiagnosticsIpc: fcntl(restore blocking) failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: fcntl(restore blocking) failed, errno=" << errno);
         static_cast<void>(::close(fd));
         return E_FAIL;
     }
@@ -368,7 +368,7 @@ HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length)
 
         if (bytesRead == 0)
         {
-            LOGE(log << "DiagnosticsIpc: unexpected EOF while reading, got " << total << " of " << length);
+            LOGE(log << "DiagnosticIpc: unexpected EOF while reading, got " << total << " of " << length);
             return E_FAIL;
         }
 
@@ -381,13 +381,13 @@ HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length)
         {
             if (PollReady(handle, POLLIN, kIoTimeoutMs) <= 0)
             {
-                LOGE(log << "DiagnosticsIpc: read() timed out, errno=" << errno);
+                LOGE(log << "DiagnosticIpc: read() timed out, errno=" << errno);
                 return E_FAIL;
             }
             continue;
         }
 
-        LOGE(log << "DiagnosticsIpc: read() failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: read() failed, errno=" << errno);
         return E_FAIL;
     }
 
@@ -417,19 +417,19 @@ HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length
         {
             if (PollReady(handle, POLLOUT, kIoTimeoutMs) <= 0)
             {
-                LOGE(log << "DiagnosticsIpc: write() timed out, errno=" << errno);
+                LOGE(log << "DiagnosticIpc: write() timed out, errno=" << errno);
                 return E_FAIL;
             }
             continue;
         }
 
-        LOGE(log << "DiagnosticsIpc: write() failed, errno=" << errno);
+        LOGE(log << "DiagnosticIpc: write() failed, errno=" << errno);
         return E_FAIL;
     }
 
     return S_OK;
 }
 
-} // namespace dncdbg::DiagnosticsIpc
+} // namespace dncdbg::DiagnosticIpc
 
 #endif // FEATURE_PAL
