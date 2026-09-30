@@ -18,7 +18,7 @@ How to read the blocks below:
 ```text
 ✅  Supported
 ❌  Not supported
-🧩  VS Code IDE additional field
+🧩  Fields that go beyond the DAP specification
 ℹ️  Note
 ⚪  No additional fields
 ```
@@ -36,6 +36,10 @@ How to read the blocks below:
 #### Requests
 
 [Initialize Request](#initializerequest-initialize), [Launch Request](#launchrequest-launch), [Attach Request](#attachrequest-attach), [Restart Request](#restartrequest-restart), [Disconnect Request](#disconnectrequest-disconnect), [Terminate Request](#terminaterequest-terminate), [BreakpointLocations Request](#breakpointlocationsrequest-breakpointlocations), [SetBreakpoints Request](#setbreakpointsrequest-setbreakpoints), [SetFunctionBreakpoints Request](#setfunctionbreakpointsrequest-setfunctionbreakpoints), [SetExceptionBreakpoints Request](#setexceptionbreakpointsrequest-setexceptionbreakpoints), [ConfigurationDone Request](#configurationdonerequest-configurationdone), [Continue Request](#continuerequest-continue), [Next Request](#nextrequest-next), [StepIn Request](#stepinrequest-stepin), [StepOut Request](#stepoutrequest-stepout), [Pause Request](#pauserequest-pause), [Goto Request](#gotorequest-goto), [StackTrace Request](#stacktracerequest-stacktrace), [Scopes Request](#scopesrequest-scopes), [Variables Request](#variablesrequest-variables), [SetVariable Request](#setvariablerequest-setvariable), [Source Request](#sourcerequest-source), [Threads Request](#threadsrequest-threads), [Modules Request](#modulesrequest-modules), [LoadedSources Request](#loadedsourcesrequest-loadedsources), [Evaluate Request](#evaluaterequest-evaluate), [SetExpression Request](#setexpressionrequest-setexpression), [GotoTargets Request](#gototargetsrequest-gototargets), [ExceptionInfo Request](#exceptioninforequest-exceptioninfo)
+
+#### Requests, not part of the DAP specification
+
+[Detach Request](#detachrequest-detach)
 
 #### Types
 
@@ -495,6 +499,17 @@ How to read the blocks below:
 ✅  description?: string;
 ✅  breakMode: ExceptionBreakMode;
 ✅  details?: ExceptionDetails;
+```
+
+### Requests, not part of the DAP specification
+
+#### DetachRequest `detach`
+```text
+⚪  no additional fields
+```
+#### DetachResponse
+```text
+⚪  no additional fields
 ```
 
 ## Types

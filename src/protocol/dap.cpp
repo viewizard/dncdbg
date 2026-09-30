@@ -141,6 +141,7 @@ const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
         "attach",
         "disconnect",
         "terminate",
+        "detach",
         "restart"
     };
     return syncCommandExecutionSet;
@@ -152,6 +153,7 @@ const std::unordered_set<std::string> &GetCancelCommandQueueSet()
     static const std::unordered_set<std::string> cancelCommandQueueSet{
         "disconnect",
         "terminate",
+        "detach",
         "restart",
         "continue",
         "next",
@@ -176,6 +178,7 @@ const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
         "attach",
         "disconnect",
         "terminate",
+        "detach",
         "restart"
     };
     return debuggerSetupCommandSet;
@@ -687,24 +690,28 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"disconnect", [](const json &arguments, json &/*responseBody*/)
             {
+                HRESULT Status = S_OK;
                 const auto terminateArgIter = arguments.find("terminateDebuggee");
                 ManagedDebugger::DisconnectAction action = ManagedDebugger::DisconnectAction::Default;
-                if (terminateArgIter == arguments.cend())
-                {
-                    action = ManagedDebugger::DisconnectAction::Default;
-                }
-                else
+                if (terminateArgIter != arguments.cend())
                 {
                     action = terminateArgIter.value().get<bool>() ? ManagedDebugger::DisconnectAction::Terminate
                                                                   : ManagedDebugger::DisconnectAction::Detach;
                 }
 
-                ManagedDebugger::Disconnect(action);
+                IfFailRet(ManagedDebugger::Disconnect(action));
                 return S_OK;
             }},
         {"terminate", [](const json &/*arguments*/, json &/*responseBody*/)
             {
-                ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Terminate);
+                HRESULT Status = S_OK;
+                IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Terminate));
+                return S_OK;
+            }},
+        {"detach", [](const json &/*arguments*/, json &/*responseBody*/)
+            {
+                HRESULT Status = S_OK;
+                IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Detach));
                 return S_OK;
             }},
         {"stackTrace", [](const json &arguments, json &responseBody)

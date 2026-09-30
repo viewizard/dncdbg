@@ -23,6 +23,7 @@ Upcoming changes compared to previous version.
 - Added Restart Request and Response.
 - Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Requests.
 - Added support for `attach` and `launch` requests sent after the `initialize`-`configurationDone` request sequence.
+- Added Detach Request and Response (not part of the DAP specification).
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 - Fixed initialization response sequence: `attach` and `launch` responses are now sent only after the `configurationDone` response, with the proper attach/launch status, even when these requests were sent before the `configurationDone` request (for more info see: [Launch Sequencing](https://microsoft.github.io/debug-adapter-protocol/overview.html)).
