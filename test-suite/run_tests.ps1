@@ -140,9 +140,9 @@ foreach ($TEST_NAME in $TEST_NAMES) {
     }
 }
 
-Write-Host ""
-Write-Host $test_list
-Write-Host "Total tests: $($test_pass + $test_fail). Passed: $test_pass. Failed: $test_fail."
+Write-Output ""
+Write-Output $test_list
+Write-Output "Total tests: $($test_pass + $test_fail). Passed: $test_pass. Failed: $test_fail."
 
 if ($test_fail -ne 0) {
     exit 1
