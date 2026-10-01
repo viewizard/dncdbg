@@ -272,4 +272,14 @@ else()
     endif()
 endif()
 
+if(APPLE)
+    set(ENTITLEMENTS_FILE "${PROJECT_SOURCE_DIR}/entitlements.plist")
+    add_custom_command(
+        TARGET dncdbg POST_BUILD
+        COMMAND codesign --force --sign - --entitlements "${ENTITLEMENTS_FILE}" $<TARGET_FILE:dncdbg>
+        COMMENT "Signing dncdbg with the macOS debugger entitlement..."
+        VERBATIM
+    )
+endif()
+
 install_clr(TARGETS dncdbg DESTINATIONS .)
