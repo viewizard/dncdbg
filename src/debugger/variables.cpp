@@ -147,7 +147,11 @@ HRESULT FillValueAndType(ICorDebugThread *pThread, FormatSpecifier specifier, co
         return S_OK;
     }
 
-    return PrintValue(pThread, member.trValue, specifier, var.value);
+    if (FAILED(PrintValue(pThread, member.trValue, specifier, var.value)))
+    {
+        var.value = "<error>";
+    }
+    return S_OK;
 }
 
 HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReference &ref,

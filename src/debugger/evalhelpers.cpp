@@ -6,6 +6,7 @@
 #include "debugger/evalhelpers.h"
 #include "debugger/evalstackmachine.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
+#include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -185,6 +186,27 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     hasValue = (boolHasValue == 1);
 
     return S_OK;
+}
+
+HRESULT GetDictionaryItemValue(ICorDebugThread *pThread, ICorDebugValue *pValue,
+                               FormatSpecifier specifier, ICorDebugValue **ppItemValue)
+{
+    HRESULT Status = S_OK;
+
+    IfFailRet(Walkers::WalkMembers(pValue, pThread, FrameLevel{0}, false, specifier,
+        [&](ICorDebugType *, bool isStatic, const std::string &name,
+            const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *) -> HRESULT
+        {
+            if (isStatic || name != "Value")
+            {
+                return S_OK; // Return success to continue walking.
+            }
+
+            IfFailRet(getValue(ppItemValue, nullptr));
+            return S_CAN_EXIT;
+        }));
+
+    return (*ppItemValue == nullptr) ? E_FAIL : S_OK;
 }
 
 void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier)

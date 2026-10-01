@@ -127,7 +127,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
         }
     };
 
-    // Helper lambda to process nested type - returns true if we should continue loop
+    // Helper lambda to process nested type - returns true if we should continue the loop
     const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;
@@ -336,7 +336,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
         }
     };
 
-    // Helper lambda to process nested type - returns true if we should continue loop
+    // Helper lambda to process nested type - returns true if we should continue the loop
     const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;

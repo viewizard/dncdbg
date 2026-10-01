@@ -634,19 +634,19 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
-            std::string displayTypeName;
-            MetadataHelpers::GetFQDisplayTypeName(trValue, displayTypeName);
-            if (displayTypeName == "decimal")
+            std::string metadataName;
+            MetadataHelpers::GetFQMDTypeNameByICorValue(trValue, metadataName);
+            if (metadataName == "System.Decimal")
             {
                 std::string val;
                 PrintDecimalValue(trValue, val);
                 ss << val;
             }
-            else if (displayTypeName == "void")
+            else if (metadataName == "System.Void")
             {
                 ss << "Expression has been evaluated and has no value";
             }
-            else if (displayTypeName.back() == '?') // System.Nullable<T>
+            else if (metadataName == "System.Nullable`1") // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -654,7 +654,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
 
                 if (hasValue)
                 {
-                    // Iterative handling: set trCurrentValue to the inner value and continue loop
+                    // Iterative handling: set trCurrentValue to the inner value and continue the loop
                     trCurrentValue = trValueValue.Detach();
                     continue;
                 }
@@ -663,7 +663,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                     ss << "null";
                 }
             }
-            else if (displayTypeName == "System.Guid")
+            else if (metadataName == "System.Guid")
             {
                 GUID guid{};
                 if (cbSize == sizeof(GUID) &&
@@ -684,6 +684,14 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                     }
                 }
             }
+            else if (metadataName == "System.Collections.Generic.DebugViewDictionaryItem`2")
+            {
+                ToRelease<ICorDebugValue> trItemValue;
+                IfFailRet(GetDictionaryItemValue(pThread, trValue, specifier, &trItemValue));
+                // Iterative handling: set trCurrentValue to the inner value and continue the loop
+                trCurrentValue = trItemValue.Detach();
+                continue;
+            }
             else
             {
                 if (SUCCEEDED(PrintDebuggerDisplayAttribute(pThread, trCurrentValue, output)))
@@ -698,7 +706,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
 
                 ss << '{';
                 std::string valueToString;
-                if (displayTypeName != "System.Exception" && displayTypeName != "System.Object" && displayTypeName != "System.ValueType" &&
+                if (metadataName != "System.Exception" && metadataName != "System.Object" && metadataName != "System.ValueType" &&
                     SUCCEEDED(EvalExec::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
                     // Escape the ToString() result the same way as string values.
@@ -707,6 +715,9 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                 }
                 else
                 {
+                    std::string displayTypeName;
+                    MetadataHelpers::GetFQDisplayTypeName(trValue, displayTypeName);
+
                     ss << displayTypeName;
                 }
                 ss << '}';

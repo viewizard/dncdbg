@@ -24,6 +24,8 @@ namespace dncdbg
 HRESULT DereferenceAndUnboxValue(ICorDebugValue *pValue, ICorDebugValue **ppOutputValue, BOOL *pIsNull = nullptr);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, ICorDebugValue **ppHasValueValue);
 HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, bool &hasValue);
+HRESULT GetDictionaryItemValue(ICorDebugThread *pThread, ICorDebugValue *pValue,
+                               FormatSpecifier specifier, ICorDebugValue **ppItemValue);
 void ParseFormatSpecifier(const std::string &expressionWithFormat, std::string &expression, FormatSpecifier &specifier);
 HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &moduleFileName, const WSTRING &typeName,
                              const WSTRING &methodName, ICorDebugFunction **ppFunction);
